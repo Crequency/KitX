@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup />
+  <ItemGroup>
+    <ApplicationDefinition Update="App.xaml">
+      <SubType>Designer</SubType>
+    </ApplicationDefinition>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="View\Home.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="View\Lib.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="View\Market.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="View\Settings.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="MainWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <None Update="Resources\Languages\en-us.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Resources\Languages\ja-jp.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Resources\Languages\zh-cnt.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Resources\Languages\zh-cn.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <Page Update="Resources\Icon.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="Resources\Languages\default.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="View\Home.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="View\Lib.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="View\Market.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="View\Settings.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+</Project>
