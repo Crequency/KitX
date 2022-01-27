@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "JgXwHT3uch4ObI3bKDDC7QFam1nUoscbJ8PoBovudybJS2ykQ8ht6UCgLIv40z6LCcYsd2MhZKBt0Dh2esZNrg==",
+  "success": true,
+  "projectFilePath": "E:\\OneDrive\\Development\\Projects\\常青园\\Desktop\\KitX\\KitX\\KitX.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\23699\\.nuget\\packages\\handycontrol\\3.3.0\\handycontrol.3.3.0.nupkg.sha512",
+    "C:\\Users\\23699\\.nuget\\packages\\materialdesigncolors\\2.0.4\\materialdesigncolors.2.0.4.nupkg.sha512",
+    "C:\\Users\\23699\\.nuget\\packages\\materialdesignthemes\\4.3.0\\materialdesignthemes.4.3.0.nupkg.sha512",
+    "C:\\Users\\23699\\.nuget\\packages\\microsoft.ui.xaml\\2.7.0\\microsoft.ui.xaml.2.7.0.nupkg.sha512",
+    "C:\\Users\\23699\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
+    "C:\\Users\\23699\\.nuget\\packages\\system.drawing.common\\6.0.0\\system.drawing.common.6.0.0.nupkg.sha512",
+    "C:\\Users\\23699\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.22000.22\\microsoft.windows.sdk.net.ref.10.0.22000.22.nupkg.sha512"
+  ],
+  "logs": []
+}

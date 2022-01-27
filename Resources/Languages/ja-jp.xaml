@@ -1,0 +1,20 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <sys:String x:Key="App_Author">常青园晚</sys:String>
+
+    <sys:String x:Key="App_Theme_Light">明色</sys:String>
+    <sys:String x:Key="App_Theme_Dark">暗色</sys:String>
+
+    <sys:String x:Key="MainWindow_Title">KitX - 用途の広いツールボックス</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Home">表紙</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Lib">としょうかん</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Market">市場</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Set">設定</sys:String>
+    <sys:String x:Key="MainWindow_Oper_Title_Language">语言(Language)</sys:String>
+    <sys:String x:Key="MainWindow_Oper_Title_Themes">テーマスキン</sys:String>
+    <sys:String x:Key="MainWindow_Oper_Title_Options">インターフェース設定</sys:String>
+
+    <sys:String x:Key="Operation_Exit">終了する</sys:String>
+    <sys:String x:Key="Operation_PushMainWindow">メインパネルを表示</sys:String>
+</ResourceDictionary>

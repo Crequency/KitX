@@ -1,0 +1,20 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <sys:String x:Key="App_Author">常青园晚</sys:String>
+
+    <sys:String x:Key="App_Theme_Light">浅色</sys:String>
+    <sys:String x:Key="App_Theme_Dark">深色</sys:String>
+
+    <sys:String x:Key="MainWindow_Title">KitX - 一个万用的工具箱</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Home">首页</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Lib">库</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Market">市场</sys:String>
+    <sys:String x:Key="MainWindow_Nav_Set">设置</sys:String>
+    <sys:String x:Key="MainWindow_Oper_Title_Language">语言(Language)</sys:String>
+    <sys:String x:Key="MainWindow_Oper_Title_Themes">主题皮肤</sys:String>
+    <sys:String x:Key="MainWindow_Oper_Title_Options">界面设置</sys:String>
+
+    <sys:String x:Key="Operation_Exit">退出</sys:String>
+    <sys:String x:Key="Operation_PushMainWindow">显示主面板</sys:String>
+</ResourceDictionary>

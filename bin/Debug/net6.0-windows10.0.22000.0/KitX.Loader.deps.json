@@ -1,0 +1,36 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "KitX.Loader/1.0.0": {
+        "dependencies": {
+          "BasicHelper": "1.0.0"
+        },
+        "runtime": {
+          "KitX.Loader.dll": {}
+        }
+      },
+      "BasicHelper/1.0.0": {
+        "runtime": {
+          "BasicHelper.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "KitX.Loader/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "BasicHelper/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

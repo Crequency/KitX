@@ -1,0 +1,10 @@
+is_global = true
+build_property.TargetFramework = net6.0-windows10.0.22000.0
+build_property.TargetPlatformMinVersion = 10.0.17763.0
+build_property.UsingMicrosoftNETSdkWeb = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = KitX_tz0mvpbx_wpftmp
+build_property.ProjectDir = E:\OneDrive\Development\Projects\常青园\Desktop\KitX\KitX\
