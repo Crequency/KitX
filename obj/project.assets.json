@@ -403,10 +403,7 @@
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "D:\\NuGet": {},
-        "https://api.nuget.org/v3/index.json": {},
-        "https://mirrors.cloud.tencent.com/nuget/": {},
-        "https://nuget.cdn.azure.cn/v3/index.json": {},
-        "https://repo.huaweicloud.com/repository/nuget/v3/index.json": {}
+        "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net6.0-windows10.0.22000": {
