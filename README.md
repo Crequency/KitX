@@ -1,5 +1,6 @@
+![KitX](https://avatars.githubusercontent.com/t/5707791?s=280&v=4)
+
 <p align="center">
-  <img src="https://avatars.githubusercontent.com/t/5707791?s=280&v=4"/><br>
   
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Dynesshely/conconcon-tri-buter?style=for-the-badge"></img></a>
   <a href=""><img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white"></img></a>
