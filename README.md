@@ -1,6 +1,24 @@
 <p align="center">
+  <pre align="center">
+                                                                                 
+ /$$   /$$ /$$$$$$ /$$$$$$$$       /$$   /$$
+| $$  /$$/|_  $$_/|__  $$__/      | $$  / $$
+| $$ /$$/   | $$     | $$         |  $$/ $$/
+| $$$$$/    | $$     | $$          \  $$$$/ 
+| $$  $$    | $$     | $$           >$$  $$ 
+| $$\  $$   | $$     | $$          /$$/\  $$
+| $$ \  $$ /$$$$$$   | $$         | $$  \ $$
+|__/  \__/|______/   |__/         |__/  |__/
+                                            
+                                            
+  </pre>
+</p>
+
+<!--
+<p align="center">
   <img src="https://avatars.githubusercontent.com/t/5707791?s=280&v=4"/><br>
 </p>
+-->
 
 <p align="center">  
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/Dynesshely/conconcon-tri-buter?style=for-the-badge"></img></a>
