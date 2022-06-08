@@ -3,14 +3,30 @@
         xmlns:vm="using:KitX_Dashboard.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Width="1280" Height="720"
+        Width="{Binding DB_Width}" Height="{Binding DB_Height}"
         x:Class="KitX_Dashboard.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
         Title="KitX - Dashboard | 控制台">
 
-    <Design.DataContext>
-        <vm:MainWindowViewModel/>
-    </Design.DataContext>
+  <Design.DataContext>
+    <vm:MainWindowViewModel/>
+  </Design.DataContext>
+
+  <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
+                     SelectedItem="">
+    <ui:NavigationView.MenuItems>
+      <ui:NavigationViewItem x:Name="Page_Home" Content="Home" Tag="Page_Home" Icon="Home" Margin="0,5,0,0"/>
+      <ui:NavigationViewItem x:Name="Page_Lib" Content="Library" Tag="Page_Lib" Icon="Library"/>
+      <ui:NavigationViewItem x:Name="Page_Repo" Content="Repository" Tag="Page_Repo" Icon="Shop"/>
+    </ui:NavigationView.MenuItems>
+
+    <ui:NavigationView.FooterMenuItems>
+      <ui:NavigationViewItem x:Name="Page_Account" Content="Account" Tag="Page_Account" Icon="Account"/>
+      <ui:NavigationViewItem x:Name="Page_Settings" Content="Settings" Tag="Page_Settings" Icon="Settings"/>
+    </ui:NavigationView.FooterMenuItems>
+  </ui:NavigationView>
 
 </Window>
