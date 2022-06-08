@@ -1,25 +1,15 @@
-using Avalonia.Controls;
-using FluentAvalonia.UI.Controls;
-using System.ComponentModel;
-using BasicHelper.LiteDB;
-using System;
-using System.Collections.Generic;
 using Avalonia;
-using FluentAvalonia.Styling;
-using System.Runtime.InteropServices;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input;
+using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
-using Avalonia.Platform;
-using FluentAvalonia.Core.ApplicationModel;
+using BasicHelper.LiteDB;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。

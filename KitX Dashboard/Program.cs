@@ -1,9 +1,8 @@
 using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.ReactiveUI;
+using BasicHelper.LiteDB;
 using System;
 using System.IO;
-using BasicHelper.LiteDB;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 
