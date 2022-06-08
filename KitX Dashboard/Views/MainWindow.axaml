@@ -7,6 +7,7 @@
         xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         Width="{Binding DB_Width}" Height="{Binding DB_Height}"
+        MinWidth="800" MinHeight="600"
         x:Class="KitX_Dashboard.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
         Title="KitX - Dashboard | 控制台">

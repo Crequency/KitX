@@ -19,7 +19,6 @@ namespace KitX_Dashboard.ViewModels
             .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
             .GetTable("Windows").ReturnResult as DataTable)
             .Query(1).ReturnResult as List<object>)[2];
-
     }
 }
 
