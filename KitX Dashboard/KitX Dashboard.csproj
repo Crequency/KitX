@@ -8,9 +8,18 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
   </PropertyGroup>
   <ItemGroup>
-    <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
+    <Folder Include="Models\" />
+    <Folder Include="Services\" />
+    <Folder Include="Commands\" />
+    <Folder Include="Languages\" />
+    <Folder Include="Views\Pages\" />
     <None Remove=".gitignore" />
+    <None Remove="Assets\KitX-Background-ani.png" />
+    <None Remove="Assets\KitX-Background-Rounded-Box.png" />
+    <None Remove="Assets\KitX-Background-Rounded.png" />
+    <None Remove="Assets\KitX-Background.png" />
+    <None Remove="Assets\KitX.png" />
   </ItemGroup>
   <ItemGroup>
     <!--This helps with theme dll-s trimming.
