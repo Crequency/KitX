@@ -17,9 +17,10 @@
   </Design.DataContext>
 
   <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
-                     SelectedItem="">
+                     SelectedItem="{Binding ElementName=Page_Home}">
     <ui:NavigationView.MenuItems>
-      <ui:NavigationViewItem x:Name="Page_Home" Content="Home" Tag="Page_Home" Icon="Home" Margin="0,5,0,0"/>
+      <ui:NavigationViewItem x:Name="Page_Home" Content="Home" Tag="Page_Home" Icon="Home"
+                             Margin="0,5,0,0"/>
       <ui:NavigationViewItem x:Name="Page_Lib" Content="Library" Tag="Page_Lib" Icon="Library"/>
       <ui:NavigationViewItem x:Name="Page_Repo" Content="Repository" Tag="Page_Repo" Icon="Shop"/>
     </ui:NavigationView.MenuItems>
@@ -28,6 +29,10 @@
       <ui:NavigationViewItem x:Name="Page_Account" Content="Account" Tag="Page_Account" Icon="Account"/>
       <ui:NavigationViewItem x:Name="Page_Settings" Content="Settings" Tag="Page_Settings" Icon="Settings"/>
     </ui:NavigationView.FooterMenuItems>
+
+    <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False">
+      
+    </ui:Frame>
   </ui:NavigationView>
 
 </Window>
