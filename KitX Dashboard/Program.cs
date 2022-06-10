@@ -1,16 +1,18 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
 using BasicHelper.LiteDB;
+using BasicHelper.LiteLogger;
 using System;
+using System.Collections.Generic;
 using System.IO;
-
-#pragma warning disable CS8602 // 解引用可能出现空引用。
 
 namespace KitX_Dashboard
 {
     internal class Program
     {
         internal static DBManager LocalDataBase = new();
+
+        internal static LoggerManager LocalLogger = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
@@ -24,70 +26,15 @@ namespace KitX_Dashboard
         [STAThread]
         public static void Main(string[] args)
         {
-            #region 初始化 LiteDB
-            string DataBaseWorkBase = Path.GetFullPath(Data.GlobalInfo.ConfigPath);
-
-            if (Directory.Exists(DataBaseWorkBase))
-                LocalDataBase.WorkBase = DataBaseWorkBase;
-            else
-            {
-                Directory.CreateDirectory(DataBaseWorkBase);
-                LocalDataBase.WorkBase = DataBaseWorkBase;
-                InitDataBase();
-            }
-            #endregion
-
-            #region 检查 Catrol.Algorithm 库环境并安装环境
-            if (!Algorithm.Interop.Environment.CheckEnvironment())
-                new System.Threading.Thread(() =>
-                {
-                    Algorithm.Interop.Environment.InstallEnvironment();
-                }).Start();
+            #region 执行启动时检查
+            Helper.StartUpCheck(); 
             #endregion
 
             #region 进入应用生命周期循环
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); 
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
             #endregion
 
             LocalDataBase.Save2File();
-        }
-
-        /// <summary>
-        /// 初始化数据库
-        /// </summary>
-        public static void InitDataBase()
-        {
-            #region 创建数据库
-            LocalDataBase.CreateDataBase("Dashboard_Settings");
-            #endregion
-
-            var db_windows = LocalDataBase.GetDataBase("Dashboard_Settings").ReturnResult as DataBase;
-
-            #region 创建新表并初始化字段
-            db_windows.AddTable("Windows", new(
-                    new string[]
-                    {
-                    "Name",         "Width",        "Height",       "Left",         "Top",
-                    "EnabledMica",  "MicaOpacity"
-                    },
-                    new Type[]
-                    {
-                    typeof(string), typeof(double), typeof(double), typeof(int),    typeof(int),
-                    typeof(bool),   typeof(double)
-                    }
-                ));
-            #endregion
-
-            #region 初始化新表
-            var dt_mainwin = db_windows.GetTable("Windows").ReturnResult as DataTable;
-            dt_mainwin.Add(
-                new object[]
-                {
-                    "MainWindow",   (double)1280,   (double)720,    -1,             -1,
-                    true,           0.15
-                }
-            ); 
-            #endregion
         }
 
         /// <summary>
@@ -100,5 +47,3 @@ namespace KitX_Dashboard
             .UsePlatformDetect().LogToTrace().UseReactiveUI();
     }
 }
-
-#pragma warning restore CS8602 // 解引用可能出现空引用。
