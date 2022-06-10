@@ -5,11 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
         xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
+        xmlns:icon="using:Material.Icons.Avalonia"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         Width="{Binding DB_Width}" Height="{Binding DB_Height}"
         MinWidth="800" MinHeight="600"
         x:Class="KitX_Dashboard.Views.MainWindow"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/KitX.png"
         Title="KitX - Dashboard | 控制台">
 
   <Design.DataContext>
@@ -17,21 +18,22 @@
   </Design.DataContext>
 
   <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
-                     SelectedItem="{Binding ElementName=Page_Home}">
+                     SelectionChanged="MainNavigationView_SelectionChanged">
     <ui:NavigationView.MenuItems>
-      <ui:NavigationViewItem x:Name="Page_Home" Content="Home" Tag="Page_Home" Icon="Home"
+      <ui:NavigationViewItem x:Name="Page_Home" Content="Home" Tag="Page_Home" Icon="HomeFilled"
                              Margin="0,5,0,0"/>
-      <ui:NavigationViewItem x:Name="Page_Lib" Content="Library" Tag="Page_Lib" Icon="Library"/>
-      <ui:NavigationViewItem x:Name="Page_Repo" Content="Repository" Tag="Page_Repo" Icon="Shop"/>
+      <ui:NavigationViewItem x:Name="Page_Lib" Content="Library" Tag="Page_Lib" Icon="LibraryFilled"/>
+      <ui:NavigationViewItem x:Name="Page_Market" Content="Market" Tag="Page_Market" Icon="TagFilled"/>
+      <ui:NavigationViewItem x:Name="Page_Repo" Content="Repository" Tag="Page_Repo" Icon="FolderFilled"/>
     </ui:NavigationView.MenuItems>
 
     <ui:NavigationView.FooterMenuItems>
       <ui:NavigationViewItem x:Name="Page_Account" Content="Account" Tag="Page_Account" Icon="Account"/>
-      <ui:NavigationViewItem x:Name="Page_Settings" Content="Settings" Tag="Page_Settings" Icon="Settings"/>
+      <ui:NavigationViewItem x:Name="Page_Settings" Content="Settings" Tag="Page_Settings" Icon="Setting"/>
     </ui:NavigationView.FooterMenuItems>
 
     <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False">
-      
+
     </ui:Frame>
   </ui:NavigationView>
 

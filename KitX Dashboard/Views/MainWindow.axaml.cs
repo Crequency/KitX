@@ -1,9 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using BasicHelper.LiteDB;
+using BasicHelper.LiteLogger;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
@@ -12,9 +14,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
-#pragma warning disable CS8602 // ½âÒıÓÃ¿ÉÄÜ³öÏÖ¿ÕÒıÓÃ¡£
-#pragma warning disable CS8601 // ÒıÓÃÀàĞÍ¸³Öµ¿ÉÄÜÎª null¡£
-#pragma warning disable CS8605 // È¡Ïû×°Ïä¿ÉÄÜÎª null µÄÖµ¡£
+#pragma warning disable CS8602 // è§£å¼•ç”¨å¯èƒ½å‡ºç°ç©ºå¼•ç”¨ã€‚
+#pragma warning disable CS8601 // å¼•ç”¨ç±»å‹èµ‹å€¼å¯èƒ½ä¸º nullã€‚
+#pragma warning disable CS8605 // å–æ¶ˆè£…ç®±å¯èƒ½ä¸º null çš„å€¼ã€‚
+#pragma warning disable CS8604 // å¼•ç”¨ç±»å‹å‚æ•°å¯èƒ½ä¸º nullã€‚
 
 namespace KitX_Dashboard.Views
 {
@@ -48,14 +51,66 @@ namespace KitX_Dashboard.Views
                 PositionCameCenter((int)(local_db_table
                     .Query(1).ReturnResult as List<object>)[4], false)
             );
+
+            InitMainWindow();
         }
 
         /// <summary>
-        /// ×ø±ê»ØÕı
+        /// åˆå§‹åŒ–ä¸»çª—ä½“
         /// </summary>
-        /// <param name="input">´«ÈëµÄ×ø±ê</param>
-        /// <param name="isLeft">ÊÇ·ñÊÇ¾à×ó¾àÀë</param>
-        /// <returns>»ØÕıµÄ×ø±ê</returns>
+        private void InitMainWindow()
+        {
+            SelectedPageName = ((local_db_table.Query(1).ReturnResult as List<object>)
+                [7] as Dictionary<string, string>)["SelectedPage"];
+            MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
+            MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
+        }
+
+        /// <summary>
+        /// é€šè¿‡åç§°è·å–é¡µé¢ç±»å‹
+        /// </summary>
+        /// <param name="name">é¡µé¢åç§°</param>
+        /// <returns>é¡µé¢ç±»å‹</returns>
+        private static Type GetPageTypeFromName(string name)
+        {
+            return name switch
+            {
+                "Page_Home" => typeof(Pages.HomePage),
+                "Page_Lib" => typeof(Pages.LibPage),
+                "Page_Repo" => typeof(Pages.RepoPage),
+                "Page_Account" => typeof(Pages.AccountPage),
+                "Page_Settings" => typeof(Pages.SettingsPage),
+                "Page_Market" => typeof(Pages.MarketPage),
+                _ => typeof(Pages.HomePage),
+            };
+        }
+
+        private string SelectedPageName = string.Empty;
+
+        /// <summary>
+        /// åˆ‡æ¢å‰å°é¡µé¢
+        /// </summary>
+        /// <param name="sender">è¢«ç‚¹å‡»çš„ NavigationViewItem</param>
+        /// <param name="e">è·¯ç”±äº‹ä»¶å‚æ•°</param>
+        private async void MainNavigationView_SelectionChanged(object? sender, NavigationViewSelectionChangedEventArgs e)
+        {
+            try
+            {
+                SelectedPageName = ((sender as NavigationView).SelectedItem as Control).Tag.ToString();
+                MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
+            }
+            catch (NullReferenceException o)
+            {
+                await Program.LocalLogger.LogAsync("Logger_Debug", o.Message, LoggerManager.LogLevel.Warn);
+            }
+        }
+
+        /// <summary>
+        /// åæ ‡å›æ­£
+        /// </summary>
+        /// <param name="input">ä¼ å…¥çš„åæ ‡</param>
+        /// <param name="isLeft">æ˜¯å¦æ˜¯è·å·¦è·ç¦»</param>
+        /// <returns>å›æ­£çš„åæ ‡</returns>
         private int PositionCameCenter(int input, bool isLeft)
         {
             if (isLeft)
@@ -64,7 +119,7 @@ namespace KitX_Dashboard.Views
         }
 
         /// <summary>
-        /// ´¢´æÔªÊı¾İ
+        /// å‚¨å­˜å…ƒæ•°æ®
         /// </summary>
         private void SaveMetaData()
         {
@@ -72,12 +127,15 @@ namespace KitX_Dashboard.Views
             local_db_table.Update(1, "Height", Height);
             local_db_table.Update(1, "Left", Position.X);
             local_db_table.Update(1, "Top", Position.Y);
+            ((local_db_table.Query(1).ReturnResult as List<object>)
+                [7] as Dictionary<string, string>)
+                ["SelectedPage"] = SelectedPageName;
         }
 
         /// <summary>
-        /// ÕıÔÚ¹Ø±Õ´°¿ÚÊ±ÊÂ¼ş
+        /// æ­£åœ¨å…³é—­çª—å£æ—¶äº‹ä»¶
         /// </summary>
-        /// <param name="e">¹Ø±ÕÊÂ¼ş²ÎÊı</param>
+        /// <param name="e">å…³é—­äº‹ä»¶å‚æ•°</param>
         protected override void OnClosing(CancelEventArgs e)
         {
             base.OnClosing(e);
@@ -86,9 +144,9 @@ namespace KitX_Dashboard.Views
         }
 
         /// <summary>
-        /// ´°ÌåÕıÔÚÆô¶¯ÊÂ¼ş
+        /// çª—ä½“æ­£åœ¨å¯åŠ¨äº‹ä»¶
         /// </summary>
-        /// <param name="e">´°ÌåÆô¶¯²ÎÊı</param>
+        /// <param name="e">çª—ä½“å¯åŠ¨å‚æ•°</param>
         protected override void OnOpened(EventArgs e)
         {
             base.OnOpened(e);
@@ -112,10 +170,10 @@ namespace KitX_Dashboard.Views
         }
 
         /// <summary>
-        /// Ö÷ÌâÕıÔÚ¸ü¸ÄÇëÇóÊÂ¼ş
+        /// ä¸»é¢˜æ­£åœ¨æ›´æ”¹è¯·æ±‚äº‹ä»¶
         /// </summary>
         /// <param name="sender">FluentAvaloniaTheme</param>
-        /// <param name="args">Ö÷ÌâÕıÔÚ¸ü¸ÄÇëÇó²ÎÊı</param>
+        /// <param name="args">ä¸»é¢˜æ­£åœ¨æ›´æ”¹è¯·æ±‚å‚æ•°</param>
         private void OnRequestedThemeChanged(FluentAvaloniaTheme sender, RequestedThemeChangedEventArgs args)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -128,7 +186,7 @@ namespace KitX_Dashboard.Views
         }
 
         /// <summary>
-        /// ³¢ÊÔÆôÓÃÔÆÄ¸ÌØĞ§
+        /// å°è¯•å¯ç”¨äº‘æ¯ç‰¹æ•ˆ
         /// </summary>
         /// <param name="thm">FluentAvaloniaTheme</param>
         private void TryEnableMicaEffect(FluentAvaloniaTheme thm)
@@ -156,6 +214,7 @@ namespace KitX_Dashboard.Views
     }
 }
 
-#pragma warning restore CS8605 // È¡Ïû×°Ïä¿ÉÄÜÎª null µÄÖµ¡£
-#pragma warning restore CS8601 // ÒıÓÃÀàĞÍ¸³Öµ¿ÉÄÜÎª null¡£
-#pragma warning restore CS8602 // ½âÒıÓÃ¿ÉÄÜ³öÏÖ¿ÕÒıÓÃ¡£
+#pragma warning restore CS8604 // å¼•ç”¨ç±»å‹å‚æ•°å¯èƒ½ä¸º nullã€‚
+#pragma warning restore CS8605 // å–æ¶ˆè£…ç®±å¯èƒ½ä¸º null çš„å€¼ã€‚
+#pragma warning restore CS8601 // å¼•ç”¨ç±»å‹èµ‹å€¼å¯èƒ½ä¸º nullã€‚
+#pragma warning restore CS8602 // è§£å¼•ç”¨å¯èƒ½å‡ºç°ç©ºå¼•ç”¨ã€‚
