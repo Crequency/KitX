@@ -26,6 +26,9 @@ namespace KitX_Dashboard.Views
         private readonly DataTable local_db_table = (Program.LocalDataBase
             .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
             .GetTable("Windows").ReturnResult as DataTable;
+        private readonly DataTable local_db_table_app = (Program.LocalDataBase
+            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
+            .GetTable("App").ReturnResult as DataTable;
 
         public MainWindow()
         {
@@ -64,6 +67,10 @@ namespace KitX_Dashboard.Views
                 [7] as Dictionary<string, string>)["SelectedPage"];
             MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
+
+            if (!((string)(local_db_table_app.Query(1).ReturnResult as List<object>)[3]).Equals("Follow"))
+                AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
+                    (string)(local_db_table_app.Query(1).ReturnResult as List<object>)[3];
         }
 
         /// <summary>
@@ -92,7 +99,8 @@ namespace KitX_Dashboard.Views
         /// </summary>
         /// <param name="sender">被点击的 NavigationViewItem</param>
         /// <param name="e">路由事件参数</param>
-        private async void MainNavigationView_SelectionChanged(object? sender, NavigationViewSelectionChangedEventArgs e)
+        private async void MainNavigationView_SelectionChanged(object? sender,
+            NavigationViewSelectionChangedEventArgs e)
         {
             try
             {

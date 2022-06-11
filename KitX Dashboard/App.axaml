@@ -11,7 +11,16 @@
         <FluentTheme Mode="Light"/>
     </Application.Styles>-->
 
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Languages/default-lang.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
   <Application.Styles>
-    <sty:FluentAvaloniaTheme />
+    <sty:FluentAvaloniaTheme/>
+    <StyleInclude Source="avares://Material.Icons.Avalonia/App.xaml"/>
   </Application.Styles>
 </Application>

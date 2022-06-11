@@ -39,6 +39,23 @@ namespace KitX_Dashboard
             #region 初始化环境
             InitEnvironment();
             #endregion
+
+            #region 初始化一般信息
+            Program.LocalVersion = BasicHelper.Util.Version.Parse(
+                (string)(((Program.LocalDataBase
+                    .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
+                    .GetTable("App").ReturnResult as DataTable)
+                    .Query(1).ReturnResult as List<object>)[1]
+            );
+            #endregion
+        }
+
+        /// <summary>
+        /// 保存信息
+        /// </summary>
+        public static void SaveInfo()
+        {
+
         }
 
         /// <summary>
@@ -68,6 +85,16 @@ namespace KitX_Dashboard
                     typeof(Dictionary<string, string>)
                 }
             ));
+            db_windows.AddTable("App", new(
+                new string[]
+                {
+                    "Name",         "Version",      "Language",     "Theme",        "Accent"
+                },
+                new Type[]
+                {
+                    typeof(string), typeof(string), typeof(string), typeof(string), typeof(string)
+                }
+            ));
             #endregion
 
             #region 初始化新表
@@ -81,6 +108,14 @@ namespace KitX_Dashboard
                     {
                         { "SelectedPage", "Page_Home" }
                     }
+                }
+            );
+
+            var dt_app = db_windows.GetTable("App").ReturnResult as DataTable;
+            dt_app.Add(
+                new object[]
+                {
+                    "KitX",         "v3.0.0.0",     "zh-cn",        "Follow",       "#FF3873D9"
                 }
             );
             #endregion

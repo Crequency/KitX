@@ -2,9 +2,12 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
+using BasicHelper.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
+
+using Version = BasicHelper.Util.Version;
 
 namespace KitX_Dashboard
 {
@@ -13,6 +16,8 @@ namespace KitX_Dashboard
         internal static DBManager LocalDataBase = new();
 
         internal static LoggerManager LocalLogger = new();
+
+        internal static Version LocalVersion;
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
@@ -33,6 +38,8 @@ namespace KitX_Dashboard
             #region 进入应用生命周期循环
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
             #endregion
+
+            Helper.SaveInfo();
 
             LocalDataBase.Save2File();
         }
