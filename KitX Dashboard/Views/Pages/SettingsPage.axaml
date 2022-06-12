@@ -7,13 +7,14 @@
              xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
              xmlns:icon="using:Material.Icons.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.SettingsPage">
+             x:Class="KitX_Dashboard.Views.Pages.SettingsPage"
+             FontFamily="Cascadia Code Mono">
 
   <Design.DataContext>
     <vm:SettingsViewModel/>
   </Design.DataContext>
   
-  <TabControl SelectedIndex="0">
+  <TabControl SelectedIndex="{Binding TabControlSelectedIndex}">
 
     <!-- <General> -->
     <TabItem Width="200">
@@ -35,7 +36,17 @@
               </StackPanel>
             </Expander.Header>
 
-            <ui:ColorPicker Margin="10" Color="#FF3873D9" HorizontalAlignment="Center"/>
+            <DockPanel Margin="10">
+              <ui:ColorPicker Color="{DynamicResource ThemePrimaryAccent}" DockPanel.Dock="Left" ColorTextType="HexAlpha"
+                              IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
+                              UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
+                              UseSpectrum="True"/>
+              <Border DockPanel.Dock="Right">
+                <Button Content="{DynamicResource Text_Public_Confirm}"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+              </Border>
+              <Border/>
+            </DockPanel>
 
           </Expander>
 
@@ -156,7 +167,7 @@
 
             <Button Content="KitX" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                     FontSize="30" Width="100" Background="#DD3873D9" CornerRadius="45"
-                    KeyDown="AppNameButtonKeyDown"/>
+                    KeyDown="AppNameButtonKeyDown" Command="{Binding AppNameButtonClickedCommand}"/>
 
           </Grid>
 
@@ -199,15 +210,37 @@
 
           </StackPanel>
 
-          <Expander Header="Info" Margin="20,5">
+          <Expander Margin="20,5">
+            <Expander.Header>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
+                <TextBlock Text="{DynamicResource Text_Settings_Tab_About}" FontSize="18" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Expander.Header>
 
           </Expander>
 
-          <Expander Header="Info" Margin="20,5">
+          <Expander x:Name="AuthorsList" Margin="20,5" IsVisible="{Binding AuthorsListVisibility}">
+            <Expander.Header>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <icon:MaterialIcon Kind="User" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
+                <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Authors}" FontSize="18" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Expander.Header>
+
+            <WrapPanel Margin="10">
+              <ui:HyperlinkButton Margin="4" Background="{DynamicResource ThemePrimaryAccentTransparent22}" Content="常青园晚" NavigateUri="https://blog.catrol.cn"/>
+            </WrapPanel>
 
           </Expander>
 
-          <Expander Header="Info" Margin="20,5">
+          <Expander Margin="20,5">
+            <Expander.Header>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
+                <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Links}" FontSize="18" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Expander.Header>
 
           </Expander>
 

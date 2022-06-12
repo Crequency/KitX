@@ -9,21 +9,18 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class SettingsPage : UserControl
     {
+        private readonly ViewModels.SettingsViewModel viewModel = new();
+
         public SettingsPage()
         {
             InitializeComponent();
 
-            DataContext = new ViewModels.SettingsViewModel();
+            DataContext = viewModel;
         }
 
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
-        }
-
-        private void ThemeSelectionChanged(object? sender, SelectionChangedEventArgs e)
-        {
-
         }
 
         private readonly List<Key> keyqueue = new();
@@ -35,30 +32,26 @@ namespace KitX_Dashboard.Views.Pages
 
         private void AppNameButtonKeyDown(object sender, KeyEventArgs e)
         {
-
-            if (keyqueue.Count >= 10)
-                keyqueue.RemoveAt(0);
-            keyqueue.Add(e.Key);
-
-            //string tip = "";
-            //foreach (Key item in keyqueue)
-            //{
-            //    tip += $"{item}\n";
-            //}
-            //MessageBox.Avalonia.MessageBoxManager.GetMessageBoxStandardWindow("KeyQueue", tip).Show();
-
-            if (keyqueue.Count == 10)
+            if (viewModel.clickCount >= 7)
             {
-                bool pass = true;
-                for (int i = 0; i < keyqueue.Count; ++i)
-                    if (keyqueue[i] != (rightkey[i]))
-                    {
-                        pass = false;
-                        break;
-                    }
-                if (pass)
+                if (keyqueue.Count >= 10)
+                    keyqueue.RemoveAt(0);
+                keyqueue.Add(e.Key);
+
+                if (keyqueue.Count == 10)
                 {
-                    //TODO: 彩蛋内容
+                    bool pass = true;
+                    for (int i = 0; i < keyqueue.Count; ++i)
+                        if (keyqueue[i] != (rightkey[i]))
+                        {
+                            pass = false;
+                            break;
+                        }
+                    if (pass)
+                    {
+                        viewModel.AuthorsListVisibility = true;
+                        InitializeComponent();
+                    }
                 }
             }
         }

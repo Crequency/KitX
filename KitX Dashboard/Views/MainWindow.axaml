@@ -12,12 +12,15 @@
         x:Class="KitX_Dashboard.Views.MainWindow"
         x:Name="MainWindowInstance"
         Icon="/Assets/KitX.png"
+        FontFamily="Microsoft YaHei UI"
         Title="{DynamicResource Text_MainWindow_Title}">
 
   <Design.DataContext>
     <vm:MainWindowViewModel/>
   </Design.DataContext>
 
+  <!--{DynamicResource Text_MainWindow_NavigationView_Header}-->
+  
   <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
                      SelectionChanged="MainNavigationView_SelectionChanged">
     <ui:NavigationView.MenuItems>
@@ -38,9 +41,7 @@
                              Content="{DynamicResource Text_MainWindow_NavigationView_Settings}"/>
     </ui:NavigationView.FooterMenuItems>
 
-    <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False">
-
-    </ui:Frame>
+    <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
   </ui:NavigationView>
 
 </Window>

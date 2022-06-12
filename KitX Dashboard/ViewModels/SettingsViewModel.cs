@@ -2,6 +2,7 @@ using Avalonia;
 using BasicHelper.LiteDB;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
+using KitX_Dashboard.Commands;
 using System.Collections.Generic;
 
 #pragma warning disable CS8601 // 引用类型赋值可能为 null。
@@ -11,6 +12,21 @@ namespace KitX_Dashboard.ViewModels
 {
     public class SettingsViewModel : ViewModelBase
     {
+
+        public SettingsViewModel()
+        {
+            InitCommands();
+        }
+
+        /// <summary>
+        /// 初始化命令
+        /// </summary>
+        private void InitCommands()
+        {
+            AppNameButtonClickedCommand = new(AppNameButtonClicked);
+        }
+
+
         private static readonly DataTable dbt_mwin = (Program.LocalDataBase
             .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
             .GetTable("Windows").ReturnResult as DataTable;
@@ -18,6 +34,8 @@ namespace KitX_Dashboard.ViewModels
         private static readonly DataTable dbt_app = (Program.LocalDataBase
             .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
             .GetTable("App").ReturnResult as DataTable;
+
+        public int TabControlSelectedIndex { get; set; } = 0;
 
         public string VersionText => Program.LocalVersion.GetVersionText();
 
@@ -84,6 +102,13 @@ namespace KitX_Dashboard.ViewModels
             }
         }
 
+        public bool AuthorsListVisibility { get; set; } = false;
+
+        public int clickCount = 0;
+
+        public DelegateCommand? AppNameButtonClickedCommand { get; set; }
+
+        private void AppNameButtonClicked(object _) => ++clickCount;
 
     }
 }
