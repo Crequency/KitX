@@ -3,7 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32526.322
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX Dashboard", "KitX Dashboard\KitX Dashboard.csproj", "{651854CB-880C-4581-9B3F-EBA5891B9967}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX Dashboard", "KitX Dashboard\KitX Dashboard.csproj", "{651854CB-880C-4581-9B3F-EBA5891B9967}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Loader.WPF.Framework", "KitX Loaders\KitX.Loader.WPF.Framework\KitX.Loader.WPF.Framework.csproj", "{A82731BF-B7BF-46F8-836E-3CF6BAEBCCFA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Loaders", "KitX Loaders", "{7CC55BEB-CE41-4631-87C9-146CB1FE309C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Contracts", "KitX Contracts", "{CCA3C548-ABCE-47F0-A161-5045DEC0A297}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Loader.WPF.Core", "KitX Loaders\KitX.Loader.WPF.Core\KitX.Loader.WPF.Core.csproj", "{9A6A08A5-D60D-4DA5-9A32-638E3C76194F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Contract.CSharp", "KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj", "{C1A05E25-8DBA-4CA4-88D5-E28D69B76D13}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,9 +25,26 @@ Global
 		{651854CB-880C-4581-9B3F-EBA5891B9967}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{651854CB-880C-4581-9B3F-EBA5891B9967}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{651854CB-880C-4581-9B3F-EBA5891B9967}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A82731BF-B7BF-46F8-836E-3CF6BAEBCCFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A82731BF-B7BF-46F8-836E-3CF6BAEBCCFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A82731BF-B7BF-46F8-836E-3CF6BAEBCCFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A82731BF-B7BF-46F8-836E-3CF6BAEBCCFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A6A08A5-D60D-4DA5-9A32-638E3C76194F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A6A08A5-D60D-4DA5-9A32-638E3C76194F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A6A08A5-D60D-4DA5-9A32-638E3C76194F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A6A08A5-D60D-4DA5-9A32-638E3C76194F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1A05E25-8DBA-4CA4-88D5-E28D69B76D13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1A05E25-8DBA-4CA4-88D5-E28D69B76D13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1A05E25-8DBA-4CA4-88D5-E28D69B76D13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1A05E25-8DBA-4CA4-88D5-E28D69B76D13}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A82731BF-B7BF-46F8-836E-3CF6BAEBCCFA} = {7CC55BEB-CE41-4631-87C9-146CB1FE309C}
+		{9A6A08A5-D60D-4DA5-9A32-638E3C76194F} = {7CC55BEB-CE41-4631-87C9-146CB1FE309C}
+		{C1A05E25-8DBA-4CA4-88D5-E28D69B76D13} = {CCA3C548-ABCE-47F0-A161-5045DEC0A297}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
