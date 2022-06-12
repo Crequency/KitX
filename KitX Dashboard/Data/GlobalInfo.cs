@@ -10,5 +10,7 @@ namespace KitX_Dashboard.Data
     {
         internal const string ConfigPath = "./Config/";
 
+        internal const string LogPath = "./Log/";
+
     }
 }

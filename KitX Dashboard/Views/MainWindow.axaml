@@ -15,33 +15,33 @@
         FontFamily="Microsoft YaHei UI"
         Title="{DynamicResource Text_MainWindow_Title}">
 
-  <Design.DataContext>
-    <vm:MainWindowViewModel/>
-  </Design.DataContext>
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
 
-  <!--{DynamicResource Text_MainWindow_NavigationView_Header}-->
-  
-  <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
-                     SelectionChanged="MainNavigationView_SelectionChanged">
-    <ui:NavigationView.MenuItems>
-      <ui:NavigationViewItem x:Name="Page_Home" Tag="Page_Home" Icon="HomeFilled" Margin="0,5,0,0"
-                             Content="{DynamicResource Text_MainWindow_NavigationView_Home}"/>
-      <ui:NavigationViewItem x:Name="Page_Lib" Tag="Page_Lib" Icon="LibraryFilled"
-                             Content="{DynamicResource Text_MainWindow_NavigationView_Lib}"/>
-      <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market" Icon="TagFilled"
-                             Content="{DynamicResource Text_MainWindow_NavigationView_Market}"/>
-      <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo" Icon="FolderFilled"
-                             Content="{DynamicResource Text_MainWindow_NavigationView_Repo}"/>
-    </ui:NavigationView.MenuItems>
+    <!--{DynamicResource Text_MainWindow_NavigationView_Header}-->
 
-    <ui:NavigationView.FooterMenuItems>
-      <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account" Icon="Account"
-                             Content="{DynamicResource Text_MainWindow_NavigationView_Account}"/>
-      <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings" Icon="Setting"
-                             Content="{DynamicResource Text_MainWindow_NavigationView_Settings}"/>
-    </ui:NavigationView.FooterMenuItems>
+    <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
+                       SelectionChanged="MainNavigationView_SelectionChanged">
+        <ui:NavigationView.MenuItems>
+            <ui:NavigationViewItem x:Name="Page_Home" Tag="Page_Home" Icon="HomeFilled" Margin="0,5,0,0"
+                                   Content="{DynamicResource Text_MainWindow_NavigationView_Home}"/>
+            <ui:NavigationViewItem x:Name="Page_Lib" Tag="Page_Lib" Icon="LibraryFilled"
+                                   Content="{DynamicResource Text_MainWindow_NavigationView_Lib}"/>
+            <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market" Icon="TagFilled"
+                                   Content="{DynamicResource Text_MainWindow_NavigationView_Market}"/>
+            <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo" Icon="FolderFilled"
+                                   Content="{DynamicResource Text_MainWindow_NavigationView_Repo}"/>
+        </ui:NavigationView.MenuItems>
 
-    <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
-  </ui:NavigationView>
+        <ui:NavigationView.FooterMenuItems>
+            <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account" Icon="Account"
+                                   Content="{DynamicResource Text_MainWindow_NavigationView_Account}"/>
+            <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings" Icon="Setting"
+                                   Content="{DynamicResource Text_MainWindow_NavigationView_Settings}"/>
+        </ui:NavigationView.FooterMenuItems>
+
+        <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
+    </ui:NavigationView>
 
 </Window>

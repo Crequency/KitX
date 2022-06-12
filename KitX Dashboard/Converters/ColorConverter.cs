@@ -8,7 +8,7 @@ using FluentAvalonia.UI.Media;
 
 namespace KitX_Dashboard.Converters
 {
-    internal class ColorConverter : IValueConverter
+    public class ColorConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {

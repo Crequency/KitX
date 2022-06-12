@@ -32,7 +32,7 @@ namespace KitX_Dashboard
         public static void Main(string[] args)
         {
             #region 执行启动时检查
-            Helper.StartUpCheck(); 
+            Helper.StartUpCheck();
             #endregion
 
             #region 进入应用生命周期循环

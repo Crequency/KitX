@@ -3,40 +3,40 @@
              xmlns:local="using:KitX_Dashboard"
              xmlns:sty="using:FluentAvalonia.Styling"
              x:Class="KitX_Dashboard.App">
-  <Application.DataTemplates>
-    <local:ViewLocator/>
-  </Application.DataTemplates>
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
 
-  <!--<Application.Styles>
+    <!--<Application.Styles>
         <FluentTheme Mode="Light"/>
     </Application.Styles>-->
 
-  <Application.Resources>
-    <ResourceDictionary>
-      <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="/Languages/default-lang.axaml"/>
-      </ResourceDictionary.MergedDictionaries>
-      
-      <SolidColorBrush x:Key="ThemePrimaryAccent" Color="#FF3873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparentAA" Color="#AA3873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparentBB" Color="#BB3873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparentCC" Color="#CC3873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparentDD" Color="#DD3873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparentEE" Color="#EE3873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent99" Color="#993873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent88" Color="#883873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent77" Color="#773873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent66" Color="#663873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent55" Color="#553873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent44" Color="#443873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent33" Color="#333873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent22" Color="#223873D9"/>
-      <SolidColorBrush x:Key="ThemePrimaryAccentTransparent11" Color="#113873D9"/>
-    </ResourceDictionary>
-  </Application.Resources>
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="/Languages/default-lang.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-  <Application.Styles>
-    <sty:FluentAvaloniaTheme/>
-    <StyleInclude Source="avares://Material.Icons.Avalonia/App.xaml"/>
-  </Application.Styles>
+            <SolidColorBrush x:Key="ThemePrimaryAccent" Color="#FF3873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparentAA" Color="#AA3873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparentBB" Color="#BB3873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparentCC" Color="#CC3873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparentDD" Color="#DD3873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparentEE" Color="#EE3873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent99" Color="#993873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent88" Color="#883873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent77" Color="#773873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent66" Color="#663873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent55" Color="#553873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent44" Color="#443873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent33" Color="#333873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent22" Color="#223873D9"/>
+            <SolidColorBrush x:Key="ThemePrimaryAccentTransparent11" Color="#113873D9"/>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <sty:FluentAvaloniaTheme/>
+        <StyleInclude Source="avares://Material.Icons.Avalonia/App.xaml"/>
+    </Application.Styles>
 </Application>
