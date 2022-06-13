@@ -5,7 +5,6 @@ using System.Windows;
 
 namespace TestPlugin.WPF.Core
 {
-    [Export(typeof(IIdentityInterface))]
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
