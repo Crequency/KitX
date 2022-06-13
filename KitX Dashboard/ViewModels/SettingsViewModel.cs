@@ -1,12 +1,20 @@
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using BasicHelper.IO;
 using BasicHelper.LiteDB;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
+using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
+using KitX_Dashboard.Data;
 using System.Collections.Generic;
 
 #pragma warning disable CS8601 // 引用类型赋值可能为 null。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
+#pragma warning disable CS8604 // 引用类型参数可能为 null。
 
 namespace KitX_Dashboard.ViewModels
 {
@@ -24,6 +32,7 @@ namespace KitX_Dashboard.ViewModels
         private void InitCommands()
         {
             AppNameButtonClickedCommand = new(AppNameButtonClicked);
+            ColorConfirmedCommand = new(ColorConfirmed);
         }
 
 
@@ -64,6 +73,20 @@ namespace KitX_Dashboard.ViewModels
             }
         }
 
+        /// <summary>
+        /// 加载语言
+        /// </summary>
+        public void LoadLanguage()
+        {
+            string lang = (dbt_app.Query(1).ReturnResult as List<object>)[2] as string;
+            Application.Current.Resources.MergedDictionaries.Clear();
+            Application.Current.Resources.MergedDictionaries.Add(
+                AvaloniaRuntimeXamlLoader.Load(
+                    FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{lang}.axaml")
+                ) as ResourceDictionary
+            );
+        }
+
         public int LanguageSelected
         {
             get => (string)(dbt_app.Query(1).ReturnResult as List<object>)[2] switch
@@ -74,14 +97,18 @@ namespace KitX_Dashboard.ViewModels
                 "ja-jp" => 3,
                 _ => 0,
             };
-            set => (dbt_app.Query(1).ReturnResult as List<object>)[2] = value switch
+            set
             {
-                0 => "zh-cn",
-                1 => "zh-cnt",
-                2 => "en-us",
-                3 => "ja-jp",
-                _ => "zh-cn",
-            };
+                (dbt_app.Query(1).ReturnResult as List<object>)[2] = value switch
+                {
+                    0 => "zh-cn",
+                    1 => "zh-cnt",
+                    2 => "en-us",
+                    3 => "ja-jp",
+                    _ => "zh-cn",
+                };
+                LoadLanguage();
+            }
         }
 
         public int MicaStatus
@@ -102,16 +129,34 @@ namespace KitX_Dashboard.ViewModels
             }
         }
 
+        private Color2 nowColor = new();
+
+        public Color2 ThemeColor
+        {
+            get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
+            set => nowColor = value;
+        }
+
         public bool AuthorsListVisibility { get; set; } = false;
 
         public int clickCount = 0;
 
         public DelegateCommand? AppNameButtonClickedCommand { get; set; }
 
+        public DelegateCommand? ColorConfirmedCommand { get; set; }
+
         private void AppNameButtonClicked(object _) => ++clickCount;
 
+        private void ColorConfirmed(object _)
+        {
+            var c = nowColor;
+            Application.Current.Resources["ThemePrimaryAccent"] =
+                new SolidColorBrush(new Color(c.A, c.R, c.G, c.B));
+        }
     }
 }
 
+#pragma warning restore CS8604 // 引用类型参数可能为 null。
+#pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
 #pragma warning restore CS8601 // 引用类型赋值可能为 null。

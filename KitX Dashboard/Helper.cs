@@ -6,15 +6,20 @@ using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
+using FluentAvalonia.UI.Media;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8601 // 引用类型赋值可能为 null。
+#pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 
 namespace KitX_Dashboard
 {
     public static class Helper
     {
+
         /// <summary>
         /// 启动时检查
         /// </summary>
@@ -55,7 +60,15 @@ namespace KitX_Dashboard
         /// </summary>
         public static void SaveInfo()
         {
+            DataTable local_db_table_win = (Program.LocalDataBase
+                .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
+                .GetTable("Windows").ReturnResult as DataTable;
+            DataTable local_db_table_app = (Program.LocalDataBase
+                .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
+                .GetTable("App").ReturnResult as DataTable;
 
+            var accent = Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush;
+            (local_db_table_app.Query(1).ReturnResult as List<object>)[4] = new Color2(accent.Color).ToHexString();
         }
 
         /// <summary>
@@ -119,6 +132,8 @@ namespace KitX_Dashboard
                 }
             );
             #endregion
+
+            LocalDataBase.Save2File();
         }
 
         /// <summary>
@@ -153,4 +168,6 @@ namespace KitX_Dashboard
     }
 }
 
+#pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
+#pragma warning restore CS8601 // 引用类型赋值可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。

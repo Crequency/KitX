@@ -12,5 +12,7 @@ namespace KitX_Dashboard.Data
 
         internal const string LogPath = "./Log/";
 
+        internal const string LanguageFilePath = "./Languages/";
+
     }
 }

@@ -6,14 +6,9 @@
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
              xmlns:icon="using:Material.Icons.Avalonia"
-             xmlns:converter="using:KitX_Dashboard.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.SettingsPage"
              FontFamily="Cascadia Code Mono">
-
-    <UserControl.Resources>
-        <converter:ColorConverter x:Key="ColorConverter"/>
-    </UserControl.Resources>
 
     <Design.DataContext>
         <vm:SettingsViewModel/>
@@ -43,13 +38,14 @@
                         </Expander.Header>
 
                         <DockPanel Margin="10">
-                            <ui:ColorPicker Color="{DynamicResource ThemePrimaryAccent}" DockPanel.Dock="Left"
+                            <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Left"
                                             IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
                                             UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
                                             UseSpectrum="True" ColorTextType="HexAlpha"/>
                             <Border DockPanel.Dock="Right">
                                 <Button Content="{DynamicResource Text_Public_Confirm}"
-                                        HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                        Command="{Binding ColorConfirmed}"/>
                             </Border>
                             <Border/>
                         </DockPanel>
