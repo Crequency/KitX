@@ -75,5 +75,11 @@ namespace KitX.Contract.CSharp
         /// </summary>
         /// <returns>最近更新日期</returns>
         DateTime GetLastUpdateDate();
+
+        /// <summary>
+        /// 获取控制器
+        /// </summary>
+        /// <returns>控制器</returns>
+        IController GetController();
     }
 }
