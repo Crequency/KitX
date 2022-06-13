@@ -1,7 +1,9 @@
 ﻿using System;
+using System.ComponentModel.Composition;
 
 namespace KitX.Contract.CSharp
 {
+    [InheritedExport]
     public interface IIdentityInterface
     {
         /// <summary>
