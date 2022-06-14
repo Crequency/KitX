@@ -1,52 +1,51 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Add Resources Here -->
-    <sys:String x:Key="Text_MainWindow_Title">KitX 儀表盤</sys:String>
+    <x:String x:Key="Text_MainWindow_Title">KitX 儀表盤</x:String>
 
 
-    <sys:String x:Key="Text_Public_Enable">啟用</sys:String>
-    <sys:String x:Key="Text_Public_Disable">禁用</sys:String>
-    <sys:String x:Key="Text_Public_Auto">自動</sys:String>
-    <sys:String x:Key="Text_Public_Confirm">確認</sys:String>
+    <x:String x:Key="Text_Public_Enable">啟用</x:String>
+    <x:String x:Key="Text_Public_Disable">禁用</x:String>
+    <x:String x:Key="Text_Public_Auto">自動</x:String>
+    <x:String x:Key="Text_Public_Confirm">確認</x:String>
 
 
-    <sys:String x:Key="Text_Language_zh-cn">简体中文</sys:String>
-    <sys:String x:Key="Text_Language_zh-cnt">繁體中文</sys:String>
-    <sys:String x:Key="Text_Language_en-us">English (US)</sys:String>
-    <sys:String x:Key="Text_Language_ja-jp">日本語</sys:String>
+    <x:String x:Key="Text_Language_zh-cn">简体中文</x:String>
+    <x:String x:Key="Text_Language_zh-cnt">繁體中文</x:String>
+    <x:String x:Key="Text_Language_en-us">English (US)</x:String>
+    <x:String x:Key="Text_Language_ja-jp">日本語</x:String>
 
 
-    <sys:String x:Key="Text_MainWindow_NavigationView_Header">上午好! ο(=•ω＜=)ρ⌒☆</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Home">首頁</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Lib">庫</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Market">市場</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Plan">任務計劃</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Account">賬戶</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Settings">設置</sys:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Header">上午好! ο(=•ω＜=)ρ⌒☆</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Home">首頁</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Lib">庫</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Market">市場</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Plan">任務計劃</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Account">賬戶</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Settings">設置</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_General">通用</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme">主題</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Light">日光白 (淺色)</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Dark">午夜黑 (深色)</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">高對比度</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Follow">跟隨系統</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Palette">調色板</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_DisplayLanguage">顯示語言</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect">雲母效果</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否啟用雲母效果?</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</sys:String>
+    <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme">主題</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Light">日光白 (淺色)</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Dark">午夜黑 (深色)</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">高對比度</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Follow">跟隨系統</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Palette">調色板</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">顯示語言</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">雲母效果</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否啟用雲母效果?</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_Performence">性能</sys:String>
+    <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_About">關於</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Version">版本:</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Authors">製作人員</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Links">友情鏈接</sys:String>
+    <x:String x:Key="Text_Settings_Tab_About">關於</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Version">版本:</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Authors">製作人員</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Links">友情鏈接</x:String>
 
 </ResourceDictionary>

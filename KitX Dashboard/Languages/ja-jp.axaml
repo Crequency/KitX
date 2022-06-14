@@ -1,52 +1,51 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Add Resources Here -->
-    <sys:String x:Key="Text_MainWindow_Title">KitX ダッシュボード</sys:String>
+    <x:String x:Key="Text_MainWindow_Title">KitX ダッシュボード</x:String>
 
 
-    <sys:String x:Key="Text_Public_Enable">有効</sys:String>
-    <sys:String x:Key="Text_Public_Disable">無効</sys:String>
-    <sys:String x:Key="Text_Public_Auto">自動</sys:String>
-    <sys:String x:Key="Text_Public_Confirm">確認</sys:String>
+    <x:String x:Key="Text_Public_Enable">有効</x:String>
+    <x:String x:Key="Text_Public_Disable">無効</x:String>
+    <x:String x:Key="Text_Public_Auto">自動</x:String>
+    <x:String x:Key="Text_Public_Confirm">確認</x:String>
 
 
-    <sys:String x:Key="Text_Language_zh-cn">简体中文</sys:String>
-    <sys:String x:Key="Text_Language_zh-cnt">繁體中文</sys:String>
-    <sys:String x:Key="Text_Language_en-us">English (US)</sys:String>
-    <sys:String x:Key="Text_Language_ja-jp">日本語</sys:String>
+    <x:String x:Key="Text_Language_zh-cn">简体中文</x:String>
+    <x:String x:Key="Text_Language_zh-cnt">繁體中文</x:String>
+    <x:String x:Key="Text_Language_en-us">English (US)</x:String>
+    <x:String x:Key="Text_Language_ja-jp">日本語</x:String>
 
 
-    <sys:String x:Key="Text_MainWindow_NavigationView_Header">おはよう! ο(=•ω＜=)ρ⌒☆</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Home">表紙</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Lib">庫</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Market">市場</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Plan">ミッションプラン</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Account">アカウント</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Settings">設定</sys:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Header">おはよう! ο(=•ω＜=)ρ⌒☆</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Home">表紙</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Lib">庫</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Market">市場</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Plan">ミッションプラン</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Account">アカウント</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_General">ユニバーサル</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme">テーマ</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Light">デイライトホワイト（ライト）</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Dark">ミッドナイトブラック（ダーク）</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">ハイコントラスト</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Follow">システムに従ってください</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Palette">パレット</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_DisplayLanguage">表示言語</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica 効果</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Mica 効果を有効にするかどうか?</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明性</sys:String>
+    <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme">テーマ</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Light">デイライトホワイト（ライト）</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">ハイコントラスト</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Follow">システムに従ってください</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Palette">パレット</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">表示言語</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica 効果</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明性</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</sys:String>
+    <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_About">約</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Version">バージョン:</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Authors">制作スタッフ</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Links">リンク</sys:String>
+    <x:String x:Key="Text_Settings_Tab_About">約</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Version">バージョン:</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Authors">制作スタッフ</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Links">リンク</x:String>
 
 </ResourceDictionary>
