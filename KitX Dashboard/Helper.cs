@@ -12,7 +12,6 @@ using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS8601 // 引用类型赋值可能为 null。
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 
 namespace KitX_Dashboard
@@ -53,10 +52,6 @@ namespace KitX_Dashboard
                     .Query(1).ReturnResult as List<object>)[1]
             );
             #endregion
-
-            #region 启动 WebServer
-            Program.LocalWebServer.Start();
-            #endregion
         }
 
         /// <summary>
@@ -73,6 +68,15 @@ namespace KitX_Dashboard
 
             var accent = Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush;
             (local_db_table_app.Query(1).ReturnResult as List<object>)[4] = new Color2(accent.Color).ToHexString();
+        }
+
+        /// <summary>
+        /// 退出
+        /// </summary>
+        public static void Exit()
+        {
+            Program.LocalWebServer.Stop();
+            Program.LocalWebServer.Dispose();
         }
 
         /// <summary>
@@ -173,5 +177,4 @@ namespace KitX_Dashboard
 }
 
 #pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
-#pragma warning restore CS8601 // 引用类型赋值可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
