@@ -3,6 +3,7 @@ using Avalonia.ReactiveUI;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
 using BasicHelper.Util;
+using KitX_Dashboard.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,6 +19,8 @@ namespace KitX_Dashboard
         internal static LoggerManager LocalLogger = new();
 
         internal static Version LocalVersion;
+
+        internal static WebServer LocalWebServer = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告

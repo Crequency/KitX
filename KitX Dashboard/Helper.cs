@@ -53,6 +53,10 @@ namespace KitX_Dashboard
                     .Query(1).ReturnResult as List<object>)[1]
             );
             #endregion
+
+            #region 启动 WebServer
+            Program.LocalWebServer.Start();
+            #endregion
         }
 
         /// <summary>

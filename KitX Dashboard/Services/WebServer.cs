@@ -8,97 +8,40 @@ using System.IO.Pipes;
 using System.Threading;
 using System.IO;
 using BasicHelper.LiteLogger;
+using KitX_Dashboard.Data;
+using BasicHelper.IO.PipeHelper;
+using BasicHelper.Util;
+
+#pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
+#pragma warning disable CS8602 // 解引用可能出现空引用。
 
 namespace KitX_Dashboard.Services
 {
     public class WebServer
     {
-        public readonly NamedPipeServerStream pipeServer;
-
-        public WebServer(string name, PipeDirection direction, int maxThreads)
-        {
-            pipeServer = new(name, direction, maxThreads);
-
-            new Thread(() =>
-            {
-                int threadId = Environment.CurrentManagedThreadId;
-
-                pipeServer.WaitForConnection();
-                try
-                {
-                    StreamString ss = new(pipeServer);
-
-                    ss.WriteString("I am the one true server!");
-                    string filename = ss.ReadString();
-
-                    ReadFileToStream fileReader = new(ss, filename);
-
-                    Console.WriteLine("Reading file: {0} on thread[{1}] as user: {2}.",
-                        filename, threadId, pipeServer.GetImpersonationUserName());
-                    pipeServer.RunAsClient(fileReader.Start);
-                }
-                catch (IOException e)
-                {
-                    Program.LocalLogger.Log("Logger_Debug", e.Message, LoggerManager.LogLevel.Error);
-                }
-                pipeServer.Close();
-            }).Start();
-        }
-    }
-
-    public class StreamString
-    {
-        private readonly Stream ioStream;
-        private readonly UnicodeEncoding streamEncoding;
-
-        public StreamString(Stream ioStream)
-        {
-            this.ioStream = ioStream;
-            streamEncoding = new UnicodeEncoding();
-        }
-
-        public string ReadString()
-        {
-            int len = ioStream.ReadByte() * 256;
-            len += ioStream.ReadByte();
-            byte[] inBuffer = new byte[len];
-            ioStream.Read(inBuffer, 0, len);
-
-            return streamEncoding.GetString(inBuffer);
-        }
-
-        public int WriteString(string outString)
-        {
-            byte[] outBuffer = streamEncoding.GetBytes(outString);
-            int len = outBuffer.Length;
-            if (len > UInt16.MaxValue)
-            {
-                len = (int)UInt16.MaxValue;
-            }
-            ioStream.WriteByte((byte)(len / 256));
-            ioStream.WriteByte((byte)(len & 255));
-            ioStream.Write(outBuffer, 0, len);
-            ioStream.Flush();
-
-            return outBuffer.Length + 2;
-        }
-    }
-
-    public class ReadFileToStream
-    {
-        private readonly string fn;
-        private readonly StreamString ss;
-
-        public ReadFileToStream(StreamString str, string filename)
-        {
-            fn = filename;
-            ss = str;
-        }
+        public readonly NamedPipeServerStream pipeServer = new("KitX PipeServer",
+            PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
 
         public void Start()
         {
-            string contents = File.ReadAllText(fn);
-            ss.WriteString(contents);
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                pipeServer.BeginWaitForConnection((o) =>
+                {
+                    NamedPipeServerStream pServer = (NamedPipeServerStream)o.AsyncState;
+                    pServer.EndWaitForConnection(o);
+                    StreamString ss = new(pServer);
+                    while (GlobalInfo.PipeServerRunning)
+                    {
+
+                        //throw new Result<string>($"连接成功, 消息是{ss.ReadString()}");
+                    }
+                    ss.Dispose();
+                }, pipeServer);
+            });
         }
     }
 }
+
+#pragma warning restore CS8602 // 解引用可能出现空引用。
+#pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
