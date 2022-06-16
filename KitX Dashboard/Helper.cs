@@ -94,13 +94,10 @@ namespace KitX_Dashboard
                 new string[]
                 {
                     "Name",         "Version",      "Language",     "Theme",        "Accent",
-                    "Port",
-                    "PortSetted"
                 },
                 new Type[]
                 {
                     typeof(string), typeof(string), typeof(string), typeof(string), typeof(string),
-                    typeof(int),    typeof(bool)
                 }
             );
         }
@@ -161,13 +158,10 @@ namespace KitX_Dashboard
                 new string[]
                 {
                     "Name",         "Version",      "Language",     "Theme",        "Accent",
-                    "Port",
-                    "PortSetted"
                 },
                 new Type[]
                 {
                     typeof(string), typeof(string), typeof(string), typeof(string), typeof(string),
-                    typeof(int),    typeof(bool)
                 }
             ));
             #endregion
@@ -191,8 +185,6 @@ namespace KitX_Dashboard
                 new object[]
                 {
                     "KitX",         "v3.0.0.0",     "zh-cn",        "Follow",       "#FF3873D9",
-                    2280, // (114|514) + (114^514) + (114&514) + (114+514) + (514-114)
-                    false
                 }
             );
             #endregion
