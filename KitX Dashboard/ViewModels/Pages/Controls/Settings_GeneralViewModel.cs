@@ -1,4 +1,4 @@
-using Avalonia;
+ï»¿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -9,34 +9,31 @@ using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using System.Collections.Generic;
 
-#pragma warning disable CS8601 // ÒıÓÃÀàĞÍ¸³Öµ¿ÉÄÜÎª null¡£
-#pragma warning disable CS8602 // ½âÒıÓÃ¿ÉÄÜ³öÏÖ¿ÕÒıÓÃ¡£
-#pragma warning disable CS8600 // ½« null ×ÖÃæÁ¿»ò¿ÉÄÜÎª null µÄÖµ×ª»»Îª·Ç null ÀàĞÍ¡£
-#pragma warning disable CS8604 // ÒıÓÃÀàĞÍ²ÎÊı¿ÉÄÜÎª null¡£
+#pragma warning disable CS8602 // è§£å¼•ç”¨å¯èƒ½å‡ºç°ç©ºå¼•ç”¨ã€‚
+#pragma warning disable CS8600 // å°† null å­—é¢é‡æˆ–å¯èƒ½ä¸º null çš„å€¼è½¬æ¢ä¸ºé null ç±»å‹ã€‚
+#pragma warning disable CS8604 // å¼•ç”¨ç±»å‹å‚æ•°å¯èƒ½ä¸º nullã€‚
 
-namespace KitX_Dashboard.ViewModels
+namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    public class SettingsViewModel : ViewModelBase
+    public class Settings_GeneralViewModel : ViewModelBase
     {
 
-        public SettingsViewModel()
+        public Settings_GeneralViewModel()
         {
             InitCommands();
         }
 
         /// <summary>
-        /// ³õÊ¼»¯ÃüÁî
+        /// åˆå§‹åŒ–å‘½ä»¤
         /// </summary>
         private void InitCommands()
         {
-            AppNameButtonClickedCommand = new(AppNameButtonClicked);
             ColorConfirmedCommand = new(ColorConfirmed);
         }
 
-        public int TabControlSelectedIndex { get; set; } = 0;
-
-        public static string VersionText => Program.LocalVersion.GetVersionText();
-
+        /// <summary>
+        /// å¯é€‰çš„åº”ç”¨ä¸»é¢˜å±æ€§
+        /// </summary>
         public string[] AppThemes { get; } = new[]
         {
             FluentAvaloniaTheme.LightModeString,
@@ -49,6 +46,20 @@ namespace KitX_Dashboard.ViewModels
             == "Follow" ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
             : (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
 
+        private Color2 nowColor = new();
+
+        /// <summary>
+        /// ä¸»é¢˜è‰²å±æ€§
+        /// </summary>
+        public Color2 ThemeColor
+        {
+            get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
+            set => nowColor = value;
+        }
+
+        /// <summary>
+        /// å½“å‰åº”ç”¨ä¸»é¢˜å±æ€§
+        /// </summary>
         public string CurrentAppTheme
         {
             get => _currentAppTheme;
@@ -64,7 +75,7 @@ namespace KitX_Dashboard.ViewModels
         }
 
         /// <summary>
-        /// ¼ÓÔØÓïÑÔ
+        /// åŠ è½½è¯­è¨€
         /// </summary>
         public static void LoadLanguage()
         {
@@ -77,6 +88,9 @@ namespace KitX_Dashboard.ViewModels
             );
         }
 
+        /// <summary>
+        /// æ˜¾ç¤ºè¯­è¨€å±æ€§
+        /// </summary>
         public static int LanguageSelected
         {
             get => (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] switch
@@ -101,41 +115,33 @@ namespace KitX_Dashboard.ViewModels
             }
         }
 
+        /// <summary>
+        /// Mica æ•ˆæœæ˜¯å¦å¯ç”¨å±æ€§
+        /// </summary>
         public static int MicaStatus
         {
             get => (bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
             set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] = value != 1;
         }
 
+        /// <summary>
+        /// Mica æ•ˆæœé€æ˜åº¦å±æ€§
+        /// </summary>
         public static double MicaOpacity
         {
             get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6];
             set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[6] = value;
         }
 
-        private Color2 nowColor = new();
+        /// <summary>
+        /// ç½‘ç»œæœåŠ¡ç«¯å£å±æ€§
+        /// </summary>
+        public static int WebServerPort => GlobalInfo.ServerPortNumber;
 
-        public Color2 ThemeColor
-        {
-            get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
-            set => nowColor = value;
-        }
-
-        public static int WebServerPort
-        {
-            get => (int)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[5];
-            set => (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[5] = value;
-        }
-
-        public bool AuthorsListVisibility { get; set; } = false;
-
-        public int clickCount = 0;
-
-        public DelegateCommand? AppNameButtonClickedCommand { get; set; }
-
+        /// <summary>
+        /// ç¡®è®¤ä¸»é¢˜è‰²å˜æ›´å‘½ä»¤
+        /// </summary>
         public DelegateCommand? ColorConfirmedCommand { get; set; }
-
-        private void AppNameButtonClicked(object _) => ++clickCount;
 
         private void ColorConfirmed(object _)
         {
@@ -146,7 +152,6 @@ namespace KitX_Dashboard.ViewModels
     }
 }
 
-#pragma warning restore CS8604 // ÒıÓÃÀàĞÍ²ÎÊı¿ÉÄÜÎª null¡£
-#pragma warning restore CS8600 // ½« null ×ÖÃæÁ¿»ò¿ÉÄÜÎª null µÄÖµ×ª»»Îª·Ç null ÀàĞÍ¡£
-#pragma warning restore CS8602 // ½âÒıÓÃ¿ÉÄÜ³öÏÖ¿ÕÒıÓÃ¡£
-#pragma warning restore CS8601 // ÒıÓÃÀàĞÍ¸³Öµ¿ÉÄÜÎª null¡£
+#pragma warning restore CS8604 // å¼•ç”¨ç±»å‹å‚æ•°å¯èƒ½ä¸º nullã€‚
+#pragma warning restore CS8600 // å°† null å­—é¢é‡æˆ–å¯èƒ½ä¸º null çš„å€¼è½¬æ¢ä¸ºé null ç±»å‹ã€‚
+#pragma warning restore CS8602 // è§£å¼•ç”¨å¯èƒ½å‡ºç°ç©ºå¼•ç”¨ã€‚

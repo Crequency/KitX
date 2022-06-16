@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_About">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Orientation="Vertical" Margin="0,10">
+
+            <Grid>
+
+                <Button HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,20,20,25">
+                    <Image Source="/Assets/KitX.png" Width="128" Height="128" Margin="20"/>
+                </Button>
+
+                <Button Content="KitX" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                        FontSize="30" Width="100" Background="#DD3873D9" CornerRadius="45"
+                        KeyDown="AppNameButtonKeyDown" Command="{Binding AppNameButtonClickedCommand}"/>
+
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
+
+                <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Version}" FontSize="20"
+                           Margin="2.5,0"/>
+
+                <TextBlock Text="{Binding VersionText}" FontSize="20" Margin="2.5,0"/>
+
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10">
+
+                <ui:HyperlinkButton NavigateUri="https://github.com/Catrol-org/KitX/"
+                                    ToolTip.Tip="{Binding $self.NavigateUri}"
+                                    Margin="5,0">
+                    <StackPanel Orientation="Horizontal">
+                        <icon:MaterialIcon Kind="Github"/>
+                        <TextBlock Text=" GitHub Repo "/>
+                    </StackPanel>
+                </ui:HyperlinkButton>
+
+                <ui:HyperlinkButton NavigateUri="https://works.catrol.cn/KitX/"
+                                    ToolTip.Tip="{Binding $self.NavigateUri}"
+                                    Margin="5,0">
+                    <StackPanel Orientation="Horizontal">
+                        <icon:MaterialIcon Kind="OfficeBuilding"/>
+                        <TextBlock Text=" Official Website "/>
+                    </StackPanel>
+                </ui:HyperlinkButton>
+
+                <ui:HyperlinkButton NavigateUri="https://blog.catrol.cn"
+                                    ToolTip.Tip="{Binding $self.NavigateUri}"
+                                    Margin="5,0">
+                    <StackPanel Orientation="Horizontal">
+                        <icon:MaterialIcon Kind="BlogOutline"/>
+                        <TextBlock Text=" Author Blog "/>
+                    </StackPanel>
+                </ui:HyperlinkButton>
+
+            </StackPanel>
+
+            <Expander Margin="20,5">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18"
+                                           Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About}" FontSize="18"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Expander.Header>
+
+            </Expander>
+
+            <Expander x:Name="AuthorsList" Margin="20,5" IsVisible="{Binding AuthorsListVisibility}">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <icon:MaterialIcon Kind="User" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Authors}" FontSize="18"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Expander.Header>
+
+                <WrapPanel Margin="10">
+                    <ui:HyperlinkButton Margin="4" Background="{DynamicResource ThemePrimaryAccentTransparent22}"
+                                        Content="常青园晚" NavigateUri="https://blog.catrol.cn"/>
+                </WrapPanel>
+
+            </Expander>
+
+            <Expander Margin="20,5">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Links}" FontSize="18"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Expander.Header>
+
+            </Expander>
+
+
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
