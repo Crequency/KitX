@@ -1,7 +1,6 @@
 ﻿using KitX_Dashboard.Data;
 using System;
 using System.Collections.Generic;
-using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -68,8 +67,10 @@ namespace KitX_Dashboard.Services
                             BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
 
                         //接收消息线程
-                        Thread reciveMessageThread = new(ReciveMessage);
-                        reciveMessageThread.Start(client);
+                        new Thread(() =>
+                        {
+                            ReciveMessage(client);
+                        }).Start();
                     }
                     else
                     {

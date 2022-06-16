@@ -2,11 +2,8 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
-using BasicHelper.Util;
 using KitX_Dashboard.Services;
 using System;
-using System.Collections.Generic;
-using System.IO;
 
 using Version = BasicHelper.Util.Version;
 

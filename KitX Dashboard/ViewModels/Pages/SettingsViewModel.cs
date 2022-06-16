@@ -1,5 +1,3 @@
-using KitX_Dashboard.Commands;
-
 namespace KitX_Dashboard.ViewModels.Pages
 {
     public class SettingsViewModel : ViewModelBase

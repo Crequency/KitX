@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia;
 using Avalonia.Media;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
@@ -26,7 +22,6 @@ namespace KitX_Dashboard
         public static DataTable local_db_table_app => (Program.LocalDataBase
             .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
             .GetTable("App").ReturnResult as DataTable;
-
 
         /// <summary>
         /// 启动时检查
