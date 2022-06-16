@@ -136,6 +136,20 @@
 
                     </Expander>
 
+                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                        <DockPanel Margin="0,10,10,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                                <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
+                                <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"/>
+                            </StackPanel>
+
+                            <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding WebServerPort}"
+                                          DockPanel.Dock="Right"/>
+
+                            <Border/>
+                        </DockPanel>
+                    </ui:InfoBar>
+
                 </StackPanel>
             </ScrollViewer>
 
@@ -151,6 +165,12 @@
                                VerticalAlignment="Center"/>
                 </StackPanel>
             </TabItem.Header>
+
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Vertical" Margin="0,10">
+
+                </StackPanel>
+            </ScrollViewer>
 
         </TabItem>
         <!-- </Performence> -->

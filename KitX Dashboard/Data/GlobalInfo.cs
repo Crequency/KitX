@@ -14,7 +14,7 @@ namespace KitX_Dashboard.Data
 
         internal const string LanguageFilePath = "./Languages/";
 
-        internal static bool PipeServerRunning = true;
+        internal static int ServerPortNumber = 0;
 
     }
 }

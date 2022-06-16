@@ -1,5 +1,4 @@
 using BasicHelper.LiteDB;
-using FluentAvalonia.UI.Controls;
 using System.Collections.Generic;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -9,15 +8,17 @@ namespace KitX_Dashboard.ViewModels
 {
     public class MainWindowViewModel : ViewModelBase
     {
-        public double DB_Width => (double)(((Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("Windows").ReturnResult as DataTable)
-            .Query(1).ReturnResult as List<object>)[1];
+        public double DB_Width
+        {
+            get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[1];
+            set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[1] = value;
+        }
 
-        public double DB_Height => (double)(((Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("Windows").ReturnResult as DataTable)
-            .Query(1).ReturnResult as List<object>)[2];
+        public double DB_Height
+        {
+            get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[2];
+            set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[2] = value;
+        }
     }
 }
 

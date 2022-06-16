@@ -1,5 +1,4 @@
-﻿using BasicHelper.IO.PipeHelper;
-using KitX_Dashboard.Data;
+﻿using KitX_Dashboard.Data;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
@@ -17,6 +16,13 @@ namespace KitX_Dashboard.Services
     {
         public WebServer()
         {
+            listener = new(IPAddress.Any, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            GlobalInfo.ServerPortNumber = port;
+            Program.LocalLogger.Log("Logger_Debug", $"Server Port: {port}",
+                BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+
             acceptClientThread = new(AcceptClient);
             acceptClientThread.Start();
         }
@@ -27,11 +33,18 @@ namespace KitX_Dashboard.Services
         public void Stop()
         {
             keepListen = false;
+
+            foreach (KeyValuePair<string, TcpClient> item in clients)
+            {
+                item.Value.Close();
+                item.Value.Dispose();
+            }
+
             acceptClientThread.Join();
         }
 
-        public Thread? acceptClientThread;
-        public TcpListener? listener;
+        public Thread acceptClientThread;
+        public TcpListener listener;
         public bool keepListen = true;
 
         public readonly Dictionary<string, TcpClient> clients = new();
@@ -51,8 +64,11 @@ namespace KitX_Dashboard.Services
                         IPEndPoint endpoint = client.Client.RemoteEndPoint as IPEndPoint;
                         clients.Add(endpoint.ToString(), client);
 
+                        Program.LocalLogger.Log("Logger_Debug", $"New connection: {endpoint}",
+                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+
                         //接收消息线程
-                        Thread reciveMessageThread = new Thread(ReciveMessage);
+                        Thread reciveMessageThread = new(ReciveMessage);
                         reciveMessageThread.Start(client);
                     }
                     else
@@ -63,7 +79,8 @@ namespace KitX_Dashboard.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Program.LocalLogger.Log("Logger_Debug", $"Error: {ex.Message}",
+                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
             }
         }
 
@@ -115,6 +132,8 @@ namespace KitX_Dashboard.Services
             }
             catch (Exception ex)
             {
+                Program.LocalLogger.Log("Logger_Debug", $"Error: {ex.Message}",
+                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
                 //Read是阻塞方法 客户端退出是会引发异常 释放资源 结束此线程
             }
             finally

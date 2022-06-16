@@ -1,113 +1,118 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <!--Avalonia doesen't support TrimMode=link currently,but we are working on that https://github.com/AvaloniaUI/Avalonia/issues/6892 -->
-    <TrimMode>copyused</TrimMode>
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <ApplicationIcon>Assets\KitX-Icon-256x.ico</ApplicationIcon>
-  </PropertyGroup>
-  <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
-    <AvaloniaXaml Remove="Languages\en-us.axaml" />
-    <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
-    <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
-    <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
-    <Folder Include="Converters\" />
-    <Folder Include="Models\" />
-    <None Remove=".gitignore" />
-    <None Remove="Assets\KitX-Background-ani.png" />
-    <None Remove="Assets\KitX-Background-Rounded-Box.png" />
-    <None Remove="Assets\KitX-Background-Rounded.png" />
-    <None Remove="Assets\KitX-Background.png" />
-    <None Remove="Assets\KitX-Icon-128x.ico" />
-    <None Remove="Assets\KitX-Icon-16x.ico" />
-    <None Remove="Assets\KitX-Icon-256x.ico" />
-    <None Remove="Assets\KitX-Icon-32x.ico" />
-    <None Remove="Assets\KitX-Icon-48x.ico" />
-    <None Remove="Assets\KitX-Icon-64x.ico" />
-    <None Remove="Assets\KitX.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Assets\KitX-Icon-256x.ico" />
-    <Content Include="Languages\en-us.axaml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Languages\ja-jp.axaml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Languages\zh-cn.axaml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Languages\zh-cnt.axaml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <!--This helps with theme dll-s trimming.
-	If you will publish your application in self-contained mode with p:PublishTrimmed=true and it will use Fluent theme Default theme will be trimmed from the output and vice versa.
-	https://github.com/AvaloniaUI/Avalonia/issues/5593 -->
-    <TrimmableAssembly Include="Avalonia.Themes.Fluent" />
-    <TrimmableAssembly Include="Avalonia.Themes.Default" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Avalonia" Version="0.10.15" />
-    <PackageReference Include="Avalonia.Desktop" Version="0.10.15" />
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="0.10.15" />
-    <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="0.10.15" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="0.10.15" />
-    <PackageReference Include="Catrol.Algorithm.Interop" Version="1.0.6171.52800" />
-    <PackageReference Include="Catrol.BasicHelper" Version="1.0.6177.27026" />
-    <PackageReference Include="FluentAvaloniaUI" Version="1.4.0" />
-    <PackageReference Include="Markdown.Avalonia" Version="0.10.11" />
-    <PackageReference Include="Material.Icons.Avalonia" Version="1.0.2" />
-    <PackageReference Include="MessageBox.Avalonia" Version="2.0.1" />
-    <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
-  </ItemGroup>
-  <ItemGroup>
-    <AvaloniaResource Update="Assets\avalonia-logo.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Background-ani.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Background-Rounded-Box.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Background-Rounded.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Background.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Icon-128x.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Icon-16x.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Icon-256x.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Icon-32x.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Icon-48x.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX-Icon-64x.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaResource>
-    <AvaloniaResource Update="Assets\KitX.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </AvaloniaResource>
-  </ItemGroup>
-  <ItemGroup>
-    <AvaloniaXaml Update="Languages\default-lang.axaml">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </AvaloniaXaml>
-  </ItemGroup>
-  <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <!--Avalonia doesen't support TrimMode=link currently,but we are working on that https://github.com/AvaloniaUI/Avalonia/issues/6892 -->
+        <TrimMode>copyused</TrimMode>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationIcon>Assets\KitX-Icon-256x.ico</ApplicationIcon>
+        <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    </PropertyGroup>
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**" />
+        <AvaloniaXaml Remove="FakesAssemblies\**" />
+        <Compile Remove="FakesAssemblies\**" />
+        <EmbeddedResource Remove="FakesAssemblies\**" />
+        <Folder Include="Views\Pages\Controls\" />
+        <None Remove="FakesAssemblies\**" />
+        <AvaloniaXaml Remove="Languages\en-us.axaml" />
+        <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
+        <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
+        <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
+        <Folder Include="Converters\" />
+        <Folder Include="Models\" />
+        <None Remove=".gitignore" />
+        <None Remove="Assets\KitX-Background-ani.png" />
+        <None Remove="Assets\KitX-Background-Rounded-Box.png" />
+        <None Remove="Assets\KitX-Background-Rounded.png" />
+        <None Remove="Assets\KitX-Background.png" />
+        <None Remove="Assets\KitX-Icon-128x.ico" />
+        <None Remove="Assets\KitX-Icon-16x.ico" />
+        <None Remove="Assets\KitX-Icon-256x.ico" />
+        <None Remove="Assets\KitX-Icon-32x.ico" />
+        <None Remove="Assets\KitX-Icon-48x.ico" />
+        <None Remove="Assets\KitX-Icon-64x.ico" />
+        <None Remove="Assets\KitX.png" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="Assets\KitX-Icon-256x.ico" />
+        <Content Include="Languages\en-us.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Languages\ja-jp.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Languages\zh-cn.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Languages\zh-cnt.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <ItemGroup>
+        <!--This helps with theme dll-s trimming.
+    If you will publish your application in self-contained mode with p:PublishTrimmed=true and it will use Fluent theme Default theme will be trimmed from the output and vice versa.
+    https://github.com/AvaloniaUI/Avalonia/issues/5593 -->
+        <TrimmableAssembly Include="Avalonia.Themes.Fluent" />
+        <TrimmableAssembly Include="Avalonia.Themes.Default" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="0.10.15" />
+        <PackageReference Include="Avalonia.Desktop" Version="0.10.15" />
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="0.10.15" />
+        <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="0.10.15" />
+        <PackageReference Include="Avalonia.ReactiveUI" Version="0.10.15" />
+        <PackageReference Include="Catrol.Algorithm.Interop" Version="1.0.6171.52800" />
+        <PackageReference Include="Catrol.BasicHelper" Version="1.0.6177.62327" />
+        <PackageReference Include="FluentAvaloniaUI" Version="1.4.0" />
+        <PackageReference Include="Markdown.Avalonia" Version="0.10.11" />
+        <PackageReference Include="Material.Icons.Avalonia" Version="1.0.2" />
+        <PackageReference Include="MessageBox.Avalonia" Version="2.0.1" />
+        <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
+    </ItemGroup>
+    <ItemGroup>
+        <AvaloniaResource Update="Assets\avalonia-logo.ico">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Background-ani.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Background-Rounded-Box.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Background-Rounded.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Background.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Icon-128x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Icon-16x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Icon-256x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Icon-32x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Icon-48x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX-Icon-64x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\KitX.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
+    </ItemGroup>
+    <ItemGroup>
+        <AvaloniaXaml Update="Languages\default-lang.axaml">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaXaml>
+    </ItemGroup>
 </Project>

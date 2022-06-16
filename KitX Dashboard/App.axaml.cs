@@ -1,14 +1,13 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using BasicHelper.LiteDB;
+using Avalonia.Media;
 using BasicHelper.IO;
+using KitX_Dashboard.Data;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
 using System.Collections.Generic;
-using Avalonia.Media;
-using Avalonia.Controls;
-using KitX_Dashboard.Data;
 
 #pragma warning disable CS8601 // 引用类型赋值可能为 null。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -19,15 +18,11 @@ namespace KitX_Dashboard
 {
     public partial class App : Application
     {
-        private readonly DataTable local_db_table_app = (Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("App").ReturnResult as DataTable;
-
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
 
-            string lang = (local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
+            string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
             Resources.MergedDictionaries.Clear();
             Resources.MergedDictionaries.Add(
                 AvaloniaRuntimeXamlLoader.Load(
@@ -46,7 +41,7 @@ namespace KitX_Dashboard
                 };
             }
 
-            string color = (local_db_table_app.Query(1).ReturnResult as List<object>)[4] as string;
+            string color = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[4] as string;
             Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 
             base.OnFrameworkInitializationCompleted();

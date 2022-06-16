@@ -3,9 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
-using BasicHelper.LiteDB;
 using FluentAvalonia.Styling;
-using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
@@ -35,18 +33,9 @@ namespace KitX_Dashboard.ViewModels
             ColorConfirmedCommand = new(ColorConfirmed);
         }
 
-
-        private static readonly DataTable dbt_mwin = (Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("Windows").ReturnResult as DataTable;
-
-        private static readonly DataTable dbt_app = (Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("App").ReturnResult as DataTable;
-
         public int TabControlSelectedIndex { get; set; } = 0;
 
-        public string VersionText => Program.LocalVersion.GetVersionText();
+        public static string VersionText => Program.LocalVersion.GetVersionText();
 
         public string[] AppThemes { get; } = new[]
         {
@@ -55,16 +44,17 @@ namespace KitX_Dashboard.ViewModels
             FluentAvaloniaTheme.HighContrastModeString
         };
 
-        private string _currentAppTheme = (string)(dbt_app.Query(1).ReturnResult as List<object>)[3]
+        private string _currentAppTheme = (string)
+            (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]
             == "Follow" ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
-            : (string)(dbt_app.Query(1).ReturnResult as List<object>)[3];
+            : (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
 
         public string CurrentAppTheme
         {
             get => _currentAppTheme;
             set
             {
-                (dbt_app.Query(1).ReturnResult as List<object>)[3] = value;
+                (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3] = value;
                 if (RaiseAndSetIfChanged(ref _currentAppTheme, value))
                 {
                     var faTheme = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
@@ -76,9 +66,9 @@ namespace KitX_Dashboard.ViewModels
         /// <summary>
         /// º”‘ÿ”Ô—‘
         /// </summary>
-        public void LoadLanguage()
+        public static void LoadLanguage()
         {
-            string lang = (dbt_app.Query(1).ReturnResult as List<object>)[2] as string;
+            string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
             Application.Current.Resources.MergedDictionaries.Clear();
             Application.Current.Resources.MergedDictionaries.Add(
                 AvaloniaRuntimeXamlLoader.Load(
@@ -87,9 +77,9 @@ namespace KitX_Dashboard.ViewModels
             );
         }
 
-        public int LanguageSelected
+        public static int LanguageSelected
         {
-            get => (string)(dbt_app.Query(1).ReturnResult as List<object>)[2] switch
+            get => (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] switch
             {
                 "zh-cn" => 0,
                 "zh-cnt" => 1,
@@ -99,7 +89,7 @@ namespace KitX_Dashboard.ViewModels
             };
             set
             {
-                (dbt_app.Query(1).ReturnResult as List<object>)[2] = value switch
+                (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] = value switch
                 {
                     0 => "zh-cn",
                     1 => "zh-cnt",
@@ -111,22 +101,16 @@ namespace KitX_Dashboard.ViewModels
             }
         }
 
-        public int MicaStatus
+        public static int MicaStatus
         {
-            get => (bool)(dbt_mwin.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
-            set
-            {
-                (dbt_mwin.Query(1).ReturnResult as List<object>)[5] = value != 1;
-            }
+            get => (bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
+            set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] = value != 1;
         }
 
-        public double MicaOpacity
+        public static double MicaOpacity
         {
-            get => (double)(dbt_mwin.Query(1).ReturnResult as List<object>)[6];
-            set
-            {
-                (dbt_mwin.Query(1).ReturnResult as List<object>)[6] = value;
-            }
+            get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6];
+            set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[6] = value;
         }
 
         private Color2 nowColor = new();
@@ -135,6 +119,12 @@ namespace KitX_Dashboard.ViewModels
         {
             get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
             set => nowColor = value;
+        }
+
+        public static int WebServerPort
+        {
+            get => (int)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[5];
+            set => (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[5] = value;
         }
 
         public bool AuthorsListVisibility { get; set; } = false;
