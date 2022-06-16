@@ -14,13 +14,11 @@
         <AvaloniaXaml Remove="FakesAssemblies\**" />
         <Compile Remove="FakesAssemblies\**" />
         <EmbeddedResource Remove="FakesAssemblies\**" />
-        <Folder Include="Views\Pages\Controls\" />
         <None Remove="FakesAssemblies\**" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
         <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
-        <Folder Include="Converters\" />
         <Folder Include="Models\" />
         <None Remove=".gitignore" />
         <None Remove="Assets\KitX-Background-ani.png" />
