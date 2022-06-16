@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             xmlns:converters="using:KitX_Dashboard.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_General">
+
+    <UserControl.Resources>
+        <converters:Selection2VisibleConverter x:Key="Converter_S2V"/>
+    </UserControl.Resources>
+    
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Orientation="Vertical" Margin="0,10">
+
+            <Expander Margin="20,5">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Palette}"/>
+                    </StackPanel>
+                </Expander.Header>
+
+                <DockPanel Margin="10">
+                    <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Left"
+                                    IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
+                                    UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
+                                    UseSpectrum="True" ColorTextType="HexAlpha"/>
+                    <Border DockPanel.Dock="Right">
+                        <Button Content="{DynamicResource Text_Public_Confirm}"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Command="{Binding ColorConfirmed}"/>
+                    </Border>
+                    <Border/>
+                </DockPanel>
+
+            </Expander>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Brightness4" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Theme}"/>
+                    </StackPanel>
+
+                    <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentAppTheme}"
+                              Items="{Binding AppThemes}"/>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Language" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DisplayLanguage}"/>
+                    </StackPanel>
+
+                    <ComboBox SelectedIndex="{Binding LanguageSelected}" DockPanel.Dock="Right">
+                        <ComboBoxItem Content="{DynamicResource Text_Language_zh-cn}"/>
+                        <ComboBoxItem Content="{DynamicResource Text_Language_zh-cnt}"/>
+                        <ComboBoxItem Content="{DynamicResource Text_Language_en-us}"/>
+                        <ComboBoxItem Content="{DynamicResource Text_Language_ja-jp}"/>
+                    </ComboBox>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+            <Expander Margin="20,5">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <icon:MaterialIcon Kind="Spray" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_MicaEffect}"/>
+                    </StackPanel>
+                </Expander.Header>
+
+                <StackPanel>
+                    <ui:InfoBar IsOpen="True" IsIconVisible="True" IsClosable="True" Margin="0,5"
+                                Title="{DynamicResource Text_Settings_Tab_General_MicaEffect_EnableTip}"/>
+
+                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5">
+                        <DockPanel Margin="0,10,10,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        DockPanel.Dock="Left">
+                                <icon:MaterialIcon Kind="SelectColor" Margin="5,0"/>
+                                <TextBlock
+                                    Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Enable}"/>
+                            </StackPanel>
+
+                            <ComboBox x:Name="MicaEffectEnabler" SelectedIndex="{Binding MicaStatus}"
+                                      DockPanel.Dock="Right">
+                                <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
+                                <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
+                            </ComboBox>
+
+                            <Border/>
+                        </DockPanel>
+                    </ui:InfoBar>
+
+                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5">
+                        <DockPanel Margin="0,10,10,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                        DockPanel.Dock="Left">
+                                <icon:MaterialIcon Kind="Opacity" Margin="5,0"/>
+                                <TextBlock
+                                    Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Opacity}"/>
+                            </StackPanel>
+
+                            <Slider DockPanel.Dock="Right" Width="250" Minimum="0" Maximum="1"
+                                    IsSnapToTickEnabled="True" TickFrequency="0.01"
+                                    SmallChange="0.01" LargeChange="0.01" ToolTip.Tip="{Binding $self.Value}"
+                                    Value="{Binding MicaOpacity}"
+                                    IsEnabled="{Binding ElementName=MicaEffectEnabler, Path=SelectedIndex,
+                                                Converter={StaticResource Converter_S2V}}"/>
+
+                            <Border/>
+                        </DockPanel>
+                    </ui:InfoBar>
+
+                </StackPanel>
+
+            </Expander>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"/>
+                    </StackPanel>
+
+                    <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding WebServerPort}"
+                                  DockPanel.Dock="Right" IsEnabled="False"/>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -12,13 +12,21 @@ using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS8601 // 引用类型赋值可能为 null。
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
+#pragma warning disable CS8603 // 可能返回 null 引用。
 
 namespace KitX_Dashboard
 {
     public static class Helper
     {
+        public static DataTable local_db_table => (Program.LocalDataBase
+            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
+            .GetTable("Windows").ReturnResult as DataTable;
+
+        public static DataTable local_db_table_app => (Program.LocalDataBase
+            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
+            .GetTable("App").ReturnResult as DataTable;
+
 
         /// <summary>
         /// 启动时检查
@@ -28,7 +36,11 @@ namespace KitX_Dashboard
             #region 初始化 LiteDB
             string DataBaseWorkBase = Path.GetFullPath(Data.GlobalInfo.ConfigPath);
 
-            if (Directory.Exists(DataBaseWorkBase)) Program.LocalDataBase.WorkBase = DataBaseWorkBase;
+            if (Directory.Exists(DataBaseWorkBase))
+            {
+                Program.LocalDataBase.WorkBase = DataBaseWorkBase;
+                ResetDataBaseKeys();
+            }
             else
             {
                 Directory.CreateDirectory(DataBaseWorkBase);
@@ -53,6 +65,41 @@ namespace KitX_Dashboard
                     .Query(1).ReturnResult as List<object>)[1]
             );
             #endregion
+
+            #region 初始化 WebServer
+            Program.LocalWebServer = new();
+            #endregion
+        }
+
+        /// <summary>
+        /// 重设数据库键类型
+        /// </summary>
+        public static void ResetDataBaseKeys()
+        {
+            local_db_table.ResetKeys(
+                new string[]
+                {
+                    "Name",         "Width",        "Height",       "Left",         "Top",
+                    "EnabledMica",  "MicaOpacity",
+                    "Tags"
+                },
+                new Type[]
+                {
+                    typeof(string), typeof(double), typeof(double), typeof(int),    typeof(int),
+                    typeof(bool),   typeof(double),
+                    typeof(Dictionary<string, string>)
+                }
+            );
+            local_db_table_app.ResetKeys(
+                new string[]
+                {
+                    "Name",         "Version",      "Language",     "Theme",        "Accent",
+                },
+                new Type[]
+                {
+                    typeof(string), typeof(string), typeof(string), typeof(string), typeof(string),
+                }
+            );
         }
 
         /// <summary>
@@ -69,6 +116,15 @@ namespace KitX_Dashboard
 
             var accent = Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush;
             (local_db_table_app.Query(1).ReturnResult as List<object>)[4] = new Color2(accent.Color).ToHexString();
+        }
+
+        /// <summary>
+        /// 退出
+        /// </summary>
+        public static void Exit()
+        {
+            Program.LocalWebServer.Stop();
+            Program.LocalWebServer.Dispose();
         }
 
         /// <summary>
@@ -101,11 +157,11 @@ namespace KitX_Dashboard
             db_windows.AddTable("App", new(
                 new string[]
                 {
-                    "Name",         "Version",      "Language",     "Theme",        "Accent"
+                    "Name",         "Version",      "Language",     "Theme",        "Accent",
                 },
                 new Type[]
                 {
-                    typeof(string), typeof(string), typeof(string), typeof(string), typeof(string)
+                    typeof(string), typeof(string), typeof(string), typeof(string), typeof(string),
                 }
             ));
             #endregion
@@ -128,7 +184,7 @@ namespace KitX_Dashboard
             dt_app.Add(
                 new object[]
                 {
-                    "KitX",         "v3.0.0.0",     "zh-cn",        "Follow",       "#FF3873D9"
+                    "KitX",         "v3.0.0.0",     "zh-cn",        "Follow",       "#FF3873D9",
                 }
             );
             #endregion
@@ -168,6 +224,6 @@ namespace KitX_Dashboard
     }
 }
 
+#pragma warning restore CS8603 // 可能返回 null 引用。
 #pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
-#pragma warning restore CS8601 // 引用类型赋值可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。

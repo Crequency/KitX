@@ -1,10 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
-using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
@@ -23,35 +21,20 @@ namespace KitX_Dashboard.Views
 {
     public partial class MainWindow : CoreWindow
     {
-        private readonly DataTable local_db_table = (Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("Windows").ReturnResult as DataTable;
-        private readonly DataTable local_db_table_app = (Program.LocalDataBase
-            .GetDataBase("Dashboard_Settings").ReturnResult as DataBase)
-            .GetTable("App").ReturnResult as DataTable;
-
+        /// <summary>
+        /// 主窗体的构造函数
+        /// </summary>
         public MainWindow()
         {
-            local_db_table.ResetKeys(
-                new string[]
-                {
-                    "Name",         "Width",        "Height",       "Left",         "Top",
-                    "EnabledMica",  "MicaOpacity"
-                },
-                new Type[]
-                {
-                    typeof(string), typeof(double), typeof(double), typeof(int),    typeof(int),
-                    typeof(bool),   typeof(double)
-                }
-            );
 
             InitializeComponent();
 
+            // 设置窗体坐标
             Position = new(
-                PositionCameCenter((int)(local_db_table
+                PositionCameCenter((int)(Helper.local_db_table
                     .Query(1).ReturnResult as List<object>)[3], true)
             ,
-                PositionCameCenter((int)(local_db_table
+                PositionCameCenter((int)(Helper.local_db_table
                     .Query(1).ReturnResult as List<object>)[4], false)
             );
 
@@ -63,14 +46,16 @@ namespace KitX_Dashboard.Views
         /// </summary>
         private void InitMainWindow()
         {
-            SelectedPageName = ((local_db_table.Query(1).ReturnResult as List<object>)
+            // 导航到上次关闭时界面
+            SelectedPageName = ((Helper.local_db_table.Query(1).ReturnResult as List<object>)
                 [7] as Dictionary<string, string>)["SelectedPage"];
             MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
 
-            if (!((string)(local_db_table_app.Query(1).ReturnResult as List<object>)[3]).Equals("Follow"))
+            // 如果主题设置不为 `跟随系统` 则手动变更主题
+            if (!((string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]).Equals("Follow"))
                 AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
-                    (string)(local_db_table_app.Query(1).ReturnResult as List<object>)[3];
+                    (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
         }
 
         /// <summary>
@@ -78,28 +63,28 @@ namespace KitX_Dashboard.Views
         /// </summary>
         /// <param name="name">页面名称</param>
         /// <returns>页面类型</returns>
-        private static Type GetPageTypeFromName(string name)
+        private static Type GetPageTypeFromName(string name) => name switch
         {
-            return name switch
-            {
-                "Page_Home" => typeof(Pages.HomePage),
-                "Page_Lib" => typeof(Pages.LibPage),
-                "Page_Repo" => typeof(Pages.RepoPage),
-                "Page_Account" => typeof(Pages.AccountPage),
-                "Page_Settings" => typeof(Pages.SettingsPage),
-                "Page_Market" => typeof(Pages.MarketPage),
-                _ => typeof(Pages.HomePage),
-            };
-        }
+            "Page_Home" => typeof(Pages.HomePage),
+            "Page_Lib" => typeof(Pages.LibPage),
+            "Page_Repo" => typeof(Pages.RepoPage),
+            "Page_Account" => typeof(Pages.AccountPage),
+            "Page_Settings" => typeof(Pages.SettingsPage),
+            "Page_Market" => typeof(Pages.MarketPage),
+            _ => typeof(Pages.HomePage),
+        };
 
+        /// <summary>
+        /// 已选择的页面名称
+        /// </summary>
         private string SelectedPageName = string.Empty;
 
         /// <summary>
-        /// 切换前台页面
+        /// 前台页面切换事件
         /// </summary>
         /// <param name="sender">被点击的 NavigationViewItem</param>
         /// <param name="e">路由事件参数</param>
-        private async void MainNavigationView_SelectionChanged(object? sender,
+        private void MainNavigationView_SelectionChanged(object? sender,
             NavigationViewSelectionChangedEventArgs e)
         {
             try
@@ -109,7 +94,7 @@ namespace KitX_Dashboard.Views
             }
             catch (NullReferenceException o)
             {
-                await Program.LocalLogger.LogAsync("Logger_Debug", o.Message, LoggerManager.LogLevel.Warn);
+                Program.LocalLogger.Log("Logger_Debug", o.Message, LoggerManager.LogLevel.Warn);
             }
         }
 
@@ -119,23 +104,18 @@ namespace KitX_Dashboard.Views
         /// <param name="input">传入的坐标</param>
         /// <param name="isLeft">是否是距左距离</param>
         /// <returns>回正的坐标</returns>
-        private int PositionCameCenter(int input, bool isLeft)
-        {
-            if (isLeft)
-                return input == -1 ? (Screens.Primary.WorkingArea.Width - 1280) / 2 : input;
-            else return input == -1 ? (Screens.Primary.WorkingArea.Height - 720) / 2 : input;
-        }
+        private int PositionCameCenter(int input, bool isLeft) => isLeft
+            ? (input == -1 ? (Screens.Primary.WorkingArea.Width - 1280) / 2 : input)
+            : (input == -1 ? (Screens.Primary.WorkingArea.Height - 720) / 2 : input);
 
         /// <summary>
         /// 储存元数据
         /// </summary>
         private void SaveMetaData()
         {
-            local_db_table.Update(1, "Width", Width);
-            local_db_table.Update(1, "Height", Height);
-            local_db_table.Update(1, "Left", Position.X);
-            local_db_table.Update(1, "Top", Position.Y);
-            ((local_db_table.Query(1).ReturnResult as List<object>)
+            Helper.local_db_table.Update(1, "Left", Position.X);
+            Helper.local_db_table.Update(1, "Top", Position.Y);
+            ((Helper.local_db_table.Query(1).ReturnResult as List<object>)
                 [7] as Dictionary<string, string>)
                 ["SelectedPage"] = SelectedPageName;
         }
@@ -162,11 +142,15 @@ namespace KitX_Dashboard.Views
             var thm = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
             thm.RequestedThemeChanged += OnRequestedThemeChanged;
 
-            if ((bool)(local_db_table.Query(1).ReturnResult as List<object>)[5]
+            // 如果是 Windows 系统, 且数据库表示启用 Mica 效果
+            if ((bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5]
                 && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
+                // 如果是 Windows 11 而且没有选择 `高对比度` 主题
                 if (IsWindows11 && thm.RequestedTheme != FluentAvaloniaTheme.HighContrastModeString)
                 {
+                    // 尝试启用 Mica 效果
+
                     TransparencyBackgroundFallback = Brushes.Transparent;
                     TransparencyLevelHint = WindowTransparencyLevel.Mica;
 
@@ -207,7 +191,7 @@ namespace KitX_Dashboard.Views
                 color = color.LightenPercent(-0.8f);
 
                 Background = new ImmutableSolidColorBrush(color,
-                    (double)(local_db_table.Query(1).ReturnResult as List<object>)[6]);
+                    (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6]);
             }
             else if (thm.RequestedTheme == FluentAvaloniaTheme.LightModeString)
             {

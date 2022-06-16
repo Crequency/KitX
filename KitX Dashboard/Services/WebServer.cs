@@ -1,104 +1,160 @@
-﻿using System;
+﻿using KitX_Dashboard.Data;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Net;
 using System.IO.Pipes;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading;
-using System.IO;
-using BasicHelper.LiteLogger;
+
+#pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
+#pragma warning disable CS8602 // 解引用可能出现空引用。
 
 namespace KitX_Dashboard.Services
 {
-    public class WebServer
+    public class WebServer : IDisposable
     {
-        public readonly NamedPipeServerStream pipeServer;
-
-        public WebServer(string name, PipeDirection direction, int maxThreads)
+        public WebServer()
         {
-            pipeServer = new(name, direction, maxThreads);
+            listener = new(IPAddress.Any, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            GlobalInfo.ServerPortNumber = port;
+            Program.LocalLogger.Log("Logger_Debug", $"Server Port: {port}",
+                BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
 
-            new Thread(() =>
+            acceptClientThread = new(AcceptClient);
+            acceptClientThread.Start();
+        }
+
+        /// <summary>
+        /// 停止进程
+        /// </summary>
+        public void Stop()
+        {
+            keepListen = false;
+
+            foreach (KeyValuePair<string, TcpClient> item in clients)
             {
-                int threadId = Environment.CurrentManagedThreadId;
-
-                pipeServer.WaitForConnection();
-                try
-                {
-                    StreamString ss = new(pipeServer);
-
-                    ss.WriteString("I am the one true server!");
-                    string filename = ss.ReadString();
-
-                    ReadFileToStream fileReader = new(ss, filename);
-
-                    Console.WriteLine("Reading file: {0} on thread[{1}] as user: {2}.",
-                        filename, threadId, pipeServer.GetImpersonationUserName());
-                    pipeServer.RunAsClient(fileReader.Start);
-                }
-                catch (IOException e)
-                {
-                    Program.LocalLogger.Log("Logger_Debug", e.Message, LoggerManager.LogLevel.Error);
-                }
-                pipeServer.Close();
-            }).Start();
-        }
-    }
-
-    public class StreamString
-    {
-        private readonly Stream ioStream;
-        private readonly UnicodeEncoding streamEncoding;
-
-        public StreamString(Stream ioStream)
-        {
-            this.ioStream = ioStream;
-            streamEncoding = new UnicodeEncoding();
-        }
-
-        public string ReadString()
-        {
-            int len = ioStream.ReadByte() * 256;
-            len += ioStream.ReadByte();
-            byte[] inBuffer = new byte[len];
-            ioStream.Read(inBuffer, 0, len);
-
-            return streamEncoding.GetString(inBuffer);
-        }
-
-        public int WriteString(string outString)
-        {
-            byte[] outBuffer = streamEncoding.GetBytes(outString);
-            int len = outBuffer.Length;
-            if (len > UInt16.MaxValue)
-            {
-                len = (int)UInt16.MaxValue;
+                item.Value.Close();
+                item.Value.Dispose();
             }
-            ioStream.WriteByte((byte)(len / 256));
-            ioStream.WriteByte((byte)(len & 255));
-            ioStream.Write(outBuffer, 0, len);
-            ioStream.Flush();
 
-            return outBuffer.Length + 2;
-        }
-    }
-
-    public class ReadFileToStream
-    {
-        private readonly string fn;
-        private readonly StreamString ss;
-
-        public ReadFileToStream(StreamString str, string filename)
-        {
-            fn = filename;
-            ss = str;
+            acceptClientThread.Join();
         }
 
-        public void Start()
+        public Thread acceptClientThread;
+        public TcpListener listener;
+        public bool keepListen = true;
+
+        public readonly Dictionary<string, TcpClient> clients = new();
+
+        /// <summary>
+        /// 接收客户端
+        /// </summary>
+        private void AcceptClient()
         {
-            string contents = File.ReadAllText(fn);
-            ss.WriteString(contents);
+            try
+            {
+                while (keepListen)
+                {
+                    if (listener.Pending())
+                    {
+                        TcpClient client = listener.AcceptTcpClient();
+                        IPEndPoint endpoint = client.Client.RemoteEndPoint as IPEndPoint;
+                        clients.Add(endpoint.ToString(), client);
+
+                        Program.LocalLogger.Log("Logger_Debug", $"New connection: {endpoint}",
+                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+
+                        //接收消息线程
+                        Thread reciveMessageThread = new(ReciveMessage);
+                        reciveMessageThread.Start(client);
+                    }
+                    else
+                    {
+                        Thread.Sleep(1000);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.LocalLogger.Log("Logger_Debug", $"Error: {ex.Message}",
+                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// 接收消息
+        /// </summary>
+        /// <param name="obj">TcpClient</param>
+        private void ReciveMessage(object obj)
+        {
+            TcpClient client = obj as TcpClient;
+            IPEndPoint endpoint = null;
+            NetworkStream stream = null;
+
+            try
+            {
+                endpoint = client.Client.RemoteEndPoint as IPEndPoint;
+                stream = client.GetStream();
+
+                while (keepListen)
+                {
+                    byte[] data = new byte[1024];
+                    //如果远程主机已关闭连接,Read将立即返回零字节
+                    int length = stream.Read(data, 0, data.Length);
+                    if (length > 0)
+                    {
+                        #region if
+                        string msg = Encoding.UTF8.GetString(data, 0, length);
+
+                        Console.WriteLine(string.Format("{0}:{1}", endpoint.ToString(), msg));
+
+                        //发送到其他客户端
+                        //foreach (KeyValuePair<string, TcpClient> kvp in clients)
+                        //{
+                        //    if (kvp.Value != client)
+                        //    {
+                        //        byte[] writeData = Encoding.UTF8.GetBytes(msg);
+                        //        NetworkStream writeStream = kvp.Value.GetStream();
+                        //        writeStream.Write(writeData, 0, writeData.Length);
+                        //    }
+                        //}
+                        #endregion
+                    }
+                    else
+                    {
+                        //客户端断开连接 跳出循环
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.LocalLogger.Log("Logger_Debug", $"Error: {ex.Message}",
+                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
+                //Read是阻塞方法 客户端退出是会引发异常 释放资源 结束此线程
+            }
+            finally
+            {
+                //释放资源
+                stream.Close();
+                stream.Dispose();
+                clients.Remove(endpoint.ToString());
+                client.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            keepListen = false;
+            listener.Stop();
+            acceptClientThread.Join();
+            GC.SuppressFinalize(this);
         }
     }
 }
+
+#pragma warning restore CS8602 // 解引用可能出现空引用。
+#pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。

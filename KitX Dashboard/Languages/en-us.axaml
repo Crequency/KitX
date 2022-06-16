@@ -1,52 +1,52 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Add Resources Here -->
-    <sys:String x:Key="Text_MainWindow_Title">KitX Dashboard</sys:String>
+    <x:String x:Key="Text_MainWindow_Title">KitX Dashboard</x:String>
 
 
-    <sys:String x:Key="Text_Public_Enable">Enable</sys:String>
-    <sys:String x:Key="Text_Public_Disable">Disable</sys:String>
-    <sys:String x:Key="Text_Public_Auto">Auto</sys:String>
-    <sys:String x:Key="Text_Public_Confirm">Confirm</sys:String>
+    <x:String x:Key="Text_Public_Enable">Enable</x:String>
+    <x:String x:Key="Text_Public_Disable">Disable</x:String>
+    <x:String x:Key="Text_Public_Auto">Auto</x:String>
+    <x:String x:Key="Text_Public_Confirm">Confirm</x:String>
 
 
-    <sys:String x:Key="Text_Language_zh-cn">简体中文</sys:String>
-    <sys:String x:Key="Text_Language_zh-cnt">繁體中文</sys:String>
-    <sys:String x:Key="Text_Language_en-us">English (US)</sys:String>
-    <sys:String x:Key="Text_Language_ja-jp">日本語</sys:String>
+    <x:String x:Key="Text_Language_zh-cn">简体中文</x:String>
+    <x:String x:Key="Text_Language_zh-cnt">繁體中文</x:String>
+    <x:String x:Key="Text_Language_en-us">English (US)</x:String>
+    <x:String x:Key="Text_Language_ja-jp">日本語</x:String>
 
 
-    <sys:String x:Key="Text_MainWindow_NavigationView_Header">Good Morning! ο(=•ω＜=)ρ⌒☆</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Home">Home</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Lib">Library</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Market">Market</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Repo">Repository</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Plan">Task and Plan</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Account">Account</sys:String>
-    <sys:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</sys:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Header">Good Morning! ο(=•ω＜=)ρ⌒☆</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Home">Home</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Lib">Library</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Market">Market</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Repo">Repository</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Plan">Task and Plan</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Account">Account</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_General">General</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme">Theme</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Light">Light</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Dark">Dark</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">High Contrast</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Theme_Follow">Follow system</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_Palette">Palette</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_DisplayLanguage">Display Language</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica Effect</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Enable Mica Effect?</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">Enable this effect only on Windows 11</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">Opacity</sys:String>
+    <x:String x:Key="Text_Settings_Tab_General">General</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme">Theme</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Light">Light</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Dark">Dark</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">High Contrast</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Theme_Follow">Follow xtem</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_Palette">Palette</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">Display Language</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica Effect</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Enable Mica Effect?</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">Opacity</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_Performence">Performence</sys:String>
+    <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">Port</x:String>
 
 
-    <sys:String x:Key="Text_Settings_Tab_About">About</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Version">Version:</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Authors">Authors</sys:String>
-    <sys:String x:Key="Text_Settings_Tab_About_Links">Links</sys:String>
+    <x:String x:Key="Text_Settings_Tab_About">About</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Version">Version:</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Authors">Authors</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_Links">Links</x:String>
 
 </ResourceDictionary>
