@@ -15,10 +15,10 @@ using System.Collections.Generic;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    public class Settings_GeneralViewModel : ViewModelBase
+    internal class Settings_GeneralViewModel : ViewModelBase
     {
 
-        public Settings_GeneralViewModel()
+        internal Settings_GeneralViewModel()
         {
             InitCommands();
         }
@@ -34,7 +34,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 可选的应用主题属性
         /// </summary>
-        public string[] AppThemes { get; } = new[]
+        internal string[] AppThemes { get; } = new[]
         {
             FluentAvaloniaTheme.LightModeString,
             FluentAvaloniaTheme.DarkModeString,
@@ -51,7 +51,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 主题色属性
         /// </summary>
-        public Color2 ThemeColor
+        internal Color2 ThemeColor
         {
             get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
             set => nowColor = value;
@@ -60,7 +60,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 当前应用主题属性
         /// </summary>
-        public string CurrentAppTheme
+        internal string CurrentAppTheme
         {
             get => _currentAppTheme;
             set
@@ -77,7 +77,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 加载语言
         /// </summary>
-        public static void LoadLanguage()
+        internal static void LoadLanguage()
         {
             string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
             Application.Current.Resources.MergedDictionaries.Clear();
@@ -91,7 +91,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 显示语言属性
         /// </summary>
-        public static int LanguageSelected
+        internal static int LanguageSelected
         {
             get => (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] switch
             {
@@ -118,7 +118,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// Mica 效果是否启用属性
         /// </summary>
-        public static int MicaStatus
+        internal static int MicaStatus
         {
             get => (bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
             set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] = value != 1;
@@ -127,7 +127,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// Mica 效果透明度属性
         /// </summary>
-        public static double MicaOpacity
+        internal static double MicaOpacity
         {
             get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6];
             set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[6] = value;
@@ -136,12 +136,12 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 网络服务端口属性
         /// </summary>
-        public static int WebServerPort => GlobalInfo.ServerPortNumber;
+        internal static int WebServerPort => GlobalInfo.ServerPortNumber;
 
         /// <summary>
         /// 确认主题色变更命令
         /// </summary>
-        public DelegateCommand? ColorConfirmedCommand { get; set; }
+        internal DelegateCommand? ColorConfirmedCommand { get; set; }
 
         private void ColorConfirmed(object _)
         {

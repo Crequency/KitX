@@ -1,8 +1,8 @@
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    public class SettingsViewModel : ViewModelBase
+    internal class SettingsViewModel : ViewModelBase
     {
-        public SettingsViewModel()
+        internal SettingsViewModel()
         {
 
         }
@@ -10,6 +10,6 @@ namespace KitX_Dashboard.ViewModels.Pages
         /// <summary>
         /// 已选择标签页编号属性
         /// </summary>
-        public int TabControlSelectedIndex { get; set; } = 0;
+        internal int TabControlSelectedIndex { get; set; } = 0;
     }
 }

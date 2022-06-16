@@ -5,15 +5,15 @@ using System.Collections.Generic;
 
 namespace KitX_Dashboard.ViewModels
 {
-    public class MainWindowViewModel : ViewModelBase
+    internal class MainWindowViewModel : ViewModelBase
     {
-        public double DB_Width
+        internal double DB_Width
         {
             get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[1];
             set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[1] = value;
         }
 
-        public double DB_Height
+        internal double DB_Height
         {
             get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[2];
             set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[2] = value;

@@ -2,9 +2,9 @@
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    public class Settings_AboutViewModel : ViewModelBase
+    internal class Settings_AboutViewModel : ViewModelBase
     {
-        public Settings_AboutViewModel()
+        internal Settings_AboutViewModel()
         {
             InitCommands();
         }
@@ -20,19 +20,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 版本号属性
         /// </summary>
-        public static string VersionText => Program.LocalVersion.GetVersionText();
+        internal static string VersionText => Program.LocalVersion.GetVersionText();
 
         /// <summary>
         /// 制作人员列表属性
         /// </summary>
-        public bool AuthorsListVisibility { get; set; } = false;
+        internal bool AuthorsListVisibility { get; set; } = false;
 
-        public int clickCount = 0;
+        internal int clickCount = 0;
 
         /// <summary>
         /// 应用名称按钮单击命令
         /// </summary>
-        public DelegateCommand? AppNameButtonClickedCommand { get; set; }
+        internal DelegateCommand? AppNameButtonClickedCommand { get; set; }
 
         private void AppNameButtonClicked(object _) => ++clickCount;
     }
