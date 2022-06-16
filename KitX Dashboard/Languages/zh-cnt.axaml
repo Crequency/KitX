@@ -41,6 +41,7 @@
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_About">關於</x:String>
