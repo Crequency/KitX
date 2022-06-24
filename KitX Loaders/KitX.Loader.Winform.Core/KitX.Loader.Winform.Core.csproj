@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BaseOutputPath>..\..\KitX Build\Loaders\Winform.Core\</BaseOutputPath>
+    <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Loaders\Winform.Core\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
 </Project>

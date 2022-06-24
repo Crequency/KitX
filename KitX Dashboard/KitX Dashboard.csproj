@@ -8,6 +8,8 @@
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationIcon>Assets\KitX-Icon-256x.ico</ApplicationIcon>
         <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+        <BaseOutputPath>..\KitX Build\Dashboard\</BaseOutputPath>
+        <BaseIntermediateOutputPath>..\KitX Build\Temp\Dashboard\</BaseIntermediateOutputPath>
     </PropertyGroup>
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />

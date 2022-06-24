@@ -5,11 +5,9 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
+    <BaseOutputPath>..\..\KitX Build\Plugins\TestPlugin.WPF.Core\</BaseOutputPath>
+    <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Plugins\TestPlugin.WPF.Core\</BaseIntermediateOutputPath>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="System.ComponentModel.Composition" Version="6.0.0" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj" />

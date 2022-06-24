@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>enable</Nullable>
+    <BaseOutputPath>..\..\KitX Build\Contracts\CSharp\</BaseOutputPath>
+    <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Contracts\CSharp\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
