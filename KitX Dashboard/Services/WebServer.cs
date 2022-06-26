@@ -16,13 +16,22 @@ namespace KitX_Dashboard.Services
         public WebServer()
         {
             listener = new(IPAddress.Any, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            GlobalInfo.ServerPortNumber = port;
-            Program.LocalLogger.Log("Logger_Debug", $"Server Port: {port}",
-                BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
-
             acceptClientThread = new(AcceptClient);
+        }
+
+        /// <summary>
+        /// 开始执行
+        /// </summary>
+        public void Start()
+        {
+            listener.Start();
+
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port; // 取服务端口号
+            GlobalInfo.ServerPortNumber = port; // 全局端口号标明
+                    
+            Program.LocalLogger.Log("Logger_Debug", $"Server Port: {port}",
+                BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug); // 日志记录
+
             acceptClientThread.Start();
         }
 

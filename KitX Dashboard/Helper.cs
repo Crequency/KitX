@@ -63,6 +63,7 @@ namespace KitX_Dashboard
 
             #region 初始化 WebServer
             Program.LocalWebServer = new();
+            Program.LocalWebServer.Start();
             #endregion
         }
 
@@ -153,10 +154,12 @@ namespace KitX_Dashboard
                 new string[]
                 {
                     "Name",         "Version",      "Language",     "Theme",        "Accent",
+                    "LogLV"
                 },
                 new Type[]
                 {
                     typeof(string), typeof(string), typeof(string), typeof(string), typeof(string),
+                    typeof(string)
                 }
             ));
             #endregion
@@ -180,6 +183,7 @@ namespace KitX_Dashboard
                 new object[]
                 {
                     "KitX",         "v3.0.0.0",     "zh-cn",        "Follow",       "#FF3873D9",
+                    "Info"
                 }
             );
             #endregion

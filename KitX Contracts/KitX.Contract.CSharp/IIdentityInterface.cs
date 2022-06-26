@@ -67,6 +67,12 @@ namespace KitX.Contract.CSharp
         string GetTotalDescriptionInMarkdown();
 
         /// <summary>
+        /// 获取 Base64 编码的图标
+        /// </summary>
+        /// <returns>Base64 编码的图标</returns>
+        string GetIconInBase64();
+
+        /// <summary>
         /// 获取发行日期
         /// </summary>
         /// <returns>发行日期</returns>
@@ -83,5 +89,17 @@ namespace KitX.Contract.CSharp
         /// </summary>
         /// <returns>控制器</returns>
         IController GetController();
+
+        /// <summary>
+        /// 指示是否是市场版本
+        /// </summary>
+        /// <returns>是否是市场版本</returns>
+        bool IsMarketVersion();
+
+        /// <summary>
+        /// 获取市场版本插件协议
+        /// </summary>
+        /// <returns>市场版本插件协议</returns>
+        IMarketPluginContract GetMarketPluginContract();
     }
 }

@@ -41,7 +41,7 @@ namespace KitX_Dashboard
 
             Helper.SaveInfo();
 
-            Helper.Exit();
+            Helper.Exit(); 
 
             LocalDataBase.Save2File();
         }
