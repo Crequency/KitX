@@ -78,6 +78,9 @@
         <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
+    </ItemGroup>
+    <ItemGroup>
         <AvaloniaResource Update="Assets\avalonia-logo.ico">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </AvaloniaResource>
