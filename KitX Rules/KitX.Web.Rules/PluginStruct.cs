@@ -5,32 +5,37 @@
     /// </summary>
     public struct PluginStruct
     {
-        public string Name;
+        public PluginStruct()
+        {
 
-        public string Version;
+        }
 
-        public string DisplayName;
+        public string Name = "Name";
 
-        public string AuthorName;
+        public string Version = "Version";
 
-        public string PublisherName;
+        public string DisplayName = "DisplayName";
 
-        public string AuthorLink;
+        public string AuthorName = "AuthorName";
 
-        public string PublisherLink;
+        public string PublisherName = "PublisherName";
 
-        public string SimpleDescription;
+        public string AuthorLink = "AuthorLink";
 
-        public string ComplexDescription;
+        public string PublisherLink = "PublisherLink";
 
-        public string TotalDescriptionInMarkdown;
+        public string SimpleDescription = "SimpleDescription";
 
-        public string IconInBase64;
+        public string ComplexDescription = "ComplexDescription";
 
-        public DateTime PublishDate;
+        public string TotalDescriptionInMarkdown = "TotalDescriptionInMarkdown";
 
-        public DateTime LastUpdateDate;
+        public string IconInBase64 = "IconInBase64";
 
-        public bool IsMarketVersion;
+        public DateTime PublishDate = DateTime.Parse("2019.06.27");
+
+        public DateTime LastUpdateDate = DateTime.Parse("2022.05.02");
+
+        public bool IsMarketVersion = false;
     }
 }
