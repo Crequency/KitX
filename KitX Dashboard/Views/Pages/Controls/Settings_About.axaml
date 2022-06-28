@@ -4,6 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              xmlns:icon="using:Material.Icons.Avalonia"
+             xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
+             xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_About">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -100,7 +102,54 @@
 
             </Expander>
 
+            <Expander Margin="20,5">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_ThirdPartLicense}" FontSize="18"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Expander.Header>
 
+                <Border Background="{DynamicResource ThemePrimaryAccentTransparent11}"
+                        Margin="5" CornerRadius="10">
+                    <md:MarkdownScrollViewer Source="avares://KitX Dashboard/Assets/ThirdPartLicense.md"
+                                             Margin="5">
+                        <md:MarkdownScrollViewer.Styles>
+                            <Style Selector="ctxt|CTextBlock.Heading1">
+                                <Setter Property="FontSize" Value="36"/>
+                                <Setter Property="Foreground" Value="{StaticResource ThemePrimaryAccent}"/>
+                                <Setter Property="Margin" Value="0,10"/>
+                            </Style>
+                            <Style Selector="ctxt|CTextBlock.Heading2">
+                                <Setter Property="FontSize" Value="24"/>
+                                <Setter Property="Foreground" Value="{StaticResource ThemePrimaryAccent}"/>
+                                <Setter Property="Margin" Value="0,5"/>
+                            </Style>
+                            <Style Selector="Border.Blockquote">
+                                <Setter Property="Margin" Value="0,5"/>
+                            </Style>
+                            <Style Selector="Border.CodeBlock">
+                                <Style.Setters>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Margin" Value="0,20"/>
+                                    <Setter Property="Background"
+                                            Value="{StaticResource ThemePrimaryAccentTransparent33}"/>
+                                    <Setter Property="CornerRadius" Value="10"/>
+                                </Style.Setters>
+                            </Style>
+                            <Style Selector="TextBlock.CodeBlock">
+                                <Style.Setters>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Margin" Value="10"/>
+                                </Style.Setters>
+                            </Style>
+                        </md:MarkdownScrollViewer.Styles>
+                    </md:MarkdownScrollViewer>
+                </Border>
+
+            </Expander>
 
         </StackPanel>
     </ScrollViewer>
