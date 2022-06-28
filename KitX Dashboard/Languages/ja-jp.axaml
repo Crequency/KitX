@@ -48,5 +48,6 @@
     <x:String x:Key="Text_Settings_Tab_About_Version">バージョン:</x:String>
     <x:String x:Key="Text_Settings_Tab_About_Authors">制作スタッフ</x:String>
     <x:String x:Key="Text_Settings_Tab_About_Links">リンク</x:String>
+    <x:String x:Key="Text_Settings_Tab_About_ThirdPartLicense">サードパーティライセンス</x:String>
 
 </ResourceDictionary>
