@@ -11,9 +11,9 @@
         <BaseOutputPath>..\KitX Build\Dashboard\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\KitX Build\Temp\Dashboard\</BaseIntermediateOutputPath>
 
-        <AssemblyVersion>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</AssemblyVersion>
+        <!--<AssemblyVersion>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</AssemblyVersion>
         <FileVersion>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</FileVersion>
-        <Version>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</Version>
+        <Version>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</Version>-->
         
     </PropertyGroup>
     <ItemGroup>
@@ -39,6 +39,7 @@
         <None Remove="Assets\KitX-Icon-48x.ico" />
         <None Remove="Assets\KitX-Icon-64x.ico" />
         <None Remove="Assets\KitX.png" />
+        <None Remove="Assets\ThirdPartLicense.md" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="Assets\KitX-Icon-256x.ico" />
@@ -117,10 +118,8 @@
         <AvaloniaResource Update="Assets\KitX.png">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </AvaloniaResource>
-    </ItemGroup>
-    <ItemGroup>
-        <AvaloniaXaml Update="Languages\default-lang.axaml">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaXaml>
+        <AvaloniaResource Update="Assets\ThirdPartLicense.md">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </AvaloniaResource>
     </ItemGroup>
 </Project>
