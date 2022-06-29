@@ -205,6 +205,12 @@ namespace KitX_Dashboard
                 Path.GetFullPath("./Log/"),
                 lv: LoggerManager.LogLevel.Debug
             ));
+
+            LocalLogger.AppendLogger("Logger_Error", new(
+                "Logger_Error",
+                Path.GetFullPath("./Log/"),
+                lv: LoggerManager.LogLevel.Error
+            ));
         }
 
         /// <summary>
