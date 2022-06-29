@@ -26,6 +26,10 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">设置</x:String>
 
 
+    <x:String x:Key="Text_Lib_Search">搜索</x:String>
+    <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
+    
+    
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
     <x:String x:Key="Text_Settings_Tab_General_Theme">主题</x:String>
     <x:String x:Key="Text_Settings_Tab_General_Theme_Light">日光白 (浅色)</x:String>

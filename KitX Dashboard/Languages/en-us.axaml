@@ -26,6 +26,10 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
 
 
+    <x:String x:Key="Text_Lib_Search">Search</x:String>
+    <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
+    
+
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
     <x:String x:Key="Text_Settings_Tab_General_Theme">Theme</x:String>
     <x:String x:Key="Text_Settings_Tab_General_Theme_Light">Light</x:String>

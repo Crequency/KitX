@@ -26,6 +26,10 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
 
 
+    <x:String x:Key="Text_Lib_Search">検索</x:String>
+    <x:String x:Key="Text_Lib_Search_In_Local">ローカルで検索</x:String>
+
+
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
     <x:String x:Key="Text_Settings_Tab_General_Theme">テーマ</x:String>
     <x:String x:Key="Text_Settings_Tab_General_Theme_Light">デイライトホワイト（ライト）</x:String>
