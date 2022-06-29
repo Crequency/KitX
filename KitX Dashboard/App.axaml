@@ -14,10 +14,6 @@
 
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="/Languages/default-lang.axaml"/>
-            </ResourceDictionary.MergedDictionaries>
-
             <SolidColorBrush x:Key="ThemePrimaryAccent" Color="#FF3873D9"/>
             <SolidColorBrush x:Key="ThemePrimaryAccentTransparentAA" Color="#AA3873D9"/>
             <SolidColorBrush x:Key="ThemePrimaryAccentTransparentBB" Color="#BB3873D9"/>
