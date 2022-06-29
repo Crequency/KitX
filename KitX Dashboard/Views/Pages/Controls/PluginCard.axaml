@@ -2,7 +2,30 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
+             mc:Ignorable="d" Margin="10"
              x:Class="KitX_Dashboard.Views.Pages.Controls.PluginCard">
-  
+    <UserControl.Styles>
+        <Style Selector="Image.img:pointerover">
+            <Setter Property="Opacity" Value="0.8"/>
+        </Style>
+    </UserControl.Styles>
+    <Grid Width="160" Height="240">
+        <ui:Button Width="140" Height="220" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                   HorizontalContentAlignment="Center" VerticalContentAlignment="Bottom">
+            <StackPanel Orientation="Vertical" Width="120" Height="130">
+                <TextBlock Text="{Binding DisplayName}" FontSize="20" FontWeight="ExtraBold"/>
+                <TextBlock Text="{Binding Version}" FontSize="14" FontWeight="Light"/>
+                <TextBlock Text="{Binding SimpleDescription}" FontSize="16" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ui:Button>
+        <ui:Button x:Name="Imager" Width="100" Height="100" HorizontalAlignment="Left" VerticalAlignment="Top"
+                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CornerRadius="10">
+            <Border Width="90" Height="90" ClipToBounds="True" CornerRadius="6">
+                <Image Source="{Binding IconDisplay}" Stretch="UniformToFill" Classes="img"
+                       Width="90" Height="90" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+        </ui:Button>
+    </Grid>
 </UserControl>

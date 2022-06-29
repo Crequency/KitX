@@ -2,7 +2,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:KitX_Dashboard.Views.Pages.Controls"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
+             xmlns:icon="using:Material.Icons.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.LibPage">
-    
+    <DockPanel>
+        <Grid Height="80" DockPanel.Dock="Top">
+            <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsTextCompletionEnabled="True"
+                             Watermark="{DynamicResource Text_Lib_Search_In_Local}"/>
+        </Grid>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl Grid.Row="1" Items="{Binding PluginCards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
 </UserControl>
