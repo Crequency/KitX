@@ -5,7 +5,23 @@
     <Nullable>enable</Nullable>
     <BaseOutputPath>..\..\KitX Build\Contracts\CSharp\</BaseOutputPath>
     <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Contracts\CSharp\</BaseIntermediateOutputPath>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Authors>Dynesshely</Authors>
+    <Company>Crequency</Company>
+    <Description>Contract for KitX plugins about C#.</Description>
+    <PackageProjectUrl>https://github.com/Crequency/KitX/</PackageProjectUrl>
+    <PackageIcon>KitX-Background-ani.png</PackageIcon>
+    <RepositoryUrl>https://github.com/Crequency/KitX/</RepositoryUrl>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\KitX Dashboard\Assets\KitX-Background-ani.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Composition" Version="6.0.0" />
