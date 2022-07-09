@@ -3,8 +3,9 @@ using Avalonia.ReactiveUI;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
 using KitX_Dashboard.Services;
+using KitX_Dashboard.Views.Pages.Controls;
 using System;
-
+using System.Collections.Generic;
 using Version = BasicHelper.Util.Version;
 
 namespace KitX_Dashboard
@@ -18,6 +19,10 @@ namespace KitX_Dashboard
         internal static Version LocalVersion;
 
         internal static WebServer? LocalWebServer;
+
+        internal static List<PluginCard> PluginCards { get; } = new();
+
+        internal static readonly Dictionary<string, int> CardsIndex = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
