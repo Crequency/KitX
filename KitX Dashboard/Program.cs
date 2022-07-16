@@ -3,9 +3,11 @@ using Avalonia.ReactiveUI;
 using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
 using KitX_Dashboard.Services;
+using KitX_Dashboard.Views.Pages;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Version = BasicHelper.Util.Version;
 
 namespace KitX_Dashboard
@@ -20,9 +22,17 @@ namespace KitX_Dashboard
 
         internal static WebServer? LocalWebServer;
 
-        internal static List<PluginCard> PluginCards { get; } = new();
+        internal static ObservableCollection<PluginCard>? PluginCards;
 
-        internal static readonly Dictionary<string, int> CardsIndex = new();
+        //internal static List<PluginCard> PluginCards { get; } = new();
+
+        //internal static Dictionary<string, object> DirectControls = new();
+
+        //internal static LibPage? libPage;
+
+        //internal static readonly Dictionary<string, int> CardsIndex = new();
+
+        //internal static readonly Dictionary<string, object> ViewModelPool = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
