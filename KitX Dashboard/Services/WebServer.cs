@@ -1,4 +1,5 @@
-﻿using KitX_Dashboard.Data;
+﻿using Avalonia.Threading;
+using KitX_Dashboard.Data;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -28,7 +29,7 @@ namespace KitX_Dashboard.Services
 
             int port = ((IPEndPoint)listener.LocalEndpoint).Port; // 取服务端口号
             GlobalInfo.ServerPortNumber = port; // 全局端口号标明
-                    
+
             Program.LocalLogger.Log("Logger_Debug", $"Server Port: {port}",
                 BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug); // 日志记录
 
@@ -89,7 +90,7 @@ namespace KitX_Dashboard.Services
             }
             catch (Exception ex)
             {
-                Program.LocalLogger.Log("Logger_Debug", $"Error: {ex.Message}",
+                Program.LocalLogger.Log("Logger_Debug", $"Error: In AcceptClient() : {ex.Message}",
                     BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
             }
         }
@@ -119,7 +120,15 @@ namespace KitX_Dashboard.Services
                         #region if
                         string msg = Encoding.UTF8.GetString(data, 0, length);
 
-                        Console.WriteLine(string.Format("{0}:{1}", endpoint.ToString(), msg));
+                        Program.LocalLogger.Log("Logger_Debug", $"From: {endpoint}\tReceive: {msg}",
+                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+
+                        //PluginsManager.Execute(msg);
+
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            PluginsManager.Execute(msg);
+                        });
 
                         //发送到其他客户端
                         //foreach (KeyValuePair<string, TcpClient> kvp in clients)
@@ -135,6 +144,8 @@ namespace KitX_Dashboard.Services
                     }
                     else
                     {
+
+
                         //客户端断开连接 跳出循环
                         break;
                     }
@@ -142,7 +153,7 @@ namespace KitX_Dashboard.Services
             }
             catch (Exception ex)
             {
-                Program.LocalLogger.Log("Logger_Debug", $"Error: {ex.Message}",
+                Program.LocalLogger.Log("Logger_Debug", $"Error: In ReciveMessage() : {ex.Message}",
                     BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
                 //Read是阻塞方法 客户端退出是会引发异常 释放资源 结束此线程
             }
