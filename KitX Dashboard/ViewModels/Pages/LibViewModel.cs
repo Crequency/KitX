@@ -1,6 +1,7 @@
 ﻿using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,10 +12,17 @@ namespace KitX_Dashboard.ViewModels.Pages
     {
         public LibViewModel()
         {
-            for (int i = 0; i < 20; i++)
-                PluginCards.Add(new());
+            //for (int i = 0; i < 20; i++)
+            //    Program.PluginCards.Add(new());
+
+            //for (int i = 0; i < 20; i++)
+            //    PluginCards.Add(new());
+
+            Program.PluginCards = PluginCards;
         }
 
-        public static List<PluginCard> PluginCards { get; } = new();
+        //public static List<PluginCard> PluginCards { get => Program.PluginCards; }
+
+        public ObservableCollection<PluginCard> PluginCards { get; } = new();
     }
 }

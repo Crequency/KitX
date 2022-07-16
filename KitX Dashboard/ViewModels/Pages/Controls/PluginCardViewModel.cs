@@ -7,7 +7,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
     internal class PluginCardViewModel
     {
-        private KitX.Web.Rules.PluginStruct pluginStruct = new();
+        public KitX.Web.Rules.PluginStruct pluginStruct = new();
 
         public PluginCardViewModel()
         {

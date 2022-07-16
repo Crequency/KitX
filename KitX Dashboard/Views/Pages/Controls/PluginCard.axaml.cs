@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using KitX.Web.Rules;
 using KitX_Dashboard.ViewModels.Pages.Controls;
 
 namespace KitX_Dashboard.Views.Pages.Controls
@@ -11,6 +12,15 @@ namespace KitX_Dashboard.Views.Pages.Controls
         public PluginCard()
         {
             InitializeComponent();
+
+            DataContext = viewModel;
+        }
+
+        public PluginCard(PluginStruct ps)
+        {
+            InitializeComponent();
+
+            viewModel.pluginStruct = ps;
 
             DataContext = viewModel;
         }

@@ -14,7 +14,8 @@
                              IsTextCompletionEnabled="True"
                              Watermark="{DynamicResource Text_Lib_Search_In_Local}"/>
         </Grid>
-        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+
+        <!--<ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <ItemsControl Grid.Row="1" Items="{Binding PluginCards}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -22,6 +23,23 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
+        </ScrollViewer>-->
+
+        <!--<ScrollViewer>
+            <WrapPanel x:Name="LibViewWrapPanel"/>
+        </ScrollViewer>-->
+
+        <ScrollViewer>
+            <WrapPanel Orientation="Horizontal">
+                <ItemsControl Items="{Binding PluginCards}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </WrapPanel>
         </ScrollViewer>
+
     </DockPanel>
 </UserControl>
