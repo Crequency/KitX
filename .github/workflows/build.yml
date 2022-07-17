@@ -40,11 +40,16 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
-      - name: Setup MSBuild.exe
-        uses: microsoft/setup-msbuild@v1.0.0
+      # - name: Setup MSBuild.exe
+      #   uses: microsoft/setup-msbuild@v1.0.0
 
-      - name: Build
-        run: dotnet build -c Release
+      - name: Build Dashboard
+        run: |
+          cd "KitX Dashboard"
+          dotnet build -c Release
+
+      # - name: Build
+      #   run: dotnet build -c Release
 
       # - name: Test
       #   run: dotnet test -c Release
