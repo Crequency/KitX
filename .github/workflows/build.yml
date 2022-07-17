@@ -37,6 +37,8 @@ jobs:
       - name: Build Rules
         run: |
           cd "KitX Rules"
+
+          cd "KitX.Web.Rules"
           dotnet build -c Release
 
   build-on-ubuntu:
@@ -67,6 +69,8 @@ jobs:
       - name: Build Rules
         run: |
           cd "KitX Rules"
+
+          cd "KitX.Web.Rules"
           dotnet build -c Release
 
   build-on-macos:
@@ -97,6 +101,8 @@ jobs:
       - name: Build Rules
         run: |
           cd "KitX Rules"
+
+          cd "KitX.Web.Rules"
           dotnet build -c Release
 
 
