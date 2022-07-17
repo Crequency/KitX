@@ -24,5 +24,10 @@ namespace KitX_Dashboard.ViewModels.Pages
         //public static List<PluginCard> PluginCards { get => Program.PluginCards; }
 
         public ObservableCollection<PluginCard> PluginCards { get; } = new();
+
+        /// <summary>
+        /// 搜索框文字
+        /// </summary>
+        public string SearchingText { get; set; }
     }
 }

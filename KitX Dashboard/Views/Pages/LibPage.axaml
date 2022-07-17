@@ -11,7 +11,7 @@
     <DockPanel>
         <Grid Height="80" DockPanel.Dock="Top">
             <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
-                             IsTextCompletionEnabled="True"
+                             IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
                              Watermark="{DynamicResource Text_Lib_Search_In_Local}"/>
         </Grid>
 
