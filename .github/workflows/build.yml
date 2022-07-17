@@ -22,16 +22,22 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
+      - name: Build Contracts
+        run: |
+          cd "KitX Contracts"
+
+          cd "KitX.Contract.CSharp"
+          dotnet build -c Release
+
       - name: Build Dashboard
         run: |
           cd "KitX Dashboard"
           dotnet build -c Release
 
-      # - name: Build
-      #   run: dotnet build -c Release
-
-      # - name: Test
-      #   run: dotnet test -c Release
+      - name: Build Rules
+        run: |
+          cd "KitX Rules"
+          dotnet build -c Release
 
   build-on-ubuntu:
     runs-on: ubuntu-latest
@@ -46,9 +52,21 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
+      - name: Build Contracts
+        run: |
+          cd "KitX Contracts"
+
+          cd "KitX.Contract.CSharp"
+          dotnet build -c Release
+
       - name: Build Dashboard
         run: |
           cd "KitX Dashboard"
+          dotnet build -c Release
+
+      - name: Build Rules
+        run: |
+          cd "KitX Rules"
           dotnet build -c Release
 
   build-on-macos:
@@ -64,7 +82,21 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
+      - name: Build Contracts
+        run: |
+          cd "KitX Contracts"
+
+          cd "KitX.Contract.CSharp"
+          dotnet build -c Release
+
       - name: Build Dashboard
         run: |
           cd "KitX Dashboard"
           dotnet build -c Release
+
+      - name: Build Rules
+        run: |
+          cd "KitX Rules"
+          dotnet build -c Release
+
+
