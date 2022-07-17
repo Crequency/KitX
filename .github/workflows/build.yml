@@ -13,24 +13,6 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # - uses: actions/checkout@v3
-
-      # - name: Start
-      #   run: echo Starting CI
-
-      # - name: Descr
-      #   run: |
-      #     echo Building on Windows Latest
-      #     echo --------------------------
-          
-      # - name: Setup .NET Core SDK
-      #   uses: actions/setup-dotnet@v2.1.0
-      #   with:
-      #     dotnet-version: 6.0.x
-      #     include-prerelease: false
-          
-      # - name: .Net Build
-      #   uses: EasyDesk/action-dotnet-build@v1.0.0
 
       - uses: actions/checkout@v3
 
@@ -39,9 +21,6 @@ jobs:
         with:
           dotnet-version: '6.0.x'
           include-prerelease: false
-
-      # - name: Setup MSBuild.exe
-      #   uses: microsoft/setup-msbuild@v1.0.0
 
       - name: Build Dashboard
         run: |
@@ -53,3 +32,39 @@ jobs:
 
       # - name: Test
       #   run: dotnet test -c Release
+
+  build-on-ubuntu:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '6.0.x'
+          include-prerelease: false
+
+      - name: Build Dashboard
+        run: |
+          cd "KitX Dashboard"
+          dotnet build -c Release
+
+  build-on-macos:
+    runs-on: macos-latest
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '6.0.x'
+          include-prerelease: false
+
+      - name: Build Dashboard
+        run: |
+          cd "KitX Dashboard"
+          dotnet build -c Release
