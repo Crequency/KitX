@@ -47,11 +47,15 @@ namespace KitX_Dashboard
         public static void Main(string[] args)
         {
             #region 执行启动时检查
+
             Helper.StartUpCheck();
+
             #endregion
 
             #region 进入应用生命周期循环
+
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
             #endregion
 
             Helper.SaveInfo();
