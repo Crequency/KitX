@@ -1,0 +1,66 @@
+name: Build Plugins
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+  
+jobs:
+  build-plugins-on-windows:
+    runs-on: windows-latest
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '6.0.x'
+          include-prerelease: false
+
+      - name: Setup Dotnet SDK
+        run: |
+          bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
+          C:\sdk.exe
+
+      - name: Build Plugins
+        run: |
+          cd "KitX Official Plugins"
+
+          cd "TestPlugin.WPF.COre"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
+
+  # build-plugins-on-ubuntu:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+
+  #     - uses: actions/checkout@v3
+
+  #     - name: Setup .NET
+  #       uses: actions/setup-dotnet@v2
+  #       with:
+  #         dotnet-version: '6.0.x'
+  #         include-prerelease: false
+
+  # build-plugins-on-macos:
+  #   runs-on: macos-latest
+
+  #   steps:
+
+  #     - uses: actions/checkout@v3
+
+  #     - name: Setup .NET
+  #       uses: actions/setup-dotnet@v2
+  #       with:
+  #         dotnet-version: '6.0.x'
+  #         include-prerelease: false
+
+
