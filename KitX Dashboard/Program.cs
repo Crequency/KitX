@@ -24,6 +24,8 @@ namespace KitX_Dashboard
 
         internal static ObservableCollection<PluginCard>? PluginCards;
 
+        //internal static string? PluginsCount;
+
         //internal static List<PluginCard> PluginCards { get; } = new();
 
         //internal static Dictionary<string, object> DirectControls = new();
