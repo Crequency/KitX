@@ -87,7 +87,8 @@ namespace KitX.Loader.WPF.Core
                 IconInBase64 = identity.GetIconInBase64(),
                 PublishDate = identity.GetPublishDate(),
                 LastUpdateDate = identity.GetLastUpdateDate(),
-                IsMarketVersion = identity.IsMarketVersion()
+                IsMarketVersion = identity.IsMarketVersion(),
+                Tags = new()
             };
         }
 
@@ -146,7 +147,7 @@ namespace KitX.Loader.WPF.Core
             {
                 stream.Write(data, 0, data.Length);
                 stream.Flush();
-                stream.Close();
+                //stream.Close();
             }
             catch
             {
