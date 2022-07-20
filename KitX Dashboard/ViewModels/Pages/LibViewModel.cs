@@ -12,22 +12,18 @@ namespace KitX_Dashboard.ViewModels.Pages
     {
         public LibViewModel()
         {
-            //for (int i = 0; i < 20; i++)
-            //    Program.PluginCards.Add(new());
-
-            //for (int i = 0; i < 20; i++)
-            //    PluginCards.Add(new());
-
             Program.PluginCards = PluginCards;
+            //Program.PluginsCount = PluginsCount;
         }
 
-        //public static List<PluginCard> PluginCards { get => Program.PluginCards; }
-
+        /// <summary>
+        /// 插件卡片集合
+        /// </summary>
         public ObservableCollection<PluginCard> PluginCards { get; } = new();
 
         /// <summary>
         /// 搜索框文字
         /// </summary>
-        public string SearchingText { get; set; }
+        public string? SearchingText { get; set; }
     }
 }

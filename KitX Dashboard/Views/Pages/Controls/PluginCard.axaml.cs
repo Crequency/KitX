@@ -20,10 +20,14 @@ namespace KitX_Dashboard.Views.Pages.Controls
         {
             InitializeComponent();
 
+            pluginStruct = ps;
+
             viewModel.pluginStruct = ps;
 
             DataContext = viewModel;
         }
+
+        public PluginStruct pluginStruct;
 
         private void InitializeComponent()
         {
