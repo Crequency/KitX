@@ -6,9 +6,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
+#pragma warning disable CS8604 // 引用类型参数可能为 null。
 
 namespace KitX_Dashboard.Services
 {
@@ -73,24 +75,32 @@ namespace KitX_Dashboard.Services
                         IPEndPoint endpoint = client.Client.RemoteEndPoint as IPEndPoint;
                         clients.Add(endpoint.ToString(), client);
 
-                        Program.LocalLogger.Log("Logger_Debug", $"New connection: {endpoint}",
+                        Program.LocalLogger.Log("Logger_Debug",
+                            $"New connection: {endpoint}",
                             BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
 
-                        //接收消息线程
+                        // 接收消息线程
                         new Thread(() =>
                         {
                             ReciveMessage(client);
                         }).Start();
+
+                        // 新建并执行接收消息任务
+                        //await Task.Run(() =>
+                        //{
+                        //    ReciveMessage(client);
+                        //});
                     }
                     else
                     {
-                        Thread.Sleep(1000);
+                        Thread.Sleep(100);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Program.LocalLogger.Log("Logger_Debug", $"Error: In AcceptClient() : {ex.Message}",
+                Program.LocalLogger.Log("Logger_Error",
+                    $"Error: In AcceptClient() : {ex.Message}",
                     BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
             }
         }
@@ -99,7 +109,7 @@ namespace KitX_Dashboard.Services
         /// 接收消息
         /// </summary>
         /// <param name="obj">TcpClient</param>
-        private void ReciveMessage(object obj)
+        private async void ReciveMessage(object obj)
         {
             TcpClient client = obj as TcpClient;
             IPEndPoint endpoint = null;
@@ -114,20 +124,19 @@ namespace KitX_Dashboard.Services
                 {
                     byte[] data = new byte[1024];
                     //如果远程主机已关闭连接,Read将立即返回零字节
-                    int length = stream.Read(data, 0, data.Length);
+                    //int length = await stream.ReadAsync(data, 0, data.Length);
+                    int length = await stream.ReadAsync(data);
                     if (length > 0)
                     {
-                        #region if
                         string msg = Encoding.UTF8.GetString(data, 0, length);
 
-                        Program.LocalLogger.Log("Logger_Debug", $"From: {endpoint}\tReceive: {msg}",
+                        Program.LocalLogger.Log("Logger_Debug",
+                            $"From: {endpoint}\tReceive: {msg}",
                             BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
-
-                        //PluginsManager.Execute(msg);
 
                         Dispatcher.UIThread.Post(() =>
                         {
-                            PluginsManager.Execute(msg);
+                            PluginsManager.Execute(msg, endpoint);
                         });
 
                         //发送到其他客户端
@@ -140,21 +149,26 @@ namespace KitX_Dashboard.Services
                         //        writeStream.Write(writeData, 0, writeData.Length);
                         //    }
                         //}
-                        #endregion
                     }
                     else
                     {
 
-
-                        //客户端断开连接 跳出循环
-                        break;
+                        break; //客户端断开连接 跳出循环
                     }
                 }
             }
             catch (Exception ex)
             {
-                Program.LocalLogger.Log("Logger_Debug", $"Error: In ReciveMessage() : {ex.Message}",
+                Program.LocalLogger.Log("Logger_Error",
+                    $"Error: In ReciveMessage() : {ex.Message}",
                     BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
+
+                Program.LocalLogger.Log("Logger_Debug",
+                    $"Connection broke from: {endpoint}",
+                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+
+                PluginsManager.Disconnect(endpoint);
+
                 //Read是阻塞方法 客户端退出是会引发异常 释放资源 结束此线程
             }
             finally
@@ -177,5 +191,6 @@ namespace KitX_Dashboard.Services
     }
 }
 
+#pragma warning restore CS8604 // 引用类型参数可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
 #pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
