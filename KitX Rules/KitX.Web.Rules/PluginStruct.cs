@@ -37,5 +37,7 @@
         public DateTime LastUpdateDate { get; set; } = DateTime.Parse("2022.05.02");
 
         public bool IsMarketVersion { get; set; } = false;
+
+        public Dictionary<string, string> Tags { get; set; } = new();
     }
 }
