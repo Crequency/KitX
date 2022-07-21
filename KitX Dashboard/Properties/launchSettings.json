@@ -6,7 +6,7 @@
         "WSL": {
             "commandName": "WSL2",
             "environmentVariables": {},
-            "distributionName": ""
+            "distributionName": "Ubuntu-20.04"
         }
     }
 }
