@@ -1,12 +1,10 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
-using BasicHelper.LiteDB;
 using BasicHelper.LiteLogger;
+using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
-using KitX_Dashboard.Views.Pages;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Version = BasicHelper.Util.Version;
 
@@ -14,11 +12,9 @@ namespace KitX_Dashboard
 {
     internal class Program
     {
-        internal static DBManager LocalDataBase = new();
-
         internal static LoggerManager LocalLogger = new();
 
-        internal static Version LocalVersion;
+        internal static Config GlobalConfig = new();
 
         internal static WebServer? LocalWebServer;
 
@@ -62,9 +58,7 @@ namespace KitX_Dashboard
 
             Helper.SaveInfo();
 
-            Helper.Exit(); 
-
-            LocalDataBase.Save2File();
+            Helper.Exit();
         }
 
         /// <summary>
