@@ -39,5 +39,7 @@
         public bool IsMarketVersion { get; set; } = false;
 
         public Dictionary<string, string> Tags { get; set; } = new();
+
+        public Function Functions { get; set; } = new();
     }
 }
