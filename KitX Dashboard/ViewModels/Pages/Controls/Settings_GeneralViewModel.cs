@@ -7,10 +7,8 @@ using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
-using System.Collections.Generic;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
@@ -41,10 +39,13 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             FluentAvaloniaTheme.HighContrastModeString
         };
 
-        private string _currentAppTheme = (string)
-            (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]
-            == "Follow" ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
-            : (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
+        //private string _currentAppTheme = (string)
+        //    (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]
+        //    == "Follow" ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
+        //    : (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
+        private string _currentAppTheme = Program.GlobalConfig.Config_App.Theme == "Follow"
+            ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
+            : Program.GlobalConfig.Config_App.Theme;
 
         private Color2 nowColor = new();
 
@@ -65,7 +66,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             get => _currentAppTheme;
             set
             {
-                (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3] = value;
+                //(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3] = value;
+                Program.GlobalConfig.Config_App.Theme = value;
                 if (RaiseAndSetIfChanged(ref _currentAppTheme, value))
                 {
                     var faTheme = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
@@ -79,7 +81,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static void LoadLanguage()
         {
-            string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
+            //string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
+            string lang = Program.GlobalConfig.Config_App.AppLanguage;
             Application.Current.Resources.MergedDictionaries.Clear();
             Application.Current.Resources.MergedDictionaries.Add(
                 AvaloniaRuntimeXamlLoader.Load(
@@ -93,7 +96,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int LanguageSelected
         {
-            get => (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] switch
+            //get => (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] switch
+            get => Program.GlobalConfig.Config_App.AppLanguage switch
             {
                 "zh-cn" => 0,
                 "zh-cnt" => 1,
@@ -103,7 +107,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             };
             set
             {
-                (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] = value switch
+                //(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] = value switch
+                Program.GlobalConfig.Config_App.AppLanguage = value switch
                 {
                     0 => "zh-cn",
                     1 => "zh-cnt",
@@ -120,8 +125,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int MicaStatus
         {
-            get => (bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
-            set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] = value != 1;
+            //get => (bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
+            //set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] = value != 1;
+            get => Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica ? 0 : 1;
+            set => Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica = value != 1;
         }
 
         /// <summary>
@@ -129,8 +136,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static double MicaOpacity
         {
-            get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6];
-            set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[6] = value;
+            //get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6];
+            //set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[6] = value;
+            get => Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity;
+            set => Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity = value;
         }
 
         /// <summary>
@@ -153,5 +162,4 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 }
 
 #pragma warning restore CS8604 // 引用类型参数可能为 null。
-#pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning restore CS8602 // 解引用可能出现空引用。

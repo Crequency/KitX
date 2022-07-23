@@ -8,7 +8,6 @@ using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
@@ -30,12 +29,22 @@ namespace KitX_Dashboard.Views
             InitializeComponent();
 
             // 设置窗体坐标
+            //Position = new(
+            //    PositionCameCenter((int)(Helper.local_db_table
+            //        .Query(1).ReturnResult as List<object>)[3], true)
+            //,
+            //    PositionCameCenter((int)(Helper.local_db_table
+            //        .Query(1).ReturnResult as List<object>)[4], false)
+            //);
             Position = new(
-                PositionCameCenter((int)(Helper.local_db_table
-                    .Query(1).ReturnResult as List<object>)[3], true)
-            ,
-                PositionCameCenter((int)(Helper.local_db_table
-                    .Query(1).ReturnResult as List<object>)[4], false)
+                PositionCameCenter(
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left,
+                    true
+                ),
+                PositionCameCenter(
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left,
+                    false
+                )
             );
 
             InitMainWindow();
@@ -47,15 +56,19 @@ namespace KitX_Dashboard.Views
         private void InitMainWindow()
         {
             // 导航到上次关闭时界面
-            SelectedPageName = ((Helper.local_db_table.Query(1).ReturnResult as List<object>)
-                [7] as Dictionary<string, string>)["SelectedPage"];
+            //SelectedPageName = ((Helper.local_db_table.Query(1).ReturnResult as List<object>)
+            //    [7] as Dictionary<string, string>)["SelectedPage"];
+            SelectedPageName = Program.GlobalConfig.Config_Windows.Config_MainWindow.Tags["SelectedPage"];
             MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
 
-            // 如果主题设置不为 `跟随系统` 则手动变更主题
-            if (!((string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]).Equals("Follow"))
+            // 如果主题不设置为 `跟随系统` 则手动变更主题
+            //if (!((string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]).Equals("Follow"))
+            //    AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
+            //        (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
+            if (!Program.GlobalConfig.Config_App.Theme.Equals("Follow"))
                 AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
-                    (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
+                    Program.GlobalConfig.Config_App.Theme;
         }
 
         /// <summary>
@@ -113,11 +126,16 @@ namespace KitX_Dashboard.Views
         /// </summary>
         private void SaveMetaData()
         {
-            Helper.local_db_table.Update(1, "Left", Position.X);
-            Helper.local_db_table.Update(1, "Top", Position.Y);
-            ((Helper.local_db_table.Query(1).ReturnResult as List<object>)
-                [7] as Dictionary<string, string>)
-                ["SelectedPage"] = SelectedPageName;
+            //Helper.local_db_table.Update(1, "Left", Position.X);
+            //Helper.local_db_table.Update(1, "Top", Position.Y);
+            //((Helper.local_db_table.Query(1).ReturnResult as List<object>)
+            //    [7] as Dictionary<string, string>)
+            //    ["SelectedPage"] = SelectedPageName;
+
+            Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left = Position.X;
+            Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top = Position.Y;
+            Program.GlobalConfig.Config_Windows.Config_MainWindow.
+                Tags["SelectedPage"] = SelectedPageName;
         }
 
         /// <summary>
@@ -143,7 +161,8 @@ namespace KitX_Dashboard.Views
             thm.RequestedThemeChanged += OnRequestedThemeChanged;
 
             // 如果是 Windows 系统, 且数据库表示启用 Mica 效果
-            if ((bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5]
+            //if ((bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5]
+            if (Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica
                 && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // 如果是 Windows 11 而且没有选择 `高对比度` 主题
@@ -190,8 +209,11 @@ namespace KitX_Dashboard.Views
 
                 color = color.LightenPercent(-0.8f);
 
+                //Background = new ImmutableSolidColorBrush(color,
+                //    (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6]);
+
                 Background = new ImmutableSolidColorBrush(color,
-                    (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6]);
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity);
             }
             else if (thm.RequestedTheme == FluentAvaloniaTheme.LightModeString)
             {
