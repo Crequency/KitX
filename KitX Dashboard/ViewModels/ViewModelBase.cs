@@ -13,7 +13,8 @@ namespace KitX_Dashboard.ViewModels
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        protected bool RaiseAndSetIfChanged<T>(ref T field, T value, [CallerMemberName] string propertyName = "")
+        protected bool RaiseAndSetIfChanged<T>(ref T field, T value,
+            [CallerMemberName] string propertyName = "")
         {
             if (!EqualityComparer<T>.Default.Equals(field, value))
             {

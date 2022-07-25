@@ -18,7 +18,6 @@ namespace KitX_Dashboard
         {
             AvaloniaXamlLoader.Load(this);
 
-            //string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
             string lang = Program.GlobalConfig.Config_App.AppLanguage;
             Resources.MergedDictionaries.Clear();
             Resources.MergedDictionaries.Add(
@@ -38,7 +37,6 @@ namespace KitX_Dashboard
                 };
             }
 
-            //string color = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[4] as string;
             string color = Program.GlobalConfig.Config_App.ThemeColor;
             Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 

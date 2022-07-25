@@ -15,14 +15,6 @@ namespace KitX_Dashboard.Views.Pages
             InitializeComponent();
 
             DataContext = libViewModel;
-
-            //if (Program.ViewModelPool.ContainsKey("LibViewModel"))
-            //    Program.ViewModelPool["LibViewModel"] = libViewModel;
-            //else Program.ViewModelPool.Add("LibViewModel", libViewModel);
-
-            //Program.libPage = this;
-
-            //Program.DirectControls.Add("LibViewWrapPanel", LibViewWrapPanel);
         }
 
         private void InitializeComponent()

@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -79,17 +78,11 @@ namespace KitX_Dashboard.Services
                             $"New connection: {endpoint}",
                             BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
 
-                        // 接收消息线程
+                        // 新建并运行接收消息线程
                         new Thread(() =>
                         {
                             ReciveMessage(client);
                         }).Start();
-
-                        // 新建并执行接收消息任务
-                        //await Task.Run(() =>
-                        //{
-                        //    ReciveMessage(client);
-                        //});
                     }
                     else
                     {

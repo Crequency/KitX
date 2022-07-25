@@ -29,15 +29,6 @@ namespace KitX_Dashboard.Views
             InitializeComponent();
 
             // 设置窗体坐标
-            //Position = new(
-            //    PositionCameCenter((int)(Helper.local_db_table
-            //        .Query(1).ReturnResult as List<object>)[3], true)
-            //,
-            //    PositionCameCenter((int)(Helper.local_db_table
-            //        .Query(1).ReturnResult as List<object>)[4], false)
-            //);
-
-            //MessageBox.Avalonia.MessageBoxManager.GetMessageBoxStandardWindow("", $"{PositionCameCenter(Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left, true)},{PositionCameCenter(Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left, false)}").Show();
 
             Position = new(
                 PositionCameCenter(
@@ -59,16 +50,11 @@ namespace KitX_Dashboard.Views
         private void InitMainWindow()
         {
             // 导航到上次关闭时界面
-            //SelectedPageName = ((Helper.local_db_table.Query(1).ReturnResult as List<object>)
-            //    [7] as Dictionary<string, string>)["SelectedPage"];
             SelectedPageName = Program.GlobalConfig.Config_Windows.Config_MainWindow.Tags["SelectedPage"];
             MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
 
             // 如果主题不设置为 `跟随系统` 则手动变更主题
-            //if (!((string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]).Equals("Follow"))
-            //    AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
-            //        (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
             if (!Program.GlobalConfig.Config_App.Theme.Equals("Follow"))
                 AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
                     Program.GlobalConfig.Config_App.Theme;
@@ -129,14 +115,6 @@ namespace KitX_Dashboard.Views
         /// </summary>
         private void SaveMetaData()
         {
-            //Helper.local_db_table.Update(1, "Left", Position.X);
-            //Helper.local_db_table.Update(1, "Top", Position.Y);
-            //((Helper.local_db_table.Query(1).ReturnResult as List<object>)
-            //    [7] as Dictionary<string, string>)
-            //    ["SelectedPage"] = SelectedPageName;
-
-            //MessageBox.Avalonia.MessageBoxManager.GetMessageBoxStandardWindow("", Position.ToString()).Show();
-
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left = Position.X;
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top = Position.Y;
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width = Width;
@@ -192,7 +170,8 @@ namespace KitX_Dashboard.Views
         /// </summary>
         /// <param name="sender">FluentAvaloniaTheme</param>
         /// <param name="args">主题正在更改请求参数</param>
-        private void OnRequestedThemeChanged(FluentAvaloniaTheme sender, RequestedThemeChangedEventArgs args)
+        private void OnRequestedThemeChanged(FluentAvaloniaTheme sender,
+            RequestedThemeChangedEventArgs args)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {

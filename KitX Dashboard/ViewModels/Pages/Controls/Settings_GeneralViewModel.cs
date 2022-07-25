@@ -39,10 +39,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             FluentAvaloniaTheme.HighContrastModeString
         };
 
-        //private string _currentAppTheme = (string)
-        //    (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3]
-        //    == "Follow" ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
-        //    : (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3];
         private string _currentAppTheme = Program.GlobalConfig.Config_App.Theme == "Follow"
             ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
             : Program.GlobalConfig.Config_App.Theme;
@@ -66,7 +62,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             get => _currentAppTheme;
             set
             {
-                //(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[3] = value;
                 Program.GlobalConfig.Config_App.Theme = value;
                 if (RaiseAndSetIfChanged(ref _currentAppTheme, value))
                 {
@@ -81,7 +76,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static void LoadLanguage()
         {
-            //string lang = (Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] as string;
             string lang = Program.GlobalConfig.Config_App.AppLanguage;
             Application.Current.Resources.MergedDictionaries.Clear();
             Application.Current.Resources.MergedDictionaries.Add(
@@ -96,7 +90,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int LanguageSelected
         {
-            //get => (string)(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] switch
             get => Program.GlobalConfig.Config_App.AppLanguage switch
             {
                 "zh-cn" => 0,
@@ -107,7 +100,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             };
             set
             {
-                //(Helper.local_db_table_app.Query(1).ReturnResult as List<object>)[2] = value switch
                 Program.GlobalConfig.Config_App.AppLanguage = value switch
                 {
                     0 => "zh-cn",
@@ -125,8 +117,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int MicaStatus
         {
-            //get => (bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] ? 0 : 1;
-            //set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[5] = value != 1;
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica ? 0 : 1;
             set => Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica = value != 1;
         }
@@ -136,8 +126,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static double MicaOpacity
         {
-            //get => (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6];
-            //set => (Helper.local_db_table.Query(1).ReturnResult as List<object>)[6] = value;
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity;
             set => Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity = value;
         }

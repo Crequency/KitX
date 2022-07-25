@@ -19,18 +19,6 @@ namespace KitX_Dashboard
 
         internal static ObservableCollection<PluginCard>? PluginCards;
 
-        //internal static string? PluginsCount;
-
-        //internal static List<PluginCard> PluginCards { get; } = new();
-
-        //internal static Dictionary<string, object> DirectControls = new();
-
-        //internal static LibPage? libPage;
-
-        //internal static readonly Dictionary<string, int> CardsIndex = new();
-
-        //internal static readonly Dictionary<string, object> ViewModelPool = new();
-
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
         /// </summary>
@@ -55,9 +43,17 @@ namespace KitX_Dashboard
 
             #endregion
 
+            #region 保存配置信息
+
             Helper.SaveInfo();
 
+            #endregion
+
+            #region 退出进程
+
             Helper.Exit();
+
+            #endregion
         }
 
         /// <summary>

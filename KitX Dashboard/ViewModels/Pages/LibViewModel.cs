@@ -1,10 +1,5 @@
 ﻿using KitX_Dashboard.Views.Pages.Controls;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace KitX_Dashboard.ViewModels.Pages
 {
@@ -13,7 +8,6 @@ namespace KitX_Dashboard.ViewModels.Pages
         public LibViewModel()
         {
             Program.PluginCards = PluginCards;
-            //Program.PluginsCount = PluginsCount;
         }
 
         /// <summary>
