@@ -1,78 +1,83 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace KitX_Dashboard.Data
 {
-    internal struct Config
+    /// <summary>
+    /// 配置结构
+    /// </summary>
+    public class Config
     {
-        public Config()
+        [JsonInclude]
+        public App Config_App { get; set; } = new();
+
+        [JsonInclude]
+        public Windows Config_Windows { get; set; } = new();
+
+        /// <summary>
+        /// AppConfig
+        /// </summary>
+        public class App
         {
+
+            [JsonInclude]
+            public string AppName { get; set; } = "KitX";
+
+            [JsonInclude]
+            public string AppVersion { get; set; } = "v3.0.0.0";
+
+            [JsonInclude]
+            public string AppLanguage { get; set; } = "zh-cn";
+
+            [JsonInclude]
+            public string Theme { get; set; } = "Follow";
+
+            [JsonInclude]
+            public string ThemeColor { get; set; } = "#FF3873D9";
 
         }
 
-        internal App Config_App = new();
-        internal Windows Config_Windows = new();
-
-        internal struct App
+        /// <summary>
+        /// WindowsConfig
+        /// </summary>
+        public class Windows
         {
-            public App()
+
+            [JsonInclude]
+            public MainWindow Config_MainWindow { get; set; } = new();
+
+            /// <summary>
+            /// MainWindowConfig
+            /// </summary>
+            public class MainWindow
             {
 
-            }
+                [JsonInclude]
+                public double Window_Width { get; set; } = 1280;
 
-            internal string AppName = "KitX";
+                [JsonInclude]
+                public double Window_Height { get; set; } = 720;
 
-            internal string AppVersion = "v3.0.0.0";
+                [JsonInclude]
+                public int Window_Left { get; set; } = -1;
 
-            internal string AppLanguage = "zh-cn";
+                [JsonInclude]
+                public int Window_Top { get; set; } = -1;
 
-            internal string Theme = "Follow";
-
-            internal string ThemeColor = "#FF3873D9";
-
-        }
-
-        internal struct Windows
-        {
-            public Windows()
-            {
-
-            }
-
-            internal MainWindow Config_MainWindow = new();
-
-            internal struct MainWindow
-            {
-                public MainWindow()
-                {
-
-                }
-
-                internal double Window_Width = 1280;
-
-                internal double Window_Height = 720;
-
-                internal int Window_Left = -1;
-
-                internal int Window_Top = -1;
-
-                internal Dictionary<string, string> Tags = new()
+                [JsonInclude]
+                public Dictionary<string, string> Tags { get; set; } = new()
                 {
                     { "SelectedPage", "Page_Home" }
                 };
 
-                internal bool EnabledMica = true;
+                [JsonInclude]
+                public bool EnabledMica { get; set; } = true;
 
-                internal double MicaOpacity = 0.15;
+                [JsonInclude]
+                public double MicaOpacity { get; set; } = 0.15;
             }
 
-
-
-
         }
-
-
-
-
 
     }
 }
