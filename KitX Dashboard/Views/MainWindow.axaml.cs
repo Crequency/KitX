@@ -36,13 +36,16 @@ namespace KitX_Dashboard.Views
             //    PositionCameCenter((int)(Helper.local_db_table
             //        .Query(1).ReturnResult as List<object>)[4], false)
             //);
+
+            //MessageBox.Avalonia.MessageBoxManager.GetMessageBoxStandardWindow("", $"{PositionCameCenter(Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left, true)},{PositionCameCenter(Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left, false)}").Show();
+
             Position = new(
                 PositionCameCenter(
                     Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left,
                     true
                 ),
                 PositionCameCenter(
-                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left,
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top,
                     false
                 )
             );
@@ -132,8 +135,12 @@ namespace KitX_Dashboard.Views
             //    [7] as Dictionary<string, string>)
             //    ["SelectedPage"] = SelectedPageName;
 
+            //MessageBox.Avalonia.MessageBoxManager.GetMessageBoxStandardWindow("", Position.ToString()).Show();
+
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left = Position.X;
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top = Position.Y;
+            Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width = Width;
+            Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height = Height;
             Program.GlobalConfig.Config_Windows.Config_MainWindow.
                 Tags["SelectedPage"] = SelectedPageName;
         }

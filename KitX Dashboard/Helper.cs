@@ -2,63 +2,126 @@
 using Avalonia.Media;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
-using System;
-using System.Collections.Generic;
-using System.IO;
+using KitX_Dashboard.Data;
 using LiteDB;
+using System.IO;
+using System.Text.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
-#pragma warning disable CS8603 // 可能返回 null 引用。
+#pragma warning disable CS8601 // 引用类型赋值可能为 null。
 
 namespace KitX_Dashboard
 {
     public static class Helper
     {
+        /// <summary>
+        /// 配置路径
+        /// </summary>
+        public readonly static string ConfigPath = Path.GetFullPath(GlobalInfo.ConfigPath);
 
         /// <summary>
         /// 启动时检查
         /// </summary>
         public static void StartUpCheck()
         {
+            #region 初始化 Config
+
+            InitConfig();
+
+            #endregion
+
             #region 初始化 LiteDB
-            string DataBaseWorkBase = Path.GetFullPath(Data.GlobalInfo.ConfigPath);
+
+            string DataBaseWorkBase = Path.GetFullPath(Data.GlobalInfo.DataBasePath);
 
             if (!Directory.Exists(DataBaseWorkBase))
             {
                 Directory.CreateDirectory(DataBaseWorkBase);
-                LiteDatabase db = new($"{DataBaseWorkBase}/config.db");
-                InitLiteDB(db);
-                db.Dispose();
+                LiteDatabase pluginsDB = new($"{DataBaseWorkBase}/plugins.db");
+                InitLiteDB(/*db*/);
+                pluginsDB.Dispose();
             }
+
             #endregion
 
             #region 初始化 LiteLogger
+
             InitLiteLogger(Program.LocalLogger);
+
             #endregion
 
             #region 初始化环境
+
             InitEnvironment();
+
             #endregion
 
             #region 初始化一般信息
+
             //Program.LocalVersion = BasicHelper.Util.Version.Parse(
 
             //);
+
             #endregion
 
             #region 初始化 WebServer
+
             Program.LocalWebServer = new();
             Program.LocalWebServer.Start();
+
             #endregion
+        }
+
+        /// <summary>
+        /// 保存配置
+        /// </summary>
+        public static void SaveConfig()
+        {
+            string ConfigFilePath = Path.GetFullPath($"{ConfigPath}/config.json");
+
+            JsonSerializerOptions options = new()
+            {
+                WriteIndented = true,
+                IncludeFields = true,
+            };
+
+            BasicHelper.IO.FileHelper.WriteIn(ConfigFilePath,
+                JsonSerializer.Serialize(Program.GlobalConfig, options));
+        }
+
+        /// <summary>
+        /// 读取配置
+        /// </summary>
+        public static void LoadConfig()
+        {
+            string ConfigFilePath = Path.GetFullPath($"{ConfigPath}/config.json");
+
+            Program.GlobalConfig = JsonSerializer.Deserialize<Config>(
+                BasicHelper.IO.FileHelper.ReadAll(ConfigFilePath));
+        }
+
+        /// <summary>
+        /// 初始化配置
+        /// </summary>
+        public static void InitConfig()
+        {
+
+            if (!Directory.Exists(ConfigPath))
+            {
+                Directory.CreateDirectory(ConfigPath);
+                SaveConfig();
+            }
+            else LoadConfig();
         }
 
         /// <summary>
         /// 初始化数据库
         /// </summary>
-        public static void InitLiteDB(LiteDatabase db)
+        public static void InitLiteDB(/*LiteDatabase db*/)
         {
-            var col = db.GetCollection("App");
+            //var config = db.GetCollection("App");
+            //config.Insert(Program.GlobalConfig);
         }
 
         /// <summary>
@@ -66,8 +129,10 @@ namespace KitX_Dashboard
         /// </summary>
         public static void SaveInfo()
         {
-
             var accent = Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush;
+            Program.GlobalConfig.Config_App.ThemeColor = new Color2(accent.Color).ToHexString();
+
+            SaveConfig();
         }
 
         /// <summary>
@@ -117,6 +182,5 @@ namespace KitX_Dashboard
     }
 }
 
-#pragma warning restore CS8603 // 可能返回 null 引用。
-#pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
+#pragma warning restore CS8601 // 引用类型赋值可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。

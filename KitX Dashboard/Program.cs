@@ -6,7 +6,6 @@ using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
-using Version = BasicHelper.Util.Version;
 
 namespace KitX_Dashboard
 {
