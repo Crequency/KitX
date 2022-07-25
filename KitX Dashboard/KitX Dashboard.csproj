@@ -22,6 +22,7 @@
         <Compile Remove="FakesAssemblies\**" />
         <EmbeddedResource Remove="FakesAssemblies\**" />
         <None Remove="FakesAssemblies\**" />
+        <AvaloniaResource Remove="Assets\KitX.Base64.txt" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
         <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
@@ -122,6 +123,11 @@
         <AvaloniaResource Update="Assets\ThirdPartLicense.md">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </AvaloniaResource>
+    </ItemGroup>
+    <ItemGroup>
+      <None Update="Assets\KitX.Base64.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
     <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
 </Project>
