@@ -27,7 +27,6 @@
         <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
-        <Folder Include="Models\" />
         <None Remove=".gitignore" />
         <None Remove="Assets\KitX-Background-ani.png" />
         <None Remove="Assets\KitX-Background-Rounded-Box.png" />
