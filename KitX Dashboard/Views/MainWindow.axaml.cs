@@ -65,7 +65,7 @@ namespace KitX_Dashboard.Views
             // 每 Interval 更新一次招呼语
             UpdateGreetingText();
             Program.LanguageChanged += () => UpdateGreetingText();
-            Timer timer = new(1000 * 60 * 30)
+            Timer timer = new(1000 * 60 * 10)
             {
                 AutoReset = true
             };
