@@ -16,7 +16,40 @@
     <x:String x:Key="Text_Language_ja-jp">日本語</x:String>
 
 
-    <x:String x:Key="Text_MainWindow_NavigationView_Header">上午好! ο(=•ω＜=)ρ⌒☆</x:String>
+    <!--GreetingStart-->
+    
+    <!--MorningStart-->
+    <x:String x:Key="Text_Greeting_Morning_1">上午好! ο(=•ω＜=)ρ⌒☆</x:String>
+    <x:String x:Key="Text_Greeting_Morning_2">每天都要有好心情哟 OvO</x:String>
+    <x:String x:Key="Text_Greeting_Morning_3">今日事, 今日毕!</x:String>
+    <x:String x:Key="Text_Greeting_Morning_4">美好的一天开始啦~</x:String>
+    <!--MorningEnd-->
+    
+    <!--NoonStart-->
+    <x:String x:Key="Text_Greeting_Noon_1">中午好! o(〃＾▽＾〃)o</x:String>
+    <x:String x:Key="Text_Greeting_Noon_2">中午啦, 小憩一会儿吧~</x:String>
+    <x:String x:Key="Text_Greeting_Noon_3">今天也是一个充实的上午呢</x:String>
+    <!--NoonEnd-->
+    
+    <!--AfterNoonStart-->
+    <x:String x:Key="Text_Greeting_AfterNoon_1">下午好! ヾ(≧▽≦*)o</x:String>
+    <x:String x:Key="Text_Greeting_AfterNoon_2">下午茶时间!</x:String>
+    <x:String x:Key="Text_Greeting_AfterNoon_3">今天的任务还有哪些没完成呢</x:String>
+    <!--AfterNoonEnd-->
+    
+    <!--EveningStart-->
+    <x:String x:Key="Text_Greeting_Evening_1">晚上好! o(*￣▽￣*)ブ</x:String>
+    <x:String x:Key="Text_Greeting_Evening_2">今晚我要美美饱餐一顿!</x:String>
+    <!--EveningEnd-->
+    
+    <!--NightStart-->
+    <x:String x:Key="Text_Greeting_Night_1">夜深人静呐! o(*￣▽￣*)ブ</x:String>
+    <x:String x:Key="Text_Greeting_Night_2">夜深了, 早点休息吧</x:String>
+    <x:String x:Key="Text_Greeting_Night_3">明天也会是美好的一天!</x:String>
+    <!--NightEnd-->
+    
+    <!--GreetingEnd-->
+    
     <x:String x:Key="Text_MainWindow_NavigationView_Home">首页</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Lib">库</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Market">市场</x:String>
