@@ -3,13 +3,16 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.Threading;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
+using KitX_Dashboard.Models;
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Timers;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8601 // 引用类型赋值可能为 null。
@@ -58,6 +61,30 @@ namespace KitX_Dashboard.Views
             if (!Program.GlobalConfig.Config_App.Theme.Equals("Follow"))
                 AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
                     Program.GlobalConfig.Config_App.Theme;
+
+            // 每 Interval 更新一次招呼语
+            UpdateGreetingText();
+            Program.LanguageChanged += () => UpdateGreetingText();
+            Timer timer = new(1000 * 60 * 30)
+            {
+                AutoReset = true
+            };
+            timer.Elapsed += (_, _) => UpdateGreetingText();
+            timer.Start();
+        }
+
+        /// <summary>
+        /// 更新招呼语
+        /// </summary>
+        private void UpdateGreetingText()
+        {
+            Application.Current.Resources.MergedDictionaries[0]
+            .TryGetResource(GreetingTextGenerator.GetKey(), out object? text);
+            Dispatcher.UIThread.Post(() =>
+            {
+                //GreetingTextBlock.Text = text as string;
+                Resources["GreetingText"] = text as string;
+            });
         }
 
         /// <summary>

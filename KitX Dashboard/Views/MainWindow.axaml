@@ -14,6 +14,12 @@
         Icon="/Assets/KitX.png"
         FontFamily="Microsoft YaHei UI"
         Title="{DynamicResource Text_MainWindow_Title}">
+    
+    <Window.Resources>
+        <ResourceDictionary>
+            <x:String x:Key="GreetingText">Hello, World!</x:String>
+        </ResourceDictionary>
+    </Window.Resources>
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
@@ -42,7 +48,7 @@
         </ui:NavigationView.FooterMenuItems>
         
         <ui:NavigationView.PaneFooter>
-            <TextBlock Text="{Binding GreetingText}" Margin="20" TextWrapping="Wrap"
+            <TextBlock Text="{DynamicResource GreetingText}" Margin="20" TextWrapping="Wrap"
                        IsVisible="{Binding ElementName=MainNavigationView, Path=IsPaneOpen}"/>
         </ui:NavigationView.PaneFooter>
 
