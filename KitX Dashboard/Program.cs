@@ -7,6 +7,8 @@ using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
 
+#pragma warning disable CS8602 // 解引用可能出现空引用。
+
 namespace KitX_Dashboard
 {
     internal class Program
@@ -18,6 +20,24 @@ namespace KitX_Dashboard
         internal static WebServer? LocalWebServer;
 
         internal static ObservableCollection<PluginCard>? PluginCards;
+
+        internal delegate void LanguageChangedHandler();
+
+        internal static event LanguageChangedHandler? LanguageChanged;
+
+        /// <summary>
+        /// 执行全局事件
+        /// </summary>
+        /// <param name="eventName">事件名称</param>
+        internal static void Invoke(string eventName)
+        {
+            switch (eventName)
+            {
+                case "LanguageChanged":
+                    LanguageChanged();
+                    break;
+            }
+        }
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
@@ -31,6 +51,12 @@ namespace KitX_Dashboard
         [STAThread]
         public static void Main(string[] args)
         {
+            #region 必要的初始化
+
+            LanguageChanged += () => { };
+
+            #endregion
+
             #region 执行启动时检查
 
             Helper.StartUpCheck();
@@ -66,3 +92,5 @@ namespace KitX_Dashboard
             .UsePlatformDetect().LogToTrace().UseReactiveUI();
     }
 }
+
+#pragma warning restore CS8602 // 解引用可能出现空引用。
