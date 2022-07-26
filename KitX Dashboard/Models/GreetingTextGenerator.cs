@@ -1,7 +1,4 @@
-﻿using Avalonia;
-using System;
-
-#pragma warning disable CS8602 // 解引用可能出现空引用。
+﻿using System;
 
 namespace KitX_Dashboard.Models
 {
@@ -12,7 +9,7 @@ namespace KitX_Dashboard.Models
 
         }
 
-        internal static string? GetText()
+        internal static string? GetKey()
         {
             Random random = new();
             string key = $"Text_Greeting_%Step%_%Index%";
@@ -36,10 +33,7 @@ namespace KitX_Dashboard.Models
             else key = key.Replace("%Step%", "Night").Replace("%Index%",
                     random.Next(1, Program.GlobalConfig.Config_Windows
                     .Config_MainWindow.GreetingTextCount_Night).ToString());
-            Application.Current.Resources.MergedDictionaries[0].TryGetResource(key, out object? text);
-            return text as string;
+            return key;
         }
     }
 }
-
-#pragma warning restore CS8602 // 解引用可能出现空引用。
