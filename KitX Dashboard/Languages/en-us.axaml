@@ -79,6 +79,7 @@
 
     <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">Port</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">Greeting Text Update Interval</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_About">About</x:String>
