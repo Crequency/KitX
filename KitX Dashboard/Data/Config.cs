@@ -90,6 +90,9 @@ namespace KitX_Dashboard.Data
 
                 [JsonInclude]
                 public int GreetingTextCount_Night { get; set; } = 3;
+
+                [JsonInclude]
+                public int GreetingUpdateInterval { get; set; } = 10;
             }
 
         }
