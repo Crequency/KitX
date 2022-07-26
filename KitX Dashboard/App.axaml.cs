@@ -25,6 +25,8 @@ namespace KitX_Dashboard
                     FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{lang}.axaml")
                 ) as ResourceDictionary
             );
+
+            Program.Invoke("LanguageChanged");
         }
 
         public override void OnFrameworkInitializationCompleted()

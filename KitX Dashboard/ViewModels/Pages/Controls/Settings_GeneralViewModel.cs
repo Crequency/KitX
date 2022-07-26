@@ -83,6 +83,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{lang}.axaml")
                 ) as ResourceDictionary
             );
+
+            Program.Invoke("LanguageChanged");
         }
 
         /// <summary>
