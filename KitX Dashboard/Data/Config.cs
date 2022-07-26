@@ -75,6 +75,21 @@ namespace KitX_Dashboard.Data
 
                 [JsonInclude]
                 public double MicaOpacity { get; set; } = 0.15;
+
+                [JsonInclude]
+                public int GreetingTextCount_Morning { get; set; } = 4;
+
+                [JsonInclude]
+                public int GreetingTextCount_Noon { get; set; } = 3;
+
+                [JsonInclude]
+                public int GreetingTextCount_AfterNoon { get; set; } = 3;
+
+                [JsonInclude]
+                public int GreetingTextCount_Evening { get; set; } = 2;
+
+                [JsonInclude]
+                public int GreetingTextCount_Night { get; set; } = 3;
             }
 
         }
