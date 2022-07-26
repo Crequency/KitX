@@ -1,3 +1,5 @@
+using KitX_Dashboard.Models;
+
 #pragma warning disable CA1822 // 将成员标记为 static
 
 namespace KitX_Dashboard.ViewModels
@@ -15,6 +17,8 @@ namespace KitX_Dashboard.ViewModels
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height;
             set => Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height = value;
         }
+
+        internal string GreetingText => new GreetingTextGenerator().GetText();
     }
 }
 
