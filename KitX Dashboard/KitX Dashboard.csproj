@@ -84,43 +84,43 @@
     </ItemGroup>
     <ItemGroup>
         <AvaloniaResource Update="Assets\avalonia-logo.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Background-ani.png">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Background-Rounded-Box.png">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Background-Rounded.png">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Background.png">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-128x.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-16x.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-256x.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-32x.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-48x.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-64x.ico">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX.png">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\ThirdPartLicense.md">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
     </ItemGroup>
     <ItemGroup>
