@@ -144,7 +144,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static int GreetingTextUpdateInterval
         {
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.GreetingUpdateInterval;
-            set => Program.GlobalConfig.Config_Windows.Config_MainWindow.GreetingUpdateInterval = value;
+            set
+            {
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.GreetingUpdateInterval = value;
+                EventHandlers.Invoke("GreetingTextIntervalUpdated");
+            }
         }
 
         /// <summary>
