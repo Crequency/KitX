@@ -15,7 +15,5 @@ namespace KitX_Dashboard.ViewModels
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height;
             set => Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height = value;
         }
-
-        internal static string? GreetingText => GreetingTextGenerator.GetText();
     }
 }
