@@ -7,6 +7,7 @@ using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
+using KitX_Dashboard.Models;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
@@ -84,7 +85,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 ) as ResourceDictionary
             );
 
-            Program.Invoke("LanguageChanged");
+            EventHandlers.Invoke("LanguageChanged");
         }
 
         /// <summary>

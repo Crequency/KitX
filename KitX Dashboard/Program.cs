@@ -3,6 +3,7 @@ using Avalonia.ReactiveUI;
 using BasicHelper.LiteLogger;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
+using KitX_Dashboard.Models;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
@@ -21,24 +22,6 @@ namespace KitX_Dashboard
 
         internal static ObservableCollection<PluginCard>? PluginCards;
 
-        internal delegate void LanguageChangedHandler();
-
-        internal static event LanguageChangedHandler? LanguageChanged;
-
-        /// <summary>
-        /// 执行全局事件
-        /// </summary>
-        /// <param name="eventName">事件名称</param>
-        internal static void Invoke(string eventName)
-        {
-            switch (eventName)
-            {
-                case "LanguageChanged":
-                    LanguageChanged();
-                    break;
-            }
-        }
-
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
         /// </summary>
@@ -53,7 +36,7 @@ namespace KitX_Dashboard
         {
             #region 必要的初始化
 
-            LanguageChanged += () => { };
+            EventHandlers.Init();
 
             #endregion
 

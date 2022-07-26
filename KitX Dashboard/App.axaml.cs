@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
 using KitX_Dashboard.Data;
+using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
 
@@ -26,7 +27,7 @@ namespace KitX_Dashboard
                 ) as ResourceDictionary
             );
 
-            Program.Invoke("LanguageChanged");
+            EventHandlers.Invoke("LanguageChanged");
         }
 
         public override void OnFrameworkInitializationCompleted()
