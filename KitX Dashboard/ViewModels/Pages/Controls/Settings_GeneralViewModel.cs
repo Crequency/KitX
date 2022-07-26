@@ -138,6 +138,15 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static int WebServerPort => GlobalInfo.ServerPortNumber;
 
         /// <summary>
+        /// 招呼语更新延迟
+        /// </summary>
+        internal static int GreetingTextUpdateInterval
+        {
+            get => Program.GlobalConfig.Config_Windows.Config_MainWindow.GreetingUpdateInterval;
+            set => Program.GlobalConfig.Config_Windows.Config_MainWindow.GreetingUpdateInterval = value;
+        }
+
+        /// <summary>
         /// 确认主题色变更命令
         /// </summary>
         internal DelegateCommand? ColorConfirmedCommand { get; set; }
