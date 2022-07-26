@@ -40,6 +40,11 @@
             <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings" Icon="Setting"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Settings}"/>
         </ui:NavigationView.FooterMenuItems>
+        
+        <ui:NavigationView.PaneFooter>
+            <TextBlock Text="{Binding GreetingText}" Margin="20" TextWrapping="Wrap"
+                       IsVisible="{Binding ElementName=MainNavigationView, Path=IsPaneOpen}"/>
+        </ui:NavigationView.PaneFooter>
 
         <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
     </ui:NavigationView>
