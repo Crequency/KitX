@@ -8,8 +8,6 @@ using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
 
-#pragma warning disable CS8602 // 解引用可能出现空引用。
-
 namespace KitX_Dashboard
 {
     internal class Program
@@ -75,5 +73,3 @@ namespace KitX_Dashboard
             .UsePlatformDetect().LogToTrace().UseReactiveUI();
     }
 }
-
-#pragma warning restore CS8602 // 解引用可能出现空引用。
