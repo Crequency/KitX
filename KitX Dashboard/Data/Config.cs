@@ -14,6 +14,9 @@ namespace KitX_Dashboard.Data
         [JsonInclude]
         public Windows Config_Windows { get; set; } = new();
 
+        [JsonInclude]
+        public Pages Config_Pages { get; set; } = new();
+
         /// <summary>
         /// AppConfig
         /// </summary>
@@ -96,6 +99,26 @@ namespace KitX_Dashboard.Data
             }
 
         }
+
+        /// <summary>
+        /// ViewsConfig
+        /// </summary>
+        public class Pages
+        {
+            [JsonInclude]
+            public SettingsPage Config_SettingsPage { get; set; } = new();
+
+            /// <summary>
+            /// SettingsPageConfig
+            /// </summary>
+            public class SettingsPage
+            {
+                [JsonInclude]
+                public string SelectedViewName { get; set; } = "View_General";
+            }
+
+        }
+
 
     }
 }
