@@ -20,7 +20,6 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 版本号属性
         /// </summary>
-        //internal static string VersionText => Program.LocalVersion.GetVersionText();
         internal static string VersionText => Program.GlobalConfig.Config_App.AppVersion;
 
         /// <summary>
