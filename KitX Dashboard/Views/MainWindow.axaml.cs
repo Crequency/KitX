@@ -54,7 +54,6 @@ namespace KitX_Dashboard.Views
         {
             // 导航到上次关闭时界面
             SelectedPageName = Program.GlobalConfig.Config_Windows.Config_MainWindow.Tags["SelectedPage"];
-            MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
 
             // 如果主题不设置为 `跟随系统` 则手动变更主题

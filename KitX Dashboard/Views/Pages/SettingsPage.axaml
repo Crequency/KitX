@@ -16,9 +16,11 @@
         <vm:SettingsViewModel/>
     </Design.DataContext>
 
-    <TabControl SelectedIndex="{Binding TabControlSelectedIndex}">
+    <!--<TabControl SelectedIndex="{Binding TabControlSelectedIndex}">
 
-        <!-- <General> -->
+        -->
+    <!-- <General> -->
+    <!--
         <TabItem Width="200">
             <TabItem.Header>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -31,9 +33,13 @@
             <controls:Settings_General/>
 
         </TabItem>
-        <!-- </General> -->
+        -->
+    <!-- </General> -->
+    <!--
 
-        <!-- <Performence> -->
+        -->
+    <!-- <Performence> -->
+    <!--
         <TabItem Width="200">
             <TabItem.Header>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -44,9 +50,13 @@
             </TabItem.Header>
 
         </TabItem>
-        <!-- </Performence> -->
+        -->
+    <!-- </Performence> -->
+    <!--
 
-        <!-- <About> -->
+        -->
+    <!-- <About> -->
+    <!--
         <TabItem Width="200">
             <TabItem.Header>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -59,7 +69,49 @@
             <controls:Settings_About/>
             
         </TabItem>
-        <!-- </About> -->
-    </TabControl>
+        -->
+    <!-- </About> -->
+    <!--
+    </TabControl>-->
+
+    <ui:NavigationView IsBackEnabled="False" IsBackButtonVisible="False" IsSettingsVisible="False"
+                       IsPaneOpen="True" PaneDisplayMode="Auto" OpenPaneLength="270"
+                       x:Name="SettingsNavigationView"
+                       SelectionChanged="SettingsNavigationView_SelectionChanged">
+        <ui:NavigationView.MenuItems>
+            <ui:NavigationViewItem x:Name="View_General" Tag="View_General" Margin="0,5,0,0"
+                                   ToolTip.Tip="{DynamicResource Text_Settings_Tab_General}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="Globe" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_Performence" Tag="View_Performence"
+                                   ToolTip.Tip="{DynamicResource Text_Settings_Tab_Performence}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="Speedometer" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_About" Tag="View_About"
+                                   ToolTip.Tip="{DynamicResource Text_Settings_Tab_About}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
+        </ui:NavigationView.MenuItems>
+
+        <ui:Frame x:Name="SettingsFrame" IsNavigationStackEnabled="False"/>
+    </ui:NavigationView>
 
 </UserControl>
