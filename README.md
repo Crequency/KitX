@@ -8,7 +8,7 @@
 </pre>
 
 <a href="https://apps.catrol.cn/KitX/">
-  <img align="right" src="https://avatars.githubusercontent.com/t/5707791?s=280&v=4"/>
+  <img align="right" src="https://source.catrol.cn/icons/Project/Catrol/KitX/KitX.png"/>
 </a>
 
 ##### 💻 Support OS
