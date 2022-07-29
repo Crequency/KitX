@@ -2,6 +2,8 @@
 using System;
 using System.Windows;
 
+#pragma warning disable CS8603 // 可能返回 null 引用。
+
 namespace TestPlugin.WPF.Core
 {
     /// <summary>
@@ -114,3 +116,5 @@ namespace TestPlugin.WPF.Core
         public IMarketPluginContract GetMarketPluginContract() => null;
     }
 }
+
+#pragma warning restore CS8603 // 可能返回 null 引用。
