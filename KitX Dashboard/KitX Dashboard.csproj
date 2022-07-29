@@ -11,9 +11,9 @@
         <BaseOutputPath>..\KitX Build\Dashboard\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\KitX Build\Temp\Dashboard\</BaseIntermediateOutputPath>
 
-        <!--<AssemblyVersion>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</AssemblyVersion>
-        <FileVersion>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</FileVersion>
-        <Version>3.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</Version>-->
+        <!--<AssemblyVersion>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</AssemblyVersion>
+        <FileVersion>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</FileVersion>
+        <Version>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</Version>-->
         
     </PropertyGroup>
     <ItemGroup>

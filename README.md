@@ -26,18 +26,19 @@
 [![Build Universal](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Universal?style=for-the-badge&label=Build%20Universal)](https://github.com/Crequency/KitX/actions/workflows/build.yml)
 [![Build Loaders](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Loaders?style=for-the-badge&label=Build%20Loaders)](https://github.com/Crequency/KitX/actions/workflows/build-loaders.yml)
 [![Build Plugins](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Plugins?style=for-the-badge&label=Build%20Plugins)](https://github.com/Crequency/KitX/actions/workflows/build-plugins.yml)
- 
- ---
+
+---
 
 <br>
 
 <p align="center">  
-  🌐 <a href="#-中文文档">中文文档</a> | <a href="#-english-docs">English Docs</a><br>
+  🌐 <a href="#-中文简介">中文简介</a> | <a href="#-english-introduction">English Introduction</a><br>
 </p>
 
 <br>
 
-- [📃 中文文档](#markdown-header--中文文档)
+- [文档总览 | Docs Preview](#markdown-header-文档总览-docs-preview)
+- [📃 中文简介](#markdown-header--中文简介)
   - [ℹ 应用简介](#markdown-header-ℹ-应用简介)
   - [🗃 应用架构](#markdown-header--应用架构)
   - [🪧 运行要求](#markdown-header--运行要求)
@@ -46,7 +47,7 @@
       - [环境支持](#markdown-header-环境支持)
         - [桌面端支持](#markdown-header-桌面端支持)
         - [移动端支持](#markdown-header-移动端支持)
-- [📃 English Docs](#markdown-header--english-docs)
+- [📃 English Introduction](#markdown-header--english-introduction)
   - [ℹ App Description](#markdown-header-ℹ-app-description)
   - [🗃 Application Architecture](#markdown-header--application-architecture)
   - [🪧 Operating requirements](#markdown-header--operating-requirements)
@@ -55,8 +56,21 @@
       - [Environmental support](#markdown-header-environmental-support)
         - [Desktop support](#markdown-header-desktop-support)
         - [Mobile support](#markdown-header-mobile-support)
+- [更新周期 | Update Plan](#markdown-header-更新周期-update-plan)
 
-# 📃 中文文档
+---
+
+# 文档总览 | Docs Preview
+| Languages | Docs                                                 |
+|-----------|------------------------------------------------------|
+| zh-cn     | [简体中文](./KitX%20Docs/README/zh-cn/README.md)     |
+| zh-cnt    | [繁體中文](./KitX%20Docs/README/zh-cnt/README.md)    |
+| en-us     | [English (US)](./KitX%20Docs/README/en-us/README.md) |
+| ja-jp     | [日本語](./KitX%20Docs/README/ja-jp/README.md)       |
+
+---
+
+# 📃 中文简介
 
 ## ℹ 应用简介
 KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)`以任何`受支持的语言, 框架`为这个平台增添功能.  
@@ -113,8 +127,9 @@ MacOS:   可选 带环境 的便携版, 也可以在 App Store 中在线安装.
 Android: 可选 .apk 直接安装, 以及 Crequency Hub 中在线安装.  
 iOS:     可选 App Store 中在线安装.  
 
+---
 
-# 📃 English Docs
+# 📃 English Introduction
 ## ℹ App Description
 
 KitX is an open, shared, free tool platform. Allows `developers (3rd party)` to add functionality to the platform in any `supported languages, frameworks`.  
@@ -169,3 +184,37 @@ MacOS:   Optional portable version with environment, can also be installed onlin
 ##### Mobile support
 Android: Optional .apk direct installation, and online installation in Crequency Hub.
 iOS:     Optional online installation from the App Store.
+
+---
+
+# 更新周期 | Update Plan
+| Version     | Info       | Code       | Surpport | Term               |
+|-------------|------------|------------|----------|--------------------|
+| Beta_10016  | Beta       | Beta1      | [x]      | 0                  |
+| Beta_10213  | Beta       | Beta2      | [x]      | 0                  |
+| Beta_10235  | Beta       | Beta3      | [x]      | 0                  |
+| v1.0.0      | Release    | Hello      | [x]      | 0                  |
+| v1.0.4      | Release    | WoW        | [x]      | 0                  |
+| v1.0.5      | Release    | Nice Try   | [x]      | 0                  |
+| v1.1.0      | Release    | Apple      | [x]      | 0                  |
+| v1.1.1      | Release    | Banana     | [x]      | 0                  |
+| v1.1.2      | Release    | Cabbage    | [x]      | 0                  |
+| v1.1.4      | Release    | Durin      | [x]      | 0                  |
+| v1.1.5      | Release    | Grape      | [x]      | 0                  |
+| v1.2.0      | Release    | Herring    | [x]      | 0                  |
+| v1.2.1      | Release    | Wonderful  | [x]      | 0                  |
+| v1.2.2      | Release    | Abandon    | [x]      | 0                  |
+| v1.2.4      | Preview    | Panda      | [x]      | 0                  |
+| v1.2.4      | Release    | Panda      | [x]      | 0                  |
+| v1.2.5      | Release    | Orange     | [x]      | 0                  |
+| v1.2.6      | Release    | Muik       | [x]      | 0                  |
+| v1.2.7      | Release    | Cookie     | [x]      | 0                  |
+| v2.0.0      | Release    | Sea        | [x]      | 0                  |
+| v2.0.1      | Release    | Ocean      | [x]      | 0                  |
+| v2.0.2      | Release    | Calculator | [x]      | 0                  |
+| v2.0.4      | Release    | Computer   | [x]      | 0                  |
+| v2.0.5      | Preview    | Laptop     | [x]      | 0                  |
+| v3.2204.x.x | Developing | New Start  | [ ]      | 2022.04 -> 2023.04 |
+
+
+
