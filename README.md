@@ -29,6 +29,10 @@
 
 ---
 
+![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_about.png)
+
+---
+
 <br>
 
 <p align="center">  
