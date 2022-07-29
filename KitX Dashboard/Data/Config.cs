@@ -24,12 +24,6 @@ namespace KitX_Dashboard.Data
         {
 
             [JsonInclude]
-            public string AppName { get; set; } = "KitX";
-
-            [JsonInclude]
-            public string AppVersion { get; set; } = "v3.0.0.0";
-
-            [JsonInclude]
             public string AppLanguage { get; set; } = "zh-cn";
 
             [JsonInclude]
