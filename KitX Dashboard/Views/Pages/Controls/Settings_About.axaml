@@ -26,9 +26,10 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
 
                 <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Version}" FontSize="20"
-                           Margin="2.5,0"/>
+                           Margin="2.5,0" VerticalAlignment="Center"/>
 
-                <TextBlock Text="{Binding VersionText}" FontSize="20" Margin="2.5,0"/>
+                <TextBlock Text="{Binding VersionText}" FontSize="20" Margin="2.5,0"
+                           VerticalAlignment="Center"/>
 
             </StackPanel>
 
@@ -43,7 +44,7 @@
                     </StackPanel>
                 </ui:HyperlinkButton>
 
-                <ui:HyperlinkButton NavigateUri="https://works.catrol.cn/KitX/"
+                <ui:HyperlinkButton NavigateUri="https://apps.catrol.cn/KitX/"
                                     ToolTip.Tip="{Binding $self.NavigateUri}"
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
