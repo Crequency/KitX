@@ -28,6 +28,7 @@
         <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
         <None Remove=".gitignore" />
+        <None Remove="Assets\Fonts\SourceHanSans-VF.ttf" />
         <None Remove="Assets\KitX-Background-ani.png" />
         <None Remove="Assets\KitX-Background-Rounded-Box.png" />
         <None Remove="Assets\KitX-Background-Rounded.png" />
@@ -85,6 +86,9 @@
     <ItemGroup>
         <AvaloniaResource Update="Assets\avalonia-logo.ico">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Background-ani.png">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
