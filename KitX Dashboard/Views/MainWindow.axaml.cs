@@ -224,9 +224,6 @@ namespace KitX_Dashboard.Views
 
                 color = color.LightenPercent(-0.8f);
 
-                //Background = new ImmutableSolidColorBrush(color,
-                //    (double)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[6]);
-
                 Background = new ImmutableSolidColorBrush(color,
                     Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity);
             }

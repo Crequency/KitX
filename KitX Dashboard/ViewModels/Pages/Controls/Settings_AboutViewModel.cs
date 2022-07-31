@@ -1,4 +1,7 @@
 ﻿using KitX_Dashboard.Commands;
+using System.Reflection;
+
+#pragma warning disable CS8602 // 解引用可能出现空引用。
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -20,7 +23,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 版本号属性
         /// </summary>
-        internal static string VersionText => Program.GlobalConfig.Config_App.AppVersion;
+        internal static string VersionText => $"v{Assembly.GetEntryAssembly().GetName().Version}";
 
         /// <summary>
         /// 制作人员列表属性
@@ -37,3 +40,5 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         private void AppNameButtonClicked(object _) => ++clickCount;
     }
 }
+
+#pragma warning restore CS8602 // 解引用可能出现空引用。
