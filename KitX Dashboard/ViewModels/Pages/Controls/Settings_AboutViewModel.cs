@@ -23,7 +23,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 版本号属性
         /// </summary>
-        internal static string VersionText => Assembly.GetEntryAssembly().GetName().Version.ToString();
+        internal static string VersionText => $"v{Assembly.GetEntryAssembly().GetName().Version}";
 
         /// <summary>
         /// 制作人员列表属性
