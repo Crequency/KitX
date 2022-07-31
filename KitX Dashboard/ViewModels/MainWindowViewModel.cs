@@ -1,5 +1,3 @@
-using KitX_Dashboard.Models;
-
 namespace KitX_Dashboard.ViewModels
 {
     internal class MainWindowViewModel : ViewModelBase
