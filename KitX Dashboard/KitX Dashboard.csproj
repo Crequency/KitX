@@ -22,6 +22,7 @@
         <Compile Remove="FakesAssemblies\**" />
         <EmbeddedResource Remove="FakesAssemblies\**" />
         <None Remove="FakesAssemblies\**" />
+        <AvaloniaResource Remove="Assets\avalonia-logo.ico" />
         <AvaloniaResource Remove="Assets\KitX.Base64.txt" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
         <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
@@ -40,6 +41,7 @@
         <None Remove="Assets\KitX-Icon-48x.ico" />
         <None Remove="Assets\KitX-Icon-64x.ico" />
         <None Remove="Assets\KitX.png" />
+        <None Remove="Assets\SourceHanSans-VF.ttf" />
         <None Remove="Assets\ThirdPartLicense.md" />
     </ItemGroup>
     <ItemGroup>
@@ -81,15 +83,17 @@
         <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
     </ItemGroup>
     <ItemGroup>
+      <Page Include="Assets\Fonts\SourceHanSans-VF.ttf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Page>
+    </ItemGroup>
+    <ItemGroup>
       <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
     </ItemGroup>
     <ItemGroup>
-        <AvaloniaResource Update="Assets\avalonia-logo.ico">
+        <None Update="Assets\avalonia-logo.ico">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </AvaloniaResource>
+        </None>
         <AvaloniaResource Update="Assets\KitX-Background-ani.png">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </AvaloniaResource>
@@ -128,6 +132,9 @@
         </AvaloniaResource>
     </ItemGroup>
     <ItemGroup>
+      <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </AvaloniaResource>
       <None Update="Assets\KitX.Base64.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
