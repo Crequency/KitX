@@ -11,7 +11,7 @@
     <UserControl.Resources>
         <converters:Selection2VisibleConverter x:Key="Converter_S2V"/>
     </UserControl.Resources>
-    
+
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Orientation="Vertical" Margin="0,10">
 
@@ -19,7 +19,8 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Palette}"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Palette}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </Expander.Header>
 
@@ -42,11 +43,13 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Brightness4" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Theme}"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Theme}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
 
                     <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentAppTheme}"
-                              Items="{Binding AppThemes}"/>
+                              Items="{Binding AppThemes}"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
                     <Border/>
                 </DockPanel>
@@ -56,10 +59,12 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Language" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DisplayLanguage}"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DisplayLanguage}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
 
-                    <ComboBox SelectedIndex="{Binding LanguageSelected}" DockPanel.Dock="Right">
+                    <ComboBox SelectedIndex="{Binding LanguageSelected}" DockPanel.Dock="Right"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
                         <ComboBoxItem Content="{DynamicResource Text_Language_zh-cn}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Language_zh-cnt}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Language_en-us}"/>
@@ -74,13 +79,15 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <icon:MaterialIcon Kind="Spray" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_MicaEffect}"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_MicaEffect}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <StackPanel>
                     <ui:InfoBar IsOpen="True" IsIconVisible="True" IsClosable="True" Margin="0,5"
-                                Title="{DynamicResource Text_Settings_Tab_General_MicaEffect_EnableTip}"/>
+                                Title="{DynamicResource Text_Settings_Tab_General_MicaEffect_EnableTip}"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
                     <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5">
                         <DockPanel Margin="0,10,10,10">
@@ -88,11 +95,13 @@
                                         DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="SelectColor" Margin="5,0"/>
                                 <TextBlock
-                                    Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Enable}"/>
+                                    Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Enable}"
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                             </StackPanel>
 
                             <ComboBox x:Name="MicaEffectEnabler" SelectedIndex="{Binding MicaStatus}"
-                                      DockPanel.Dock="Right">
+                                      DockPanel.Dock="Right"
+                                      FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
                             </ComboBox>
@@ -101,13 +110,15 @@
                         </DockPanel>
                     </ui:InfoBar>
 
-                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5">
+                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                         DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="Opacity" Margin="5,0"/>
                                 <TextBlock
-                                    Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Opacity}"/>
+                                    Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Opacity}"
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                             </StackPanel>
 
                             <Slider DockPanel.Dock="Right" Width="250" Minimum="0" Maximum="1"
@@ -129,7 +140,8 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
 
                     <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding WebServerPort}"
@@ -143,11 +155,13 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Clock" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Greeting_Interval}"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Greeting_Interval}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
 
                     <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding GreetingTextUpdateInterval}"
-                                  DockPanel.Dock="Right" IsEnabled="True" Maximum="60" Minimum="1"/>
+                                  DockPanel.Dock="Right" IsEnabled="True" Maximum="60" Minimum="1"
+                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
                     <Border/>
                 </DockPanel>

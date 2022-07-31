@@ -85,7 +85,8 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
                         <icon:MaterialIcon Kind="Globe" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -95,7 +96,8 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
                         <icon:MaterialIcon Kind="Speedometer" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -105,7 +107,8 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
                         <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_About}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>

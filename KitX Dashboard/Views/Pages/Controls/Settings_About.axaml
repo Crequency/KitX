@@ -13,23 +13,27 @@
 
             <Grid>
 
-                <Button HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,20,20,25">
+                <Button HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,20,20,30">
                     <Image Source="/Assets/KitX.png" Width="128" Height="128" Margin="20"/>
                 </Button>
 
                 <Button Content="KitX" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                        FontSize="30" Width="100" Background="#DD3873D9" CornerRadius="45"
-                        KeyDown="AppNameButtonKeyDown" Command="{Binding AppNameButtonClickedCommand}"/>
+                        Width="110" Background="#DD3873D9" CornerRadius="45"
+                        KeyDown="AppNameButtonKeyDown" Command="{Binding AppNameButtonClickedCommand}"
+                        FontSize="30" FontWeight="ExtraBold"
+                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
             </Grid>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
 
                 <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Version}" FontSize="20"
-                           Margin="2.5,0" VerticalAlignment="Center"/>
+                           Margin="2.5,0" VerticalAlignment="Center" FontWeight="Medium"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
                 <TextBlock Text="{Binding VersionText}" FontSize="20" Margin="2.5,0"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center" FontWeight="Medium"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
             </StackPanel>
 
@@ -40,7 +44,8 @@
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
                         <icon:MaterialIcon Kind="Github"/>
-                        <TextBlock Text=" GitHub Repo "/>
+                        <TextBlock Text=" GitHub Repo "
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -49,7 +54,8 @@
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
                         <icon:MaterialIcon Kind="OfficeBuilding"/>
-                        <TextBlock Text=" Official Website "/>
+                        <TextBlock Text=" Official Website "
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -58,7 +64,8 @@
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
                         <icon:MaterialIcon Kind="BlogOutline"/>
-                        <TextBlock Text=" Author Blog "/>
+                        <TextBlock Text=" Author Blog "
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -70,7 +77,8 @@
                         <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18"
                                            Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_About}" FontSize="18"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </Expander.Header>
 
@@ -81,13 +89,15 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="User" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Authors}" FontSize="18"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <WrapPanel Margin="10">
                     <ui:HyperlinkButton Margin="4" Background="{DynamicResource ThemePrimaryAccentTransparent22}"
-                                        Content="常青园晚" NavigateUri="https://blog.catrol.cn"/>
+                                        Content="常青园晚" NavigateUri="https://blog.catrol.cn"
+                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                 </WrapPanel>
 
             </Expander>
@@ -97,7 +107,8 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Links}" FontSize="18"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </Expander.Header>
 
@@ -108,7 +119,8 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_About_ThirdPartLicense}" FontSize="18"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
                     </StackPanel>
                 </Expander.Header>
 

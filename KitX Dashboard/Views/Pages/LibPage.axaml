@@ -12,7 +12,8 @@
         <Grid Height="80" DockPanel.Dock="Top">
             <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
                              IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
-                             Watermark="{DynamicResource Text_Lib_Search_In_Local}"/>
+                             Watermark="{DynamicResource Text_Lib_Search_In_Local}"
+                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
             <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
                 <!--<TextBlock Text="{Binding PluginsCount}"/>-->
