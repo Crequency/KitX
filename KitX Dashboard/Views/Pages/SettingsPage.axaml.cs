@@ -65,7 +65,7 @@ namespace KitX_Dashboard.Views.Pages
             set => Program.GlobalConfig.Config_Pages.Config_SettingsPage.SelectedViewName = value;
         }
 
-        private Type SelectedViewType() => SelectedViewName switch
+        private static Type SelectedViewType() => SelectedViewName switch
         {
             "View_General" => typeof(Settings_General),
             "View_Performence" => typeof(Settings_Performence),
