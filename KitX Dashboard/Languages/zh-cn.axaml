@@ -63,6 +63,12 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活动日志</x:String>
     
     <x:String x:Key="Text_MainWindow_Recent_No">没有最近使用记录呢~</x:String>
+    
+    
+    <x:String x:Key="Text_MainWindow_Count_No">尚未做出统计</x:String>
+    
+    
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">活动日志是空滴!</x:String>
 
 
     <x:String x:Key="Text_Lib_Search">搜索</x:String>
