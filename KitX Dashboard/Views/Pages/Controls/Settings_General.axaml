@@ -20,19 +20,22 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Palette}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <DockPanel Margin="10">
-                    <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Left"
+                    <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Top"
                                     IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
                                     UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
                                     UseSpectrum="True" ColorTextType="HexAlpha"/>
-                    <Border DockPanel.Dock="Right">
+                    <Border DockPanel.Dock="Bottom">
                         <Button Content="{DynamicResource Text_Public_Confirm}"
                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Command="{Binding ColorConfirmed}"/>
+                                Margin="0,15,0,0" Command="{Binding ColorConfirmed}"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold"/>
                     </Border>
                     <Border/>
                 </DockPanel>
@@ -44,12 +47,14 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Brightness4" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General_Theme}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
                     </StackPanel>
 
                     <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentAppTheme}"
-                              Items="{Binding AppThemes}"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                              Items="{Binding AppThemes}" Width="130"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold"/>
 
                     <Border/>
                 </DockPanel>
@@ -60,11 +65,13 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Language" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DisplayLanguage}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
                     </StackPanel>
 
                     <ComboBox SelectedIndex="{Binding LanguageSelected}" DockPanel.Dock="Right"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold">
                         <ComboBoxItem Content="{DynamicResource Text_Language_zh-cn}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Language_zh-cnt}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Language_en-us}"/>
@@ -80,14 +87,16 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <icon:MaterialIcon Kind="Spray" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General_MicaEffect}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <StackPanel>
                     <ui:InfoBar IsOpen="True" IsIconVisible="True" IsClosable="True" Margin="0,5"
                                 Title="{DynamicResource Text_Settings_Tab_General_MicaEffect_EnableTip}"
-                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold"/>
 
                     <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5">
                         <DockPanel Margin="0,10,10,10">
@@ -96,12 +105,14 @@
                                 <icon:MaterialIcon Kind="SelectColor" Margin="5,0"/>
                                 <TextBlock
                                     Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Enable}"
-                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                    FontWeight="Bold"/>
                             </StackPanel>
 
                             <ComboBox x:Name="MicaEffectEnabler" SelectedIndex="{Binding MicaStatus}"
                                       DockPanel.Dock="Right"
-                                      FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
+                                      FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                      FontWeight="Bold">
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
                             </ComboBox>
@@ -111,14 +122,16 @@
                     </ui:InfoBar>
 
                     <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5"
-                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold">
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                         DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="Opacity" Margin="5,0"/>
                                 <TextBlock
                                     Text="{DynamicResource Text_Settings_Tab_General_MicaEffect_Opacity}"
-                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                    FontWeight="Bold"/>
                             </StackPanel>
 
                             <Slider DockPanel.Dock="Right" Width="250" Minimum="0" Maximum="1"
@@ -141,7 +154,8 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
                     </StackPanel>
 
                     <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding WebServerPort}"
@@ -156,12 +170,14 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Clock" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Greeting_Interval}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
                     </StackPanel>
 
                     <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding GreetingTextUpdateInterval}"
                                   DockPanel.Dock="Right" IsEnabled="True" Maximum="60" Minimum="1"
-                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                  FontWeight="Bold"/>
 
                     <Border/>
                 </DockPanel>
