@@ -100,7 +100,19 @@ namespace KitX_Dashboard.Data
         public class Pages
         {
             [JsonInclude]
+            public HomePage Config_HomePage { get; set; } = new();
+
+            [JsonInclude]
             public SettingsPage Config_SettingsPage { get; set; } = new();
+
+            /// <summary>
+            /// HomePageConfig
+            /// </summary>
+            public class HomePage
+            {
+                [JsonInclude]
+                public string SelectedViewName { get; set; } = "View_Recent";
+            }
 
             /// <summary>
             /// SettingsPageConfig

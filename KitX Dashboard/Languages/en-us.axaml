@@ -58,9 +58,23 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Account">Account</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
 
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">Recent Using</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">Statistics</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
+
+    <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
+
+
+    <x:String x:Key="Text_MainWindow_Count_No">No statistics produced.</x:String>
+
+
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">No activity logged.</x:String>
+
 
     <x:String x:Key="Text_Lib_Search">Search</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">No plugins connection.</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">Plugins Connected.</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>

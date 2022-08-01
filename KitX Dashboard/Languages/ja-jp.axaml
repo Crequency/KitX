@@ -58,9 +58,23 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Account">アカウント</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
 
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">最近使用された</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">統計学</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動記録</x:String>
+
+    <x:String x:Key="Text_MainWindow_Recent_No">最近の歴史はありません.</x:String>
+
+
+    <x:String x:Key="Text_MainWindow_Count_No">統計はまだありません</x:String>
+
+
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">アクティビティログなし</x:String>
+
 
     <x:String x:Key="Text_Lib_Search">検索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">ローカルで検索</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">プラグイン接続はまだありません</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">接続されたプラグイン</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>

@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="KitX_Dashboard.Views.Controls.MainWindow_RecentUse">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Height="{Binding NoRecent_TipHeight}">
+            <TextBlock Text="{DynamicResource Text_MainWindow_Recent_No}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ScrollViewer>
+            <WrapPanel Orientation="Horizontal">
+                <ItemsControl Items="{Binding RecentPluginCards}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </WrapPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

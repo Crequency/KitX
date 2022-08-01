@@ -13,7 +13,8 @@
         x:Name="MainWindowInstance"
         Icon="/Assets/KitX.png"
         Title="{DynamicResource Text_MainWindow_Title}"
-        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
+        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+        FontWeight="Bold">
     
     <Window.Resources>
         <ResourceDictionary>
@@ -32,25 +33,31 @@
         <ui:NavigationView.MenuItems>
             <ui:NavigationViewItem x:Name="Page_Home" Tag="Page_Home" Icon="HomeFilled" Margin="0,5,0,0"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Home}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
             <ui:NavigationViewItem x:Name="Page_Lib" Tag="Page_Lib" Icon="LibraryFilled"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Lib}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
             <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market" Icon="TagFilled"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Market}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
             <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo" Icon="FolderFilled"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Repo}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
         </ui:NavigationView.MenuItems>
 
         <ui:NavigationView.FooterMenuItems>
             <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account" Icon="Account"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Account}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
             <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings" Icon="Setting"
                                    Content="{DynamicResource Text_MainWindow_NavigationView_Settings}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
         </ui:NavigationView.FooterMenuItems>
         
         <ui:NavigationView.PaneFooter>

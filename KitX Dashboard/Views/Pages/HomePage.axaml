@@ -3,6 +3,78 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.HomePage">
-    
+             x:Class="KitX_Dashboard.Views.Pages.HomePage"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             xmlns:localControls="using:KitX_Dashboard.Views.Controls">
+    <!--<ScrollViewer>
+        <StackPanel Orientation="Vertical">
+            
+            --><!--最近使用--><!--
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold" x:Name="SeparatorColorProvider"
+                       Text="{DynamicResource Text_MainWindow_HomePage_Recent}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
+            <localControls:MainWindow_RecentUse Margin="20,10"/>
+            
+            --><!--统计--><!--
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_HomePage_Count}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
+            <localControls:MainWindow_Count Margin="20,10"/>
+            
+            --><!--活动日志--><!--
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
+            <localControls:MainWindow_ActivityLog Margin="20,10"/>
+            
+        </StackPanel>
+    </ScrollViewer>-->
+
+    <ui:NavigationView IsBackEnabled="False" IsBackButtonVisible="False" IsSettingsVisible="False"
+                       IsPaneOpen="True" PaneDisplayMode="Auto" OpenPaneLength="270"
+                       x:Name="HomeNavigationView"
+                       SelectionChanged="HomeNavigationView_SelectionChanged">
+        <ui:NavigationView.MenuItems>
+            <ui:NavigationViewItem x:Name="View_Recent" Tag="View_Recent" Margin="0,5,0,0"
+                                   ToolTip.Tip="{DynamicResource Text_MainWindow_HomePage_Recent}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="Clock" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_Recent}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_Count" Tag="View_Count"
+                                   ToolTip.Tip="{DynamicResource Text_MainWindow_HomePage_Count}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="Numbers" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_Count}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_ActivityLog" Tag="View_ActivityLog"
+                                   ToolTip.Tip="{DynamicResource Text_MainWindow_HomePage_ActivityLog}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="DocumentSign" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
+        </ui:NavigationView.MenuItems>
+
+        <ui:Frame x:Name="HomeFrame" IsNavigationStackEnabled="False"/>
+    </ui:NavigationView>
 </UserControl>

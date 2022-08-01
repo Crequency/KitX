@@ -57,10 +57,24 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Plan">任务计划</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Account">账户</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">设置</x:String>
+    
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">最近使用</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">统计</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活动日志</x:String>
+    
+    <x:String x:Key="Text_MainWindow_Recent_No">没有最近使用记录呢~</x:String>
+    
+    
+    <x:String x:Key="Text_MainWindow_Count_No">尚未做出统计</x:String>
+    
+    
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">活动日志是空滴!</x:String>
 
 
     <x:String x:Key="Text_Lib_Search">搜索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">还没有插件连接呢~</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">个插件已连接</x:String>
     
     
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
