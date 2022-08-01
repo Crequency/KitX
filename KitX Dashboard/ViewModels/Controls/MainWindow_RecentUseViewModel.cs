@@ -6,7 +6,7 @@ namespace KitX_Dashboard.ViewModels.Controls
     internal class MainWindow_RecentUseViewModel : ViewModelBase
     {
 
-        public double NoRecent_Height { get; set; } = 200;
+        public double NoRecent_TipHeight { get; set; } = 200;
 
         /// <summary>
         /// ²å¼þ¿¨Æ¬¼¯ºÏ
