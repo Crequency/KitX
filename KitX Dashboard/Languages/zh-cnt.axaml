@@ -58,6 +58,12 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Account">賬戶</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
 
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">最近使用</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">統計</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動日志</x:String>
+
+    <x:String x:Key="Text_MainWindow_Recent_No">無最近使用記錄.</x:String>
+
 
     <x:String x:Key="Text_Lib_Search">搜索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>

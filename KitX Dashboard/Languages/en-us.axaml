@@ -58,6 +58,12 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Account">Account</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
 
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">Recent Using</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">Statistics</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
+
+    <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
+
 
     <x:String x:Key="Text_Lib_Search">Search</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
