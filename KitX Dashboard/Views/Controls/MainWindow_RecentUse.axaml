@@ -4,12 +4,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Controls.MainWindow_RecentUse">
-    <ScrollViewer>
-        <StackPanel Orientation="Horizontal">
-            <Border Height="{Binding NoRecent_Height}">
-                <TextBlock Text="{DynamicResource Text_MainWindow_Recent_No}"
-                           VerticalAlignment="Center"/>
-            </Border>
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Height="{Binding NoRecent_TipHeight}">
+            <TextBlock Text="{DynamicResource Text_MainWindow_Recent_No}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ScrollViewer>
             <WrapPanel Orientation="Horizontal">
                 <ItemsControl Items="{Binding RecentPluginCards}">
                     <ItemsControl.ItemsPanel>
@@ -19,6 +19,6 @@
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
             </WrapPanel>
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </DockPanel>
 </UserControl>
