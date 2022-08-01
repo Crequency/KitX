@@ -73,6 +73,8 @@
 
     <x:String x:Key="Text_Lib_Search">搜索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">無插件連接</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">個插件已連接</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>

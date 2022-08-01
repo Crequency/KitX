@@ -73,6 +73,8 @@
 
     <x:String x:Key="Text_Lib_Search">検索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">ローカルで検索</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">プラグイン接続はまだありません</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">接続されたプラグイン</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>

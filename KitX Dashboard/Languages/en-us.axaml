@@ -73,6 +73,8 @@
 
     <x:String x:Key="Text_Lib_Search">Search</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">No plugins connection.</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">Plugins Connected.</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
