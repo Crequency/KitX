@@ -13,10 +13,16 @@
             <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
                              IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
                              Watermark="{DynamicResource Text_Lib_Search_In_Local}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontWeight="Bold"/>
             <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
-                <!--<TextBlock Text="{Binding PluginsCount}"/>-->
+                <TextBlock Text="{Binding PluginsCount}"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"/>
+                <TextBlock Text="{DynamicResource Text_Lib_Tip_Connected}" Margin="5,0,0,0"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"/>
             </StackPanel>
         </Grid>
 
@@ -34,17 +40,23 @@
             <WrapPanel x:Name="LibViewWrapPanel"/>
         </ScrollViewer>-->
 
-        <ScrollViewer>
-            <WrapPanel Orientation="Horizontal">
-                <ItemsControl Items="{Binding PluginCards}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </WrapPanel>
-        </ScrollViewer>
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Height="{Binding NoPlugins_TipHeight}">
+                <TextBlock Text="{DynamicResource Text_Lib_Tip_NoPlugin}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ScrollViewer>
+                <WrapPanel Orientation="Horizontal">
+                    <ItemsControl Items="{Binding PluginCards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </WrapPanel>
+            </ScrollViewer>
+        </DockPanel>
 
     </DockPanel>
 </UserControl>
