@@ -9,22 +9,22 @@
         <StackPanel Orientation="Vertical">
             
             <!--最近使用-->
-            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold" x:Name="SeparatorColorProvider"
                        Text="{DynamicResource Text_MainWindow_HomePage_Recent}"/>
-            <Rectangle Margin="20,10" Height="2" Fill="{DynamicResource ThemePrimaryAccentTransparent33}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
             <localControls:MainWindow_RecentUse Margin="20,10"/>
             
             <!--统计-->
             <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
                        Text="{DynamicResource Text_MainWindow_HomePage_Count}"/>
-            <Rectangle Margin="20,10" Height="2" Fill="{DynamicResource ThemePrimaryAccentTransparent33}"/>
-            
+            <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
+            <localControls:MainWindow_Count Margin="20,10"/>
             
             <!--活动日志-->
             <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
                        Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"/>
-            <Rectangle Margin="20,10" Height="2" Fill="{DynamicResource ThemePrimaryAccentTransparent33}"/>
-            
+            <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
+            <localControls:MainWindow_ActivityLog Margin="20,10"/>
             
         </StackPanel>
     </ScrollViewer>
