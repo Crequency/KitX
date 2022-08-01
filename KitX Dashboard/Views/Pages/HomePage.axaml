@@ -3,6 +3,29 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.HomePage">
-    
+             x:Class="KitX_Dashboard.Views.Pages.HomePage"
+             xmlns:localControls="using:KitX_Dashboard.Views.Controls">
+    <ScrollViewer>
+        <StackPanel Orientation="Vertical">
+            
+            <!--最近使用-->
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_HomePage_Recent}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{DynamicResource ThemePrimaryAccentTransparent33}"/>
+            <localControls:MainWindow_RecentUse Margin="20,10"/>
+            
+            <!--统计-->
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_HomePage_Count}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{DynamicResource ThemePrimaryAccentTransparent33}"/>
+            
+            
+            <!--活动日志-->
+            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"/>
+            <Rectangle Margin="20,10" Height="2" Fill="{DynamicResource ThemePrimaryAccentTransparent33}"/>
+            
+            
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>
