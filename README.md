@@ -18,14 +18,21 @@
 
 ##### 📢 Info
 [![LICENSE](https://img.shields.io/github/license/Crequency/KitX?style=for-the-badge)](./LICENSE)
-[![Release](https://img.shields.io/github/release/Crequency/KitX?style=for-the-badge)](https://github.com/Crequency/KitX/releases)
 [![Downloads](https://img.shields.io/github/downloads/Crequency/KitX/total?style=for-the-badge&color=%239F7AEA)](https://github.com/Crequency/KitX/releases)
 [![Discussions](https://img.shields.io/github/discussions/Crequency/KitX?color=%23ED8936&style=for-the-badge)](https://github.com/Crequency/KitX/discussions)
+[![Code Size](https://img.shields.io/github/languages/code-size/Crequency/KitX?style=for-the-badge)](#)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/Crequency/KitX?style=for-the-badge)](https://github.com/Crequency/KitX/commits/)
 
 ##### 🗒 Status
 [![Build Universal](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Universal?style=for-the-badge&label=Build%20Universal)](https://github.com/Crequency/KitX/actions/workflows/build.yml)
 [![Build Loaders](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Loaders?style=for-the-badge&label=Build%20Loaders)](https://github.com/Crequency/KitX/actions/workflows/build-loaders.yml)
 [![Build Plugins](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Plugins?style=for-the-badge&label=Build%20Plugins)](https://github.com/Crequency/KitX/actions/workflows/build-plugins.yml)
+
+##### 📧 Social
+[![Forks](https://img.shields.io/github/forks/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/network/members)
+[![Stars](https://img.shields.io/github/stars/Crequency/KitX?style=social)](#)
+[![Watches](https://img.shields.io/github/watchers/Crequency/KitX?style=social)](#)
+[![Discord](https://img.shields.io/discord/935095924785549372?style=social&label=Discord)](#)
 
 ---
 
@@ -41,26 +48,26 @@
 
 <br>
 
-- [文档总览 | Docs Preview](#文档总览--docs-preview)
-- [📃 中文简介](#-中文简介)
-  - [ℹ 应用简介](#ℹ-应用简介)
-  - [🗃 应用架构](#-应用架构)
-  - [🪧 运行要求](#-运行要求)
-    - [KitX Dashboard (面向最终用户)](#kitx-dashboard-面向最终用户)
-      - [系统支持](#系统支持)
-      - [环境支持](#环境支持)
-        - [桌面端支持](#桌面端支持)
-        - [移动端支持](#移动端支持)
-- [📃 English Introduction](#-english-introduction)
-  - [ℹ App Description](#ℹ-app-description)
-  - [🗃 Application Architecture](#-application-architecture)
-  - [🪧 Operating requirements](#-operating-requirements)
-    - [KitX Dashboard (For end users)](#kitx-dashboard-for-end-users)
-      - [System Support](#system-support)
-      - [Environmental support](#environmental-support)
-        - [Desktop support](#desktop-support)
-        - [Mobile support](#mobile-support)
-- [更新周期 | Update Plan](#更新周期--update-plan)
+- [文档总览 | Docs Preview](#markdown-header-文档总览-docs-preview)
+- [📃 中文简介](#markdown-header--中文简介)
+  - [ℹ 应用简介](#markdown-header-ℹ-应用简介)
+  - [🗃 应用架构](#markdown-header--应用架构)
+  - [🪧 运行要求](#markdown-header--运行要求)
+    - [KitX Dashboard (面向最终用户)](#markdown-header-kitx-dashboard-面向最终用户)
+      - [系统支持](#markdown-header-系统支持)
+      - [环境支持](#markdown-header-环境支持)
+        - [桌面端支持](#markdown-header-桌面端支持)
+        - [移动端支持](#markdown-header-移动端支持)
+- [📃 English Introduction](#markdown-header--english-introduction)
+  - [ℹ App Description](#markdown-header-ℹ-app-description)
+  - [🗃 Application Architecture](#markdown-header--application-architecture)
+  - [🪧 Operating requirements](#markdown-header--operating-requirements)
+    - [KitX Dashboard (For end users)](#markdown-header-kitx-dashboard-for-end-users)
+      - [System Support](#markdown-header-system-support)
+      - [Environmental support](#markdown-header-environmental-support)
+        - [Desktop support](#markdown-header-desktop-support)
+        - [Mobile support](#markdown-header-mobile-support)
+- [更新周期 | Update Plan](#markdown-header-更新周期-update-plan)
 
 ---
 
