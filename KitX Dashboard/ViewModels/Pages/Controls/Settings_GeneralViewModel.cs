@@ -8,7 +8,6 @@ using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
-using System;
 using System.Collections.Generic;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
