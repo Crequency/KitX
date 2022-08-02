@@ -1,0 +1,12 @@
+namespace KitX.Web.Rules.Test
+{
+    [TestClass]
+    public class ²å¼þ½á¹¹²âÊÔ
+    {
+        [TestMethod]
+        public void TestMethod1()
+        {
+
+        }
+    }
+}
