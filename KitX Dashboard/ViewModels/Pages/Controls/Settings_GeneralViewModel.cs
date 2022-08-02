@@ -3,11 +3,14 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
+using BasicHelper.LiteLogger;
+using BasicHelper.Util;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using MessageBox.Avalonia;
 using System.Collections.Generic;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -100,12 +103,22 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static void LoadLanguage()
         {
             string lang = Program.GlobalConfig.Config_App.AppLanguage;
-            Application.Current.Resources.MergedDictionaries.Clear();
-            Application.Current.Resources.MergedDictionaries.Add(
-                AvaloniaRuntimeXamlLoader.Load(
-                    FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{lang}.axaml")
-                ) as ResourceDictionary
-            );
+            try
+            {
+                Application.Current.Resources.MergedDictionaries.Clear();
+                Application.Current.Resources.MergedDictionaries.Add(
+                    AvaloniaRuntimeXamlLoader.Load(
+                        FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{lang}.axaml")
+                    ) as ResourceDictionary
+                );
+            }
+            catch (Result<bool>)
+            {
+                MessageBoxManager.GetMessageBoxStandardWindow("Error", "No this language file.",
+                    icon: MessageBox.Avalonia.Enums.Icon.Error).Show();
+                Program.LocalLogger.Log("Logger_Error", $"Language File {lang}.axaml not found.",
+                    LoggerManager.LogLevel.Error);
+            }
 
             EventHandlers.Invoke("LanguageChanged");
         }
@@ -132,9 +145,16 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             get => languageSelected;
             set
             {
-                languageSelected = value;
-                Program.GlobalConfig.Config_App.AppLanguage = SurpportLanguages[value].LanguageCode;
-                LoadLanguage();
+                try
+                {
+                    languageSelected = value;
+                    Program.GlobalConfig.Config_App.AppLanguage = SurpportLanguages[value].LanguageCode;
+                    LoadLanguage();
+                }
+                catch
+                {
+                    LanguageSelected = 0;
+                }
             }
         }
 
