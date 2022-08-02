@@ -71,11 +71,18 @@
 
                     <ComboBox SelectedIndex="{Binding LanguageSelected}" DockPanel.Dock="Right"
                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                              FontWeight="Bold">
-                        <ComboBoxItem Content="{DynamicResource Text_Language_zh-cn}"/>
+                              FontWeight="Bold" Items="{Binding SurpportLanguages}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding LanguageName}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                        <!--<ComboBoxItem Content="{DynamicResource Text_Language_zh-cn}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Language_zh-cnt}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Language_en-us}"/>
-                        <ComboBoxItem Content="{DynamicResource Text_Language_ja-jp}"/>
+                        <ComboBoxItem Content="{DynamicResource Text_Language_ja-jp}"/>-->
                     </ComboBox>
 
                     <Border/>
