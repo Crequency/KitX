@@ -8,6 +8,7 @@ using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using System.Collections.Generic;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
@@ -20,6 +21,25 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal Settings_GeneralViewModel()
         {
             InitCommands();
+
+            InitData();
+        }
+
+        /// <summary>
+        /// 初始化数据
+        /// </summary>
+        private void InitData()
+        {
+            foreach (var item in Program.GlobalConfig.Config_App.SurpportLanguages)
+            {
+                SurpportLanguages.Add(new SurpportLanguages()
+                {
+                    LanguageCode = item.Key,
+                    LanguageName = item.Value
+                });
+            }
+            LanguageSelected = SurpportLanguages.FindIndex(0, SurpportLanguages.Count,
+                new LanguageMatch(Program.GlobalConfig.Config_App.AppLanguage).IsIt);
         }
 
         /// <summary>
@@ -72,6 +92,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             }
         }
 
+        internal List<SurpportLanguages> SurpportLanguages { get; } = new();
+
         /// <summary>
         /// 加载语言
         /// </summary>
@@ -89,28 +111,29 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// 语言匹配项
+        /// </summary>
+        internal class LanguageMatch
+        {
+            private readonly string languageCode;
+
+            public LanguageMatch(string LanguageCode) => languageCode = LanguageCode;
+
+            public bool IsIt(SurpportLanguages sl) => sl.LanguageCode.Equals(languageCode);
+        }
+
+        internal int languageSelected = -1;
+
+        /// <summary>
         /// 显示语言属性
         /// </summary>
-        internal static int LanguageSelected
+        internal int LanguageSelected
         {
-            get => Program.GlobalConfig.Config_App.AppLanguage switch
-            {
-                "zh-cn" => 0,
-                "zh-cnt" => 1,
-                "en-us" => 2,
-                "ja-jp" => 3,
-                _ => 0,
-            };
+            get => languageSelected;
             set
             {
-                Program.GlobalConfig.Config_App.AppLanguage = value switch
-                {
-                    0 => "zh-cn",
-                    1 => "zh-cnt",
-                    2 => "en-us",
-                    3 => "ja-jp",
-                    _ => "zh-cn",
-                };
+                languageSelected = value;
+                Program.GlobalConfig.Config_App.AppLanguage = SurpportLanguages[value].LanguageCode;
                 LoadLanguage();
             }
         }

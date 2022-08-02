@@ -10,12 +10,6 @@
     <x:String x:Key="Text_Public_Confirm">确认</x:String>
 
 
-    <x:String x:Key="Text_Language_zh-cn">简体中文</x:String>
-    <x:String x:Key="Text_Language_zh-cnt">繁體中文</x:String>
-    <x:String x:Key="Text_Language_en-us">English (US)</x:String>
-    <x:String x:Key="Text_Language_ja-jp">日本語</x:String>
-
-
     <!--GreetingStart-->
     
     <!--MorningStart-->
