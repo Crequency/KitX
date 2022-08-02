@@ -114,7 +114,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             }
             catch (Result<bool>)
             {
-                MessageBoxManager.GetMessageBoxStandardWindow("Error", "No this language file.").Show();
+                MessageBoxManager.GetMessageBoxStandardWindow("Error", "No this language file.",
+                    icon: MessageBox.Avalonia.Enums.Icon.Error).Show();
                 Program.LocalLogger.Log("Logger_Error", $"Language File {lang}.axaml not found.",
                     LoggerManager.LogLevel.Error);
             }
