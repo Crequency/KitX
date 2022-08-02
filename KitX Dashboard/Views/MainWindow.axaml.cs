@@ -80,13 +80,20 @@ namespace KitX_Dashboard.Views
         /// </summary>
         private void UpdateGreetingText()
         {
-            Application.Current.Resources.MergedDictionaries[0]
-            .TryGetResource(GreetingTextGenerator.GetKey(), out object? text);
-            Dispatcher.UIThread.Post(() =>
+            try
             {
-                //GreetingTextBlock.Text = text as string;
-                Resources["GreetingText"] = text as string;
-            });
+                Application.Current.Resources.MergedDictionaries[0]
+                .TryGetResource(GreetingTextGenerator.GetKey(), out object? text);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    Resources["GreetingText"] = text as string;
+                });
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                Program.LocalLogger.Log("Logger_Error", $"No Language Resources Loaded.",
+                    LoggerManager.LogLevel.Error);
+            }
         }
 
         /// <summary>
