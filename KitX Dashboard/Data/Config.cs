@@ -32,6 +32,15 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public string ThemeColor { get; set; } = "#FF3873D9";
 
+            [JsonInclude]
+            public Dictionary<string, string> SurpportLanguages { get; set; } = new()
+            {
+                { "zh-cn", "简体中文" },
+                { "zh-cnt", "繁體中文" },
+                { "en-us", "English (US)" },
+                { "ja-jp", "日本語" },
+            };
+
         }
 
         /// <summary>
