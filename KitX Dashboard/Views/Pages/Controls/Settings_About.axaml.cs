@@ -46,11 +46,7 @@ namespace KitX_Dashboard.Views.Pages.Controls
                             pass = false;
                             break;
                         }
-                    if (pass)
-                    {
-                        viewModel.AuthorsListVisibility = true;
-                        InitializeComponent();
-                    }
+                    viewModel.AuthorsListVisibility = pass;
                 }
             }
         }

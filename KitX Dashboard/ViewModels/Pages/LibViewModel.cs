@@ -2,6 +2,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
+#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
+
 namespace KitX_Dashboard.ViewModels.Pages
 {
     internal class LibViewModel : ViewModelBase, INotifyPropertyChanged
@@ -54,3 +56,5 @@ namespace KitX_Dashboard.ViewModels.Pages
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
+
+#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
