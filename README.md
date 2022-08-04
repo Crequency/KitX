@@ -199,7 +199,7 @@ iOS:     Optional online installation from the App Store.
 ---
 
 # 更新周期 | Update Plan
-| Version     | Info       | Code       | Surpport | Term               |
+| Version     | Info       | Code       | Support  | Term               |
 |-------------|------------|------------|----------|--------------------|
 | Beta_10016  | Beta       | Beta1      | [x]      | 0                  |
 | Beta_10213  | Beta       | Beta2      | [x]      | 0                  |
