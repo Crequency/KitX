@@ -109,6 +109,7 @@ namespace KitX_Dashboard.Views
             "Page_Account" => typeof(Pages.AccountPage),
             "Page_Settings" => typeof(Pages.SettingsPage),
             "Page_Market" => typeof(Pages.MarketPage),
+            "Page_Device" => typeof(Pages.DevicePage),
             _ => typeof(Pages.HomePage),
         };
 
