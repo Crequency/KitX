@@ -15,7 +15,7 @@
         Title="{DynamicResource Text_MainWindow_Title}"
         FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
         FontWeight="Bold">
-    
+
     <Window.Resources>
         <ResourceDictionary>
             <x:String x:Key="GreetingText">Hello, World!</x:String>
@@ -28,44 +28,101 @@
 
     <!--{DynamicResource Text_MainWindow_NavigationView_Header}-->
 
-    <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
-                       SelectionChanged="MainNavigationView_SelectionChanged">
-        <ui:NavigationView.MenuItems>
-            <ui:NavigationViewItem x:Name="Page_Home" Tag="Page_Home" Icon="HomeFilled" Margin="0,5,0,0"
-                                   Content="{DynamicResource Text_MainWindow_NavigationView_Home}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-            <ui:NavigationViewItem x:Name="Page_Lib" Tag="Page_Lib" Icon="LibraryFilled"
-                                   Content="{DynamicResource Text_MainWindow_NavigationView_Lib}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-            <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market" Icon="TagFilled"
-                                   Content="{DynamicResource Text_MainWindow_NavigationView_Market}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-            <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo" Icon="FolderFilled"
-                                   Content="{DynamicResource Text_MainWindow_NavigationView_Repo}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-        </ui:NavigationView.MenuItems>
+    <Grid>
 
-        <ui:NavigationView.FooterMenuItems>
-            <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account" Icon="Account"
-                                   Content="{DynamicResource Text_MainWindow_NavigationView_Account}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-            <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings" Icon="Setting"
-                                   Content="{DynamicResource Text_MainWindow_NavigationView_Settings}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-        </ui:NavigationView.FooterMenuItems>
-        
-        <ui:NavigationView.PaneFooter>
-            <TextBlock Text="{DynamicResource GreetingText}" Margin="20" TextWrapping="Wrap"
-                       IsVisible="{Binding ElementName=MainNavigationView, Path=IsPaneOpen}"/>
-        </ui:NavigationView.PaneFooter>
+        <ui:NavigationView x:Name="MainNavigationView" PaneDisplayMode="LeftCompact" IsSettingsVisible="False"
+                           SelectionChanged="MainNavigationView_SelectionChanged">
+            <ui:NavigationView.MenuItems>
+                <ui:NavigationViewItem x:Name="Page_Home" Tag="Page_Home" Margin="0,5,0,0">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Home" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Home}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem x:Name="Page_Lib" Tag="Page_Lib">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Layers" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Lib}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Tag" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Market}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Folder" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Repo}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem x:Name="Page_Device" Tag="Page_Device">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Devices" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Devices}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+            </ui:NavigationView.MenuItems>
 
-        <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
-    </ui:NavigationView>
+            <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="At" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Account}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Settings" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Settings}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+            </ui:NavigationView.FooterMenuItems>
+
+            <ui:NavigationView.PaneFooter>
+                <TextBlock Text="{DynamicResource GreetingText}" Margin="20" TextWrapping="Wrap"
+                           IsVisible="{Binding ElementName=MainNavigationView, Path=IsPaneOpen}"/>
+            </ui:NavigationView.PaneFooter>
+
+            <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
+        </ui:NavigationView>
+
+    </Grid>
 
 </Window>
