@@ -49,6 +49,7 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Market">Market</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Repo">Repository</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Plan">Task and Plan</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Devices">Devices</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Account">Account</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
 
@@ -69,6 +70,9 @@
     <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
     <x:String x:Key="Text_Lib_Tip_NoPlugin">No plugins connection.</x:String>
     <x:String x:Key="Text_Lib_Tip_Connected">Plugins Connected.</x:String>
+
+
+    <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>

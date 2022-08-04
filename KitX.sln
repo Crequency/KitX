@@ -33,7 +33,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Test", "KitX Test", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Rules", "KitX Rules", "{251A2C04-7135-4968-9E9B-08EE61E5D74C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Web.Rules.Test", "KitX Test\KitX Rules\KitX.Web.Rules.Test\KitX.Web.Rules.Test.csproj", "{57BF15CB-6D63-4A08-A426-F9540E258465}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Web.Rules.Test", "KitX Test\KitX Rules\KitX.Web.Rules.Test\KitX.Web.Rules.Test.csproj", "{57BF15CB-6D63-4A08-A426-F9540E258465}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Loaders", "KitX Loaders", "{BA4334E4-0992-4A5B-9AF5-EBB91DD5EC0A}"
 EndProject
@@ -41,7 +41,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Official Plugins", "Ki
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Contracts", "KitX Contracts", "{B3D8D064-E8B8-4673-A6C0-F6392DC2A444}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Contract.CSharp", "KitX Test\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj", "{5B6A588E-5491-410C-A5CC-A4B2B5AAC5F8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Contract.CSharp", "KitX Test\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj", "{5B6A588E-5491-410C-A5CC-A4B2B5AAC5F8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1BBE8A6D-740D-4252-ACF0-0AF4882DF8B5}"
+	ProjectSection(SolutionItems) = preProject
+		nuget.config = nuget.config
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

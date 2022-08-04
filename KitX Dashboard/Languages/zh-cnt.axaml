@@ -49,6 +49,7 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Market">市場</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Plan">任務計劃</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Devices">設備管理</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Account">賬戶</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
 
@@ -69,6 +70,9 @@
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
     <x:String x:Key="Text_Lib_Tip_NoPlugin">無插件連接</x:String>
     <x:String x:Key="Text_Lib_Tip_Connected">個插件已連接</x:String>
+
+
+    <x:String x:Key="Text_Device_No">網路中空無一物</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
