@@ -16,6 +16,15 @@
         <Version>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</Version>-->
         
     </PropertyGroup>
+
+    <!--<PropertyGroup>
+        <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+        <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-*" />
+    </ItemGroup>-->
+
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />
         <AvaloniaXaml Remove="FakesAssemblies\**" />
