@@ -49,6 +49,7 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Market">市场</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Repo">仓库</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Plan">任务计划</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Devices">设备管理</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Account">账户</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">设置</x:String>
     
@@ -69,6 +70,9 @@
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
     <x:String x:Key="Text_Lib_Tip_NoPlugin">还没有插件连接呢~</x:String>
     <x:String x:Key="Text_Lib_Tip_Connected">个插件已连接</x:String>
+
+
+    <x:String x:Key="Text_Device_No">网络中没有其它设备</x:String>
     
     
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
