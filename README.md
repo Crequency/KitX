@@ -68,6 +68,7 @@
         - [Desktop support](#markdown-header-desktop-support)
         - [Mobile support](#markdown-header-mobile-support)
 - [更新周期 | Update Plan](#markdown-header-更新周期-update-plan)
+- [贡献者 | Contributors](#markdown-header-贡献者-contributors)
 
 ---
 
@@ -228,4 +229,8 @@ iOS:     Optional online installation from the App Store.
 | v3.2204.x.x | Developing | New Start  | [ ]      | 2022.04 -> 2023.04 |
 
 
+# 贡献者 | Contributors
+<a href = "https://github.com/Crequency/KitX/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=Crequency/KitX"/>
+</a>
 
