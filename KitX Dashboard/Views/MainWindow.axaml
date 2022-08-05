@@ -7,7 +7,7 @@
         xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
         xmlns:icon="using:Material.Icons.Avalonia"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        Width="{Binding DB_Width, Mode=TwoWay}" Height="{Binding DB_Height, Mode=TwoWay}"
+        Width="{Binding DB_Width}" Height="{Binding DB_Height}"
         MinWidth="800" MinHeight="600"
         x:Class="KitX_Dashboard.Views.MainWindow"
         x:Name="MainWindowInstance"
