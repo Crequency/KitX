@@ -195,6 +195,24 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// 本地插件程序目录
+        /// </summary>
+        internal static string LocalPluginsFileDirectory
+        {
+            get => Program.GlobalConfig.Config_App.LocalPluginsFileDirectory;
+            set => Program.GlobalConfig.Config_App.LocalPluginsFileDirectory = value;
+        }
+
+        /// <summary>
+        /// 本地插件数据目录
+        /// </summary>
+        internal static string LocalPluginsDataDirectory
+        {
+            get => Program.GlobalConfig.Config_App.LocalPluginsDataDirectory;
+            set => Program.GlobalConfig.Config_App.LocalPluginsDataDirectory = value;
+        }
+
+        /// <summary>
         /// 确认主题色变更命令
         /// </summary>
         internal DelegateCommand? ColorConfirmedCommand { get; set; }
