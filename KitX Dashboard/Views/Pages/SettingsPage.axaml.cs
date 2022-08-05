@@ -77,3 +77,17 @@ namespace KitX_Dashboard.Views.Pages
 
 #pragma warning restore CS8601 // 引用类型赋值可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
+
+//
+//      _.-^^---....,,--
+//  _--                  --_
+// &lt;                        &gt;)
+// |                         |
+//  \._                   _./
+//     ```--. . , ; .--'''
+//           | |   |
+//        .-=||  | |=-.
+//        `-=#$%&amp;%$#=-'
+//           | ;  :|
+//  _____.,-#%&amp;$@%#~,._____
+//
