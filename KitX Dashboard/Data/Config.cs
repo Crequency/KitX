@@ -41,6 +41,11 @@ namespace KitX_Dashboard.Data
                 { "ja-jp", "日本語" },
             };
 
+            [JsonInclude]
+            public string LocalPluginsFileDirectory { get; set; } = "./Plugins/";
+
+            [JsonInclude]
+            public string LocalPluginsDataDirectory { get; set; } = "./PluginsDatas/";
         }
 
         /// <summary>
