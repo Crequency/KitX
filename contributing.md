@@ -13,3 +13,8 @@ I hope all collaborators can abide by the regulations in the [Crequency Document
 
 Be sure to include the `[Pull Request]` field before the PR title and separate it from the title with a space.
 
+## 一些细节
+如果提交的改动没有影响功能, 请在提交消息中[添加字段](https://docs.github.com/cn/actions/managing-workflow-runs/skipping-workflow-runs)以阻止 CI, 建议使用 `[skip ci]`.
+
+If the submitted changes do not affect functionality, please [add field](https://docs.github.com/en/actions/managing-workflow-runs/skipping-workflow-runs) in the commit message to block CI, it is recommended to use `[skip ci]`.
+
