@@ -1,6 +1,7 @@
 ﻿using KitX_Dashboard.Commands;
 using System.ComponentModel;
 using System.Reflection;
+using BasicHelper.IO;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
@@ -20,6 +21,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         private void InitCommands()
         {
             AppNameButtonClickedCommand = new(AppNameButtonClicked);
+
+            LoadThirdPartLicenseCommand = new(LoadThirdPartLicense);
         }
 
         /// <summary>
@@ -42,6 +45,18 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             }
         }
 
+        internal string thirdPartLicenseString = string.Empty;
+
+        internal string ThirdPartLicenseString
+        {
+            get => thirdPartLicenseString;
+            set
+            {
+                thirdPartLicenseString = value;
+                PropertyChanged?.Invoke(this, new(nameof(ThirdPartLicenseString)));
+            }
+        }
+
         internal int clickCount = 0;
 
         /// <summary>
@@ -49,7 +64,18 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal DelegateCommand? AppNameButtonClickedCommand { get; set; }
 
+        /// <summary>
+        /// 读取第三方说明的按钮单击命令
+        /// </summary>
+        internal DelegateCommand? LoadThirdPartLicenseCommand { get; set; }
+
         private void AppNameButtonClicked(object _) => ++clickCount;
+
+        private async void LoadThirdPartLicense(object _)
+        {
+            string license = await FileHelper.ReadAllAsync(Data.GlobalInfo.ThirdPartLicenseFilePath);
+            ThirdPartLicenseString = license;
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }

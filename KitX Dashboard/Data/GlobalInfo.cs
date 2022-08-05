@@ -10,6 +10,10 @@
 
         internal const string LanguageFilePath = "./Languages/";
 
+        internal const string AssetsPath = "./Assets/";
+
+        internal const string ThirdPartLicenseFilePath = $"{AssetsPath}/ThirdPartLicense.md";
+
         internal static int ServerPortNumber = 0;
 
     }
