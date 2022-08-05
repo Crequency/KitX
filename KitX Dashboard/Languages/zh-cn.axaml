@@ -8,6 +8,7 @@
     <x:String x:Key="Text_Public_Disable">禁用</x:String>
     <x:String x:Key="Text_Public_Auto">自动</x:String>
     <x:String x:Key="Text_Public_Confirm">确认</x:String>
+    <x:String x:Key="Text_Public_Read">读取</x:String>
 
 
     <!--GreetingStart-->
@@ -87,6 +88,8 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否启用云母效果?</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">此效果仅限 Windows 11 系统开启</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">本地插件程序目录</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">本地插件数据目录</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>

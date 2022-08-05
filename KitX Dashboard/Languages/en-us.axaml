@@ -8,6 +8,7 @@
     <x:String x:Key="Text_Public_Disable">Disable</x:String>
     <x:String x:Key="Text_Public_Auto">Auto</x:String>
     <x:String x:Key="Text_Public_Confirm">Confirm</x:String>
+    <x:String x:Key="Text_Public_Read">Read</x:String>
 
 
     <!--GreetingStart-->
@@ -87,6 +88,8 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Enable Mica Effect?</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">Opacity</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>

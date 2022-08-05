@@ -8,6 +8,7 @@
     <x:String x:Key="Text_Public_Disable">無効</x:String>
     <x:String x:Key="Text_Public_Auto">自動</x:String>
     <x:String x:Key="Text_Public_Confirm">確認</x:String>
+    <x:String x:Key="Text_Public_Read">読んだ</x:String>
 
 
     <!--GreetingStart-->
@@ -87,6 +88,8 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明性</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>
