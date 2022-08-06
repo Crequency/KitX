@@ -8,6 +8,7 @@
     <x:String x:Key="Text_Public_Disable">禁用</x:String>
     <x:String x:Key="Text_Public_Auto">自動</x:String>
     <x:String x:Key="Text_Public_Confirm">確認</x:String>
+    <x:String x:Key="Text_Public_Read">讀取</x:String>
 
 
     <!--GreetingStart-->
@@ -73,6 +74,10 @@
 
 
     <x:String x:Key="Text_Device_No">網路中空無一物</x:String>
+    <x:String x:Key="Text_Device_This">本機</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">内存</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">網路</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
@@ -87,6 +92,9 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否啟用雲母效果?</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">本機插件的程序路徑</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">本機插件的文件路徑</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開發者設定</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>

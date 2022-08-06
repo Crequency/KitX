@@ -8,6 +8,7 @@
     <x:String x:Key="Text_Public_Disable">Disable</x:String>
     <x:String x:Key="Text_Public_Auto">Auto</x:String>
     <x:String x:Key="Text_Public_Confirm">Confirm</x:String>
+    <x:String x:Key="Text_Public_Read">Read</x:String>
 
 
     <!--GreetingStart-->
@@ -73,6 +74,10 @@
 
 
     <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
+    <x:String x:Key="Text_Device_This">This Device</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
@@ -87,6 +92,9 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Enable Mica Effect?</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">Opacity</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">Developer Settings</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>

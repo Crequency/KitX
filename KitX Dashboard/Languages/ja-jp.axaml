@@ -8,6 +8,7 @@
     <x:String x:Key="Text_Public_Disable">無効</x:String>
     <x:String x:Key="Text_Public_Auto">自動</x:String>
     <x:String x:Key="Text_Public_Confirm">確認</x:String>
+    <x:String x:Key="Text_Public_Read">読んだ</x:String>
 
 
     <!--GreetingStart-->
@@ -73,6 +74,10 @@
 
 
     <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
+    <x:String x:Key="Text_Device_This">この装置</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
@@ -87,6 +92,9 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明性</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開発者向けオプション</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>

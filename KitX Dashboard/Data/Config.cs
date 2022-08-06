@@ -41,6 +41,14 @@ namespace KitX_Dashboard.Data
                 { "ja-jp", "日本語" },
             };
 
+            [JsonInclude]
+            public string LocalPluginsFileDirectory { get; set; } = "./Plugins/";
+
+            [JsonInclude]
+            public string LocalPluginsDataDirectory { get; set; } = "./PluginsDatas/";
+
+            [JsonInclude]
+            public bool DeveloperSetting { get; set; } = false;
         }
 
         /// <summary>
@@ -130,6 +138,9 @@ namespace KitX_Dashboard.Data
             {
                 [JsonInclude]
                 public string SelectedViewName { get; set; } = "View_General";
+
+                [JsonInclude]
+                public bool MicaToolTipIsOpen { get; set; } = true;
             }
 
         }

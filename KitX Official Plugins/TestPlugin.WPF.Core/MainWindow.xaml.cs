@@ -17,6 +17,8 @@ namespace TestPlugin.WPF.Core
         {
             InitializeComponent();
             controller = new(this);
+
+            Closed += (_, _) => Environment.Exit(0);
         }
 
         /// <summary>

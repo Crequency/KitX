@@ -6,6 +6,7 @@ using KitX_Dashboard.Data;
 using LiteDB;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -71,6 +72,15 @@ namespace KitX_Dashboard
             Program.LocalWebServer.Start();
 
             #endregion
+
+            #region 初始化事件
+
+            Models.EventHandlers.ConfigSettingsChanged += () =>
+            {
+                SaveInfo();
+            };
+
+            #endregion
         }
 
         /// <summary>
@@ -86,8 +96,11 @@ namespace KitX_Dashboard
                 IncludeFields = true,
             };
 
-            BasicHelper.IO.FileHelper.WriteIn(ConfigFilePath,
-                JsonSerializer.Serialize(Program.GlobalConfig, options));
+            new Thread(() =>
+            {
+                BasicHelper.IO.FileHelper.WriteIn(ConfigFilePath,
+                    JsonSerializer.Serialize(Program.GlobalConfig, options));
+            }).Start();
         }
 
         /// <summary>
