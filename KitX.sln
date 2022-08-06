@@ -48,6 +48,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Contract.CSharp.Test", "KitX Test\KitX Contracts\KitX.Contract.CSharp.Test\KitX.Contract.CSharp.Test.csproj", "{8D00A21D-EF71-4CD2-BC63-CD97C9687695}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{F9F655A9-54A3-4E3C-853F-EFA24615ED67}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		.gitlab-ci.yml = .gitlab-ci.yml
+		branch.descr.py = branch.descr.py
+		ChangeLog.md = ChangeLog.md
+		clear.sh = clear.sh
+		contributing.md = contributing.md
+		LICENSE = LICENSE
+		push-repos.json = push-repos.json
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
