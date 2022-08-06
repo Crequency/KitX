@@ -74,6 +74,10 @@
 
 
     <x:String x:Key="Text_Device_No">网络中没有其它设备</x:String>
+    <x:String x:Key="Text_Device_This">此设备</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">内存</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">网络</x:String>
     
     
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>

@@ -74,6 +74,10 @@
 
 
     <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
+    <x:String x:Key="Text_Device_This">この装置</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>

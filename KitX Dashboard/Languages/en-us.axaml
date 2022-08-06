@@ -74,6 +74,10 @@
 
 
     <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
+    <x:String x:Key="Text_Device_This">This Device</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
