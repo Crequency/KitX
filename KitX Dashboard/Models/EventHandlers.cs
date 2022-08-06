@@ -15,10 +15,13 @@ namespace KitX_Dashboard.Models
 
         internal delegate void GreetingTextIntervalUpdatedHandler();
 
+        internal delegate void ConfigSettingsChangedHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
 
+        internal static event ConfigSettingsChangedHandler? ConfigSettingsChanged;
 
 
         /// <summary>
@@ -28,6 +31,7 @@ namespace KitX_Dashboard.Models
         {
             LanguageChanged += () => { };
             GreetingTextIntervalUpdated += () => { };
+            ConfigSettingsChanged += () => { };
         }
 
         /// <summary>
@@ -43,6 +47,9 @@ namespace KitX_Dashboard.Models
                     break;
                 case "GreetingTextIntervalUpdated":
                     GreetingTextIntervalUpdated();
+                    break;
+                case "ConfigSettingsChanged":
+                    ConfigSettingsChanged();
                     break;
             }
         }
