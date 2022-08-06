@@ -1,5 +1,9 @@
 # 目录
 - [目录](#markdown-header-目录)
+- [v3.x](#markdown-header-v3x)
+  - [v3.22.x](#markdown-header-v322x)
+    - [v3.22.04](#markdown-header-v32204)
+      - [2022.08.07 04:05 v3.22.04.6230 Preview](#markdown-header-20220807-0405-v322046230-preview)
 - [v2.x](#markdown-header-v2x)
   - [v2.0.x](#markdown-header-v20x)
     - [v2.0.5](#markdown-header-v205)
@@ -47,6 +51,15 @@
   - [Beta](#markdown-header-beta-1)
     - [Beta_10235, Beta_10213, Beta_10016](#markdown-header-beta_10235-beta_10213-beta_10016)
       - [时间过于久远 KitX Beta 版本上新 Beta Note](#markdown-header-时间过于久远-kitx-beta-版本上新-beta-note)
+
+# v3.x
+
+## v3.22.x
+
+### v3.22.04
+
+#### 2022.08.07 04:05 v3.22.04.6230 Preview
+基础UI逻辑基本完工, 一些逻辑也大差不差, 现开放公测.
 
 # v2.x
 
