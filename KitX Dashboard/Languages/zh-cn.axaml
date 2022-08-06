@@ -94,6 +94,7 @@
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">本地插件程序目录</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">本地插件数据目录</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">开发者选项</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
