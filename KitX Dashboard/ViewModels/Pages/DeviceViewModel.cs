@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Material.Icons;
 
+#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
+
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class DeviceViewModel : ViewModelBase
+    internal class DeviceViewModel : ViewModelBase, INotifyPropertyChanged
     {
         public DeviceViewModel()
         {
@@ -102,8 +105,55 @@ namespace KitX_Dashboard.ViewModels.Pages
         internal static string SystemArchitecture => Environment.Is64BitOperatingSystem ? "x64" : "x32";
 
         internal static string DeviceInfo => $"{SystemVersion} - {SystemArchitecture}";
+
+        internal string cpu_load = string.Empty, ram_load = string.Empty,
+                        net_upload = string.Empty, net_download = string.Empty;
+
+        internal string CPU_Load
+        {
+            get => cpu_load;
+            set
+            {
+                cpu_load = value;
+                PropertyChanged?.Invoke(this, new(nameof(CPU_Load)));
+            }
+        }
+
+        internal string RAM_Load
+        {
+            get => ram_load;
+            set
+            {
+                ram_load = value;
+                PropertyChanged?.Invoke(this, new(nameof(RAM_Load)));
+            }
+        }
+
+        internal string NET_Upload
+        {
+            get => net_upload;
+            set
+            {
+                net_upload = value;
+                PropertyChanged?.Invoke(this, new(nameof(NET_Upload)));
+            }
+        }
+
+        internal string NET_Download
+        {
+            get => net_download;
+            set
+            {
+                net_download = value;
+                PropertyChanged?.Invoke(this, new(nameof(NET_Download)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
+
+#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 //        ___________________________________
 //       |.-.--.--.--.--.--.--.--.--.--.--.-.|
