@@ -15,6 +15,7 @@ using System.Collections.Generic;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
+#pragma warning disable CA2011 // 避免无限递归
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -51,7 +52,14 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         private void InitCommands()
         {
             ColorConfirmedCommand = new(ColorConfirmed);
+
+            MicaOpacityConfirmedCommand = new(MicaOpacityConfirmed);
         }
+
+        /// <summary>
+        /// 保存变更
+        /// </summary>
+        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
 
         /// <summary>
         /// 可选的应用主题属性
@@ -75,7 +83,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal Color2 ThemeColor
         {
             get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
-            set => nowColor = value;
+            set
+            {
+                nowColor = value;
+                SaveChanges();
+            }
         }
 
         /// <summary>
@@ -92,6 +104,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     var faTheme = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
                     faTheme.RequestedTheme = value;
                 }
+                SaveChanges();
             }
         }
 
@@ -150,6 +163,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     languageSelected = value;
                     Program.GlobalConfig.Config_App.AppLanguage = SurpportLanguages[value].LanguageCode;
                     LoadLanguage();
+                    SaveChanges();
                 }
                 catch
                 {
@@ -164,7 +178,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static int MicaStatus
         {
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica ? 0 : 1;
-            set => Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica = value != 1;
+            set
+            {
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica = value != 1;
+                SaveChanges();
+            }
         }
 
         /// <summary>
@@ -191,6 +209,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 Program.GlobalConfig.Config_Windows.Config_MainWindow.GreetingUpdateInterval = value;
                 EventHandlers.Invoke("GreetingTextIntervalUpdated");
+                SaveChanges();
             }
         }
 
@@ -200,7 +219,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static string LocalPluginsFileDirectory
         {
             get => Program.GlobalConfig.Config_App.LocalPluginsFileDirectory;
-            set => Program.GlobalConfig.Config_App.LocalPluginsFileDirectory = value;
+            set
+            {
+                Program.GlobalConfig.Config_App.LocalPluginsFileDirectory = value;
+                SaveChanges();
+            }
         }
 
         /// <summary>
@@ -209,7 +232,24 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static string LocalPluginsDataDirectory
         {
             get => Program.GlobalConfig.Config_App.LocalPluginsDataDirectory;
-            set => Program.GlobalConfig.Config_App.LocalPluginsDataDirectory = value;
+            set
+            {
+                Program.GlobalConfig.Config_App.LocalPluginsDataDirectory = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 开发者设置项
+        /// </summary>
+        internal static int DeveloperSettingStatus
+        {
+            get => Program.GlobalConfig.Config_App.DeveloperSetting ? 0 : 1;
+            set
+            {
+                Program.GlobalConfig.Config_App.DeveloperSetting = value == 0;
+                SaveChanges();
+            }
         }
 
         /// <summary>
@@ -217,15 +257,23 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal DelegateCommand? ColorConfirmedCommand { get; set; }
 
+        /// <summary>
+        /// 确认Mica主题透明度变更命令
+        /// </summary>
+        internal DelegateCommand? MicaOpacityConfirmedCommand { get; set; }
+
         private void ColorConfirmed(object _)
         {
             var c = nowColor;
             Application.Current.Resources["ThemePrimaryAccent"] =
                 new SolidColorBrush(new Color(c.A, c.R, c.G, c.B));
         }
+
+        private void MicaOpacityConfirmed(object _) => SaveChanges();
     }
 }
 
+#pragma warning restore CA2011 // 避免无限递归
 #pragma warning restore CS8604 // 引用类型参数可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
 
