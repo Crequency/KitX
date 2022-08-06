@@ -54,6 +54,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             ColorConfirmedCommand = new(ColorConfirmed);
 
             MicaOpacityConfirmedCommand = new(MicaOpacityConfirmed);
+
+            MicaToolTipClosedCommand = new(MicaToolTipClosed);
         }
 
         /// <summary>
@@ -253,6 +255,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// Mica 主题提示工具是否打开项
+        /// </summary>
+        internal static bool MicaToolTipIsOpen
+        {
+            get => Program.GlobalConfig.Config_Pages.Config_SettingsPage.MicaToolTipIsOpen;
+            set
+            {
+                Program.GlobalConfig.Config_Pages.Config_SettingsPage.MicaToolTipIsOpen = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
         /// 确认主题色变更命令
         /// </summary>
         internal DelegateCommand? ColorConfirmedCommand { get; set; }
@@ -262,6 +277,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal DelegateCommand? MicaOpacityConfirmedCommand { get; set; }
 
+        /// <summary>
+        /// Mica 提示工具关闭命令
+        /// </summary>
+        internal DelegateCommand? MicaToolTipClosedCommand { get; set; }
+
         private void ColorConfirmed(object _)
         {
             var c = nowColor;
@@ -270,6 +290,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         private void MicaOpacityConfirmed(object _) => SaveChanges();
+
+        private void MicaToolTipClosed(object _) => MicaToolTipIsOpen = false;
     }
 }
 

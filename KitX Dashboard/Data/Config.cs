@@ -138,6 +138,9 @@ namespace KitX_Dashboard.Data
             {
                 [JsonInclude]
                 public string SelectedViewName { get; set; } = "View_General";
+
+                [JsonInclude]
+                public bool MicaToolTipIsOpen { get; set; } = true;
             }
 
         }

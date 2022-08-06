@@ -100,12 +100,13 @@
                 </Expander.Header>
 
                 <StackPanel>
-                    <ui:InfoBar IsOpen="True" IsIconVisible="True" IsClosable="True" Margin="0,5"
+                    <ui:InfoBar IsOpen="{Binding MicaToolTipIsOpen}" IsIconVisible="True" IsClosable="True"
+                                Margin="0,5,0,10" CloseButtonCommand="{Binding MicaToolTipClosedCommand}"
                                 Title="{DynamicResource Text_Settings_Tab_General_MicaEffect_EnableTip}"
                                 FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                 FontWeight="Bold"/>
 
-                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5">
+                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,0,0,5">
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                         DockPanel.Dock="Left">
