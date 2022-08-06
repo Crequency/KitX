@@ -14,6 +14,10 @@
         <!--<AssemblyVersion>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</AssemblyVersion>
         <FileVersion>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</FileVersion>
         <Version>3.2204.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 1.32))))</Version>-->
+
+        <AssemblyVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</AssemblyVersion>
+        <FileVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</FileVersion>
+        <Version>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</Version>
         
     </PropertyGroup>
 
@@ -32,6 +36,7 @@
         <EmbeddedResource Remove="FakesAssemblies\**" />
         <None Remove="FakesAssemblies\**" />
         <AvaloniaResource Remove="Assets\avalonia-logo.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Background.png" />
         <AvaloniaResource Remove="Assets\KitX.Base64.txt" />
         <AvaloniaResource Remove="Assets\ThirdPartLicense.md" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
@@ -40,10 +45,6 @@
         <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
         <None Remove=".gitignore" />
         <None Remove="Assets\Fonts\SourceHanSans-VF.ttf" />
-        <None Remove="Assets\KitX-Background-ani.png" />
-        <None Remove="Assets\KitX-Background-Rounded-Box.png" />
-        <None Remove="Assets\KitX-Background-Rounded.png" />
-        <None Remove="Assets\KitX-Background.png" />
         <None Remove="Assets\KitX-Icon-128x.ico" />
         <None Remove="Assets\KitX-Icon-16x.ico" />
         <None Remove="Assets\KitX-Icon-256x.ico" />
@@ -103,38 +104,29 @@
         <None Update="Assets\avalonia-logo.ico">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <AvaloniaResource Update="Assets\KitX-Background-ani.png">
+        <None Update="Assets\KitX-Background.png">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Background-Rounded-Box.png">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Background-Rounded.png">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Background.png">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </AvaloniaResource>
+        </None>
         <AvaloniaResource Update="Assets\KitX-Icon-128x.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-16x.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-256x.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-32x.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-48x.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX-Icon-64x.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX.png">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <None Update="Assets\ThirdPartLicense.md">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -142,7 +134,7 @@
     </ItemGroup>
     <ItemGroup>
       <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       </AvaloniaResource>
       <None Update="Assets\KitX.Base64.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
