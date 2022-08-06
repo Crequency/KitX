@@ -46,6 +46,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public string LocalPluginsDataDirectory { get; set; } = "./PluginsDatas/";
+
+            [JsonInclude]
+            public bool DeveloperSetting { get; set; } = false;
         }
 
         /// <summary>
