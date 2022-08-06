@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using KitX_Dashboard.ViewModels.Pages;
+using System.Timers;
 
 namespace KitX_Dashboard.Views.Pages
 {
@@ -14,6 +15,17 @@ namespace KitX_Dashboard.Views.Pages
             InitializeComponent();
 
             DataContext = viewModel;
+
+            Timer resourcesTimer = new()
+            {
+                Interval = 5000,
+                AutoReset = true,
+            };
+            resourcesTimer.Elapsed += (_, _) =>
+            {
+                
+            };
+            resourcesTimer.Start();
         }
 
         private void InitializeComponent()
