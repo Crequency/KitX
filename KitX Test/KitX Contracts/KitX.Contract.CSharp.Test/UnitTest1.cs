@@ -1,7 +1,7 @@
-namespace KitX.Contract.CSharp
+namespace KitX.Contract.CSharp.Test
 {
     [TestClass]
-    public class Test_IIdentityInterface
+    public class UnitTest1
     {
         [TestMethod]
         public void TestMethod1()

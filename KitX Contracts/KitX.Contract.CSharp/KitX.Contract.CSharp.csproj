@@ -17,14 +17,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\KitX Dashboard\Assets\KitX-Background-ani.png">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
+    <PackageReference Include="System.ComponentModel.Composition" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.ComponentModel.Composition" Version="6.0.0" />
+    <None Update="KitX-Background-ani.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
