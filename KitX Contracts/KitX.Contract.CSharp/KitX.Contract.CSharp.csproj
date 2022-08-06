@@ -20,4 +20,11 @@
     <PackageReference Include="System.ComponentModel.Composition" Version="6.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="KitX-Background-ani.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
 </Project>
