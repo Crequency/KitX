@@ -19,7 +19,7 @@ namespace KitX_Dashboard
 
         internal static WebServer? LocalWebServer;
 
-        internal static ObservableCollection<PluginCard>? PluginCards;
+        internal static ObservableCollection<PluginCard> PluginCards = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告

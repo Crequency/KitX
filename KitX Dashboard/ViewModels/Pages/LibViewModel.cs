@@ -10,8 +10,6 @@ namespace KitX_Dashboard.ViewModels.Pages
     {
         public LibViewModel()
         {
-            Program.PluginCards = PluginCards;
-
             PluginCards.CollectionChanged += (_, _) =>
             {
                 NoPlugins_TipHeight = PluginCards.Count == 0 ? 300 : 0;
@@ -19,7 +17,7 @@ namespace KitX_Dashboard.ViewModels.Pages
             };
         }
 
-        public string pluginsCount = "0";
+        public string pluginsCount = $"{PluginCards.Count}";
 
         public string PluginsCount
         {
@@ -31,7 +29,7 @@ namespace KitX_Dashboard.ViewModels.Pages
             }
         }
 
-        public double noPlugins_tipHeight = 300;
+        public double noPlugins_tipHeight = PluginCards.Count == 0 ? 300 : 0;
 
         public double NoPlugins_TipHeight
         {
@@ -46,7 +44,7 @@ namespace KitX_Dashboard.ViewModels.Pages
         /// <summary>
         /// 插件卡片集合
         /// </summary>
-        public ObservableCollection<PluginCard> PluginCards { get; } = new();
+        public static ObservableCollection<PluginCard> PluginCards { get => Program.PluginCards; }
 
         /// <summary>
         /// 搜索框文字
