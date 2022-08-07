@@ -16,6 +16,8 @@
 
         internal static int ServerPortNumber = 0;
 
+        internal static bool Running = true;
+
     }
 }
 

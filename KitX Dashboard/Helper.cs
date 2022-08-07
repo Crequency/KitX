@@ -81,6 +81,12 @@ namespace KitX_Dashboard
             };
 
             #endregion
+
+            #region 初始化必要线程
+
+
+
+            #endregion
         }
 
         /// <summary>
@@ -155,6 +161,8 @@ namespace KitX_Dashboard
         {
             Program.LocalWebServer.Stop();
             Program.LocalWebServer.Dispose();
+
+            GlobalInfo.Running = false;
         }
 
         /// <summary>

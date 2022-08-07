@@ -73,6 +73,9 @@
     <x:String x:Key="Text_Lib_Tip_Connected">Plugins Connected.</x:String>
 
 
+    <x:String x:Key="Text_Repo_No_Plugin">No Plugin in Repository.</x:String>
+
+
     <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
     <x:String x:Key="Text_Device_This">This Device</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>

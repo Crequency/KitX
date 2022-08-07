@@ -7,6 +7,7 @@ using KitX_Dashboard.Models;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 
 namespace KitX_Dashboard
 {
@@ -32,35 +33,50 @@ namespace KitX_Dashboard
         [STAThread]
         public static void Main(string[] args)
         {
-            #region 必要的初始化
+            try
+            {
+                if (File.Exists(Path.GetFullPath("./dump.log")))
+                    File.Delete(Path.GetFullPath("./dump.log"));
 
-            EventHandlers.Init();
+                #region 必要的初始化
 
-            #endregion
+                EventHandlers.Init();
 
-            #region 执行启动时检查
+                #endregion
 
-            Helper.StartUpCheck();
+                #region 执行启动时检查
 
-            #endregion
+                Helper.StartUpCheck();
 
-            #region 进入应用生命周期循环
+                #endregion
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                #region 进入应用生命周期循环
 
-            #endregion
+                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 
-            #region 保存配置信息
+                #endregion
 
-            Helper.SaveInfo();
+                #region 保存配置信息
 
-            #endregion
+                Helper.SaveInfo();
 
-            #region 退出进程
+                #endregion
 
-            Helper.Exit();
+                #region 退出进程
 
-            #endregion
+                Helper.Exit();
+
+                #endregion
+
+            }
+            catch (Exception e)
+            {
+                FileStream fs = new(Path.GetFullPath("./dump.log"), FileMode.OpenOrCreate);
+                StreamWriter sw = new(fs);
+                sw.WriteLine(e.Message);
+                sw.Close();
+                fs.Close();
+            }
         }
 
         /// <summary>
