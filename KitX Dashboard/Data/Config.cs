@@ -120,6 +120,9 @@ namespace KitX_Dashboard.Data
             public HomePage Config_HomePage { get; set; } = new();
 
             [JsonInclude]
+            public MarketPage Config_MarketPage { get; set; } = new();
+
+            [JsonInclude]
             public SettingsPage Config_SettingsPage { get; set; } = new();
 
             /// <summary>
@@ -129,6 +132,14 @@ namespace KitX_Dashboard.Data
             {
                 [JsonInclude]
                 public string SelectedViewName { get; set; } = "View_Recent";
+            }
+
+            /// <summary>
+            /// MargetPageConfig
+            /// </summary>
+            public class MarketPage
+            {
+
             }
 
             /// <summary>
