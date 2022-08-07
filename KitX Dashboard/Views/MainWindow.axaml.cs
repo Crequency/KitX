@@ -61,6 +61,32 @@ namespace KitX_Dashboard.Views
                 AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
                     Program.GlobalConfig.Config_App.Theme;
 
+            // 透明度变更事件, 让透明度变更立即生效
+            EventHandlers.MicaOpacityChanged += () =>
+            {
+                if (Program.GlobalConfig.Config_Windows.Config_MainWindow.EnabledMica)
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && IsWindows11)
+                    {
+                        switch (AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme)
+                        {
+                            case "Light":
+                                var color1 = this.TryFindResource("SolidBackgroundFillColorBase",
+                                    out var value1) ? (Color2)(Color)value1 : new Color2(32, 32, 32);
+
+                                Background = new ImmutableSolidColorBrush(color1,
+                                    Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity);
+                                break;
+                            case "Dark":
+                                var color2 = this.TryFindResource("SolidBackgroundFillColorBase",
+                                    out var value2) ? (Color2)(Color)value2 : new Color2(243, 243, 243);
+
+                                Background = new ImmutableSolidColorBrush(color2,
+                                    Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity);
+                                break;
+                        }
+                    }
+            };
+
             // 每 Interval 更新一次招呼语
             UpdateGreetingText();
             EventHandlers.LanguageChanged += () => UpdateGreetingText();

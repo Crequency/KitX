@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-#pragma warning disable CS8602 // 解引用可能出现空引用。
+﻿#pragma warning disable CS8602 // 解引用可能出现空引用。
 
 namespace KitX_Dashboard.Models
 {
@@ -17,11 +11,15 @@ namespace KitX_Dashboard.Models
 
         internal delegate void ConfigSettingsChangedHandler();
 
+        internal delegate void MicaOpacityChangedHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
 
         internal static event ConfigSettingsChangedHandler? ConfigSettingsChanged;
+
+        internal static event MicaOpacityChangedHandler? MicaOpacityChanged;
 
 
         /// <summary>
@@ -32,6 +30,7 @@ namespace KitX_Dashboard.Models
             LanguageChanged += () => { };
             GreetingTextIntervalUpdated += () => { };
             ConfigSettingsChanged += () => { };
+            MicaOpacityChanged += () => { };
         }
 
         /// <summary>
@@ -50,6 +49,9 @@ namespace KitX_Dashboard.Models
                     break;
                 case "ConfigSettingsChanged":
                     ConfigSettingsChanged();
+                    break;
+                case "MicaOpacityChanged":
+                    MicaOpacityChanged();
                     break;
             }
         }
