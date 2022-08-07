@@ -1,13 +1,18 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using KitX_Dashboard.ViewModels.Pages;
 
 namespace KitX_Dashboard.Views.Pages
 {
     public partial class RepoPage : UserControl
     {
+        private readonly RepoViewModel viewModel = new();
+
         public RepoPage()
         {
             InitializeComponent();
+
+            DataContext = viewModel;
         }
 
         private void InitializeComponent()
