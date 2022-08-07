@@ -242,7 +242,8 @@ namespace KitX_Dashboard.Views
 
                 color = color.LightenPercent(0.5f);
 
-                Background = new ImmutableSolidColorBrush(color, 0.9);
+                Background = new ImmutableSolidColorBrush(color,
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity);
             }
         }
     }
