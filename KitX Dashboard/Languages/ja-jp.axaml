@@ -73,6 +73,9 @@
     <x:String x:Key="Text_Lib_Tip_Connected">接続されたプラグイン</x:String>
 
 
+    <x:String x:Key="Text_Repo_No_Plugin">リポジトリにプラグインがありません</x:String>
+
+
     <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
     <x:String x:Key="Text_Device_This">この装置</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>

@@ -73,6 +73,9 @@
     <x:String x:Key="Text_Lib_Tip_Connected">個插件已連接</x:String>
 
 
+    <x:String x:Key="Text_Repo_No_Plugin">無插件在倉庫中</x:String>
+
+
     <x:String x:Key="Text_Device_No">網路中空無一物</x:String>
     <x:String x:Key="Text_Device_This">本機</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
