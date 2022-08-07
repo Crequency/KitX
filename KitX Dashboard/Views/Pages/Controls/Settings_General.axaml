@@ -143,10 +143,11 @@
                             </StackPanel>
 
                             <Button DockPanel.Dock="Right" Content="{DynamicResource Text_Public_Confirm}"
-                                HorizontalAlignment="Right" VerticalAlignment="Center"
-                                Margin="10,0" Command="{Binding MicaOpacityConfirmed}"
-                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                FontWeight="Bold"/>
+                                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                                    Margin="10,0" Command="{Binding MicaOpacityConfirmed}"
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                    FontWeight="Bold"
+                                    IsVisible="{Binding MicaOpacityConfirmButtonVisibility}"/>
 
                             <Slider DockPanel.Dock="Right" Width="250" Minimum="0" Maximum="1"
                                     IsSnapToTickEnabled="True" TickFrequency="0.01"

@@ -12,14 +12,16 @@ using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using MessageBox.Avalonia;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
 #pragma warning disable CA2011 // 避免无限递归
+#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    internal class Settings_GeneralViewModel : ViewModelBase
+    internal class Settings_GeneralViewModel : ViewModelBase, INotifyPropertyChanged
     {
 
         internal Settings_GeneralViewModel()
@@ -193,7 +195,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static double MicaOpacity
         {
             get => Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity;
-            set => Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity = value;
+            set
+            {
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.MicaOpacity = value;
+                EventHandlers.Invoke("MicaOpacityChanged");
+            }
         }
 
         /// <summary>
@@ -244,12 +250,13 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 开发者设置项
         /// </summary>
-        internal static int DeveloperSettingStatus
+        internal int DeveloperSettingStatus
         {
             get => Program.GlobalConfig.Config_App.DeveloperSetting ? 0 : 1;
             set
             {
                 Program.GlobalConfig.Config_App.DeveloperSetting = value == 0;
+                MicaOpacityConfirmButtonVisibility = Program.GlobalConfig.Config_App.DeveloperSetting;
                 SaveChanges();
             }
         }
@@ -265,6 +272,16 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 Program.GlobalConfig.Config_Pages.Config_SettingsPage.MicaToolTipIsOpen = value;
                 SaveChanges();
             }
+        }
+
+        /// <summary>
+        /// Mica 透明度确认按钮可见性
+        /// </summary>
+        internal bool MicaOpacityConfirmButtonVisibility
+        {
+            get => Program.GlobalConfig.Config_App.DeveloperSetting;
+            set => PropertyChanged?.Invoke(this,
+                new(nameof(MicaOpacityConfirmButtonVisibility)));
         }
 
         /// <summary>
@@ -292,9 +309,12 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         private void MicaOpacityConfirmed(object _) => SaveChanges();
 
         private void MicaToolTipClosed(object _) => MicaToolTipIsOpen = false;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
 
+#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 #pragma warning restore CA2011 // 避免无限递归
 #pragma warning restore CS8604 // 引用类型参数可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
