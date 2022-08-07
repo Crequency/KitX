@@ -123,6 +123,10 @@
             <ui:Frame x:Name="MainFrame" IsNavigationStackEnabled="False"/>
         </ui:NavigationView>
 
+        <Grid Margin="25" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+            
+        </Grid>
+
     </Grid>
 
 </Window>
