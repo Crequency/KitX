@@ -136,6 +136,9 @@
       <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
         <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       </AvaloniaResource>
+      <Compile Update="Views\Pages\Controls\DeviceCard.axaml.cs">
+        <DependentUpon>DeviceCard.axaml</DependentUpon>
+      </Compile>
       <None Update="Assets\KitX.Base64.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
