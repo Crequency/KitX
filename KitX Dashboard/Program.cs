@@ -8,6 +8,7 @@ using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using KitX.Web.Rules;
 
 namespace KitX_Dashboard
 {
@@ -20,6 +21,8 @@ namespace KitX_Dashboard
         internal static WebServer? LocalWebServer;
 
         internal static ObservableCollection<PluginCard> PluginCards = new();
+
+        internal static ObservableCollection<DeviceCard> DeviceCards = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
