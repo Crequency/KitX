@@ -49,6 +49,12 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public bool DeveloperSetting { get; set; } = false;
+
+            [JsonInclude]
+            public int UDPSenderPort { get; set; } = 23404;
+
+            [JsonInclude]
+            public int UDPReceiverPort { get; set; } = 65404;
         }
 
         /// <summary>
