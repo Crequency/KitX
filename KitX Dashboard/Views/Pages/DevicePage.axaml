@@ -8,7 +8,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.DevicePage">
     <DockPanel>
-        <Border DockPanel.Dock="Top">
+        <!--<Border DockPanel.Dock="Top">
             <Expander Margin="20">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
@@ -107,16 +107,22 @@
                     </DockPanel>
                 </DockPanel>
             </Expander>
-        </Border>
-        <DockPanel>
+        </Border>-->
+        <DockPanel Margin="10">
             <Border DockPanel.Dock="Top" Height="{Binding NoDevice_TipHeight}">
                 <TextBlock Text="{DynamicResource Text_Device_No}"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ScrollViewer>
-                <StackPanel>
-
-                </StackPanel>
+                <WrapPanel Orientation="Horizontal">
+                    <ItemsControl Items="{Binding DeviceCards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </WrapPanel>
             </ScrollViewer>
         </DockPanel>
     </DockPanel>

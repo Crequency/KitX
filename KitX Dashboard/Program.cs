@@ -2,8 +2,8 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using BasicHelper.LiteLogger;
 using KitX_Dashboard.Data;
-using KitX_Dashboard.Services;
 using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
@@ -20,6 +20,8 @@ namespace KitX_Dashboard
         internal static WebServer? LocalWebServer;
 
         internal static ObservableCollection<PluginCard> PluginCards = new();
+
+        internal static ObservableCollection<DeviceCard> DeviceCards = new();
 
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告

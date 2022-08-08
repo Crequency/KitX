@@ -40,7 +40,7 @@
             <WrapPanel x:Name="LibViewWrapPanel"/>
         </ScrollViewer>-->
 
-        <DockPanel>
+        <DockPanel Margin="10">
             <Border DockPanel.Dock="Top" Height="{Binding NoPlugins_TipHeight}">
                 <TextBlock Text="{DynamicResource Text_Lib_Tip_NoPlugin}"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
