@@ -1,15 +1,21 @@
 ﻿using Avalonia.Threading;
+using KitX.Web.Rules;
+using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
+#pragma warning disable CS8601 // 引用类型赋值可能为 null。
 
 namespace KitX_Dashboard.Services
 {
@@ -19,6 +25,12 @@ namespace KitX_Dashboard.Services
         {
             listener = new(IPAddress.Any, 0);
             acceptClientThread = new(AcceptClient);
+
+            new Thread(() =>
+            {
+                MultiDevicesBroadCastSend();
+                MultiDevicesBroadCastReceive();
+            }).Start();
         }
 
         /// <summary>
@@ -174,6 +186,92 @@ namespace KitX_Dashboard.Services
             }
         }
 
+        /// <summary>
+        /// 多设备广播发送方法
+        /// </summary>
+        public static void MultiDevicesBroadCastSend()
+        {
+            UdpClient udp = new(Program.GlobalConfig.Config_App.UDPSenderPort);
+            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+                Program.GlobalConfig.Config_App.UDPReceiverPort);
+            new Thread(() =>
+            {
+                while (GlobalInfo.Running)
+                {
+                    try
+                    {
+                        DeviceInfoStruct deviceInfo = GetDeviceInfo();
+                        string sendText = JsonSerializer.Serialize(deviceInfo);
+                        byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
+                        udp.Send(sendBytes, sendBytes.Length, multicast);
+                        Thread.Sleep(5000);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }).Start();
+        }
+
+        /// <summary>
+        /// 获取设备信息
+        /// </summary>
+        /// <returns>设备信息结构体</returns>
+        private static DeviceInfoStruct GetDeviceInfo()
+        {
+            return new()
+            {
+                DeviceName = Environment.MachineName,
+                DeviceMacAddress = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(nic => nic.OperationalStatus == OperationalStatus.Up
+                    && nic.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                .Select(nic => nic.GetPhysicalAddress().ToString()).FirstOrDefault(),
+                IsMainDevice = GlobalInfo.IsMainMachine,
+                SendTime = DateTime.Now,
+                DeviceOSType = OperatingSystem2Enum.GetOSType(),
+                DeviceOSVersion = Environment.OSVersion.VersionString
+            };
+        }
+
+        /// <summary>
+        /// 多设备广播接收方法
+        /// </summary>
+        public static void MultiDevicesBroadCastReceive()
+        {
+            UdpClient udp = new(Program.GlobalConfig.Config_App.UDPReceiverPort);
+            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+                Program.GlobalConfig.Config_App.UDPSenderPort);
+            new Thread(async () =>
+            {
+                while (GlobalInfo.Running)
+                {
+                    try
+                    {
+                        if (udp.Available <= 0) continue;
+                        if (udp.Client == null) return;
+                        byte[] bytes = udp.Receive(ref multicast);
+                        string result = Encoding.UTF8.GetString(bytes);
+
+                        await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}",
+                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+
+                        DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
+
+                        DevicesManager.Update(deviceInfo);
+
+                        Thread.Sleep(1000);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }).Start();
+        }
+
         public void Dispose()
         {
             keepListen = false;
@@ -184,6 +282,7 @@ namespace KitX_Dashboard.Services
     }
 }
 
+#pragma warning restore CS8601 // 引用类型赋值可能为 null。
 #pragma warning restore CS8604 // 引用类型参数可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
 #pragma warning restore CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
