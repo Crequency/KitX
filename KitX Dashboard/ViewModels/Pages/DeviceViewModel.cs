@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using KitX_Dashboard.Views.Pages.Controls;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using KitX.Web.Rules;
-using KitX_Dashboard.Views.Pages.Controls;
-using Material.Icons;
 
 #pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
