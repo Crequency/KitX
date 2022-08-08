@@ -18,6 +18,8 @@
 
         internal static bool Running = true;
 
+        internal static bool IsMainMachine = false;
+
     }
 }
 
