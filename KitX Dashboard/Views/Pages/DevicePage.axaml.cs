@@ -14,17 +14,6 @@ namespace KitX_Dashboard.Views.Pages
             InitializeComponent();
 
             DataContext = viewModel;
-
-            Timer resourcesTimer = new()
-            {
-                Interval = 5000,
-                AutoReset = true,
-            };
-            resourcesTimer.Elapsed += (_, _) =>
-            {
-                
-            };
-            resourcesTimer.Start();
         }
 
         private void InitializeComponent()
