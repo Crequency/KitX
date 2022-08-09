@@ -12,37 +12,29 @@ namespace KitX_Dashboard.Services
     {
         internal static readonly Queue<DeviceInfoStruct> deviceInfoStructs = new();
 
-        internal static readonly Queue<DeviceCard> deviceOfflined = new();
-
-        internal static Thread keepCheckAndRemoveThread = new(KeepCheckAndRemove);
-
-        internal static Thread cleanOfflinedDeviceThread = new(CleanOfflinedDevice);
-
         /// <summary>
         /// 持续检查并移除
         /// </summary>
         internal static void KeepCheckAndRemove()
         {
-            while (GlobalInfo.Running)
+            System.Timers.Timer timer = new()
             {
-                if (deviceInfoStructs.Count > 0)
+                Interval = 1000,
+                AutoReset = true
+            };
+            timer.Elapsed += (_, _) =>
+            {
+                while (deviceInfoStructs.Count > 0)
                 {
                     DeviceInfoStruct deviceInfoStruct = deviceInfoStructs.Dequeue();
-                    List<string> MacAddressVisited = new();
                     bool findThis = false;
                     foreach (var item in Program.DeviceCards)
                     {
-                        if (item.viewModel.DeviceInfo.DeviceName.Equals(deviceInfoStruct.DeviceName)
-                            && !MacAddressVisited.Contains(item.viewModel.DeviceInfo.DeviceMacAddress))
+                        if (item.viewModel.DeviceInfo.DeviceName.Equals(deviceInfoStruct.DeviceName))
                         {
-                            MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
                             item.viewModel.DeviceInfo = deviceInfoStruct;
                             findThis = true;
-                        }
-                        else
-                        {
-                            if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 5))
-                                deviceOfflined.Enqueue(item);
+                            break;
                         }
                     }
                     if (!findThis)
@@ -53,24 +45,27 @@ namespace KitX_Dashboard.Services
                         });
                     }
                 }
-                Thread.Sleep(2000);
-            }
-        }
 
-        /// <summary>
-        /// 清除掉线的设备
-        /// </summary>
-        internal static void CleanOfflinedDevice()
-        {
-            while (GlobalInfo.Running)
-            {
-                if (deviceOfflined.Count > 0)
+                List<string> MacAddressVisited = new();
+                List<DeviceCard> DevicesNeed2BeRemoved = new();
+
+                foreach (var item in Program.DeviceCards)
                 {
-                    DeviceCard deviceCard = deviceOfflined.Dequeue();
-                    Program.DeviceCards.Remove(deviceCard);
+                    if (MacAddressVisited.Contains(item.viewModel.DeviceInfo.DeviceMacAddress))
+                    {
+                        DevicesNeed2BeRemoved.Add(item);
+                        continue;
+                    }
+                    MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
+                    if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 4))
+                        DevicesNeed2BeRemoved.Add(item);
                 }
-                Thread.Sleep(1000);
-            }
+                foreach (var item in DevicesNeed2BeRemoved)
+                {
+                    Program.DeviceCards.Remove(item);
+                }
+            };
+            timer.Start();
         }
 
         /// <summary>
@@ -79,23 +74,6 @@ namespace KitX_Dashboard.Services
         /// <param name="deviceInfo">设备信息结构</param>
         internal static void Update(DeviceInfoStruct deviceInfo)
         {
-            #region 如果持续检查并移除线程尚未运行则启动它
-
-            try
-            {
-                if (keepCheckAndRemoveThread.ThreadState == ThreadState.Unstarted)
-                    keepCheckAndRemoveThread.Start();
-
-                if (cleanOfflinedDeviceThread.ThreadState == ThreadState.Unstarted)
-                    cleanOfflinedDeviceThread.Start();
-            }
-            catch
-            {
-
-            }
-
-            #endregion
-
             deviceInfoStructs.Enqueue(deviceInfo);
         }
     }
