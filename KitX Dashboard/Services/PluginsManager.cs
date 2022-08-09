@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Threading;
 
 #pragma warning disable CS8605 // 取消装箱可能为 null 的值。
-#pragma warning disable CS8602 // 解引用可能出现空引用。
 
 namespace KitX_Dashboard.Services
 {
@@ -35,28 +34,6 @@ namespace KitX_Dashboard.Services
 
             // 创建插件卡片
             var card = new PluginCard(pluginStruct);
-
-            #region A foolish try.
-
-            //if (Program.ViewModelPool.ContainsKey("LibViewModel"))
-            //(Program.ViewModelPool["LibViewModel"] as LibViewModel).PluginCards.Add(card);
-            //Program.PluginCards.Add(card);
-
-            //Program.libPage.LibViewWrapPanel.Children.Add(card);
-
-            //Dispatcher.UIThread.Post(() =>
-            //{
-            //    (Program.DirectControls["LibViewWrapPanel"] as WrapPanel).Children.Add(card);
-
-            //    Program.libPage.LibViewWrapPanel.Children.Add(card);
-            //});
-
-            //Dispatcher.UIThread.Post(() =>
-            //{
-            //    Program.PluginCards.Add(card);
-            //});
-
-            #endregion
 
             // 插件卡片添加到前台
             Program.PluginCards.Add(card);
@@ -118,7 +95,6 @@ namespace KitX_Dashboard.Services
     }
 }
 
-#pragma warning restore CS8602 // 解引用可能出现空引用。
 #pragma warning restore CS8605 // 取消装箱可能为 null 的值。
 
 //                                   _----_

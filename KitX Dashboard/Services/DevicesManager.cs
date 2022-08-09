@@ -1,10 +1,9 @@
 ﻿using Avalonia.Threading;
 using KitX.Web.Rules;
-using KitX_Dashboard.Data;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Timers;
 
 namespace KitX_Dashboard.Services
 {
@@ -17,54 +16,54 @@ namespace KitX_Dashboard.Services
         /// </summary>
         internal static void KeepCheckAndRemove()
         {
-            System.Timers.Timer timer = new()
+            using Timer timer = new()
             {
                 Interval = 1000,
                 AutoReset = true
             };
             timer.Elapsed += (_, _) =>
-            {
-                while (deviceInfoStructs.Count > 0)
-                {
-                    DeviceInfoStruct deviceInfoStruct = deviceInfoStructs.Dequeue();
-                    bool findThis = false;
-                    foreach (var item in Program.DeviceCards)
                     {
-                        if (item.viewModel.DeviceInfo.DeviceName.Equals(deviceInfoStruct.DeviceName))
+                        while (deviceInfoStructs.Count > 0)
                         {
-                            item.viewModel.DeviceInfo = deviceInfoStruct;
-                            findThis = true;
-                            break;
+                            DeviceInfoStruct deviceInfoStruct = deviceInfoStructs.Dequeue();
+                            bool findThis = false;
+                            foreach (var item in Program.DeviceCards)
+                            {
+                                if (item.viewModel.DeviceInfo.DeviceName.Equals(deviceInfoStruct.DeviceName))
+                                {
+                                    item.viewModel.DeviceInfo = deviceInfoStruct;
+                                    findThis = true;
+                                    break;
+                                }
+                            }
+                            if (!findThis)
+                            {
+                                Dispatcher.UIThread.Post(() =>
+                                {
+                                    Program.DeviceCards.Add(new(deviceInfoStruct));
+                                });
+                            }
                         }
-                    }
-                    if (!findThis)
-                    {
-                        Dispatcher.UIThread.Post(() =>
+
+                        List<string> MacAddressVisited = new();
+                        List<DeviceCard> DevicesNeed2BeRemoved = new();
+
+                        foreach (var item in Program.DeviceCards)
                         {
-                            Program.DeviceCards.Add(new(deviceInfoStruct));
-                        });
-                    }
-                }
-
-                List<string> MacAddressVisited = new();
-                List<DeviceCard> DevicesNeed2BeRemoved = new();
-
-                foreach (var item in Program.DeviceCards)
-                {
-                    if (MacAddressVisited.Contains(item.viewModel.DeviceInfo.DeviceMacAddress))
-                    {
-                        DevicesNeed2BeRemoved.Add(item);
-                        continue;
-                    }
-                    MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
-                    if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 4))
-                        DevicesNeed2BeRemoved.Add(item);
-                }
-                foreach (var item in DevicesNeed2BeRemoved)
-                {
-                    Program.DeviceCards.Remove(item);
-                }
-            };
+                            if (MacAddressVisited.Contains(item.viewModel.DeviceInfo.DeviceMacAddress))
+                            {
+                                DevicesNeed2BeRemoved.Add(item);
+                                continue;
+                            }
+                            MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
+                            if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 4))
+                                DevicesNeed2BeRemoved.Add(item);
+                        }
+                        foreach (var item in DevicesNeed2BeRemoved)
+                        {
+                            Program.DeviceCards.Remove(item);
+                        }
+                    };
             timer.Start();
         }
 
@@ -78,3 +77,22 @@ namespace KitX_Dashboard.Services
         }
     }
 }
+
+//
+//                                        ___-------___
+//                                    _-~~             ~~-_
+//                                 _-~                    /~-_
+//              /^\__/^\         /~  \                   /    \
+//            /|  O|| O|        /      \_______________/        \
+//           | |___||__|      /       /                \          \
+//           |          \    /      /                    \          \
+//           |   (_______) /______/                        \_________ \
+//           |         / /         \                      /            \
+//            \         \^\         \                  /               \     /
+//              \         ||           \______________/      _-_       //\__//
+//                \       ||------_-~~-_ ------------- \ --/~   ~\    || __/
+//                  ~-----||====/~     |==================|       |/~~~~~
+//                   (_(__/  ./     /                    \_\      \.
+//                          (_(___/                         \_____)_)-jurcy
+// 
+//
