@@ -16,7 +16,7 @@ namespace KitX_Dashboard.Services
         /// </summary>
         internal static void KeepCheckAndRemove()
         {
-            using Timer timer = new()
+            Timer timer = new()
             {
                 Interval = 1000,
                 AutoReset = true
