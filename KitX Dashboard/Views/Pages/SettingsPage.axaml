@@ -9,11 +9,10 @@
              xmlns:converters="using:KitX_Dashboard.Converters"
              xmlns:controls="using:KitX_Dashboard.Views.Pages.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.SettingsPage"
-             FontFamily="Cascadia Code Mono">
+             x:Class="KitX_Dashboard.Views.Pages.SettingsPage">
 
     <Design.DataContext>
-        <vm:SettingsViewModel/>
+        <vm:SettingsPageViewModel/>
     </Design.DataContext>
 
     <!--<TabControl SelectedIndex="{Binding TabControlSelectedIndex}">

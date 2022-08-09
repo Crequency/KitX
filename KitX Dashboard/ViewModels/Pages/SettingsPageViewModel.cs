@@ -1,8 +1,8 @@
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class SettingsViewModel : ViewModelBase
+    internal class SettingsPageViewModel : ViewModelBase
     {
-        internal SettingsViewModel()
+        internal SettingsPageViewModel()
         {
 
         }

@@ -13,7 +13,7 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class SettingsPage : UserControl
     {
-        private readonly SettingsViewModel viewModel = new();
+        private readonly SettingsPageViewModel viewModel = new();
 
         public SettingsPage()
         {

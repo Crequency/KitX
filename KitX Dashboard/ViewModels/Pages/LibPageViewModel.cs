@@ -6,9 +6,9 @@ using System.ComponentModel;
 
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class LibViewModel : ViewModelBase, INotifyPropertyChanged
+    internal class LibPageViewModel : ViewModelBase, INotifyPropertyChanged
     {
-        public LibViewModel()
+        public LibPageViewModel()
         {
             PluginCards.CollectionChanged += (_, _) =>
             {

@@ -7,7 +7,7 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class DevicePage : UserControl
     {
-        private readonly DeviceViewModel viewModel = new();
+        private readonly DevicePageViewModel viewModel = new();
 
         public DevicePage()
         {

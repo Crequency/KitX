@@ -14,7 +14,7 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class HomePage : UserControl
     {
-        private readonly HomeViewModel viewModel = new();
+        private readonly HomePageViewModel viewModel = new();
 
         public HomePage()
         {
