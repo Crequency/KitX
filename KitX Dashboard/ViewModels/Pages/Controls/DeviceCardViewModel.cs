@@ -42,6 +42,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 };
                 IPv4 = DeviceInfo.IPv4;
                 IPv6 = DeviceInfo.IPv6;
+
                 PropertyChanged?.Invoke(this, new(nameof(DeviceName)));
                 PropertyChanged?.Invoke(this, new(nameof(DeviceMacAddress)));
                 PropertyChanged?.Invoke(this, new(nameof(LastOnlineTime)));
@@ -72,3 +73,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 }
 
 #pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
+
+//
+//      /\
+//      ||_____-----_____-----_____
+//      ||   O                  O  \
+//      ||    O\\    ___    //O    /
+//      ||       \\ /   \//        \
+//      ||         |_O O_|         /
+//      ||          ^ | ^          \
+//      ||        // UUU \\        /
+//      ||    O//            \\O   \
+//      ||   O                  O  /
+//      ||_____-----_____-----_____\
+//      ||
+//      ||.
+//
