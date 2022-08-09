@@ -22,48 +22,48 @@ namespace KitX_Dashboard.Services
                 AutoReset = true
             };
             timer.Elapsed += (_, _) =>
+            {
+                while (deviceInfoStructs.Count > 0)
+                {
+                    DeviceInfoStruct deviceInfoStruct = deviceInfoStructs.Dequeue();
+                    bool findThis = false;
+                    foreach (var item in Program.DeviceCards)
                     {
-                        while (deviceInfoStructs.Count > 0)
+                        if (item.viewModel.DeviceInfo.DeviceName.Equals(deviceInfoStruct.DeviceName))
                         {
-                            DeviceInfoStruct deviceInfoStruct = deviceInfoStructs.Dequeue();
-                            bool findThis = false;
-                            foreach (var item in Program.DeviceCards)
-                            {
-                                if (item.viewModel.DeviceInfo.DeviceName.Equals(deviceInfoStruct.DeviceName))
-                                {
-                                    item.viewModel.DeviceInfo = deviceInfoStruct;
-                                    findThis = true;
-                                    break;
-                                }
-                            }
-                            if (!findThis)
-                            {
-                                Dispatcher.UIThread.Post(() =>
-                                {
-                                    Program.DeviceCards.Add(new(deviceInfoStruct));
-                                });
-                            }
+                            item.viewModel.DeviceInfo = deviceInfoStruct;
+                            findThis = true;
+                            break;
                         }
+                    }
+                    if (!findThis)
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            Program.DeviceCards.Add(new(deviceInfoStruct));
+                        });
+                    }
+                }
 
-                        List<string> MacAddressVisited = new();
-                        List<DeviceCard> DevicesNeed2BeRemoved = new();
+                List<string> MacAddressVisited = new();
+                List<DeviceCard> DevicesNeed2BeRemoved = new();
 
-                        foreach (var item in Program.DeviceCards)
-                        {
-                            if (MacAddressVisited.Contains(item.viewModel.DeviceInfo.DeviceMacAddress))
-                            {
-                                DevicesNeed2BeRemoved.Add(item);
-                                continue;
-                            }
-                            MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
-                            if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 4))
-                                DevicesNeed2BeRemoved.Add(item);
-                        }
-                        foreach (var item in DevicesNeed2BeRemoved)
-                        {
-                            Program.DeviceCards.Remove(item);
-                        }
-                    };
+                foreach (var item in Program.DeviceCards)
+                {
+                    if (MacAddressVisited.Contains(item.viewModel.DeviceInfo.DeviceMacAddress))
+                    {
+                        DevicesNeed2BeRemoved.Add(item);
+                        continue;
+                    }
+                    MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
+                    if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 4))
+                        DevicesNeed2BeRemoved.Add(item);
+                }
+                foreach (var item in DevicesNeed2BeRemoved)
+                {
+                    Program.DeviceCards.Remove(item);
+                }
+            };
             timer.Start();
         }
 
