@@ -197,7 +197,12 @@ namespace KitX_Dashboard.Services
                 Program.GlobalConfig.Config_App.UDPReceiverPort);
             new Thread(() =>
             {
-                while (GlobalInfo.Running)
+                System.Timers.Timer timer = new()
+                {
+                    Interval = 2000,
+                    AutoReset = true
+                };
+                timer.Elapsed += (_, _) =>
                 {
                     try
                     {
@@ -205,13 +210,20 @@ namespace KitX_Dashboard.Services
                         string sendText = JsonSerializer.Serialize(deviceInfo);
                         byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
                         udp.Send(sendBytes, sendBytes.Length, multicast);
-                        Thread.Sleep(5000);
                     }
                     catch
                     {
 
                     }
-                }
+                    if (!GlobalInfo.Running)
+                    {
+                        udp.Close();
+
+                        timer.Stop();
+                        timer.Dispose();
+                    }
+                };
+                timer.Start();
             }).Start();
         }
 
@@ -231,7 +243,16 @@ namespace KitX_Dashboard.Services
                 IsMainDevice = GlobalInfo.IsMainMachine,
                 SendTime = DateTime.Now,
                 DeviceOSType = OperatingSystem2Enum.GetOSType(),
-                DeviceOSVersion = Environment.OSVersion.VersionString
+                DeviceOSVersion = Environment.OSVersion.VersionString,
+                IPv4 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
+                        where ip.AddressFamily == AddressFamily.InterNetwork
+                            && !ip.ToString().Equals("127.0.0.1")
+                            && ip.ToString().StartsWith("192.168")
+                        select ip).First().ToString(),
+                IPv6 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
+                        where ip.AddressFamily == AddressFamily.InterNetworkV6
+                            && !ip.ToString().Equals("::1")
+                        select ip).First().ToString(),
             };
         }
 
@@ -244,13 +265,18 @@ namespace KitX_Dashboard.Services
             udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
                 Program.GlobalConfig.Config_App.UDPSenderPort);
-            new Thread(async () =>
+            new Thread(() =>
             {
-                while (GlobalInfo.Running)
+                System.Timers.Timer timer = new()
+                {
+                    Interval = 2000,
+                    AutoReset = true
+                };
+                timer.Elapsed += async (_, _) =>
                 {
                     try
                     {
-                        if (udp.Available <= 0) continue;
+                        //if (udp.Available <= 0) continue;
                         if (udp.Client == null) return;
                         byte[] bytes = udp.Receive(ref multicast);
                         string result = Encoding.UTF8.GetString(bytes);
@@ -266,9 +292,16 @@ namespace KitX_Dashboard.Services
                     }
                     catch
                     {
+                        if (!GlobalInfo.Running)
+                        {
+                            udp.Close();
 
+                            timer.Stop();
+                            timer.Dispose();
+                        }
                     }
-                }
+                };
+                timer.Start();
             }).Start();
         }
 

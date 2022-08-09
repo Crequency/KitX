@@ -8,7 +8,7 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class LibPage : UserControl
     {
-        private readonly LibViewModel libViewModel = new();
+        private readonly LibPageViewModel libViewModel = new();
 
         public LibPage()
         {

@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class MarketViewModel : ViewModelBase
+    internal class MarketPageViewModel : ViewModelBase
     {
-        public MarketViewModel()
+        public MarketPageViewModel()
         {
 
         }

@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class RepoViewModel : ViewModelBase, INotifyPropertyChanged
+    internal class RepoPageViewModel : ViewModelBase, INotifyPropertyChanged
     {
-        public RepoViewModel()
+        public RepoPageViewModel()
         {
 
         }

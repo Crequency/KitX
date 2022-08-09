@@ -21,5 +21,9 @@
         public string DeviceOSVersion { get; set; } = "Unknown OS Version";
 
         public OperatingSystems DeviceOSType { get; set; } = OperatingSystems.Unknown;
+
+        public string IPv4 { get; set; } = "Getting...";
+
+        public string IPv6 { get; set; } = "Getting...";
     }
 }

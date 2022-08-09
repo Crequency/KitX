@@ -177,13 +177,15 @@ namespace KitX_Dashboard
             LocalLogger.AppendLogger("Logger_Debug", new(
                 "Logger_Debug",
                 Path.GetFullPath("./Log/"),
-                lv: LoggerManager.LogLevel.Debug
+                lv: LoggerManager.LogLevel.Debug,
+                lfs: 1024 * 10
             ));
 
             LocalLogger.AppendLogger("Logger_Error", new(
                 "Logger_Error",
                 Path.GetFullPath("./Log/"),
-                lv: LoggerManager.LogLevel.Error
+                lv: LoggerManager.LogLevel.Error,
+                lfs: 1024 * 10
             ));
         }
 

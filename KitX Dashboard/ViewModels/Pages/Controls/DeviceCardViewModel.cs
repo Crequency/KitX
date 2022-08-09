@@ -40,11 +40,15 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     OperatingSystems.Unknown => MaterialIconKind.QuestionMarkCircle,
                     _ => MaterialIconKind.QuestionMarkCircle,
                 };
+                IPv4 = DeviceInfo.IPv4;
+                IPv6 = DeviceInfo.IPv6;
                 PropertyChanged?.Invoke(this, new(nameof(DeviceName)));
                 PropertyChanged?.Invoke(this, new(nameof(DeviceMacAddress)));
                 PropertyChanged?.Invoke(this, new(nameof(LastOnlineTime)));
                 PropertyChanged?.Invoke(this, new(nameof(DeviceVersion)));
                 PropertyChanged?.Invoke(this, new(nameof(DeviceOSKind)));
+                PropertyChanged?.Invoke(this, new(nameof(IPv4)));
+                PropertyChanged?.Invoke(this, new(nameof(IPv6)));
             }
         }
 
@@ -57,6 +61,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal string? DeviceVersion { get; set; }
 
         internal MaterialIconKind? DeviceOSKind { get; set; }
+
+        internal string? IPv4 { get; set; }
+
+        internal string? IPv6 { get; set; }
+
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }

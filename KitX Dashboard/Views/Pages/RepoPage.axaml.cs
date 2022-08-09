@@ -6,7 +6,7 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class RepoPage : UserControl
     {
-        private readonly RepoViewModel viewModel = new();
+        private readonly RepoPageViewModel viewModel = new();
 
         public RepoPage()
         {

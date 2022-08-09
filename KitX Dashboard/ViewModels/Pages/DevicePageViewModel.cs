@@ -6,9 +6,9 @@ using System.ComponentModel;
 
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class DeviceViewModel : ViewModelBase, INotifyPropertyChanged
+    internal class DevicePageViewModel : ViewModelBase, INotifyPropertyChanged
     {
-        public DeviceViewModel()
+        public DevicePageViewModel()
         {
             DeviceCards.CollectionChanged += (_, _) =>
             {

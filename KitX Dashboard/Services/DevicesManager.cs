@@ -41,7 +41,7 @@ namespace KitX_Dashboard.Services
                         }
                         else
                         {
-                            if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 12))
+                            if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 5))
                                 deviceOfflined.Enqueue(item);
                         }
                     }

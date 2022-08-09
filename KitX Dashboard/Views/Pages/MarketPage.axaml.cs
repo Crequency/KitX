@@ -6,7 +6,7 @@ namespace KitX_Dashboard.Views.Pages
 {
     public partial class MarketPage : UserControl
     {
-        private readonly MarketViewModel viewModel = new();
+        private readonly MarketPageViewModel viewModel = new();
 
         public MarketPage()
         {
