@@ -9,6 +9,7 @@
     <x:String x:Key="Text_Public_Auto">自動</x:String>
     <x:String x:Key="Text_Public_Confirm">確認</x:String>
     <x:String x:Key="Text_Public_Read">読んだ</x:String>
+    <x:String x:Key="Text_Public_Search">探す</x:String>
 
 
     <!--GreetingStart-->
@@ -81,6 +82,7 @@
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
     <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
+    <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
