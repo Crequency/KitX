@@ -1,10 +1,9 @@
 ﻿using Avalonia.Threading;
 using KitX.Web.Rules;
-using KitX_Dashboard.Data;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Timers;
 
 namespace KitX_Dashboard.Services
 {
@@ -17,7 +16,7 @@ namespace KitX_Dashboard.Services
         /// </summary>
         internal static void KeepCheckAndRemove()
         {
-            System.Timers.Timer timer = new()
+            using Timer timer = new()
             {
                 Interval = 1000,
                 AutoReset = true
@@ -78,3 +77,22 @@ namespace KitX_Dashboard.Services
         }
     }
 }
+
+//
+//                                        ___-------___
+//                                    _-~~             ~~-_
+//                                 _-~                    /~-_
+//              /^\__/^\         /~  \                   /    \
+//            /|  O|| O|        /      \_______________/        \
+//           | |___||__|      /       /                \          \
+//           |          \    /      /                    \          \
+//           |   (_______) /______/                        \_________ \
+//           |         / /         \                      /            \
+//            \         \^\         \                  /               \     /
+//              \         ||           \______________/      _-_       //\__//
+//                \       ||------_-~~-_ ------------- \ --/~   ~\    || __/
+//                  ~-----||====/~     |==================|       |/~~~~~
+//                   (_(__/  ./     /                    \_\      \.
+//                          (_(___/                         \_____)_)-jurcy
+// 
+//
