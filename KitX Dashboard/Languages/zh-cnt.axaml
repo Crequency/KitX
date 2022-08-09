@@ -9,6 +9,7 @@
     <x:String x:Key="Text_Public_Auto">自動</x:String>
     <x:String x:Key="Text_Public_Confirm">確認</x:String>
     <x:String x:Key="Text_Public_Read">讀取</x:String>
+    <x:String x:Key="Text_Public_Search">檢索</x:String>
 
 
     <!--GreetingStart-->
@@ -81,6 +82,7 @@
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">内存</x:String>
     <x:String x:Key="Text_Device_Resources_NET">網路</x:String>
+    <x:String x:Key="Text_Device_Tip_Detected">個設備已發現</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>

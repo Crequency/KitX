@@ -9,6 +9,7 @@
     <x:String x:Key="Text_Public_Auto">Auto</x:String>
     <x:String x:Key="Text_Public_Confirm">Confirm</x:String>
     <x:String x:Key="Text_Public_Read">Read</x:String>
+    <x:String x:Key="Text_Public_Search">Search</x:String>
 
 
     <!--GreetingStart-->
@@ -81,6 +82,7 @@
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
     <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
+    <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>

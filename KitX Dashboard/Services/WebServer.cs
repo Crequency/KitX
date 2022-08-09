@@ -28,6 +28,8 @@ namespace KitX_Dashboard.Services
 
             new Thread(() =>
             {
+                DevicesManager.KeepCheckAndRemove();
+                MultiDevicesBoradCastInit();
                 MultiDevicesBroadCastSend();
                 MultiDevicesBroadCastReceive();
             }).Start();
@@ -186,44 +188,70 @@ namespace KitX_Dashboard.Services
             }
         }
 
+        private static readonly UdpClient udp
+            = new(Program.GlobalConfig.Config_App.UDPSendReceivePort);
+
+        /// <summary>
+        /// 初始化多设备组播
+        /// </summary>
+        public static void MultiDevicesBoradCastInit()
+        {
+            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+        }
+
         /// <summary>
         /// 多设备广播发送方法
         /// </summary>
         public static void MultiDevicesBroadCastSend()
         {
-            UdpClient udp = new(Program.GlobalConfig.Config_App.UDPSenderPort);
-            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.Config_App.UDPReceiverPort);
-            new Thread(() =>
+                Program.GlobalConfig.Config_App.UDPSendReceivePort);
+            System.Timers.Timer timer = new()
             {
-                System.Timers.Timer timer = new()
+                Interval = 2000,
+                AutoReset = true
+            };
+            timer.Elapsed += (_, _) =>
+            {
+                try
                 {
-                    Interval = 2000,
-                    AutoReset = true
-                };
-                timer.Elapsed += (_, _) =>
+                    DeviceInfoStruct deviceInfo = GetDeviceInfo();
+                    string sendText = JsonSerializer.Serialize(deviceInfo);
+                    byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
+                    udp.Send(sendBytes, sendBytes.Length, multicast);
+                }
+                catch
                 {
-                    try
-                    {
-                        DeviceInfoStruct deviceInfo = GetDeviceInfo();
-                        string sendText = JsonSerializer.Serialize(deviceInfo);
-                        byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
-                        udp.Send(sendBytes, sendBytes.Length, multicast);
-                    }
-                    catch
-                    {
 
-                    }
-                    if (!GlobalInfo.Running)
-                    {
-                        udp.Close();
+                }
+                if (!GlobalInfo.Running)
+                {
+                    udp.Close();
 
-                        timer.Stop();
-                        timer.Dispose();
-                    }
-                };
-                timer.Start();
+                    timer.Stop();
+                    timer.Dispose();
+                }
+            };
+            timer.Start();
+        }
+
+        /// <summary>
+        /// 多设备广播接收方法
+        /// </summary>
+        public static void MultiDevicesBroadCastReceive()
+        {
+            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+                Program.GlobalConfig.Config_App.UDPSendReceivePort);
+            new Thread(async () =>
+            {
+                while (GlobalInfo.Running)
+                {
+                    byte[] bytes = udp.Receive(ref multicast);
+                    string result = Encoding.UTF8.GetString(bytes);
+                    await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}");
+                    DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
+                    DevicesManager.Update(deviceInfo);
+                }
             }).Start();
         }
 
@@ -254,55 +282,6 @@ namespace KitX_Dashboard.Services
                             && !ip.ToString().Equals("::1")
                         select ip).First().ToString(),
             };
-        }
-
-        /// <summary>
-        /// 多设备广播接收方法
-        /// </summary>
-        public static void MultiDevicesBroadCastReceive()
-        {
-            UdpClient udp = new(Program.GlobalConfig.Config_App.UDPReceiverPort);
-            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.Config_App.UDPSenderPort);
-            new Thread(() =>
-            {
-                System.Timers.Timer timer = new()
-                {
-                    Interval = 2000,
-                    AutoReset = true
-                };
-                timer.Elapsed += async (_, _) =>
-                {
-                    try
-                    {
-                        //if (udp.Available <= 0) continue;
-                        if (udp.Client == null) return;
-                        byte[] bytes = udp.Receive(ref multicast);
-                        string result = Encoding.UTF8.GetString(bytes);
-
-                        await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}",
-                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
-
-                        DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
-
-                        DevicesManager.Update(deviceInfo);
-
-                        Thread.Sleep(1000);
-                    }
-                    catch
-                    {
-                        if (!GlobalInfo.Running)
-                        {
-                            udp.Close();
-
-                            timer.Stop();
-                            timer.Dispose();
-                        }
-                    }
-                };
-                timer.Start();
-            }).Start();
         }
 
         public void Dispose()

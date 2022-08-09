@@ -8,106 +8,22 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.DevicePage">
     <DockPanel>
-        <!--<Border DockPanel.Dock="Top">
-            <Expander Margin="20">
-                <Expander.Header>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Monitor" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Device_This}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-                    </StackPanel>
-                </Expander.Header>
-                <DockPanel>
-                    <Button DockPanel.Dock="Right">
-                        <Grid Margin="5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                            </Grid.RowDefinitions>
-                            
-                            <icon:MaterialIcon Grid.Column="0" Grid.Row="0" Width="50" Height="50" Kind="Chip"/>
-                            <icon:MaterialIcon Grid.Column="2" Grid.Row="0" Width="50" Height="50" Kind="Memory"/>
-                            <icon:MaterialIcon Grid.Column="4" Grid.Row="0" Width="50" Height="50" Kind="Network"/>
-                            
-                            <Grid Grid.Column="1" Grid.Row="0" Margin="0,0,20,0" Width="40" Height="20"
-                                  HorizontalAlignment="Right" VerticalAlignment="Top">
-                                <Border Background="#260033" CornerRadius="7.5"/>
-                                <TextBlock Text="{Binding CPU_Load}" FontSize="14" Foreground="#ffffff"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Grid>
-                            <Grid Grid.Column="3" Grid.Row="0" Margin="0,0,20,0" Width="40" Height="20"
-                                  HorizontalAlignment="Right" VerticalAlignment="Top">
-                                <Border Background="#17223b" CornerRadius="7.5"/>
-                                <TextBlock Text="{Binding RAM_Load}" FontSize="14" Foreground="#ff6768"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Grid>
-                            <Grid Grid.Column="5" Grid.Row="0" Margin="0,0,20,0" Width="40" Height="20"
-                                  HorizontalAlignment="Right" VerticalAlignment="Top">
-                                <Border Background="#222831" CornerRadius="7.5"/>
-                                <TextBlock Text="{Binding NET_Upload}" FontSize="14" Foreground="#EEEEEE"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Grid>
-                            <Grid Grid.Column="5" Grid.Row="0" Margin="0,0,20,0" Width="40" Height="20"
-                                  HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                                <Border Background="#29335C" CornerRadius="7.5"/>
-                                <TextBlock Text="{Binding NET_Download}" FontSize="14" Foreground="#F0CEA0"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Grid>
-                            
-                            <TextBlock Grid.Column="0" Grid.Row="1" TextAlignment="Center"
-                                       Text="{DynamicResource Text_Device_Resources_CPU}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
-                            <TextBlock Grid.Column="2" Grid.Row="1" TextAlignment="Center"
-                                       Text="{DynamicResource Text_Device_Resources_RAM}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
-                            <TextBlock Grid.Column="4" Grid.Row="1" TextAlignment="Center"
-                                       Text="{DynamicResource Text_Device_Resources_NET}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
-                        </Grid>
-                    </Button>
-                    <DockPanel>
-                        <Button DockPanel.Dock="Top">
-                            <StackPanel Orientation="Horizontal">
-                                <icon:MaterialIcon Width="30" Height="30" Kind="{Binding SystemIcon}"
-                                                   VerticalAlignment="Center"/>
-                                <TextBlock Margin="5,0" VerticalAlignment="Center" Text="{Binding SystemName}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold" FontSize="26"/>
-                            </StackPanel>
-                        </Button>
-                        <Button DockPanel.Dock="Bottom">
-                            <TextBlock Text="{Binding DeviceInfo}"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold" FontSize="18"/>
-                        </Button>
-                        <Border/>
-                    </DockPanel>
-                </DockPanel>
-            </Expander>
-        </Border>-->
+        <Grid Height="80" DockPanel.Dock="Top">
+            <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
+                             Watermark="{DynamicResource Text_Public_Search}"
+                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontWeight="Bold"/>
+            <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Text="{Binding DevicesCount}"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"/>
+                <TextBlock Text="{DynamicResource Text_Device_Tip_Detected}" Margin="5,0,0,0"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"/>
+            </StackPanel>
+        </Grid>
         <DockPanel Margin="10">
             <Border DockPanel.Dock="Top" Height="{Binding NoDevice_TipHeight}">
                 <TextBlock Text="{DynamicResource Text_Device_No}"
