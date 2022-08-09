@@ -41,7 +41,7 @@
                 <TextBlock DockPanel.Dock="Left" Text="{Binding IPv4}"
                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                            FontWeight="Bold" FontSize="10"/>
-                <TextBlock DockPanel.Dock="Right" Text="{Binding IPv6}"
+                <TextBlock DockPanel.Dock="Right" Text="{Binding IPv6}" Margin="20,0,0,0"
                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                            FontWeight="Bold" FontSize="10"/>
                 <Border/>
