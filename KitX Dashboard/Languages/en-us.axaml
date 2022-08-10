@@ -10,6 +10,7 @@
     <x:String x:Key="Text_Public_Confirm">Confirm</x:String>
     <x:String x:Key="Text_Public_Read">Read</x:String>
     <x:String x:Key="Text_Public_Search">Search</x:String>
+    <x:String x:Key="Text_Public_Announcement">Announcement</x:String>
 
 
     <!--GreetingStart-->

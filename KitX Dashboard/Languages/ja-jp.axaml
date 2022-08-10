@@ -10,6 +10,7 @@
     <x:String x:Key="Text_Public_Confirm">確認</x:String>
     <x:String x:Key="Text_Public_Read">読んだ</x:String>
     <x:String x:Key="Text_Public_Search">探す</x:String>
+    <x:String x:Key="Text_Public_Announcement">発表</x:String>
 
 
     <!--GreetingStart-->
