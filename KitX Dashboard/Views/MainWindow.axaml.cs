@@ -8,6 +8,7 @@ using BasicHelper.LiteLogger;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
+using KitX_Dashboard.Converters;
 using KitX_Dashboard.Models;
 using System;
 using System.ComponentModel;
@@ -34,13 +35,13 @@ namespace KitX_Dashboard.Views
             // 设置窗体坐标
 
             Position = new(
-                PositionCameCenter(
+                WindowAttributesConverter.PositionCameCenter(
                     Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left,
-                    true
+                    true, Screens
                 ),
-                PositionCameCenter(
+                WindowAttributesConverter.PositionCameCenter(
                     Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top,
-                    false
+                    false, Screens
                 )
             );
 
@@ -162,16 +163,6 @@ namespace KitX_Dashboard.Views
                 Program.LocalLogger.Log("Logger_Debug", o.Message, LoggerManager.LogLevel.Warn);
             }
         }
-
-        /// <summary>
-        /// 坐标回正
-        /// </summary>
-        /// <param name="input">传入的坐标</param>
-        /// <param name="isLeft">是否是距左距离</param>
-        /// <returns>回正的坐标</returns>
-        private int PositionCameCenter(int input, bool isLeft) => isLeft
-            ? (input == -1 ? (Screens.Primary.WorkingArea.Width - 1280) / 2 : input)
-            : (input == -1 ? (Screens.Primary.WorkingArea.Height - 720) / 2 : input);
 
         /// <summary>
         /// 储存元数据
