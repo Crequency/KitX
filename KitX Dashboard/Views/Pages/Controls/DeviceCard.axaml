@@ -32,11 +32,20 @@
                     <TextBlock Grid.Row="0" Text="{Binding LastOnlineTime}"
                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                FontWeight="Bold" FontSize="12"/>
-                    <TextBlock Grid.Row="1" Text="{Binding DeviceMacAddress}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold" FontSize="12"/>
+                    <DockPanel Grid.Row="1">
+                        <TextBlock DockPanel.Dock="Left" Text="{DynamicResource Text_Device_PluginsCount}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold" FontSize="12"/>
+                        <TextBlock DockPanel.Dock="Left" Text="{Binding PluginsCount}" Margin="10,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold" FontSize="12"/>
+                        <Border/>
+                    </DockPanel>
                 </Grid>
             </DockPanel>
+            <TextBlock Margin="5,5,0,0" Text="{Binding DeviceMacAddress}"
+                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                       FontWeight="Bold" FontSize="10"/>
             <DockPanel Margin="5,5,0,0">
                 <TextBlock DockPanel.Dock="Left" Text="{Binding IPv4}"
                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
