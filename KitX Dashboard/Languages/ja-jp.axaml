@@ -83,6 +83,7 @@
     <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
     <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
+    <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>

@@ -83,6 +83,7 @@
     <x:String x:Key="Text_Device_Resources_RAM">内存</x:String>
     <x:String x:Key="Text_Device_Resources_NET">網路</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">個設備已發現</x:String>
+    <x:String x:Key="Text_Device_PluginsCount">在綫插件數量:</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>

@@ -83,6 +83,7 @@
     <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
     <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
+    <x:String x:Key="Text_Device_PluginsCount">Enabled Plugins Count:</x:String>
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
