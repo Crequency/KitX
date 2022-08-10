@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace KitX_Dashboard.Data
@@ -52,6 +53,15 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public int UDPSendReceivePort { get; set; } = 23404;
+
+            [JsonInclude]
+            public string APIServer { get; set; } = "api.catrol.cn";
+
+            [JsonInclude]
+            public string APIPath { get; set; } = "/apps/kitx/";
+
+            [JsonInclude]
+            public DateTime LastShowedAnnouncement { get; set; } = DateTime.Parse("2022-05-02 11:54:29");
         }
 
         /// <summary>
