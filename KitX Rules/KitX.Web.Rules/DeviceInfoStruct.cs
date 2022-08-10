@@ -20,6 +20,10 @@
 
         public string DeviceMacAddress { get; set; } = string.Empty;
 
+        public int ServingPort { get; set; } = 0;
+
+        public int PluginsCount { get; set; } = 0;
+
         public DateTime SendTime { get; set; } = DateTime.Now;
 
         public bool IsMainDevice { get; set; } = false;

@@ -279,6 +279,8 @@ namespace KitX_Dashboard.Services
                         where ip.AddressFamily == AddressFamily.InterNetworkV6
                             && !ip.ToString().Equals("::1")
                         select ip).First().ToString(),
+                ServingPort = GlobalInfo.ServerPortNumber,
+                PluginsCount = Program.PluginCards.Count,
             };
         }
 
