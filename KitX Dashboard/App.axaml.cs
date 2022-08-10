@@ -10,7 +10,12 @@ using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
 
@@ -56,7 +61,7 @@ namespace KitX_Dashboard
             EventHandlers.Invoke("LanguageChanged");
         }
 
-        public override void OnFrameworkInitializationCompleted()
+        public override async void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
@@ -69,7 +74,41 @@ namespace KitX_Dashboard
             string color = Program.GlobalConfig.Config_App.ThemeColor;
             Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 
+            await CheckNewAnnouncements();
+
             base.OnFrameworkInitializationCompleted();
+        }
+
+        public static async Task CheckNewAnnouncements()
+        {
+            HttpClient client = new();
+            client.DefaultRequestHeaders.Accept.Clear();
+            string linkBase = $"http://" +
+                $"{Program.GlobalConfig.Config_App.APIServer}" +
+                $"{Program.GlobalConfig.Config_App.APIPath}";
+            string link = $"{linkBase}{GlobalInfo.Api_Get_Announcements}";
+            string msg = await client.GetStringAsync(link);
+            List<string>? list = JsonSerializer.Deserialize<List<string>>(msg);
+            List<DateTime> unreads = new();
+            if (list != null)
+                foreach (var item in list)
+                {
+                    DateTime thisTurn = DateTime.Parse(item);
+                    if (thisTurn.CompareTo(Program.GlobalConfig.Config_App.LastShowedAnnouncement) > 0)
+                        unreads.Add(thisTurn);
+                }
+            List<string> markdown = new();
+            foreach (var item in unreads)
+            {
+                string apiLink = $"{linkBase}{GlobalInfo.Api_Get_Announcement}" +
+                    $"?" +
+                    $"lang={Program.GlobalConfig.Config_App.AppLanguage}" +
+                    $"&" +
+                    $"date={item:yyyy-MM-dd HH-mm}";
+                markdown.Add(JsonSerializer.Deserialize<string>(await client.GetStringAsync(apiLink)));
+            }
+
+            client.Dispose();
         }
     }
 }

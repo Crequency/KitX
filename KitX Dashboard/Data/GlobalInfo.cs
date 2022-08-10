@@ -20,6 +20,10 @@
 
         internal static bool IsMainMachine = false;
 
+        internal const string Api_Get_Announcements = "get-announcements.php";
+
+        internal const string Api_Get_Announcement = "get-announcement.php";
+
     }
 }
 

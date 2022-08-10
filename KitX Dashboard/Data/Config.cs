@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace KitX_Dashboard.Data
@@ -22,7 +23,6 @@ namespace KitX_Dashboard.Data
         /// </summary>
         public class App
         {
-
             [JsonInclude]
             public string AppLanguage { get; set; } = "zh-cn";
 
@@ -52,6 +52,15 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public int UDPSendReceivePort { get; set; } = 23404;
+
+            [JsonInclude]
+            public string APIServer { get; set; } = "api.catrol.cn";
+
+            [JsonInclude]
+            public string APIPath { get; set; } = "/apps/kitx/";
+
+            [JsonInclude]
+            public DateTime LastShowedAnnouncement { get; set; } = DateTime.Parse("2022-05-02 11:54:29");
         }
 
         /// <summary>
@@ -63,12 +72,14 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public MainWindow Config_MainWindow { get; set; } = new();
 
+            [JsonInclude]
+            public AnnouncementWindow Config_AnnouncementWindow { get; set; } = new();
+
             /// <summary>
             /// MainWindowConfig
             /// </summary>
             public class MainWindow
             {
-
                 [JsonInclude]
                 public double Window_Width { get; set; } = 1280;
 
@@ -112,6 +123,23 @@ namespace KitX_Dashboard.Data
                 public int GreetingUpdateInterval { get; set; } = 10;
             }
 
+            /// <summary>
+            /// AnnouncementWindowConfig
+            /// </summary>
+            public class AnnouncementWindow
+            {
+                [JsonInclude]
+                public double Window_Width { get; set; } = 600;
+
+                [JsonInclude]
+                public double Window_Height { get; set; } = 800;
+
+                [JsonInclude]
+                public int Window_Left { get; set; } = -1;
+
+                [JsonInclude]
+                public int Window_Top { get; set; } = -1;
+            }
         }
 
         /// <summary>
@@ -156,10 +184,7 @@ namespace KitX_Dashboard.Data
                 [JsonInclude]
                 public bool MicaToolTipIsOpen { get; set; } = true;
             }
-
         }
-
-
     }
 }
 

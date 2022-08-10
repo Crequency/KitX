@@ -10,6 +10,7 @@
     <x:String x:Key="Text_Public_Confirm">确认</x:String>
     <x:String x:Key="Text_Public_Read">读取</x:String>
     <x:String x:Key="Text_Public_Search">搜索</x:String>
+    <x:String x:Key="Text_Public_Announcement">公告</x:String>
 
 
     <!--GreetingStart-->
