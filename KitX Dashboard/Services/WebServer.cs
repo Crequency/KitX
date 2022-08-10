@@ -29,6 +29,7 @@ namespace KitX_Dashboard.Services
             new Thread(() =>
             {
                 DevicesManager.KeepCheckAndRemove();
+                PluginsManager.KeepCheckAndRemove();
                 MultiDevicesBoradCastInit();
                 MultiDevicesBroadCastSend();
                 MultiDevicesBroadCastReceive();
@@ -141,10 +142,7 @@ namespace KitX_Dashboard.Services
                             $"From: {endpoint}\tReceive: {msg}",
                             BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
 
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            PluginsManager.Execute(msg, endpoint);
-                        });
+                        PluginsManager.Execute(msg, endpoint);
 
                         //发送到其他客户端
                         //foreach (KeyValuePair<string, TcpClient> kvp in clients)
@@ -211,7 +209,7 @@ namespace KitX_Dashboard.Services
                 Interval = 2000,
                 AutoReset = true
             };
-            timer.Elapsed += (_, _) =>
+            timer.Elapsed += async (_, _) =>
             {
                 try
                 {
@@ -220,9 +218,9 @@ namespace KitX_Dashboard.Services
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
                     udp.Send(sendBytes, sendBytes.Length, multicast);
                 }
-                catch
+                catch (Exception e)
                 {
-
+                    await Program.LocalLogger.LogAsync("Logger_Error", e.Message);
                 }
                 if (!GlobalInfo.Running)
                 {
