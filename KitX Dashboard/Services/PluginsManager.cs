@@ -1,4 +1,5 @@
-﻿using KitX.Web.Rules;
+﻿using Avalonia.Threading;
+using KitX.Web.Rules;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Views.Pages.Controls;
 using System.Collections.Generic;
@@ -32,42 +33,79 @@ namespace KitX_Dashboard.Services
             // 标注 IPEndPoint
             pluginStruct.Tags.Add("IPEndPoint", endPoint.ToString());
 
-            // 创建插件卡片
-            var card = new PluginCard(pluginStruct);
-
-            // 插件卡片添加到前台
-            Program.PluginCards.Add(card);
-
-            //Program.PluginsCount = $"Program.PluginCards.Count";
+            pluginsToAdd.Enqueue(pluginStruct);
         }
 
         internal static readonly Queue<IPEndPoint> pluginsToRemove = new();
 
-        internal static Thread keepCheckAndRemoveThread = new(KeepCheckAndRemove);
+        internal static readonly Queue<PluginStruct> pluginsToAdd = new();
 
         /// <summary>
         /// 持续检查并移除
         /// </summary>
         internal static void KeepCheckAndRemove()
         {
-            while (GlobalInfo.Running)
+            System.Timers.Timer timer = new()
             {
+                Interval = 10,
+                AutoReset = true
+            };
+            timer.Elapsed += (_, _) =>
+            {
+                if (pluginsToAdd.Count > 0)
+                {
+                    List<PluginCard> pluginCardsToAdd = new();
+                    int needAddCount = 0, addedCount = 0;
+                    while (pluginsToAdd.Count > 0)
+                    {
+                        ++needAddCount;
+
+                        PluginStruct pluginStruct = pluginsToAdd.Dequeue();
+
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            PluginCard card = new(pluginStruct);
+                            pluginCardsToAdd.Add(card);
+                            lock ((object)addedCount)
+                            {
+                                ++addedCount;
+                            }
+                        });
+                    }
+                    while (needAddCount != addedCount) { }
+                    foreach (var item in pluginCardsToAdd)
+                    {
+                        Program.PluginCards.Add(item);
+                    }
+                }
+
                 if (pluginsToRemove.Count > 0)
                 {
-                    IPEndPoint endPoint = pluginsToRemove.Dequeue();
-                    PluginCard? remove_target = null;
-                    foreach (var item in Program.PluginCards)
+                    List<PluginCard> pluginCardsToRemove = new();
+                    while (pluginsToRemove.Count > 0)
                     {
-                        if (item.pluginStruct.Tags["IPEndPoint"].Equals(endPoint.ToString()))
+                        IPEndPoint endPoint = pluginsToRemove.Dequeue();
+                        foreach (var item in Program.PluginCards)
                         {
-                            remove_target = item;
-                            break;
+                            if (item.pluginStruct.Tags["IPEndPoint"].Equals(endPoint.ToString()))
+                            {
+                                pluginCardsToRemove.Add(item);
+                                break;
+                            }
                         }
                     }
-                    if (remove_target != null)
-                        Program.PluginCards.Remove(remove_target);
+                    foreach (var item in pluginCardsToRemove)
+                    {
+                        Program.PluginCards.Remove(item);
+                    }
                 }
-            }
+
+                if (!GlobalInfo.Running)
+                {
+                    timer.Stop();
+                }
+            };
+            timer.Start();
         }
 
         /// <summary>
@@ -76,20 +114,6 @@ namespace KitX_Dashboard.Services
         /// <param name="id">插件 id</param>
         internal static void Disconnect(IPEndPoint endPoint)
         {
-            #region 如果持续检查并移除线程尚未运行则启动它
-
-            try
-            {
-                if (keepCheckAndRemoveThread.ThreadState == ThreadState.Unstarted)
-                    keepCheckAndRemoveThread.Start();
-            }
-            catch
-            {
-
-            }
-
-            #endregion
-
             pluginsToRemove.Enqueue(endPoint);
         }
     }
