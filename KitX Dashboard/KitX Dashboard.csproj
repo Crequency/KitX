@@ -18,7 +18,7 @@
         <AssemblyVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</AssemblyVersion>
         <FileVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</FileVersion>
         <Version>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</Version>
-        
+
     </PropertyGroup>
 
     <!--<PropertyGroup>
@@ -93,12 +93,12 @@
         <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
     </ItemGroup>
     <ItemGroup>
-      <Page Include="Assets\Fonts\SourceHanSans-VF.ttf">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Page>
+        <Page Include="Assets\Fonts\SourceHanSans-VF.ttf">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Page>
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
+        <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
     </ItemGroup>
     <ItemGroup>
         <None Update="Assets\avalonia-logo.ico">
@@ -129,19 +129,26 @@
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>
         <None Update="Assets\ThirdPartLicense.md">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
     </ItemGroup>
     <ItemGroup>
-      <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
-        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-      </AvaloniaResource>
-      <Compile Update="Views\Pages\Controls\DeviceCard.axaml.cs">
-        <DependentUpon>DeviceCard.axaml</DependentUpon>
-      </Compile>
-      <None Update="Assets\KitX.Base64.txt">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <AvaloniaResource Update="Assets\Fonts\SourceHanSans-VF.ttf">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+        <Compile Update="Views\AnnouncementsWindow.axaml.cs">
+            <DependentUpon>AnnouncementsWindow.axaml</DependentUpon>
+        </Compile>
+        <Compile Update="Views\Pages\Controls\DeviceCard.axaml.cs">
+            <DependentUpon>DeviceCard.axaml</DependentUpon>
+        </Compile>
+        <None Update="Assets\KitX.Base64.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
-    <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
+    <ProjectExtensions>
+        <VisualStudio>
+            <UserProperties properties_4launchsettings_1json__JsonSchema="" />
+        </VisualStudio>
+    </ProjectExtensions>
 </Project>
