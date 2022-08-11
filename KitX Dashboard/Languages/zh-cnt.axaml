@@ -115,4 +115,8 @@
     <x:String x:Key="Text_Settings_Tab_About_Links">友情鏈接</x:String>
     <x:String x:Key="Text_Settings_Tab_About_ThirdPartLicense">第三方許可</x:String>
 
+
+    <x:String x:Key="Text_AnouncementWindow_Receive">收到</x:String>
+    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">收到全部</x:String>
+
 </ResourceDictionary>

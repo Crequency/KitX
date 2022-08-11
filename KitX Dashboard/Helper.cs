@@ -125,10 +125,10 @@ namespace KitX_Dashboard
         /// </summary>
         public static void InitConfig()
         {
-
-            if (!Directory.Exists(ConfigPath))
+            if (!File.Exists($"{ConfigPath}/config.json"))
             {
-                Directory.CreateDirectory(ConfigPath);
+                if (!Directory.Exists(ConfigPath))
+                    Directory.CreateDirectory(ConfigPath);
                 SaveConfig();
             }
             else LoadConfig();

@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Reflection;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
-#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -77,11 +76,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             ThirdPartLicenseString = license;
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
 
-#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 #pragma warning restore CS8602 // 解引用可能出现空引用。
 
 //                                     __

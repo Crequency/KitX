@@ -5,8 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
-
 namespace KitX_Dashboard.ViewModels.Pages
 {
     internal class RepoPageViewModel : ViewModelBase, INotifyPropertyChanged
@@ -28,11 +26,9 @@ namespace KitX_Dashboard.ViewModels.Pages
             }
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
-
-#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 //
 //            ~                  ~

@@ -45,7 +45,26 @@ namespace KitX_Dashboard.Views
                 )
             );
 
+            if (OperatingSystem.IsWindows())
+            {
+                ClientSize = new(
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width + 16,
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height + 38
+                );
+            }
+            else
+            {
+                ClientSize = new(
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width,
+                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height
+                );
+            }
+
             InitMainWindow();
+
+#if DEBUG
+            this.AttachDevTools();
+#endif
         }
 
         /// <summary>
@@ -171,8 +190,16 @@ namespace KitX_Dashboard.Views
         {
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left = Position.X;
             Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top = Position.Y;
-            Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width = Width;
-            Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height = Height;
+            if (OperatingSystem.IsWindows())
+            {
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width = ClientSize.Width;
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height = ClientSize.Height - 30;
+            }
+            else
+            {
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Width = ClientSize.Width;
+                Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Height = ClientSize.Height;
+            }
             Program.GlobalConfig.Config_Windows.Config_MainWindow.
                 Tags["SelectedPage"] = SelectedPageName;
         }

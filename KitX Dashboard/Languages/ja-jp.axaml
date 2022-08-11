@@ -115,4 +115,8 @@
     <x:String x:Key="Text_Settings_Tab_About_Links">リンク</x:String>
     <x:String x:Key="Text_Settings_Tab_About_ThirdPartLicense">サードパーティライセンス</x:String>
 
+
+    <x:String x:Key="Text_AnouncementWindow_Receive">受け取る</x:String>
+    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">すべて受け取る</x:String>
+
 </ResourceDictionary>

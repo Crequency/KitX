@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace KitX_Dashboard.Data
@@ -58,9 +57,6 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public string APIPath { get; set; } = "/apps/kitx/";
-
-            [JsonInclude]
-            public DateTime LastShowedAnnouncement { get; set; } = DateTime.Parse("2022-05-02 11:54:29");
         }
 
         /// <summary>
@@ -129,10 +125,10 @@ namespace KitX_Dashboard.Data
             public class AnnouncementWindow
             {
                 [JsonInclude]
-                public double Window_Width { get; set; } = 600;
+                public double Window_Width { get; set; } = 1280;
 
                 [JsonInclude]
-                public double Window_Height { get; set; } = 800;
+                public double Window_Height { get; set; } = 720;
 
                 [JsonInclude]
                 public int Window_Left { get; set; } = -1;
