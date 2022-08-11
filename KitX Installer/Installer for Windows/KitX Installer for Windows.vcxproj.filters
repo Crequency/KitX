@@ -47,7 +47,7 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="kitx-win-x64-single.zip">
+    <None Include="kitx-win-x64-single.7z">
       <Filter>资源文件</Filter>
     </None>
   </ItemGroup>
