@@ -65,7 +65,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Installer", "KitX Inst
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Installer for Windows", "Installer for Windows", "{61142209-2848-4FE6-8688-147830C105FC}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KitX Installer for Windows", "KitX Installer\Installer for Windows\KitX Installer for Windows\KitX Installer for Windows.vcxproj", "{9C055D1B-B410-49A2-A81E-342E1D5956FF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KitX Installer for Windows", "KitX Installer\Installer for Windows\KitX Installer for Windows.vcxproj", "{9C055D1B-B410-49A2-A81E-342E1D5956FF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
