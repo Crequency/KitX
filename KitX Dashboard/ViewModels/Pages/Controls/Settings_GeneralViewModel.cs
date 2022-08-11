@@ -17,7 +17,6 @@ using System.ComponentModel;
 #pragma warning disable CS8602 // 解引用可能出现空引用。
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
 #pragma warning disable CA2011 // 避免无限递归
-#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -310,11 +309,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         private void MicaToolTipClosed(object _) => MicaToolTipIsOpen = false;
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
 
-#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 #pragma warning restore CA2011 // 避免无限递归
 #pragma warning restore CS8604 // 引用类型参数可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。

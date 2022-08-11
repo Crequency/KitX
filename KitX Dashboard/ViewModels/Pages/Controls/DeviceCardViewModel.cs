@@ -2,8 +2,6 @@
 using Material.Icons;
 using System.ComponentModel;
 
-#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
-
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
     internal class DeviceCardViewModel : ViewModelBase, INotifyPropertyChanged
@@ -72,11 +70,9 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal string? PluginsCount { get; set; }
 
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
-
-#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 //
 //      /\

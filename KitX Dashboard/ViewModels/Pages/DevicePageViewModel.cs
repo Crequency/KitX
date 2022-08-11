@@ -2,8 +2,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
-#pragma warning disable CS0108 // 成员隐藏继承的成员；缺少关键字 new
-
 namespace KitX_Dashboard.ViewModels.Pages
 {
     internal class DevicePageViewModel : ViewModelBase, INotifyPropertyChanged
@@ -45,11 +43,9 @@ namespace KitX_Dashboard.ViewModels.Pages
 
         internal static ObservableCollection<DeviceCard> DeviceCards => Program.DeviceCards;
 
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
-
-#pragma warning restore CS0108 // 成员隐藏继承的成员；缺少关键字 new
 
 //        ___________________________________
 //       |.-.--.--.--.--.--.--.--.--.--.--.-.|
