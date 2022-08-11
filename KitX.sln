@@ -46,7 +46,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		nuget.config = nuget.config
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Contract.CSharp.Test", "KitX Test\KitX Contracts\KitX.Contract.CSharp.Test\KitX.Contract.CSharp.Test.csproj", "{8D00A21D-EF71-4CD2-BC63-CD97C9687695}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Contract.CSharp.Test", "KitX Test\KitX Contracts\KitX.Contract.CSharp.Test\KitX.Contract.CSharp.Test.csproj", "{8D00A21D-EF71-4CD2-BC63-CD97C9687695}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{F9F655A9-54A3-4E3C-853F-EFA24615ED67}"
 	ProjectSection(SolutionItems) = preProject
@@ -60,6 +60,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		push-repos.json = push-repos.json
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Installer", "KitX Installer", "{2A5D8B91-A9CA-40FF-B821-5CE45A27312E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Installer for Windows", "Installer for Windows", "{61142209-2848-4FE6-8688-147830C105FC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KitX Installer for Windows", "KitX Installer\Installer for Windows\KitX Installer for Windows\KitX Installer for Windows.vcxproj", "{9C055D1B-B410-49A2-A81E-342E1D5956FF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -203,6 +209,18 @@ Global
 		{8D00A21D-EF71-4CD2-BC63-CD97C9687695}.Release|x64.Build.0 = Release|Any CPU
 		{8D00A21D-EF71-4CD2-BC63-CD97C9687695}.Release|x86.ActiveCfg = Release|Any CPU
 		{8D00A21D-EF71-4CD2-BC63-CD97C9687695}.Release|x86.Build.0 = Release|Any CPU
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Debug|Any CPU.Build.0 = Debug|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Debug|x64.ActiveCfg = Debug|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Debug|x64.Build.0 = Debug|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Debug|x86.ActiveCfg = Debug|Win32
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Debug|x86.Build.0 = Debug|Win32
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Release|Any CPU.ActiveCfg = Release|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Release|Any CPU.Build.0 = Release|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Release|x64.ActiveCfg = Release|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Release|x64.Build.0 = Release|x64
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Release|x86.ActiveCfg = Release|Win32
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -222,6 +240,8 @@ Global
 		{680E3F3C-FA2B-48C7-81C3-A6119C340006} = {F8379F09-5E41-48AA-9643-047BD17B1CA7}
 		{B3D8D064-E8B8-4673-A6C0-F6392DC2A444} = {F8379F09-5E41-48AA-9643-047BD17B1CA7}
 		{8D00A21D-EF71-4CD2-BC63-CD97C9687695} = {B3D8D064-E8B8-4673-A6C0-F6392DC2A444}
+		{61142209-2848-4FE6-8688-147830C105FC} = {2A5D8B91-A9CA-40FF-B821-5CE45A27312E}
+		{9C055D1B-B410-49A2-A81E-342E1D5956FF} = {61142209-2848-4FE6-8688-147830C105FC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
