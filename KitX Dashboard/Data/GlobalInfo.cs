@@ -24,6 +24,8 @@
 
         internal const string Api_Get_Announcement = "get-announcement.php";
 
+        internal const string AnnouncementsJsonPath = "./Config/announcements.json";
+
     }
 }
 
