@@ -74,7 +74,7 @@ namespace KitX_Dashboard.ViewModels
             {
                 src = value;
                 MenuItems.Clear();
-                foreach (var item in Sources)
+                foreach (var item in Sources.Reverse())
                 {
                     MenuItems.Add(new()
                     {
