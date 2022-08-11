@@ -3,6 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace KitX_Dashboard.Views
 {
@@ -14,17 +17,19 @@ namespace KitX_Dashboard.Views
         {
             InitializeComponent();
 
+            viewModel.Window = this;
+
             DataContext = viewModel;
 
             // ÉèÖÃ´°Ìå×ø±ê
 
             Position = new(
                 WindowAttributesConverter.PositionCameCenter(
-                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Left,
+                    Program.GlobalConfig.Config_Windows.Config_AnnouncementWindow.Window_Left,
                     true, Screens
                 ),
                 WindowAttributesConverter.PositionCameCenter(
-                    Program.GlobalConfig.Config_Windows.Config_MainWindow.Window_Top,
+                    Program.GlobalConfig.Config_Windows.Config_AnnouncementWindow.Window_Top,
                     false, Screens
                 )
             );
@@ -34,9 +39,30 @@ namespace KitX_Dashboard.Views
 #endif
         }
 
+        internal void UpdateSource(Dictionary<string, string> src, List<string> readed)
+        {
+            viewModel.Sources = src;
+            viewModel.Readed = readed;
+        }
+
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
+        }
+
+        private void SaveMetaData()
+        {
+            Program.GlobalConfig.Config_Windows.Config_AnnouncementWindow.Window_Left = Position.X;
+            Program.GlobalConfig.Config_Windows.Config_AnnouncementWindow.Window_Top = Position.Y;
+            Program.GlobalConfig.Config_Windows.Config_AnnouncementWindow.Window_Width = Width;
+            Program.GlobalConfig.Config_Windows.Config_AnnouncementWindow.Window_Height = Height;
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosed(e);
+
+            SaveMetaData();
         }
     }
 }
