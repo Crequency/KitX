@@ -170,8 +170,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     return TRUE;
 }
 
-int AnimationFrameIndex = 0;
-
 //
 //  函数: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -190,12 +188,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-
             // TODO: 在此处添加使用 hdc 的任何绘图代码...
 
             // 绘制背景
-            //DrawBackground(&hdc);
-
+            /*for (int i = 0; i < rand() % 30 + 10; ++i)
+                DrawBackground(&hdc);*/
 
             EndPaint(hWnd, &ps);
         }
@@ -211,8 +208,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 void DrawBackground(HDC* hdc)
 {
-    DrawRectangle(hdc, 100, 100, 100, 100, AnimationFrameIndex % 100);
-    ++AnimationFrameIndex;
+    DrawRectangle(hdc, rand() % 700, rand() % 500, rand() % 100 + 30, rand() % 100 + 30, rand() % 30);
 }
 
 void DrawRectangle(HDC* hdc, int x, int y, int width, int height, int thinkness)

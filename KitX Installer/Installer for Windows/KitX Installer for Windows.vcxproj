@@ -147,9 +147,6 @@
     <Image Include="KitX Installer for Windows.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="kitx-win-x64-single.7z" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

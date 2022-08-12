@@ -10,7 +10,6 @@
 #define IDI_SMALL                       108
 #define IDC_KITXINSTALLERFORWINDOWS     109
 #define IDR_MAINFRAME                   128
-#define IDR_APPZIP1                     129
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -24,7 +23,3 @@
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
 #endif
-
-HWND btn_confirm_install;
-
-HWND edit_install_path;
