@@ -86,11 +86,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal Color2 ThemeColor
         {
             get => new((Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush).Color);
-            set
-            {
-                nowColor = value;
-                SaveChanges();
-            }
+            set => nowColor = value;
         }
 
         /// <summary>
@@ -303,6 +299,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             var c = nowColor;
             Application.Current.Resources["ThemePrimaryAccent"] =
                 new SolidColorBrush(new Color(c.A, c.R, c.G, c.B));
+            SaveChanges();
         }
 
         private void MicaOpacityConfirmed(object _) => SaveChanges();
