@@ -37,6 +37,8 @@
 ---
 
 ![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_about.png)
+![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_plugins.png)
+![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_devices.png)
 
 ---
 
