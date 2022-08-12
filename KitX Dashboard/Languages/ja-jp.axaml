@@ -102,6 +102,7 @@
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開発者向けオプション</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>

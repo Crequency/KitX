@@ -57,6 +57,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public string APIPath { get; set; } = "/apps/kitx/";
+
+            [JsonInclude]
+            public bool ShowAnnouncementWhenStart { get; set; } = true;
         }
 
         /// <summary>

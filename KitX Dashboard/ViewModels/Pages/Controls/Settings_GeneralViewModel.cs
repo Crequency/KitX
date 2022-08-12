@@ -243,6 +243,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// 是否在启动时显示公告
+        /// </summary>
+        internal static int ShowAnnouncementsStatus
+        {
+            get => Program.GlobalConfig.Config_App.ShowAnnouncementWhenStart ? 0 : 1;
+            set
+            {
+                Program.GlobalConfig.Config_App.ShowAnnouncementWhenStart = value == 0;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
         /// 开发者设置项
         /// </summary>
         internal int DeveloperSettingStatus

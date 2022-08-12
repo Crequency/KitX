@@ -235,6 +235,27 @@
             <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Announcement" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_ShowAnnouncement}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <ComboBox SelectedIndex="{Binding ShowAnnouncementsStatus}"
+                              DockPanel.Dock="Right"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold">
+                        <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
+                        <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
+                    </ComboBox>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Code" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DeveloperSetting}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
