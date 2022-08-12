@@ -104,6 +104,7 @@ namespace KitX_Dashboard
 
             new Thread(() =>
             {
+
                 BasicHelper.IO.FileHelper.WriteIn(ConfigFilePath,
                     JsonSerializer.Serialize(Program.GlobalConfig, options));
             }).Start();
@@ -196,7 +197,7 @@ namespace KitX_Dashboard
         {
             #region 检查 Catrol.Algorithm 库环境并安装环境
             if (!Algorithm.Interop.Environment.CheckEnvironment())
-                new System.Threading.Thread(() =>
+                new Thread(() =>
                 {
                     Algorithm.Interop.Environment.InstallEnvironment();
                 }).Start();
