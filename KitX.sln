@@ -67,6 +67,42 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Installer for Windows", "In
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KitX Installer for Windows", "KitX Installer\Installer for Windows\KitX Installer for Windows.vcxproj", "{9C055D1B-B410-49A2-A81E-342E1D5956FF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{72B86499-F876-4E0D-A215-2E1420848906}"
+	ProjectSection(SolutionItems) = preProject
+		.github\FUNDING.yml = .github\FUNDING.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".gitlab", ".gitlab", "{06EA8A93-DD6A-41B4-817D-07A66AD7812A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "issue_templates", "issue_templates", "{B41024AB-010C-4C4D-A307-7C6D8BB3380F}"
+	ProjectSection(SolutionItems) = preProject
+		.gitlab\issue_templates\bug-report.md = .gitlab\issue_templates\bug-report.md
+		.gitlab\issue_templates\feature-request.md = .gitlab\issue_templates\feature-request.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ISSUE_TEMPLATE", "ISSUE_TEMPLATE", "{04F558D1-BD80-41FC-8ABD-B7B968F7F5AE}"
+	ProjectSection(SolutionItems) = preProject
+		.github\ISSUE_TEMPLATE\---bug-report.md = .github\ISSUE_TEMPLATE\---bug-report.md
+		.github\ISSUE_TEMPLATE\---feature-request.md = .github\ISSUE_TEMPLATE\---feature-request.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PULL_REQUEST_TEMPLATE", "PULL_REQUEST_TEMPLATE", "{1A935375-BE26-480F-A31A-844CB8E48C84}"
+	ProjectSection(SolutionItems) = preProject
+		.github\PULL_REQUEST_TEMPLATE\pull_request_template.md = .github\PULL_REQUEST_TEMPLATE\pull_request_template.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{1B6E60B1-8E92-48F8-A90A-642049A9E046}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\build-loaders.yml = .github\workflows\build-loaders.yml
+		.github\workflows\build-plugins.yml = .github\workflows\build-plugins.yml
+		.github\workflows\build.yml = .github\workflows\build.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "merge_request_templates", "merge_request_templates", "{58B96215-FDBA-4FEA-ABD4-E4C7D66D2AE9}"
+	ProjectSection(SolutionItems) = preProject
+		.gitlab\merge_request_templates\default.md = .gitlab\merge_request_templates\default.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -242,6 +278,13 @@ Global
 		{8D00A21D-EF71-4CD2-BC63-CD97C9687695} = {B3D8D064-E8B8-4673-A6C0-F6392DC2A444}
 		{61142209-2848-4FE6-8688-147830C105FC} = {2A5D8B91-A9CA-40FF-B821-5CE45A27312E}
 		{9C055D1B-B410-49A2-A81E-342E1D5956FF} = {61142209-2848-4FE6-8688-147830C105FC}
+		{72B86499-F876-4E0D-A215-2E1420848906} = {F9F655A9-54A3-4E3C-853F-EFA24615ED67}
+		{06EA8A93-DD6A-41B4-817D-07A66AD7812A} = {F9F655A9-54A3-4E3C-853F-EFA24615ED67}
+		{B41024AB-010C-4C4D-A307-7C6D8BB3380F} = {06EA8A93-DD6A-41B4-817D-07A66AD7812A}
+		{04F558D1-BD80-41FC-8ABD-B7B968F7F5AE} = {72B86499-F876-4E0D-A215-2E1420848906}
+		{1A935375-BE26-480F-A31A-844CB8E48C84} = {72B86499-F876-4E0D-A215-2E1420848906}
+		{1B6E60B1-8E92-48F8-A90A-642049A9E046} = {72B86499-F876-4E0D-A215-2E1420848906}
+		{58B96215-FDBA-4FEA-ABD4-E4C7D66D2AE9} = {06EA8A93-DD6A-41B4-817D-07A66AD7812A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
