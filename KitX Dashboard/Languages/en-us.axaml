@@ -102,6 +102,7 @@
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">Developer Settings</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">Show Announcements When Start</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>

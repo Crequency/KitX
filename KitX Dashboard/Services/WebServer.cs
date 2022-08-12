@@ -220,7 +220,8 @@ namespace KitX_Dashboard.Services
                 }
                 catch (Exception e)
                 {
-                    await Program.LocalLogger.LogAsync("Logger_Error", e.Message);
+                    await Program.LocalLogger.LogAsync("Logger_Error",
+                        $"In MultiDevicesBroadCastSend: {e.Message}");
                 }
                 if (!GlobalInfo.Running)
                 {
@@ -242,13 +243,20 @@ namespace KitX_Dashboard.Services
                 Program.GlobalConfig.Config_App.UDPSendReceivePort);
             new Thread(async () =>
             {
-                while (GlobalInfo.Running)
+                try
                 {
-                    byte[] bytes = udp.Receive(ref multicast);
-                    string result = Encoding.UTF8.GetString(bytes);
-                    await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}");
-                    DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
-                    DevicesManager.Update(deviceInfo);
+                    while (GlobalInfo.Running)
+                    {
+                        byte[] bytes = udp.Receive(ref multicast);
+                        string result = Encoding.UTF8.GetString(bytes);
+                        await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}");
+                        DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
+                        DevicesManager.Update(deviceInfo);
+                    }
+                }
+                catch (Exception e)
+                {
+                    await Program.LocalLogger.LogAsync("Logger_Error", e.Message);
                 }
             }).Start();
         }
