@@ -30,13 +30,15 @@
                                     IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
                                     UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
                                     UseSpectrum="True" ColorTextType="HexAlpha"/>
-                    <Border DockPanel.Dock="Bottom">
+                    <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0">
+                        <Border HorizontalAlignment="Left" Width="100" Height="30"
+                                Background="{DynamicResource ThemePrimaryAccent}"/>
                         <Button Content="{DynamicResource Text_Public_Confirm}"
                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Margin="0,15,0,0" Command="{Binding ColorConfirmed}"
+                                Command="{Binding ColorConfirmed}"
                                 FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                 FontWeight="Bold"/>
-                    </Border>
+                    </Grid>
                     <Border/>
                 </DockPanel>
 
