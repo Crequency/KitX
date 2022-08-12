@@ -30,9 +30,9 @@
 
 ##### 📧 Social
 [![Forks](https://img.shields.io/github/forks/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/network/members)
-[![Stars](https://img.shields.io/github/stars/Crequency/KitX?style=social)](#)
-[![Watches](https://img.shields.io/github/watchers/Crequency/KitX?style=social)](#)
-[![Discord](https://img.shields.io/discord/935095924785549372?style=social&label=Discord)](#)
+[![Stars](https://img.shields.io/github/stars/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/stargazers)
+[![Watches](https://img.shields.io/github/watchers/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/watchers)
+[![Discord](https://img.shields.io/discord/935095924785549372?style=social&label=Discord)](https://discord.gg/TGx3FYbUBb)
 
 ---
 
@@ -200,34 +200,34 @@ iOS:     Optional online installation from the App Store.
 ---
 
 # 更新周期 | Update Plan
-| Version       | Info       | Code       | Support | Term               |
-|---------------|------------|------------|---------|--------------------|
-| Beta_10016    | Beta       | Beta1      | [x]     | 0                  |
-| Beta_10213    | Beta       | Beta2      | [x]     | 0                  |
-| Beta_10235    | Beta       | Beta3      | [x]     | 0                  |
-| v1.0.0        | Release    | Hello      | [x]     | 0                  |
-| v1.0.4        | Release    | WoW        | [x]     | 0                  |
-| v1.0.5        | Release    | Nice Try   | [x]     | 0                  |
-| v1.1.0        | Release    | Apple      | [x]     | 0                  |
-| v1.1.1        | Release    | Banana     | [x]     | 0                  |
-| v1.1.2        | Release    | Cabbage    | [x]     | 0                  |
-| v1.1.4        | Release    | Durin      | [x]     | 0                  |
-| v1.1.5        | Release    | Grape      | [x]     | 0                  |
-| v1.2.0        | Release    | Herring    | [x]     | 0                  |
-| v1.2.1        | Release    | Wonderful  | [x]     | 0                  |
-| v1.2.2        | Release    | Abandon    | [x]     | 0                  |
-| v1.2.4        | Preview    | Panda      | [x]     | 0                  |
-| v1.2.4        | Release    | Panda      | [x]     | 0                  |
-| v1.2.5        | Release    | Orange     | [x]     | 0                  |
-| v1.2.6        | Release    | Muik       | [x]     | 0                  |
-| v1.2.7        | Release    | Cookie     | [x]     | 0                  |
-| v2.0.0        | Release    | Sea        | [x]     | 0                  |
-| v2.0.1        | Release    | Ocean      | [x]     | 0                  |
-| v2.0.2        | Release    | Calculator | [x]     | 0                  |
-| v2.0.4        | Release    | Computer   | [x]     | 0                  |
-| v2.0.5        | Preview    | Laptop     | [x]     | 0                  |
-| v3.22.04.6230 | Preview    | Telegram   | [ ]     | 2022.04 -> 2023.04 |
-| v3.22.04.x    | Developing | New Start  | [ ]     | 2022.04 -> 2023.04 |
+| Version       | Info    | Code       | Support | Term               |
+|---------------|---------|------------|---------|--------------------|
+| Beta_10016    | Beta    | Beta1      | [x]     | 0                  |
+| Beta_10213    | Beta    | Beta2      | [x]     | 0                  |
+| Beta_10235    | Beta    | Beta3      | [x]     | 0                  |
+| v1.0.0        | Release | Hello      | [x]     | 0                  |
+| v1.0.4        | Release | WoW        | [x]     | 0                  |
+| v1.0.5        | Release | Nice Try   | [x]     | 0                  |
+| v1.1.0        | Release | Apple      | [x]     | 0                  |
+| v1.1.1        | Release | Banana     | [x]     | 0                  |
+| v1.1.2        | Release | Cabbage    | [x]     | 0                  |
+| v1.1.4        | Release | Durin      | [x]     | 0                  |
+| v1.1.5        | Release | Grape      | [x]     | 0                  |
+| v1.2.0        | Release | Herring    | [x]     | 0                  |
+| v1.2.1        | Release | Wonderful  | [x]     | 0                  |
+| v1.2.2        | Release | Abandon    | [x]     | 0                  |
+| v1.2.4        | Preview | Panda      | [x]     | 0                  |
+| v1.2.4        | Release | Panda      | [x]     | 0                  |
+| v1.2.5        | Release | Orange     | [x]     | 0                  |
+| v1.2.6        | Release | Muik       | [x]     | 0                  |
+| v1.2.7        | Release | Cookie     | [x]     | 0                  |
+| v2.0.0        | Release | Sea        | [x]     | 0                  |
+| v2.0.1        | Release | Ocean      | [x]     | 0                  |
+| v2.0.2        | Release | Calculator | [x]     | 0                  |
+| v2.0.4        | Release | Computer   | [x]     | 0                  |
+| v2.0.5        | Preview | Laptop     | [x]     | 0                  |
+| v3.22.04.6230 | Preview | Telegram   | [v]     | 2022.04 -> 2023.04 |
+| v3.22.04.6235 | Release | Break      | [v]     | 2022.04 -> 2023.04 |
 
 
 # 贡献者 | Contributors
