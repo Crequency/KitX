@@ -134,18 +134,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
-    <ClInclude Include="KitX Installer for Windows.h" />
+    <ClInclude Include="KitX Installer for Windows in Win32.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="KitX Installer for Windows.cpp" />
+    <ClCompile Include="KitX Installer for Windows in Win32.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="KitX Installer for Windows.rc" />
+    <ResourceCompile Include="KitX Installer for Windows in Win32.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="KitX Installer for Windows.ico" />
+    <Image Include="KitX Installer for Windows in Win32.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
