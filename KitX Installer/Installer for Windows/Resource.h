@@ -11,6 +11,8 @@
 #define IDC_KITXINSTALLERFORWINDOWS     109
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC                      -1
+#define IDB_INSTALL                     3301 
+#define IDTB_Path                       4302
 
 // Next default values for new objects
 // 
