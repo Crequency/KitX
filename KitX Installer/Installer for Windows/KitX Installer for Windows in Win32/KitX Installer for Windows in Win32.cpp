@@ -2,8 +2,7 @@
 //
 
 #include "framework.h"
-#include "KitX Installer for Windows.h"
-#include "CommCtrl.h"
+#include "KitX Installer for Windows in Win32.h"
 
 #pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
@@ -11,6 +10,8 @@
 
 #define ScreenX GetSystemMetrics(SM_CXSCREEN)
 #define ScreenY GetSystemMetrics(SM_CYSCREEN)
+
+#define ID_EDIT_PATH  101
 
 // 全局变量:
 HINSTANCE hInst;                                // 当前实例
@@ -30,6 +31,7 @@ void DrawBlock(HDC* hdc, int x, int y, int size);
 void DrawBlockWithShadow(HDC* hdc, int x, int y, int size, int offset, int shadowSize, int breakness);
 void DrawStantardPixelBlock(HDC* hdc, int x, int y);
 void DrawStantardPixelBlockWithIndexConverter(HDC* hdc, int x, int y);
+
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                       _In_opt_ HINSTANCE hPrevInstance,
@@ -78,7 +80,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+    WNDCLASSEXW wcex{};
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
@@ -123,55 +125,56 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
                               (ScreenX - 800) / 2, (ScreenY - 600) / 2, 800, 600,
                               nullptr, nullptr, hInstance, nullptr);
 
-                          //btn_confirm_install = CreateWindow(
-                          //    L"BUTTON",  // Predefined class; Unicode assumed 
-                          //    L"Install | 安装",      // Button text 
-                          //    WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles 
-                          //    340,         // x position 
-                          //    500,         // y position 
-                          //    120,        // Button width
-                          //    30,        // Button height
-                          //    hWnd,     // Parent window
-                          //    NULL,       // No menu.
-                          //    (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
-                          //    NULL);      // Pointer not needed.
+    btn_confirm_install = CreateWindow(
+        TEXT("button"),  // Predefined class; Unicode assumed 
+        TEXT("Install | 安装"),      // Button text 
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles 
+        340,         // x position 
+        500,         // y position 
+        120,        // Button width
+        30,        // Button height
+        hWnd,     // Parent window
+        (HMENU)IDB_INSTALL,       // No menu.
+        (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+        NULL);      // Pointer not needed.
 
-                          //edit_install_path = CreateWindow(
-                          //    L"edit", L"C:\\Program Files\\Crequency\\KitX\\", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
-                          //    230, 450, 340, 30, hWnd, NULL, NULL, NULL);
+    edit_install_path = CreateWindow(
+        TEXT("edit"), TEXT("C:\\Program Files\\Crequency\\KitX\\"),
+        WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+        230, 450, 340, 30, hWnd, (HMENU)IDTB_Path, NULL, NULL);
 
-                          //progress_download = CreateWindowEx(30, PROGRESS_CLASS, (LPTSTR)NULL, WS_CHILD | WS_VISIBLE,
-                          //    0, 800, 800, 30, hWnd, (HMENU)0, NULL, NULL);
+    /*progress_download = CreateWindowEx(30, PROGRESS_CLASS, (LPTSTR)NULL, WS_CHILD | WS_VISIBLE,
+                                       0, 800, 800, 30, hWnd, (HMENU)0, NULL, NULL);*/
 
-                          //LOGFONT lf;//声明一个逻辑字体，因为创建太痛苦了，15个字段都要设置，要人的命
-                          //HFONT hFont;//这里是我们创建的字体哦
-                          //GetObject(GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);//得到设备字体，同时填充逻辑字体结构，这样大大减少了代码DEFAULT_GUI_FONT 这个API上有的，还有SYSTEM_FONT 自己去查查
+    LOGFONT lf{};//声明一个逻辑字体，因为创建太痛苦了，15个字段都要设置，要人的命
+    HFONT hFont;//这里是我们创建的字体哦
+    GetObject(GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);//得到设备字体，同时填充逻辑字体结构，这样大大减少了代码DEFAULT_GUI_FONT 这个API上有的，还有SYSTEM_FONT 自己去查查
 
-                          //lf.lfHeight = 14;
+    lf.lfHeight = 14;
 
-                          ////开始创建字体，很简单，创建一个逻辑字体就可以
-                          //hFont = CreateFontIndirect(&lf);//哈哈，这里就是上面的那个结构
-                          //SendMessage(btn_confirm_install, WM_SETFONT, (WPARAM)hFont, (LPARAM)TRUE); //这样的就设置控件的字体了啊
-                          //DeleteObject(GetStockObject(DEFAULT_GUI_FONT));
+    //开始创建字体，很简单，创建一个逻辑字体就可以
+    hFont = CreateFontIndirect(&lf);//哈哈，这里就是上面的那个结构
+    SendMessage(btn_confirm_install, WM_SETFONT, (WPARAM)hFont, (LPARAM)TRUE); //这样的就设置控件的字体了啊
+    DeleteObject(GetStockObject(DEFAULT_GUI_FONT));
 
-                          //LOGFONT font;
-                          //font.lfHeight = 24;
-                          //font.lfWidth = 0;
-                          //font.lfEscapement = 0;
-                          //font.lfOrientation = 0;
-                          //font.lfWeight = FW_REGULAR;
-                          //font.lfItalic = false;
-                          //font.lfUnderline = false;
-                          //font.lfStrikeOut = false;
-                          //font.lfEscapement = 0;
-                          //font.lfOrientation = 0;
-                          //font.lfOutPrecision = OUT_DEFAULT_PRECIS;
-                          //font.lfClipPrecision = CLIP_STROKE_PRECIS | CLIP_MASK | CLIP_TT_ALWAYS | CLIP_LH_ANGLES;
-                          //font.lfQuality = ANTIALIASED_QUALITY;
-                          //font.lfPitchAndFamily = VARIABLE_PITCH | FF_DONTCARE;
+    LOGFONT font{};
+    font.lfHeight = 24;
+    font.lfWidth = 0;
+    font.lfEscapement = 0;
+    font.lfOrientation = 0;
+    font.lfWeight = FW_REGULAR;
+    font.lfItalic = false;
+    font.lfUnderline = false;
+    font.lfStrikeOut = false;
+    font.lfEscapement = 0;
+    font.lfOrientation = 0;
+    font.lfOutPrecision = OUT_DEFAULT_PRECIS;
+    font.lfClipPrecision = CLIP_STROKE_PRECIS | CLIP_MASK | CLIP_TT_ALWAYS | CLIP_LH_ANGLES;
+    font.lfQuality = ANTIALIASED_QUALITY;
+    font.lfPitchAndFamily = VARIABLE_PITCH | FF_DONTCARE;
 
-                          //HFONT heFont = ::CreateFontIndirect(&font);
-                          //SendMessage(edit_install_path, WM_SETFONT, (WPARAM)heFont, TRUE);
+    HFONT heFont = ::CreateFontIndirect(&font);
+    SendMessage(edit_install_path, WM_SETFONT, (WPARAM)heFont, TRUE);
 
     if (!hWnd)
     {
@@ -215,13 +218,50 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             EndPaint(hWnd, &ps);
         }
         break;
+        case WM_COMMAND:
+        {
+            switch (LOWORD(wParam))
+            {
+                case IDB_INSTALL:
+                    char sizeBuffer[100];
+                    int len = GetWindowTextLength(edit_install_path);
+                    if (GetWindowTextA(edit_install_path, sizeBuffer, len + 1) < 1)
+                    {
+                        MessageBox(hWnd, TEXT("Path can't be NULL.\r\n路径不能为空"), TEXT("Error | 错误"), MB_OK | MB_ICONINFORMATION);
+                    }
+                    else
+                    {
+                        if (0 == _access(sizeBuffer, 0))
+                        {
+                            //MessageBox(hWnd, TEXT("Will install to | 即将安装到:\r\n"), TEXT("Tip | 提示"), MB_OK | MB_ICONINFORMATION);
+
+                        }
+                        else
+                        {
+                            int ret = _mkdir(sizeBuffer);
+                            if (0 == _access(sizeBuffer, 0))
+                            {
+                                MessageBox(hWnd, TEXT("创建路径成功"), TEXT("Tip | 提示"), MB_OK | MB_ICONINFORMATION);
+                            }
+                            else
+                            {
+                                MessageBox(hWnd, TEXT("创建路径失败"), TEXT("Tip | 提示"), MB_OK | MB_ICONINFORMATION);
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+        break;
         case WM_DESTROY:
+
             PostQuitMessage(0);
             break;
         case WM_ERASEBKGND:
         {
 
         }
+        break;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -252,7 +292,7 @@ void OnEraseBkGnd(HWND hwnd)
 
     /* rect = Client Rect of the window;
     Temp = Temparory rect tangle for the color bands */
-    RECT rect, temp;
+    RECT rect, temp{};
     HBRUSH color; /* A brush to do the painting with */
 
     /* Get the dc for the wnd */
@@ -318,7 +358,7 @@ void PixelBackground(HDC* hdc)
     for (int i = 0; i < 10; ++i)
         for (int j = 0; j < 24; ++j)
             if (DrawIt[i][j])
-                DrawStantardPixelBlockWithIndexConverter(hdc, j, i + 1);
+                DrawStantardPixelBlockWithIndexConverter(hdc, j, i + 2);
 }
 
 void DrawStantardPixelBlockWithIndexConverter(HDC* hdc, int x, int y)
@@ -333,7 +373,7 @@ void DrawStantardPixelBlock(HDC* hdc, int x, int y)
 
 void DrawBlock(HDC* hdc, int x, int y, int size)
 {
-    RECT rect;
+    RECT rect{};
     rect.left = x;
     rect.right = x + size;
     rect.top = y;
@@ -345,7 +385,7 @@ void DrawBlock(HDC* hdc, int x, int y, int size)
 
 void DrawBlockWithShadow(HDC* hdc, int x, int y, int size, int offset, int shadowSize, int breakness)
 {
-    RECT rect, shadow1, shadow2, shadowCover;
+    RECT rect{}, shadow1{}, shadow2{}, shadowCover{};
     rect.left = x;
     rect.right = x + size - 2;
     rect.top = y;
@@ -378,6 +418,34 @@ void DrawBlockWithShadow(HDC* hdc, int x, int y, int size, int offset, int shado
 }
 
 
+// 从左到右依次判断文件夹是否存在,不存在就创建
+// example: /home/root/mkdir/1/2/3/4/
+// 注意:最后一个如果是文件夹的话,需要加上 '\' 或者 '/'
+int createDirectory(const std::string& directoryPath)
+{
+    int dirPathLen = directoryPath.length();
+    if (dirPathLen > 220)
+    {
+        return -1;
+    }
+    char tmpDirPath[220] = { 0 };
+    for (int i = 0; i < dirPathLen; ++i)
+    {
+        tmpDirPath[i] = directoryPath[i];
+        if (tmpDirPath[i] == '\\' || tmpDirPath[i] == '/')
+        {
+            if (_access(tmpDirPath, 0) != 0)
+            {
+                int ret = _mkdir(tmpDirPath);
+                if (ret != 0)
+                {
+                    return ret;
+                }
+            }
+        }
+    }
+    return 0;
+}
 
 
 
@@ -391,3 +459,7 @@ void DrawBlockWithShadow(HDC* hdc, int x, int y, int size, int offset, int shado
 
 
 
+
+
+
+//===============================================================================================================//
