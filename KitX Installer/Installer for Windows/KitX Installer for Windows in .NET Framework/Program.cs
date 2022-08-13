@@ -15,7 +15,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            Application.Run(new MainForm());
         }
     }
 }
