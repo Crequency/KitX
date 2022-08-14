@@ -89,19 +89,15 @@ jobs:
 
       - name: Publish Package to GitHub and NuGet
         run: |
-          cd "KitX Contracts"
+          cd "~/work/KitX/KitX Contracts"
 
           nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
           nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source github -SkipDuplicate
 
-          cd ".."
-
-          cd "KitX Rules"
+          cd "~/work/KitX/KitX Rules"
 
           nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
           nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source github -SkipDuplicate
-
-          cd ".."
 
   build-on-macos:
     runs-on: macos-latest
