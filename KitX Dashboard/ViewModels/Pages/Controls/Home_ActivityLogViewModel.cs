@@ -1,6 +1,6 @@
-﻿namespace KitX_Dashboard.ViewModels.Controls
+﻿namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    internal class MainWindow_ActivityLogViewModel : ViewModelBase
+    internal class Home_ActivityLogViewModel : ViewModelBase
     {
         internal double NoActivityLog_TipHeight { get; set; } = 200;
     }

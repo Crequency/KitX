@@ -67,10 +67,10 @@ namespace KitX_Dashboard.Views.Pages
 
         private static Type SelectedViewType() => SelectedViewName switch
         {
-            "View_Recent" => typeof(MainWindow_RecentUse),
-            "View_Count" => typeof(MainWindow_Count),
-            "View_ActivityLog" => typeof(MainWindow_ActivityLog),
-            _ => typeof(MainWindow_RecentUse),
+            "View_Recent" => typeof(Home_RecentUse),
+            "View_Count" => typeof(Home_Count),
+            "View_ActivityLog" => typeof(Home_ActivityLog),
+            _ => typeof(Home_RecentUse),
         };
     }
 }

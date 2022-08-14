@@ -1,6 +1,6 @@
-﻿namespace KitX_Dashboard.ViewModels.Controls
+﻿namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    internal class MainWindow_CountViewModel : ViewModelBase
+    internal class Home_CountViewModel : ViewModelBase
     {
         internal double NoCount_TipHeight { get; set; } = 200;
     }
