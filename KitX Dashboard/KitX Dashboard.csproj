@@ -99,6 +99,9 @@
         </Page>
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
+    </ItemGroup>
+    <ItemGroup>
         <None Update="Assets\avalonia-logo.ico">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
