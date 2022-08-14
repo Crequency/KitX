@@ -2,7 +2,6 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Controls;
-using KitX_Dashboard.ViewModels.Controls;
 using KitX_Dashboard.ViewModels.Pages;
 using KitX_Dashboard.Views.Controls;
 using System;
