@@ -47,7 +47,33 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             {
                 if (CanExecute) BeginCancel();
             }
-            else BeginInstall();
+            else
+            {
+                try
+                {
+                    string folder = "";
+                    try
+                    {
+                        folder = Path.GetFullPath(TextBox_InstallPath.Text);
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Illegal Path | 非法路径", "Error | 错误",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                    DirectoryInfo directory = new DirectoryInfo(folder);
+                    if (!directory.Exists)
+                    {
+                        directory.Create();
+                    }
+                }
+                catch (Exception o)
+                {
+                    UpdateTip($"未知异常: {o.Message}");
+                }
+                BeginInstall();
+            }
         }
 
         private void UpdateTip(string text) => Label_Tip.Invoke(new Action(() =>
@@ -61,19 +87,20 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             UpdateTip("开始安装 ...");
 
             string linkbase = "https://source.catrol.cn/download/apps/kitx/latest/";
-            string filepath = @"C:\kitx-latest.zip";
+            string filepath = $"{Path.GetFullPath(TextBox_InstallPath.Text)}\\kitx-latest.zip";
 
             WebClient webClient = new WebClient();
 
             while (!File.Exists(filepath))
             {
+                UpdateTip("正在下载 ...");
                 try
                 {
                     webClient.DownloadFile($"{linkbase}kitx-win-x64-latest-single.zip", filepath);
                 }
-                catch
+                catch (Exception e)
                 {
-
+                    UpdateTip($"下载发生异常, 请检查网络环境: {e.Message}");
                 }
 
                 if (!File.Exists(filepath))
@@ -90,6 +117,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             }
 
             webClient.Dispose();
+
+            UpdateTip("下载完毕, 正在解压 ...");
 
 
 
