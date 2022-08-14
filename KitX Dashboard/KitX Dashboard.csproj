@@ -83,8 +83,8 @@
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="0.10.17" />
         <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="0.10.17" />
         <PackageReference Include="Avalonia.ReactiveUI" Version="0.10.17" />
-        <PackageReference Include="Catrol.Algorithm.Interop" Version="1.0.6171.52800" />
-        <PackageReference Include="Catrol.BasicHelper" Version="1.0.6233.30599" />
+        <PackageReference Include="Catrol.Algorithm.Interop" Version="1.0.6238.61777" />
+        <PackageReference Include="Catrol.BasicHelper" Version="1.0.6238.60163" />
         <PackageReference Include="FluentAvaloniaUI" Version="1.4.1" />
         <PackageReference Include="LiteDB" Version="5.0.12" />
         <PackageReference Include="Markdown.Avalonia" Version="0.10.11" />
