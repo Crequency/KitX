@@ -69,7 +69,7 @@
             // 
             this.Label_Tip.AutoSize = true;
             this.Label_Tip.Font = new System.Drawing.Font("微软雅黑", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.Label_Tip.Location = new System.Drawing.Point(5, 539);
+            this.Label_Tip.Location = new System.Drawing.Point(5, 537);
             this.Label_Tip.Name = "Label_Tip";
             this.Label_Tip.Size = new System.Drawing.Size(86, 17);
             this.Label_Tip.TabIndex = 3;
