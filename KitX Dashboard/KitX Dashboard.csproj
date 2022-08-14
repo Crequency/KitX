@@ -86,6 +86,7 @@
         <PackageReference Include="Catrol.Algorithm.Interop" Version="1.0.6238.61777" />
         <PackageReference Include="Catrol.BasicHelper" Version="1.0.6238.60163" />
         <PackageReference Include="FluentAvaloniaUI" Version="1.4.1" />
+        <PackageReference Include="KitX.Web.Rules" Version="3.22.4.6238" />
         <PackageReference Include="LiteDB" Version="5.0.12" />
         <PackageReference Include="Markdown.Avalonia" Version="0.10.11" />
         <PackageReference Include="Material.Icons.Avalonia" Version="1.1.10" />
@@ -96,9 +97,6 @@
         <Page Include="Assets\Fonts\SourceHanSans-VF.ttf">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Page>
-    </ItemGroup>
-    <ItemGroup>
-        <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
     </ItemGroup>
     <ItemGroup>
         <None Update="Assets\avalonia-logo.ico">
