@@ -1,5 +1,4 @@
-﻿using Avalonia.Threading;
-using KitX.Web.Rules;
+﻿using KitX.Web.Rules;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
 using System;
