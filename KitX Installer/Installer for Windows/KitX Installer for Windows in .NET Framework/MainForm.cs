@@ -10,6 +10,9 @@ using System.Windows.Forms;
 using System.Threading;
 using System.Net;
 using System.IO;
+using Ionic.Zip;
+using System.Diagnostics;
+using ThreadState = System.Threading.ThreadState;
 
 namespace KitX_Installer_for_Windows_in.NET_Framework
 {
@@ -80,14 +83,19 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             { Label_Tip.Text = text; })
         );
 
+        private void UpdatePro(int value) => ProgressBar_Installing.Invoke(new Action(() =>
+            { ProgressBar_Installing.Value = value; })
+        );
+
         private Thread Thread_Install, Thread_Cancel;
 
         private void InstallProcess()
         {
             UpdateTip("开始安装 ...");
 
+            string stfolder = Path.GetFullPath(TextBox_InstallPath.Text);
             string linkbase = "https://source.catrol.cn/download/apps/kitx/latest/";
-            string filepath = $"{Path.GetFullPath(TextBox_InstallPath.Text)}\\kitx-latest.zip";
+            string filepath = $"{stfolder}\\kitx-latest.zip";
 
             WebClient webClient = new WebClient();
 
@@ -105,25 +113,79 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
                 if (!File.Exists(filepath))
                 {
-                    if (MessageBox.Show("Download failed! | 下载失败", "KitX",
-                        MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
-                        == DialogResult.Cancel)
+                    bool choosed = false;
+                    Invoke(new Action(() =>
                     {
-                        webClient.Dispose();
-                        BeginCancel();
-                        return;
-                    }
+                        if (MessageBox.Show("Download failed! | 下载失败", "KitX",
+                            MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
+                            == DialogResult.Cancel)
+                        {
+                            webClient.Dispose();
+                            BeginCancel();
+                            return;
+                        }
+                        choosed = true;
+                    }));
+
+                    while (!choosed) { }
                 }
             }
 
             webClient.Dispose();
 
             UpdateTip("下载完毕, 正在解压 ...");
+            Invoke(new Action(() =>
+            {
+                ProgressBar_Installing.Style = ProgressBarStyle.Blocks;
+                ProgressBar_Installing.Value = 0;
+            }));
+            UpdatePro(10);
+
+            ZipFile zip = new ZipFile();
+            try
+            {
+                zip = ZipFile.Read(filepath);
+                UpdatePro(15);
+                zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
+                UpdatePro(45);
+                zip.Dispose();
+                UpdatePro(50);
+            }
+            catch (Exception e)
+            {
+                zip.Dispose();
+                UpdateTip($"解压失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
+            File.Delete(filepath);
+            UpdatePro(55);
+
+            //TODO: 更新注册表项
+
+            UpdatePro(75);
+
+            //TODO: 创建桌面和开始菜单的快捷方式
+
+            UpdatePro(95);
 
 
+            UpdatePro(100);
+            Invoke(new Action(() =>
+            {
+                MessageBox.Show("Install succeed! | 安装成功", "KitX",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }));
 
-            MessageBox.Show("Install succeed! | 安装成功", "KitX",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Process process = new Process();
+            process.StartInfo.FileName = $"{stfolder}\\KitX Dashboard.exe";
+            process.StartInfo.WorkingDirectory = stfolder;
+            process.Start();
+            Invoke(new Action(() => { Close(); }));
         }
 
         private void CancelProcess()
