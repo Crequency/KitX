@@ -54,6 +54,15 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
+      - name: Add to GitHub Repo
+        run: |
+          nuget sources add -name github -Source https://nuget.pkg.github.com/Crequency/index.json -Username Crequency -Password ${{ secrets.GitHubToken }}
+
+      - name: Install NuGet
+        uses: nuget/setup-nuget@v1
+        with:
+          nuget-version: '6.x'
+
       - name: Build Contracts
         run: |
           cd "KitX Contracts"
@@ -72,6 +81,18 @@ jobs:
 
           cd "KitX.Web.Rules"
           dotnet build -c Release
+
+      - name: Publish Package to GitHub and NuGet
+        run: |
+          cd "KitX Contracts"
+
+          nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source github -SkipDuplicate
+
+          cd "../KitX Rules/"
+
+          nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source github -SkipDuplicate
 
   build-on-macos:
     runs-on: macos-latest
