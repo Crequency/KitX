@@ -155,10 +155,6 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
     </ItemGroup>
-    <ItemGroup>
-      <Folder Include="ViewModels\Controls\" />
-      <Folder Include="Views\Controls\" />
-    </ItemGroup>
     <ProjectExtensions>
         <VisualStudio>
             <UserProperties properties_4launchsettings_1json__JsonSchema="" />
