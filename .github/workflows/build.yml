@@ -70,10 +70,13 @@ jobs:
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
 
+          cd ".."
+
       - name: Build Dashboard
         run: |
           cd "KitX Dashboard"
           dotnet build -c Release
+          cd ".."
 
       - name: Build Rules
         run: |
@@ -82,6 +85,8 @@ jobs:
           cd "KitX.Web.Rules"
           dotnet build -c Release
 
+          cd ".."
+
       - name: Publish Package to GitHub and NuGet
         run: |
           cd "KitX Contracts"
@@ -89,10 +94,14 @@ jobs:
           nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
           nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source github -SkipDuplicate
 
-          cd "../KitX Rules/"
+          cd ".."
+
+          cd "KitX Rules"
 
           nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
           nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source github -SkipDuplicate
+
+          cd ".."
 
   build-on-macos:
     runs-on: macos-latest
