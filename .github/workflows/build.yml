@@ -89,15 +89,15 @@ jobs:
 
       - name: Publish Package to GitHub and NuGet
         run: |
-          cd "~/work/KitX/KitX Contracts"
+          cd "KitX Build"
 
-          nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./KitX.Contract.CSharp/bin/Release/*.nupkg -Source github -SkipDuplicate
+          nuget push ./Contracts/CSharp/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push ./Contracts/CSharp/Release/*.nupkg -Source github -SkipDuplicate
 
-          cd "~/work/KitX/KitX Rules"
+          nuget push ./Rules/Web.Rules/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push ./Rules/Web.Rules/Release/*.nupkg -Source github -SkipDuplicate
 
-          nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./KitX.Web.Rules/bin/Release/*.nupkg -Source github -SkipDuplicate
+          cd ".."
 
   build-on-macos:
     runs-on: macos-latest
