@@ -142,6 +142,15 @@
         <Compile Update="Views\Pages\Controls\DeviceCard.axaml.cs">
             <DependentUpon>DeviceCard.axaml</DependentUpon>
         </Compile>
+        <Compile Update="Views\Pages\Controls\Home_ActivityLog.axaml.cs">
+          <DependentUpon>Home_ActivityLog.axaml</DependentUpon>
+        </Compile>
+        <Compile Update="Views\Pages\Controls\Home_Count.axaml.cs">
+          <DependentUpon>Home_Count.axaml</DependentUpon>
+        </Compile>
+        <Compile Update="Views\Pages\Controls\Home_RecentUse.axaml.cs">
+          <DependentUpon>Home_RecentUse.axaml</DependentUpon>
+        </Compile>
         <None Update="Assets\KitX.Base64.txt">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>

@@ -2,7 +2,6 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Controls;
-using KitX_Dashboard.ViewModels.Controls;
 using KitX_Dashboard.ViewModels.Pages;
 using KitX_Dashboard.Views.Controls;
 using System;
@@ -68,10 +67,10 @@ namespace KitX_Dashboard.Views.Pages
 
         private static Type SelectedViewType() => SelectedViewName switch
         {
-            "View_Recent" => typeof(MainWindow_RecentUse),
-            "View_Count" => typeof(MainWindow_Count),
-            "View_ActivityLog" => typeof(MainWindow_ActivityLog),
-            _ => typeof(MainWindow_RecentUse),
+            "View_Recent" => typeof(Home_RecentUse),
+            "View_Count" => typeof(Home_Count),
+            "View_ActivityLog" => typeof(Home_ActivityLog),
+            _ => typeof(Home_RecentUse),
         };
     }
 }

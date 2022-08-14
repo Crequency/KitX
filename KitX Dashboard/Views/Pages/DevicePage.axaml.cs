@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using KitX_Dashboard.ViewModels.Pages;
-using System.Timers;
 
 namespace KitX_Dashboard.Views.Pages
 {

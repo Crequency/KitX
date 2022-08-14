@@ -5,7 +5,6 @@ using KitX_Dashboard.Views.Pages.Controls;
 using System.Collections.Generic;
 using System.Net;
 using System.Text.Json;
-using System.Threading;
 
 #pragma warning disable CS8605 // 取消装箱可能为 null 的值。
 

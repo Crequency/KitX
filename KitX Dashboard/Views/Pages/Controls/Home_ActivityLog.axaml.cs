@@ -1,14 +1,14 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using KitX_Dashboard.ViewModels.Controls;
+using KitX_Dashboard.ViewModels.Pages.Controls;
 
 namespace KitX_Dashboard.Views.Controls
 {
-    public partial class MainWindow_ActivityLog : UserControl
+    public partial class Home_ActivityLog : UserControl
     {
-        private readonly MainWindow_ActivityLogViewModel viewModel = new();
+        private readonly Home_ActivityLogViewModel viewModel = new();
 
-        public MainWindow_ActivityLog()
+        public Home_ActivityLog()
         {
             InitializeComponent();
 

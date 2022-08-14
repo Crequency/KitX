@@ -1,9 +1,9 @@
 using KitX_Dashboard.Views.Pages.Controls;
 using System.Collections.ObjectModel;
 
-namespace KitX_Dashboard.ViewModels.Controls
+namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    internal class MainWindow_RecentUseViewModel : ViewModelBase
+    internal class Home_RecentUseViewModel : ViewModelBase
     {
 
         public double NoRecent_TipHeight { get; set; } = 200;

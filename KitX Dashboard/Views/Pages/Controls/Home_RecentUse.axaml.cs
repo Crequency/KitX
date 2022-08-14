@@ -1,14 +1,14 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using KitX_Dashboard.ViewModels.Controls;
+using KitX_Dashboard.ViewModels.Pages.Controls;
 
 namespace KitX_Dashboard.Views.Controls
 {
-    public partial class MainWindow_RecentUse : UserControl
+    public partial class Home_RecentUse : UserControl
     {
-        private readonly MainWindow_RecentUseViewModel viewModel = new();
+        private readonly Home_RecentUseViewModel viewModel = new();
 
-        public MainWindow_RecentUse()
+        public Home_RecentUse()
         {
             InitializeComponent();
 

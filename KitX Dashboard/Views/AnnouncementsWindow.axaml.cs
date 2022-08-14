@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.ViewModels;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 
