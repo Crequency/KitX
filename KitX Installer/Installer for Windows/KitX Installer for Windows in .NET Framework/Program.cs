@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace KitX_Installer_for_Windows_in.NET_Framework
@@ -11,11 +9,43 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
         /// 应用程序的主入口点。
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            bool isUninstall = false;
+            bool silentUninstall = false;
+
+            foreach (var item in args)
+            {
+                switch (item)
+                {
+                    case "--uninstall":
+                        isUninstall = true;
+                        break;
+                    case "--silent":
+                        silentUninstall = true;
+                        break;
+                }
+            }
+
+            if (isUninstall)
+            {
+                if (silentUninstall)
+                {
+                    UninstallForm.Uninstall();
+                }
+                else
+                {
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+                    Application.Run(new UninstallForm());
+                }
+            }
+            else
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new MainForm());
+            }
         }
     }
 }

@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
+﻿using Ionic.Zip;
+using IWshRuntimeLibrary;
+using Microsoft.Win32;
+using System;
+using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
-using System.Threading;
-using System.Net;
 using System.IO;
+using System.Net;
+using System.Reflection;
+using System.Threading;
+using System.Windows.Forms;
+using File = System.IO.File;
+using ThreadState = System.Threading.ThreadState;
 
 namespace KitX_Installer_for_Windows_in.NET_Framework
 {
@@ -19,14 +20,6 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
         {
             InitializeComponent();
 
-            //Paint += (_, e) =>
-            //{
-            //    PixelBackground(e.Graphics);
-
-            //    e.Graphics.CopyFromScreen(Left, Top, Left, Top, new Size(800, 400),
-            //        CopyPixelOperation.SourceCopy);
-            //};
-
             Thread_Install = new Thread(InstallProcess);
             Thread_Cancel = new Thread(CancelProcess);
         }
@@ -34,7 +27,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
         protected override void OnPaintBackground(PaintEventArgs e)
         {
             base.OnPaintBackground(e);
-            Drawer.PixelBackground(e.Graphics);
+            Drawer.PixelBackground(e.Graphics, Drawer.Theme.Dark);
         }
 
         private bool InstallingStarted = false;
@@ -80,14 +73,19 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             { Label_Tip.Text = text; })
         );
 
+        private void UpdatePro(int value) => ProgressBar_Installing.Invoke(new Action(() =>
+            { ProgressBar_Installing.Value = value; })
+        );
+
         private Thread Thread_Install, Thread_Cancel;
 
         private void InstallProcess()
         {
             UpdateTip("开始安装 ...");
 
+            string stfolder = Path.GetFullPath(TextBox_InstallPath.Text);
             string linkbase = "https://source.catrol.cn/download/apps/kitx/latest/";
-            string filepath = $"{Path.GetFullPath(TextBox_InstallPath.Text)}\\kitx-latest.zip";
+            string filepath = $"{stfolder}\\kitx-latest.zip";
 
             WebClient webClient = new WebClient();
 
@@ -105,25 +103,177 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
                 if (!File.Exists(filepath))
                 {
-                    if (MessageBox.Show("Download failed! | 下载失败", "KitX",
-                        MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
-                        == DialogResult.Cancel)
+                    bool choosed = false;
+                    Invoke(new Action(() =>
                     {
-                        webClient.Dispose();
-                        BeginCancel();
-                        return;
-                    }
+                        if (MessageBox.Show("Download failed! | 下载失败", "KitX",
+                            MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
+                            == DialogResult.Cancel)
+                        {
+                            webClient.Dispose();
+                            BeginCancel();
+                            return;
+                        }
+                        choosed = true;
+                    }));
+
+                    while (!choosed) { }
                 }
             }
 
             webClient.Dispose();
 
             UpdateTip("下载完毕, 正在解压 ...");
+            Invoke(new Action(() =>
+            {
+                ProgressBar_Installing.Style = ProgressBarStyle.Blocks;
+                ProgressBar_Installing.Value = 0;
+            }));
+            UpdatePro(10);
 
+            ZipFile zip = new ZipFile();
+            try
+            {
+                zip = ZipFile.Read(filepath);
+                UpdatePro(15);
+                zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
+                UpdatePro(45);
+                zip.Dispose();
+                UpdatePro(50);
+                UpdateTip("解压完毕, 更新注册表 ...");
+            }
+            catch (Exception e)
+            {
+                zip.Dispose();
+                UpdateTip($"解压失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
+            File.Delete(filepath);
+            UpdatePro(55);
 
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+            string startmenu = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+            string shortcutName = "KitX Dashboard.lnk";
+            string shortcutNameStartMenu = "Crequency KitX Dashboard.lnk";
+            string targetPath = $"{stfolder}\\KitX Dashboard.exe";
+            string modulePath = $"{stfolder}\\KitX Dashboard.dll";
+            string uninstallPath = $"C:\\Windows\\Installer\\KitX Installer.exe";
+            string descr = "KitX Dashboard | KitX 控制面板";
+            string uninstallString = $"\"{uninstallPath}\" --uninstall";
+            string helpLink = "https://apps.catrol.cn/kitx/help/";
+            string infoLink = "https://apps.catrol.cn/kitx/";
 
-            MessageBox.Show("Install succeed! | 安装成功", "KitX",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            UpdatePro(60);
+
+            RegistryKey software = Registry.LocalMachine.OpenSubKey("SOFTWARE", true)
+                .OpenSubKey("Microsoft", true).OpenSubKey("Windows", true)
+                .OpenSubKey("CurrentVersion", true);
+            RegistryKey appPaths = software.OpenSubKey("App Paths", true);
+            RegistryKey uninstall = software.OpenSubKey("Uninstall", true);
+
+            RegistryKey appPaths_KitX = appPaths.CreateSubKey("KitX Dashboard.exe");
+            appPaths_KitX.SetValue("", targetPath);
+            appPaths_KitX.SetValue("Path", stfolder);
+            appPaths_KitX.Dispose();
+
+            UpdatePro(65);
+
+            Assembly assembly = Assembly.LoadFrom(modulePath);
+            string version = assembly.GetName().Version.ToString();
+
+            RegistryKey uninstall_KitX = uninstall.CreateSubKey("KitX");
+            uninstall_KitX.SetValue("DisplayName", "KitX Dashboard");
+            uninstall_KitX.SetValue("DisplayVersion", version);
+            uninstall_KitX.SetValue("DisplayIcon", targetPath);
+            uninstall_KitX.SetValue("Publisher", "Crequency Studio");
+            uninstall_KitX.SetValue("InstallLocation", stfolder);
+            uninstall_KitX.SetValue("UninstallString", uninstallString);
+            uninstall_KitX.SetValue("QuietUninstallString", $"{uninstallString} --silent");
+            uninstall_KitX.SetValue("HelpLink", helpLink);
+            uninstall_KitX.SetValue("URLInfoAbout", infoLink);
+            uninstall_KitX.SetValue("NoModify", 1, RegistryValueKind.DWord);
+            uninstall_KitX.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+            uninstall_KitX.SetValue("EstimatedSize", GetDirectoryLength(stfolder) / 1000,
+                RegistryValueKind.DWord);
+            uninstall_KitX.Dispose();
+
+            UpdatePro(70);
+
+            appPaths.Dispose();
+            uninstall.Dispose();
+
+            UpdateTip("更新快捷方式 ...");
+
+            WshShell shell = new WshShell();
+            UpdatePro(75);
+            CreateShortCut(ref shell, $"{desktop}\\{shortcutName}", targetPath, stfolder, descr, targetPath);
+            UpdatePro(80);
+            CreateShortCut(ref shell, $"{startmenu}\\{shortcutNameStartMenu}", targetPath, stfolder,
+                descr, targetPath);
+            UpdatePro(85);
+
+            UpdateTip("生成卸载程序 ...");
+
+            if (File.Exists(uninstallPath))
+            {
+                File.Delete(uninstallPath);
+            }
+            string me = Process.GetCurrentProcess().MainModule.FileName;
+            File.Copy(me, uninstallPath);
+
+            UpdatePro(90);
+
+            UpdatePro(100);
+            Invoke(new Action(() =>
+            {
+                MessageBox.Show("Install succeed! | 安装成功", "KitX",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }));
+
+            Process process = new Process();
+            process.StartInfo.FileName = $"{stfolder}\\KitX Dashboard.exe";
+            process.StartInfo.WorkingDirectory = stfolder;
+            process.Start();
+            Invoke(new Action(() => { Close(); }));
+        }
+
+        public static long GetDirectoryLength(string dirPath)
+        {
+            if (!Directory.Exists(dirPath)) return 0;
+            long len = 0;
+            DirectoryInfo di = new DirectoryInfo(dirPath);
+            foreach (FileInfo fi in di.GetFiles()) len += fi.Length;
+            DirectoryInfo[] dis = di.GetDirectories();
+            if (dis.Length > 0)
+                for (int i = 0; i < dis.Length; ++i)
+                    len += GetDirectoryLength(dis[i].FullName);
+            return len;
+        }
+
+        /// <summary>
+        /// 创建快捷方式
+        /// </summary>
+        /// <param name="location">快捷方式位置</param>
+        /// <param name="targetPath">目标路径</param>
+        /// <param name="workingDir">工作目录</param>
+        /// <param name="descr">描述</param>
+        /// <param name="iconPath">图标路径</param>
+        /// <param name="windowStyle">窗口样式</param>
+        private void CreateShortCut(ref WshShell shell, string location, string targetPath,
+            string workingDir, string descr, string iconPath = null, int windowStyle = 1)
+        {
+            IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(location);
+            shortcut.TargetPath = targetPath;
+            shortcut.WorkingDirectory = workingDir;
+            shortcut.Description = descr;
+            shortcut.WindowStyle = windowStyle;
+            if (iconPath != null) shortcut.IconLocation = iconPath;
+            shortcut.Save();
         }
 
         private void CancelProcess()

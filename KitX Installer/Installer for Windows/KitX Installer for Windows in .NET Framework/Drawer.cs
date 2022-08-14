@@ -31,8 +31,29 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             graph.DrawRectangle(p3, r3);
             graph.DrawRectangle(p4, r4);
         }
+        internal static void DrawBlockWithLightShadow(Graphics graph, int x, int y, int size,
+            int offset, int shadowSize, int breakNess)
+        {
+            Pen p1 = new Pen(Color.FromArgb(255, 255, 255)),
+                p2 = new Pen(Color.FromArgb(210, 210, 210)),
+                p3 = new Pen(Color.FromArgb(170, 170, 170)),
+                p4 = new Pen(Color.FromArgb(185, 185, 185));
+            Rectangle r1 = new Rectangle(x, y, size - 2, size - 2),
+                r2 = new Rectangle(r1.Right, y + offset, shadowSize, size - offset),
+                r3 = new Rectangle(x + offset, r1.Bottom, size - offset, shadowSize),
+                r4 = new Rectangle(r1.Right, r1.Bottom, shadowSize - breakNess, shadowSize - breakNess);
+            graph.DrawRectangle(p1, r1);
+            graph.DrawRectangle(p2, r2);
+            graph.DrawRectangle(p3, r3);
+            graph.DrawRectangle(p4, r4);
+        }
 
-        internal static void PixelBackground(Graphics g)
+        internal enum Theme
+        {
+            Light, Dark
+        }
+
+        internal static void PixelBackground(Graphics g, Theme theme)
         {
             int[][] DrawIt = new int[10][]{
                 new int[24]{1,1,1,0,0,0,1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,1,1,1},
@@ -47,16 +68,32 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 new int[24]{1,1,1,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1}
             };
 
-            for (int i = 0; i < 10; ++i)
-                for (int j = 0; j < 24; ++j)
-                    if (DrawIt[i][j] == 1)
-                        DrawStantardPixelBlockWithIndexConverter(g, j, i + 2);
+            if (theme == Theme.Dark)
+            {
+                for (int i = 0; i < 10; ++i)
+                    for (int j = 0; j < 24; ++j)
+                        if (DrawIt[i][j] == 1)
+                            DrawStantardPixelBlockWithIndexConverter(g, j, i + 2);
+            }
+            else
+            {
+                for (int i = 0; i < 10; ++i)
+                    for (int j = 0; j < 24; ++j)
+                        if (DrawIt[i][j] == 1)
+                            DrawStantardPixelLightBlockWithIndexConverter(g, j, i + 2);
+            }
         }
 
         internal static void DrawStantardPixelBlockWithIndexConverter(Graphics g, int x, int y) =>
             DrawStantardPixelBlock(g, x * 30 + 30, y * 30);
 
+        internal static void DrawStantardPixelLightBlockWithIndexConverter(Graphics g, int x, int y) =>
+            DrawStantardPixelBlock(g, x * 30 + 30, y * 30);
+
         internal static void DrawStantardPixelBlock(Graphics g, int x, int y) =>
+            DrawBlockWithShadow(g, x, y, 30, 2, 2, 1);
+
+        internal static void DrawStantardPixelLightBlock(Graphics g, int x, int y) =>
             DrawBlockWithShadow(g, x, y, 30, 2, 2, 1);
     }
 }
