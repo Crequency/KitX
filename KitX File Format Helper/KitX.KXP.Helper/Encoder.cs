@@ -107,6 +107,10 @@ namespace KitX.KXP.Helper
 
             md5.Dispose();
 
+#if DEBUG
+            Console.Write($"Hash Code: {Encoding.UTF8.GetString(hash)}"); 
+#endif
+
             foreach (var item in hash)
             {
                 fs.WriteByte(item);     //  写入哈希值
@@ -132,18 +136,6 @@ namespace KitX.KXP.Helper
             byte[] bytes = BitConverter.GetBytes(value);
             foreach (var item in bytes)
                 queue.Enqueue(item);
-        }
-
-        /// <summary>
-        /// 写入单个 long 值 作为 4 个 byte
-        /// </summary>
-        /// <param name="fs">待写入的文件流</param>
-        /// <param name="value">long 值</param>
-        private static void WriteSingleLong(ref FileStream fs, long value)
-        {
-            byte[] bytes = BitConverter.GetBytes(value);
-            foreach (var item in bytes)
-                fs.WriteByte(item);
         }
 
         /// <summary>
