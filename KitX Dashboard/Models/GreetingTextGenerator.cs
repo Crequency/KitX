@@ -46,24 +46,24 @@ namespace KitX_Dashboard.Models
                 switch (step)
                 {
                     case Step.Morning:
-                        result = random.Next(1, Program.GlobalConfig.Config_Windows
-                            .Config_MainWindow.GreetingTextCount_Morning + 1);
+                        result = random.Next(1, Program.GlobalConfig.Windows
+                            .MainWindow.GreetingTextCount_Morning + 1);
                         break;
                     case Step.Noon:
-                        result = random.Next(1, Program.GlobalConfig.Config_Windows
-                            .Config_MainWindow.GreetingTextCount_Noon + 1);
+                        result = random.Next(1, Program.GlobalConfig.Windows
+                            .MainWindow.GreetingTextCount_Noon + 1);
                         break;
                     case Step.AfterNoon:
-                        result = random.Next(1, Program.GlobalConfig.Config_Windows
-                            .Config_MainWindow.GreetingTextCount_AfterNoon + 1);
+                        result = random.Next(1, Program.GlobalConfig.Windows
+                            .MainWindow.GreetingTextCount_AfterNoon + 1);
                         break;
                     case Step.Evening:
-                        result = random.Next(1, Program.GlobalConfig.Config_Windows
-                            .Config_MainWindow.GreetingTextCount_Evening + 1);
+                        result = random.Next(1, Program.GlobalConfig.Windows
+                            .MainWindow.GreetingTextCount_Evening + 1);
                         break;
                     case Step.Night:
-                        result = random.Next(1, Program.GlobalConfig.Config_Windows
-                            .Config_MainWindow.GreetingTextCount_Night + 1);
+                        result = random.Next(1, Program.GlobalConfig.Windows
+                            .MainWindow.GreetingTextCount_Night + 1);
                         break;
                 }
             }

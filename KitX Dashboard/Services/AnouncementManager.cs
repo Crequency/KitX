@@ -12,7 +12,10 @@ namespace KitX_Dashboard.Services
 {
     internal class AnouncementManager
     {
-
+        /// <summary>
+        /// 异步检查新公告
+        /// </summary>
+        /// <returns>异步任务</returns>
         public static async Task CheckNewAnnouncements()
         {
             HttpClient client = new();  //  Http客户端
@@ -20,8 +23,8 @@ namespace KitX_Dashboard.Services
 
             //  链接头部
             string linkBase = $"http://" +
-                $"{Program.GlobalConfig.Config_App.APIServer}" +
-                $"{Program.GlobalConfig.Config_App.APIPath}";
+                $"{Program.GlobalConfig.App.APIServer}" +
+                $"{Program.GlobalConfig.App.APIPath}";
 
             //  获取公告列表的api链接
             string link = $"{linkBase}{GlobalInfo.Api_Get_Announcements}";
@@ -62,11 +65,12 @@ namespace KitX_Dashboard.Services
                     //  获取单个公告的链接
                     string apiLink = $"{linkBase}{GlobalInfo.Api_Get_Announcement}" +
                         $"?" +
-                        $"lang={Program.GlobalConfig.Config_App.AppLanguage}" +
+                        $"lang={Program.GlobalConfig.App.AppLanguage}" +
                         $"&" +
                         $"date={item:yyyy-MM-dd HH-mm}";
                     string? md = JsonSerializer.Deserialize<string>(await client.GetStringAsync(apiLink));
-                    src.Add(item.ToString("yyyy-MM-dd HH:mm"), md);
+                    if (md != null)
+                        src.Add(item.ToString("yyyy-MM-dd HH:mm"), md);
                 }
 
                 if (unreads.Count > 0)

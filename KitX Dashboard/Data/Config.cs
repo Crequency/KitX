@@ -9,18 +9,18 @@ namespace KitX_Dashboard.Data
     public class Config
     {
         [JsonInclude]
-        public App Config_App { get; set; } = new();
+        public Config_App App { get; set; } = new();
 
         [JsonInclude]
-        public Windows Config_Windows { get; set; } = new();
+        public Config_Windows Windows { get; set; } = new();
 
         [JsonInclude]
-        public Pages Config_Pages { get; set; } = new();
+        public Config_Pages Pages { get; set; } = new();
 
         /// <summary>
         /// AppConfig
         /// </summary>
-        public class App
+        public class Config_App
         {
             [JsonInclude]
             public string AppLanguage { get; set; } = "zh-cn";
@@ -65,19 +65,19 @@ namespace KitX_Dashboard.Data
         /// <summary>
         /// WindowsConfig
         /// </summary>
-        public class Windows
+        public class Config_Windows
         {
 
             [JsonInclude]
-            public MainWindow Config_MainWindow { get; set; } = new();
+            public Config_MainWindow MainWindow { get; set; } = new();
 
             [JsonInclude]
-            public AnnouncementWindow Config_AnnouncementWindow { get; set; } = new();
+            public Config_AnnouncementWindow AnnouncementWindow { get; set; } = new();
 
             /// <summary>
             /// MainWindowConfig
             /// </summary>
-            public class MainWindow
+            public class Config_MainWindow
             {
                 [JsonInclude]
                 public double Window_Width { get; set; } = 1280;
@@ -125,7 +125,7 @@ namespace KitX_Dashboard.Data
             /// <summary>
             /// AnnouncementWindowConfig
             /// </summary>
-            public class AnnouncementWindow
+            public class Config_AnnouncementWindow
             {
                 [JsonInclude]
                 public double Window_Width { get; set; } = 1280;
@@ -144,30 +144,33 @@ namespace KitX_Dashboard.Data
         /// <summary>
         /// ViewsConfig
         /// </summary>
-        public class Pages
+        public class Config_Pages
         {
             [JsonInclude]
-            public HomePage Config_HomePage { get; set; } = new();
+            public Config_HomePage HomePage { get; set; } = new();
 
             [JsonInclude]
-            public MarketPage Config_MarketPage { get; set; } = new();
+            public Config_MarketPage MarketPage { get; set; } = new();
 
             [JsonInclude]
-            public SettingsPage Config_SettingsPage { get; set; } = new();
+            public Config_SettingsPage SettingsPage { get; set; } = new();
 
             /// <summary>
             /// HomePageConfig
             /// </summary>
-            public class HomePage
+            public class Config_HomePage
             {
                 [JsonInclude]
                 public string SelectedViewName { get; set; } = "View_Recent";
+
+                [JsonInclude]
+                public bool IsNavigationViewPaneOpened { get; set; } = true;
             }
 
             /// <summary>
             /// MargetPageConfig
             /// </summary>
-            public class MarketPage
+            public class Config_MarketPage
             {
 
             }
@@ -175,13 +178,16 @@ namespace KitX_Dashboard.Data
             /// <summary>
             /// SettingsPageConfig
             /// </summary>
-            public class SettingsPage
+            public class Config_SettingsPage
             {
                 [JsonInclude]
                 public string SelectedViewName { get; set; } = "View_General";
 
                 [JsonInclude]
                 public bool MicaToolTipIsOpen { get; set; } = true;
+
+                [JsonInclude]
+                public bool IsNavigationViewPaneOpened { get; set; } = true;
             }
         }
     }
