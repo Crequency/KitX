@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <Title>KitX.KXP.Helper</Title>
+        <BaseOutputPath>..\..\KitX Build\File Format Helper\KXP\</BaseOutputPath>
+        <BaseIntermediateOutputPath>..\..\KitX Build\Temp\File Format Helper\KXP\</BaseIntermediateOutputPath>
+
+        <AssemblyVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</AssemblyVersion>
+        <FileVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</FileVersion>
+        <Version>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</Version>
+        <Company>Crequency</Company>
+        <Authors>Dynesshely</Authors>
+        <PackageProjectUrl>https://github.com/Crequency/KitX/</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Crequency/KitX/</RepositoryUrl>
+        <PackageIcon>KitX-Background-ani.png</PackageIcon>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <None Update="KitX-Background-ani.png">
+        <PackagePath>\</PackagePath>
+        <Pack>True</Pack>
+      </None>
+    </ItemGroup>
+
+</Project>
