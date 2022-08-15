@@ -28,11 +28,15 @@ jobs:
 
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
+          cd ".."
+
+          cd ".."
 
       - name: Build Dashboard
         run: |
           cd "KitX Dashboard"
           dotnet build -c Release
+          cd ".."
 
       - name: Build Rules
         run: |
@@ -40,6 +44,19 @@ jobs:
 
           cd "KitX.Web.Rules"
           dotnet build -c Release
+          cd ".."
+
+          cd ".."
+
+      - name: Build File Format Helper
+        run: |
+          cd "KitX File Format Helper"
+
+          cd "KitX.KXP.Helper"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
 
   build-on-ubuntu:
     runs-on: ubuntu-latest
@@ -69,6 +86,7 @@ jobs:
 
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
+          cd ".."
 
           cd ".."
 
@@ -84,6 +102,17 @@ jobs:
 
           cd "KitX.Web.Rules"
           dotnet build -c Release
+          cd ".."
+
+          cd ".."
+
+      - name: Build File Format Helper
+        run: |
+          cd "KitX File Format Helper"
+
+          cd "KitX.KXP.Helper"
+          dotnet build -c Release
+          cd ".."
 
           cd ".."
 
@@ -96,6 +125,9 @@ jobs:
 
           nuget push ./Rules/Web.Rules/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
           nuget push ./Rules/Web.Rules/Release/*.nupkg -Source github -SkipDuplicate
+
+          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source github -SkipDuplicate
 
           cd ".."
 
@@ -118,11 +150,15 @@ jobs:
 
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
+          cd ".."
+
+          cd ".."
 
       - name: Build Dashboard
         run: |
           cd "KitX Dashboard"
           dotnet build -c Release
+          cd ".."
 
       - name: Build Rules
         run: |
@@ -130,5 +166,18 @@ jobs:
 
           cd "KitX.Web.Rules"
           dotnet build -c Release
+          cd ".."
+
+          cd ".."
+
+      - name: Build File Format Helper
+        run: |
+          cd "KitX File Format Helper"
+
+          cd "KitX.KXP.Helper"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
 
 
