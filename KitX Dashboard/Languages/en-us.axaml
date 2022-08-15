@@ -11,6 +11,8 @@
     <x:String x:Key="Text_Public_Read">Read</x:String>
     <x:String x:Key="Text_Public_Search">Search</x:String>
     <x:String x:Key="Text_Public_Announcement">Announcement</x:String>
+    <x:String x:Key="Text_Public_Import">Import</x:String>
+    <x:String x:Key="Text_Public_Export">Export</x:String>
 
 
     <!--GreetingStart-->
