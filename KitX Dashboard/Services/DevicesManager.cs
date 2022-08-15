@@ -56,7 +56,7 @@ namespace KitX_Dashboard.Services
                         continue;
                     }
                     MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
-                    if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 4))
+                    if (DateTime.Now - item.viewModel.DeviceInfo.SendTime > new TimeSpan(0, 0, 5))
                         DevicesNeed2BeRemoved.Add(item);
                 }
                 foreach (var item in DevicesNeed2BeRemoved)
