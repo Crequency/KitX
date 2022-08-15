@@ -6,6 +6,16 @@ namespace KitX_Dashboard.ViewModels.Pages
         {
 
         }
+
+        internal static bool IsPaneOpen
+        {
+            get => Program.GlobalConfig.Pages.SettingsPage.IsNavigationViewPaneOpened;
+            set
+            {
+                Program.GlobalConfig.Pages.SettingsPage.IsNavigationViewPaneOpened = value;
+                Models.EventHandlers.Invoke("ConfigSettingsChanged");
+            }
+        }
     }
 }
 

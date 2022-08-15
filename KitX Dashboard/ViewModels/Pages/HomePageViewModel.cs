@@ -2,7 +2,20 @@
 {
     internal class HomePageViewModel : ViewModelBase
     {
+        public HomePageViewModel()
+        {
 
+        }
+
+        internal static bool IsPaneOpen
+        {
+            get => Program.GlobalConfig.Pages.HomePage.IsNavigationViewPaneOpened;
+            set
+            {
+                Program.GlobalConfig.Pages.HomePage.IsNavigationViewPaneOpened = value;
+                Models.EventHandlers.Invoke("ConfigSettingsChanged");
+            }
+        }
     }
 }
 
