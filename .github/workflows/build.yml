@@ -126,8 +126,8 @@ jobs:
           nuget push ./Rules/Web.Rules/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
           nuget push ./Rules/Web.Rules/Release/*.nupkg -Source github -SkipDuplicate
 
-          nuget push ./File Format Helper/KXP/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./File Format Helper/KXP/Release/*.nupkg -Source github -SkipDuplicate
+          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source github -SkipDuplicate
 
           cd ".."
 
