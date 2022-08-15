@@ -20,6 +20,7 @@
     <Window.Resources>
         <ResourceDictionary>
             <x:String x:Key="GreetingText">Hello, World!</x:String>
+            <Window x:Key="MainWindow"></Window>
         </ResourceDictionary>
     </Window.Resources>
 
