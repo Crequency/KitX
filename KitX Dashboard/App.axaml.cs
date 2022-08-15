@@ -22,7 +22,7 @@ namespace KitX_Dashboard
         {
             AvaloniaXamlLoader.Load(this);
 
-            string lang = Program.GlobalConfig.Config_App.AppLanguage;
+            string lang = Program.GlobalConfig.App.AppLanguage;
             try
             {
                 Resources.MergedDictionaries.Clear();
@@ -37,7 +37,7 @@ namespace KitX_Dashboard
                 Program.LocalLogger.Log("Logger_Error", $"Language File {lang}.axaml not found.",
                     LoggerManager.LogLevel.Error);
 
-                string backup_lang = Program.GlobalConfig.Config_App.SurpportLanguages.Keys.First();
+                string backup_lang = Program.GlobalConfig.App.SurpportLanguages.Keys.First();
                 Resources.MergedDictionaries.Clear();
                 Resources.MergedDictionaries.Add(
                     AvaloniaRuntimeXamlLoader.Load(
@@ -45,7 +45,7 @@ namespace KitX_Dashboard
                     ) as ResourceDictionary
                 );
 
-                Program.GlobalConfig.Config_App.AppLanguage = backup_lang;
+                Program.GlobalConfig.App.AppLanguage = backup_lang;
             }
             finally
             {
@@ -66,10 +66,10 @@ namespace KitX_Dashboard
                 };
             }
 
-            string color = Program.GlobalConfig.Config_App.ThemeColor;
+            string color = Program.GlobalConfig.App.ThemeColor;
             Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 
-            if (Program.GlobalConfig.Config_App.ShowAnnouncementWhenStart)
+            if (Program.GlobalConfig.App.ShowAnnouncementWhenStart)
                 await Services.AnouncementManager.CheckNewAnnouncements();
 
             base.OnFrameworkInitializationCompleted();

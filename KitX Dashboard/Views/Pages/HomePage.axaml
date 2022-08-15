@@ -33,7 +33,8 @@
     </ScrollViewer>-->
 
     <ui:NavigationView IsBackEnabled="False" IsBackButtonVisible="False" IsSettingsVisible="False"
-                       IsPaneOpen="True" PaneDisplayMode="Auto" OpenPaneLength="270"
+                       IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                       PaneDisplayMode="Auto" OpenPaneLength="270"
                        x:Name="HomeNavigationView"
                        SelectionChanged="HomeNavigationView_SelectionChanged">
         <ui:NavigationView.MenuItems>

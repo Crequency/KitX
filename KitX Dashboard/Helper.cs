@@ -40,7 +40,7 @@ namespace KitX_Dashboard
             {
                 Directory.CreateDirectory(DataBaseWorkBase);
                 LiteDatabase pluginsDB = new($"{DataBaseWorkBase}/plugins.db");
-                InitLiteDB(/*db*/);
+                pluginsDB.Rebuild();
                 pluginsDB.Dispose();
             }
 
@@ -136,21 +136,12 @@ namespace KitX_Dashboard
         }
 
         /// <summary>
-        /// 初始化数据库
-        /// </summary>
-        public static void InitLiteDB(/*LiteDatabase db*/)
-        {
-            //var config = db.GetCollection("App");
-            //config.Insert(Program.GlobalConfig);
-        }
-
-        /// <summary>
         /// 保存信息
         /// </summary>
         public static void SaveInfo()
         {
             var accent = Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush;
-            Program.GlobalConfig.Config_App.ThemeColor = new Color2(accent.Color).ToHexString();
+            Program.GlobalConfig.App.ThemeColor = new Color2(accent.Color).ToHexString();
 
             SaveConfig();
         }

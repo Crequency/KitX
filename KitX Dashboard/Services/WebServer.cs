@@ -186,7 +186,7 @@ namespace KitX_Dashboard.Services
         }
 
         private static readonly UdpClient udp
-            = new(Program.GlobalConfig.Config_App.UDPSendReceivePort);
+            = new(Program.GlobalConfig.App.UDPSendReceivePort);
 
         /// <summary>
         /// 初始化多设备组播
@@ -202,7 +202,7 @@ namespace KitX_Dashboard.Services
         public static void MultiDevicesBroadCastSend()
         {
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.Config_App.UDPSendReceivePort);
+                Program.GlobalConfig.App.UDPSendReceivePort);
             System.Timers.Timer timer = new()
             {
                 Interval = 2000,
@@ -239,7 +239,7 @@ namespace KitX_Dashboard.Services
         public static void MultiDevicesBroadCastReceive()
         {
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.Config_App.UDPSendReceivePort);
+                Program.GlobalConfig.App.UDPSendReceivePort);
             new Thread(async () =>
             {
                 try

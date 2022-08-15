@@ -74,7 +74,8 @@
     </TabControl>-->
 
     <ui:NavigationView IsBackEnabled="False" IsBackButtonVisible="False" IsSettingsVisible="False"
-                       IsPaneOpen="True" PaneDisplayMode="Auto" OpenPaneLength="270"
+                       IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                       PaneDisplayMode="Auto" OpenPaneLength="270"
                        x:Name="SettingsNavigationView"
                        SelectionChanged="SettingsNavigationView_SelectionChanged">
         <ui:NavigationView.MenuItems>

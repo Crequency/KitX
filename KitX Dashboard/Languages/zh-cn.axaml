@@ -11,6 +11,8 @@
     <x:String x:Key="Text_Public_Read">读取</x:String>
     <x:String x:Key="Text_Public_Search">搜索</x:String>
     <x:String x:Key="Text_Public_Announcement">公告</x:String>
+    <x:String x:Key="Text_Public_Import">导入</x:String>
+    <x:String x:Key="Text_Public_Export">导出</x:String>
 
 
     <!--GreetingStart-->

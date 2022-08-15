@@ -11,6 +11,8 @@
     <x:String x:Key="Text_Public_Read">読んだ</x:String>
     <x:String x:Key="Text_Public_Search">探す</x:String>
     <x:String x:Key="Text_Public_Announcement">発表</x:String>
+    <x:String x:Key="Text_Public_Import">輸入</x:String>
+    <x:String x:Key="Text_Public_Export">書き出す</x:String>
 
 
     <!--GreetingStart-->
