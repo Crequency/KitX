@@ -4,13 +4,20 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.RepoPage">
-    <DockPanel>
-        <Border DockPanel.Dock="Top" Height="{Binding NoPlugins_TipHeight}">
-            <TextBlock Text="{DynamicResource Text_Repo_No_Plugin}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Border>
-        <ScrollViewer>
+    <Grid>
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Height="{Binding NoPlugins_TipHeight}">
+                <TextBlock Text="{DynamicResource Text_Repo_No_Plugin}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ScrollViewer>
 
-        </ScrollViewer>
-    </DockPanel>
+            </ScrollViewer>
+        </DockPanel>
+        
+        <Button HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="20" Content="{DynamicResource Text_Public_Import}"
+                Command="{Binding ImportPluginCommand}" CommandParameter="{DynamicResource MainWindow}"
+                IsVisible="{Binding ImportButtonVisibility}"/>
+    </Grid>
 </UserControl>
