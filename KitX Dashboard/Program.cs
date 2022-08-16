@@ -41,7 +41,14 @@ namespace KitX_Dashboard
                 {
                     case "--import-plugin":
                         if (i != args.Length - 1)
-                            Helper.ImportPlugin(args[i + 1]);
+                            try
+                            {
+                                Helper.ImportPlugin(args[i + 1]);
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e.Message);
+                            }
                         return;
                 }
             }

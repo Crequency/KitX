@@ -5,6 +5,7 @@ using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
 using LiteDB;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -202,6 +203,16 @@ namespace KitX_Dashboard
         /// <param name="kxpPath">.kxp Path</param>
         public static void ImportPlugin(string kxpPath)
         {
+            string? workbasef = Process.GetCurrentProcess().MainModule.FileName;
+            string? workbase = string.Empty;
+            if (workbasef == null)
+                throw new Exception("Can not get path of \"KitX Dashboard.exe\"");
+            else
+            {
+                workbase = Path.GetDirectoryName(workbasef);
+                if (workbase == null)
+                    throw new Exception("Can not get path of \"KitX\"");
+            }
             if (!File.Exists(kxpPath))
             {
                 Console.WriteLine($"No this file: {kxpPath}");
