@@ -35,6 +35,17 @@ namespace KitX_Dashboard
         [STAThread]
         public static void Main(string[] args)
         {
+            for (int i = 0; i < args.Length; i++)
+            {
+                switch (args[i])
+                {
+                    case "--import-plugin":
+                        if (i != args.Length - 1)
+                            Helper.ImportPlugin(args[i + 1]);
+                        return;
+                }
+            }
+
             try
             {
                 if (File.Exists(Path.GetFullPath("./dump.log")))

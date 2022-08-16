@@ -4,6 +4,7 @@ using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
 using LiteDB;
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -193,6 +194,23 @@ namespace KitX_Dashboard
                     Algorithm.Interop.Environment.InstallEnvironment();
                 }).Start();
             #endregion
+        }
+
+        /// <summary>
+        /// 导入插件
+        /// </summary>
+        /// <param name="kxpPath">.kxp Path</param>
+        public static void ImportPlugin(string kxpPath)
+        {
+            if (!File.Exists(kxpPath))
+            {
+                Console.WriteLine($"No this file: {kxpPath}");
+                throw new Exception("Plugin Package Doesn't Exist.");
+            }
+            else
+            {
+
+            }
         }
     }
 }
