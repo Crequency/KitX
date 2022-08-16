@@ -7,10 +7,6 @@
         <Title>KitX.KXP.Helper</Title>
         <BaseOutputPath>..\..\KitX Build\File Format Helper\KXP\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\File Format Helper\KXP\</BaseIntermediateOutputPath>
-
-        <AssemblyVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</AssemblyVersion>
-        <FileVersion>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</FileVersion>
-        <Version>3.22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays)</Version>
         <Company>Crequency</Company>
         <Authors>Dynesshely</Authors>
         <PackageProjectUrl>https://github.com/Crequency/KitX/</PackageProjectUrl>
@@ -18,6 +14,11 @@
         <PackageIcon>KitX-Background-ani.png</PackageIcon>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+
+        <AssemblyVersion>$(Version)</AssemblyVersion>
+        <FileVersion>$(Version)</FileVersion>
+        <Version>22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+
     </PropertyGroup>
 
     <ItemGroup>
