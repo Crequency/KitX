@@ -51,7 +51,7 @@ jobs:
           cd ".."
 
       - name: Build and Publish `KitX.Web.Rules`
-        if: contains(github.event.head_commit.message, '[KitX.Web.Rules]' || contains(github.event.head_commit.message, '[All]')
+        if: contains(github.event.head_commit.message, '[KitX.Web.Rules]') || contains(github.event.head_commit.message, '[All]')
         run: |
           cd "KitX Rules"
 
@@ -69,7 +69,7 @@ jobs:
           cd ".."
 
       - name: Build and Publish `KitX.KXP.Helper`
-        if: contains(github.event.head_commit.message, '[KitX.KXP.Helper]' || contains(github.event.head_commit.message, '[All]')
+        if: contains(github.event.head_commit.message, '[KitX.KXP.Helper]') || contains(github.event.head_commit.message, '[All]')
         run: |
           cd "KitX File Format Helper"
 
