@@ -71,15 +71,6 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
-      - name: Add to GitHub Repo
-        run: |
-          nuget sources add -name github -Source https://nuget.pkg.github.com/Crequency/index.json -Username Crequency -Password ${{ secrets.GitHubToken }}
-
-      - name: Install NuGet
-        uses: nuget/setup-nuget@v1
-        with:
-          nuget-version: '6.x'
-
       - name: Build Contracts
         run: |
           cd "KitX Contracts"
@@ -113,21 +104,6 @@ jobs:
           cd "KitX.KXP.Helper"
           dotnet build -c Release
           cd ".."
-
-          cd ".."
-
-      - name: Publish Package to GitHub and NuGet
-        run: |
-          cd "KitX Build"
-
-          nuget push ./Contracts/CSharp/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./Contracts/CSharp/Release/*.nupkg -Source github -SkipDuplicate
-
-          nuget push ./Rules/Web.Rules/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./Rules/Web.Rules/Release/*.nupkg -Source github -SkipDuplicate
-
-          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source github -SkipDuplicate
 
           cd ".."
 
