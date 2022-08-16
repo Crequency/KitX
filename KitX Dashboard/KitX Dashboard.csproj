@@ -37,6 +37,12 @@
         <None Remove="FakesAssemblies\**" />
         <AvaloniaResource Remove="Assets\avalonia-logo.ico" />
         <AvaloniaResource Remove="Assets\KitX-Background.png" />
+        <AvaloniaResource Remove="Assets\KitX-Icon-128x.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Icon-16x.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Icon-256x.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Icon-32x.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Icon-48x.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Icon-64x.ico" />
         <AvaloniaResource Remove="Assets\KitX.Base64.txt" />
         <AvaloniaResource Remove="Assets\ThirdPartLicense.md" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
@@ -55,7 +61,6 @@
         <None Remove="Assets\SourceHanSans-VF.ttf" />
     </ItemGroup>
     <ItemGroup>
-        <Content Include="Assets\KitX-Icon-256x.ico" />
         <Content Include="Languages\en-us.axaml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
@@ -68,6 +73,26 @@
         <Content Include="Languages\zh-cnt.axaml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="Assets\KitX-Icon-128x.ico">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Assets\KitX-Icon-16x.ico">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Assets\KitX-Icon-256x.ico">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Assets\KitX-Icon-32x.ico">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Assets\KitX-Icon-48x.ico">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Assets\KitX-Icon-64x.ico">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </EmbeddedResource>
     </ItemGroup>
     <ItemGroup>
         <!--This helps with theme dll-s trimming.
@@ -110,24 +135,6 @@
         <None Update="Assets\KitX-Background.png">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <AvaloniaResource Update="Assets\KitX-Icon-128x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Icon-16x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Icon-256x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Icon-32x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Icon-48x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaResource>
-        <AvaloniaResource Update="Assets\KitX-Icon-64x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </AvaloniaResource>
         <AvaloniaResource Update="Assets\KitX.png">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>

@@ -108,7 +108,7 @@ namespace KitX.KXP.Helper
             md5.Dispose();
 
 #if DEBUG
-            Console.Write($"Hash Code: {Encoding.UTF8.GetString(hash)}"); 
+            Console.Write($"Hash Code: {Encoding.UTF8.GetString(hash)}");
 #endif
 
             foreach (var item in hash)

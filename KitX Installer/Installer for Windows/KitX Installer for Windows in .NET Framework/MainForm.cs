@@ -170,65 +170,151 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             UpdatePro(60);
 
-            RegistryKey software = Registry.LocalMachine.OpenSubKey("SOFTWARE", true)
-                .OpenSubKey("Microsoft", true).OpenSubKey("Windows", true)
-                .OpenSubKey("CurrentVersion", true);
-            RegistryKey appPaths = software.OpenSubKey("App Paths", true);
-            RegistryKey uninstall = software.OpenSubKey("Uninstall", true);
+            UpdateTip("打开注册表 ...");
+            Thread.Sleep(200);
 
-            RegistryKey appPaths_KitX = appPaths.CreateSubKey("KitX Dashboard.exe");
-            appPaths_KitX.SetValue("", targetPath);
-            appPaths_KitX.SetValue("Path", stfolder);
-            appPaths_KitX.Dispose();
+            try
+            {
+                RegistryKey software = Registry.LocalMachine.OpenSubKey("SOFTWARE", true)
+                    .OpenSubKey("Microsoft", true).OpenSubKey("Windows", true)
+                    .OpenSubKey("CurrentVersion", true);
+                RegistryKey appPaths = software.OpenSubKey("App Paths", true);
+                RegistryKey uninstall = software.OpenSubKey("Uninstall", true);
 
-            UpdatePro(65);
+                #region 更新 AppPaths
+                UpdateTip("写入注册表 App Paths ...");
+                Thread.Sleep(200);
+                {
+                    RegistryKey appPaths_KitX = appPaths.CreateSubKey("KitX Dashboard.exe");
+                    appPaths_KitX.SetValue("", targetPath);
+                    appPaths_KitX.SetValue("Path", stfolder);
+                    appPaths_KitX.Dispose();
+                }
+                #endregion
 
-            Assembly assembly = Assembly.LoadFrom(modulePath);
-            string version = assembly.GetName().Version.ToString();
+                UpdatePro(65);
 
-            RegistryKey uninstall_KitX = uninstall.CreateSubKey("KitX");
-            uninstall_KitX.SetValue("DisplayName", "KitX Dashboard");
-            uninstall_KitX.SetValue("DisplayVersion", version);
-            uninstall_KitX.SetValue("DisplayIcon", targetPath);
-            uninstall_KitX.SetValue("Publisher", "Crequency Studio");
-            uninstall_KitX.SetValue("InstallLocation", stfolder);
-            uninstall_KitX.SetValue("UninstallString", uninstallString);
-            uninstall_KitX.SetValue("QuietUninstallString", $"{uninstallString} --silent");
-            uninstall_KitX.SetValue("HelpLink", helpLink);
-            uninstall_KitX.SetValue("URLInfoAbout", infoLink);
-            uninstall_KitX.SetValue("NoModify", 1, RegistryValueKind.DWord);
-            uninstall_KitX.SetValue("NoRepair", 1, RegistryValueKind.DWord);
-            uninstall_KitX.SetValue("EstimatedSize", GetDirectoryLength(stfolder) / 1000,
-                RegistryValueKind.DWord);
-            uninstall_KitX.Dispose();
+                Assembly assembly = Assembly.LoadFrom(modulePath);
+                string version = assembly.GetName().Version.ToString();
 
-            UpdatePro(70);
+                #region 更新 控制面板中所对应的程序信息
+                UpdateTip("写入注册表 Uninstall ...");
+                Thread.Sleep(200);
+                {
+                    RegistryKey uninstall_KitX = uninstall.CreateSubKey("KitX");
+                    uninstall_KitX.SetValue("DisplayName", "KitX Dashboard");
+                    uninstall_KitX.SetValue("DisplayVersion", version);
+                    uninstall_KitX.SetValue("DisplayIcon", targetPath);
+                    uninstall_KitX.SetValue("Publisher", "Crequency Studio");
+                    uninstall_KitX.SetValue("InstallLocation", stfolder);
+                    uninstall_KitX.SetValue("UninstallString", uninstallString);
+                    uninstall_KitX.SetValue("QuietUninstallString", $"{uninstallString} --silent");
+                    uninstall_KitX.SetValue("HelpLink", helpLink);
+                    uninstall_KitX.SetValue("URLInfoAbout", infoLink);
+                    uninstall_KitX.SetValue("NoModify", 1, RegistryValueKind.DWord);
+                    uninstall_KitX.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+                    uninstall_KitX.SetValue("EstimatedSize", GetDirectoryLength(stfolder) / 1000,
+                        RegistryValueKind.DWord);
+                    uninstall_KitX.Dispose();
+                }
+                #endregion
 
-            appPaths.Dispose();
-            uninstall.Dispose();
+                UpdatePro(70);
+
+                #region 更新 文件关联
+                UpdateTip("写入注册表 文件关联 ...");
+                Thread.Sleep(200);
+                {
+                    RegistryKey fileCon = Registry.ClassesRoot.CreateSubKey(".kxp");
+                    fileCon.SetValue("", "KitX.kxp");
+                    fileCon.SetValue("Content Type", "application/kitx-extensions-package");
+                    RegistryKey filePro = Registry.ClassesRoot.CreateSubKey("KitX.kxp");
+                    filePro.SetValue("", "KitX Extensions Package");
+                    RegistryKey icon = filePro.CreateSubKey("DefaultIcon");
+                    icon.SetValue("", $"{stfolder}\\Assets\\kxp.ico");
+                    RegistryKey shell = filePro.CreateSubKey("Shell");
+                    RegistryKey open = shell.CreateSubKey("Open");
+                    open.SetValue("FriendlyAppName", "KitX");
+                    RegistryKey com = open.CreateSubKey("Command");
+                    com.SetValue("", $"\"{targetPath}\" --import-plugin \"%1\"");
+                    com.Dispose();
+                    open.Dispose();
+                    shell.Dispose();
+                    icon.Dispose();
+                    filePro.Dispose();
+                    fileCon.Dispose();
+                }
+                #endregion
+
+                appPaths.Dispose();
+                uninstall.Dispose();
+            }
+            catch (Exception e)
+            {
+                UpdateTip($"写入注册表失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
+
+            UpdatePro(75);
 
             UpdateTip("更新快捷方式 ...");
+            Thread.Sleep(200);
 
-            WshShell shell = new WshShell();
-            UpdatePro(75);
-            CreateShortCut(ref shell, $"{desktop}\\{shortcutName}", targetPath, stfolder, descr, targetPath);
+            try
+            {
+                WshShell shell = new WshShell();
+                CreateShortCut(ref shell, $"{desktop}\\{shortcutName}",
+                    targetPath, stfolder, descr, targetPath);
+                CreateShortCut(ref shell, $"{startmenu}\\{shortcutNameStartMenu}",
+                    targetPath, stfolder, descr, targetPath);
+            }
+            catch (Exception e)
+            {
+                UpdateTip($"创建快捷方式失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
+
             UpdatePro(80);
-            CreateShortCut(ref shell, $"{startmenu}\\{shortcutNameStartMenu}", targetPath, stfolder,
-                descr, targetPath);
-            UpdatePro(85);
 
             UpdateTip("生成卸载程序 ...");
+            Thread.Sleep(200);
 
-            if (File.Exists(uninstallPath))
+            try
             {
-                File.Delete(uninstallPath);
+                if (File.Exists(uninstallPath))
+                {
+                    File.Delete(uninstallPath);
+                }
+                string me = Process.GetCurrentProcess().MainModule.FileName;
+                File.Copy(me, uninstallPath);
             }
-            string me = Process.GetCurrentProcess().MainModule.FileName;
-            File.Copy(me, uninstallPath);
+            catch (Exception e)
+            {
+                UpdateTip($"生成卸载程序失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
 
             UpdatePro(90);
 
+            Thread.Sleep(1000);
+
             UpdatePro(100);
+
             Invoke(new Action(() =>
             {
                 MessageBox.Show("Install succeed! | 安装成功", "KitX",
@@ -285,11 +371,17 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 ProgressBar_Installing.Value = 50;
             }));
 
+            string stfolder = Path.GetFullPath(TextBox_InstallPath.Text);
+
             UpdateTip("正在取消 ...");
 
             Thread_Install.Abort();
 
             while (Thread_Install.ThreadState != ThreadState.Aborted) { }
+
+            UpdateTip("正在回滚 ...");
+
+            Directory.Delete(stfolder, true);
 
             Invoke(new Action(() =>
             {

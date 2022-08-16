@@ -72,7 +72,7 @@ namespace KitX_Dashboard.ViewModels.Pages
                 Extensions = { "kxp" }
             });
             string[]? files = await ofd.ShowAsync(win as Window);
-            if(files?.Length > 0)
+            if (files?.Length > 0)
             {
 
             }

@@ -37,6 +37,33 @@ namespace KitX_Dashboard
         {
             try
             {
+                for (int i = 0; i < args.Length; i++)
+                {
+                    switch (args[i])
+                    {
+                        case "--import-plugin":
+                            if (i != args.Length - 1)
+                                try
+                                {
+                                    Helper.ImportPlugin(args[i + 1]);
+                                }
+                                catch (Exception e)
+                                {
+                                    Console.WriteLine(e.Message);
+                                }
+                            else throw new Exception("No arguments for plugin location.");
+                            break;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e.Message);
+                Environment.Exit(1);
+            }
+
+            try
+            {
                 if (File.Exists(Path.GetFullPath("./dump.log")))
                     File.Delete(Path.GetFullPath("./dump.log"));
 
