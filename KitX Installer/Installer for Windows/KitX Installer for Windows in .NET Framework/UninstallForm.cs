@@ -88,6 +88,9 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             appPaths.DeleteSubKeyTree("KitX Dashboard.exe");
             uninstall.DeleteSubKeyTree("KitX");
 
+            Registry.ClassesRoot.DeleteSubKeyTree(".kxp");
+            Registry.ClassesRoot.DeleteSubKeyTree("KitX.kxp");
+
             appPaths.Dispose();
             uninstall.Dispose();
             software.Dispose();
