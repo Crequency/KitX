@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Collections.Generic;
 
 namespace KitX.Web.Rules
 {
@@ -7,35 +7,17 @@ namespace KitX.Web.Rules
     /// </summary>
     public struct LoaderStruct
     {
-        public LoaderStruct()
-        {
+        public string LoaderName { get; set; }
 
-        }
+        public string LoaderVersion { get; set; }
 
-        [JsonInclude]
-        public string LoaderName { get; set; } = "KitX.Loader";
+        public string LoaderLanguage { get; set; }
 
-        [JsonInclude]
-        public string LoaderVersion { get; set; } = "v1.0.0";
+        public string LoaderFramework { get; set; }
 
-        [JsonInclude]
-        public string LoaderLanguage { get; set; } = "WDOScript";
+        public RunType LoaderRunType { get; set; }
 
-        [JsonInclude]
-        public string LoaderFramework { get; set; } = "Console";
-
-        [JsonInclude]
-        public RunType LoaderRunType { get; set; } = RunType.Console;
-
-        [JsonInclude]
-        public List<OperatingSystems> SupportOS { get; set; } = new()
-        {
-            OperatingSystems.Windows, OperatingSystems.Linux, OperatingSystems.MacOS,
-            OperatingSystems.Android, OperatingSystems.IOS,
-            OperatingSystems.Browser,
-            OperatingSystems.MacCatalyst, OperatingSystems.TvOS, OperatingSystems.WatchOS,
-            OperatingSystems.FreeBSD
-        };
+        public List<OperatingSystems> SupportOS { get; set; }
 
         public enum RunType
         {
