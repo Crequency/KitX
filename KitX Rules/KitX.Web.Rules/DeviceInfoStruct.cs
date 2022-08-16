@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+﻿using System;
 
 namespace KitX.Web.Rules
 {
@@ -7,39 +7,24 @@ namespace KitX.Web.Rules
     /// </summary>
     public struct DeviceInfoStruct
     {
-        public DeviceInfoStruct()
-        {
+        public string DeviceName { get; set; }
 
-        }
+        public string DeviceOSVersion { get; set; }
 
-        [JsonInclude]
-        public string DeviceName { get; set; } = "Unknown Device";
+        public string IPv4 { get; set; }
 
-        [JsonInclude]
-        public string DeviceOSVersion { get; set; } = "Unknown OS Version";
+        public string IPv6 { get; set; }
 
-        [JsonInclude]
-        public string IPv4 { get; set; } = "Getting...";
+        public string DeviceMacAddress { get; set; }
 
-        [JsonInclude]
-        public string IPv6 { get; set; } = "Getting...";
+        public int ServingPort { get; set; }
 
-        [JsonInclude]
-        public string DeviceMacAddress { get; set; } = string.Empty;
+        public int PluginsCount { get; set; }
 
-        [JsonInclude]
-        public int ServingPort { get; set; } = 0;
+        public DateTime SendTime { get; set; }
 
-        [JsonInclude]
-        public int PluginsCount { get; set; } = 0;
+        public bool IsMainDevice { get; set; }
 
-        [JsonInclude]
-        public DateTime SendTime { get; set; } = DateTime.Now;
-
-        [JsonInclude]
-        public bool IsMainDevice { get; set; } = false;
-
-        [JsonInclude]
-        public OperatingSystems DeviceOSType { get; set; } = OperatingSystems.Unknown;
+        public OperatingSystems DeviceOSType { get; set; }
     }
 }

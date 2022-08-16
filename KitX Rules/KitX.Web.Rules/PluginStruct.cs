@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System;
+using System.Collections.Generic;
 
 namespace KitX.Web.Rules
 {
@@ -7,57 +8,36 @@ namespace KitX.Web.Rules
     /// </summary>
     public struct PluginStruct
     {
-        public PluginStruct()
-        {
+        public string Name { get; set; }
 
-        }
+        public string Version { get; set; }
 
-        [JsonInclude]
-        public string Name { get; set; } = "Name";
+        public string DisplayName { get; set; }
 
-        [JsonInclude]
-        public string Version { get; set; } = "Version";
+        public string AuthorName { get; set; }
 
-        [JsonInclude]
-        public string DisplayName { get; set; } = "DisplayName";
+        public string PublisherName { get; set; }
 
-        [JsonInclude]
-        public string AuthorName { get; set; } = "AuthorName";
+        public string AuthorLink { get; set; }
 
-        [JsonInclude]
-        public string PublisherName { get; set; } = "PublisherName";
+        public string PublisherLink { get; set; }
 
-        [JsonInclude]
-        public string AuthorLink { get; set; } = "AuthorLink";
+        public string SimpleDescription { get; set; }
 
-        [JsonInclude]
-        public string PublisherLink { get; set; } = "PublisherLink";
+        public string ComplexDescription { get; set; }
 
-        [JsonInclude]
-        public string SimpleDescription { get; set; } = "SimpleDescription";
+        public string TotalDescriptionInMarkdown { get; set; }
 
-        [JsonInclude]
-        public string ComplexDescription { get; set; } = "ComplexDescription";
+        public string IconInBase64 { get; set; }
 
-        [JsonInclude]
-        public string TotalDescriptionInMarkdown { get; set; } = "TotalDescriptionInMarkdown";
+        public DateTime PublishDate { get; set; }
 
-        [JsonInclude]
-        public string IconInBase64 { get; set; } = "IconInBase64";
+        public DateTime LastUpdateDate { get; set; }
 
-        [JsonInclude]
-        public DateTime PublishDate { get; set; } = DateTime.Parse("2019.06.27");
+        public bool IsMarketVersion { get; set; }
 
-        [JsonInclude]
-        public DateTime LastUpdateDate { get; set; } = DateTime.Parse("2022.05.02");
+        public Dictionary<string, string> Tags { get; set; }
 
-        [JsonInclude]
-        public bool IsMarketVersion { get; set; } = false;
-
-        [JsonInclude]
-        public Dictionary<string, string> Tags { get; set; } = new();
-
-        [JsonInclude]
-        public Function Functions { get; set; } = new();
+        public Function Functions { get; set; }
     }
 }
