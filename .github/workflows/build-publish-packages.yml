@@ -1,0 +1,114 @@
+name: Publish Packages
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+jobs:
+  build-on-ubuntu:
+    runs-on: ubuntu-latest
+    if: "contains(github.event.head_commit.message, '[Publish Packages]')"
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '6.0.x'
+          include-prerelease: false
+
+      - name: Add to GitHub Repo
+        run: |
+          nuget sources add -name github -Source https://nuget.pkg.github.com/Crequency/index.json -Username Crequency -Password ${{ secrets.GitHubToken }}
+
+      - name: Install NuGet
+        uses: nuget/setup-nuget@v1
+        with:
+          nuget-version: '6.x'
+
+
+
+
+
+
+
+      - name: Build Contracts
+        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]')"
+        run: |
+          cd "KitX Contracts"
+
+          cd "KitX.Contract.CSharp"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
+
+      - name: Publish KitX.Contract.CSharp to GitHub and NuGet
+        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]')"
+        run: |
+          cd "KitX Build"
+
+          nuget push ./Contracts/CSharp/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push ./Contracts/CSharp/Release/*.nupkg -Source github -SkipDuplicate
+
+          cd ".."
+
+
+
+
+
+
+
+      - name: Build Rules
+        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]')"
+        run: |
+          cd "KitX Rules"
+
+          cd "KitX.Web.Rules"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
+      
+      - name: Publish KitX.Web.Rules to GitHub and NuGet
+        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]')"
+        run: |
+          cd "KitX Build"
+
+          nuget push ./Rules/Web.Rules/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push ./Rules/Web.Rules/Release/*.nupkg -Source github -SkipDuplicate
+
+          cd ".."
+
+
+
+
+
+
+
+      - name: Build File Format Helper
+        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]')"
+        run: |
+          cd "KitX File Format Helper"
+
+          cd "KitX.KXP.Helper"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
+
+      - name: Publish KitX.KXP.Helper to GitHub and NuGet
+        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]')"
+        run: |
+          cd "KitX Build"
+
+          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source github -SkipDuplicate
+
+          cd ".."
