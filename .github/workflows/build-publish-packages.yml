@@ -32,14 +32,8 @@ jobs:
         with:
           nuget-version: '6.x'
 
-
-
-
-
-
-
-      - name: Build Contracts
-        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')"
+      - name: Build and Publish `KitX.Contract.CSharp`
+        if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')
         run: |
           cd "KitX Contracts"
 
@@ -49,9 +43,6 @@ jobs:
 
           cd ".."
 
-      - name: Publish KitX.Contract.CSharp to GitHub and NuGet
-        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]'"
-        run: |
           cd "KitX Build"
 
           nuget push ./Contracts/CSharp/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
@@ -59,14 +50,8 @@ jobs:
 
           cd ".."
 
-
-
-
-
-
-
-      - name: Build Rules
-        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]' || contains(github.event.head_commit.message, '[All]')"
+      - name: Build and Publish `KitX.Web.Rules`
+        if: contains(github.event.head_commit.message, '[KitX.Web.Rules]' || contains(github.event.head_commit.message, '[All]')
         run: |
           cd "KitX Rules"
 
@@ -75,10 +60,7 @@ jobs:
           cd ".."
 
           cd ".."
-      
-      - name: Publish KitX.Web.Rules to GitHub and NuGet
-        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]' || contains(github.event.head_commit.message, '[All]')"
-        run: |
+
           cd "KitX Build"
 
           nuget push ./Rules/Web.Rules/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
@@ -86,14 +68,8 @@ jobs:
 
           cd ".."
 
-
-
-
-
-
-
-      - name: Build File Format Helper
-        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]' || contains(github.event.head_commit.message, '[All]')"
+      - name: Build and Publish `KitX.KXP.Helper`
+        if: contains(github.event.head_commit.message, '[KitX.KXP.Helper]' || contains(github.event.head_commit.message, '[All]')
         run: |
           cd "KitX File Format Helper"
 
@@ -103,9 +79,6 @@ jobs:
 
           cd ".."
 
-      - name: Publish KitX.KXP.Helper to GitHub and NuGet
-        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]' || contains(github.event.head_commit.message, '[All]')"
-        run: |
           cd "KitX Build"
 
           nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
