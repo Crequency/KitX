@@ -39,7 +39,7 @@ jobs:
 
 
       - name: Build Contracts
-        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]')"
+        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')"
         run: |
           cd "KitX Contracts"
 
@@ -50,7 +50,7 @@ jobs:
           cd ".."
 
       - name: Publish KitX.Contract.CSharp to GitHub and NuGet
-        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]')"
+        if: "contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]'"
         run: |
           cd "KitX Build"
 
@@ -66,7 +66,7 @@ jobs:
 
 
       - name: Build Rules
-        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]')"
+        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]' || contains(github.event.head_commit.message, '[All]')"
         run: |
           cd "KitX Rules"
 
@@ -77,7 +77,7 @@ jobs:
           cd ".."
       
       - name: Publish KitX.Web.Rules to GitHub and NuGet
-        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]')"
+        if: "contains(github.event.head_commit.message, '[KitX.Web.Rules]' || contains(github.event.head_commit.message, '[All]')"
         run: |
           cd "KitX Build"
 
@@ -93,7 +93,7 @@ jobs:
 
 
       - name: Build File Format Helper
-        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]')"
+        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]' || contains(github.event.head_commit.message, '[All]')"
         run: |
           cd "KitX File Format Helper"
 
@@ -104,7 +104,7 @@ jobs:
           cd ".."
 
       - name: Publish KitX.KXP.Helper to GitHub and NuGet
-        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]')"
+        if: "contains(github.event.head_commit.message, '[KitX.KXP.Helper]' || contains(github.event.head_commit.message, '[All]')"
         run: |
           cd "KitX Build"
 
