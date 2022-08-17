@@ -87,6 +87,18 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             string linkbase = "https://source.catrol.cn/download/apps/kitx/latest/";
             string filepath = $"{stfolder}\\kitx-latest.zip";
 
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+            string startmenu = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+            string shortcutName = "KitX Dashboard.lnk";
+            string shortcutNameStartMenu = "Crequency KitX Dashboard.lnk";
+            string targetPath = $"{stfolder}\\KitX Dashboard.exe";
+            string modulePath = $"{stfolder}\\KitX Dashboard.dll";
+            string uninstallPath = $"C:\\Windows\\Installer\\KitX Installer.exe";
+            string descr = "KitX Dashboard | KitX 控制面板";
+            string uninstallString = $"\"{uninstallPath}\" --uninstall";
+            string helpLink = "https://apps.catrol.cn/kitx/help/";
+            string infoLink = "https://apps.catrol.cn/kitx/";
+
             WebClient webClient = new WebClient();
 
             while (!File.Exists(filepath))
@@ -154,20 +166,6 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
             File.Delete(filepath);
-            UpdatePro(55);
-
-            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
-            string startmenu = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
-            string shortcutName = "KitX Dashboard.lnk";
-            string shortcutNameStartMenu = "Crequency KitX Dashboard.lnk";
-            string targetPath = $"{stfolder}\\KitX Dashboard.exe";
-            string modulePath = $"{stfolder}\\KitX Dashboard.dll";
-            string uninstallPath = $"C:\\Windows\\Installer\\KitX Installer.exe";
-            string descr = "KitX Dashboard | KitX 控制面板";
-            string uninstallString = $"\"{uninstallPath}\" --uninstall";
-            string helpLink = "https://apps.catrol.cn/kitx/help/";
-            string infoLink = "https://apps.catrol.cn/kitx/";
-
             UpdatePro(60);
 
             UpdateTip("打开注册表 ...");
