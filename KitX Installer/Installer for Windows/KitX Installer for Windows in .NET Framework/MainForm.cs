@@ -366,10 +366,29 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }));
 
-            Process process = new Process();
-            process.StartInfo.FileName = $"{stfolder}\\KitX Dashboard.exe";
-            process.StartInfo.WorkingDirectory = stfolder;
-            process.Start();
+            try
+            {
+                Process.Start("cmd.exe", $"/C cd /d {stfolder} && runas.exe /TrustLevel:0x20000 \"{targetPath}\"");
+
+                //Process.Start("explorer.exe", targetPath);
+
+                //Process process = new Process();
+                //process.StartInfo.FileName = $"{stfolder}\\KitX Dashboard.exe";
+                //process.StartInfo.WorkingDirectory = stfolder;
+                //process.StartInfo.UserName = Environment.UserName;
+                //process.StartInfo.UseShellExecute = false;
+                //process.Start();
+            }
+            catch (Exception e)
+            {
+                UpdateTip($"启动 KitX Dashboard 失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show($"Failed to start KitX Dashboard!\r\n无法启动 KitX 仪表盘\r\n{e.Message}",
+                        "Error | 错误",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+            }
             Invoke(new Action(() => { Close(); }));
         }
 
