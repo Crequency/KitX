@@ -208,8 +208,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 TaskbarManager.SetProgressValue(65, 100);
                 UpdatePro(65);
 
-                Assembly assembly = Assembly.LoadFrom(modulePath);
-                string version = assembly.GetName().Version.ToString();
+                FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(targetPath);
+                string version = fvi.ProductVersion;
 
                 #region 更新 控制面板中所对应的程序信息
                 UpdateTip("写入注册表 Uninstall ...");
