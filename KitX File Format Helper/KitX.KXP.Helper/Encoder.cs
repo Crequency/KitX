@@ -111,6 +111,11 @@ namespace KitX.KXP.Helper
             Console.Write($"Hash Code: {Encoding.UTF8.GetString(hash)}");
 #endif
 
+            foreach (var item in Header.header)
+            {
+                fs.WriteByte(item);     //  写入文件标头
+            }
+
             foreach (var item in hash)
             {
                 fs.WriteByte(item);     //  写入哈希值

@@ -46,9 +46,18 @@ namespace KitX.KXP.Helper
 
             byte[] src = File.ReadAllBytes(PackagePath);    //  读取包的全部字节
 
-            int cursor = 0;     //  文件流指针
+            byte[] header = new byte[16];
 
-            for (; cursor < 16; ++cursor)       //  取出哈希部分的字节
+            for(int i = 0; i < 16; ++ i)
+                header[i] = src[i];
+
+            for (int i = 0; i < 16; ++i)
+                if (header[i] != Header.header[i])
+                    throw new Exception("It's not a KXP Package.");
+
+            int cursor = 16;     //  文件流指针
+
+            for (; cursor < 32; ++cursor)       //  取出哈希部分的字节
                 hash[cursor] = src[cursor];
 
 #if DEBUG
@@ -131,7 +140,7 @@ namespace KitX.KXP.Helper
 
             MD5 md5 = MD5.Create();
 
-            byte[] localHash = md5.ComputeHash(src, 16, src.Length - 16);
+            byte[] localHash = md5.ComputeHash(src, 32, src.Length - 32);
 
             md5.Dispose();
 
