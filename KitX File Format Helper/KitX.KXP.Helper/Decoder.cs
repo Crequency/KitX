@@ -58,7 +58,7 @@ namespace KitX.KXP.Helper
             int cursor = 16;     //  文件流指针
 
             for (; cursor < 32; ++cursor)       //  取出哈希部分的字节
-                hash[cursor] = src[cursor];
+                hash[cursor - 16] = src[cursor];
 
 #if DEBUG
             Console.WriteLine($"Hash Code: {Encoding.UTF8.GetString(hash)}");
