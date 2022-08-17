@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Threading;
 using System.Windows.Forms;
 using File = System.IO.File;
@@ -87,11 +88,24 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             string linkbase = "https://source.catrol.cn/download/apps/kitx/latest/";
             string filepath = $"{stfolder}\\kitx-latest.zip";
 
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+            string startmenu = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+            string shortcutName = "KitX Dashboard.lnk";
+            string shortcutNameStartMenu = "Crequency KitX Dashboard.lnk";
+            string targetPath = $"{stfolder}\\KitX Dashboard.exe";
+            string modulePath = $"{stfolder}\\KitX Dashboard.dll";
+            string uninstallPath = $"C:\\Windows\\Installer\\KitX Installer.exe";
+            string descr = "KitX Dashboard | KitX 控制面板";
+            string uninstallString = $"\"{uninstallPath}\" --uninstall";
+            string helpLink = "https://apps.catrol.cn/kitx/help/";
+            string infoLink = "https://apps.catrol.cn/kitx/";
+
             WebClient webClient = new WebClient();
 
             while (!File.Exists(filepath))
             {
                 UpdateTip("正在下载 ...");
+                Thread.Sleep(400);
                 try
                 {
                     webClient.DownloadFile($"{linkbase}kitx-win-x64-latest-single.zip", filepath);
@@ -129,18 +143,23 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 ProgressBar_Installing.Style = ProgressBarStyle.Blocks;
                 ProgressBar_Installing.Value = 0;
             }));
-            UpdatePro(10);
+            UpdatePro(40);
+            Thread.Sleep(500);
 
             ZipFile zip = new ZipFile();
             try
             {
+                UpdateTip("读取压缩包 ...");
+                Thread.Sleep(200);
                 zip = ZipFile.Read(filepath);
-                UpdatePro(15);
-                zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
                 UpdatePro(45);
-                zip.Dispose();
+                UpdateTip("解压压缩包 ...");
+                Thread.Sleep(200);
+                zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
                 UpdatePro(50);
+                zip.Dispose();
                 UpdateTip("解压完毕, 更新注册表 ...");
+                Thread.Sleep(200);
             }
             catch (Exception e)
             {
@@ -154,20 +173,6 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
             File.Delete(filepath);
-            UpdatePro(55);
-
-            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
-            string startmenu = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
-            string shortcutName = "KitX Dashboard.lnk";
-            string shortcutNameStartMenu = "Crequency KitX Dashboard.lnk";
-            string targetPath = $"{stfolder}\\KitX Dashboard.exe";
-            string modulePath = $"{stfolder}\\KitX Dashboard.dll";
-            string uninstallPath = $"C:\\Windows\\Installer\\KitX Installer.exe";
-            string descr = "KitX Dashboard | KitX 控制面板";
-            string uninstallString = $"\"{uninstallPath}\" --uninstall";
-            string helpLink = "https://apps.catrol.cn/kitx/help/";
-            string infoLink = "https://apps.catrol.cn/kitx/";
-
             UpdatePro(60);
 
             UpdateTip("打开注册表 ...");
@@ -311,20 +316,79 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             UpdatePro(90);
 
-            Thread.Sleep(1000);
+            UpdateTip("更新安装目录权限 ...");
+            Thread.Sleep(300);
+
+            try
+            {
+                DirectoryInfo dir = new DirectoryInfo(stfolder);
+                DirectorySecurity dirSecurity = dir.GetAccessControl(AccessControlSections.All);
+                InheritanceFlags inherits = /*InheritanceFlags.None;*/
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+                FileSystemAccessRule usersFileSystemAccessRule = new FileSystemAccessRule("Users",
+                    FileSystemRights.FullControl, inherits, PropagationFlags.None,
+                    AccessControlType.Allow);
+                dirSecurity.ModifyAccessRule(AccessControlModification.Add, usersFileSystemAccessRule,
+                    out bool isModified);
+                dir.SetAccessControl(dirSecurity);
+
+                if (!isModified)
+                {
+                    UpdateTip($"安装目录权限未能更改");
+                    Invoke(new Action(() =>
+                    {
+                        MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
+                    BeginCancel();
+                }
+            }
+            catch (Exception e)
+            {
+                UpdateTip($"安装目录权限更改失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
 
             UpdatePro(100);
 
+            UpdateTip("安装目录权限更新成功 ...");
+            Thread.Sleep(500);
+
+            UpdateTip("安装成功!");
             Invoke(new Action(() =>
             {
                 MessageBox.Show("Install succeed! | 安装成功", "KitX",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }));
 
-            Process process = new Process();
-            process.StartInfo.FileName = $"{stfolder}\\KitX Dashboard.exe";
-            process.StartInfo.WorkingDirectory = stfolder;
-            process.Start();
+            try
+            {
+                Process.Start("cmd.exe", $"/C cd /d {stfolder} && runas.exe /TrustLevel:0x20000 \"{targetPath}\"");
+
+                //Process.Start("explorer.exe", targetPath);
+
+                //Process process = new Process();
+                //process.StartInfo.FileName = $"{stfolder}\\KitX Dashboard.exe";
+                //process.StartInfo.WorkingDirectory = stfolder;
+                //process.StartInfo.UserName = Environment.UserName;
+                //process.StartInfo.UseShellExecute = false;
+                //process.Start();
+            }
+            catch (Exception e)
+            {
+                UpdateTip($"启动 KitX Dashboard 失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show($"Failed to start KitX Dashboard!\r\n无法启动 KitX 仪表盘\r\n{e.Message}",
+                        "Error | 错误",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+            }
             Invoke(new Action(() => { Close(); }));
         }
 
