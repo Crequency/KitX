@@ -56,7 +56,7 @@ namespace KitX_Dashboard
                     }
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e.Message);
                 Environment.Exit(1);

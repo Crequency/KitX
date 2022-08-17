@@ -48,7 +48,7 @@ namespace KitX.KXP.Helper
 
             byte[] header = new byte[16];
 
-            for(int i = 0; i < 16; ++ i)
+            for (int i = 0; i < 16; ++i)
                 header[i] = src[i];
 
             for (int i = 0; i < 16; ++i)
