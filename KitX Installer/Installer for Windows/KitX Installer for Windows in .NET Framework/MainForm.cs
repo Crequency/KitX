@@ -316,7 +316,43 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             UpdatePro(90);
 
-            Thread.Sleep(1000);
+            UpdateTip("更新安装目录权限 ...");
+            Thread.Sleep(300);
+
+            try
+            {
+                DirectoryInfo dir = new DirectoryInfo(stfolder);
+                DirectorySecurity dirSecurity = dir.GetAccessControl(AccessControlSections.All);
+                InheritanceFlags inherits = /*InheritanceFlags.None;*/
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+                FileSystemAccessRule usersFileSystemAccessRule = new FileSystemAccessRule("Users",
+                    FileSystemRights.FullControl, inherits, PropagationFlags.None,
+                    AccessControlType.Allow);
+                dirSecurity.ModifyAccessRule(AccessControlModification.Add, usersFileSystemAccessRule,
+                    out bool isModified);
+                dir.SetAccessControl(dirSecurity);
+
+                if (!isModified)
+                {
+                    UpdateTip($"安装目录权限未能更改");
+                    Invoke(new Action(() =>
+                    {
+                        MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }));
+                    BeginCancel();
+                }
+            }
+            catch (Exception e)
+            {
+                UpdateTip($"安装目录权限更改失败: {e.Message}");
+                Invoke(new Action(() =>
+                {
+                    MessageBox.Show("Cancel Setup! | 安装取消", "KitX",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }));
+                BeginCancel();
+            }
 
             UpdatePro(100);
 
