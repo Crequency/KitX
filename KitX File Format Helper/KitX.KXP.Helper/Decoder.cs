@@ -8,12 +8,12 @@ namespace KitX.KXP.Helper
 {
     public class Decoder
     {
-        public Decoder()
+        public Decoder(string packagePath)
         {
-
+            PackagePath = packagePath;
         }
 
-        public string? PackagePath { get; set; }
+        public string PackagePath { get; set; }
 
         /// <summary>
         /// 文件地图项

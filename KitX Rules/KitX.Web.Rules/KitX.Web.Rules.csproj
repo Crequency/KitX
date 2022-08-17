@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netstandard2.1</TargetFramework>
-        <Nullable>enable</Nullable>
+        <TargetFrameworks>netstandard2.1;net40</TargetFrameworks>
+        <Nullable>disable</Nullable>
         <BaseOutputPath>..\..\KitX Build\Rules\Web.Rules\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Rules\Web.Rules\</BaseIntermediateOutputPath>
         <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
@@ -21,7 +21,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Update="KitX-Background-ani.png">
+        <None Include="KitX-Background-ani.png">
             <PackagePath>\</PackagePath>
             <Pack>True</Pack>
         </None>

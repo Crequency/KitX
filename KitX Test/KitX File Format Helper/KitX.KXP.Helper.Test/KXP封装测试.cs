@@ -10,15 +10,13 @@ namespace KitX.KXP.Helper.Test
         public void »ù×¼²âÊÔ()
         {
             string baseDir = @"D:\tmp\";
-            Encoder encoder = new()
-            {
-                Files2Include = new()
+            Encoder encoder = new(new()
                 {
                     $"{baseDir}KitX.Contract.CSharp.dll",
                     $"{baseDir}TestPlugin.WPF.Core.deps.json",
                     $"{baseDir}TestPlugin.WPF.Core.dll"
                 },
-                LoaderStruct = JsonSerializer.Serialize(new LoaderStruct()
+                JsonSerializer.Serialize(new LoaderStruct()
                 {
                     LoaderName = "KitX.Loader.WPF.Core",
                     LoaderVersion = "v1.0.0",
@@ -30,7 +28,7 @@ namespace KitX.KXP.Helper.Test
                         OperatingSystems.Windows
                     }
                 })
-            };
+            );
             encoder.Encode(@"D:\tmp\", @"D:\tmp\", @"test");
         }
     }
