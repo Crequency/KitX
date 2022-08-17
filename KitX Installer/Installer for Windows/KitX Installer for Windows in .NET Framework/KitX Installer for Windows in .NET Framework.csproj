@@ -82,6 +82,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Drawer.cs" />
+    <Compile Include="TaskbarManager.cs" />
     <Compile Include="UninstallForm.cs">
       <SubType>Form</SubType>
     </Compile>
