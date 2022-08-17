@@ -8,14 +8,15 @@ namespace KitX.KXP.Helper
 {
     public class Encoder
     {
-        public Encoder()
+        public Encoder(List<string> files2Include, string loaderStruct)
         {
-
+            Files2Include = files2Include;
+            LoaderStruct = loaderStruct;
         }
 
-        public List<string>? Files2Include { get; set; }
+        public List<string> Files2Include { get; set; }
 
-        public string? LoaderStruct { get; set; }
+        public string LoaderStruct { get; set; }
 
         /// <summary>
         /// 编码包体
@@ -28,13 +29,9 @@ namespace KitX.KXP.Helper
         {
             #region 读取每个文件的 byte[]
             Dictionary<string, byte[]> files = new Dictionary<string, byte[]>();
-            if (Files2Include != null)
-            {
-                foreach (var item in Files2Include)
-                    if (File.Exists(item))
-                        files.Add(GetRelativePath(rootDir, item), File.ReadAllBytes(item));
-            }
-            else throw new Exception("Files2Include 不能为空");
+            foreach (var item in Files2Include)
+                if (File.Exists(item))
+                    files.Add(GetRelativePath(rootDir, item), File.ReadAllBytes(item));
             #endregion
 
             #region 所需Loader的LoaderStruct的byte[]

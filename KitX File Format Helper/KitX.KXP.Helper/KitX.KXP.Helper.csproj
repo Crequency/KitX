@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>netstandard2.1</TargetFramework>
-        <Nullable>enable</Nullable>
+        <TargetFrameworks>netstandard2.1;net40</TargetFrameworks>
+        <Nullable>disable</Nullable>
         <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
         <Title>KitX.KXP.Helper</Title>
         <BaseOutputPath>..\..\KitX Build\File Format Helper\KXP\</BaseOutputPath>
@@ -18,14 +18,15 @@
         <AssemblyVersion>$(Version)</AssemblyVersion>
         <FileVersion>$(Version)</FileVersion>
         <Version>22.04.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+        <Description>.kxp file format helper for KitX</Description>
 
     </PropertyGroup>
 
     <ItemGroup>
-      <None Update="KitX-Background-ani.png">
-        <PackagePath>\</PackagePath>
-        <Pack>True</Pack>
-      </None>
+        <None Include="KitX-Background-ani.png">
+            <PackagePath>\</PackagePath>
+            <Pack>True</Pack>
+        </None>
     </ItemGroup>
 
 </Project>

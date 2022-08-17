@@ -7,10 +7,7 @@ namespace KitX.KXP.Helper.Test
         public void »ù×¼²âÊÔ()
         {
             string package = @"D:\tmp\test.kxp";
-            Decoder decoder = new()
-            {
-                PackagePath = package
-            };
+            Decoder decoder = new(package);
             Console.WriteLine(decoder.Decode(@"D:\tmp\decode\"));
         }
     }
