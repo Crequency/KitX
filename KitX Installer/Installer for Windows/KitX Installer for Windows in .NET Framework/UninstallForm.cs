@@ -43,6 +43,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
         public static void Uninstall(UninstallForm form = null)
         {
+            TaskbarManager.SetProgressState(TaskbarProgressBarState.Indeterminate);
+
             RegistryKey software = Registry.LocalMachine.OpenSubKey("SOFTWARE", true)
                 .OpenSubKey("Microsoft", true).OpenSubKey("Windows", true)
                 .OpenSubKey("CurrentVersion", true);
@@ -67,11 +69,16 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 }
             }
 
-            if (form != null) form.UpdatePro(0);
+            Thread.Sleep(2000);
+            TaskbarManager.SetProgressState(TaskbarProgressBarState.Normal);
+            TaskbarManager.SetProgressValue(10, 100);
+            if (form != null) form.UpdatePro(10);
+            Thread.Sleep(100);
 
             DeleteFolderAndFiles(installPath);
             Directory.Delete(installPath, true);
 
+            TaskbarManager.SetProgressValue(70, 100);
             if (form != null) form.UpdatePro(70);
 
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
@@ -83,7 +90,9 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             if (File.Exists($"{startmn}\\Crequency KitX Dashboard.lnk"))
                 File.Delete($"{startmn}\\Crequency KitX Dashboard.lnk");
 
+            TaskbarManager.SetProgressValue(75, 100);
             if (form != null) form.UpdatePro(75);
+            Thread.Sleep(500);
 
             appPaths.DeleteSubKeyTree("KitX Dashboard.exe");
             uninstall.DeleteSubKeyTree("KitX");
@@ -95,7 +104,9 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             uninstall.Dispose();
             software.Dispose();
 
+            TaskbarManager.SetProgressValue(100, 100);
             if (form != null) form.UpdatePro(100);
+            Thread.Sleep(1500);
 
             if (form != null)
                 form.Invoke(new Action(() =>

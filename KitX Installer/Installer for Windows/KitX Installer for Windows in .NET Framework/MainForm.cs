@@ -102,6 +102,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             WebClient webClient = new WebClient();
 
+            TaskbarManager.SetProgressState(TaskbarProgressBarState.Indeterminate);
+
             while (!File.Exists(filepath))
             {
                 UpdateTip("正在下载 ...");
@@ -137,6 +139,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             webClient.Dispose();
 
+            TaskbarManager.SetProgressState(TaskbarProgressBarState.Normal);
+
             UpdateTip("下载完毕, 正在解压 ...");
             Invoke(new Action(() =>
             {
@@ -144,6 +148,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 ProgressBar_Installing.Value = 0;
             }));
             UpdatePro(40);
+            TaskbarManager.SetProgressValue(40, 100);
             Thread.Sleep(500);
 
             ZipFile zip = new ZipFile();
@@ -152,10 +157,12 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 UpdateTip("读取压缩包 ...");
                 Thread.Sleep(200);
                 zip = ZipFile.Read(filepath);
+                TaskbarManager.SetProgressValue(45, 100);
                 UpdatePro(45);
                 UpdateTip("解压压缩包 ...");
                 Thread.Sleep(200);
                 zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
+                TaskbarManager.SetProgressValue(50, 100);
                 UpdatePro(50);
                 zip.Dispose();
                 UpdateTip("解压完毕, 更新注册表 ...");
@@ -173,6 +180,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
             File.Delete(filepath);
+            TaskbarManager.SetProgressValue(60, 100);
             UpdatePro(60);
 
             UpdateTip("打开注册表 ...");
@@ -197,6 +205,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 }
                 #endregion
 
+                TaskbarManager.SetProgressValue(65, 100);
                 UpdatePro(65);
 
                 Assembly assembly = Assembly.LoadFrom(modulePath);
@@ -224,6 +233,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 }
                 #endregion
 
+                TaskbarManager.SetProgressValue(70, 100);
                 UpdatePro(70);
 
                 #region 更新 文件关联
@@ -265,6 +275,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
 
+            TaskbarManager.SetProgressValue(75, 100);
             UpdatePro(75);
 
             UpdateTip("更新快捷方式 ...");
@@ -289,6 +300,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
 
+            TaskbarManager.SetProgressValue(80, 100);
             UpdatePro(80);
 
             UpdateTip("生成卸载程序 ...");
@@ -314,6 +326,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
 
+            TaskbarManager.SetProgressValue(90, 100);
             UpdatePro(90);
 
             UpdateTip("更新安装目录权限 ...");
@@ -354,6 +367,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 BeginCancel();
             }
 
+            TaskbarManager.SetProgressValue(100, 100);
             UpdatePro(100);
 
             UpdateTip("安装目录权限更新成功 ...");
@@ -364,6 +378,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             {
                 MessageBox.Show("Install succeed! | 安装成功", "KitX",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                TaskbarManager.SetProgressState(TaskbarProgressBarState.NoProgress);
             }));
 
             try
@@ -428,6 +444,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
         private void CancelProcess()
         {
+            TaskbarManager.SetProgressState(TaskbarProgressBarState.Paused);
+
             Invoke(new Action(() =>
             {
                 Btn_BeginInstall.Enabled = false;
@@ -446,6 +464,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             UpdateTip("正在回滚 ...");
 
             Directory.Delete(stfolder, true);
+
+            TaskbarManager.SetProgressState(TaskbarProgressBarState.NoProgress);
 
             Invoke(new Action(() =>
             {
