@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Security.AccessControl;
 using System.Threading;
 using System.Windows.Forms;
 using File = System.IO.File;
@@ -104,6 +105,7 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
             while (!File.Exists(filepath))
             {
                 UpdateTip("正在下载 ...");
+                Thread.Sleep(400);
                 try
                 {
                     webClient.DownloadFile($"{linkbase}kitx-win-x64-latest-single.zip", filepath);
@@ -141,18 +143,23 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
                 ProgressBar_Installing.Style = ProgressBarStyle.Blocks;
                 ProgressBar_Installing.Value = 0;
             }));
-            UpdatePro(10);
+            UpdatePro(40);
+            Thread.Sleep(500);
 
             ZipFile zip = new ZipFile();
             try
             {
+                UpdateTip("读取压缩包 ...");
+                Thread.Sleep(200);
                 zip = ZipFile.Read(filepath);
-                UpdatePro(15);
-                zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
                 UpdatePro(45);
-                zip.Dispose();
+                UpdateTip("解压压缩包 ...");
+                Thread.Sleep(200);
+                zip.ExtractAll(stfolder, ExtractExistingFileAction.OverwriteSilently);
                 UpdatePro(50);
+                zip.Dispose();
                 UpdateTip("解压完毕, 更新注册表 ...");
+                Thread.Sleep(200);
             }
             catch (Exception e)
             {
@@ -313,6 +320,10 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             UpdatePro(100);
 
+            UpdateTip("安装目录权限更新成功 ...");
+            Thread.Sleep(500);
+
+            UpdateTip("安装成功!");
             Invoke(new Action(() =>
             {
                 MessageBox.Show("Install succeed! | 安装成功", "KitX",
