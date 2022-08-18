@@ -8,15 +8,18 @@ namespace KitX.KXP.Helper
 {
     public class Encoder
     {
-        public Encoder(List<string> files2Include, string loaderStruct)
+        public Encoder(List<string> files2Include, string loaderStruct, string pluginStruct)
         {
             Files2Include = files2Include;
             LoaderStruct = loaderStruct;
+            PluginStruct = pluginStruct;
         }
 
         public List<string> Files2Include { get; set; }
 
         public string LoaderStruct { get; set; }
+
+        public string PluginStruct { get; set; }
 
         /// <summary>
         /// 编码包体
@@ -34,9 +37,8 @@ namespace KitX.KXP.Helper
                     files.Add(GetRelativePath(rootDir, item), File.ReadAllBytes(item));
             #endregion
 
-            #region 所需Loader的LoaderStruct的byte[]
             byte[] loaderStruct = Encoding.UTF8.GetBytes(LoaderStruct);
-            #endregion
+            byte[] pluginStruct = Encoding.UTF8.GetBytes(PluginStruct);
 
             int fileCount = files.Keys.Count;   //  待封装的文件数量  
 
@@ -94,6 +96,17 @@ namespace KitX.KXP.Helper
             foreach (var item in loaderStruct)
             {
                 all_files.Enqueue(item);    //  入队加载器结构
+            }
+
+            EnqueueSingleLong(ref all_files, pluginStruct.LongLength);      //  入队插件结构的长度
+
+#if DEBUG
+            Console.WriteLine($"Plugin Struct Length: {pluginStruct.LongLength}");
+#endif
+
+            foreach (var item in pluginStruct)
+            {
+                all_files.Enqueue(item);    //  入队插件结构
             }
 
             byte[] filesBytes = all_files.ToArray();
