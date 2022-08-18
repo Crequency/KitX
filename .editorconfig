@@ -1,0 +1,2 @@
+
+file_header_template = Copyright (c) Crequency Studio. All Rights Reserved.\nLicense under the AGPL, Version 3.0.\nFile Name: {fileName}
