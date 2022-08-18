@@ -27,6 +27,62 @@ namespace KitX.KXP.Helper.Test
                     {
                         OperatingSystems.Windows
                     }
+                }),
+                JsonSerializer.Serialize(new PluginStruct()
+                {
+                    AuthorLink = "AuthorLink",
+                    AuthorName = "AuthorName",
+                    ComplexDescription = "ComplexDescription",
+                    DisplayName = "DisplayName",
+                    Functions = new()
+                    {
+                        FunctionsDisplayName = new()
+                        {
+                            {
+                                "FunctionA",
+                                new()
+                                {
+                                    { "zh-cn", "某个方法" },
+                                    { "zh-cnt", "某個方法" },
+                                    { "en-us", "One Function" }
+                                }
+                            }
+                        },
+                        FunctionParameters = new()
+                        {
+                            {
+                                "FunctionA",
+                                new()
+                                {
+                                    ForeParameters = new()
+                                    {
+                                        new()
+                                        {
+                                            Name = "ParameterA",
+                                            DisplayName = new()
+                                            {
+                                                { "zh-cn", "参数A" }
+                                            },
+                                            Type = "string"
+                                        }
+                                    },
+                                    HasAppendParameters = false,
+                                    ReturnValueType = "void"
+                                }
+                            }
+                        }
+                    },
+                    IconInBase64 = "IconInBase64",
+                    IsMarketVersion = false,
+                    LastUpdateDate = DateTime.Now,
+                    Name = "Name",
+                    PublishDate = DateTime.Now,
+                    PublisherLink = "PublisherLink",
+                    PublisherName = "PublisherName",
+                    SimpleDescription = "SimpleDescription",
+                    Tags = new(),
+                    TotalDescriptionInMarkdown = "TotalDescriptionInMarkdown",
+                    Version = "Version"
                 })
             );
             encoder.Encode(@"D:\tmp\", @"D:\tmp\", @"test");
