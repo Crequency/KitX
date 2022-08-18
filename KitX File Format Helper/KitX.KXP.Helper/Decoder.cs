@@ -37,7 +37,7 @@ namespace KitX.KXP.Helper
         /// <returns>返回 LoaderStruct 的json文本</returns>
         /// <param name="releaseFolder">释放文件的路径</param>
         /// <exception cref="Exception">哈希校验错误</exception>
-        public string Decode(string releaseFolder)
+        public Tuple<string, string> Decode(string releaseFolder)
         {
             if (!Directory.Exists(releaseFolder))
                 Directory.CreateDirectory(releaseFolder);
@@ -132,10 +132,28 @@ namespace KitX.KXP.Helper
             for (int i = 0; i < loaderStructLength; ++i, ++cursor)
                 loaderStructByte[i] = src[cursor];
 
-            string result = Encoding.UTF8.GetString(loaderStructByte);
+            byte[] pluginStructLengthByte = new byte[8];
+
+            for (int i = 0; i < 8; ++i, ++cursor)
+                pluginStructLengthByte[i] = src[cursor];
+
+            long pluginStructLength = BitConverter.ToInt64(pluginStructLengthByte, 0);  //  PluginStruct的长度
 
 #if DEBUG
-            Console.WriteLine($"Loader Struct: {result}");
+            Console.WriteLine($"Plugin Struct Length: {pluginStructLength}");
+#endif
+
+            byte[] pluginStructByte = new byte[pluginStructLength];     //  Plugin Struct 的 Byte 数组
+
+            for (int i = 0; i < pluginStructLength; ++i, ++cursor)
+                pluginStructByte[i] = src[cursor];
+
+            string loaderStruct = Encoding.UTF8.GetString(loaderStructByte);
+            string pluginStruct = Encoding.UTF8.GetString(pluginStructByte);
+
+#if DEBUG
+            Console.WriteLine($"Loader Struct: {loaderStruct}");
+            Console.WriteLine($"Plugin Struct: {pluginStruct}");
 #endif
 
             MD5 md5 = MD5.Create();
@@ -154,7 +172,7 @@ namespace KitX.KXP.Helper
                     throw new Exception("MD5 Hash Error.");
             }
 
-            return result;
+            return Tuple.Create(loaderStruct, pluginStruct);
         }
     }
 }
