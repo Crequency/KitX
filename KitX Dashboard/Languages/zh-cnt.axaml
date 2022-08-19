@@ -78,6 +78,14 @@
 
 
     <x:String x:Key="Text_Repo_No_Plugin">無插件在倉庫中</x:String>
+    <x:String x:Key="Text_Repo_Search_In_Network">在局域網路中尋找</x:String>
+    <x:String x:Key="Text_Repo_Tip_Installed">個插件已經安裝到本機</x:String>
+
+
+    <x:String x:Key="Text_PluginBar_Launch">啓動</x:String>
+    <x:String x:Key="Text_PluginBar_Details">詳細信息</x:String>
+    <x:String x:Key="Text_PluginBar_Remove">移除</x:String>
+    <x:String x:Key="Text_PluginBar_RemoveAndDelete">移除并刪除</x:String>
 
 
     <x:String x:Key="Text_Device_No">網路中空無一物</x:String>
