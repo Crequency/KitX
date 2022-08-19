@@ -82,7 +82,8 @@ namespace KitX.KXP.Helper.Test
                     SimpleDescription = "SimpleDescription",
                     Tags = new(),
                     TotalDescriptionInMarkdown = "TotalDescriptionInMarkdown",
-                    Version = "Version"
+                    Version = "Version",
+                    RootStartupFileName = "RootStartupFileName"
                 })
             );
             encoder.Encode(@"D:\tmp\", @"D:\tmp\", @"test");
