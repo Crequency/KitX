@@ -78,6 +78,14 @@
 
 
     <x:String x:Key="Text_Repo_No_Plugin">リポジトリにプラグインがありません</x:String>
+    <x:String x:Key="Text_Repo_Search_In_Network">LANで検索</x:String>
+    <x:String x:Key="Text_Repo_Tip_Installed">インストールされたプラグイン</x:String>
+
+
+    <x:String x:Key="Text_PluginBar_Launch">起動</x:String>
+    <x:String x:Key="Text_PluginBar_Details">詳細</x:String>
+    <x:String x:Key="Text_PluginBar_Remove">削除する</x:String>
+    <x:String x:Key="Text_PluginBar_RemoveAndDelete">削除して破壊する</x:String>
 
 
     <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>

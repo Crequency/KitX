@@ -40,7 +40,7 @@ namespace KitX.KXP.Helper
         public Tuple<string, string> Decode(string releaseFolder)
         {
             if (!Directory.Exists(releaseFolder))
-                Directory.CreateDirectory(releaseFolder);
+                _ = Directory.CreateDirectory(releaseFolder);
 
             byte[] hash = new byte[16];     //  哈希部分
 
