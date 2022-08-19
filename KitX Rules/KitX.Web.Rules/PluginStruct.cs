@@ -39,5 +39,7 @@ namespace KitX.Web.Rules
         public Dictionary<string, string> Tags { get; set; }
 
         public Function Functions { get; set; }
+
+        public string RootStartupFileName { get; set; }
     }
 }
