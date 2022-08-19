@@ -13,6 +13,8 @@ namespace KitX_Dashboard.Models
 
         internal delegate void MicaOpacityChangedHandler();
 
+        internal delegate void PluginsListChangedHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
@@ -20,6 +22,8 @@ namespace KitX_Dashboard.Models
         internal static event ConfigSettingsChangedHandler? ConfigSettingsChanged;
 
         internal static event MicaOpacityChangedHandler? MicaOpacityChanged;
+
+        internal static event PluginsListChangedHandler? PluginsListChanged;
 
 
         /// <summary>
@@ -31,6 +35,7 @@ namespace KitX_Dashboard.Models
             GreetingTextIntervalUpdated += () => { };
             ConfigSettingsChanged += () => { };
             MicaOpacityChanged += () => { };
+            PluginsListChanged += () => { };
         }
 
         /// <summary>
@@ -41,17 +46,20 @@ namespace KitX_Dashboard.Models
         {
             switch (eventName)
             {
-                case "LanguageChanged":
+                case nameof(LanguageChanged):
                     LanguageChanged();
                     break;
-                case "GreetingTextIntervalUpdated":
+                case nameof(GreetingTextIntervalUpdated):
                     GreetingTextIntervalUpdated();
                     break;
-                case "ConfigSettingsChanged":
+                case nameof(ConfigSettingsChanged):
                     ConfigSettingsChanged();
                     break;
-                case "MicaOpacityChanged":
+                case nameof(MicaOpacityChanged):
                     MicaOpacityChanged();
+                    break;
+                case nameof(PluginsListChanged):
+                    PluginsListChanged();
                     break;
             }
         }

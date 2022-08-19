@@ -1,21 +1,27 @@
 ﻿using KitX.Web.Rules;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace KitX_Dashboard.Models
 {
-    internal class Plugin
+    public class Plugin
     {
-        public Plugin()
-        {
+        [JsonInclude]
+        /// <summary>
+        /// 该插件的详细信息
+        /// </summary>
+        public PluginStruct PluginDetails { get; set; }
 
-        }
+        [JsonInclude]
+        /// <summary>
+        /// 需要的加载器的详细信息
+        /// </summary>
+        public LoaderStruct RequiredLoaderStruct { get; set; }
 
-        internal PluginStruct? PluginDetails { get; set; }
-
-        internal List<string>? MacAddressOfInstalledDevice { get; set; }
-
-        internal string? RequiredLoaderName { get; set; }
-
-        internal string? RequiredLoaderVersion { get; set; }
+        [JsonInclude]
+        /// <summary>
+        /// 已安装此插件的网络设备
+        /// </summary>
+        public List<string>? MacAddressOfInstalledDevice { get; set; }
     }
 }

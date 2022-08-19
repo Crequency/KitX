@@ -111,7 +111,7 @@
         <PackageReference Include="Catrol.Algorithm.Interop" Version="1.1.6240.1190" />
         <PackageReference Include="Catrol.BasicHelper" Version="1.1.6240.1190" />
         <PackageReference Include="FluentAvaloniaUI" Version="1.4.1" />
-        <PackageReference Include="KitX.KXP.Helper" Version="22.4.6241.948" />
+        <PackageReference Include="KitX.KXP.Helper" Version="22.4.6242.183" />
         <PackageReference Include="KitX.Web.Rules" Version="22.4.6241.948" />
         <PackageReference Include="LiteDB" Version="5.0.12" />
         <PackageReference Include="Markdown.Avalonia" Version="0.10.11" />

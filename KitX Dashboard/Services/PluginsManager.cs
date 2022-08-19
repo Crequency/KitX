@@ -3,7 +3,6 @@ using KitX.Web.Rules;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.Views.Pages.Controls;
-using LiteDB;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,6 +42,10 @@ namespace KitX_Dashboard.Services
         internal static readonly Queue<IPEndPoint> pluginsToRemove = new();
 
         internal static readonly Queue<PluginStruct> pluginsToAdd = new();
+
+        internal static readonly Queue<Plugin> pluginsToRemoveFromDB = new();
+
+        internal static readonly Queue<Plugin> pluginsToDelete = new();
 
         /// <summary>
         /// 持续检查并移除
@@ -137,10 +140,6 @@ namespace KitX_Dashboard.Services
                 if (workbase == null)
                     throw new Exception("Can not get path of \"KitX\"");
             }
-            using LiteDatabase pgdb = new(Path.GetFullPath(
-                $"{GlobalInfo.DataBasePath}\\{GlobalInfo.PluginsDataBaseFile}"
-            ));
-            var pgs = pgdb.GetCollection<Plugin>("Plugins");
             string releaseDir = Path.GetFullPath($"{workbase}/{GlobalInfo.KXPTempReleasePath}");
             foreach (var item in kxpfiles)
             {
@@ -169,13 +168,13 @@ namespace KitX_Dashboard.Services
                     string thisplugindir = $"{pluginsavedir}/" +
                         $"{pluginStruct.PublisherName}_{pluginStruct.AuthorName}/" +
                         $"{pluginStruct.Name}/" +
-                        $"{pluginStruct.Version}";
+                        $"{pluginStruct.Version}/";
                     if (Directory.Exists(thisplugindir))
                         Directory.Delete(thisplugindir, true);
                     _ = Directory.CreateDirectory(thisplugindir);
                     _ = decoder.Decode(thisplugindir);
 
-                    pgs.Insert(new Plugin()
+                    Program.PluginsList.Plugins.Add(new Plugin()
                     {
                         PluginDetails = pluginStruct,
                         RequiredLoaderStruct = loaderStruct,
@@ -188,6 +187,63 @@ namespace KitX_Dashboard.Services
                     if (inGraphic) throw;       //  如果是图形界面调用, 则再次抛出便于给出图形化提示
                 }
             }
+            EventHandlers.Invoke("PluginsListChanged");
+        }
+
+        /// <summary>
+        /// 请求移除插件
+        /// </summary>
+        /// <param name="plugin">插件的安装信息</param>
+        internal static void RequireRemovePlugin(Plugin plugin) => pluginsToRemoveFromDB.Enqueue(plugin);
+
+        /// <summary>
+        /// 请求删除插件
+        /// </summary>
+        /// <param name="plugin">插件的安装信息</param>
+        internal static void RequireDeletePlugin(Plugin plugin) => pluginsToDelete.Enqueue(plugin);
+
+        /// <summary>
+        /// 持续检查移除和删除队列
+        /// </summary>
+        internal static void KeepCheckAndRemoveOrDelete()
+        {
+            System.Timers.Timer timer = new()
+            {
+                Interval = 2000,
+                AutoReset = true
+            };
+            timer.Elapsed += (_, _) =>
+            {
+                bool isPluginsListUpdated = false;
+
+                if (pluginsToRemoveFromDB.Count > 0)
+                {
+                    isPluginsListUpdated = true;
+                    while (pluginsToRemoveFromDB.Count > 0)
+                    {
+                        Program.PluginsList.Plugins.Remove(pluginsToRemoveFromDB.Dequeue());
+                    }
+                }
+
+                if (pluginsToDelete.Count > 0)
+                {
+                    isPluginsListUpdated = true;
+                    while (pluginsToDelete.Count > 0)
+                    {
+                        Plugin pg = pluginsToDelete.Dequeue();
+                        Program.PluginsList.Plugins.Remove(pg);
+                        string pgfiledir = Path.GetFullPath(
+                            $"{Program.GlobalConfig.App.LocalPluginsFileDirectory}/" +
+                            $"{pg.PluginDetails.PublisherName}_{pg.PluginDetails.AuthorName}/" +
+                            $"{pg.PluginDetails.Name}/{pg.PluginDetails.Version}/"
+                        );
+                        Directory.Delete(pgfiledir, true);
+                    }
+                }
+
+                if (isPluginsListUpdated) EventHandlers.Invoke("PluginsListChanged");
+            };
+            timer.Start();
         }
     }
 }

@@ -58,6 +58,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		CODE_OF_CONDUCT.md = CODE_OF_CONDUCT.md
 		contributing.md = contributing.md
 		Directory.Build.props = Directory.Build.props
+		ErrorCodes.md = ErrorCodes.md
 		LICENSE = LICENSE
 		nuget.config = nuget.config
 		push-repos.json = push-repos.json
@@ -113,6 +114,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.KXP.Helper.Test", "KitX Test\KitX File Format Helper\KitX.KXP.Helper.Test\KitX.KXP.Helper.Test.csproj", "{706F980F-CAEF-42D2-89C1-728D8B66578C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Web.Rules", "KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj", "{BC6FC695-381A-4556-89A3-7918651E8D56}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestPlugin.WPF.Winform", "KitX Official Plugins\TestPlugin.WPF.Winform\TestPlugin.WPF.Winform.csproj", "{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -292,6 +295,18 @@ Global
 		{BC6FC695-381A-4556-89A3-7918651E8D56}.Release|x64.Build.0 = Release|Any CPU
 		{BC6FC695-381A-4556-89A3-7918651E8D56}.Release|x86.ActiveCfg = Release|Any CPU
 		{BC6FC695-381A-4556-89A3-7918651E8D56}.Release|x86.Build.0 = Release|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Debug|x64.Build.0 = Debug|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Debug|x86.Build.0 = Debug|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Release|x64.ActiveCfg = Release|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Release|x64.Build.0 = Release|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Release|x86.ActiveCfg = Release|Any CPU
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -322,6 +337,7 @@ Global
 		{4058A162-2785-4688-A007-B05828D28DED} = {F8379F09-5E41-48AA-9643-047BD17B1CA7}
 		{706F980F-CAEF-42D2-89C1-728D8B66578C} = {4058A162-2785-4688-A007-B05828D28DED}
 		{BC6FC695-381A-4556-89A3-7918651E8D56} = {8951FA15-B902-4090-8841-F5D07890F0D4}
+		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835} = {A8D5E38D-117C-444D-8767-D0DA823822AA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
