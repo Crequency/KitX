@@ -3,9 +3,8 @@ using Avalonia.Media;
 using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
-using LiteDB;
+using KitX_Dashboard.Models;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -19,11 +18,6 @@ namespace KitX_Dashboard
     public static class Helper
     {
         /// <summary>
-        /// 配置路径
-        /// </summary>
-        public readonly static string ConfigPath = Path.GetFullPath(GlobalInfo.ConfigPath);
-
-        /// <summary>
         /// 启动时检查
         /// </summary>
         public static void StartUpCheck()
@@ -31,20 +25,6 @@ namespace KitX_Dashboard
             #region 初始化 Config
 
             InitConfig();
-
-            #endregion
-
-            #region 初始化 LiteDB
-
-            string DataBaseWorkBase = Path.GetFullPath(Data.GlobalInfo.DataBasePath);
-
-            if (!Directory.Exists(DataBaseWorkBase))
-            {
-                Directory.CreateDirectory(DataBaseWorkBase);
-                LiteDatabase pluginsDB = new($"{DataBaseWorkBase}/plugins.db");
-                pluginsDB.Rebuild();
-                pluginsDB.Dispose();
-            }
 
             #endregion
 
@@ -60,14 +40,6 @@ namespace KitX_Dashboard
 
             #endregion
 
-            #region 初始化一般信息
-
-            //Program.LocalVersion = BasicHelper.Util.Version.Parse(
-
-            //);
-
-            #endregion
-
             #region 初始化 WebServer
 
             Program.LocalWebServer = new();
@@ -77,16 +49,15 @@ namespace KitX_Dashboard
 
             #region 初始化事件
 
-            Models.EventHandlers.ConfigSettingsChanged += () =>
+            EventHandlers.ConfigSettingsChanged += () =>
             {
-                SaveInfo();
+                SolidColorBrush? accent = Application.Current
+                    .Resources["ThemePrimaryAccent"] as SolidColorBrush;
+                Program.GlobalConfig.App.ThemeColor = new Color2(accent.Color).ToHexString();
+                SaveConfig();
             };
 
-            #endregion
-
-            #region 初始化必要线程
-
-
+            EventHandlers.PluginsListChanged += () => SavePluginsListConfig();
 
             #endregion
         }
@@ -96,8 +67,6 @@ namespace KitX_Dashboard
         /// </summary>
         public static void SaveConfig()
         {
-            string ConfigFilePath = Path.GetFullPath($"{ConfigPath}/config.json");
-
             JsonSerializerOptions options = new()
             {
                 WriteIndented = true,
@@ -106,9 +75,26 @@ namespace KitX_Dashboard
 
             new Thread(() =>
             {
-
-                BasicHelper.IO.FileHelper.WriteIn(ConfigFilePath,
+                BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
                     JsonSerializer.Serialize(Program.GlobalConfig, options));
+            }).Start();
+        }
+
+        /// <summary>
+        /// 保存插件列表配置
+        /// </summary>
+        public static void SavePluginsListConfig()
+        {
+            JsonSerializerOptions options = new()
+            {
+                WriteIndented = true,
+                IncludeFields = true,
+            };
+
+            new Thread(() =>
+            {
+                BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath),
+                    JsonSerializer.Serialize(Program.PluginsList, options));
             }).Start();
         }
 
@@ -117,10 +103,17 @@ namespace KitX_Dashboard
         /// </summary>
         public static void LoadConfig()
         {
-            string ConfigFilePath = Path.GetFullPath($"{ConfigPath}/config.json");
-
             Program.GlobalConfig = JsonSerializer.Deserialize<Config>(
-                BasicHelper.IO.FileHelper.ReadAll(ConfigFilePath));
+                BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
+        }
+
+        /// <summary>
+        /// 读取插件列表配置
+        /// </summary>
+        public static void LoadPluginsListConfig()
+        {
+            Program.PluginsList = JsonSerializer.Deserialize<PluginsList>(
+                BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)));
         }
 
         /// <summary>
@@ -132,6 +125,9 @@ namespace KitX_Dashboard
                 _ = Directory.CreateDirectory(Path.GetFullPath(GlobalInfo.ConfigPath));
             if (!File.Exists(Path.GetFullPath(GlobalInfo.ConfigFilePath))) SaveConfig();
             else LoadConfig();
+            if (!File.Exists(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)))
+                SavePluginsListConfig();
+            else SavePluginsListConfig();
         }
 
         /// <summary>
@@ -139,10 +135,8 @@ namespace KitX_Dashboard
         /// </summary>
         public static void SaveInfo()
         {
-            var accent = Application.Current.Resources["ThemePrimaryAccent"] as SolidColorBrush;
-            Program.GlobalConfig.App.ThemeColor = new Color2(accent.Color).ToHexString();
-
             SaveConfig();
+            SavePluginsListConfig();
         }
 
         /// <summary>
@@ -200,16 +194,6 @@ namespace KitX_Dashboard
         /// <param name="kxpPath">.kxp Path</param>
         public static void ImportPlugin(string kxpPath)
         {
-            string? workbasef = Process.GetCurrentProcess().MainModule.FileName;
-            string? workbase = string.Empty;
-            if (workbasef == null)
-                throw new Exception("Can not get path of \"KitX Dashboard.exe\"");
-            else
-            {
-                workbase = Path.GetDirectoryName(workbasef);
-                if (workbase == null)
-                    throw new Exception("Can not get path of \"KitX\"");
-            }
             if (!File.Exists(kxpPath))
             {
                 Console.WriteLine($"No this file: {kxpPath}");
@@ -217,7 +201,7 @@ namespace KitX_Dashboard
             }
             else
             {
-
+                Services.PluginsManager.ImportPlugin(new string[] { kxpPath });
             }
         }
     }
