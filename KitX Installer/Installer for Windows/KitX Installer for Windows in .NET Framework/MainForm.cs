@@ -383,7 +383,8 @@ namespace KitX_Installer_for_Windows_in.NET_Framework
 
             try
             {
-                Process.Start("cmd.exe", $"/C cd /d {stfolder} && runas.exe /TrustLevel:0x20000 \"{targetPath}\"");
+                Process.Start("cmd.exe", $"/C cd /d {stfolder} && runas.exe /TrustLevel:0x20000 " +
+                    $"\"{targetPath}\"");
 
                 //Process.Start("explorer.exe", targetPath);
 
