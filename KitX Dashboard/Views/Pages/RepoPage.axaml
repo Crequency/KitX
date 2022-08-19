@@ -2,22 +2,55 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:icon="using:Material.Icons.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="KitX_Dashboard.Views.Pages.RepoPage">
-    <Grid>
-        <DockPanel>
+    <DockPanel>
+        <Grid Height="80" DockPanel.Dock="Top">
+            <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
+                             Watermark="{DynamicResource Text_Repo_Search_In_Network}"
+                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontWeight="Bold"/>
+            <StackPanel Orientation="Horizontal" Margin="25,0,0,0"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Text="{Binding PluginsCount}"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"/>
+                <TextBlock Text="{DynamicResource Text_Repo_Tip_Installed}" Margin="5,0,0,0"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"/>
+            </StackPanel>
+
+            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
+                        Orientation="Horizontal">
+                <Button Content="{DynamicResource Text_Public_Import}"
+                        Command="{Binding ImportPluginCommand}" CommandParameter="{DynamicResource MainWindow}"
+                        IsVisible="{Binding ImportButtonVisibility}"
+                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontWeight="Bold" FontSize="14"/>
+                <Button Command="{Binding RefreshPluginsCommand}" Margin="10,0">
+                    <icon:MaterialIcon Kind="Refresh" Width="20" Height="20"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <DockPanel Margin="10">
             <Border DockPanel.Dock="Top" Height="{Binding NoPlugins_TipHeight}">
                 <TextBlock Text="{DynamicResource Text_Repo_No_Plugin}"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ScrollViewer>
-
+                <StackPanel Orientation="Vertical" Margin="0,0,10,0">
+                    <ItemsControl Items="{Binding PluginBars}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
             </ScrollViewer>
         </DockPanel>
-        
-        <Button HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                Margin="20" Content="{DynamicResource Text_Public_Import}"
-                Command="{Binding ImportPluginCommand}" CommandParameter="{DynamicResource MainWindow}"
-                IsVisible="{Binding ImportButtonVisibility}"/>
-    </Grid>
+    </DockPanel>
 </UserControl>

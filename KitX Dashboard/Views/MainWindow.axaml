@@ -57,17 +57,6 @@
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market">
-                    <ui:NavigationViewItem.Content>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
-                            <icon:MaterialIcon Kind="Tag" VerticalAlignment="Center"/>
-                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Market}"
-                                       VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
-                        </StackPanel>
-                    </ui:NavigationViewItem.Content>
-                </ui:NavigationViewItem>
                 <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
@@ -93,6 +82,17 @@
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                            <icon:MaterialIcon Kind="Tag" VerticalAlignment="Center"/>
+                            <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Market}"
+                                       VerticalAlignment="Center" Margin="15,0,0,0"
+                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
                 <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">

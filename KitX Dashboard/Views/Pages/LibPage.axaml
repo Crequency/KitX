@@ -15,7 +15,7 @@
                              Watermark="{DynamicResource Text_Lib_Search_In_Local}"
                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                              FontWeight="Bold"/>
-            <StackPanel Orientation="Horizontal" Margin="20,0,0,0"
+            <StackPanel Orientation="Horizontal" Margin="25,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
                 <TextBlock Text="{Binding PluginsCount}"
                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
