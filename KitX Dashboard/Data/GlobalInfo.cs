@@ -12,7 +12,15 @@
 
         internal const string AssetsPath = "./Assets/";
 
-        internal const string ThirdPartLicenseFilePath = $"{AssetsPath}/ThirdPartLicense.md";
+        internal const string KXPTempReleasePath = "Temp/";
+
+        internal const string ConfigFilePath = $"{ConfigPath}config.json";
+
+        internal const string PluginsDataBaseFilePath = $"{DataBasePath}plugins.db";
+
+        internal const string PluginsListConfigFilePath = $"{ConfigPath}plugins.json";
+
+        internal const string ThirdPartLicenseFilePath = $"{AssetsPath}ThirdPartLicense.md";
 
         internal static int ServerPortNumber = 0;
 
@@ -24,8 +32,9 @@
 
         internal const string Api_Get_Announcement = "get-announcement.php";
 
-        internal const string AnnouncementsJsonPath = "./Config/announcements.json";
+        internal const string AnnouncementsJsonPath = $"{ConfigPath}announcements.json";
 
+        internal static string MyMacAddress = string.Empty;
     }
 }
 
