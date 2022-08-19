@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="KitX_Dashboard.Views.Pages.Controls.PluginBar"
+             Margin="10,5,10,5">
+    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False">
+        <DockPanel Margin="0,10,10,10">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                <Image Width="40" Height="40" Source="{Binding IconDisplay}"/>
+                <TextBlock Margin="30,0,0,0" VerticalAlignment="Center" Text="TestPlugin"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold" FontSize="24"/>
+                
+                <TextBlock Margin="30,0,0,0" VerticalAlignment="Center" Text="作者:"/>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="Dynesshely"/>
+                <TextBlock Margin="30,0,0,0" VerticalAlignment="Center" Text="版本:"/>
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="v1.0.0"/>
+            </StackPanel>
+
+            <Button Content="{DynamicResource Text_PluginBar_Launch}"
+                    DockPanel.Dock="Right" Command="{Binding LaunchCommand}"
+                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                    FontWeight="Bold"/>
+
+            <ui:Button Content="..." DockPanel.Dock="Right" Margin="0,0,20,0"
+                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                       FontWeight="Bold">
+                <ui:Button.Flyout>
+                    <ui:MenuFlyout Placement="Bottom">
+                        <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_Details}"
+                                           Icon="Copy" Command="{Binding ViewDetailsCommand}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"/>
+                        <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_Remove}"
+                                           Icon="Remove" Command="{Binding RemoveCommand}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"/>
+                        <ui:MenuFlyoutSeparator/>
+                        <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_RemoveAndDelete}"
+                                           Icon="Delete" Command="{Binding DeleteCommand}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"/>
+                    </ui:MenuFlyout>
+                </ui:Button.Flyout>
+            </ui:Button>
+
+            <Border/>
+        </DockPanel>
+    </ui:InfoBar>
+</UserControl>
