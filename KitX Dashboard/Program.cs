@@ -23,6 +23,8 @@ namespace KitX_Dashboard
 
         internal static ObservableCollection<DeviceCard> DeviceCards = new();
 
+        internal static PluginsList PluginsList = new();
+
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
         /// </summary>
@@ -35,6 +37,15 @@ namespace KitX_Dashboard
         [STAThread]
         public static void Main(string[] args)
         {
+
+            #region 必要的初始化
+
+            EventHandlers.Init();
+
+            #endregion
+
+            #region 处理启动参数
+
             try
             {
                 for (int i = 0; i < args.Length; i++)
@@ -59,19 +70,17 @@ namespace KitX_Dashboard
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                Environment.Exit(1);
+                Environment.Exit(ErrorCodes.StartUpArgumentsError);
             }
+
+            #endregion
+
+            #region 正常启动流程
 
             try
             {
                 if (File.Exists(Path.GetFullPath("./dump.log")))
                     File.Delete(Path.GetFullPath("./dump.log"));
-
-                #region 必要的初始化
-
-                EventHandlers.Init();
-
-                #endregion
 
                 #region 执行启动时检查
 
@@ -106,6 +115,8 @@ namespace KitX_Dashboard
                 sw.Close();
                 fs.Close();
             }
+
+            #endregion
         }
 
         /// <summary>
