@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 
 namespace KitX.Contract.CSharp
@@ -22,7 +23,7 @@ namespace KitX.Contract.CSharp
         /// 获取显示名称
         /// </summary>
         /// <returns>显示名称</returns>
-        string GetDisplayName();
+        Dictionary<string, string> GetDisplayName();
 
         /// <summary>
         /// 获取作者名称

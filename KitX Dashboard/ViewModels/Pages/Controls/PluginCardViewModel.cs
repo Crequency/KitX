@@ -1,5 +1,6 @@
 ﻿using Avalonia.Media.Imaging;
 using BasicHelper.IO;
+using KitX.Web.Rules;
 using System;
 using System.IO;
 using System.Text;
@@ -8,22 +9,25 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
     internal class PluginCardViewModel
     {
-        public KitX.Web.Rules.PluginStruct pluginStruct = new();
+        internal PluginStruct pluginStruct = new();
 
         public PluginCardViewModel()
         {
             pluginStruct.IconInBase64 = FileHelper.ReadAll(Path.GetFullPath($"./Assets/KitX.Base64.txt"));
         }
 
-        public string DisplayName => pluginStruct.DisplayName;
+        internal string DisplayName => pluginStruct.DisplayName
+            .ContainsKey(Program.GlobalConfig.App.AppLanguage)
+            ? pluginStruct.DisplayName[Program.GlobalConfig.App.AppLanguage]
+            : pluginStruct.DisplayName.Values.GetEnumerator().Current;
 
-        public string Version => pluginStruct.Version;
+        internal string Version => pluginStruct.Version;
 
-        public string SimpleDescription => pluginStruct.SimpleDescription;
+        internal string SimpleDescription => pluginStruct.SimpleDescription;
 
-        public string IconInBase64 => pluginStruct.IconInBase64;
+        internal string IconInBase64 => pluginStruct.IconInBase64;
 
-        public Bitmap IconDisplay
+        internal Bitmap IconDisplay
         {
             get
             {

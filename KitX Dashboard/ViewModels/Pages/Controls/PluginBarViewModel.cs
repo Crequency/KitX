@@ -4,19 +4,19 @@ using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
-    internal class PluginBarViewModel : ViewModelBase
+    internal class PluginBarViewModel : ViewModelBase, INotifyPropertyChanged
     {
         public PluginBarViewModel()
         {
-
             InitCommands();
-
+            InitEvents();
         }
 
 
@@ -28,13 +28,38 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             LaunchCommand = new(Launch);
         }
 
+        internal void InitEvents()
+        {
+            EventHandlers.LanguageChanged += () =>
+            {
+                PropertyChanged?.Invoke(this, new(nameof(DisplayName)));
+            };
+        }
+
         internal PluginBar? PluginBar { get; set; }
 
         internal Plugin? PluginDetail { get; set; }
 
+        internal string? DisplayName
+        {
+            get
+            {
+                if (PluginDetail != null)
+                    return PluginDetail.PluginDetails.DisplayName
+                        .ContainsKey(Program.GlobalConfig.App.AppLanguage)
+                        ? PluginDetail.PluginDetails.DisplayName[Program.GlobalConfig.App.AppLanguage]
+                        : PluginDetail.PluginDetails.DisplayName.Values.GetEnumerator().Current;
+                return null;
+            }
+        }
+
+        internal string? AuthorName => PluginDetail?.PluginDetails.AuthorName;
+
+        internal string? Version => PluginDetail?.PluginDetails.Version;
+
         internal ObservableCollection<PluginBar>? PluginBars { get; set; }
 
-        public Bitmap IconDisplay
+        internal Bitmap IconDisplay
         {
             get
             {
@@ -110,5 +135,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         {
 
         }
+
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }

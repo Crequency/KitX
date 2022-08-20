@@ -10,18 +10,6 @@
              Margin="10,5,10,5">
     <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False">
         <DockPanel Margin="0,10,10,10">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                <Image Width="40" Height="40" Source="{Binding IconDisplay}"/>
-                <TextBlock Margin="30,0,0,0" VerticalAlignment="Center" Text="TestPlugin"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold" FontSize="24"/>
-                
-                <TextBlock Margin="30,0,0,0" VerticalAlignment="Center" Text="作者:"/>
-                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="Dynesshely"/>
-                <TextBlock Margin="30,0,0,0" VerticalAlignment="Center" Text="版本:"/>
-                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="v1.0.0"/>
-            </StackPanel>
-
             <Button Content="{DynamicResource Text_PluginBar_Launch}"
                     DockPanel.Dock="Right" Command="{Binding LaunchCommand}"
                     FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
@@ -49,7 +37,43 @@
                 </ui:Button.Flyout>
             </ui:Button>
 
-            <Border/>
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" Grid.Column="0"
+                            HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <Image Width="40" Height="40" Stretch="UniformToFill" Source="{Binding IconDisplay}"
+                           VerticalAlignment="Center"/>
+                    <TextBlock Margin="15,0,0,0" VerticalAlignment="Center"
+                               Text="{Binding DisplayName}"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold" FontSize="24"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Grid.Column="1">
+                    <TextBlock Margin="20,0,0,0" VerticalAlignment="Center"
+                               Text="{DynamicResource Text_PluginBar_AuthorName}"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold"/>
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding AuthorName}"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Grid.Column="2">
+                    <TextBlock Margin="30,0,0,0" VerticalAlignment="Center"
+                               Text="{DynamicResource Text_PluginBar_Version}"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold"/>
+                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding Version}"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
         </DockPanel>
     </ui:InfoBar>
 </UserControl>

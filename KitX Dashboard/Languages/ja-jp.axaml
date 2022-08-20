@@ -87,6 +87,21 @@
     <x:String x:Key="Text_PluginBar_Remove">削除する</x:String>
     <x:String x:Key="Text_PluginBar_RemoveAndDelete">削除して破壊する</x:String>
 
+    <x:String x:Key="Text_PluginBar_Name">内部名:</x:String>
+    <x:String x:Key="Text_PluginBar_Version">バージョン：</x:String>
+    <x:String x:Key="Text_PluginBar_DisplayName">番組名:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorName">著者：</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherName">出版社:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorLink">著者リンク:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherLink">発行者リンク:</x:String>
+    <x:String x:Key="Text_PluginBar_PublishDate">発売日：</x:String>
+    <x:String x:Key="Text_PluginBar_LastUpdateDate">最終更新日:</x:String>
+    <x:String x:Key="Text_PluginBar_IsMarketVersion">それは市場のバージョンですか：</x:String>
+    <x:String x:Key="Text_PluginBar_SimpleDescription">概要：</x:String>
+    <x:String x:Key="Text_PluginBar_ComplexDescription">説明：</x:String>
+    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">ドキュメンテーション：</x:String>
+    <x:String x:Key="Text_PluginBar_RootStartupFileName">ルートファイル名の開始:</x:String>
+
 
     <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
     <x:String x:Key="Text_Device_This">この装置</x:String>

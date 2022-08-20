@@ -87,6 +87,21 @@
     <x:String x:Key="Text_PluginBar_Remove">移除</x:String>
     <x:String x:Key="Text_PluginBar_RemoveAndDelete">移除并刪除</x:String>
 
+    <x:String x:Key="Text_PluginBar_Name">内部名稱:</x:String>
+    <x:String x:Key="Text_PluginBar_Version">版本:</x:String>
+    <x:String x:Key="Text_PluginBar_DisplayName">顯示名稱:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorName">作者:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherName">發行商:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorLink">作者鏈接:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherLink">發行商鏈接:</x:String>
+    <x:String x:Key="Text_PluginBar_PublishDate">發行日期:</x:String>
+    <x:String x:Key="Text_PluginBar_LastUpdateDate">最後更新日期:</x:String>
+    <x:String x:Key="Text_PluginBar_IsMarketVersion">是否是市場版本:</x:String>
+    <x:String x:Key="Text_PluginBar_SimpleDescription">概述:</x:String>
+    <x:String x:Key="Text_PluginBar_ComplexDescription">描述:</x:String>
+    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">文檔:</x:String>
+    <x:String x:Key="Text_PluginBar_RootStartupFileName">起始根文件名:</x:String>
+
 
     <x:String x:Key="Text_Device_No">網路中空無一物</x:String>
     <x:String x:Key="Text_Device_This">本機</x:String>

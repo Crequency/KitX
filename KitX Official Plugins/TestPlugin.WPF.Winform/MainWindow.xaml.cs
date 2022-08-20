@@ -1,5 +1,6 @@
 ﻿using KitX.Contract.CSharp;
 using System;
+using System.Collections.Generic;
 using System.Windows;
 
 namespace TestPlugin.WPF.Winform
@@ -35,7 +36,13 @@ namespace TestPlugin.WPF.Winform
         /// 获取显示名称
         /// </summary>
         /// <returns>显示名称</returns>
-        public string GetDisplayName() => "显示名称";
+        public Dictionary<string, string> GetDisplayName() => new Dictionary<string, string>()
+        {
+            { "zh-cn", "显示名称" },
+            { "zh-cnt", "顯示名稱" },
+            { "en-us", "Display Name" },
+            { "ja-jp", "番組名" }
+        };
 
         /// <summary>
         /// 获取作者名称

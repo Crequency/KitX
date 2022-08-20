@@ -38,9 +38,6 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="KitX.Contract.CSharp, Version=22.4.6242.1132, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\KitX.Contract.CSharp.22.4.6242.1132\lib\net40\KitX.Contract.CSharp.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Data" />
@@ -91,6 +88,12 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj">
+      <Project>{c1a05e25-8dba-4ca4-88d5-e28d69b76d13}</Project>
+      <Name>KitX.Contract.CSharp</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
