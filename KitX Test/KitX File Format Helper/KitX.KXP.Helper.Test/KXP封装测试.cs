@@ -33,7 +33,12 @@ namespace KitX.KXP.Helper.Test
                     AuthorLink = "AuthorLink",
                     AuthorName = "AuthorName",
                     ComplexDescription = "ComplexDescription",
-                    DisplayName = "DisplayName",
+                    DisplayName = new()
+                    {
+                        { "zh-cn", "显示名称" },
+                        { "zh-cnt", "顯示名稱" },
+                        { "en-us", "DisplayName" },
+                    },
                     Functions = new()
                     {
                         FunctionsDisplayName = new()
@@ -72,7 +77,7 @@ namespace KitX.KXP.Helper.Test
                             }
                         }
                     },
-                    IconInBase64 = "IconInBase64",
+                    IconInBase64 = "图标",
                     IsMarketVersion = false,
                     LastUpdateDate = DateTime.Now,
                     Name = "Name",

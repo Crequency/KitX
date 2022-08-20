@@ -12,7 +12,7 @@ namespace KitX.Web.Rules
 
         public string Version { get; set; }
 
-        public string DisplayName { get; set; }
+        public Dictionary<string, string> DisplayName { get; set; }
 
         public string AuthorName { get; set; }
 
