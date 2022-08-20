@@ -127,7 +127,7 @@ namespace KitX_Dashboard
             else LoadConfig();
             if (!File.Exists(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)))
                 SavePluginsListConfig();
-            else SavePluginsListConfig();
+            else LoadPluginsListConfig();
         }
 
         /// <summary>
