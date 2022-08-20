@@ -1,4 +1,5 @@
-﻿using BasicHelper.IO;
+﻿using Avalonia.Threading;
+using BasicHelper.IO;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Views;
 using System;
@@ -75,9 +76,12 @@ namespace KitX_Dashboard.Services
 
                 if (unreads.Count > 0)
                 {
-                    var toast = new AnnouncementsWindow();
-                    toast.UpdateSource(src, readed);
-                    toast.Show();
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        var toast = new AnnouncementsWindow();
+                        toast.UpdateSource(src, readed);
+                        toast.Show();
+                    });
                 }
             }
 
