@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="KitX.Contract.CSharp" Version="22.4.6241.948" />
+    <PackageReference Include="KitX.Contract.CSharp" Version="22.4.6244.143" />
   </ItemGroup>
 
   <ItemGroup>
