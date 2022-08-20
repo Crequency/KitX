@@ -87,6 +87,21 @@
     <x:String x:Key="Text_PluginBar_Remove">Remove</x:String>
     <x:String x:Key="Text_PluginBar_RemoveAndDelete">Remove and Delete</x:String>
 
+    <x:String x:Key="Text_PluginBar_Name">Internal Name:</x:String>
+    <x:String x:Key="Text_PluginBar_Version">Version:</x:String>
+    <x:String x:Key="Text_PluginBar_DisplayName">Display Name:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorName">Author:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherName">Publisher:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorLink">Author Link:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherLink">Publisher Link:</x:String>
+    <x:String x:Key="Text_PluginBar_PublishDate">Publish Date:</x:String>
+    <x:String x:Key="Text_PluginBar_LastUpdateDate">Last Update Date:</x:String>
+    <x:String x:Key="Text_PluginBar_IsMarketVersion">Is Market Version:</x:String>
+    <x:String x:Key="Text_PluginBar_SimpleDescription">Simple Description:</x:String>
+    <x:String x:Key="Text_PluginBar_ComplexDescription">Complex Description:</x:String>
+    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">Docs:</x:String>
+    <x:String x:Key="Text_PluginBar_RootStartupFileName">Root Startup File Name:</x:String>
+
 
     <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
     <x:String x:Key="Text_Device_This">This Device</x:String>
