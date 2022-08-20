@@ -77,7 +77,7 @@ namespace KitX.KXP.Helper.Test
                             }
                         }
                     },
-                    IconInBase64 = "Í¼±ê",
+                    IconInBase64 = "IconInBase64",
                     IsMarketVersion = false,
                     LastUpdateDate = DateTime.Now,
                     Name = "Name",
