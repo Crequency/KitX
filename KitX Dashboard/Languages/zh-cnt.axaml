@@ -13,6 +13,8 @@
     <x:String x:Key="Text_Public_Announcement">公告</x:String>
     <x:String x:Key="Text_Public_Import">導入</x:String>
     <x:String x:Key="Text_Public_Export">導出</x:String>
+    <x:String x:Key="Text_Public_Exit">退出</x:String>
+    <x:String x:Key="Text_Public_ShowMainWindow">顯示主窗口</x:String>
 
 
     <!--GreetingStart-->

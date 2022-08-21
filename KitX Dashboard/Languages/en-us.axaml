@@ -13,6 +13,8 @@
     <x:String x:Key="Text_Public_Announcement">Announcement</x:String>
     <x:String x:Key="Text_Public_Import">Import</x:String>
     <x:String x:Key="Text_Public_Export">Export</x:String>
+    <x:String x:Key="Text_Public_Exit">Exit</x:String>
+    <x:String x:Key="Text_Public_ShowMainWindow">Show Main Window</x:String>
 
 
     <!--GreetingStart-->
