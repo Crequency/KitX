@@ -14,6 +14,8 @@
 
         internal const string KXPTempReleasePath = "Temp/";
 
+        internal const string IconFilePath = $"{AssetsPath}KitX-Icon.png";
+
         internal const string ConfigFilePath = $"{ConfigPath}config.json";
 
         internal const string PluginsDataBaseFilePath = $"{DataBasePath}plugins.db";
@@ -25,6 +27,8 @@
         internal static int ServerPortNumber = 0;
 
         internal static bool Running = true;
+
+        internal static bool Exiting = false;
 
         internal static bool IsMainMachine = false;
 
