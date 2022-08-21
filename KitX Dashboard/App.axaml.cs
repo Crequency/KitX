@@ -11,6 +11,7 @@ using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
 using System.Linq;
+using System.Threading;
 
 #pragma warning disable CS8604 // 引用类型参数可能为 null。
 
@@ -56,7 +57,7 @@ namespace KitX_Dashboard
             EventHandlers.Invoke("LanguageChanged");
         }
 
-        public override async void OnFrameworkInitializationCompleted()
+        public override void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
@@ -70,7 +71,10 @@ namespace KitX_Dashboard
             Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 
             if (Program.GlobalConfig.App.ShowAnnouncementWhenStart)
-                await Services.AnouncementManager.CheckNewAnnouncements();
+                new Thread(async () =>
+                {
+                    await Services.AnouncementManager.CheckNewAnnouncements();
+                }).Start();
 
             base.OnFrameworkInitializationCompleted();
         }

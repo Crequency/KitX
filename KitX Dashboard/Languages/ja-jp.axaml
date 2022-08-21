@@ -13,6 +13,8 @@
     <x:String x:Key="Text_Public_Announcement">発表</x:String>
     <x:String x:Key="Text_Public_Import">輸入</x:String>
     <x:String x:Key="Text_Public_Export">書き出す</x:String>
+    <x:String x:Key="Text_Public_Exit">終了する</x:String>
+    <x:String x:Key="Text_Public_ShowMainWindow">メインウィンドウを表示</x:String>
 
 
     <!--GreetingStart-->

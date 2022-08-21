@@ -21,6 +21,24 @@
         <ResourceDictionary>
             <x:String x:Key="GreetingText">Hello, World!</x:String>
             <Window x:Key="MainWindow"></Window>
+
+            <TrayIcon x:Key="TrayIcon" IsVisible="True"
+                      Icon="resm:KitX_Dashboard.Assets.KitX-Icon-256x.ico"
+                      ToolTipText="{DynamicResource Text_MainWindow_Title}"
+                      Command="{Binding TrayIconClickedCommand}"
+                      CommandParameter="{DynamicResource MainWindow}">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="{DynamicResource Text_Public_ShowMainWindow}"
+                                        Command="{Binding TrayIconClickedCommand}"
+                                        CommandParameter="{DynamicResource MainWindow}"/>
+                        <NativeMenuItemSeperator/>
+                        <NativeMenuItem Header="{DynamicResource Text_Public_Exit}"
+                                        Command="{Binding ExitCommand}"
+                                        CommandParameter="{DynamicResource MainWindow}"/>
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -126,7 +144,7 @@
         </ui:NavigationView>
 
         <Grid Margin="25" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-            
+
         </Grid>
 
     </Grid>
