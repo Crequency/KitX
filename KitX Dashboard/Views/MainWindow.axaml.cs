@@ -9,7 +9,9 @@ using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Converters;
+using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using KitX_Dashboard.ViewModels;
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -24,15 +26,19 @@ namespace KitX_Dashboard.Views
 {
     public partial class MainWindow : CoreWindow
     {
+        private readonly MainWindowViewModel viewModel = new();
+
         /// <summary>
         /// 主窗体的构造函数
         /// </summary>
         public MainWindow()
         {
-
             InitializeComponent();
 
             Resources["MainWindow"] = this;
+            //(Resources["TrayIcon"] as TrayIcon).CommandParameter = this;
+
+            DataContext = viewModel;
 
             // 设置窗体坐标
 
@@ -214,6 +220,16 @@ namespace KitX_Dashboard.Views
             base.OnClosing(e);
 
             SaveMetaData();
+
+            if (!GlobalInfo.Exiting)
+            {
+                e.Cancel = true;
+                Hide();
+            }
+            else
+            {
+                (Resources["TrayIcon"] as TrayIcon)?.Dispose();
+            }
         }
 
         /// <summary>
