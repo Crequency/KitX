@@ -43,6 +43,7 @@
         <AvaloniaResource Remove="Assets\KitX-Icon-32x.ico" />
         <AvaloniaResource Remove="Assets\KitX-Icon-48x.ico" />
         <AvaloniaResource Remove="Assets\KitX-Icon-64x.ico" />
+        <AvaloniaResource Remove="Assets\KitX-Icon.png" />
         <AvaloniaResource Remove="Assets\KitX.Base64.txt" />
         <AvaloniaResource Remove="Assets\ThirdPartLicense.md" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
@@ -134,6 +135,9 @@
         </None>
         <None Update="Assets\KitX-Background.png">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Assets\KitX-Icon.png">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <AvaloniaResource Update="Assets\KitX.png">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
