@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta xhr-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="imgs/KitX-Icon-64x.ico" type="image/x-icon" />
+    <title>KitX</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+</head>
+
+<body class="mdui-drawer-body-left mdui-appbar-with-toolbar mdui-theme-primary-indigo mdui-theme-accent-pink">
+    <header class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <a mdui-drawer="{target: '#left-drawer'}" class="mdui-btn mdui-btn-icon">
+                <i class="mdui-icon material-icons">menu</i>
+            </a>
+            <span class="mdui-typo-title">KitX</span>
+            <div class="mdui-toolbar-spacer"></div>
+            <a class="mdui-btn mdui-btn-icon" mdui-tooltip="{content: '关于', position: 'bottom'}"
+                mdui-dialog="{target: '#aboutDialog'}"><i class="mdui-icon material-icons">&#xe88e;</i></a>
+
+        </div>
+    </header>
+    <div class="mdui-dialog" id="aboutDialog">
+        <div class="mdui-dialog-title">关于</div>
+        <div class="mdui-dialog-content">
+            <div class="mdui-typo">
+                <a href="https://github.com/Crequency">作者Github主页</a>
+            </div>
+        </div>
+        <div class="mdui-dialog-actions">
+            <button class="mdui-btn mdui-ripple" mdui-dialog-close>关闭</button>
+        </div>
+    </div>
+    <div id="left-drawer" class="mdui-drawer">
+        <ul class="mdui-list">
+            <a href="/index.html">
+                <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons" aria-hidden="true">home</i>
+                    <span class="mdui-list-item-content">首页</span>
+                </li>
+            </a>
+            <a href="/download.html">
+                <li class="mdui-list-item mdui-ripple">
+                    <i class="mdui-list-item-icon mdui-icon material-icons" aria-hidden="true">file_download</i>
+                    <span class="mdui-list-item-content">下载</span>
+                </li>
+            </a>
+        </ul>
+    </div>
+    <div class="mdui-container">
+        <div class="mdui-typo">
+            <h1>🚧🚧🚧暂未发布🚧🚧🚧</h1>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+</body>
+
+</html>
