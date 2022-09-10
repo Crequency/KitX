@@ -1,6 +1,7 @@
 using KitX_Website.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Toolbelt.Blazor.Extensions.DependencyInjection;
 
 namespace KitX_Website
 {
@@ -13,6 +14,7 @@ namespace KitX_Website
             // Add services to the container.
             builder.Services.AddRazorPages();
             builder.Services.AddServerSideBlazor();
+            builder.Services.AddI18nText();     //  ∂‡”Ô—‘øÚº‹
             //builder.Services.AddLocalization();
             builder.Services.AddSingleton<WeatherForecastService>();
 

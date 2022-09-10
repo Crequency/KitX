@@ -1,11 +1,12 @@
-﻿@page "/fetchdata"
+﻿@page "/plugins"
+@inject Toolbelt.Blazor.I18nText.I18nText I18nText
 
-<PageTitle>Weather forecast</PageTitle>
+<PageTitle>@Text["Page_Title_PluginsMarketplace"]</PageTitle>
 
 @using KitX_Website.Data
 @inject WeatherForecastService ForecastService
 
-<h1>Weather forecast</h1>
+<h1>Plugins</h1>
 
 <p>This component demonstrates fetching data from a service.</p>
 
@@ -41,8 +42,11 @@ else
 @code {
     private WeatherForecast[]? forecasts;
 
+    I18nText.Text Text = new I18nText.Text();
+
     protected override async Task OnInitializedAsync()
     {
         forecasts = await ForecastService.GetForecastAsync(DateTime.Now);
+        Text = await I18nText.GetTextTableAsync<I18nText.Text>(this);
     }
 }

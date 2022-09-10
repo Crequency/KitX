@@ -1,0 +1,26 @@
+﻿@page "/download"
+@inject Toolbelt.Blazor.I18nText.I18nText I18nText
+
+<PageTitle>@Text["Page_Title_Download"]</PageTitle>
+
+<h1>Download</h1>
+
+<p role="status">Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+    }
+
+    I18nText.Text Text = new I18nText.Text();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Text = await I18nText.GetTextTableAsync<I18nText.Text>(this);
+    }
+}
