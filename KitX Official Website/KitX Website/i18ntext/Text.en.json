@@ -4,5 +4,8 @@
     "KitX_Descr": "A universal plug-in toolbox, your data flow center!",
     "Page_Home": "Home",
     "Page_Download": "Download",
-    "Page_PluginsMarketplace": "Plugins Marketplace"
+    "Page_PluginsMarketplace": "Plugins Marketplace",
+    "Page_Title_Home": "KitX | Home",
+    "Page_Title_Download": "KitX | Download",
+    "Page_Title_PluginsMarketplace": "KitX | Plugins Marketplace"
 }
