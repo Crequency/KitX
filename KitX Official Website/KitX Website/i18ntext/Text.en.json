@@ -1,7 +1,12 @@
 {
     "Site_Title": "KitX - Universal Toolbox",
+    "Site_NotFound_Title": "KitX | 404 Not Found",
+    "Site_NotFound_Tip": "Sorry, there's nothing at this address.",
     "KitX_Name": "KitX",
     "KitX_Descr": "A universal plug-in toolbox, your data flow center!",
+    "Nav_Docs": "Docs",
+    "Nav_BiliBili": "BiliBili",
+    "Nav_GitHub": "GitHub",
     "Page_Home": "Home",
     "Page_Download": "Download",
     "Page_PluginsMarketplace": "Plugins Marketplace",

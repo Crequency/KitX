@@ -1,7 +1,12 @@
 {
     "Site_Title": "KitX - 万用工具箱",
+    "Site_NotFound_Title": "KitX | 404 找不到页面",
+    "Site_NotFound_Tip": "抱歉, 您访问的这个网址好像什么都没有哦~",
     "KitX_Name": "KitX",
     "KitX_Descr": "一个万用的插件化工具箱, 你的数据流转中心",
+    "Nav_Docs": "文档",
+    "Nav_BiliBili": "哔哩哔哩",
+    "Nav_GitHub": "GitHub",
     "Page_Home": "主页",
     "Page_Download": "下载",
     "Page_PluginsMarketplace": "插件市场",

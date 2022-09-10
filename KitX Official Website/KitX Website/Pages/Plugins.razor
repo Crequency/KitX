@@ -6,11 +6,11 @@
 @using KitX_Website.Data
 @inject WeatherForecastService ForecastService
 
-<h1>Plugins</h1>
+<h1>@Text["Page_PluginsMarketplace"]</h1>
 
-<p>This component demonstrates fetching data from a service.</p>
+@*<p>This component demonstrates fetching data from a service.</p>*@
 
-@if (forecasts == null)
+@*@if (forecasts == null)
 {
     <p><em>Loading...</em></p>
 }
@@ -37,7 +37,7 @@ else
             }
         </tbody>
     </table>
-}
+}*@
 
 @code {
     private WeatherForecast[]? forecasts;
