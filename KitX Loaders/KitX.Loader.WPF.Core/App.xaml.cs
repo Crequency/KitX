@@ -88,7 +88,8 @@ namespace KitX.Loader.WPF.Core
                 PublishDate = identity.GetPublishDate(),
                 LastUpdateDate = identity.GetLastUpdateDate(),
                 IsMarketVersion = identity.IsMarketVersion(),
-                Tags = new()
+                Tags = new(),
+                Functions = identity.GetController().GetFunctions(),
             };
         }
 

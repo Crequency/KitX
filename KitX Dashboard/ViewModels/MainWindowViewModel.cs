@@ -25,6 +25,11 @@ namespace KitX_Dashboard.ViewModels
         {
             MainWindow? win = mainWindow as MainWindow;
             win?.Show();
+            //if (win != null)
+            //{
+            //    win.Topmost = true;
+            //    win.Topmost = false;
+            //}
             win?.Activate();
         }
 

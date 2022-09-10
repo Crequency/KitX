@@ -38,4 +38,8 @@
         </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
+    </ItemGroup>
+
 </Project>
