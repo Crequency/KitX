@@ -88,6 +88,8 @@ namespace KitX_Dashboard
 
                 #endregion
 
+                GlobalConfig.App.RanTime++;
+
                 #region 进入应用生命周期循环
 
                 BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

@@ -60,6 +60,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public bool ShowAnnouncementWhenStart { get; set; } = true;
+
+            [JsonInclude]
+            public ulong RanTime { get; set; } = 0;
         }
 
         /// <summary>
