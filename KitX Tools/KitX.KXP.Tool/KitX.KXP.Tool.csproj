@@ -1,10 +1,20 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <BaseOutputPath>..\..\KitX Build\Tools\KXP\</BaseOutputPath>
+        <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Tools\KXP\</BaseIntermediateOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="KitX.KXP.Helper" Version="22.4.6244.143" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\KitX File Format Helper\KitX.KXP.Helper\KitX.KXP.Helper.csproj" />
+    </ItemGroup>
 
 </Project>
