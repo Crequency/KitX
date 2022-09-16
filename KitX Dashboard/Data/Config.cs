@@ -63,6 +63,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public ulong RanTime { get; set; } = 0;
+
+            [JsonInclude]
+            public string IPFilter { get; set; } = "192.168";
         }
 
         /// <summary>
