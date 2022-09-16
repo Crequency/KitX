@@ -203,6 +203,15 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static int WebServerPort => GlobalInfo.ServerPortNumber;
 
         /// <summary>
+        /// 本机IP地址过滤规则
+        /// </summary>
+        internal static string LocalIPFilter
+        {
+            get => Program.GlobalConfig.App.IPFilter;
+            set => Program.GlobalConfig.App.IPFilter = value;
+        }
+
+        /// <summary>
         /// 招呼语更新延迟
         /// </summary>
         internal static int GreetingTextUpdateInterval
