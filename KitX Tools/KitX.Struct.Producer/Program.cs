@@ -9,6 +9,8 @@ using KitX.Web.Rules;
 using System.Text;
 using System.Text.Json;
 
+#region 定义一些小功能
+
 //  读一行, 保证无空值
 var read = () =>
 {
@@ -124,6 +126,10 @@ var askList4OperatingSystems = () =>
     return oss;
 };
 
+#endregion
+
+#region 主流程逻辑
+
 //  选择模板
 Console.WriteLine("Choose template: ");
 Console.WriteLine("1. PluginStruct");       //  插件结构
@@ -144,6 +150,8 @@ while (true)
     {
         switch (choose)
         {
+            #region PluginStruct
+
             case 1:
                 new Action(async () =>
                 {
@@ -171,14 +179,19 @@ while (true)
                     string jsonConverted = JsonSerializer.Serialize(pluginStruct);
 
                     //  等待输入一个路径
-                    string dirTip = "Input a path to store output file: ", errTip = "Illegal path!", inputDir;
-                    ask4Dir(dirTip, errTip, out inputDir);
+                    string dirTip = "Input a path to store output file: ", errTip = "Illegal path!";
+                    ask4Dir(dirTip, errTip, out string inputDir);
 
                     //  将 json 格式文本写入文件
                     await File.WriteAllTextAsync(Path.GetFullPath($"{inputDir}/PluginStruct.json"),
                         jsonConverted);
                 }).Invoke();
                 break;
+
+            #endregion
+
+            #region LoaderStruct
+
             case 2:
                 new Action(async () =>
                 {
@@ -197,18 +210,19 @@ while (true)
                     string jsonConverted = JsonSerializer.Serialize(loaderStruct);
 
                     //  等待输入一个路径
-                    string dirTip = "Input a path to store output file: ", errTip = "Illegal path!", inputDir;
-                    ask4Dir(dirTip, errTip, out inputDir);
+                    string dirTip = "Input a path to store output file: ", errTip = "Illegal path!";
+                    ask4Dir(dirTip, errTip, out string inputDir);
 
                     //  将 json 格式文本写入文件
                     await File.WriteAllTextAsync(Path.GetFullPath($"{inputDir}/LoaderStruct.json"),
                         jsonConverted);
                 }).Invoke();
                 break;
+
+            #endregion
         }
     }
 }
 
+#endregion
 
-
- 
