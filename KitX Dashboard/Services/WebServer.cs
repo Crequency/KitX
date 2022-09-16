@@ -261,6 +261,18 @@ namespace KitX_Dashboard.Services
         }
 
         /// <summary>
+        /// 将 IPv4 的十进制表示按点分制拆分
+        /// </summary>
+        /// <param name="ip">IPv4 的十进制表示</param>
+        /// <returns>拆分</returns>
+        private static (int, int, int, int) IPv4_2_4Parts(string ip)
+        {
+            string[] p = ip.Split('.');
+            int a = int.Parse(p[0]), b = int.Parse(p[1]), c = int.Parse(p[2]), d = int.Parse(p[3]);
+            return (a, b, c, d);
+        }
+
+        /// <summary>
         /// 获取设备信息
         /// </summary>
         /// <returns>设备信息结构体</returns>
@@ -280,7 +292,12 @@ namespace KitX_Dashboard.Services
                 IPv4 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
                         where ip.AddressFamily == AddressFamily.InterNetwork
                             && !ip.ToString().Equals("127.0.0.1")
-                            && ip.ToString().StartsWith("192.168")
+                            && (ip.ToString().StartsWith("192.168")                 //  192.168.x.x
+                                || ip.ToString().StartsWith("10")                   //  10.x.x.x
+                                || (IPv4_2_4Parts(ip.ToString()).Item1 == 172       //  172.16-31.x.x
+                                    && IPv4_2_4Parts(ip.ToString()).Item2 >= 16
+                                    && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
+                            && ip.ToString().StartsWith(Program.GlobalConfig.App.IPFilter)  //  满足自定义规则
                         select ip).First().ToString(),
                 IPv6 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
                         where ip.AddressFamily == AddressFamily.InterNetworkV6
