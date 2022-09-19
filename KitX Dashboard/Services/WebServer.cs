@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Timers;
 
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -29,7 +30,6 @@ namespace KitX_Dashboard.Services
                 DevicesManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemoveOrDelete();
-                MultiDevicesBoradCastInit();
                 MultiDevicesBroadCastSend();
                 MultiDevicesBroadCastReceive();
             }).Start();
@@ -185,24 +185,15 @@ namespace KitX_Dashboard.Services
             }
         }
 
-        private static readonly UdpClient udp
-            = new(Program.GlobalConfig.App.UDPSendReceivePort);
-
-        /// <summary>
-        /// 初始化多设备组播
-        /// </summary>
-        public static void MultiDevicesBoradCastInit()
-        {
-            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-        }
-
         /// <summary>
         /// 多设备广播发送方法
         /// </summary>
         public static void MultiDevicesBroadCastSend()
         {
+            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend);
+            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPSendReceivePort);
+                Program.GlobalConfig.App.UDPPortReceive);
             System.Timers.Timer timer = new()
             {
                 Interval = 2000,
@@ -212,10 +203,9 @@ namespace KitX_Dashboard.Services
             {
                 try
                 {
-                    DeviceInfoStruct deviceInfo = GetDeviceInfo();
-                    string sendText = JsonSerializer.Serialize(deviceInfo);
+                    string sendText = JsonSerializer.Serialize(GetDeviceInfo());
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
-                    udp.Send(sendBytes, sendBytes.Length, multicast);
+                    udpClient.Send(sendBytes, sendBytes.Length, multicast);
                 }
                 catch (Exception e)
                 {
@@ -224,7 +214,7 @@ namespace KitX_Dashboard.Services
                 }
                 if (!GlobalInfo.Running)
                 {
-                    udp.Close();
+                    udpClient.Close();
 
                     timer.Stop();
                     timer.Dispose();
@@ -238,20 +228,23 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastReceive()
         {
+            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive);
+            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPSendReceivePort);
+                Program.GlobalConfig.App.UDPPortSend);
             new Thread(async () =>
             {
                 try
                 {
                     while (GlobalInfo.Running)
                     {
-                        byte[] bytes = udp.Receive(ref multicast);
+                        byte[] bytes = udpClient.Receive(ref multicast);
                         string result = Encoding.UTF8.GetString(bytes);
                         await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}");
                         DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
                         DevicesManager.Update(deviceInfo);
                     }
+                    udpClient.Close();
                 }
                 catch (Exception e)
                 {
@@ -273,41 +266,50 @@ namespace KitX_Dashboard.Services
         }
 
         /// <summary>
+        /// 获取本机内网 IPv4 地址
+        /// </summary>
+        /// <returns>使用点分十进制表示法的本机内网IPv4地址</returns>
+        private static string GetInterNetworkIPv4()
+        {
+            return (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
+                    where ip.AddressFamily == AddressFamily.InterNetwork
+                        && !ip.ToString().Equals("127.0.0.1")
+                        && (ip.ToString().StartsWith("192.168")                         //  192.168.x.x
+                            || ip.ToString().StartsWith("10")                           //  10.x.x.x
+                            || (IPv4_2_4Parts(ip.ToString()).Item1 == 172               //  172.16-31.x.x
+                                && IPv4_2_4Parts(ip.ToString()).Item2 >= 16
+                                && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
+                        && ip.ToString().StartsWith(Program.GlobalConfig.App.IPFilter)  //  满足自定义规则
+                    select ip).First().ToString();
+        }
+
+        /// <summary>
         /// 获取设备信息
         /// </summary>
         /// <returns>设备信息结构体</returns>
-        private static DeviceInfoStruct GetDeviceInfo()
+        private static DeviceInfoStruct GetDeviceInfo() => new()
         {
-            return new()
-            {
-                DeviceName = Environment.MachineName,
-                DeviceMacAddress = NetworkInterface.GetAllNetworkInterfaces()
+            DeviceName = Environment.MachineName,
+            DeviceMacAddress = NetworkInterface.GetAllNetworkInterfaces()
                 .Where(nic => nic.OperationalStatus == OperationalStatus.Up
                     && nic.NetworkInterfaceType != NetworkInterfaceType.Loopback)
                 .Select(nic => nic.GetPhysicalAddress().ToString()).FirstOrDefault(),
-                IsMainDevice = GlobalInfo.IsMainMachine,
-                SendTime = DateTime.Now,
-                DeviceOSType = OperatingSystem2Enum.GetOSType(),
-                DeviceOSVersion = Environment.OSVersion.VersionString,
-                IPv4 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
-                        where ip.AddressFamily == AddressFamily.InterNetwork
-                            && !ip.ToString().Equals("127.0.0.1")
-                            && (ip.ToString().StartsWith("192.168")                 //  192.168.x.x
-                                || ip.ToString().StartsWith("10")                   //  10.x.x.x
-                                || (IPv4_2_4Parts(ip.ToString()).Item1 == 172       //  172.16-31.x.x
-                                    && IPv4_2_4Parts(ip.ToString()).Item2 >= 16
-                                    && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
-                            && ip.ToString().StartsWith(Program.GlobalConfig.App.IPFilter)  //  满足自定义规则
-                        select ip).First().ToString(),
-                IPv6 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
-                        where ip.AddressFamily == AddressFamily.InterNetworkV6
-                            && !ip.ToString().Equals("::1")
-                        select ip).First().ToString(),
-                ServingPort = GlobalInfo.ServerPortNumber,
-                PluginsCount = Program.PluginCards.Count,
-            };
-        }
+            IsMainDevice = GlobalInfo.IsMainMachine,
+            SendTime = DateTime.Now,
+            DeviceOSType = OperatingSystem2Enum.GetOSType(),
+            DeviceOSVersion = Environment.OSVersion.VersionString,
+            IPv4 = GetInterNetworkIPv4(),
+            IPv6 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
+                    where ip.AddressFamily == AddressFamily.InterNetworkV6
+                        && !ip.ToString().Equals("::1")
+                    select ip).First().ToString(),
+            ServingPort = GlobalInfo.ServerPortNumber,
+            PluginsCount = Program.PluginCards.Count,
+        };
 
+        /// <summary>
+        /// 释放资源
+        /// </summary>
         public void Dispose()
         {
             keepListen = false;
