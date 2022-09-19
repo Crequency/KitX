@@ -23,7 +23,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         internal string Version => pluginStruct.Version;
 
-        internal string SimpleDescription => pluginStruct.SimpleDescription;
+        internal string SimpleDescription => pluginStruct.SimpleDescription.ContainsKey(
+            Program.GlobalConfig.App.AppLanguage)
+            ? pluginStruct.SimpleDescription[Program.GlobalConfig.App.AppLanguage]
+            : string.Empty;
 
         internal string IconInBase64 => pluginStruct.IconInBase64;
 

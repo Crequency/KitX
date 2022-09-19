@@ -53,19 +53,19 @@ namespace KitX.Contract.CSharp
         /// 获取简单描述
         /// </summary>
         /// <returns>简单描述</returns>
-        string GetSimpleDescription();
+        Dictionary<string, string> GetSimpleDescription();
 
         /// <summary>
         /// 获取复杂描述
         /// </summary>
         /// <returns>复杂描述</returns>
-        string GetComplexDescription();
+        Dictionary<string, string> GetComplexDescription();
 
         /// <summary>
         /// 获取 MarkDown 语法的完整介绍
         /// </summary>
         /// <returns>完整介绍</returns>
-        string GetTotalDescriptionInMarkdown();
+        Dictionary<string, string> GetTotalDescriptionInMarkdown();
 
         /// <summary>
         /// 获取 Base64 编码的图标

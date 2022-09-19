@@ -74,19 +74,37 @@ namespace TestPlugin.WPF.Core
         /// 获取简单描述
         /// </summary>
         /// <returns>简单描述</returns>
-        public string GetSimpleDescription() => "简单描述";
+        public Dictionary<string, string> GetSimpleDescription() => new()
+        {
+            { "zh-cn", "简单描述" },
+            { "zh-cnt", "簡單描述" },
+            { "en-us", "Simple Description" },
+            { "ja-jp", "簡単な説明" }
+        };
 
         /// <summary>
         /// 获取复杂描述
         /// </summary>
         /// <returns>复杂描述</returns>
-        public string GetComplexDescription() => "复杂描述";
+        public Dictionary<string, string> GetComplexDescription() => new()
+        {
+            { "zh-cn", "复杂描述" },
+            { "zh-cnt", "複雜描述" },
+            { "en-us", "Complex Description" },
+            { "ja-jp", "複雑な説明" }
+        };
 
         /// <summary>
         /// 获取 MarkDown 语法的完整介绍
         /// </summary>
         /// <returns>完整介绍</returns>
-        public string GetTotalDescriptionInMarkdown() => "完整介绍";
+        public Dictionary<string, string> GetTotalDescriptionInMarkdown() => new()
+        {
+            { "zh-cn", "完整描述" },
+            { "zh-cnt", "完整描述" },
+            { "en-us", "Total Description" },
+            { "ja-jp", "完全な説明" }
+        };
 
         /// <summary>
         /// 获取 Base64 编码的图标

@@ -8,6 +8,7 @@
 using KitX.Web.Rules;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 #region 定义一些小功能
 
@@ -17,6 +18,15 @@ var read = () =>
     string? result = Console.ReadLine();
     if (result == null) return string.Empty;
     else return result;
+};
+
+//  根据字典读文件
+var readDict = (Dictionary<string, string> x) =>
+{
+    Dictionary<string, string> result = new();
+    foreach (var item in x)
+        result[item.Key] = File.ReadAllText(item.Value);
+    return result;
 };
 
 //  用另一个颜色执行操作
@@ -55,6 +65,22 @@ var ask4File = (string tip) =>
     string? input = Console.ReadLine();
     if (File.Exists(input)) return input;
     else throw new("This path not exists!");
+};
+
+//  询问一个字典
+var ask4Dict = (string tip, string subtip) =>
+{
+    Dictionary<string, string> result = new();
+    Console.Write($"{tip}: Keys (',' spilt): ");
+    string[] keys = read().Split(',');
+    for (int i = 0; i < keys.Length; i++)
+        keys[i] = keys[i].Trim();
+    foreach (var item in keys)
+    {
+        Console.Write($"{subtip} for {item}: ");
+        result[item] = read();
+    }
+    return result;
 };
 
 //  按控制台窗口宽度打印一行分隔符
@@ -126,6 +152,30 @@ var askList4OperatingSystems = () =>
     return oss;
 };
 
+//  检查字符串是否符合要求, 不符合则弹出警告
+var check = (string x, string regex) =>
+{
+    if (Regex.IsMatch(x, regex)) return x;
+    else
+    {
+        doInAnotherColor(ConsoleColor.Yellow, new(() =>
+        {
+            Console.WriteLine($"warning: input -> {x} not match pattern -> {regex}");
+        }));
+        return x;
+    }
+};
+
+var regex_link = "^[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}" +
+    "\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)$";
+
+var regex_ncu = "^[0-9a-zA-Z-_\\.]*$";
+
+var regex_0t65535 = "(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|" +
+    "655[0-2][0-9]|6553[0-5])";
+
+var regex_version = "^v0*(%re%).0*(%re%).0*(%re%)(.0*%re%)?([-a-z0-9])*$";
+
 #endregion
 
 #region 主流程逻辑
@@ -157,16 +207,16 @@ while (true)
                 {
                     PluginStruct pluginStruct = new()
                     {
-                        Name = ask("Name: "),
-                        Version = ask("Version: "),
-                        AuthorName = ask("AuthorName: "),
-                        PublisherName = ask("PublisherName: "),
-                        AuthorLink = ask("AuthorLink: "),
-                        PublisherLink = ask("PublisherLink: "),
-                        SimpleDescription = ask("SimpleDescription: "),
-                        ComplexDescription = ask("ComplexDescription: "),
-                        TotalDescriptionInMarkdown = File.ReadAllText(
-                            ask4File("TotalDescriptionMarkdown file path: ")),
+                        Name = check(ask("Name: "), regex_ncu),
+                        Version = check(ask("Version: "), regex_version.Replace("%re%", regex_0t65535)),
+                        AuthorName = check(ask("AuthorName: "), regex_ncu),
+                        PublisherName = check(ask("PublisherName: "), regex_ncu),
+                        AuthorLink = check(ask("AuthorLink: "), regex_link),
+                        PublisherLink = check(ask("PublisherLink: "), regex_link),
+                        SimpleDescription = ask4Dict("SimpleDescription: ", "descr"),
+                        ComplexDescription = ask4Dict("ComplexDescription: ", "descr"),
+                        TotalDescriptionInMarkdown = readDict(ask4Dict("TotalDescriptionInMarkdown: ",
+                            "file path")),
                         IconInBase64 = File.ReadAllText(
                             ask4File("Icon in base64 file path: ")),
                         PublishDate = DateTime.Parse(ask("PublishDate (yyyy-MM-dd): ")),
@@ -197,10 +247,10 @@ while (true)
                 {
                     LoaderStruct loaderStruct = new()
                     {
-                        LoaderName = ask("LoaderName: "),
-                        LoaderVersion = ask("LoaderVersion: "),
-                        LoaderLanguage = ask("LoaderLanguage: "),
-                        LoaderFramework = ask("LoaderFramework: "),
+                        LoaderName = check(ask("LoaderName: "), regex_ncu),
+                        LoaderVersion = check(ask("LoaderVersion: "), regex_version),
+                        LoaderLanguage = check(ask("LoaderLanguage: "), regex_ncu),
+                        LoaderFramework = check(ask("LoaderFramework: "), regex_ncu),
                         LoaderRunType = (LoaderStruct.RunType)askEnum("LoaderRunType: ",
                             typeof(LoaderStruct.RunType)),
                         SupportOS = askList4OperatingSystems()
@@ -219,7 +269,7 @@ while (true)
                 }).Invoke();
                 break;
 
-            #endregion
+                #endregion
         }
     }
 }

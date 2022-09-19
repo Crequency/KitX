@@ -32,7 +32,10 @@ namespace KitX.KXP.Helper.Test
                 {
                     AuthorLink = "AuthorLink",
                     AuthorName = "AuthorName",
-                    ComplexDescription = "ComplexDescription",
+                    ComplexDescription = new()
+                    {
+                        { "zh-cn", "ComplexDescription" }
+                    },
                     DisplayName = new()
                     {
                         { "zh-cn", "œ‘ æ√˚≥∆" },
@@ -84,9 +87,15 @@ namespace KitX.KXP.Helper.Test
                     PublishDate = DateTime.Now,
                     PublisherLink = "PublisherLink",
                     PublisherName = "PublisherName",
-                    SimpleDescription = "SimpleDescription",
+                    SimpleDescription = new()
+                    {
+                        { "zh-cn", "SimpleDescription" }
+                    },
                     Tags = new(),
-                    TotalDescriptionInMarkdown = "TotalDescriptionInMarkdown",
+                    TotalDescriptionInMarkdown = new()
+                    {
+                        { "zh-cn", "TotalDescriptionInMarkdown" }
+                    },
                     Version = "Version",
                     RootStartupFileName = "RootStartupFileName"
                 })
