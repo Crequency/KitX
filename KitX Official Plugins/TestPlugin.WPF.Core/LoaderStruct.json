@@ -4,7 +4,5 @@
     "LoaderLanguage": "CSharp",
     "LoaderFramework": "WPF.Core",
     "LoaderRunType": 2,
-    "SupportOS": [
-        10
-    ]
+    "SupportOS": [ 10 ]
 }

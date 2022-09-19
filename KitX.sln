@@ -50,7 +50,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{F9F655A9-54A3-4E3C-853F-EFA24615ED67}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
-		.gitlab-ci.yml = .gitlab-ci.yml
+		async.ps1 = async.ps1
+		async.sh = async.sh
 		branch.descr.py = branch.descr.py
 		BUSINESS-LICENSE = BUSINESS-LICENSE
 		ChangeLog.md = ChangeLog.md
@@ -119,11 +120,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestPlugin.WPF.Winform", "K
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Official Website", "KitX Official Website", "{9B3094E5-7038-4292-AEAB-B32C16232CA8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX Website", "KitX Official Website\KitX Website\KitX Website.csproj", "{28E7C367-EDC9-4B4B-AA07-C00369975ED3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX Website", "KitX Official Website\KitX Website\KitX Website.csproj", "{28E7C367-EDC9-4B4B-AA07-C00369975ED3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Tools", "KitX Tools", "{CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.KXP.Tool", "KitX Tools\KitX.KXP.Tool\KitX.KXP.Tool.csproj", "{2D914BFA-FD23-46C7-8132-782550F9AE71}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.KXP.Tool", "KitX Tools\KitX.KXP.Tool\KitX.KXP.Tool.csproj", "{2D914BFA-FD23-46C7-8132-782550F9AE71}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Struct.Producer", "KitX Tools\KitX.Struct.Producer\KitX.Struct.Producer.csproj", "{338191E6-EE63-4735-8810-51941779A5FF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -339,6 +342,18 @@ Global
 		{2D914BFA-FD23-46C7-8132-782550F9AE71}.Release|x64.Build.0 = Release|Any CPU
 		{2D914BFA-FD23-46C7-8132-782550F9AE71}.Release|x86.ActiveCfg = Release|Any CPU
 		{2D914BFA-FD23-46C7-8132-782550F9AE71}.Release|x86.Build.0 = Release|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Debug|x64.Build.0 = Debug|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Debug|x86.Build.0 = Debug|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Release|x64.ActiveCfg = Release|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Release|x64.Build.0 = Release|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Release|x86.ActiveCfg = Release|Any CPU
+		{338191E6-EE63-4735-8810-51941779A5FF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -372,6 +387,7 @@ Global
 		{B4BD67EE-8B90-408C-A0A9-D8F9B3265835} = {A8D5E38D-117C-444D-8767-D0DA823822AA}
 		{28E7C367-EDC9-4B4B-AA07-C00369975ED3} = {9B3094E5-7038-4292-AEAB-B32C16232CA8}
 		{2D914BFA-FD23-46C7-8132-782550F9AE71} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
+		{338191E6-EE63-4735-8810-51941779A5FF} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
