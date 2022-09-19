@@ -50,7 +50,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{F9F655A9-54A3-4E3C-853F-EFA24615ED67}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
-		.gitlab-ci.yml = .gitlab-ci.yml
 		async.ps1 = async.ps1
 		async.sh = async.sh
 		branch.descr.py = branch.descr.py
