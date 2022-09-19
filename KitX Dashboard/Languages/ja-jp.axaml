@@ -134,6 +134,7 @@
 
     <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">ポート</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
 
 

@@ -22,11 +22,11 @@ namespace KitX.Web.Rules
 
         public string PublisherLink { get; set; }
 
-        public string SimpleDescription { get; set; }
+        public Dictionary<string, string> SimpleDescription { get; set; }
 
-        public string ComplexDescription { get; set; }
+        public Dictionary<string, string> ComplexDescription { get; set; }
 
-        public string TotalDescriptionInMarkdown { get; set; }
+        public Dictionary<string, string> TotalDescriptionInMarkdown { get; set; }
 
         public string IconInBase64 { get; set; }
 

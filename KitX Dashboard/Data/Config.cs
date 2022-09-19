@@ -50,7 +50,10 @@ namespace KitX_Dashboard.Data
             public bool DeveloperSetting { get; set; } = false;
 
             [JsonInclude]
-            public int UDPSendReceivePort { get; set; } = 23404;
+            public int UDPPortSend { get; set; } = 23404;
+
+            [JsonInclude]
+            public int UDPPortReceive { get; set; } = 24040;
 
             [JsonInclude]
             public string APIServer { get; set; } = "api.catrol.cn";
@@ -63,6 +66,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public ulong RanTime { get; set; } = 0;
+
+            [JsonInclude]
+            public string IPFilter { get; set; } = "192.168";
         }
 
         /// <summary>
