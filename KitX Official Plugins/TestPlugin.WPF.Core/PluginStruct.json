@@ -1,0 +1,19 @@
+{
+    "Name": "TestPlugin.WPF.Core",
+    "Version": "v1.0.0",
+    "DisplayName": null,
+    "AuthorName": "Dynesshely",
+    "PublisherName": "Crequency",
+    "AuthorLink": "https://blog.catrol.cn",
+    "PublisherLink": "https://www.catrol.cn",
+    "SimpleDescription": { "zh-cn": "Plugin for test to WPF.Core" },
+    "ComplexDescription": { "zh-cn": "Plugin for test to WPF.Core" },
+    "TotalDescriptionInMarkdown": { "zh-cn": "" },
+    "IconInBase64": "",
+    "PublishDate": "2022-07-14T00:00:00",
+    "LastUpdateDate": "2022-09-20T00:00:00",
+    "IsMarketVersion": false,
+    "Tags": null,
+    "Functions": null,
+    "RootStartupFileName": "TestPlugin.WPF.Core.dll"
+}
