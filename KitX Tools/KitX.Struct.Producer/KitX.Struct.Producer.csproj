@@ -1,18 +1,36 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <BaseOutputPath>..\..\KitX Build\Tools\Struct\</BaseOutputPath>
+        <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Tools\Struct\</BaseIntermediateOutputPath>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <Version>1.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+        <Authors>Dynesshely</Authors>
+        <Company>Crequency</Company>
+        <PackageProjectUrl>https://github.com/Crequency/KitX/</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Crequency/KitX/</RepositoryUrl>
+        <PackageIcon>KitX-Background-ani.png</PackageIcon>
+        <PackAsTool>True</PackAsTool>
+        <ToolCommandName>ksmake</ToolCommandName>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="KitX.Web.Rules" Version="22.4.6244.143" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="KitX.Web.Rules" Version="22.4.6244.143" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="KitX-Background-ani.png">
+            <PackagePath>\</PackagePath>
+            <Pack>True</Pack>
+        </None>
+    </ItemGroup>
 
 </Project>

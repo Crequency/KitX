@@ -7,6 +7,16 @@
         <Nullable>enable</Nullable>
         <BaseOutputPath>..\..\KitX Build\Tools\KXP\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Tools\KXP\</BaseIntermediateOutputPath>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <Authors>Dynesshely</Authors>
+        <Company>Crequency</Company>
+        <PackageIcon>KitX-Background-ani.png</PackageIcon>
+        <PackAsTool>True</PackAsTool>
+        <ToolCommandName>kxper</ToolCommandName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Version>1.0.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2005-07-16"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+        <PackageProjectUrl>https://github.com/Crequency/KitX/</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Crequency/KitX/</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
@@ -15,6 +25,13 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\KitX File Format Helper\KitX.KXP.Helper\KitX.KXP.Helper.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="KitX-Background-ani.png">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+      </None>
     </ItemGroup>
 
 </Project>

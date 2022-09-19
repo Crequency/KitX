@@ -85,3 +85,39 @@ jobs:
           nuget push "./File Format Helper/KXP/Release/*.nupkg" -Source github -SkipDuplicate
 
           cd ".."
+
+      - name: Build and Publish `KitX.KXP.Tool`
+        if: contains(github.event.head_commit.message, '[KitX.KXP.Tool]') || contains(github.event.head_commit.message, '[All]')
+        run: |
+          cd "KitX Tools"
+
+          cd "KitX.KXP.Tool"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
+          
+          cd "KitX Build"
+
+          nuget push "./Tools/KXP/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push "./Tools/KXP/Release/*.nupkg" -Source github -SkipDuplicate
+
+          cd ".."
+
+      - name: Build and Publish `KitX.Struct.Producer`
+        if: contains(github.event.head_commit.message, '[KitX.Struct.Producer]') || contains(github.event.head_commit.message, '[All]')
+        run: |
+          cd "KitX Tools"
+
+          cd "KitX.Struct.Producer"
+          dotnet build -c Release
+          cd ".."
+
+          cd ".."
+          
+          cd "KitX Build"
+
+          nuget push "./Tools/Struct/Release/*.nupkg" -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+          nuget push "./Tools/Struct/Release/*.nupkg" -Source github -SkipDuplicate
+
+          cd ".."
