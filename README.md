@@ -52,27 +52,27 @@
 
 <br>
 
-- [文档总览 | Docs Preview](#文档总览--docs-preview)
-- [📃 中文简介](#-中文简介)
+- [文档总览 | Docs Preview](#文档总览-Docs-Preview)
+- [📃 中文简介](#中文简介)
   - [ℹ 应用简介](#ℹ-应用简介)
-  - [🗃 应用架构](#-应用架构)
-  - [🪧 运行要求](#-运行要求)
-    - [KitX Dashboard (面向最终用户)](#kitx-dashboard-面向最终用户)
+  - [🗃 应用架构](#应用架构)
+  - [🪧 运行要求](#运行要求)
+    - [KitX Dashboard (面向最终用户)](#KitX-Dashboard-面向最终用户)
       - [系统支持](#系统支持)
       - [环境支持](#环境支持)
         - [桌面端支持](#桌面端支持)
         - [移动端支持](#移动端支持)
-- [📃 English Introduction](#-english-introduction)
-  - [ℹ App Description](#ℹ-app-description)
-  - [🗃 Application Architecture](#-application-architecture)
-  - [🪧 Operating requirements](#-operating-requirements)
-    - [KitX Dashboard (For end users)](#kitx-dashboard-for-end-users)
-      - [System Support](#system-support)
-      - [Environmental support](#environmental-support)
-        - [Desktop support](#desktop-support)
-        - [Mobile support](#mobile-support)
-- [更新周期 | Update Plan](#更新周期--update-plan)
-- [贡献者 | Contributors](#贡献者--contributors)
+- [📃 English Introduction](#English-Introduction)
+  - [ℹ App Description](#ℹ-App-Description)
+  - [🗃 Application Architecture](#Application-Architecture)
+  - [🪧 Operating requirements](#Operating-requirements)
+    - [KitX Dashboard (For end users)](#KitX-Dashboard-For-end-users)
+      - [System Support](#System-Support)
+      - [Environmental support](#Environmental-support)
+        - [Desktop support](#Desktop-support)
+        - [Mobile support](#Mobile-support)
+- [更新周期 | Update Plan](#更新周期-Update-Plan)
+- [贡献者 | Contributors](#贡献者-Contributors)
 
 ---
 
@@ -204,34 +204,34 @@ iOS:     Optional online installation from the App Store.
 ---
 
 # 更新周期 | Update Plan
-| Version       | Info    | Code       | Support | Term               | Require                      | Runs on                                                    |
-|---------------|---------|------------|---------|--------------------|------------------------------|------------------------------------------------------------|
-| Beta_10016    | Beta    | Beta1      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| Beta_10213    | Beta    | Beta2      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| Beta_10235    | Beta    | Beta3      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.0.0        | Release | Hello      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.0.4        | Release | WoW        | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.0.5        | Release | Nice Try   | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.1.0        | Release | Apple      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.1.1        | Release | Banana     | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.1.2        | Release | Cabbage    | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.1.4        | Release | Durin      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.1.5        | Release | Grape      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.0        | Release | Herring    | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.1        | Release | Wonderful  | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.2        | Release | Abandon    | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.4        | Preview | Panda      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.4        | Release | Panda      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.5        | Release | Orange     | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.6        | Release | Muik       | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v1.2.7        | Release | Cookie     | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v2.0.0        | Release | Sea        | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v2.0.1        | Release | Ocean      | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v2.0.2        | Release | Calculator | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v2.0.4        | Release | Computer   | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v2.0.5        | Preview | Laptop     | [x]     | 0                  | .Net Framework 4.8           | Windows                                                    |
-| v3.22.04.6230 | Preview | Telegram   | [v]     | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| v3.22.04.6235 | Release | Break      | [v]     | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| Version       | Info    | Code       | Support            | Term               | Require                      | Runs on                                                    |
+|---------------|---------|------------|--------------------|--------------------|------------------------------|------------------------------------------------------------|
+| Beta_10016    | Beta    | Beta1      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| Beta_10213    | Beta    | Beta2      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| Beta_10235    | Beta    | Beta3      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.0.0        | Release | Hello      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.0.4        | Release | WoW        | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.0.5        | Release | Nice Try   | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.1.0        | Release | Apple      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.1.1        | Release | Banana     | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.1.2        | Release | Cabbage    | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.1.4        | Release | Durin      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.1.5        | Release | Grape      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.0        | Release | Herring    | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.1        | Release | Wonderful  | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.2        | Release | Abandon    | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.4        | Preview | Panda      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.4        | Release | Panda      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.5        | Release | Orange     | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.6        | Release | Muik       | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v1.2.7        | Release | Cookie     | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v2.0.0        | Release | Sea        | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v2.0.1        | Release | Ocean      | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v2.0.2        | Release | Calculator | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v2.0.4        | Release | Computer   | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v2.0.5        | Preview | Laptop     | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
+| v3.22.04.6230 | Preview | Telegram   | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| v3.22.04.6235 | Release | Break      | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 
 
 # 贡献者 | Contributors
