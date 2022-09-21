@@ -130,11 +130,12 @@ KitX 采用了三层设计
 ## 🪧 运行要求
 ### KitX Dashboard (面向最终用户)
 #### 系统支持
-桌面端支持: Windows (10, 11) x64, Linux x64, MacOS x64  
+桌面端支持: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
 移动端支持: Android (7+) arm, iOS (12+) arm
 
 #### 环境支持
 ##### 桌面端支持
+全平台支持 .NET AOT 编译, 进一步增强运行速度, 但是缺少测试, 稳定性没有保证  
 Windows: 可选 带环境 , 与 不带环境 的便携版, 以及 在线安装包 和 离线安装包.  
 Linux:   可选 带环境 的便携版, 也可以在 snap 中在线安装, 或者使用 .deb .rpm 包进行安装.  
 MacOS:   可选 带环境 的便携版, 也可以在 App Store 中在线安装.  
@@ -188,11 +189,12 @@ In this way, plug-ins on other devices in the LAN can also be connected to the c
 ## 🪧 Operating requirements
 ### KitX Dashboard (For end users)
 #### System Support
-Desktop support: Windows (10, 11) x64, Linux x64, MacOS x64  
+Desktop support: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
 Mobile support:  Android (7+) arm, iOS (12+) arm
 
 #### Environmental support
 ##### Desktop support
+Any platform supports .NET AOT compilation, which further enhances the running speed, but lacks testing and stability is not guaranteed.  
 Windows: Optional with environment, and portable version without environment, as well as online installation package and offline installation package.  
 Linux:   Optional portable version with environment, can also be installed online in snap, or installed using .deb .rpm package.  
 MacOS:   Optional portable version with environment, can also be installed online in the App Store.
@@ -232,6 +234,8 @@ iOS:     Optional online installation from the App Store.
 | v2.0.5        | Preview | Laptop     | :x:                | 0                  | .Net Framework 4.8           | Windows                                                    |
 | v3.22.04.6230 | Preview | Telegram   | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 | v3.22.04.6235 | Release | Break      | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| v3.22.10.x    | Release | Hi         | coding             | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| v3.23.04.x    | Release | ToYou      | coding             | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 
 
 # 贡献者 | Contributors
