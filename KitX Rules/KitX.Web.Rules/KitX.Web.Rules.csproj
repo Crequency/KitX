@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.1;net40</TargetFrameworks>
+        <TargetFrameworks>netstandard2.1;net46</TargetFrameworks>
         <Nullable>disable</Nullable>
         <BaseOutputPath>..\..\KitX Build\Rules\Web.Rules\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Rules\Web.Rules\</BaseIntermediateOutputPath>
