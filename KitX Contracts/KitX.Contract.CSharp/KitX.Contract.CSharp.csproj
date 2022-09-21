@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.1;net40</TargetFrameworks>
+        <TargetFrameworks>netstandard2.1;net46</TargetFrameworks>
         <Nullable>disable</Nullable>
         <BaseOutputPath>..\..\KitX Build\Contracts\CSharp\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Contracts\CSharp\</BaseIntermediateOutputPath>
@@ -27,7 +27,7 @@
         </PackageReference>
     </ItemGroup>
 
-    <ItemGroup Condition="'$(TargetFramework)' == 'net40'">
+    <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
         <Reference Include="System.ComponentModel.Composition" />
     </ItemGroup>
 
