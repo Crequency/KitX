@@ -3,6 +3,7 @@ using KitX.Web.Rules;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.Views.Pages.Controls;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,21 +23,29 @@ namespace KitX_Dashboard.Services
         /// <param name="msg">消息</param>
         internal static void Execute(string msg, IPEndPoint endPoint)
         {
-            var pluginStruct = (PluginStruct)JsonSerializer.Deserialize(msg, typeof(PluginStruct));
+            try
+            {
+                var pluginStruct = (PluginStruct)JsonSerializer.Deserialize(msg, typeof(PluginStruct));
 
-            // 标注实例注册 ID
-            pluginStruct.Tags.Add("Authorized_ID",
-                $"{pluginStruct.PublisherName}" +
-                $"." +
-                $"{pluginStruct.Name}" +
-                $"." +
-                $"{pluginStruct.Version}"
-            );
+                // 标注实例注册 ID
+                pluginStruct.Tags.Add("Authorized_ID",
+                    $"{pluginStruct.PublisherName}" +
+                    $"." +
+                    $"{pluginStruct.Name}" +
+                    $"." +
+                    $"{pluginStruct.Version}"
+                );
 
-            // 标注 IPEndPoint
-            pluginStruct.Tags.Add("IPEndPoint", endPoint.ToString());
+                // 标注 IPEndPoint
+                pluginStruct.Tags.Add("IPEndPoint", endPoint.ToString());
 
-            pluginsToAdd.Enqueue(pluginStruct);
+                pluginsToAdd.Enqueue(pluginStruct);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"PluginsManager.Execute(msg) => msg: {msg}");
+                Log.Error(e.Message);
+            }
         }
 
         internal static readonly Queue<IPEndPoint> pluginsToRemove = new();

@@ -4,7 +4,6 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Threading;
-using BasicHelper.LiteLogger;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
@@ -12,6 +11,7 @@ using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
+using Serilog;
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -144,8 +144,7 @@ namespace KitX_Dashboard.Views
             }
             catch (ArgumentOutOfRangeException)
             {
-                Program.LocalLogger.Log("Logger_Error", $"No Language Resources Loaded.",
-                    LoggerManager.LogLevel.Error);
+                Log.Warning($"No Language Resources Loaded.");
             }
         }
 
@@ -186,7 +185,7 @@ namespace KitX_Dashboard.Views
             }
             catch (NullReferenceException o)
             {
-                Program.LocalLogger.Log("Logger_Debug", o.Message, LoggerManager.LogLevel.Warn);
+                Log.Warning(o.Message);
             }
         }
 

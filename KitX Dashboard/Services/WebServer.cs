@@ -1,6 +1,7 @@
 ﻿using KitX.Web.Rules;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
-using System.Timers;
 
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -45,8 +45,7 @@ namespace KitX_Dashboard.Services
             int port = ((IPEndPoint)listener.LocalEndpoint).Port; // 取服务端口号
             GlobalInfo.ServerPortNumber = port; // 全局端口号标明
 
-            Program.LocalLogger.Log("Logger_Debug", $"Server Port: {port}",
-                BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug); // 日志记录
+            Log.Information($"Server Port: {port}");
 
             acceptClientThread.Start();
         }
@@ -88,9 +87,7 @@ namespace KitX_Dashboard.Services
                         IPEndPoint endpoint = client.Client.RemoteEndPoint as IPEndPoint;
                         clients.Add(endpoint.ToString(), client);
 
-                        Program.LocalLogger.Log("Logger_Debug",
-                            $"New connection: {endpoint}",
-                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+                        Log.Information($"New connection: {endpoint}");
 
                         // 新建并运行接收消息线程
                         new Thread(() =>
@@ -106,9 +103,7 @@ namespace KitX_Dashboard.Services
             }
             catch (Exception ex)
             {
-                Program.LocalLogger.Log("Logger_Error",
-                    $"Error: In AcceptClient() : {ex.Message}",
-                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
+                Log.Error($"In AcceptClient() : {ex.Message}");
             }
         }
 
@@ -137,9 +132,7 @@ namespace KitX_Dashboard.Services
                     {
                         string msg = Encoding.UTF8.GetString(data, 0, length);
 
-                        Program.LocalLogger.Log("Logger_Debug",
-                            $"From: {endpoint}\tReceive: {msg}",
-                            BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+                        Log.Information($"From: {endpoint}\tReceive: {msg}");
 
                         PluginsManager.Execute(msg, endpoint);
 
@@ -163,13 +156,8 @@ namespace KitX_Dashboard.Services
             }
             catch (Exception ex)
             {
-                Program.LocalLogger.Log("Logger_Error",
-                    $"Error: In ReciveMessage() : {ex.Message}",
-                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Error);
-
-                Program.LocalLogger.Log("Logger_Debug",
-                    $"Connection broke from: {endpoint}",
-                    BasicHelper.LiteLogger.LoggerManager.LogLevel.Debug);
+                Log.Error($"Error: In ReciveMessage() : {ex.Message}");
+                Log.Information($"Connection broke from: {endpoint}");
 
                 PluginsManager.Disconnect(endpoint);
 
@@ -199,7 +187,7 @@ namespace KitX_Dashboard.Services
                 Interval = 2000,
                 AutoReset = true
             };
-            timer.Elapsed += async (_, _) =>
+            timer.Elapsed += (_, _) =>
             {
                 try
                 {
@@ -209,8 +197,7 @@ namespace KitX_Dashboard.Services
                 }
                 catch (Exception e)
                 {
-                    await Program.LocalLogger.LogAsync("Logger_Error",
-                        $"In MultiDevicesBroadCastSend: {e.Message}");
+                    Log.Error($"In MultiDevicesBroadCastSend: {e.Message}");
                 }
                 if (!GlobalInfo.Running)
                 {
@@ -232,7 +219,7 @@ namespace KitX_Dashboard.Services
             udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
                 Program.GlobalConfig.App.UDPPortSend);
-            new Thread(async () =>
+            new Thread(() =>
             {
                 try
                 {
@@ -240,7 +227,7 @@ namespace KitX_Dashboard.Services
                     {
                         byte[] bytes = udpClient.Receive(ref multicast);
                         string result = Encoding.UTF8.GetString(bytes);
-                        await Program.LocalLogger.LogAsync("Logger_Debug", $"UDP Receive: {result}");
+                        Log.Information($"UDP Receive: {result}");
                         DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
                         DevicesManager.Update(deviceInfo);
                     }
@@ -248,7 +235,7 @@ namespace KitX_Dashboard.Services
                 }
                 catch (Exception e)
                 {
-                    await Program.LocalLogger.LogAsync("Logger_Error", e.Message);
+                    Log.Error(e.Message);
                 }
             }).Start();
         }

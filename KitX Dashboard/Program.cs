@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
-using BasicHelper.LiteLogger;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.Services;
@@ -13,7 +12,7 @@ namespace KitX_Dashboard
 {
     internal class Program
     {
-        internal static LoggerManager LocalLogger = new();
+        //internal static LoggerManager LocalLogger = new();
 
         internal static Config GlobalConfig = new();
 

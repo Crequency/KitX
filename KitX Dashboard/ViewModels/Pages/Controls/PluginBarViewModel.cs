@@ -2,6 +2,7 @@
 using KitX_Dashboard.Models;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
+using Serilog;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -75,8 +76,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 }
                 catch (Exception e)
                 {
-                    Program.LocalLogger.Log("Logger_Error",
-                        $"Icon transform error from base64 to byte[] or " +
+                    Log.Warning($"Icon transform error from base64 to byte[] or " +
                         $"create bitmap from MemoryStream error\n" +
                         $"{new StringBuilder().Append(' ', 20)}{e.Message}");
                     return new("./Assets/KitX-Background.png");

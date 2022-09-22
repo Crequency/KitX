@@ -4,12 +4,12 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
-using BasicHelper.LiteLogger;
 using BasicHelper.Util;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
+using Serilog;
 using System.Linq;
 using System.Threading;
 
@@ -35,8 +35,7 @@ namespace KitX_Dashboard
             }
             catch (Result<bool>)
             {
-                Program.LocalLogger.Log("Logger_Error", $"Language File {lang}.axaml not found.",
-                    LoggerManager.LogLevel.Error);
+                Log.Warning($"Language File {lang}.axaml not found.");
 
                 string backup_lang = Program.GlobalConfig.App.SurpportLanguages.Keys.First();
                 Resources.MergedDictionaries.Clear();
@@ -50,8 +49,7 @@ namespace KitX_Dashboard
             }
             finally
             {
-                Program.LocalLogger.Log("Logger_Error", $"No surpport language file loaded.",
-                    LoggerManager.LogLevel.Error);
+                Log.Error($"No surpport language file loaded.");
             }
 
             EventHandlers.Invoke("LanguageChanged");
