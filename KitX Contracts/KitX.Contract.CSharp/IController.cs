@@ -32,6 +32,6 @@ namespace KitX.Contract.CSharp
         /// <param name="cmd">命令名称</param>
         /// <param name="arg">参数列表</param>
         /// <returns>结果代码</returns>
-        int Execute(string cmd, object arg = null);
+        object Execute(string cmd, object arg = null);
     }
 }
