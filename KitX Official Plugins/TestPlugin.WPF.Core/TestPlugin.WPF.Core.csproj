@@ -18,6 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Assets\Descr\zh-cn.md">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
     <None Update="LoaderStruct.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
