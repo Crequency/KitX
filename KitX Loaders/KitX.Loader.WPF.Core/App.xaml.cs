@@ -27,43 +27,52 @@ namespace KitX.Loader.WPF.Core
         /// <param name="e">...</param>
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-            for (int i = 0; i < e.Args.Length; ++i)
+            try
             {
-                if (i != e.Args.Length - 1)
+                for (int i = 0; i < e.Args.Length; ++i)
                 {
-                    switch (e.Args[i])
+                    if (i != e.Args.Length - 1)
                     {
-                        case "--load":
-                            ++i;
-                            pluginPath = e.Args[i];
-                            break;
-                        case "--connect":
-                            ++i;
-                            string hostname = e.Args[i].Split(':')[0];
-                            string port = e.Args[i].Split(':')[1];
-                            int portNum;
-                            if (int.TryParse(port, out portNum))
-                            {
-                                try
+                        switch (e.Args[i])
+                        {
+                            case "--load":
+                                ++i;
+                                pluginPath = e.Args[i];
+                                break;
+                            case "--connect":
+                                ++i;
+                                string hostname = e.Args[i].Split(':')[0];
+                                string port = e.Args[i].Split(':')[1];
+                                int portNum;
+                                if (int.TryParse(port, out portNum))
                                 {
-                                    client = new();
-                                    client.Connect(hostname, portNum);
-                                    reciveMessageThread = new(ReciveMessage);
-                                    reciveMessageThread.Start();
+                                    try
+                                    {
+                                        client = new();
+                                        client.Connect(hostname, portNum);
+                                        reciveMessageThread = new(ReciveMessage);
+                                        reciveMessageThread.Start();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        client.Dispose();
+                                        MessageBox.Show($"Connection failed!\n{ex.Message}");
+                                        Console.WriteLine($"Connection failed!\n{ex.Message}");
+                                    }
                                 }
-                                catch (Exception ex)
-                                {
-                                    client.Dispose();
-                                    MessageBox.Show($"Connection failed!\n{ex.Message}");
-                                    Console.WriteLine($"Connection failed!\n{ex.Message}");
-                                }
-                            }
-                            else Console.WriteLine("Bad port number!");
-                            break;
+                                else Console.WriteLine("Bad port number!");
+                                break;
+                        }
                     }
                 }
+                LoadPlugin(pluginPath);
             }
-            LoadPlugin(pluginPath);
+            catch (Exception o)
+            {
+                MessageBox.Show("Loader Error", o.Message, MessageBoxButton.OK, MessageBoxImage.Error);
+                Console.WriteLine(o.Message);
+                Environment.Exit(1);
+            }
         }
 
         /// <summary>
@@ -90,6 +99,7 @@ namespace KitX.Loader.WPF.Core
                 IsMarketVersion = identity.IsMarketVersion(),
                 Tags = new(),
                 Functions = identity.GetController().GetFunctions(),
+                RootStartupFileName = identity.GetRootStartupFileName(),
             };
         }
 
@@ -148,6 +158,7 @@ namespace KitX.Loader.WPF.Core
             {
                 stream.Write(data, 0, data.Length);
                 stream.Flush();
+                stream.Close();
                 //stream.Close();
             }
             catch
@@ -182,8 +193,10 @@ namespace KitX.Loader.WPF.Core
                 stream.Close();
                 stream.Dispose();
             }
-            catch
+            catch (Exception e)
             {
+                MessageBox.Show("Loader Error", e.Message, MessageBoxButton.OK, MessageBoxImage.Error);
+
                 stream.Close();
                 stream.Dispose();
                 client.Close();
