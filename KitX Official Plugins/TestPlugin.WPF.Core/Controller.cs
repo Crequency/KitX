@@ -69,7 +69,7 @@ namespace TestPlugin.WPF.Core
             };
         }
 
-        public int Execute(string cmd, object arg = null)
+        public int Execute(string cmd, object? arg = null)
         {
 
             return 0;

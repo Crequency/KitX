@@ -102,5 +102,11 @@ namespace KitX.Contract.CSharp
         /// </summary>
         /// <returns>市场版本插件协议</returns>
         IMarketPluginContract GetMarketPluginContract();
+
+        /// <summary>
+        /// 获取根启动文件文件名
+        /// </summary>
+        /// <returns>根启动文件文件名</returns>
+        string GetRootStartupFileName();
     }
 }

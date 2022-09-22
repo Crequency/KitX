@@ -141,6 +141,12 @@ namespace TestPlugin.WPF.Core
         /// </summary>
         /// <returns>市场版本插件协议</returns>
         public IMarketPluginContract GetMarketPluginContract() => null;
+
+        /// <summary>
+        /// 获取根启动文件名称
+        /// </summary>
+        /// <returns>根启动文件名称</returns>
+        public string GetRootStartupFileName() => "TestPlugin.WPF.Core.dll";
     }
 }
 
