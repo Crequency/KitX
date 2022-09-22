@@ -7,7 +7,7 @@
         xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
         xmlns:md="using:Markdown.Avalonia"
         xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
-        x:Class="KitX_Dashboard.Views.AnnouncementsWindow"
+        x:Class="KitX_Dashboard.Views.AnouncementsWindow"
         Title="{DynamicResource Text_Public_Announcement}"
         Icon="/Assets/KitX.png"
         Width="{Binding Window_Width}" Height="{Binding Window_Height}"

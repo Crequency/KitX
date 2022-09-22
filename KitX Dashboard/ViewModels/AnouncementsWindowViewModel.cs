@@ -13,9 +13,9 @@ using System.Text.Json;
 
 namespace KitX_Dashboard.ViewModels
 {
-    internal class AnnouncementsWindowViewModel : ViewModelBase, INotifyPropertyChanged
+    internal class AnouncementsWindowViewModel : ViewModelBase, INotifyPropertyChanged
     {
-        public AnnouncementsWindowViewModel()
+        public AnouncementsWindowViewModel()
         {
             InitCommands();
         }
@@ -85,7 +85,7 @@ namespace KitX_Dashboard.ViewModels
             }
         }
 
-        internal AnnouncementsWindow? Window { get; set; }
+        internal AnouncementsWindow? Window { get; set; }
 
         internal List<string>? Readed { get; set; }
 

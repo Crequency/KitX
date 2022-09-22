@@ -78,7 +78,7 @@ namespace KitX_Dashboard.Services
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
-                        var toast = new AnnouncementsWindow();
+                        var toast = new AnouncementsWindow();
                         toast.UpdateSource(src, readed);
                         toast.Show();
                     });

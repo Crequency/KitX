@@ -8,11 +8,11 @@ using System.ComponentModel;
 
 namespace KitX_Dashboard.Views
 {
-    public partial class AnnouncementsWindow : Window
+    public partial class AnouncementsWindow : Window
     {
-        private readonly AnnouncementsWindowViewModel viewModel = new();
+        private readonly AnouncementsWindowViewModel viewModel = new();
 
-        public AnnouncementsWindow()
+        public AnouncementsWindow()
         {
             InitializeComponent();
 
