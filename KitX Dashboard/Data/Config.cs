@@ -81,6 +81,12 @@ namespace KitX_Dashboard.Data
                 "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
 
             [JsonInclude]
+            public int LogFileMaxCount { get; set; } = 50;
+
+            [JsonInclude]
+            public int LogFileFlushInterval { get; set; } = 60;
+
+            [JsonInclude]
             public int SocketBufferSize { get; set; } = 1024 * 100;
         }
 
