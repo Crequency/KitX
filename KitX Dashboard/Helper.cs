@@ -157,6 +157,7 @@ namespace KitX_Dashboard
         {
             SaveConfig();
             SavePluginsListConfig();
+            Log.CloseAndFlush();
         }
 
         /// <summary>
