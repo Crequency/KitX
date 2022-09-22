@@ -19,7 +19,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="KitX.Web.Rules" Version="22.4.6244.143" />
+        <PackageReference Include="KitX.Web.Rules" Version="22.4.6276.567" />
     </ItemGroup>
 
     <ItemGroup>
