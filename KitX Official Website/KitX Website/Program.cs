@@ -1,6 +1,4 @@
 using KitX_Website.Data;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Toolbelt.Blazor.Extensions.DependencyInjection;
 
 namespace KitX_Website
