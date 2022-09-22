@@ -69,7 +69,7 @@ namespace KitX.Loader.WPF.Core
             }
             catch (Exception o)
             {
-                MessageBox.Show("Loader Error", o.Message, MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(o.Message, "Loader Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Console.WriteLine(o.Message);
                 Environment.Exit(1);
             }
@@ -158,7 +158,6 @@ namespace KitX.Loader.WPF.Core
             {
                 stream.Write(data, 0, data.Length);
                 stream.Flush();
-                stream.Close();
                 //stream.Close();
             }
             catch
@@ -178,7 +177,7 @@ namespace KitX.Loader.WPF.Core
             {
                 while (StillReceiving)
                 {
-                    byte[] data = new byte[1024];
+                    byte[] data = new byte[1024 * 100];
                     int length = stream.Read(data, 0, data.Length);
                     if (length > 0)
                     {
@@ -195,7 +194,8 @@ namespace KitX.Loader.WPF.Core
             }
             catch (Exception e)
             {
-                MessageBox.Show("Loader Error", e.Message, MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(e.Message, "Loader Error in ReciveMessage", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
 
                 stream.Close();
                 stream.Dispose();

@@ -79,6 +79,9 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public string LogTemplate { get; set; } = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] " +
                 "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
+
+            [JsonInclude]
+            public int SocketBufferSize { get; set; } = 1024 * 100;
         }
 
         /// <summary>
