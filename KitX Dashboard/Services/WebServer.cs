@@ -159,13 +159,12 @@ namespace KitX_Dashboard.Services
                 Log.Error($"Error: In ReciveMessage() : {ex.Message}");
                 Log.Information($"Connection broke from: {endpoint}");
 
-                PluginsManager.Disconnect(endpoint);
-
                 //Read是阻塞方法 客户端退出是会引发异常 释放资源 结束此线程
             }
             finally
             {
                 //释放资源
+                PluginsManager.Disconnect(endpoint); //注销插件
                 stream.Close();
                 stream.Dispose();
                 clients.Remove(endpoint.ToString());
