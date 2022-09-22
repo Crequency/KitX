@@ -124,7 +124,7 @@ namespace KitX_Dashboard.Services
 
                 while (keepListen)
                 {
-                    byte[] data = new byte[1024];
+                    byte[] data = new byte[Program.GlobalConfig.App.SocketBufferSize];
                     //如果远程主机已关闭连接,Read将立即返回零字节
                     //int length = await stream.ReadAsync(data, 0, data.Length);
                     int length = await stream.ReadAsync(data);
