@@ -39,7 +39,7 @@
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10">
 
-                <ui:HyperlinkButton NavigateUri="https://github.com/Catrol-org/KitX/"
+                <ui:HyperlinkButton NavigateUri="https://github.com/Crequency/KitX/"
                                     ToolTip.Tip="{Binding $self.NavigateUri}"
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
@@ -50,7 +50,7 @@
                     </StackPanel>
                 </ui:HyperlinkButton>
 
-                <ui:HyperlinkButton NavigateUri="https://apps.catrol.cn/KitX/"
+                <ui:HyperlinkButton NavigateUri="https://kitx.apps.catrol.cn"
                                     ToolTip.Tip="{Binding $self.NavigateUri}"
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
