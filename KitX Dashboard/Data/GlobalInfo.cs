@@ -6,7 +6,7 @@
 
         internal const string DataBasePath = "./DataBase/";
 
-        internal const string LogPath = "./Log/";
+        //internal const string LogPath = "./Log/";
 
         internal const string LanguageFilePath = "./Languages/";
 
@@ -23,6 +23,9 @@
         internal const string PluginsListConfigFilePath = $"{ConfigPath}plugins.json";
 
         internal const string ThirdPartLicenseFilePath = $"{AssetsPath}ThirdPartLicense.md";
+
+        //internal const string LogTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] " +
+        //    "{Message:lj}{NewLine}{Exception}";
 
         internal static int ServerPortNumber = 0;
 

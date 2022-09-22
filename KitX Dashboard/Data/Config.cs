@@ -69,6 +69,16 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public string IPFilter { get; set; } = "192.168";
+
+            [JsonInclude]
+            public long LogFileSingleMaxSize { get; set; } = 1024;
+
+            [JsonInclude]
+            public string LogFilePath { get; set; } = "./Log/";
+
+            [JsonInclude]
+            public string LogTemplate { get; set; } = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] " +
+                "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
         }
 
         /// <summary>

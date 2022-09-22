@@ -1,9 +1,9 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Controls;
 using KitX_Dashboard.ViewModels.Pages;
 using KitX_Dashboard.Views.Pages.Controls;
+using Serilog;
 using System;
 
 #pragma warning disable CS8602 // 解引用可能出现空引用。
@@ -55,7 +55,7 @@ namespace KitX_Dashboard.Views.Pages
             }
             catch (NullReferenceException o)
             {
-                Program.LocalLogger.Log("Logger_Debug", o.Message, LoggerManager.LogLevel.Warn);
+                Log.Warning(o.Message);
             }
         }
 

@@ -38,8 +38,8 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="KitX.Contract.CSharp, Version=22.4.6244.143, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\KitX.Contract.CSharp.22.4.6244.143\lib\net40\KitX.Contract.CSharp.dll</HintPath>
+    <Reference Include="KitX.Web.Rules, Version=22.4.6276.567, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\KitX.Web.Rules.22.4.6276.567\lib\net46\KitX.Web.Rules.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
@@ -91,6 +91,12 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj">
+      <Project>{c1a05e25-8dba-4ca4-88d5-e28d69b76d13}</Project>
+      <Name>KitX.Contract.CSharp</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

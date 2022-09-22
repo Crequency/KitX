@@ -72,19 +72,28 @@ namespace TestPlugin.WPF.Winform
         /// 获取简单描述
         /// </summary>
         /// <returns>简单描述</returns>
-        public string GetSimpleDescription() => "简单描述";
+        public Dictionary<string, string> GetSimpleDescription() => new Dictionary<string, string>()
+        {
+            { "zh-cn", "简单描述" }
+        };
 
         /// <summary>
         /// 获取复杂描述
         /// </summary>
         /// <returns>复杂描述</returns>
-        public string GetComplexDescription() => "复杂描述";
+        public Dictionary<string, string> GetComplexDescription() => new Dictionary<string, string>()
+        {
+            { "zh-cn", "复杂描述" }
+        };
 
         /// <summary>
         /// 获取 MarkDown 语法的完整介绍
         /// </summary>
         /// <returns>完整介绍</returns>
-        public string GetTotalDescriptionInMarkdown() => "完整介绍";
+        public Dictionary<string, string> GetTotalDescriptionInMarkdown() => new Dictionary<string, string>()
+        {
+            { "zh-cn", "完整介绍" }
+        };
 
         /// <summary>
         /// 获取 Base64 编码的图标
@@ -121,5 +130,11 @@ namespace TestPlugin.WPF.Winform
         /// </summary>
         /// <returns>市场版本插件协议</returns>
         public IMarketPluginContract GetMarketPluginContract() => null;
+
+        /// <summary>
+        /// 获取根启动文件文件名
+        /// </summary>
+        /// <returns>根启动文件文件名</returns>
+        public string GetRootStartupFileName() => "TestPlugin.WPF.Winform.dll";
     }
 }

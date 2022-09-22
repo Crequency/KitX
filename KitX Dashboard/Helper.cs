@@ -1,9 +1,9 @@
 ﻿using Avalonia;
 using Avalonia.Media;
-using BasicHelper.LiteLogger;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using Serilog;
 using System;
 using System.IO;
 using System.Text.Json;
@@ -28,9 +28,19 @@ namespace KitX_Dashboard
 
             #endregion
 
-            #region 初始化 LiteLogger
+            #region 初始化日志系统
 
-            InitLiteLogger(Program.LocalLogger);
+            //InitLiteLogger(Program.LocalLogger);
+
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.File(
+                    Path.GetFullPath($"{Program.GlobalConfig.App.LogFilePath}Log_.log"),
+                    outputTemplate: Program.GlobalConfig.App.LogTemplate,
+                    rollingInterval: RollingInterval.Day,
+                    fileSizeLimitBytes: Program.GlobalConfig.App.LogFileSingleMaxSize
+                )
+                .CreateLogger();
 
             #endregion
 
@@ -154,25 +164,25 @@ namespace KitX_Dashboard
         /// 初始化日志管理器
         /// </summary>
         /// <param name="LocalLogger">日志管理器</param>
-        public static void InitLiteLogger(LoggerManager LocalLogger)
-        {
-            DirectoryInfo log_dir = new("./Log/");
-            if (!log_dir.Exists) log_dir.Create();
+        //public static void InitLiteLogger(LoggerManager LocalLogger)
+        //{
+        //    DirectoryInfo log_dir = new("./Log/");
+        //    if (!log_dir.Exists) log_dir.Create();
 
-            LocalLogger.AppendLogger("Logger_Debug", new(
-                "Logger_Debug",
-                Path.GetFullPath("./Log/"),
-                lv: LoggerManager.LogLevel.Debug,
-                lfs: 1024 * 10
-            ));
+        //    LocalLogger.AppendLogger("Logger_Debug", new(
+        //        "Logger_Debug",
+        //        Path.GetFullPath("./Log/"),
+        //        lv: LoggerManager.LogLevel.Debug,
+        //        lfs: 1024 * 10
+        //    ));
 
-            LocalLogger.AppendLogger("Logger_Error", new(
-                "Logger_Error",
-                Path.GetFullPath("./Log/"),
-                lv: LoggerManager.LogLevel.Error,
-                lfs: 1024 * 10
-            ));
-        }
+        //    LocalLogger.AppendLogger("Logger_Error", new(
+        //        "Logger_Error",
+        //        Path.GetFullPath("./Log/"),
+        //        lv: LoggerManager.LogLevel.Error,
+        //        lfs: 1024 * 10
+        //    ));
+        //}
 
         /// <summary>
         /// 初始化环境

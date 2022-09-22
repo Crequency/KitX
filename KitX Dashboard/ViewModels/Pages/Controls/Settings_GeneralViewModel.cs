@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
-using BasicHelper.LiteLogger;
 using BasicHelper.Util;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Media;
@@ -11,6 +10,7 @@ using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using MessageBox.Avalonia;
+using Serilog;
 using System.Collections.Generic;
 using System.ComponentModel;
 
@@ -128,8 +128,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 MessageBoxManager.GetMessageBoxStandardWindow("Error", "No this language file.",
                     icon: MessageBox.Avalonia.Enums.Icon.Error).Show();
-                Program.LocalLogger.Log("Logger_Error", $"Language File {lang}.axaml not found.",
-                    LoggerManager.LogLevel.Error);
+                Log.Warning($"Language File {lang}.axaml not found.");
             }
 
             EventHandlers.Invoke("LanguageChanged");

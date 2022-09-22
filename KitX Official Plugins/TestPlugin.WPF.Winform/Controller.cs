@@ -1,4 +1,5 @@
 ﻿using KitX.Contract.CSharp;
+using KitX.Web.Rules;
 
 namespace TestPlugin.WPF.Winform
 {
@@ -24,6 +25,13 @@ namespace TestPlugin.WPF.Winform
         public void Start()
         {
             mainwin.Show();
+        }
+
+        public Function GetFunctions() => new Function();
+
+        public object Execute(string cmd, object arg = null)
+        {
+            return null;
         }
     }
 }
