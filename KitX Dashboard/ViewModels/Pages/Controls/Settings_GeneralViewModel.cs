@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Threading;
 using BasicHelper.IO;
 using BasicHelper.Util;
 using FluentAvalonia.Styling;
@@ -318,8 +319,22 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         private void ColorConfirmed(object _)
         {
             var c = nowColor;
-            Application.Current.Resources["ThemePrimaryAccent"] =
-                new SolidColorBrush(new Color(c.A, c.R, c.G, c.B));
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Application.Current.Resources["ThemePrimaryAccent"] =
+                    new SolidColorBrush(new Color(c.A, c.R, c.G, c.B));
+                for (char i = 'A'; i <= 'E'; ++i)
+                {
+                    Application.Current.Resources[$"ThemePrimaryAccentTransparent{i}{i}"] =
+                        new SolidColorBrush(new Color((byte)(170 + (i - 'A') * 17), c.R, c.G, c.B));
+                }
+                for (int i = 1; i <= 9; ++i)
+                {
+                    Application.Current.Resources[$"ThemePrimaryAccentTransparent{i}{i}"] =
+                        new SolidColorBrush(new Color((byte)(i * 10 + i), c.R, c.G, c.B));
+                }
+            });
+            Program.GlobalConfig.App.ThemeColor = nowColor.ToHexString();
             SaveChanges();
         }
 

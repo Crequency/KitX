@@ -69,13 +69,7 @@ namespace KitX_Dashboard
 
             #region 初始化事件
 
-            EventHandlers.ConfigSettingsChanged += () =>
-            {
-                SolidColorBrush? accent = Application.Current
-                    .Resources["ThemePrimaryAccent"] as SolidColorBrush;
-                Program.GlobalConfig.App.ThemeColor = new Color2(accent.Color).ToHexString();
-                SaveConfig();
-            };
+            EventHandlers.ConfigSettingsChanged += () => SaveConfig();
 
             EventHandlers.PluginsListChanged += () => SavePluginsListConfig();
 

@@ -18,14 +18,15 @@
                 </Button>
 
                 <Button Content="KitX" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                        Width="110" Background="#DD3873D9" CornerRadius="45"
+                        Width="110" Background="{DynamicResource ThemePrimaryAccentTransparentDD}"
+                        CornerRadius="45"
                         KeyDown="AppNameButtonKeyDown" Command="{Binding AppNameButtonClickedCommand}"
                         FontSize="30" FontWeight="ExtraBold"
                         FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
             </Grid>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,5">
 
                 <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Version}" FontSize="20"
                            Margin="2.5,0" VerticalAlignment="Center" FontWeight="Medium"
@@ -43,8 +44,10 @@
                                     ToolTip.Tip="{Binding $self.NavigateUri}"
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
-                        <icon:MaterialIcon Kind="Github"/>
+                        <icon:MaterialIcon Kind="Github"
+                                           Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
                         <TextBlock Text=" GitHub Repo "
+                                   Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -54,8 +57,10 @@
                                     ToolTip.Tip="{Binding $self.NavigateUri}"
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
-                        <icon:MaterialIcon Kind="OfficeBuilding"/>
+                        <icon:MaterialIcon Kind="OfficeBuilding"
+                                           Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
                         <TextBlock Text=" Official Website "
+                                   Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -65,8 +70,10 @@
                                     ToolTip.Tip="{Binding $self.NavigateUri}"
                                     Margin="5,0">
                     <StackPanel Orientation="Horizontal">
-                        <icon:MaterialIcon Kind="BlogOutline"/>
+                        <icon:MaterialIcon Kind="BlogOutline"
+                                           Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
                         <TextBlock Text=" Author Blog "
+                                   Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -124,11 +131,12 @@
             <Expander Margin="20,5">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_ThirdPartLicense}" FontSize="18"
+                        <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18"
+                                           Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_ThirdPartLicense}"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold" FontSize="18"/>
                     </StackPanel>
                 </Expander.Header>
                 <DockPanel Margin="5">
@@ -136,19 +144,19 @@
                         <Button DockPanel.Dock="Left" Command="{Binding LoadThirdPartLicense}"
                                 Content="{DynamicResource Text_Public_Read}"/>
                     </DockPanel>
-                    <Border Background="{DynamicResource ThemePrimaryAccentTransparent11}"
+                    <Border Background="Transparent"
                             Margin="5,15,5,5" CornerRadius="10">
                         <md:MarkdownScrollViewer Markdown="{Binding ThirdPartLicenseString}"
                                                  Margin="5">
                             <md:MarkdownScrollViewer.Styles>
                                 <Style Selector="ctxt|CTextBlock.Heading1">
                                     <Setter Property="FontSize" Value="36"/>
-                                    <Setter Property="Foreground" Value="{StaticResource ThemePrimaryAccent}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource ThemePrimaryAccent}"/>
                                     <Setter Property="Margin" Value="0,10"/>
                                 </Style>
                                 <Style Selector="ctxt|CTextBlock.Heading2">
                                     <Setter Property="FontSize" Value="24"/>
-                                    <Setter Property="Foreground" Value="{StaticResource ThemePrimaryAccent}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource ThemePrimaryAccent}"/>
                                     <Setter Property="Margin" Value="0,5"/>
                                 </Style>
                                 <Style Selector="Border.Blockquote">
@@ -159,7 +167,7 @@
                                         <Setter Property="BorderThickness" Value="0"/>
                                         <Setter Property="Margin" Value="0,20"/>
                                         <Setter Property="Background"
-                                                Value="{StaticResource ThemePrimaryAccentTransparent33}"/>
+                                                Value="{DynamicResource ThemePrimaryAccentTransparent33}"/>
                                         <Setter Property="CornerRadius" Value="10"/>
                                     </Style.Setters>
                                 </Style>
