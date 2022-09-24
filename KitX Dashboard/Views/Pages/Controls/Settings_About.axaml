@@ -184,6 +184,8 @@
                 </DockPanel>
 
             </Expander>
+            
+            <Border Height="100"/>
 
         </StackPanel>
     </ScrollViewer>

@@ -30,10 +30,16 @@ namespace KitX_Dashboard.Services
                 DevicesManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemoveOrDelete();
+                FindSurpportNetworkInterface(new()
+                {
+                    UdpClient_Send, UdpClient_Receive
+                }, IPAddress.Parse(Program.Config.Web.UDPBroadcastAddress));
                 MultiDevicesBroadCastSend();
                 MultiDevicesBroadCastReceive();
             }).Start();
         }
+
+        #region TCP Socket 服务于 Loaders 的服务器
 
         /// <summary>
         /// 开始执行
@@ -124,7 +130,7 @@ namespace KitX_Dashboard.Services
 
                 while (keepListen)
                 {
-                    byte[] data = new byte[Program.GlobalConfig.App.SocketBufferSize];
+                    byte[] data = new byte[Program.Config.Web.SocketBufferSize];
                     //如果远程主机已关闭连接,Read将立即返回零字节
                     //int length = await stream.ReadAsync(data, 0, data.Length);
                     int length = await stream.ReadAsync(data);
@@ -171,16 +177,77 @@ namespace KitX_Dashboard.Services
                 client.Dispose();
             }
         }
+        #endregion
+
+        #region UDP Socket 服务于自发现自组网
+
+        private static readonly List<int> SurpportedNetworkInterfaces = new();
+
+        /// <summary>
+        /// UDP 发包客户端
+        /// </summary>
+        private static readonly UdpClient UdpClient_Send
+            = new(Program.Config.Web.UDPPortSend, AddressFamily.InterNetwork)
+            {
+                EnableBroadcast = true,
+                MulticastLoopback = true
+            };
+
+        /// <summary>
+        /// UDP 收包客户端
+        /// </summary>
+        private static readonly UdpClient UdpClient_Receive
+            = new(new IPEndPoint(IPAddress.Any, Program.Config.Web.UDPPortReceive));
+
+        /// <summary>
+        /// 寻找受支持的网络适配器并把UDP客户端加入组播
+        /// </summary>
+        private static void FindSurpportNetworkInterface(List<UdpClient> clients, IPAddress multicastAddress)
+        {
+            NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (NetworkInterface adapter in nics)
+            {
+                IPInterfaceProperties ip_properties = adapter.GetIPProperties();
+                if (adapter.GetIPProperties().MulticastAddresses.Count == 0
+                    // most of VPN adapters will be skipped
+                    || !adapter.SupportsMulticast
+                    // multicast is meaningless for this type of connection
+                    || OperationalStatus.Up != adapter.OperationalStatus
+                    // this adapter is off or not connected
+                    || !adapter.Supports(NetworkInterfaceComponent.IPv4)
+                    ) continue;
+                IPInterfaceProperties adapterProperties = adapter.GetIPProperties();
+                UnicastIPAddressInformationCollection unicastIPAddresses
+                    = adapterProperties.UnicastAddresses;
+                IPv4InterfaceProperties p = adapterProperties.GetIPv4Properties();
+                if (p == null) continue;    // IPv4 is not configured on this adapter
+                SurpportedNetworkInterfaces.Add(IPAddress.HostToNetworkOrder(p.Index));
+                IPAddress ipAddress = null;
+                foreach (UnicastIPAddressInformation unicastIPAddress in unicastIPAddresses)
+                {
+                    if (unicastIPAddress.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    ipAddress = unicastIPAddress.Address;
+                    break;
+                }
+                if (ipAddress == null) continue;
+                foreach (var udpClient in clients)
+                    udpClient.JoinMulticastGroup(multicastAddress, ipAddress);
+            }
+        }
 
         /// <summary>
         /// 多设备广播发送方法
         /// </summary>
         public static void MultiDevicesBroadCastSend()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend);
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPPortReceive);
+            #region 初始化 UDP 客户端
+
+            UdpClient udpClient = UdpClient_Send;
+            IPEndPoint multicast = new(IPAddress.Parse(Program.Config.Web.UDPBroadcastAddress),
+                Program.Config.Web.UDPPortReceive);
+
+            #endregion
+
             System.Timers.Timer timer = new()
             {
                 Interval = 2000,
@@ -192,7 +259,13 @@ namespace KitX_Dashboard.Services
                 {
                     string sendText = JsonSerializer.Serialize(GetDeviceInfo());
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
-                    udpClient.Send(sendBytes, sendBytes.Length, multicast);
+
+                    foreach (var item in SurpportedNetworkInterfaces)
+                    {
+                        udpClient.Client.SetSocketOption(SocketOptionLevel.IP,
+                            SocketOptionName.MulticastInterface, item);
+                        udpClient.Send(sendBytes, sendBytes.Length, multicast);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -214,10 +287,13 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastReceive()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive);
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPPortSend);
+            #region 初始化 UDP 客户端
+
+            UdpClient udpClient = UdpClient_Receive;
+            IPEndPoint multicast = new(IPAddress.Any, 0);
+
+            #endregion
+
             new Thread(() =>
             {
                 try
@@ -265,7 +341,7 @@ namespace KitX_Dashboard.Services
                             || (IPv4_2_4Parts(ip.ToString()).Item1 == 172               //  172.16-31.x.x
                                 && IPv4_2_4Parts(ip.ToString()).Item2 >= 16
                                 && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
-                        && ip.ToString().StartsWith(Program.GlobalConfig.App.IPFilter)  //  满足自定义规则
+                        && ip.ToString().StartsWith(Program.Config.Web.IPFilter)  //  满足自定义规则
                     select ip).First().ToString();
         }
 
@@ -292,6 +368,8 @@ namespace KitX_Dashboard.Services
             ServingPort = GlobalInfo.ServerPortNumber,
             PluginsCount = Program.PluginCards.Count,
         };
+
+        #endregion
 
         /// <summary>
         /// 释放资源

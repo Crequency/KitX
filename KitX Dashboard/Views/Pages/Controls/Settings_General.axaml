@@ -293,6 +293,8 @@
                 </DockPanel>
             </ui:InfoBar>
 
+            <Border Height="100"/>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

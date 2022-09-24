@@ -61,8 +61,8 @@ namespace KitX_Dashboard.Views.Pages
 
         private static string SelectedViewName
         {
-            get => Program.GlobalConfig.Pages.SettingsPage.SelectedViewName;
-            set => Program.GlobalConfig.Pages.SettingsPage.SelectedViewName = value;
+            get => Program.Config.Pages.SettingsPage.SelectedViewName;
+            set => Program.Config.Pages.SettingsPage.SelectedViewName = value;
         }
 
         private static Type SelectedViewType() => SelectedViewName switch

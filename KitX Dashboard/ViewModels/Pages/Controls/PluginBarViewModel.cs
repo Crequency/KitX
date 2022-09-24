@@ -8,7 +8,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
-using System.Text;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -47,8 +46,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 if (PluginDetail != null)
                     return PluginDetail.PluginDetails.DisplayName
-                        .ContainsKey(Program.GlobalConfig.App.AppLanguage)
-                        ? PluginDetail.PluginDetails.DisplayName[Program.GlobalConfig.App.AppLanguage]
+                        .ContainsKey(Program.Config.App.AppLanguage)
+                        ? PluginDetail.PluginDetails.DisplayName[Program.Config.App.AppLanguage]
                         : PluginDetail.PluginDetails.DisplayName.Values.GetEnumerator().Current;
                 return null;
             }
