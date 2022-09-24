@@ -195,8 +195,8 @@ namespace KitX_Dashboard.Services
                     // multicast is meaningless for this type of connection
                     || OperationalStatus.Up != adapter.OperationalStatus
                     // this adapter is off or not connected
-                    )
-                    continue;
+                    || !adapter.Supports(NetworkInterfaceComponent.IPv4)
+                    ) continue;
                 IPv4InterfaceProperties p = adapter.GetIPProperties().GetIPv4Properties();
                 if (p == null) continue;    // IPv4 is not configured on this adapter
                 SurpportedNetworkInterfaces.Add(IPAddress.HostToNetworkOrder(p.Index));
@@ -262,13 +262,42 @@ namespace KitX_Dashboard.Services
         {
             #region 初始化 UDP 客户端
 
-            UdpClient udpClient = new(Program.Config.Web.UDPPortReceive, AddressFamily.InterNetwork)
-            {
-                EnableBroadcast = true,
-                MulticastLoopback = true
-            };
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            //UdpClient udpClient = new(Program.Config.Web.UDPPortReceive, AddressFamily.InterNetwork)
+            //{
+            //    EnableBroadcast = true,
+            //    MulticastLoopback = true
+            //};
+            //udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Any, 0);
+
+            #endregion
+
+            #region UDP 客户端在所有网络适配器上加入组播
+
+            IPAddress multicastAddress = IPAddress.Parse("224.0.0.0");
+            IPEndPoint iPEndPoint = new(IPAddress.Any, Program.Config.Web.UDPPortReceive);
+            UdpClient udpClient = new(iPEndPoint);
+            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (NetworkInterface adapter in networkInterfaces)
+            {
+                if (adapter.GetIPProperties().MulticastAddresses.Count == 0
+                    || !adapter.SupportsMulticast
+                    || OperationalStatus.Up != adapter.OperationalStatus
+                    || !adapter.Supports(NetworkInterfaceComponent.IPv4)
+                    ) continue;
+                IPInterfaceProperties adapterProperties = adapter.GetIPProperties();
+                UnicastIPAddressInformationCollection unicastIPAddresses
+                    = adapterProperties.UnicastAddresses;
+                IPAddress ipAddress = null;
+                foreach (UnicastIPAddressInformation unicastIPAddress in unicastIPAddresses)
+                {
+                    if (unicastIPAddress.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    ipAddress = unicastIPAddress.Address;
+                    break;
+                }
+                if (ipAddress == null) continue;
+                udpClient.JoinMulticastGroup(multicastAddress, ipAddress);
+            }
 
             #endregion
 
