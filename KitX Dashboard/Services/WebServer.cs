@@ -30,10 +30,13 @@ namespace KitX_Dashboard.Services
                 DevicesManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemoveOrDelete();
+                FindSurpportNetworkInterface();
                 MultiDevicesBroadCastSend();
                 MultiDevicesBroadCastReceive();
             }).Start();
         }
+
+        #region TCP Socket 服务于 Loaders 的服务器
 
         /// <summary>
         /// 开始执行
@@ -124,7 +127,7 @@ namespace KitX_Dashboard.Services
 
                 while (keepListen)
                 {
-                    byte[] data = new byte[Program.GlobalConfig.App.SocketBufferSize];
+                    byte[] data = new byte[Program.Config.App.SocketBufferSize];
                     //如果远程主机已关闭连接,Read将立即返回零字节
                     //int length = await stream.ReadAsync(data, 0, data.Length);
                     int length = await stream.ReadAsync(data);
@@ -171,29 +174,17 @@ namespace KitX_Dashboard.Services
                 client.Dispose();
             }
         }
+        #endregion
+
+        #region UDP Socket 服务于自发现自组网
+
+        private static readonly List<int> SurpportedNetworkInterfaces = new();
 
         /// <summary>
-        /// 多设备广播发送方法
+        /// 寻找受支持的网络适配器
         /// </summary>
-        public static void MultiDevicesBroadCastSend()
+        private static void FindSurpportNetworkInterface()
         {
-            #region 初始化 UDP 客户端
-
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend,
-                    AddressFamily.InterNetwork)
-            {
-                EnableBroadcast = true,
-                MulticastLoopback = true
-            };
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPPortReceive);
-
-            #endregion
-
-            #region 寻找受支持的网络适配器
-
-            List<int> networkInterfaceIndexes = new();
             NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
             foreach (NetworkInterface adapter in nics)
             {
@@ -208,8 +199,25 @@ namespace KitX_Dashboard.Services
                     continue;
                 IPv4InterfaceProperties p = adapter.GetIPProperties().GetIPv4Properties();
                 if (p == null) continue;    // IPv4 is not configured on this adapter
-                networkInterfaceIndexes.Add(IPAddress.HostToNetworkOrder(p.Index));
+                SurpportedNetworkInterfaces.Add(IPAddress.HostToNetworkOrder(p.Index));
             }
+        }
+
+        /// <summary>
+        /// 多设备广播发送方法
+        /// </summary>
+        public static void MultiDevicesBroadCastSend()
+        {
+            #region 初始化 UDP 客户端
+
+            UdpClient udpClient = new(Program.Config.App.UDPPortSend, AddressFamily.InterNetwork)
+            {
+                EnableBroadcast = true,
+                MulticastLoopback = true
+            };
+            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+                Program.Config.App.UDPPortReceive);
 
             #endregion
 
@@ -225,7 +233,7 @@ namespace KitX_Dashboard.Services
                     string sendText = JsonSerializer.Serialize(GetDeviceInfo());
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
 
-                    foreach (var item in networkInterfaceIndexes)
+                    foreach (var item in SurpportedNetworkInterfaces)
                     {
                         udpClient.Client.SetSocketOption(SocketOptionLevel.IP,
                             SocketOptionName.MulticastInterface, item);
@@ -252,11 +260,19 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastReceive()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive,
-                AddressFamily.InterNetwork);
+            #region 初始化 UDP 客户端
+
+            UdpClient udpClient = new(Program.Config.App.UDPPortReceive, AddressFamily.InterNetwork)
+            {
+                EnableBroadcast = true,
+                MulticastLoopback = true
+            };
             udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPPortSend);
+                Program.Config.App.UDPPortSend);
+
+            #endregion
+
             new Thread(() =>
             {
                 try
@@ -304,7 +320,7 @@ namespace KitX_Dashboard.Services
                             || (IPv4_2_4Parts(ip.ToString()).Item1 == 172               //  172.16-31.x.x
                                 && IPv4_2_4Parts(ip.ToString()).Item2 >= 16
                                 && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
-                        && ip.ToString().StartsWith(Program.GlobalConfig.App.IPFilter)  //  满足自定义规则
+                        && ip.ToString().StartsWith(Program.Config.App.IPFilter)  //  满足自定义规则
                     select ip).First().ToString();
         }
 
@@ -331,6 +347,8 @@ namespace KitX_Dashboard.Services
             ServingPort = GlobalInfo.ServerPortNumber,
             PluginsCount = Program.PluginCards.Count,
         };
+
+        #endregion
 
         /// <summary>
         /// 释放资源
