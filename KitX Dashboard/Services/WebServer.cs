@@ -177,13 +177,15 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastSend()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend);
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPPortReceive);
+            //UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend);
+            //udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            //IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+            //    Program.GlobalConfig.App.UDPPortReceive);
+            UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, Program.GlobalConfig.App.UDPPortSend));
+            IPEndPoint endPoint = new(IPAddress.Parse(GetMultiIP(GetInterNetworkIPv4())), Program.GlobalConfig.App.UDPPortReceive);
             System.Timers.Timer timer = new()
             {
-                Interval = 2000,
+                Interval = 3000,
                 AutoReset = true
             };
             timer.Elapsed += (_, _) =>
@@ -192,7 +194,8 @@ namespace KitX_Dashboard.Services
                 {
                     string sendText = JsonSerializer.Serialize(GetDeviceInfo());
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
-                    udpClient.Send(sendBytes, sendBytes.Length, multicast);
+                    //udpClient.Send(sendBytes, sendBytes.Length, multicast);
+                    udpClient.Send(sendBytes, sendBytes.Length, endPoint);
                 }
                 catch (Exception e)
                 {
@@ -267,6 +270,32 @@ namespace KitX_Dashboard.Services
                                 && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
                         && ip.ToString().StartsWith(Program.GlobalConfig.App.IPFilter)  //  满足自定义规则
                     select ip).First().ToString();
+        }
+
+        private static string GetMultiIP(string ip)
+        {
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.NetworkInterfaceType==NetworkInterfaceType.Ethernet && nic.OperationalStatus==OperationalStatus.Up)
+                {
+                    IPInterfaceProperties nic_ip = nic.GetIPProperties(); //IP配置
+                    foreach(UnicastIPAddressInformation nic_each in nic_ip.UnicastAddresses)
+                    {
+                        if (nic_each.Address.ToString().Equals(ip))
+                        {
+                            byte[] byte_mask = nic_each.IPv4Mask.GetAddressBytes();
+                            byte[] byte_ip = nic_each.Address.GetAddressBytes();
+                            for (int i = 0; i < byte_mask.Length; i++)
+                            {
+                                byte_mask[i] = (byte) ~ byte_mask[i];
+                                byte_ip[i] = (byte) (byte_ip[i] | byte_mask[i]);
+                            }
+                            return new IPAddress(byte_ip).ToString();
+                        }
+                    }
+                }
+            }
+            return "";
         }
 
         /// <summary>
