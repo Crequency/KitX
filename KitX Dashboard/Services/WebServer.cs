@@ -183,6 +183,7 @@ namespace KitX_Dashboard.Services
             //    Program.GlobalConfig.App.UDPPortReceive);
             UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, Program.GlobalConfig.App.UDPPortSend));
             IPEndPoint endPoint = new(IPAddress.Parse(GetMultiIP(GetInterNetworkIPv4())), Program.GlobalConfig.App.UDPPortReceive);
+            Log.Information($"Get broadcast IP:{GetMultiIP(GetInterNetworkIPv4())}");
             System.Timers.Timer timer = new()
             {
                 Interval = 3000,
@@ -217,17 +218,20 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastReceive()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive);
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.GlobalConfig.App.UDPPortSend);
+            //UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive);
+            //udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            //IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+            //    Program.GlobalConfig.App.UDPPortSend);
+            UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, Program.GlobalConfig.App.UDPPortReceive));
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
             new Thread(() =>
             {
                 try
                 {
                     while (GlobalInfo.Running)
                     {
-                        byte[] bytes = udpClient.Receive(ref multicast);
+                        //byte[] bytes = udpClient.Receive(ref multicast);
+                        byte[] bytes = udpClient.Receive(ref endPoint);
                         string result = Encoding.UTF8.GetString(bytes);
                         Log.Information($"UDP Receive: {result}");
                         DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
