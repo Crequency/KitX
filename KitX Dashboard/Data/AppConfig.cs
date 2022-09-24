@@ -214,6 +214,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public int SocketBufferSize { get; set; } = 1024 * 100;
+
+            [JsonInclude]
+            public int DeviceInfoStructTTLSeconds { get; set; } = 5;
         }
 
         /// <summary>
