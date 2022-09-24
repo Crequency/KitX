@@ -177,10 +177,42 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastSend()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend);
+            #region 初始化 UDP 客户端
+
+            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend,
+                    AddressFamily.InterNetwork)
+            {
+                EnableBroadcast = true,
+                MulticastLoopback = true
+            };
             udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
                 Program.GlobalConfig.App.UDPPortReceive);
+
+            #endregion
+
+            #region 寻找受支持的网络适配器
+
+            List<int> networkInterfaceIndexes = new();
+            NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (NetworkInterface adapter in nics)
+            {
+                IPInterfaceProperties ip_properties = adapter.GetIPProperties();
+                if (adapter.GetIPProperties().MulticastAddresses.Count == 0
+                    // most of VPN adapters will be skipped
+                    || !adapter.SupportsMulticast
+                    // multicast is meaningless for this type of connection
+                    || OperationalStatus.Up != adapter.OperationalStatus
+                    // this adapter is off or not connected
+                    )
+                    continue;
+                IPv4InterfaceProperties p = adapter.GetIPProperties().GetIPv4Properties();
+                if (p == null) continue;    // IPv4 is not configured on this adapter
+                networkInterfaceIndexes.Add(IPAddress.HostToNetworkOrder(p.Index));
+            }
+
+            #endregion
+
             System.Timers.Timer timer = new()
             {
                 Interval = 2000,
@@ -192,7 +224,13 @@ namespace KitX_Dashboard.Services
                 {
                     string sendText = JsonSerializer.Serialize(GetDeviceInfo());
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
-                    udpClient.Send(sendBytes, sendBytes.Length, multicast);
+
+                    foreach (var item in networkInterfaceIndexes)
+                    {
+                        udpClient.Client.SetSocketOption(SocketOptionLevel.IP,
+                            SocketOptionName.MulticastInterface, item);
+                        udpClient.Send(sendBytes, sendBytes.Length, multicast);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -214,7 +252,8 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastReceive()
         {
-            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive);
+            UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive,
+                AddressFamily.InterNetwork);
             udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
                 Program.GlobalConfig.App.UDPPortSend);
