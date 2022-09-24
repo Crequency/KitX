@@ -24,8 +24,8 @@ namespace KitX_Dashboard.Services
 
             //  链接头部
             string linkBase = $"http://" +
-                $"{Program.AppConfig.App.APIServer}" +
-                $"{Program.AppConfig.App.APIPath}";
+                $"{Program.Config.App.APIServer}" +
+                $"{Program.Config.App.APIPath}";
 
             //  获取公告列表的api链接
             string link = $"{linkBase}{GlobalInfo.Api_Get_Announcements}";
@@ -66,7 +66,7 @@ namespace KitX_Dashboard.Services
                     //  获取单个公告的链接
                     string apiLink = $"{linkBase}{GlobalInfo.Api_Get_Announcement}" +
                         $"?" +
-                        $"lang={Program.AppConfig.App.AppLanguage}" +
+                        $"lang={Program.Config.App.AppLanguage}" +
                         $"&" +
                         $"date={item:yyyy-MM-dd HH-mm}";
                     string? md = JsonSerializer.Deserialize<string>(await client.GetStringAsync(apiLink));

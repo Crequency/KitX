@@ -47,8 +47,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 if (PluginDetail != null)
                     return PluginDetail.PluginDetails.DisplayName
-                        .ContainsKey(Program.AppConfig.App.AppLanguage)
-                        ? PluginDetail.PluginDetails.DisplayName[Program.AppConfig.App.AppLanguage]
+                        .ContainsKey(Program.Config.App.AppLanguage)
+                        ? PluginDetail.PluginDetails.DisplayName[Program.Config.App.AppLanguage]
                         : PluginDetail.PluginDetails.DisplayName.Values.GetEnumerator().Current;
                 return null;
             }

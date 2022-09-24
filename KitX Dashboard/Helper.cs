@@ -32,7 +32,7 @@ namespace KitX_Dashboard
 
             //InitLiteLogger(Program.LocalLogger);
 
-            string logdir = Path.GetFullPath(Program.AppConfig.App.LogFilePath);
+            string logdir = Path.GetFullPath(Program.Config.App.LogFilePath);
 
             if (!Directory.Exists(logdir))
                 Directory.CreateDirectory(logdir);
@@ -41,14 +41,14 @@ namespace KitX_Dashboard
                 .MinimumLevel.Information()
                 .WriteTo.File(
                     $"{logdir}Log_.log",
-                    outputTemplate: Program.AppConfig.App.LogTemplate,
+                    outputTemplate: Program.Config.App.LogTemplate,
                     rollingInterval: RollingInterval.Hour,
-                    fileSizeLimitBytes: Program.AppConfig.App.LogFileSingleMaxSize,
+                    fileSizeLimitBytes: Program.Config.App.LogFileSingleMaxSize,
                     buffered: true,
-                    flushToDiskInterval: new(0, 0, Program.AppConfig.App.LogFileFlushInterval),
+                    flushToDiskInterval: new(0, 0, Program.Config.App.LogFileFlushInterval),
                     restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
                     rollOnFileSizeLimit: true,
-                    retainedFileCountLimit: Program.AppConfig.App.LogFileMaxCount
+                    retainedFileCountLimit: Program.Config.App.LogFileMaxCount
                 )
                 .CreateLogger();
 
@@ -90,7 +90,7 @@ namespace KitX_Dashboard
             new Thread(() =>
             {
                 BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
-                    JsonSerializer.Serialize(Program.AppConfig, options));
+                    JsonSerializer.Serialize(Program.Config, options));
             }).Start();
         }
 
@@ -117,7 +117,7 @@ namespace KitX_Dashboard
         /// </summary>
         public static void LoadConfig()
         {
-            Program.AppConfig = JsonSerializer.Deserialize<Config>(
+            Program.Config = JsonSerializer.Deserialize<AppConfig>(
                 BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
         }
 

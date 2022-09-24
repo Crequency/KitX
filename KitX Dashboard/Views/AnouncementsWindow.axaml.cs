@@ -24,11 +24,11 @@ namespace KitX_Dashboard.Views
 
             Position = new(
                 WindowAttributesConverter.PositionCameCenter(
-                    Program.AppConfig.Windows.AnnouncementWindow.Window_Left,
+                    Program.Config.Windows.AnnouncementWindow.Window_Left,
                     true, Screens
                 ),
                 WindowAttributesConverter.PositionCameCenter(
-                    Program.AppConfig.Windows.AnnouncementWindow.Window_Top,
+                    Program.Config.Windows.AnnouncementWindow.Window_Top,
                     false, Screens
                 )
             );
@@ -51,10 +51,10 @@ namespace KitX_Dashboard.Views
 
         private void SaveMetaData()
         {
-            Program.AppConfig.Windows.AnnouncementWindow.Window_Left = Position.X;
-            Program.AppConfig.Windows.AnnouncementWindow.Window_Top = Position.Y;
-            Program.AppConfig.Windows.AnnouncementWindow.Window_Width = Width;
-            Program.AppConfig.Windows.AnnouncementWindow.Window_Height = Height;
+            Program.Config.Windows.AnnouncementWindow.Window_Left = Position.X;
+            Program.Config.Windows.AnnouncementWindow.Window_Top = Position.Y;
+            Program.Config.Windows.AnnouncementWindow.Window_Width = Width;
+            Program.Config.Windows.AnnouncementWindow.Window_Height = Height;
         }
 
         protected override void OnClosing(CancelEventArgs e)

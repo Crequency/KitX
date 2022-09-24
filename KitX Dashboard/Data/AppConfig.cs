@@ -6,7 +6,7 @@ namespace KitX_Dashboard.Data
     /// <summary>
     /// 配置结构
     /// </summary>
-    public class Config
+    public class AppConfig
     {
         [JsonInclude]
         public Config_App App { get; set; } = new();
@@ -18,7 +18,7 @@ namespace KitX_Dashboard.Data
         public Config_Pages Pages { get; set; } = new();
 
         /// <summary>
-        /// AppConfig
+        /// Config
         /// </summary>
         public class Config_App
         {
