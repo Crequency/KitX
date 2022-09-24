@@ -1,7 +1,4 @@
-﻿using Avalonia;
-using Avalonia.Media;
-using FluentAvalonia.UI.Media;
-using KitX_Dashboard.Data;
+﻿using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using Serilog;
 using System;

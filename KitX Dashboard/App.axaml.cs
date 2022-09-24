@@ -5,7 +5,6 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
 using BasicHelper.Util;
-using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;

@@ -4,7 +4,6 @@ using KitX.Web.Rules;
 using Serilog;
 using System;
 using System.IO;
-using System.Text;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
