@@ -32,13 +32,23 @@ namespace KitX_Dashboard
 
             //InitLiteLogger(Program.LocalLogger);
 
+            string logdir = Path.GetFullPath(Program.GlobalConfig.App.LogFilePath);
+
+            if (!Directory.Exists(logdir))
+                Directory.CreateDirectory(logdir);
+
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
                 .WriteTo.File(
-                    Path.GetFullPath($"{Program.GlobalConfig.App.LogFilePath}Log_.log"),
+                    $"{logdir}Log_.log",
                     outputTemplate: Program.GlobalConfig.App.LogTemplate,
-                    rollingInterval: RollingInterval.Day,
-                    fileSizeLimitBytes: Program.GlobalConfig.App.LogFileSingleMaxSize
+                    rollingInterval: RollingInterval.Hour,
+                    fileSizeLimitBytes: Program.GlobalConfig.App.LogFileSingleMaxSize,
+                    buffered: true,
+                    flushToDiskInterval: new(0, 0, Program.GlobalConfig.App.LogFileFlushInterval),
+                    restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
+                    rollOnFileSizeLimit: true,
+                    retainedFileCountLimit: Program.GlobalConfig.App.LogFileMaxCount
                 )
                 .CreateLogger();
 
@@ -59,13 +69,7 @@ namespace KitX_Dashboard
 
             #region 初始化事件
 
-            EventHandlers.ConfigSettingsChanged += () =>
-            {
-                SolidColorBrush? accent = Application.Current
-                    .Resources["ThemePrimaryAccent"] as SolidColorBrush;
-                Program.GlobalConfig.App.ThemeColor = new Color2(accent.Color).ToHexString();
-                SaveConfig();
-            };
+            EventHandlers.ConfigSettingsChanged += () => SaveConfig();
 
             EventHandlers.PluginsListChanged += () => SavePluginsListConfig();
 
@@ -147,6 +151,7 @@ namespace KitX_Dashboard
         {
             SaveConfig();
             SavePluginsListConfig();
+            Log.CloseAndFlush();
         }
 
         /// <summary>

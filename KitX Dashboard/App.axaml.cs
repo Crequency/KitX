@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
 using BasicHelper.Util;
+using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
@@ -53,6 +54,24 @@ namespace KitX_Dashboard
             }
 
             EventHandlers.Invoke("LanguageChanged");
+
+            Color c = Color.Parse(Program.GlobalConfig.App.ThemeColor);
+
+            if (Current != null)
+            {
+                Current.Resources["ThemePrimaryAccent"] =
+                    new SolidColorBrush(new Color(c.A, c.R, c.G, c.B));
+                for (char i = 'A'; i <= 'E'; ++i)
+                {
+                    Current.Resources[$"ThemePrimaryAccentTransparent{i}{i}"] =
+                        new SolidColorBrush(new Color((byte)(170 + (i - 'A') * 17), c.R, c.G, c.B));
+                }
+                for (int i = 1; i <= 9; ++i)
+                {
+                    Current.Resources[$"ThemePrimaryAccentTransparent{i}{i}"] =
+                        new SolidColorBrush(new Color((byte)(i * 10 + i), c.R, c.G, c.B));
+                }
+            }
         }
 
         public override void OnFrameworkInitializationCompleted()
