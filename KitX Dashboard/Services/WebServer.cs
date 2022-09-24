@@ -127,7 +127,7 @@ namespace KitX_Dashboard.Services
 
                 while (keepListen)
                 {
-                    byte[] data = new byte[Program.Config.App.SocketBufferSize];
+                    byte[] data = new byte[Program.Config.Web.SocketBufferSize];
                     //如果远程主机已关闭连接,Read将立即返回零字节
                     //int length = await stream.ReadAsync(data, 0, data.Length);
                     int length = await stream.ReadAsync(data);
@@ -210,14 +210,14 @@ namespace KitX_Dashboard.Services
         {
             #region 初始化 UDP 客户端
 
-            UdpClient udpClient = new(Program.Config.App.UDPPortSend, AddressFamily.InterNetwork)
+            UdpClient udpClient = new(Program.Config.Web.UDPPortSend, AddressFamily.InterNetwork)
             {
                 EnableBroadcast = true,
                 MulticastLoopback = true
             };
             udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
             IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.Config.App.UDPPortReceive);
+                Program.Config.Web.UDPPortReceive);
 
             #endregion
 
@@ -262,14 +262,13 @@ namespace KitX_Dashboard.Services
         {
             #region 初始化 UDP 客户端
 
-            UdpClient udpClient = new(Program.Config.App.UDPPortReceive, AddressFamily.InterNetwork)
+            UdpClient udpClient = new(Program.Config.Web.UDPPortReceive, AddressFamily.InterNetwork)
             {
                 EnableBroadcast = true,
                 MulticastLoopback = true
             };
             udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
-                Program.Config.App.UDPPortSend);
+            IPEndPoint multicast = new(IPAddress.Any, 0);
 
             #endregion
 
@@ -320,7 +319,7 @@ namespace KitX_Dashboard.Services
                             || (IPv4_2_4Parts(ip.ToString()).Item1 == 172               //  172.16-31.x.x
                                 && IPv4_2_4Parts(ip.ToString()).Item2 >= 16
                                 && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
-                        && ip.ToString().StartsWith(Program.Config.App.IPFilter)  //  满足自定义规则
+                        && ip.ToString().StartsWith(Program.Config.Web.IPFilter)  //  满足自定义规则
                     select ip).First().ToString();
         }
 

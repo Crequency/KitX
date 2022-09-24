@@ -24,8 +24,8 @@ namespace KitX_Dashboard.Services
 
             //  链接头部
             string linkBase = $"http://" +
-                $"{Program.Config.App.APIServer}" +
-                $"{Program.Config.App.APIPath}";
+                $"{Program.Config.Web.APIServer}" +
+                $"{Program.Config.Web.APIPath}";
 
             //  获取公告列表的api链接
             string link = $"{linkBase}{GlobalInfo.Api_Get_Announcements}";

@@ -207,8 +207,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static string LocalIPFilter
         {
-            get => Program.Config.App.IPFilter;
-            set => Program.Config.App.IPFilter = value;
+            get => Program.Config.Web.IPFilter;
+            set => Program.Config.Web.IPFilter = value;
         }
 
         /// <summary>

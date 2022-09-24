@@ -32,7 +32,7 @@ namespace KitX_Dashboard
 
             //InitLiteLogger(Program.LocalLogger);
 
-            string logdir = Path.GetFullPath(Program.Config.App.LogFilePath);
+            string logdir = Path.GetFullPath(Program.Config.Log.LogFilePath);
 
             if (!Directory.Exists(logdir))
                 Directory.CreateDirectory(logdir);
@@ -41,14 +41,14 @@ namespace KitX_Dashboard
                 .MinimumLevel.Information()
                 .WriteTo.File(
                     $"{logdir}Log_.log",
-                    outputTemplate: Program.Config.App.LogTemplate,
+                    outputTemplate: Program.Config.Log.LogTemplate,
                     rollingInterval: RollingInterval.Hour,
-                    fileSizeLimitBytes: Program.Config.App.LogFileSingleMaxSize,
+                    fileSizeLimitBytes: Program.Config.Log.LogFileSingleMaxSize,
                     buffered: true,
-                    flushToDiskInterval: new(0, 0, Program.Config.App.LogFileFlushInterval),
+                    flushToDiskInterval: new(0, 0, Program.Config.Log.LogFileFlushInterval),
                     restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
                     rollOnFileSizeLimit: true,
-                    retainedFileCountLimit: Program.Config.App.LogFileMaxCount
+                    retainedFileCountLimit: Program.Config.Log.LogFileMaxCount
                 )
                 .CreateLogger();
 

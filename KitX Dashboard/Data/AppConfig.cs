@@ -17,6 +17,12 @@ namespace KitX_Dashboard.Data
         [JsonInclude]
         public Config_Pages Pages { get; set; } = new();
 
+        [JsonInclude]
+        public Config_Web Web { get; set; } = new();
+
+        [JsonInclude]
+        public Config_Log Log { get; set; } = new();
+
         /// <summary>
         /// Config
         /// </summary>
@@ -50,44 +56,10 @@ namespace KitX_Dashboard.Data
             public bool DeveloperSetting { get; set; } = false;
 
             [JsonInclude]
-            public int UDPPortSend { get; set; } = 23404;
-
-            [JsonInclude]
-            public int UDPPortReceive { get; set; } = 24040;
-
-            [JsonInclude]
-            public string APIServer { get; set; } = "api.catrol.cn";
-
-            [JsonInclude]
-            public string APIPath { get; set; } = "/apps/kitx/";
-
-            [JsonInclude]
             public bool ShowAnnouncementWhenStart { get; set; } = true;
 
             [JsonInclude]
             public ulong RanTime { get; set; } = 0;
-
-            [JsonInclude]
-            public string IPFilter { get; set; } = "192.168";
-
-            [JsonInclude]
-            public long LogFileSingleMaxSize { get; set; } = 1024 * 10000;      //  10MB
-
-            [JsonInclude]
-            public string LogFilePath { get; set; } = "./Log/";
-
-            [JsonInclude]
-            public string LogTemplate { get; set; } = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] " +
-                "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
-
-            [JsonInclude]
-            public int LogFileMaxCount { get; set; } = 50;
-
-            [JsonInclude]
-            public int LogFileFlushInterval { get; set; } = 30;
-
-            [JsonInclude]
-            public int SocketBufferSize { get; set; } = 1024 * 100;
         }
 
         /// <summary>
@@ -217,6 +189,54 @@ namespace KitX_Dashboard.Data
                 [JsonInclude]
                 public bool IsNavigationViewPaneOpened { get; set; } = true;
             }
+        }
+
+        /// <summary>
+        /// WebConfig
+        /// </summary>
+        public class Config_Web
+        {
+
+            [JsonInclude]
+            public string APIServer { get; set; } = "api.catrol.cn";
+
+            [JsonInclude]
+            public string APIPath { get; set; } = "/apps/kitx/";
+
+            [JsonInclude]
+            public int UDPPortSend { get; set; } = 23404;
+
+            [JsonInclude]
+            public int UDPPortReceive { get; set; } = 24040;
+
+            [JsonInclude]
+            public string IPFilter { get; set; } = "192.168";
+
+            [JsonInclude]
+            public int SocketBufferSize { get; set; } = 1024 * 100;
+        }
+
+        /// <summary>
+        /// LogConfig
+        /// </summary>
+        public class Config_Log
+        {
+
+            [JsonInclude]
+            public long LogFileSingleMaxSize { get; set; } = 1024 * 10000;      //  10MB
+
+            [JsonInclude]
+            public string LogFilePath { get; set; } = "./Log/";
+
+            [JsonInclude]
+            public string LogTemplate { get; set; } = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] " +
+                "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
+
+            [JsonInclude]
+            public int LogFileMaxCount { get; set; } = 50;
+
+            [JsonInclude]
+            public int LogFileFlushInterval { get; set; } = 30;
         }
     }
 }
