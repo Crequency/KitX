@@ -25,7 +25,7 @@ var readDict = (Dictionary<string, string> x) =>
 {
     Dictionary<string, string> result = new();
     foreach (var item in x)
-        result[item.Key] = File.ReadAllText(item.Value);
+        result[item.Key] = File.ReadAllText(Path.GetFullPath(item.Value));
     return result;
 };
 
