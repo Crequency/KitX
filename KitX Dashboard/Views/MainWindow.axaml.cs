@@ -44,11 +44,11 @@ namespace KitX_Dashboard.Views
 
             Position = new(
                 WindowAttributesConverter.PositionCameCenter(
-                    Program.GlobalConfig.Windows.MainWindow.Window_Left,
+                    Program.AppConfig.Windows.MainWindow.Window_Left,
                     true, Screens
                 ),
                 WindowAttributesConverter.PositionCameCenter(
-                    Program.GlobalConfig.Windows.MainWindow.Window_Top,
+                    Program.AppConfig.Windows.MainWindow.Window_Top,
                     false, Screens
                 )
             );
@@ -56,15 +56,15 @@ namespace KitX_Dashboard.Views
             if (OperatingSystem.IsWindows())
             {
                 ClientSize = new(
-                    Program.GlobalConfig.Windows.MainWindow.Window_Width + 16,
-                    Program.GlobalConfig.Windows.MainWindow.Window_Height + 38
+                    Program.AppConfig.Windows.MainWindow.Window_Width + 16,
+                    Program.AppConfig.Windows.MainWindow.Window_Height + 38
                 );
             }
             else
             {
                 ClientSize = new(
-                    Program.GlobalConfig.Windows.MainWindow.Window_Width,
-                    Program.GlobalConfig.Windows.MainWindow.Window_Height
+                    Program.AppConfig.Windows.MainWindow.Window_Width,
+                    Program.AppConfig.Windows.MainWindow.Window_Height
                 );
             }
 
@@ -81,18 +81,18 @@ namespace KitX_Dashboard.Views
         private void InitMainWindow()
         {
             // 导航到上次关闭时界面
-            SelectedPageName = Program.GlobalConfig.Windows.MainWindow.Tags["SelectedPage"];
+            SelectedPageName = Program.AppConfig.Windows.MainWindow.Tags["SelectedPage"];
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
 
             // 如果主题不设置为 `跟随系统` 则手动变更主题
-            if (!Program.GlobalConfig.App.Theme.Equals("Follow"))
+            if (!Program.AppConfig.App.Theme.Equals("Follow"))
                 AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme =
-                    Program.GlobalConfig.App.Theme;
+                    Program.AppConfig.App.Theme;
 
             // 透明度变更事件, 让透明度变更立即生效
             EventHandlers.MicaOpacityChanged += () =>
             {
-                if (Program.GlobalConfig.Windows.MainWindow.EnabledMica)
+                if (Program.AppConfig.Windows.MainWindow.EnabledMica)
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && IsWindows11)
                     {
                         switch (AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme)
@@ -102,14 +102,14 @@ namespace KitX_Dashboard.Views
                                     out var value1) ? (Color2)(Color)value1 : new Color2(32, 32, 32);
 
                                 Background = new ImmutableSolidColorBrush(color1,
-                                    Program.GlobalConfig.Windows.MainWindow.MicaOpacity);
+                                    Program.AppConfig.Windows.MainWindow.MicaOpacity);
                                 break;
                             case "Dark":
                                 var color2 = this.TryFindResource("SolidBackgroundFillColorBase",
                                     out var value2) ? (Color2)(Color)value2 : new Color2(243, 243, 243);
 
                                 Background = new ImmutableSolidColorBrush(color2,
-                                    Program.GlobalConfig.Windows.MainWindow.MicaOpacity);
+                                    Program.AppConfig.Windows.MainWindow.MicaOpacity);
                                 break;
                         }
                     }
@@ -122,7 +122,7 @@ namespace KitX_Dashboard.Views
             Timer timer = new()
             {
                 AutoReset = true,
-                Interval = 1000 * 60 * Program.GlobalConfig.Windows.MainWindow.GreetingUpdateInterval
+                Interval = 1000 * 60 * Program.AppConfig.Windows.MainWindow.GreetingUpdateInterval
             };
             timer.Elapsed += (_, _) => UpdateGreetingText();
             timer.Start();
@@ -194,19 +194,19 @@ namespace KitX_Dashboard.Views
         /// </summary>
         private void SaveMetaData()
         {
-            Program.GlobalConfig.Windows.MainWindow.Window_Left = Position.X;
-            Program.GlobalConfig.Windows.MainWindow.Window_Top = Position.Y;
+            Program.AppConfig.Windows.MainWindow.Window_Left = Position.X;
+            Program.AppConfig.Windows.MainWindow.Window_Top = Position.Y;
             if (OperatingSystem.IsWindows())
             {
-                Program.GlobalConfig.Windows.MainWindow.Window_Width = ClientSize.Width;
-                Program.GlobalConfig.Windows.MainWindow.Window_Height = ClientSize.Height - 30;
+                Program.AppConfig.Windows.MainWindow.Window_Width = ClientSize.Width;
+                Program.AppConfig.Windows.MainWindow.Window_Height = ClientSize.Height - 30;
             }
             else
             {
-                Program.GlobalConfig.Windows.MainWindow.Window_Width = ClientSize.Width;
-                Program.GlobalConfig.Windows.MainWindow.Window_Height = ClientSize.Height;
+                Program.AppConfig.Windows.MainWindow.Window_Width = ClientSize.Width;
+                Program.AppConfig.Windows.MainWindow.Window_Height = ClientSize.Height;
             }
-            Program.GlobalConfig.Windows.MainWindow.
+            Program.AppConfig.Windows.MainWindow.
                 Tags["SelectedPage"] = SelectedPageName;
         }
 
@@ -244,7 +244,7 @@ namespace KitX_Dashboard.Views
 
             // 如果是 Windows 系统, 且数据库表示启用 Mica 效果
             //if ((bool)(Helper.local_db_table.Query(1).ReturnResult as List<object>)[5]
-            if (Program.GlobalConfig.Windows.MainWindow.EnabledMica
+            if (Program.AppConfig.Windows.MainWindow.EnabledMica
                 && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // 如果是 Windows 11 而且没有选择 `高对比度` 主题
@@ -293,7 +293,7 @@ namespace KitX_Dashboard.Views
                 color = color.LightenPercent(-0.8f);
 
                 Background = new ImmutableSolidColorBrush(color,
-                    Program.GlobalConfig.Windows.MainWindow.MicaOpacity);
+                    Program.AppConfig.Windows.MainWindow.MicaOpacity);
             }
             else if (thm.RequestedTheme == FluentAvaloniaTheme.LightModeString)
             {
@@ -303,7 +303,7 @@ namespace KitX_Dashboard.Views
                 color = color.LightenPercent(0.5f);
 
                 Background = new ImmutableSolidColorBrush(color,
-                    Program.GlobalConfig.Windows.MainWindow.MicaOpacity);
+                    Program.AppConfig.Windows.MainWindow.MicaOpacity);
             }
         }
     }

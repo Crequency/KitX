@@ -32,7 +32,7 @@ namespace KitX_Dashboard
 
             //InitLiteLogger(Program.LocalLogger);
 
-            string logdir = Path.GetFullPath(Program.GlobalConfig.App.LogFilePath);
+            string logdir = Path.GetFullPath(Program.AppConfig.App.LogFilePath);
 
             if (!Directory.Exists(logdir))
                 Directory.CreateDirectory(logdir);
@@ -41,14 +41,14 @@ namespace KitX_Dashboard
                 .MinimumLevel.Information()
                 .WriteTo.File(
                     $"{logdir}Log_.log",
-                    outputTemplate: Program.GlobalConfig.App.LogTemplate,
+                    outputTemplate: Program.AppConfig.App.LogTemplate,
                     rollingInterval: RollingInterval.Hour,
-                    fileSizeLimitBytes: Program.GlobalConfig.App.LogFileSingleMaxSize,
+                    fileSizeLimitBytes: Program.AppConfig.App.LogFileSingleMaxSize,
                     buffered: true,
-                    flushToDiskInterval: new(0, 0, Program.GlobalConfig.App.LogFileFlushInterval),
+                    flushToDiskInterval: new(0, 0, Program.AppConfig.App.LogFileFlushInterval),
                     restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
                     rollOnFileSizeLimit: true,
-                    retainedFileCountLimit: Program.GlobalConfig.App.LogFileMaxCount
+                    retainedFileCountLimit: Program.AppConfig.App.LogFileMaxCount
                 )
                 .CreateLogger();
 
@@ -90,7 +90,7 @@ namespace KitX_Dashboard
             new Thread(() =>
             {
                 BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
-                    JsonSerializer.Serialize(Program.GlobalConfig, options));
+                    JsonSerializer.Serialize(Program.AppConfig, options));
             }).Start();
         }
 
@@ -117,7 +117,7 @@ namespace KitX_Dashboard
         /// </summary>
         public static void LoadConfig()
         {
-            Program.GlobalConfig = JsonSerializer.Deserialize<Config>(
+            Program.AppConfig = JsonSerializer.Deserialize<Config>(
                 BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
         }
 

@@ -164,7 +164,7 @@ namespace KitX_Dashboard.Services
                     LoaderStruct loaderStruct = JsonSerializer.Deserialize<LoaderStruct>(rst.Item1);
                     PluginStruct pluginStruct = JsonSerializer.Deserialize<PluginStruct>(rst.Item2);
                     Config? config = null;
-                    if (inGraphic) config = Program.GlobalConfig;
+                    if (inGraphic) config = Program.AppConfig;
                     else config = JsonSerializer.Deserialize<Config>(File.ReadAllText(
                         Path.GetFullPath($"{GlobalInfo.ConfigPath}config.json")
                     ));
@@ -242,7 +242,7 @@ namespace KitX_Dashboard.Services
                         Plugin pg = pluginsToDelete.Dequeue();
                         Program.PluginsList.Plugins.Remove(pg);
                         string pgfiledir = Path.GetFullPath(
-                            $"{Program.GlobalConfig.App.LocalPluginsFileDirectory}/" +
+                            $"{Program.AppConfig.App.LocalPluginsFileDirectory}/" +
                             $"{pg.PluginDetails.PublisherName}_{pg.PluginDetails.AuthorName}/" +
                             $"{pg.PluginDetails.Name}/{pg.PluginDetails.Version}/"
                         );

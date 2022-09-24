@@ -18,15 +18,15 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         internal string DisplayName => pluginStruct.DisplayName
-            .ContainsKey(Program.GlobalConfig.App.AppLanguage)
-            ? pluginStruct.DisplayName[Program.GlobalConfig.App.AppLanguage]
+            .ContainsKey(Program.AppConfig.App.AppLanguage)
+            ? pluginStruct.DisplayName[Program.AppConfig.App.AppLanguage]
             : pluginStruct.DisplayName.Values.GetEnumerator().Current;
 
         internal string Version => pluginStruct.Version;
 
         internal string SimpleDescription => pluginStruct.SimpleDescription.ContainsKey(
-            Program.GlobalConfig.App.AppLanguage)
-            ? pluginStruct.SimpleDescription[Program.GlobalConfig.App.AppLanguage]
+            Program.AppConfig.App.AppLanguage)
+            ? pluginStruct.SimpleDescription[Program.AppConfig.App.AppLanguage]
             : string.Empty;
 
         internal string IconInBase64 => pluginStruct.IconInBase64;

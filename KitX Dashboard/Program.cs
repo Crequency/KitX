@@ -14,7 +14,7 @@ namespace KitX_Dashboard
     {
         //internal static LoggerManager LocalLogger = new();
 
-        internal static Config GlobalConfig = new();
+        internal static Config AppConfig = new();
 
         internal static WebServer? LocalWebServer;
 
@@ -87,7 +87,7 @@ namespace KitX_Dashboard
 
                 #endregion
 
-                GlobalConfig.App.RanTime++;
+                AppConfig.App.RanTime++;
 
                 #region 进入应用生命周期循环
 

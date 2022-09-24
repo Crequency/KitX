@@ -36,7 +36,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         private void InitData()
         {
-            foreach (var item in Program.GlobalConfig.App.SurpportLanguages)
+            foreach (var item in Program.AppConfig.App.SurpportLanguages)
             {
                 SurpportLanguages.Add(new SurpportLanguages()
                 {
@@ -45,7 +45,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 });
             }
             LanguageSelected = SurpportLanguages.FindIndex(0, SurpportLanguages.Count,
-                new LanguageMatch(Program.GlobalConfig.App.AppLanguage).IsIt);
+                new LanguageMatch(Program.AppConfig.App.AppLanguage).IsIt);
         }
 
         /// <summary>
@@ -75,9 +75,9 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             FluentAvaloniaTheme.HighContrastModeString
         };
 
-        private string _currentAppTheme = Program.GlobalConfig.App.Theme == "Follow"
+        private string _currentAppTheme = Program.AppConfig.App.Theme == "Follow"
             ? AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>().RequestedTheme
-            : Program.GlobalConfig.App.Theme;
+            : Program.AppConfig.App.Theme;
 
         private Color2 nowColor = new();
 
@@ -98,7 +98,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             get => _currentAppTheme;
             set
             {
-                Program.GlobalConfig.App.Theme = value;
+                Program.AppConfig.App.Theme = value;
                 if (RaiseAndSetIfChanged(ref _currentAppTheme, value))
                 {
                     var faTheme = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
@@ -115,7 +115,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static void LoadLanguage()
         {
-            string lang = Program.GlobalConfig.App.AppLanguage;
+            string lang = Program.AppConfig.App.AppLanguage;
             try
             {
                 Application.Current.Resources.MergedDictionaries.Clear();
@@ -160,7 +160,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 try
                 {
                     languageSelected = value;
-                    Program.GlobalConfig.App.AppLanguage = SurpportLanguages[value].LanguageCode;
+                    Program.AppConfig.App.AppLanguage = SurpportLanguages[value].LanguageCode;
                     LoadLanguage();
                     SaveChanges();
                 }
@@ -176,10 +176,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int MicaStatus
         {
-            get => Program.GlobalConfig.Windows.MainWindow.EnabledMica ? 0 : 1;
+            get => Program.AppConfig.Windows.MainWindow.EnabledMica ? 0 : 1;
             set
             {
-                Program.GlobalConfig.Windows.MainWindow.EnabledMica = value != 1;
+                Program.AppConfig.Windows.MainWindow.EnabledMica = value != 1;
                 SaveChanges();
             }
         }
@@ -189,10 +189,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static double MicaOpacity
         {
-            get => Program.GlobalConfig.Windows.MainWindow.MicaOpacity;
+            get => Program.AppConfig.Windows.MainWindow.MicaOpacity;
             set
             {
-                Program.GlobalConfig.Windows.MainWindow.MicaOpacity = value;
+                Program.AppConfig.Windows.MainWindow.MicaOpacity = value;
                 EventHandlers.Invoke("MicaOpacityChanged");
             }
         }
@@ -207,8 +207,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static string LocalIPFilter
         {
-            get => Program.GlobalConfig.App.IPFilter;
-            set => Program.GlobalConfig.App.IPFilter = value;
+            get => Program.AppConfig.App.IPFilter;
+            set => Program.AppConfig.App.IPFilter = value;
         }
 
         /// <summary>
@@ -216,10 +216,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int GreetingTextUpdateInterval
         {
-            get => Program.GlobalConfig.Windows.MainWindow.GreetingUpdateInterval;
+            get => Program.AppConfig.Windows.MainWindow.GreetingUpdateInterval;
             set
             {
-                Program.GlobalConfig.Windows.MainWindow.GreetingUpdateInterval = value;
+                Program.AppConfig.Windows.MainWindow.GreetingUpdateInterval = value;
                 EventHandlers.Invoke("GreetingTextIntervalUpdated");
                 SaveChanges();
             }
@@ -230,10 +230,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static string LocalPluginsFileDirectory
         {
-            get => Program.GlobalConfig.App.LocalPluginsFileDirectory;
+            get => Program.AppConfig.App.LocalPluginsFileDirectory;
             set
             {
-                Program.GlobalConfig.App.LocalPluginsFileDirectory = value;
+                Program.AppConfig.App.LocalPluginsFileDirectory = value;
                 SaveChanges();
             }
         }
@@ -243,10 +243,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static string LocalPluginsDataDirectory
         {
-            get => Program.GlobalConfig.App.LocalPluginsDataDirectory;
+            get => Program.AppConfig.App.LocalPluginsDataDirectory;
             set
             {
-                Program.GlobalConfig.App.LocalPluginsDataDirectory = value;
+                Program.AppConfig.App.LocalPluginsDataDirectory = value;
                 SaveChanges();
             }
         }
@@ -256,10 +256,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static int ShowAnnouncementsStatus
         {
-            get => Program.GlobalConfig.App.ShowAnnouncementWhenStart ? 0 : 1;
+            get => Program.AppConfig.App.ShowAnnouncementWhenStart ? 0 : 1;
             set
             {
-                Program.GlobalConfig.App.ShowAnnouncementWhenStart = value == 0;
+                Program.AppConfig.App.ShowAnnouncementWhenStart = value == 0;
                 SaveChanges();
             }
         }
@@ -269,11 +269,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal int DeveloperSettingStatus
         {
-            get => Program.GlobalConfig.App.DeveloperSetting ? 0 : 1;
+            get => Program.AppConfig.App.DeveloperSetting ? 0 : 1;
             set
             {
-                Program.GlobalConfig.App.DeveloperSetting = value == 0;
-                MicaOpacityConfirmButtonVisibility = Program.GlobalConfig.App.DeveloperSetting;
+                Program.AppConfig.App.DeveloperSetting = value == 0;
+                MicaOpacityConfirmButtonVisibility = Program.AppConfig.App.DeveloperSetting;
                 SaveChanges();
             }
         }
@@ -283,10 +283,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static bool MicaToolTipIsOpen
         {
-            get => Program.GlobalConfig.Pages.SettingsPage.MicaToolTipIsOpen;
+            get => Program.AppConfig.Pages.SettingsPage.MicaToolTipIsOpen;
             set
             {
-                Program.GlobalConfig.Pages.SettingsPage.MicaToolTipIsOpen = value;
+                Program.AppConfig.Pages.SettingsPage.MicaToolTipIsOpen = value;
                 SaveChanges();
             }
         }
@@ -296,7 +296,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal bool MicaOpacityConfirmButtonVisibility
         {
-            get => Program.GlobalConfig.App.DeveloperSetting;
+            get => Program.AppConfig.App.DeveloperSetting;
             set => PropertyChanged?.Invoke(this,
                 new(nameof(MicaOpacityConfirmButtonVisibility)));
         }
@@ -334,7 +334,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         new SolidColorBrush(new Color((byte)(i * 10 + i), c.R, c.G, c.B));
                 }
             });
-            Program.GlobalConfig.App.ThemeColor = nowColor.ToHexString();
+            Program.AppConfig.App.ThemeColor = nowColor.ToHexString();
             SaveChanges();
         }
 

@@ -36,7 +36,7 @@ namespace KitX_Dashboard.ViewModels.Pages
         {
             Models.EventHandlers.ConfigSettingsChanged += () =>
             {
-                ImportButtonVisibility = Program.GlobalConfig.App.DeveloperSetting;
+                ImportButtonVisibility = Program.AppConfig.App.DeveloperSetting;
             };
         }
 
@@ -77,10 +77,10 @@ namespace KitX_Dashboard.ViewModels.Pages
 
         internal bool ImportButtonVisibility
         {
-            get => Program.GlobalConfig.App.DeveloperSetting;
+            get => Program.AppConfig.App.DeveloperSetting;
             set
             {
-                Program.GlobalConfig.App.DeveloperSetting = value;
+                Program.AppConfig.App.DeveloperSetting = value;
                 PropertyChanged?.Invoke(this, new(nameof(ImportButtonVisibility)));
             }
         }
