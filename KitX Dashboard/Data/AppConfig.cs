@@ -210,6 +210,9 @@ namespace KitX_Dashboard.Data
             public int UDPPortReceive { get; set; } = 24040;
 
             [JsonInclude]
+            public string UDPBroadcastAddress { get; set; } = "224.0.0.0";
+
+            [JsonInclude]
             public string IPFilter { get; set; } = "192.168";
 
             [JsonInclude]

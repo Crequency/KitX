@@ -30,7 +30,10 @@ namespace KitX_Dashboard.Services
                 DevicesManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemove();
                 PluginsManager.KeepCheckAndRemoveOrDelete();
-                FindSurpportNetworkInterface();
+                FindSurpportNetworkInterface(new()
+                {
+                    UdpClient_Send, UdpClient_Receive
+                }, IPAddress.Parse(Program.Config.Web.UDPBroadcastAddress));
                 MultiDevicesBroadCastSend();
                 MultiDevicesBroadCastReceive();
             }).Start();
@@ -181,9 +184,25 @@ namespace KitX_Dashboard.Services
         private static readonly List<int> SurpportedNetworkInterfaces = new();
 
         /// <summary>
-        /// 寻找受支持的网络适配器
+        /// UDP 发包客户端
         /// </summary>
-        private static void FindSurpportNetworkInterface()
+        private static readonly UdpClient UdpClient_Send
+            = new(Program.Config.Web.UDPPortSend, AddressFamily.InterNetwork)
+            {
+                EnableBroadcast = true,
+                MulticastLoopback = true
+            };
+
+        /// <summary>
+        /// UDP 收包客户端
+        /// </summary>
+        private static readonly UdpClient UdpClient_Receive
+            = new(new IPEndPoint(IPAddress.Any, Program.Config.Web.UDPPortReceive));
+
+        /// <summary>
+        /// 寻找受支持的网络适配器并把UDP客户端加入组播
+        /// </summary>
+        private static void FindSurpportNetworkInterface(List<UdpClient> clients, IPAddress multicastAddress)
         {
             NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
             foreach (NetworkInterface adapter in nics)
@@ -197,9 +216,22 @@ namespace KitX_Dashboard.Services
                     // this adapter is off or not connected
                     || !adapter.Supports(NetworkInterfaceComponent.IPv4)
                     ) continue;
-                IPv4InterfaceProperties p = adapter.GetIPProperties().GetIPv4Properties();
+                IPInterfaceProperties adapterProperties = adapter.GetIPProperties();
+                UnicastIPAddressInformationCollection unicastIPAddresses
+                    = adapterProperties.UnicastAddresses;
+                IPv4InterfaceProperties p = adapterProperties.GetIPv4Properties();
                 if (p == null) continue;    // IPv4 is not configured on this adapter
                 SurpportedNetworkInterfaces.Add(IPAddress.HostToNetworkOrder(p.Index));
+                IPAddress ipAddress = null;
+                foreach (UnicastIPAddressInformation unicastIPAddress in unicastIPAddresses)
+                {
+                    if (unicastIPAddress.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    ipAddress = unicastIPAddress.Address;
+                    break;
+                }
+                if (ipAddress == null) continue;
+                foreach (var udpClient in clients)
+                    udpClient.JoinMulticastGroup(multicastAddress, ipAddress);
             }
         }
 
@@ -210,13 +242,8 @@ namespace KitX_Dashboard.Services
         {
             #region 初始化 UDP 客户端
 
-            UdpClient udpClient = new(Program.Config.Web.UDPPortSend, AddressFamily.InterNetwork)
-            {
-                EnableBroadcast = true,
-                MulticastLoopback = true
-            };
-            udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
-            IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+            UdpClient udpClient = UdpClient_Send;
+            IPEndPoint multicast = new(IPAddress.Parse(Program.Config.Web.UDPBroadcastAddress),
                 Program.Config.Web.UDPPortReceive);
 
             #endregion
@@ -262,42 +289,8 @@ namespace KitX_Dashboard.Services
         {
             #region 初始化 UDP 客户端
 
-            //UdpClient udpClient = new(Program.Config.Web.UDPPortReceive, AddressFamily.InterNetwork)
-            //{
-            //    EnableBroadcast = true,
-            //    MulticastLoopback = true
-            //};
-            //udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            UdpClient udpClient = UdpClient_Receive;
             IPEndPoint multicast = new(IPAddress.Any, 0);
-
-            #endregion
-
-            #region UDP 客户端在所有网络适配器上加入组播
-
-            IPAddress multicastAddress = IPAddress.Parse("224.0.0.0");
-            IPEndPoint iPEndPoint = new(IPAddress.Any, Program.Config.Web.UDPPortReceive);
-            UdpClient udpClient = new(iPEndPoint);
-            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-            foreach (NetworkInterface adapter in networkInterfaces)
-            {
-                if (adapter.GetIPProperties().MulticastAddresses.Count == 0
-                    || !adapter.SupportsMulticast
-                    || OperationalStatus.Up != adapter.OperationalStatus
-                    || !adapter.Supports(NetworkInterfaceComponent.IPv4)
-                    ) continue;
-                IPInterfaceProperties adapterProperties = adapter.GetIPProperties();
-                UnicastIPAddressInformationCollection unicastIPAddresses
-                    = adapterProperties.UnicastAddresses;
-                IPAddress ipAddress = null;
-                foreach (UnicastIPAddressInformation unicastIPAddress in unicastIPAddresses)
-                {
-                    if (unicastIPAddress.Address.AddressFamily != AddressFamily.InterNetwork) continue;
-                    ipAddress = unicastIPAddress.Address;
-                    break;
-                }
-                if (ipAddress == null) continue;
-                udpClient.JoinMulticastGroup(multicastAddress, ipAddress);
-            }
 
             #endregion
 
