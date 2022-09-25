@@ -131,6 +131,7 @@
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">开发者选项</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">启动时显示公告</x:String>
 
+    <x:String x:Key="Text_Settings_Tab_Personalise">个性化</x:String>
 
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>

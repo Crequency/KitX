@@ -131,6 +131,7 @@
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">Developer Settings</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">Show Announcements When Start</x:String>
 
+    <x:String x:Key="Text_Settings_Tab_Personalise">Personalise</x:String>
 
     <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">Port</x:String>

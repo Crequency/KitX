@@ -130,7 +130,8 @@
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">本機插件的文件路徑</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開發者設定</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">啓動時顯示公告</x:String>
-
+    
+    <x:String x:Key="Text_Settings_Tab_Personalise">個性化</x:String>
 
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>
