@@ -28,14 +28,14 @@ namespace KitX_Dashboard.ViewModels
 
         internal static double Window_Width
         {
-            get => Program.GlobalConfig.Windows.AnnouncementWindow.Window_Width;
-            set => Program.GlobalConfig.Windows.AnnouncementWindow.Window_Width = value;
+            get => Program.Config.Windows.AnnouncementWindow.Window_Width;
+            set => Program.Config.Windows.AnnouncementWindow.Window_Width = value;
         }
 
         internal static double Window_Height
         {
-            get => Program.GlobalConfig.Windows.AnnouncementWindow.Window_Height;
-            set => Program.GlobalConfig.Windows.AnnouncementWindow.Window_Height = value;
+            get => Program.Config.Windows.AnnouncementWindow.Window_Height;
+            set => Program.Config.Windows.AnnouncementWindow.Window_Height = value;
         }
 
         private NavigationViewItem? selectedMenuItem;

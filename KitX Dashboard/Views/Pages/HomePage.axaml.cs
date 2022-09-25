@@ -40,8 +40,8 @@ namespace KitX_Dashboard.Views.Pages
 
         private static string SelectedViewName
         {
-            get => Program.GlobalConfig.Pages.HomePage.SelectedViewName;
-            set => Program.GlobalConfig.Pages.HomePage.SelectedViewName = value;
+            get => Program.Config.Pages.HomePage.SelectedViewName;
+            set => Program.Config.Pages.HomePage.SelectedViewName = value;
         }
 
         /// <summary>

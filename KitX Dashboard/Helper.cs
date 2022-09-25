@@ -1,7 +1,4 @@
-﻿using Avalonia;
-using Avalonia.Media;
-using FluentAvalonia.UI.Media;
-using KitX_Dashboard.Data;
+﻿using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using Serilog;
 using System;
@@ -32,7 +29,7 @@ namespace KitX_Dashboard
 
             //InitLiteLogger(Program.LocalLogger);
 
-            string logdir = Path.GetFullPath(Program.GlobalConfig.App.LogFilePath);
+            string logdir = Path.GetFullPath(Program.Config.Log.LogFilePath);
 
             if (!Directory.Exists(logdir))
                 Directory.CreateDirectory(logdir);
@@ -41,14 +38,14 @@ namespace KitX_Dashboard
                 .MinimumLevel.Information()
                 .WriteTo.File(
                     $"{logdir}Log_.log",
-                    outputTemplate: Program.GlobalConfig.App.LogTemplate,
+                    outputTemplate: Program.Config.Log.LogTemplate,
                     rollingInterval: RollingInterval.Hour,
-                    fileSizeLimitBytes: Program.GlobalConfig.App.LogFileSingleMaxSize,
+                    fileSizeLimitBytes: Program.Config.Log.LogFileSingleMaxSize,
                     buffered: true,
-                    flushToDiskInterval: new(0, 0, Program.GlobalConfig.App.LogFileFlushInterval),
+                    flushToDiskInterval: new(0, 0, Program.Config.Log.LogFileFlushInterval),
                     restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
                     rollOnFileSizeLimit: true,
-                    retainedFileCountLimit: Program.GlobalConfig.App.LogFileMaxCount
+                    retainedFileCountLimit: Program.Config.Log.LogFileMaxCount
                 )
                 .CreateLogger();
 
@@ -90,7 +87,7 @@ namespace KitX_Dashboard
             new Thread(() =>
             {
                 BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
-                    JsonSerializer.Serialize(Program.GlobalConfig, options));
+                    JsonSerializer.Serialize(Program.Config, options));
             }).Start();
         }
 
@@ -117,7 +114,7 @@ namespace KitX_Dashboard
         /// </summary>
         public static void LoadConfig()
         {
-            Program.GlobalConfig = JsonSerializer.Deserialize<Config>(
+            Program.Config = JsonSerializer.Deserialize<AppConfig>(
                 BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
         }
 

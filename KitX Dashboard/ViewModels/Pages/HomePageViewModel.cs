@@ -9,10 +9,10 @@
 
         internal static bool IsPaneOpen
         {
-            get => Program.GlobalConfig.Pages.HomePage.IsNavigationViewPaneOpened;
+            get => Program.Config.Pages.HomePage.IsNavigationViewPaneOpened;
             set
             {
-                Program.GlobalConfig.Pages.HomePage.IsNavigationViewPaneOpened = value;
+                Program.Config.Pages.HomePage.IsNavigationViewPaneOpened = value;
                 Models.EventHandlers.Invoke("ConfigSettingsChanged");
             }
         }

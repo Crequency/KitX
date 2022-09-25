@@ -5,7 +5,6 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
 using BasicHelper.Util;
-using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.ViewModels;
@@ -24,7 +23,7 @@ namespace KitX_Dashboard
         {
             AvaloniaXamlLoader.Load(this);
 
-            string lang = Program.GlobalConfig.App.AppLanguage;
+            string lang = Program.Config.App.AppLanguage;
             try
             {
                 Resources.MergedDictionaries.Clear();
@@ -38,7 +37,7 @@ namespace KitX_Dashboard
             {
                 Log.Warning($"Language File {lang}.axaml not found.");
 
-                string backup_lang = Program.GlobalConfig.App.SurpportLanguages.Keys.First();
+                string backup_lang = Program.Config.App.SurpportLanguages.Keys.First();
                 Resources.MergedDictionaries.Clear();
                 Resources.MergedDictionaries.Add(
                     AvaloniaRuntimeXamlLoader.Load(
@@ -46,7 +45,7 @@ namespace KitX_Dashboard
                     ) as ResourceDictionary
                 );
 
-                Program.GlobalConfig.App.AppLanguage = backup_lang;
+                Program.Config.App.AppLanguage = backup_lang;
             }
             finally
             {
@@ -55,7 +54,7 @@ namespace KitX_Dashboard
 
             EventHandlers.Invoke("LanguageChanged");
 
-            Color c = Color.Parse(Program.GlobalConfig.App.ThemeColor);
+            Color c = Color.Parse(Program.Config.App.ThemeColor);
 
             if (Current != null)
             {
@@ -84,10 +83,10 @@ namespace KitX_Dashboard
                 };
             }
 
-            string color = Program.GlobalConfig.App.ThemeColor;
+            string color = Program.Config.App.ThemeColor;
             Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 
-            if (Program.GlobalConfig.App.ShowAnnouncementWhenStart)
+            if (Program.Config.App.ShowAnnouncementWhenStart)
                 new Thread(async () =>
                 {
                     await Services.AnouncementManager.CheckNewAnnouncements();

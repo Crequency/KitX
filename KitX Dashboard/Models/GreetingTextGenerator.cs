@@ -46,23 +46,23 @@ namespace KitX_Dashboard.Models
                 switch (step)
                 {
                     case Step.Morning:
-                        result = random.Next(1, Program.GlobalConfig.Windows
+                        result = random.Next(1, Program.Config.Windows
                             .MainWindow.GreetingTextCount_Morning + 1);
                         break;
                     case Step.Noon:
-                        result = random.Next(1, Program.GlobalConfig.Windows
+                        result = random.Next(1, Program.Config.Windows
                             .MainWindow.GreetingTextCount_Noon + 1);
                         break;
                     case Step.AfterNoon:
-                        result = random.Next(1, Program.GlobalConfig.Windows
+                        result = random.Next(1, Program.Config.Windows
                             .MainWindow.GreetingTextCount_AfterNoon + 1);
                         break;
                     case Step.Evening:
-                        result = random.Next(1, Program.GlobalConfig.Windows
+                        result = random.Next(1, Program.Config.Windows
                             .MainWindow.GreetingTextCount_Evening + 1);
                         break;
                     case Step.Night:
-                        result = random.Next(1, Program.GlobalConfig.Windows
+                        result = random.Next(1, Program.Config.Windows
                             .MainWindow.GreetingTextCount_Night + 1);
                         break;
                 }
