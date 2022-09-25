@@ -240,17 +240,16 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastSend()
         {
-            #region 初始化 UDP 客户端
-
-            UdpClient udpClient = UdpClient_Send;
-            IPEndPoint multicast = new(IPAddress.Parse(Program.Config.Web.UDPBroadcastAddress),
-                Program.Config.Web.UDPPortReceive);
-
-            #endregion
-
+            //UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortSend);
+            //udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            //IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+            //    Program.GlobalConfig.App.UDPPortReceive);
+            UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, Program.GlobalConfig.App.UDPPortSend));
+            IPEndPoint endPoint = new(IPAddress.Parse(GetMultiIP(GetInterNetworkIPv4())), Program.GlobalConfig.App.UDPPortReceive);
+            Log.Information($"Get broadcast IP:{GetMultiIP(GetInterNetworkIPv4())}");
             System.Timers.Timer timer = new()
             {
-                Interval = 2000,
+                Interval = 3000,
                 AutoReset = true
             };
             timer.Elapsed += (_, _) =>
@@ -259,13 +258,8 @@ namespace KitX_Dashboard.Services
                 {
                     string sendText = JsonSerializer.Serialize(GetDeviceInfo());
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
-
-                    foreach (var item in SurpportedNetworkInterfaces)
-                    {
-                        udpClient.Client.SetSocketOption(SocketOptionLevel.IP,
-                            SocketOptionName.MulticastInterface, item);
-                        udpClient.Send(sendBytes, sendBytes.Length, multicast);
-                    }
+                    //udpClient.Send(sendBytes, sendBytes.Length, multicast);
+                    udpClient.Send(sendBytes, sendBytes.Length, endPoint);
                 }
                 catch (Exception e)
                 {
@@ -287,20 +281,20 @@ namespace KitX_Dashboard.Services
         /// </summary>
         public static void MultiDevicesBroadCastReceive()
         {
-            #region 初始化 UDP 客户端
-
-            UdpClient udpClient = UdpClient_Receive;
-            IPEndPoint multicast = new(IPAddress.Any, 0);
-
-            #endregion
-
+            //UdpClient udpClient = new(Program.GlobalConfig.App.UDPPortReceive);
+            //udpClient.JoinMulticastGroup(IPAddress.Parse("224.0.0.0"));
+            //IPEndPoint multicast = new(IPAddress.Parse("224.0.0.0"),
+            //    Program.GlobalConfig.App.UDPPortSend);
+            UdpClient udpClient = new(new IPEndPoint(IPAddress.Any, Program.GlobalConfig.App.UDPPortReceive));
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
             new Thread(() =>
             {
                 try
                 {
                     while (GlobalInfo.Running)
                     {
-                        byte[] bytes = udpClient.Receive(ref multicast);
+                        //byte[] bytes = udpClient.Receive(ref multicast);
+                        byte[] bytes = udpClient.Receive(ref endPoint);
                         string result = Encoding.UTF8.GetString(bytes);
                         Log.Information($"UDP Receive: {result}");
                         DeviceInfoStruct deviceInfo = JsonSerializer.Deserialize<DeviceInfoStruct>(result);
@@ -343,6 +337,32 @@ namespace KitX_Dashboard.Services
                                 && IPv4_2_4Parts(ip.ToString()).Item2 <= 31))
                         && ip.ToString().StartsWith(Program.Config.Web.IPFilter)  //  满足自定义规则
                     select ip).First().ToString();
+        }
+
+        private static string GetMultiIP(string ip)
+        {
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.NetworkInterfaceType==NetworkInterfaceType.Ethernet && nic.OperationalStatus==OperationalStatus.Up)
+                {
+                    IPInterfaceProperties nic_ip = nic.GetIPProperties(); //IP配置
+                    foreach(UnicastIPAddressInformation nic_each in nic_ip.UnicastAddresses)
+                    {
+                        if (nic_each.Address.ToString().Equals(ip))
+                        {
+                            byte[] byte_mask = nic_each.IPv4Mask.GetAddressBytes();
+                            byte[] byte_ip = nic_each.Address.GetAddressBytes();
+                            for (int i = 0; i < byte_mask.Length; i++)
+                            {
+                                byte_mask[i] = (byte) ~ byte_mask[i];
+                                byte_ip[i] = (byte) (byte_ip[i] | byte_mask[i]);
+                            }
+                            return new IPAddress(byte_ip).ToString();
+                        }
+                    }
+                }
+            }
+            return "";
         }
 
         /// <summary>
@@ -417,4 +437,5 @@ namespace KitX_Dashboard.Services
 //                                $F           "3
 //                         r=4e="  ...  ..rf   .  ""%
 //                        $**$*"^""=..^4*=4=^""  ^"""
+
 
