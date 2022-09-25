@@ -184,7 +184,13 @@ namespace KitX_Dashboard.Data
                 public string SelectedViewName { get; set; } = "View_General";
 
                 [JsonInclude]
+                public bool MicaAreaExpanded { get; set; } = true;
+
+                [JsonInclude]
                 public bool MicaToolTipIsOpen { get; set; } = true;
+
+                [JsonInclude]
+                public bool PaletteAreaExpanded { get; set; } = false;
 
                 [JsonInclude]
                 public bool IsNavigationViewPaneOpened { get; set; } = true;

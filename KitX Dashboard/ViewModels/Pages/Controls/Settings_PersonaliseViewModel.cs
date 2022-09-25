@@ -59,6 +59,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     item.ThemeDisplayName = GetThemeInLanguages(item.ThemeName);
                 _currentAppTheme = SurpportThemes.Find(
                     x => x.ThemeName.Equals(Program.Config.App.Theme));
+                PropertyChanged?.Invoke(this, new(nameof(CurrentAppTheme)));
             };
         }
 
@@ -207,6 +208,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// Mica 效果设置项相关区域是否展开
+        /// </summary>
+        internal static bool MicaAreaExpanded
+        {
+            get => Program.Config.Pages.SettingsPage.MicaAreaExpanded;
+            set
+            {
+                Program.Config.Pages.SettingsPage.MicaAreaExpanded = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
         /// Mica 效果是否启用属性
         /// </summary>
         internal static int MicaStatus
@@ -253,6 +267,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             get => Program.Config.App.DeveloperSetting;
             set => PropertyChanged?.Invoke(this,
                 new(nameof(MicaOpacityConfirmButtonVisibility)));
+        }
+
+        /// <summary>
+        /// 主题色调色盘设置项相关区域是否展开
+        /// </summary>
+        internal static bool PaletteAreaExpanded
+        {
+            get => Program.Config.Pages.SettingsPage.PaletteAreaExpanded;
+            set
+            {
+                Program.Config.Pages.SettingsPage.PaletteAreaExpanded = value;
+                SaveChanges();
+            }
         }
 
         /// <summary>
@@ -303,3 +330,35 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 #pragma warning restore CA2011 // 避免无限递归
 #pragma warning restore CS8604 // 引用类型参数可能为 null。
 #pragma warning restore CS8602 // 解引用可能出现空引用。
+
+//                         __________________________
+//                 __..--/".'                        '.
+//         __..--""      | |                          |
+//        /              | |                          |
+//       /               | |    ___________________   |
+//      ;                | |   :__________________/:  |
+//      |                | |   |                 '.|  |
+//      |                | |   |                  ||  |
+//      |                | |   |                  ||  |
+//      |                | |   |                  ||  |
+//      |                | |   |                  ||  |
+//      |                | |   |                  ||  |
+//      |                | |   |                  ||  |
+//      |                | |   |                  ||  |
+//      |                | |   |______......-----"\|  |
+//      |                | |   |_______......-----"   |
+//      |                | |                          |
+//      |                | |                          |
+//      |                | |                  ____----|
+//      |                | |_____.....----|#######|---|
+//      |                | |______.....----""""       |
+//      |                | |                          |
+//      |. ..            | |   ,                      |
+//      |... ....        | |  (c ----- """           .'
+//      |..... ......  |\|_|    ____......------"""|"
+//      |. .... .......| |""""""                   |
+//      '... ..... ....| |                         |
+//        "-._ .....  .| |                         |
+//            "-._.....| |             ___...---"""'
+//                "-._.| | ___...---"""
+//                    """""

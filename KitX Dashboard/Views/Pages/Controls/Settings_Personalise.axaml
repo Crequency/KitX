@@ -15,34 +15,31 @@
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Orientation="Vertical" Margin="0,10">
 
-            <Expander Margin="20,5">
-                <Expander.Header>
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise_Palette}"
+                        <icon:MaterialIcon Kind="Language" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DisplayLanguage}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
-                </Expander.Header>
 
-                <DockPanel Margin="10">
-                    <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Top"
-                                    IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
-                                    UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
-                                    UseSpectrum="True" ColorTextType="HexAlpha"/>
-                    <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0">
-                        <Border HorizontalAlignment="Left" Width="100" Height="30"
-                                Background="{DynamicResource ThemePrimaryAccent}"/>
-                        <Button Content="{DynamicResource Text_Public_Confirm}"
-                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Command="{Binding ColorConfirmed}"
-                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                FontWeight="Bold"/>
-                    </Grid>
+                    <ComboBox DockPanel.Dock="Right" SelectedIndex="{Binding LanguageSelected}"
+                              IsTextSearchEnabled="True" Items="{Binding SurpportLanguages}"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding LanguageName}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
                     <Border/>
                 </DockPanel>
-
-            </Expander>
+            </ui:InfoBar>
 
             <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
                 <DockPanel Margin="0,10,10,10">
@@ -54,7 +51,7 @@
                     </StackPanel>
 
                     <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentAppTheme}"
-                              Items="{Binding SurpportThemes}" Width="130"
+                              IsTextSearchEnabled="True" Items="{Binding SurpportThemes}"
                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                               FontWeight="Bold">
                         <ComboBox.ItemTemplate>
@@ -70,32 +67,7 @@
                 </DockPanel>
             </ui:InfoBar>
 
-            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
-                <DockPanel Margin="0,10,10,10">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Language" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DisplayLanguage}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-                    </StackPanel>
-
-                    <ComboBox SelectedIndex="{Binding LanguageSelected}" DockPanel.Dock="Right"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                              FontWeight="Bold" Items="{Binding SurpportLanguages}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding LanguageName}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <Border/>
-                </DockPanel>
-            </ui:InfoBar>
-
-            <Expander Margin="20,5">
+            <Expander Margin="20,5" IsExpanded="{Binding MicaAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <icon:MaterialIcon Kind="Spray" Margin="5,0"/>
@@ -167,6 +139,35 @@
                     </ui:InfoBar>
 
                 </StackPanel>
+
+            </Expander>
+
+            <Expander Margin="20,5" IsExpanded="{Binding PaletteAreaExpanded}">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise_Palette}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </Expander.Header>
+
+                <DockPanel Margin="10">
+                    <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Top"
+                                    IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
+                                    UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
+                                    UseSpectrum="True" ColorTextType="HexAlpha"/>
+                    <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0">
+                        <Border HorizontalAlignment="Left" Width="100" Height="30"
+                                Background="{DynamicResource ThemePrimaryAccent}"/>
+                        <Button Content="{DynamicResource Text_Public_Confirm}"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Command="{Binding ColorConfirmed}"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold"/>
+                    </Grid>
+                    <Border/>
+                </DockPanel>
 
             </Expander>
 
