@@ -115,12 +115,6 @@
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme">主題</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Light">日光白 (淺色)</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Dark">午夜黑 (深色)</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">高對比度</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Follow">跟隨系統</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Palette">調色板</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">顯示語言</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect">雲母效果</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否啟用雲母效果?</x:String>
@@ -131,8 +125,16 @@
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開發者設定</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">啓動時顯示公告</x:String>
     
+    
     <x:String x:Key="Text_Settings_Tab_Personalise">個性化</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Palette">調色板</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme">主題</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">日光白 (淺色)</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Dark">午夜黑 (深色)</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_HighContrast">高對比度</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Follow">跟隨系統</x:String>
 
+    
     <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">本機IP過濾器</x:String>

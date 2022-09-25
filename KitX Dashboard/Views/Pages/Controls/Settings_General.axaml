@@ -18,57 +18,6 @@
             <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-                    </StackPanel>
-
-                    <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding WebServerPort}"
-                                  DockPanel.Dock="Right" IsEnabled="False"/>
-
-                    <Border/>
-                </DockPanel>
-            </ui:InfoBar>
-
-            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
-                <DockPanel Margin="0,10,10,10">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_MyIP_Filter}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-                    </StackPanel>
-
-                    <TextBox DockPanel.Dock="Right" Text="{Binding LocalIPFilter}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                             FontWeight="Bold"/>
-
-                    <Border/>
-                </DockPanel>
-            </ui:InfoBar>
-
-            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
-                <DockPanel Margin="0,10,10,10">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Clock" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Greeting_Interval}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
-                    </StackPanel>
-
-                    <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding GreetingTextUpdateInterval}"
-                                  DockPanel.Dock="Right" IsEnabled="True" Maximum="60" Minimum="1"
-                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                  FontWeight="Bold"/>
-
-                    <Border/>
-                </DockPanel>
-            </ui:InfoBar>
-
-            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
-                <DockPanel Margin="0,10,10,10">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Folder" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Tab_General_LocalPluginsFileDirectory}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"

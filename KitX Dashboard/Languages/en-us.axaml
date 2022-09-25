@@ -115,12 +115,6 @@
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme">Theme</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Light">Light</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Dark">Dark</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">High Contrast</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Follow">Follow xtem</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Palette">Palette</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">Display Language</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica Effect</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Enable Mica Effect?</x:String>
@@ -131,7 +125,15 @@
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">Developer Settings</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">Show Announcements When Start</x:String>
 
+    
     <x:String x:Key="Text_Settings_Tab_Personalise">Personalise</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Palette">Palette</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme">Theme</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">Light</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Dark">Dark</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_HighContrast">High Contrast</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Follow">Follow System</x:String>
+
 
     <x:String x:Key="Text_Settings_Tab_Performence">Performence</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">Port</x:String>

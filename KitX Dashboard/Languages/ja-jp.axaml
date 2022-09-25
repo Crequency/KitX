@@ -113,15 +113,8 @@
     <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
     <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
 
-    <x:String x:Key="Text_Settings_Tab_Personalise">パーソナライズ</x:String>
-
+    
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme">テーマ</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Light">デイライトホワイト（ライト）</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_HighContrast">ハイコントラスト</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Theme_Follow">システムに従ってください</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_Palette">パレット</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">表示言語</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica 効果</x:String>
     <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
@@ -131,8 +124,17 @@
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開発者向けオプション</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
+    
+    
+    <x:String x:Key="Text_Settings_Tab_Personalise">パーソナライズ</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Palette">パレット</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme">テーマ</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">デイライトホワイト（ライト）</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_HighContrast">ハイコントラスト</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Follow">システムに従ってください</x:String>
 
-
+    
     <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">ポート</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
