@@ -213,7 +213,7 @@ namespace KitX_Dashboard.Data
             public string UDPBroadcastAddress { get; set; } = "224.0.0.0";
 
             [JsonInclude]
-            public string IPFilter { get; set; } = "192.168";
+            public string IPFilter { get; set; } = "192.168.1.";
 
             [JsonInclude]
             public int SocketBufferSize { get; set; } = 1024 * 100;
