@@ -68,6 +68,7 @@ namespace KitX_Dashboard.Views.Pages
         private static Type SelectedViewType() => SelectedViewName switch
         {
             "View_General" => typeof(Settings_General),
+            "View_Personalise" => typeof(Settings_Personalise),
             "View_Performence" => typeof(Settings_Performence),
             "View_About" => typeof(Settings_About),
             _ => typeof(Settings_General),

@@ -91,6 +91,18 @@
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_Personalise" Tag="View_Personalise"
+                                   ToolTip.Tip="{DynamicResource Text_Settings_Tab_Personalise}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="Palette" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
             <ui:NavigationViewItem x:Name="View_Performence" Tag="View_Performence"
                                    ToolTip.Tip="{DynamicResource Text_Settings_Tab_Performence}">
                 <ui:NavigationViewItem.Content>

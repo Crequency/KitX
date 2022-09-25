@@ -107,8 +107,31 @@
                 </Expander.Header>
 
                 <WrapPanel Margin="10">
-                    <ui:HyperlinkButton Margin="4" Background="{DynamicResource ThemePrimaryAccentTransparent22}"
-                                        Content="常青园晚" NavigateUri="https://blog.catrol.cn"
+                    <ui:HyperlinkButton Margin="4" Content="常青园晚" NavigateUri="https://blog.catrol.cn"
+                                        Foreground="{DynamicResource ThemePrimaryAccent}"
+                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontWeight="Bold"/>
+                    <ui:HyperlinkButton Margin="4" Content="LYF" NavigateUri="https://github.com/LYF511"
+                                        Foreground="{DynamicResource ThemePrimaryAccent}"
+                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontWeight="Bold"/>
+                    <ui:HyperlinkButton Margin="4" Content="白学森" NavigateUri="https://github.com/MrBBBaiXue"
+                                        Foreground="{DynamicResource ThemePrimaryAccent}"
+                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontWeight="Bold"/>
+                    <ui:HyperlinkButton Margin="4" Content="truebigsand"
+                                        NavigateUri="https://github.com/truebigsand"
+                                        Foreground="{DynamicResource ThemePrimaryAccent}"
+                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontWeight="Bold"/>
+                    <ui:HyperlinkButton Margin="4" Content="felixonmars"
+                                        NavigateUri="https://github.com/felixonmars"
+                                        Foreground="{DynamicResource ThemePrimaryAccent}"
+                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontWeight="Bold"/>
+                    <ui:HyperlinkButton Margin="4" Content="SpaceTimee"
+                                        NavigateUri="https://github.com/SpaceTimee"
+                                        Foreground="{DynamicResource ThemePrimaryAccent}"
                                         FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                         FontWeight="Bold"/>
                 </WrapPanel>
