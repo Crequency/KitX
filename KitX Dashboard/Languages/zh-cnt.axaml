@@ -15,6 +15,15 @@
     <x:String x:Key="Text_Public_Export">導出</x:String>
     <x:String x:Key="Text_Public_Exit">退出</x:String>
     <x:String x:Key="Text_Public_ShowMainWindow">顯示主窗口</x:String>
+    <x:String x:Key="Text_Public_Second">秒</x:String>
+
+
+    <x:String x:Key="Text_Log_Verbose">詳細</x:String>
+    <x:String x:Key="Text_Log_Debug">調試</x:String>
+    <x:String x:Key="Text_Log_Information">信息</x:String>
+    <x:String x:Key="Text_Log_Warning">警告</x:String>
+    <x:String x:Key="Text_Log_Error">錯誤</x:String>
+    <x:String x:Key="Text_Log_Fatal">崩潰</x:String>
 
 
     <!--GreetingStart-->
@@ -139,6 +148,13 @@
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">本機IP過濾器</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">招呼語更新延遲</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">日志文檔大小限制</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">日志文檔數量限制</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">日志文檔緩衝延時</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileLevel">日志級別</x:String>
+
+
+    <x:String x:Key="Text_Settings_Tab_Update">更新</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_About">關於</x:String>

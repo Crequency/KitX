@@ -15,6 +15,15 @@
     <x:String x:Key="Text_Public_Export">Export</x:String>
     <x:String x:Key="Text_Public_Exit">Exit</x:String>
     <x:String x:Key="Text_Public_ShowMainWindow">Show Main Window</x:String>
+    <x:String x:Key="Text_Public_Second">s</x:String>
+
+
+    <x:String x:Key="Text_Log_Verbose">Verbose</x:String>
+    <x:String x:Key="Text_Log_Debug">Debug</x:String>
+    <x:String x:Key="Text_Log_Information">Infomation</x:String>
+    <x:String x:Key="Text_Log_Warning">Warning</x:String>
+    <x:String x:Key="Text_Log_Error">Error</x:String>
+    <x:String x:Key="Text_Log_Fatal">Fatal</x:String>
 
 
     <!--GreetingStart-->
@@ -139,6 +148,13 @@
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">Port</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">Native IP Filter</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">Greeting Text Update Interval</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">Log File Max Size</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">Log File Max Count</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">Log File Flush Interval</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileLevel">Log Level</x:String>
+
+
+    <x:String x:Key="Text_Settings_Tab_Update">Update</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_About">About</x:String>

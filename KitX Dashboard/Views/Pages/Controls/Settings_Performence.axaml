@@ -66,6 +66,93 @@
                 </DockPanel>
             </ui:InfoBar>
 
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="Sd" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileSize}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="MB" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold"/>
+                    <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding LogFileSizeLimit}"
+                                  DockPanel.Dock="Right" IsEnabled="True" Minimum="1"
+                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                  FontWeight="Bold"/>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="FileMultiple" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileMaxCount}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                    
+                    <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding LogFileMaxCount}"
+                                  DockPanel.Dock="Right" IsEnabled="True"
+                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                  FontWeight="Bold"/>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="FileClock" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileFlushInterval}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{DynamicResource Text_Public_Second}" DockPanel.Dock="Right"
+                               Margin="10,0,0,0" VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontWeight="Bold"/>
+                    <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding LogFileFlushInterval}"
+                                  DockPanel.Dock="Right" IsEnabled="True"
+                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                  FontWeight="Bold"/>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
+            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+                <DockPanel Margin="0,10,10,10">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                        <icon:MaterialIcon Kind="FileDocument" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileLevel}"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentLogLevel}"
+                              IsTextSearchEnabled="True" Items="{Binding SurpportLogLevels}"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding LogLevelDisplayName}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <Border/>
+                </DockPanel>
+            </ui:InfoBar>
+
             <Border Height="100"/>
 
         </StackPanel>
