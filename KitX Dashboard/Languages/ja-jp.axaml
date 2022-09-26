@@ -15,6 +15,15 @@
     <x:String x:Key="Text_Public_Export">書き出す</x:String>
     <x:String x:Key="Text_Public_Exit">終了する</x:String>
     <x:String x:Key="Text_Public_ShowMainWindow">メインウィンドウを表示</x:String>
+    <x:String x:Key="Text_Public_Second">2番目</x:String>
+
+
+    <x:String x:Key="Text_Log_Verbose">详细</x:String>
+    <x:String x:Key="Text_Log_Debug">调试</x:String>
+    <x:String x:Key="Text_Log_Information">情報</x:String>
+    <x:String x:Key="Text_Log_Warning">警告</x:String>
+    <x:String x:Key="Text_Log_Error">エラー</x:String>
+    <x:String x:Key="Text_Log_Fatal">崩壊</x:String>
 
 
     <!--GreetingStart-->
@@ -139,6 +148,13 @@
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">ポート</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">ログ ファイルのサイズ制限</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_LogFileLevel">ログレベル</x:String>
+
+
+    <x:String x:Key="Text_Settings_Tab_Update">更新する</x:String>
 
 
     <x:String x:Key="Text_Settings_Tab_About">約</x:String>

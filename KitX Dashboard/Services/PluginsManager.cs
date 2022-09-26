@@ -25,7 +25,8 @@ namespace KitX_Dashboard.Services
         {
             try
             {
-                var pluginStruct = (PluginStruct)JsonSerializer.Deserialize(msg, typeof(PluginStruct));
+                var pluginStruct = (PluginStruct)JsonSerializer.Deserialize(msg,
+                    typeof(PluginStruct));
 
                 // 标注实例注册 ID
                 pluginStruct.Tags.Add("Authorized_ID",

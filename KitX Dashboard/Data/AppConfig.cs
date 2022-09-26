@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Serilog.Events;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace KitX_Dashboard.Data
@@ -235,7 +236,7 @@ namespace KitX_Dashboard.Data
         {
 
             [JsonInclude]
-            public long LogFileSingleMaxSize { get; set; } = 1024 * 10000;      //  10MB
+            public long LogFileSingleMaxSize { get; set; } = 1024 * 1024 * 10;      //  10MB
 
             [JsonInclude]
             public string LogFilePath { get; set; } = "./Log/";
@@ -249,6 +250,9 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public int LogFileFlushInterval { get; set; } = 30;
+
+            [JsonInclude]
+            public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
         }
     }
 }

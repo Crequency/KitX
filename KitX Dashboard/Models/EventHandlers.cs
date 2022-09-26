@@ -17,6 +17,8 @@ namespace KitX_Dashboard.Models
 
         internal delegate void DevelopSettingsChangedHandler();
 
+        internal delegate void LogConfigUpdatedHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
@@ -28,6 +30,8 @@ namespace KitX_Dashboard.Models
         internal static event PluginsListChangedHandler? PluginsListChanged;
 
         internal static event DevelopSettingsChangedHandler? DevelopSettingsChanged;
+
+        internal static event LogConfigUpdatedHandler? LogConfigUpdated;
 
 
         /// <summary>
@@ -41,6 +45,7 @@ namespace KitX_Dashboard.Models
             MicaOpacityChanged += () => { };
             PluginsListChanged += () => { };
             DevelopSettingsChanged += () => { };
+            LogConfigUpdated += () => { };
         }
 
         /// <summary>
@@ -68,6 +73,9 @@ namespace KitX_Dashboard.Models
                     break;
                 case nameof(DevelopSettingsChanged):
                     DevelopSettingsChanged();
+                    break;
+                case nameof(LogConfigUpdated):
+                    LogConfigUpdated();
                     break;
             }
         }

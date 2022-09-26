@@ -70,6 +70,7 @@ namespace KitX_Dashboard.Views.Pages
             "View_General" => typeof(Settings_General),
             "View_Personalise" => typeof(Settings_Personalise),
             "View_Performence" => typeof(Settings_Performence),
+            "View_Update" => typeof(Settings_Update),
             "View_About" => typeof(Settings_About),
             _ => typeof(Settings_General),
         };
