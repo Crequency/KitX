@@ -19,3 +19,14 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
+
+//                         ,  o ' .
+//                        .  -  -  o
+//                        o . _ ` '  ` ; .
+//       ________________________________  H___
+//      P                           MK'98| H ..\
+//      |                         _______| H |_\\
+//      |                        |.========H -  |
+//      B_,-._,-._______________/ |,-._,-._H_,-.)
+//      --`-'-`-'------------------`-'-`-'---`-'--MK
+
