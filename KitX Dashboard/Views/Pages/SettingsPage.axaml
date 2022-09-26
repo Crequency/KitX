@@ -115,6 +115,18 @@
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_Update" Tag="View_Update"
+                                   ToolTip.Tip="{DynamicResource Text_Settings_Tab_Update}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
+                        <icon:MaterialIcon Kind="Update" VerticalAlignment="Center"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Update}"
+                                   VerticalAlignment="Center" Margin="15,0,0,0"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
             <ui:NavigationViewItem x:Name="View_About" Tag="View_About"
                                    ToolTip.Tip="{DynamicResource Text_Settings_Tab_About}">
                 <ui:NavigationViewItem.Content>
