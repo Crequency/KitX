@@ -212,10 +212,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static bool MicaAreaExpanded
         {
-            get => Program.Config.Pages.SettingsPage.MicaAreaExpanded;
+            get => Program.Config.Pages.Settings.MicaAreaExpanded;
             set
             {
-                Program.Config.Pages.SettingsPage.MicaAreaExpanded = value;
+                Program.Config.Pages.Settings.MicaAreaExpanded = value;
                 SaveChanges();
             }
         }
@@ -251,10 +251,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static bool MicaToolTipIsOpen
         {
-            get => Program.Config.Pages.SettingsPage.MicaToolTipIsOpen;
+            get => Program.Config.Pages.Settings.MicaToolTipIsOpen;
             set
             {
-                Program.Config.Pages.SettingsPage.MicaToolTipIsOpen = value;
+                Program.Config.Pages.Settings.MicaToolTipIsOpen = value;
                 SaveChanges();
             }
         }
@@ -274,10 +274,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static bool PaletteAreaExpanded
         {
-            get => Program.Config.Pages.SettingsPage.PaletteAreaExpanded;
+            get => Program.Config.Pages.Settings.PaletteAreaExpanded;
             set
             {
-                Program.Config.Pages.SettingsPage.PaletteAreaExpanded = value;
+                Program.Config.Pages.Settings.PaletteAreaExpanded = value;
                 SaveChanges();
             }
         }

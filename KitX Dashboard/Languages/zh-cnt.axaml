@@ -124,18 +124,19 @@
     
 
     <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">顯示語言</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">雲母效果</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否啟用雲母效果?</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">本機插件的程序路徑</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">本機插件的文件路徑</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開發者設定</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">啓動時顯示公告</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncementNow">查看新公告</x:String>
     
     
     <x:String x:Key="Text_Settings_Tab_Personalise">個性化</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_DisplayLanguage">顯示語言</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect">雲母效果</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Enable">是否啟用雲母效果?</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Opacity">透明度</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Palette">調色板</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Theme">主題</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">日光白 (淺色)</x:String>
@@ -148,6 +149,7 @@
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">本機IP過濾器</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">招呼語更新延遲</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Log">日志文檔相關設定</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">日志文檔大小限制</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">日志文檔數量限制</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">日志文檔緩衝延時</x:String>

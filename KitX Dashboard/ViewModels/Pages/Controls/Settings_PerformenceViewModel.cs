@@ -81,6 +81,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// 日志相关设置区域是否展开
+        /// </summary>
+        internal static bool LogReletiveAreaExpanded
+        {
+            get => Program.Config.Pages.Settings.LogReletiveAreaExpanded;
+            set
+            {
+                Program.Config.Pages.Settings.LogReletiveAreaExpanded = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
         /// 单个文件体积限制上限
         /// </summary>
         internal static int LogFileSizeLimit

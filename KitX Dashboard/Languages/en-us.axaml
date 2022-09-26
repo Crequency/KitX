@@ -124,18 +124,19 @@
     
 
     <x:String x:Key="Text_Settings_Tab_General">General</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">Display Language</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica Effect</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Enable Mica Effect?</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">Opacity</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">Developer Settings</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">Show Announcements When Start</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncementNow">Show Announcements Now</x:String>
 
     
     <x:String x:Key="Text_Settings_Tab_Personalise">Personalise</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_DisplayLanguage">Display Language</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect">Mica Effect</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Enable">Enable Mica Effect?</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Opacity">Opacity</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Palette">Palette</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Theme">Theme</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">Light</x:String>
@@ -148,6 +149,7 @@
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">Port</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">Native IP Filter</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">Greeting Text Update Interval</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Log">Log File Relative Settings</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">Log File Max Size</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">Log File Max Count</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">Log File Flush Interval</x:String>

@@ -81,7 +81,7 @@
 
             </StackPanel>
 
-            <Expander Margin="20,5">
+            <Expander Margin="20,5" IsExpanded="{Binding AboutAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18"
@@ -95,7 +95,8 @@
 
             </Expander>
 
-            <Expander x:Name="AuthorsList" Margin="20,5" IsVisible="{Binding AuthorsListVisibility}">
+            <Expander x:Name="AuthorsList" Margin="20,5" IsExpanded="{Binding AuthorsAreaExpanded}"
+                      IsVisible="{Binding AuthorsListVisibility}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="User" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
@@ -138,7 +139,7 @@
 
             </Expander>
 
-            <Expander Margin="20,5">
+            <Expander Margin="20,5" IsExpanded="{Binding LinksAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
@@ -151,7 +152,7 @@
 
             </Expander>
 
-            <Expander Margin="20,5">
+            <Expander Margin="20,5" IsExpanded="{Binding ThirdPartyLicensesAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18"

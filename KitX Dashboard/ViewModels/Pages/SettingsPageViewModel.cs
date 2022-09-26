@@ -9,10 +9,10 @@ namespace KitX_Dashboard.ViewModels.Pages
 
         internal static bool IsPaneOpen
         {
-            get => Program.Config.Pages.SettingsPage.IsNavigationViewPaneOpened;
+            get => Program.Config.Pages.Settings.IsNavigationViewPaneOpened;
             set
             {
-                Program.Config.Pages.SettingsPage.IsNavigationViewPaneOpened = value;
+                Program.Config.Pages.Settings.IsNavigationViewPaneOpened = value;
                 Models.EventHandlers.Invoke("ConfigSettingsChanged");
             }
         }

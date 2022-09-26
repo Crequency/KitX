@@ -124,18 +124,19 @@
 
     
     <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">表示言語</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">Mica 効果</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明性</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開発者向けオプション</x:String>
     <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
+    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncementNow">最新のお知らせを見る</x:String>
     
     
     <x:String x:Key="Text_Settings_Tab_Personalise">パーソナライズ</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_DisplayLanguage">表示言語</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect">Mica 効果</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
+    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Opacity">透明性</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Palette">パレット</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Theme">テーマ</x:String>
     <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">デイライトホワイト（ライト）</x:String>
@@ -148,6 +149,7 @@
     <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">ポート</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
+    <x:String x:Key="Text_Settings_Tab_Performence_Log">ログファイル関連の設定</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">ログ ファイルのサイズ制限</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
     <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>

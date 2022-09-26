@@ -83,9 +83,6 @@ namespace KitX_Dashboard
                 };
             }
 
-            string color = Program.Config.App.ThemeColor;
-            Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
-
             if (Program.Config.App.ShowAnnouncementWhenStart)
                 new Thread(async () =>
                 {

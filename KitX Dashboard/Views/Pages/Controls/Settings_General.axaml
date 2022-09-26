@@ -66,7 +66,14 @@
                         <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
                     </ComboBox>
 
+                    <Button DockPanel.Dock="Right" Margin="0,0,10,0"
+                            Content="{DynamicResource Text_Settings_Tab_General_ShowAnnouncementNow}"
+                            Command="{Binding ShowAnnouncementsNowCommand}"
+                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                            FontWeight="Bold"/>
+                    
                     <Border/>
+
                 </DockPanel>
             </ui:InfoBar>
 
