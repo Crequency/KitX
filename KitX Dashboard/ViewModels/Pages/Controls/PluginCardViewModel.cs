@@ -14,6 +14,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         public PluginCardViewModel()
         {
             pluginStruct.IconInBase64 = FileHelper.ReadAll(Path.GetFullPath($"./Assets/KitX.Base64.txt"));
+            Log.Information($"Icon Loaded: {pluginStruct.IconInBase64}");
         }
 
         internal string DisplayName => pluginStruct.DisplayName
