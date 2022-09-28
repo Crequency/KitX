@@ -103,7 +103,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <returns>表示方式</returns>
         private static string GetThemeInLanguages(string key)
         {
-            if (Application.Current.TryFindResource($"Text_Settings_Tab_Personalise_Theme_{key}",
+            if (Application.Current.TryFindResource($"Text_Settings_Personalise_Theme_{key}",
                 out object? result))
                 if (result != null) return (string)result;
                 else return string.Empty;

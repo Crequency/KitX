@@ -19,7 +19,7 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_Port}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Performence_Web_Port}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -35,7 +35,7 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Web_MyIP_Filter}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Performence_Web_MyIP_Filter}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -52,7 +52,7 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Clock" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Greeting_Interval}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Performence_Greeting_Interval}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -70,7 +70,7 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <icon:MaterialIcon Kind="FileChart" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_Log}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Performence_Log}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -82,7 +82,7 @@
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="Sd" Margin="5,0"/>
-                                <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileSize}"
+                                <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileSize}"
                                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                            FontWeight="Bold"/>
                             </StackPanel>
@@ -103,7 +103,7 @@
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="FileMultiple" Margin="5,0"/>
-                                <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileMaxCount}"
+                                <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileMaxCount}"
                                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                            FontWeight="Bold"/>
                             </StackPanel>
@@ -121,7 +121,7 @@
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="FileClock" Margin="5,0"/>
-                                <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileFlushInterval}"
+                                <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileFlushInterval}"
                                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                            FontWeight="Bold"/>
                             </StackPanel>
@@ -143,7 +143,7 @@
                         <DockPanel Margin="0,10,10,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="FileDocument" Margin="5,0"/>
-                                <TextBlock Text="{DynamicResource Text_Settings_Tab_Performence_LogFileLevel}"
+                                <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileLevel}"
                                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                            FontWeight="Bold"/>
                             </StackPanel>

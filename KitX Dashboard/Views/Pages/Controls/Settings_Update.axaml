@@ -12,7 +12,35 @@
         <converters:Selection2VisibleConverter x:Key="Converter_S2V"/>
     </UserControl.Resources>
 
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <DockPanel Margin="0,10">
+
+        <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5"
+                    DockPanel.Dock="Bottom">
+            <DockPanel Margin="0,10,10,10">
+
+                <Button DockPanel.Dock="Right" Content="更新"/>
+
+                <Border/>
+            </DockPanel>
+        </ui:InfoBar>
+
+        <DataGrid Margin="20,5" AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentName}"
+                                    Binding="{Binding FirstName}"/>
+                <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentMD5}"
+                                    Binding="{Binding LastName}"/>
+                <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentSHA1}"
+                                    Binding="{Binding LastName}"/>
+                <DataGridCheckBoxColumn Header="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
+                                        Binding="{Binding LastName}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+    </DockPanel>
+
+    <!--<ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Orientation="Vertical" Margin="0,10">
             
             
@@ -20,5 +48,5 @@
             <Border Height="100"/>
 
         </StackPanel>
-    </ScrollViewer>
+    </ScrollViewer>-->
 </UserControl>

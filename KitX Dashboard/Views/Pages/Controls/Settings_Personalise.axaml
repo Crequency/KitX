@@ -19,7 +19,7 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Language" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise_DisplayLanguage}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_DisplayLanguage}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -45,7 +45,7 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Brightness4" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise_Theme}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_Theme}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -71,7 +71,7 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <icon:MaterialIcon Kind="Spray" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise_MicaEffect}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_MicaEffect}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>
@@ -80,7 +80,7 @@
                 <StackPanel>
                     <ui:InfoBar IsOpen="{Binding MicaToolTipIsOpen}" IsIconVisible="True" IsClosable="True"
                                 Margin="0,5,0,10" CloseButtonCommand="{Binding MicaToolTipClosedCommand}"
-                                Title="{DynamicResource Text_Settings_Tab_Personalise_MicaEffect_EnableTip}"
+                                Title="{DynamicResource Text_Settings_Personalise_MicaEffect_EnableTip}"
                                 FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                 FontWeight="Bold"/>
 
@@ -90,7 +90,7 @@
                                         DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="SelectColor" Margin="5,0"/>
                                 <TextBlock
-                                    Text="{DynamicResource Text_Settings_Tab_Personalise_MicaEffect_Enable}"
+                                    Text="{DynamicResource Text_Settings_Personalise_MicaEffect_Enable}"
                                     FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                     FontWeight="Bold"/>
                             </StackPanel>
@@ -115,7 +115,7 @@
                                         DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="Opacity" Margin="5,0"/>
                                 <TextBlock
-                                    Text="{DynamicResource Text_Settings_Tab_Personalise_MicaEffect_Opacity}"
+                                    Text="{DynamicResource Text_Settings_Personalise_MicaEffect_Opacity}"
                                     FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                     FontWeight="Bold"/>
                             </StackPanel>
@@ -146,7 +146,7 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_Personalise_Palette}"
+                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_Palette}"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
                     </StackPanel>

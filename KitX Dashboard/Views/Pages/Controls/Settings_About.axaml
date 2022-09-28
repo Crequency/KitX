@@ -28,7 +28,7 @@
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,5">
 
-                <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Version}" FontSize="20"
+                <TextBlock Text="{DynamicResource Text_Settings_About_Version}" FontSize="20"
                            Margin="2.5,0" VerticalAlignment="Center" FontWeight="Medium"
                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
@@ -86,7 +86,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18"
                                            Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About}" FontSize="18"
+                        <TextBlock Text="{DynamicResource Text_Settings_About}" FontSize="18"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
@@ -100,7 +100,7 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="User" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Authors}" FontSize="18"
+                        <TextBlock Text="{DynamicResource Text_Settings_About_Authors}" FontSize="18"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
@@ -143,7 +143,7 @@
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_Links}" FontSize="18"
+                        <TextBlock Text="{DynamicResource Text_Settings_About_Links}" FontSize="18"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold"/>
@@ -157,7 +157,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18"
                                            Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_About_ThirdPartLicense}"
+                        <TextBlock Text="{DynamicResource Text_Settings_About_ThirdPartLicense}"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
                                    FontWeight="Bold" FontSize="18"/>
