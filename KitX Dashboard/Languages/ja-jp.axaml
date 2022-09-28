@@ -123,47 +123,51 @@
     <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
 
     
-    <x:String x:Key="Text_Settings_Tab_General">ユニバーサル</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開発者向けオプション</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncementNow">最新のお知らせを見る</x:String>
+    <x:String x:Key="Text_Settings_General">ユニバーサル</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_General_DeveloperSetting">開発者向けオプション</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">最新のお知らせを見る</x:String>
     
     
-    <x:String x:Key="Text_Settings_Tab_Personalise">パーソナライズ</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_DisplayLanguage">表示言語</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect">Mica 効果</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_MicaEffect_Opacity">透明性</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Palette">パレット</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme">テーマ</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">デイライトホワイト（ライト）</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_HighContrast">ハイコントラスト</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Follow">システムに従ってください</x:String>
+    <x:String x:Key="Text_Settings_Personalise">パーソナライズ</x:String>
+    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">表示言語</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica 効果</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">透明性</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Palette">パレット</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme">テーマ</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Light">デイライトホワイト（ライト）</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">ハイコントラスト</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">システムに従ってください</x:String>
 
     
-    <x:String x:Key="Text_Settings_Tab_Performence">パフォーマンス</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">ポート</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Log">ログファイル関連の設定</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">ログ ファイルのサイズ制限</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileLevel">ログレベル</x:String>
+    <x:String x:Key="Text_Settings_Performence">パフォーマンス</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_Port">ポート</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
+    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
+    <x:String x:Key="Text_Settings_Performence_Log">ログファイル関連の設定</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileSize">ログ ファイルのサイズ制限</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileLevel">ログレベル</x:String>
 
 
-    <x:String x:Key="Text_Settings_Tab_Update">更新する</x:String>
+    <x:String x:Key="Text_Settings_Update">更新する</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentName">コンポーネント名</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentMD5">MD5</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentSHA1">SHA1</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">アップデートはありますか</x:String>
 
 
-    <x:String x:Key="Text_Settings_Tab_About">約</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_Version">バージョン:</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_Authors">制作スタッフ</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_Links">リンク</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_ThirdPartLicense">サードパーティライセンス</x:String>
+    <x:String x:Key="Text_Settings_About">約</x:String>
+    <x:String x:Key="Text_Settings_About_Version">バージョン:</x:String>
+    <x:String x:Key="Text_Settings_About_Authors">制作スタッフ</x:String>
+    <x:String x:Key="Text_Settings_About_Links">リンク</x:String>
+    <x:String x:Key="Text_Settings_About_ThirdPartLicense">サードパーティライセンス</x:String>
 
 
     <x:String x:Key="Text_AnouncementWindow_Receive">受け取る</x:String>
