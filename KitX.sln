@@ -130,6 +130,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Struct.Producer", "Kit
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Connector", "KitX Tools\KitX.Connector\KitX.Connector.csproj", "{5993287C-8663-4C13-8B6A-76F89FA1FC46}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Dashboard Helper", "KitX Dashboard Helper", "{0BE49855-23A1-46C9-BA6E-1B94ECF5F213}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Updater", "KitX Dashboard Helper\KitX.Updater\KitX.Updater.csproj", "{7E3B3FAF-3895-466A-9753-64A64BB70FBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -368,6 +372,18 @@ Global
 		{5993287C-8663-4C13-8B6A-76F89FA1FC46}.Release|x64.Build.0 = Release|Any CPU
 		{5993287C-8663-4C13-8B6A-76F89FA1FC46}.Release|x86.ActiveCfg = Release|Any CPU
 		{5993287C-8663-4C13-8B6A-76F89FA1FC46}.Release|x86.Build.0 = Release|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Debug|x64.Build.0 = Debug|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Debug|x86.Build.0 = Debug|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Release|x64.ActiveCfg = Release|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Release|x64.Build.0 = Release|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Release|x86.ActiveCfg = Release|Any CPU
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -403,6 +419,7 @@ Global
 		{2D914BFA-FD23-46C7-8132-782550F9AE71} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
 		{338191E6-EE63-4735-8810-51941779A5FF} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
 		{5993287C-8663-4C13-8B6A-76F89FA1FC46} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
+		{7E3B3FAF-3895-466A-9753-64A64BB70FBE} = {0BE49855-23A1-46C9-BA6E-1B94ECF5F213}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
