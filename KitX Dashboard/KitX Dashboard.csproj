@@ -137,8 +137,7 @@
         <PackageReference Include="Avalonia.ReactiveUI" Version="0.10.18" />
         <PackageReference Include="Catrol.Algorithm.Interop" Version="1.1.6240.1190" />
         <PackageReference Include="Catrol.BasicHelper" Version="1.1.6251.952" />
-        <PackageReference Include="Common.Update.Checker" Version="1.0.0" />
-        <PackageReference Include="Common.Update.Replacer" Version="1.0.0" />
+        <PackageReference Include="Common.Update.Checker" Version="1.0.1" />
         <PackageReference Include="FluentAvaloniaUI" Version="1.4.3" />
         <PackageReference Include="KitX.KXP.Helper" Version="22.4.6276.567" />
         <PackageReference Include="KitX.Web.Rules" Version="22.4.6276.567" />
@@ -153,6 +152,7 @@
         <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\KitX Dashboard Helper\KitX.Updater\KitX.Updater.csproj" />
       <ProjectReference Include="..\KitX File Format Helper\KitX.KXP.Helper\KitX.KXP.Helper.csproj" />
       <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
     </ItemGroup>
