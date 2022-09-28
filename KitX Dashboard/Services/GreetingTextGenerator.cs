@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace KitX_Dashboard.Models
+namespace KitX_Dashboard.Services
 {
     internal class GreetingTextGenerator
     {

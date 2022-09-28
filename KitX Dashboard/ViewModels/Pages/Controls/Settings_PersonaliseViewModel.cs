@@ -10,6 +10,7 @@ using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using MessageBox.Avalonia;
 using Serilog;
 using System.Collections.Generic;

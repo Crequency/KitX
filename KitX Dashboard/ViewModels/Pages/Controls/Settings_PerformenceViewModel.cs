@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using Serilog;
 using System.Collections.Generic;
 using System.ComponentModel;

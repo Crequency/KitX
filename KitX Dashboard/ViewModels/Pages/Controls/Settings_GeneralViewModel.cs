@@ -1,5 +1,5 @@
 ﻿using KitX_Dashboard.Commands;
-using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using System.ComponentModel;
 using System.Threading;
 

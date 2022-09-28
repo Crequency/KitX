@@ -1,3 +1,5 @@
+using KitX_Dashboard.Services;
+
 namespace KitX_Dashboard.ViewModels.Pages
 {
     internal class SettingsPageViewModel : ViewModelBase
@@ -13,7 +15,7 @@ namespace KitX_Dashboard.ViewModels.Pages
             set
             {
                 Program.Config.Pages.Settings.IsNavigationViewPaneOpened = value;
-                Models.EventHandlers.Invoke("ConfigSettingsChanged");
+                EventHandlers.Invoke("ConfigSettingsChanged");
             }
         }
     }

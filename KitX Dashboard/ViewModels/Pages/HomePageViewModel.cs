@@ -1,4 +1,6 @@
-﻿namespace KitX_Dashboard.ViewModels.Pages
+﻿using KitX_Dashboard.Services;
+
+namespace KitX_Dashboard.ViewModels.Pages
 {
     internal class HomePageViewModel : ViewModelBase
     {
@@ -13,7 +15,7 @@
             set
             {
                 Program.Config.Pages.Home.IsNavigationViewPaneOpened = value;
-                Models.EventHandlers.Invoke("ConfigSettingsChanged");
+                EventHandlers.Invoke("ConfigSettingsChanged");
             }
         }
     }

@@ -9,7 +9,7 @@ using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
-using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using KitX_Dashboard.ViewModels;
 using Serilog;
 using System;

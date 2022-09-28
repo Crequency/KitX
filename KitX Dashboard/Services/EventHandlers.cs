@@ -1,6 +1,7 @@
 ﻿#pragma warning disable CS8602 // 解引用可能出现空引用。
 
-namespace KitX_Dashboard.Models
+
+namespace KitX_Dashboard.Services
 {
     internal static class EventHandlers
     {
