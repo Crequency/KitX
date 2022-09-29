@@ -142,7 +142,7 @@ namespace KitX.Loader.WPF.Core
                     break;
                 }
                 //MessageBox.Show(GetPluginStructInJson(GetPluginStruct()));
-                SendMessage(GetPluginStructInJson(GetPluginStruct()));
+                SendMessage($"PluginStruct: {GetPluginStructInJson(GetPluginStruct())}");
             }
         }
 
@@ -182,6 +182,7 @@ namespace KitX.Loader.WPF.Core
                     if (length > 0)
                     {
                         string msg = Encoding.UTF8.GetString(data, 0, length);
+                        MessageBox.Show(msg);
                     }
                     else
                     {
