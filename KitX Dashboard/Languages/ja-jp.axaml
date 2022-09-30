@@ -157,10 +157,12 @@
 
 
     <x:String x:Key="Text_Settings_Update">更新する</x:String>
+    <x:String x:Key="Text_Settings_Update_Check">アップデートを確認</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentName">コンポーネント名</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentMD5">MD5</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentSHA1">SHA1</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">アップデートはありますか</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatableCount">更新するコンポーネント</x:String>
 
 
     <x:String x:Key="Text_Settings_About">約</x:String>
