@@ -1,6 +1,8 @@
-﻿namespace KitX.Updater
+﻿using Common.Update.Replacer;
+
+namespace KitX.Updater
 {
-    public class Replacer
+    public class Updater
     {
         /// <summary>
         /// 换个颜色执行
@@ -45,6 +47,10 @@
                     }
                 }
 
+                Replacer replacer = new Replacer()
+                    .SetSourceDir(_newFilesDir)
+                    .SetRootDir(_rootDir);
+                replacer.Replace();
             }
             catch (Exception e)
             {

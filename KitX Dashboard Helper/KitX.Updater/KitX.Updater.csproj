@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -8,5 +8,9 @@
         <BaseOutputPath>..\..\KitX Build\Dashboard Helper\Updater\</BaseOutputPath>
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Dashboard Helper\Updater\</BaseIntermediateOutputPath>
     </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Common.Update.Replacer" Version="1.0.1.2" />
+    </ItemGroup>
 
 </Project>
