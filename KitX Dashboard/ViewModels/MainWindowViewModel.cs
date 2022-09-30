@@ -1,6 +1,8 @@
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Views;
+using System;
+using System.Threading;
 
 namespace KitX_Dashboard.ViewModels
 {
@@ -38,6 +40,12 @@ namespace KitX_Dashboard.ViewModels
             MainWindow? win = mainWindow as MainWindow;
             GlobalInfo.Exiting = true;
             win?.Close();
+
+            new Thread(() =>
+            {
+                Thread.Sleep(GlobalInfo.LastBreakAfterExit);
+                Environment.Exit(0);
+            }).Start();
         }
     }
 }

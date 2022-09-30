@@ -24,6 +24,8 @@
 
         internal const string ThirdPartLicenseFilePath = $"{AssetsPath}ThirdPartLicense.md";
 
+        internal const int LastBreakAfterExit = 2000;
+
         //internal const string LogTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] " +
         //    "{Message:lj}{NewLine}{Exception}";
 
