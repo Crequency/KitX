@@ -3,7 +3,6 @@ using Common.Update.Checker;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using MessageBox.Avalonia;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
