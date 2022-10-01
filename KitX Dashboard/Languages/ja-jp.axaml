@@ -16,6 +16,7 @@
     <x:String x:Key="Text_Public_Exit">終了する</x:String>
     <x:String x:Key="Text_Public_ShowMainWindow">メインウィンドウを表示</x:String>
     <x:String x:Key="Text_Public_Second">2番目</x:String>
+    <x:String x:Key="Text_Public_Tip">ヒント</x:String>
 
 
     <x:String x:Key="Text_Log_Verbose">详细</x:String>
@@ -161,8 +162,8 @@
     <x:String x:Key="Text_Settings_Update_ComponentName">コンポーネント名</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentMD5">MD5</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentSHA1">SHA1</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">アップデートはありますか</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentsCount">コンポーネントが見つかりました</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">新しい！</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">見つかった</x:String>
 
 
     <x:String x:Key="Text_Settings_About">約</x:String>
