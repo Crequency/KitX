@@ -48,7 +48,8 @@
                                            Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
                         <TextBlock Text=" GitHub Repo "
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                   FontWeight="Bold"/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -60,7 +61,8 @@
                                            Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
                         <TextBlock Text=" Official Website "
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                   FontWeight="Bold"/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -72,7 +74,8 @@
                                            Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
                         <TextBlock Text=" Author Blog "
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                   FontWeight="Bold"/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -81,9 +84,9 @@
             <Expander Margin="20,5" IsExpanded="{Binding AboutAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18"
+                        <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center"
                                            Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About}" FontSize="18"
+                        <TextBlock Text="{DynamicResource Text_Settings_About}"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
@@ -95,8 +98,8 @@
                       IsVisible="{Binding AuthorsListVisibility}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="User" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About_Authors}" FontSize="18"
+                        <icon:MaterialIcon Kind="User" VerticalAlignment="Center" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_About_Authors}"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
@@ -105,25 +108,31 @@
                 <WrapPanel Margin="10">
                     <ui:HyperlinkButton Margin="4" Content="常青园晚" NavigateUri="https://blog.catrol.cn"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                        FontWeight="Bold"/>
                     <ui:HyperlinkButton Margin="4" Content="LYF" NavigateUri="https://github.com/LYF511"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                        FontWeight="Bold"/>
                     <ui:HyperlinkButton Margin="4" Content="白学森" NavigateUri="https://github.com/MrBBBaiXue"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                        FontWeight="Bold"/>
                     <ui:HyperlinkButton Margin="4" Content="truebigsand"
                                         NavigateUri="https://github.com/truebigsand"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                        FontWeight="Bold"/>
                     <ui:HyperlinkButton Margin="4" Content="felixonmars"
                                         NavigateUri="https://github.com/felixonmars"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                        FontWeight="Bold"/>
                     <ui:HyperlinkButton Margin="4" Content="SpaceTimee"
                                         NavigateUri="https://github.com/SpaceTimee"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                        FontWeight="Bold"/>
                 </WrapPanel>
 
             </Expander>
@@ -131,8 +140,8 @@
             <Expander Margin="20,5" IsExpanded="{Binding LinksAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About_Links}" FontSize="18"
+                        <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" Margin="5,0"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_About_Links}"
                                    VerticalAlignment="Center"
                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
@@ -143,12 +152,11 @@
             <Expander Margin="20,5" IsExpanded="{Binding ThirdPartyLicensesAreaExpanded}">
                 <Expander.Header>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center" FontSize="18"
+                        <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center"
                                            Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_About_ThirdPartLicense}"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                    FontSize="18"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </Expander.Header>
                 <DockPanel Margin="5">

@@ -182,7 +182,7 @@ namespace KitX.Loader.WPF.Core
                     if (length > 0)
                     {
                         string msg = Encoding.UTF8.GetString(data, 0, length);
-                        MessageBox.Show(msg);
+                        //MessageBox.Show(msg);
                     }
                     else
                     {

@@ -16,6 +16,7 @@
     <x:String x:Key="Text_Public_Exit">Exit</x:String>
     <x:String x:Key="Text_Public_ShowMainWindow">Show Main Window</x:String>
     <x:String x:Key="Text_Public_Second">s</x:String>
+    <x:String x:Key="Text_Public_Tip">Tip</x:String>
 
 
     <x:String x:Key="Text_Log_Verbose">Verbose</x:String>

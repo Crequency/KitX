@@ -16,6 +16,7 @@
     <x:String x:Key="Text_Public_Exit">退出</x:String>
     <x:String x:Key="Text_Public_ShowMainWindow">显示主窗口</x:String>
     <x:String x:Key="Text_Public_Second">秒</x:String>
+    <x:String x:Key="Text_Public_Tip">提示</x:String>
     
     
     <x:String x:Key="Text_Log_Verbose">详细</x:String>
