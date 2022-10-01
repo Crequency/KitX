@@ -53,8 +53,7 @@
                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
-                    <ComboBox x:Name="ShowAnnouncementsEnabler"
-                              SelectedIndex="{Binding ShowAnnouncementsStatus}"
+                    <ComboBox SelectedIndex="{Binding ShowAnnouncementsStatus}"
                               DockPanel.Dock="Right" VerticalContentAlignment="Center"
                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                         <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
@@ -62,7 +61,6 @@
                     </ComboBox>
 
                     <Button DockPanel.Dock="Right" Margin="0,0,10,0"
-                            Height="{Binding ShowAnnouncementsEnabler.Height}"
                             Content="{DynamicResource Text_Settings_General_ShowAnnouncementNow}"
                             Command="{Binding ShowAnnouncementsNowCommand}"
                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>

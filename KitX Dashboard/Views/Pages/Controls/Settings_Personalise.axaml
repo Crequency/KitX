@@ -24,6 +24,7 @@
                     </StackPanel>
 
                     <ComboBox DockPanel.Dock="Right" SelectedIndex="{Binding LanguageSelected}"
+                              VerticalContentAlignment="Center"
                               IsTextSearchEnabled="True" Items="{Binding SurpportLanguages}"
                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                         <ComboBox.ItemTemplate>
@@ -47,6 +48,7 @@
                     </StackPanel>
 
                     <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentAppTheme}"
+                              VerticalContentAlignment="Center"
                               IsTextSearchEnabled="True" Items="{Binding SurpportThemes}"
                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                         <ComboBox.ItemTemplate>
@@ -73,7 +75,8 @@
                 <StackPanel>
                     <ui:InfoBar IsOpen="{Binding MicaToolTipIsOpen}" IsIconVisible="True" IsClosable="True"
                                 Margin="0,5,0,10" CloseButtonCommand="{Binding MicaToolTipClosedCommand}"
-                                Title="{DynamicResource Text_Settings_Personalise_MicaEffect_EnableTip}"
+                                Title="{DynamicResource Text_Public_Tip}"
+                                Message="{DynamicResource Text_Settings_Personalise_MicaEffect_EnableTip}"
                                 FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                     <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,0,0,5">
@@ -87,7 +90,7 @@
                             </StackPanel>
 
                             <ComboBox x:Name="MicaEffectEnabler" SelectedIndex="{Binding MicaStatus}"
-                                      DockPanel.Dock="Right"
+                                      DockPanel.Dock="Right" VerticalContentAlignment="Center"
                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
