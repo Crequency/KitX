@@ -45,6 +45,7 @@
 
 ![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_plugins.png)
 ![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_devices.png)
+![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_update.png)
 
 </details>
 
