@@ -36,12 +36,11 @@
                 <Button DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
                         Content="{DynamicResource Text_Settings_Update}"
                         FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                         FontSize="14"
-                        Command="{Binding UpdateCommand}"/>
+                        Command="{Binding UpdateCommand}"
+                        Background="{DynamicResource ThemePrimaryAccent}"/>
                 <Button DockPanel.Dock="Right" VerticalAlignment="Center"
                         Content="{DynamicResource Text_Settings_Update_Check}"
                         FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                        
                         Command="{Binding CheckUpdateCommand}"/>
 
                 <Border/>
