@@ -14,6 +14,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
     internal class Settings_UpdateViewModel : ViewModelBase, INotifyPropertyChanged
     {
+        private bool _canUpdateDataGridView = true;
+
         internal Settings_UpdateViewModel()
         {
             InitEvents();
@@ -30,8 +32,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         {
             Components.CollectionChanged += (_, _) =>
             {
-                CanUpdateCount = $"{Components.Count(x => x.CanUpdate)}";
-                PropertyChanged?.Invoke(this, new(nameof(ComponentsCount)));
+                if (_canUpdateDataGridView)
+                {
+                    CanUpdateCount = $"{Components.Count(x => x.CanUpdate)}";
+                    PropertyChanged?.Invoke(this, new(nameof(ComponentsCount)));
+                }
             };
         }
 
@@ -108,6 +113,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             Components.Clear();
             AbleUpdateCommand(false);
             AbleCheckUpdateCommand(false);
+            _canUpdateDataGridView = false;
             new Thread(() =>
             {
                 string? wd = Path.GetFullPath("./");
@@ -128,12 +134,23 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         .AppendIncludeFile($"{ld}/ja-jp.axaml");
                     checker.Scan();
                     checker.Calculate();
-                    var result = checker.GetCalculateResult();
+                    var result = checker.GetCalculateResult()
+                    .OrderBy(
+                        x =>
+                        x.Key.Contains('/') || x.Key.Contains('\\') ? $"0{x.Key}" : x.Key
+                    ).ToDictionary(
+                        x => x.Key,
+                        x => x.Value
+                    );
 
                     Dispatcher.UIThread.Post(() =>
                     {
+                        int index = 0;
                         foreach (var item in result)
                         {
+                            ++index;
+                            if (index == result.Count)
+                                _canUpdateDataGridView = true;
                             Components.Add(new()
                             {
                                 CanUpdate = false,
