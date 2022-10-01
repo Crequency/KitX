@@ -161,8 +161,8 @@
     <x:String x:Key="Text_Settings_Update_ComponentName">组件名称</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentMD5">组件 MD5 值</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentSHA1">组件 SHA1 值</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">是否有更新</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentUpdatableCount">个组件待更新</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">可更新</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">个组件已发现</x:String>
 
 
     <x:String x:Key="Text_Settings_About">关于</x:String>

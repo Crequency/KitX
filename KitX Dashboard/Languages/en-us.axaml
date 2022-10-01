@@ -162,7 +162,7 @@
     <x:String x:Key="Text_Settings_Update_ComponentMD5">MD5</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentSHA1">SHA1</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Updatable</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentUpdatableCount">Components can update.</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">Components founded</x:String>
 
 
     <x:String x:Key="Text_Settings_About">About</x:String>

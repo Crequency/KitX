@@ -1,19 +1,15 @@
 ﻿using Avalonia.Threading;
+using Common.Update.Checker;
 using KitX_Dashboard.Commands;
+using KitX_Dashboard.Data;
+using MessageBox.Avalonia;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
-using Common.Update.Checker;
 using Component = KitX_Dashboard.Models.Component;
-using System.IO;
-using MessageBox.Avalonia;
-using Serilog;
-using System.Text;
-using System.Text.Unicode;
-using System.Text.Encodings.Web;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -35,7 +31,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         {
             Components.CollectionChanged += (_, _) =>
             {
-                CanUpdateCount = $"{Components.Count}";
+                CanUpdateCount = $"{Components.Count(x => x.CanUpdate)}";
+                PropertyChanged?.Invoke(this, new(nameof(ComponentsCount)));
             };
         }
 
@@ -70,7 +67,32 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             }
         }
 
+        /// <summary>
+        /// 找到的组件数量
+        /// </summary>
+        internal static int ComponentsCount { get => Components.Count; }
+
         internal static ObservableCollection<Component> Components { get; } = new();
+
+        /// <summary>
+        /// 启用或禁用检查更新命令
+        /// </summary>
+        /// <param name="enable">启用或禁用</param>
+        private void AbleCheckUpdateCommand(bool enable)
+        {
+            CheckUpdateCommand = enable ? new(CheckUpdate) : null;
+            PropertyChanged?.Invoke(this, new(nameof(CheckUpdateCommand)));
+        }
+
+        /// <summary>
+        /// 启用或禁用更新命令
+        /// </summary>
+        /// <param name="enable">启用或禁用</param>
+        private void AbleUpdateCommand(bool enable)
+        {
+            UpdateCommand = enable ? new(Update) : null;
+            PropertyChanged?.Invoke(this, new(nameof(UpdateCommand)));
+        }
 
         /// <summary>
         /// 检查更新命令
@@ -84,15 +106,20 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         private void CheckUpdate(object _)
         {
+            Components.Clear();
+            AbleUpdateCommand(false);
+            AbleCheckUpdateCommand(false);
             new Thread(() =>
             {
-                string? wd = Path.GetFullPath(Environment.CurrentDirectory);
-                string? ld = $"{wd}/Languages/";
+                string? wd = Path.GetFullPath("./");
+                string? ld = Path.GetFullPath(GlobalInfo.LanguageFilePath);
 
                 if (wd != null)
                 {
                     Checker checker = new Checker()
                         .SetRootDirectory(wd)
+                        .SetPerThreadFilesCount(Program.Config.IO.UpdatingCheckPerThreadFilesCount)
+                        .SetTransHash2String(true)
                         .AppendIgnoreFolder("Config")
                         .AppendIgnoreFolder("Languages")
                         .AppendIgnoreFolder("Log")
@@ -106,23 +133,18 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
                     Dispatcher.UIThread.Post(() =>
                     {
-                        MessageBoxManager.GetMessageBoxStandardWindow("Success",
-                            "Checking update finished!", MessageBox.Avalonia.Enums.ButtonEnum.Ok,
-                            MessageBox.Avalonia.Enums.Icon.Warning).Show();
-
                         foreach (var item in result)
                         {
                             Components.Add(new()
                             {
                                 CanUpdate = false,
                                 Name = item.Key,
-                                MD5 = item.Value.Item1,
-                                SHA1 = item.Value.Item2
+                                MD5 = item.Value.Item1.ToUpper(),
+                                SHA1 = item.Value.Item2.ToUpper()
                             });
                         }
 
-                        UpdateCommand = new(Update);
-                        PropertyChanged?.Invoke(this, new(nameof(UpdateCommand)));
+                        AbleUpdateCommand(true);
                     });
                 }
                 else
@@ -134,6 +156,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                             MessageBox.Avalonia.Enums.Icon.Warning).Show();
                     });
                 }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AbleCheckUpdateCommand(true);
+                });
             }).Start();
         }
 

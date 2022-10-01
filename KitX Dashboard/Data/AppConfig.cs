@@ -24,6 +24,9 @@ namespace KitX_Dashboard.Data
         [JsonInclude]
         public Config_Log Log { get; set; } = new();
 
+        [JsonInclude]
+        public Config_IO IO { get; set; } = new();
+
         /// <summary>
         /// Config
         /// </summary>
@@ -268,6 +271,12 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
+        }
+
+        public class Config_IO
+        {
+            [JsonInclude]
+            public int UpdatingCheckPerThreadFilesCount { get; set; } = 20;
         }
     }
 }
