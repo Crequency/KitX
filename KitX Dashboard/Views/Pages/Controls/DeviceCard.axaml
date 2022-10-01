@@ -13,46 +13,46 @@
                                    Margin="0,0,10,0"/>
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="{Binding DeviceName}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
                                FontWeight="ExtraBold" FontSize="20"/>
                     <TextBlock Text="{Binding DeviceVersion}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold" FontSize="14"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                FontSize="14"/>
                 </DockPanel>
             </DockPanel>
             <DockPanel Margin="0,10,0,0">
                 <Button DockPanel.Dock="Right" VerticalAlignment="Center" Margin="5,0,0,0" Content="从控"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                        FontWeight="Bold" FontSize="16"/>
+                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                         FontSize="16"/>
                 <Grid Margin="5,0,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition/>
                         <RowDefinition/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="{Binding LastOnlineTime}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold" FontSize="12"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                FontSize="12"/>
                     <DockPanel Grid.Row="1">
                         <TextBlock DockPanel.Dock="Left" Text="{DynamicResource Text_Device_PluginsCount}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold" FontSize="12"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    FontSize="12"/>
                         <TextBlock DockPanel.Dock="Left" Text="{Binding PluginsCount}" Margin="10,0,0,0"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold" FontSize="12"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    FontSize="12"/>
                         <Border/>
                     </DockPanel>
                 </Grid>
             </DockPanel>
             <TextBlock Margin="5,5,0,0" Text="{Binding DeviceMacAddress}"
-                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                       FontWeight="Bold" FontSize="10"/>
+                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                        FontSize="10"/>
             <DockPanel Margin="5,5,0,0">
                 <TextBlock DockPanel.Dock="Left" Text="{Binding IPv4}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold" FontSize="10"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                            FontSize="10"/>
                 <TextBlock DockPanel.Dock="Right" Text="{Binding IPv6}" Margin="20,0,0,0"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold" FontSize="10"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                            FontSize="10"/>
                 <Border/>
             </DockPanel>
         </StackPanel>

@@ -21,31 +21,31 @@
                 
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                            Text="{Binding ComponentsCount}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                           />
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,0"
                            Text="{DynamicResource Text_Settings_Update_ComponentsCount}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                           />
                 
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="10,0,0,0"
                            Text="{Binding CanUpdateCount}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                           />
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,0"
                            Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                           />
                 
                 <Button DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
                         Content="{DynamicResource Text_Settings_Update}"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                        FontWeight="Bold" FontSize="14"
+                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                         FontSize="14"
                         Command="{Binding UpdateCommand}"/>
                 <Button DockPanel.Dock="Right" VerticalAlignment="Center"
                         Content="{DynamicResource Text_Settings_Update_Check}"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                        FontWeight="Bold"
+                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                        
                         Command="{Binding CheckUpdateCommand}"/>
 
                 <Border/>
@@ -57,19 +57,23 @@
                   CornerRadius="5" SelectionMode="Single" Items="{Binding Components}">
             <DataGrid.Columns>
                 <DataGridCheckBoxColumn Header="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
-                                        Binding="{Binding CanUpdate}" IsThreeState="False"/>
+                                        Binding="{Binding CanUpdate}" IsThreeState="False"
+                                        Width="Auto"/>
                 <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentName}"
                                     Binding="{Binding Name}"
-                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                    FontWeight="Bold"/>
+                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    
+                                    Width="Auto"/>
                 <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentMD5}"
                                     Binding="{Binding MD5}"
-                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                    FontWeight="Bold"/>
+                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    
+                                    Width="Auto"/>
                 <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentSHA1}"
                                     Binding="{Binding SHA1}"
-                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                    FontWeight="Bold"/>
+                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    
+                                    Width="Auto"/>
             </DataGrid.Columns>
         </DataGrid>
 

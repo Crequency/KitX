@@ -16,11 +16,11 @@
                    HorizontalContentAlignment="Center" VerticalContentAlignment="Bottom">
             <StackPanel Orientation="Vertical" Width="120" Height="130">
                 <TextBlock Text="{Binding DisplayName}" FontSize="20" FontWeight="ExtraBold"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 <TextBlock Text="{Binding Version}" FontSize="14" FontWeight="Light"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 <TextBlock Text="{Binding SimpleDescription}" FontSize="16" TextWrapping="Wrap"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
             </StackPanel>
         </ui:Button>
         <ui:Button x:Name="Imager" Width="100" Height="100" HorizontalAlignment="Left" VerticalAlignment="Top"

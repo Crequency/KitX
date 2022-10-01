@@ -20,8 +20,7 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Performence_Web_Port}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
                     <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding WebServerPort}"
@@ -36,13 +35,11 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Portrait" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Performence_Web_MyIP_Filter}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
                     <TextBox DockPanel.Dock="Right" Text="{Binding LocalIPFilter}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                             FontWeight="Bold"/>
+                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                     <Border/>
                 </DockPanel>
@@ -53,14 +50,12 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Clock" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Performence_Greeting_Interval}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
                     <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding GreetingTextUpdateInterval}"
                                   DockPanel.Dock="Right" IsEnabled="True" Maximum="60" Minimum="1"
-                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                  FontWeight="Bold"/>
+                                  FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                     <Border/>
                 </DockPanel>
@@ -71,8 +66,7 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <icon:MaterialIcon Kind="FileChart" Margin="5,0"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Performence_Log}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </Expander.Header>
 
@@ -83,17 +77,14 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="Sd" Margin="5,0"/>
                                 <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileSize}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                             </StackPanel>
 
                             <TextBlock Text="MB" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                             <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding LogFileSizeLimit}"
                                           DockPanel.Dock="Right" IsEnabled="True" Minimum="1"
-                                          FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                          FontWeight="Bold"/>
+                                          FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                             <Border/>
                         </DockPanel>
@@ -104,14 +95,12 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="FileMultiple" Margin="5,0"/>
                                 <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileMaxCount}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                             </StackPanel>
 
                             <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding LogFileMaxCount}"
                                           DockPanel.Dock="Right" IsEnabled="True"
-                                          FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                          FontWeight="Bold"/>
+                                          FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                             <Border/>
                         </DockPanel>
@@ -122,18 +111,15 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="FileClock" Margin="5,0"/>
                                 <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileFlushInterval}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                             </StackPanel>
 
                             <TextBlock Text="{DynamicResource Text_Public_Second}" DockPanel.Dock="Right"
                                        Margin="10,0,0,0" VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                             <ui:NumberBox SpinButtonPlacementMode="Compact" Value="{Binding LogFileFlushInterval}"
                                           DockPanel.Dock="Right" IsEnabled="True"
-                                          FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                          FontWeight="Bold"/>
+                                          FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                             <Border/>
                         </DockPanel>
@@ -144,19 +130,17 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                                 <icon:MaterialIcon Kind="FileDocument" Margin="5,0"/>
                                 <TextBlock Text="{DynamicResource Text_Settings_Performence_LogFileLevel}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                             </StackPanel>
 
                             <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentLogLevel}"
+                                      VerticalContentAlignment="Center"
                                       IsTextSearchEnabled="True" Items="{Binding SurpportLogLevels}"
-                                      FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                      FontWeight="Bold">
+                                      FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding LogLevelDisplayName}"
-                                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                                   FontWeight="Bold"/>
+                                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
