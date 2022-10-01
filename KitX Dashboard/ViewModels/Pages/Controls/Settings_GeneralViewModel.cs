@@ -1,5 +1,7 @@
-﻿using KitX_Dashboard.Models;
+﻿using KitX_Dashboard.Commands;
+using KitX_Dashboard.Services;
 using System.ComponentModel;
+using System.Threading;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
 {
@@ -8,7 +10,15 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         internal Settings_GeneralViewModel()
         {
+            InitCommands();
+        }
 
+        /// <summary>
+        /// 初始化命令
+        /// </summary>
+        private void InitCommands()
+        {
+            ShowAnnouncementsNowCommand = new(ShowAnnouncementsNow);
         }
 
         /// <summary>
@@ -67,6 +77,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 EventHandlers.Invoke("DevelopSettingsChanged");
                 SaveChanges();
             }
+        }
+
+        /// <summary>
+        /// 确认主题色变更命令
+        /// </summary>
+        internal DelegateCommand? ShowAnnouncementsNowCommand { get; set; }
+
+        private void ShowAnnouncementsNow(object _)
+        {
+            new Thread(async () =>
+            {
+                await Services.AnouncementManager.CheckNewAnnouncements();
+            }).Start();
         }
 
         public new event PropertyChangedEventHandler? PropertyChanged;

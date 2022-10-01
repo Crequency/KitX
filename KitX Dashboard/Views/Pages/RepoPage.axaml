@@ -10,16 +10,13 @@
             <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
                              IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
                              Watermark="{DynamicResource Text_Repo_Search_In_Network}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                             FontWeight="Bold"/>
+                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
             <StackPanel Orientation="Horizontal" Margin="25,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
                 <TextBlock Text="{Binding PluginsCount}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 <TextBlock Text="{DynamicResource Text_Repo_Tip_Installed}" Margin="5,0,0,0"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
             </StackPanel>
 
             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
@@ -27,8 +24,8 @@
                 <Button Content="{DynamicResource Text_Public_Import}"
                         Command="{Binding ImportPluginCommand}" CommandParameter="{DynamicResource MainWindow}"
                         IsVisible="{Binding ImportButtonVisibility}"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                        FontWeight="Bold" FontSize="14"/>
+                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                         FontSize="14"/>
                 <Button Command="{Binding RefreshPluginsCommand}" Margin="10,0">
                     <icon:MaterialIcon Kind="Refresh" Width="20" Height="20"/>
                 </Button>

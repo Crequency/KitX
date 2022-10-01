@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using FluentAvalonia.UI.Controls;
+using KitX_Dashboard.Services;
 using KitX_Dashboard.ViewModels.Pages;
 using KitX_Dashboard.Views.Controls;
 using Serilog;
@@ -30,7 +31,7 @@ namespace KitX_Dashboard.Views.Pages
         }
 
         /// <summary>
-        /// 初始化设置页面
+        /// 初始化主页
         /// </summary>
         private void InitHomePage()
         {
@@ -38,10 +39,19 @@ namespace KitX_Dashboard.Views.Pages
                 = this.FindControl<NavigationViewItem>(SelectedViewName);
         }
 
+        /// <summary>
+        /// 保存对配置文件的修改
+        /// </summary>
+        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+
         private static string SelectedViewName
         {
-            get => Program.Config.Pages.HomePage.SelectedViewName;
-            set => Program.Config.Pages.HomePage.SelectedViewName = value;
+            get => Program.Config.Pages.Home.SelectedViewName;
+            set
+            {
+                Program.Config.Pages.Home.SelectedViewName = value;
+                SaveChanges();
+            }
         }
 
         /// <summary>

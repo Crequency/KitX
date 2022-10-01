@@ -6,7 +6,7 @@ using Avalonia.Media;
 using BasicHelper.IO;
 using BasicHelper.Util;
 using KitX_Dashboard.Data;
-using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
 using Serilog;
@@ -82,9 +82,6 @@ namespace KitX_Dashboard
                     DataContext = new MainWindowViewModel(),
                 };
             }
-
-            string color = Program.Config.App.ThemeColor;
-            Resources["ThemePrimaryAccent"] = new SolidColorBrush(Color.Parse(color));
 
             if (Program.Config.App.ShowAnnouncementWhenStart)
                 new Thread(async () =>

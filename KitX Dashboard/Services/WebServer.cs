@@ -4,6 +4,7 @@ using KitX_Dashboard.Data;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -140,7 +141,18 @@ namespace KitX_Dashboard.Services
 
                         Log.Information($"From: {endpoint}\tReceive: {msg}");
 
-                        PluginsManager.Execute(msg, endpoint);
+                        if (false)
+                        {
+
+                        }
+                        else if (msg.StartsWith("PluginStruct: "))
+                        {
+                            PluginsManager.Execute(msg[14..], endpoint);
+                            string workPath = Path.GetFullPath(Program.Config.App.LocalPluginsDataDirectory);
+                            string sendtxt = $"WorkPath: {workPath}";
+                            byte[] bytes = Encoding.UTF8.GetBytes(sendtxt);
+                            stream.Write(bytes, 0, bytes.Length);
+                        }
 
                         //发送到其他客户端
                         //foreach (KeyValuePair<string, TcpClient> kvp in clients)

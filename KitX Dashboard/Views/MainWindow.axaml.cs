@@ -9,7 +9,7 @@ using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
-using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using KitX_Dashboard.ViewModels;
 using Serilog;
 using System;
@@ -81,7 +81,6 @@ namespace KitX_Dashboard.Views
         private void InitMainWindow()
         {
             // 导航到上次关闭时界面
-            SelectedPageName = Program.Config.Windows.MainWindow.Tags["SelectedPage"];
             MainNavigationView.SelectedItem = this.FindControl<NavigationViewItem>(SelectedPageName);
 
             // 如果主题不设置为 `跟随系统` 则手动变更主题
@@ -129,6 +128,11 @@ namespace KitX_Dashboard.Views
         }
 
         /// <summary>
+        /// 保存对配置文件的修改
+        /// </summary>
+        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+
+        /// <summary>
         /// 更新招呼语
         /// </summary>
         private void UpdateGreetingText()
@@ -168,7 +172,15 @@ namespace KitX_Dashboard.Views
         /// <summary>
         /// 已选择的页面名称
         /// </summary>
-        private string SelectedPageName = string.Empty;
+        private static string SelectedPageName
+        {
+            get => Program.Config.Windows.MainWindow.Tags["SelectedPage"];
+            set
+            {
+                Program.Config.Windows.MainWindow.Tags["SelectedPage"] = value;
+                SaveChanges();
+            }
+        }
 
         /// <summary>
         /// 前台页面切换事件

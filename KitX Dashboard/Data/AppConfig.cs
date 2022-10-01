@@ -24,6 +24,9 @@ namespace KitX_Dashboard.Data
         [JsonInclude]
         public Config_Log Log { get; set; } = new();
 
+        [JsonInclude]
+        public Config_IO IO { get; set; } = new();
+
         /// <summary>
         /// Config
         /// </summary>
@@ -148,13 +151,13 @@ namespace KitX_Dashboard.Data
         public class Config_Pages
         {
             [JsonInclude]
-            public Config_HomePage HomePage { get; set; } = new();
+            public Config_HomePage Home { get; set; } = new();
 
             [JsonInclude]
-            public Config_MarketPage MarketPage { get; set; } = new();
+            public Config_MarketPage Market { get; set; } = new();
 
             [JsonInclude]
-            public Config_SettingsPage SettingsPage { get; set; } = new();
+            public Config_SettingsPage Settings { get; set; } = new();
 
             /// <summary>
             /// HomePageConfig
@@ -192,6 +195,21 @@ namespace KitX_Dashboard.Data
 
                 [JsonInclude]
                 public bool PaletteAreaExpanded { get; set; } = false;
+
+                [JsonInclude]
+                public bool LogReletiveAreaExpanded { get; set; } = true;
+
+                [JsonInclude]
+                public bool AboutAreaExpanded { get; set; } = false;
+
+                [JsonInclude]
+                public bool AuthorsAreaExpanded { get; set; } = false;
+
+                [JsonInclude]
+                public bool LinksAreaExpanded { get; set; } = false;
+
+                [JsonInclude]
+                public bool ThirdPartyLicensesAreaExpanded { get; set; } = false;
 
                 [JsonInclude]
                 public bool IsNavigationViewPaneOpened { get; set; } = true;
@@ -253,6 +271,12 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
+        }
+
+        public class Config_IO
+        {
+            [JsonInclude]
+            public int UpdatingCheckPerThreadFilesCount { get; set; } = 20;
         }
     }
 }

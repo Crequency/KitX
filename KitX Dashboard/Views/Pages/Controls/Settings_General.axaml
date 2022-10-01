@@ -19,14 +19,12 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Folder" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_LocalPluginsFileDirectory}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_General_LocalPluginsFileDirectory}"
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
                     <TextBox DockPanel.Dock="Right" Text="{Binding LocalPluginsFileDirectory}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                             FontWeight="Bold"/>
+                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                     <Border/>
                 </DockPanel>
@@ -36,14 +34,12 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="FolderTransfer" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_LocalPluginsDataDirectory}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_General_LocalPluginsDataDirectory}"
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
                     <TextBox DockPanel.Dock="Right" Text="{Binding LocalPluginsDataDirectory}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                             FontWeight="Bold"/>
+                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
                     <Border/>
                 </DockPanel>
@@ -53,20 +49,26 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Announcement" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_ShowAnnouncement}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_General_ShowAnnouncement}"
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
-                    <ComboBox SelectedIndex="{Binding ShowAnnouncementsStatus}"
-                              DockPanel.Dock="Right"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                              FontWeight="Bold">
+                    <ComboBox x:Name="ShowAnnouncementsEnabler"
+                              SelectedIndex="{Binding ShowAnnouncementsStatus}"
+                              DockPanel.Dock="Right" VerticalContentAlignment="Center"
+                              FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                         <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
                     </ComboBox>
 
+                    <Button DockPanel.Dock="Right" Margin="0,0,10,0"
+                            Height="{Binding ShowAnnouncementsEnabler.Height}"
+                            Content="{DynamicResource Text_Settings_General_ShowAnnouncementNow}"
+                            Command="{Binding ShowAnnouncementsNowCommand}"
+                            FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    
                     <Border/>
+
                 </DockPanel>
             </ui:InfoBar>
 
@@ -74,15 +76,13 @@
                 <DockPanel Margin="0,10,10,10">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
                         <icon:MaterialIcon Kind="Code" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Tab_General_DeveloperSetting}"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                        <TextBlock Text="{DynamicResource Text_Settings_General_DeveloperSetting}"
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
 
                     <ComboBox SelectedIndex="{Binding DeveloperSettingStatus}"
-                              DockPanel.Dock="Right"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                              FontWeight="Bold">
+                              DockPanel.Dock="Right" VerticalContentAlignment="Center"
+                              FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                         <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
                         <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
                     </ComboBox>

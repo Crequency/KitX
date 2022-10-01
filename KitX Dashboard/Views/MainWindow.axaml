@@ -12,8 +12,8 @@
         x:Name="MainWindowInstance"
         Icon="/Assets/KitX.png"
         Title="{DynamicResource Text_MainWindow_Title}"
-        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-        FontWeight="Bold">
+        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+        >
 
     <!--Width="{Binding DB_Width}" Height="{Binding DB_Height}"-->
 
@@ -59,8 +59,7 @@
                             <icon:MaterialIcon Kind="Home" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Home}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
@@ -70,8 +69,7 @@
                             <icon:MaterialIcon Kind="Layers" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Lib}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
@@ -81,8 +79,7 @@
                             <icon:MaterialIcon Kind="Folder" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Repo}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
@@ -92,8 +89,7 @@
                             <icon:MaterialIcon Kind="Devices" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Devices}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
@@ -106,8 +102,7 @@
                             <icon:MaterialIcon Kind="Tag" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Market}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
@@ -117,8 +112,7 @@
                             <icon:MaterialIcon Kind="At" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Account}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
@@ -128,8 +122,7 @@
                             <icon:MaterialIcon Kind="Settings" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Text_MainWindow_NavigationView_Settings}"
                                        VerticalAlignment="Center" Margin="15,0,0,0"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                       FontWeight="Bold"/>
+                                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>

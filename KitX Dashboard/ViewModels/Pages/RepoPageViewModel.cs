@@ -34,7 +34,7 @@ namespace KitX_Dashboard.ViewModels.Pages
         /// </summary>
         private void InitEvents()
         {
-            Models.EventHandlers.ConfigSettingsChanged += () =>
+            EventHandlers.ConfigSettingsChanged += () =>
             {
                 ImportButtonVisibility = Program.Config.App.DeveloperSetting;
             };

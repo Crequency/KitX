@@ -12,16 +12,13 @@
             <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
                              IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
                              Watermark="{DynamicResource Text_Public_Search}"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                             FontWeight="Bold"/>
+                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
             <StackPanel Orientation="Horizontal" Margin="25,0,0,0"
                         HorizontalAlignment="Left" VerticalAlignment="Center">
                 <TextBlock Text="{Binding DevicesCount}"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 <TextBlock Text="{DynamicResource Text_Device_Tip_Detected}" Margin="5,0,0,0"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                           FontWeight="Bold"/>
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
             </StackPanel>
         </Grid>
         <DockPanel Margin="10">

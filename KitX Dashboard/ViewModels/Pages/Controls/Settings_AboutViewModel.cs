@@ -1,5 +1,6 @@
 ﻿using BasicHelper.IO;
 using KitX_Dashboard.Commands;
+using KitX_Dashboard.Services;
 using System.ComponentModel;
 using System.Reflection;
 
@@ -23,6 +24,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
             LoadThirdPartLicenseCommand = new(LoadThirdPartLicense);
         }
+
+        /// <summary>
+        /// 保存对配置文件的修改
+        /// </summary>
+        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
 
         /// <summary>
         /// 版本号属性
@@ -53,6 +59,58 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 thirdPartLicenseString = value;
                 PropertyChanged?.Invoke(this, new(nameof(ThirdPartLicenseString)));
+            }
+        }
+
+        /// <summary>
+        /// 关于区域是否展开
+        /// </summary>
+        public static bool AboutAreaExpanded
+        {
+            get => Program.Config.Pages.Settings.AboutAreaExpanded;
+            set
+            {
+                Program.Config.Pages.Settings.AboutAreaExpanded = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 作者列表区域是否展开
+        /// </summary>
+        public static bool AuthorsAreaExpanded
+        {
+            get => Program.Config.Pages.Settings.AuthorsAreaExpanded;
+            set
+            {
+                Program.Config.Pages.Settings.AuthorsAreaExpanded = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 链接区域是否展开
+        /// </summary>
+        public static bool LinksAreaExpanded
+        {
+            get => Program.Config.Pages.Settings.LinksAreaExpanded;
+            set
+            {
+                Program.Config.Pages.Settings.LinksAreaExpanded = value;
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 第三方声明区域是否展开
+        /// </summary>
+        public static bool ThirdPartyLicensesAreaExpanded
+        {
+            get => Program.Config.Pages.Settings.ThirdPartyLicensesAreaExpanded;
+            set
+            {
+                Program.Config.Pages.Settings.ThirdPartyLicensesAreaExpanded = value;
+                SaveChanges();
             }
         }
 

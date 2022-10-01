@@ -12,27 +12,22 @@
         <DockPanel Margin="0,10,10,10">
             <Button Content="{DynamicResource Text_PluginBar_Launch}"
                     DockPanel.Dock="Right" Command="{Binding LaunchCommand}"
-                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                    FontWeight="Bold"/>
+                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
 
             <ui:Button Content="..." DockPanel.Dock="Right" Margin="0,0,20,0"
-                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                       FontWeight="Bold">
+                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
                 <ui:Button.Flyout>
                     <ui:MenuFlyout Placement="Bottom">
                         <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_Details}"
                                            Icon="Copy" Command="{Binding ViewDetailsCommand}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_Remove}"
                                            Icon="Remove" Command="{Binding RemoveCommand}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                         <ui:MenuFlyoutSeparator/>
                         <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_RemoveAndDelete}"
                                            Icon="Delete" Command="{Binding DeleteCommand}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                           FontWeight="Bold"/>
+                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </ui:MenuFlyout>
                 </ui:Button.Flyout>
             </ui:Button>
@@ -50,28 +45,24 @@
                            VerticalAlignment="Center"/>
                     <TextBlock Margin="15,0,0,0" VerticalAlignment="Center"
                                Text="{Binding DisplayName}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold" FontSize="24"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                FontSize="24"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Grid.Column="1">
                     <TextBlock Margin="20,0,0,0" VerticalAlignment="Center"
                                Text="{DynamicResource Text_PluginBar_AuthorName}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding AuthorName}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Grid.Column="2">
                     <TextBlock Margin="30,0,0,0" VerticalAlignment="Center"
                                Text="{DynamicResource Text_PluginBar_Version}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding Version}"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                               FontWeight="Bold"/>
+                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 </StackPanel>
             </Grid>
         </DockPanel>

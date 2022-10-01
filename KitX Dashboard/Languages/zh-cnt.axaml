@@ -123,45 +123,53 @@
     <x:String x:Key="Text_Device_PluginsCount">在綫插件數量:</x:String>
     
 
-    <x:String x:Key="Text_Settings_Tab_General">通用</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_DisplayLanguage">顯示語言</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect">雲母效果</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Enable">是否啟用雲母效果?</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_MicaEffect_Opacity">透明度</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsFileDirectory">本機插件的程序路徑</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_LocalPluginsDataDirectory">本機插件的文件路徑</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_DeveloperSetting">開發者設定</x:String>
-    <x:String x:Key="Text_Settings_Tab_General_ShowAnnouncement">啓動時顯示公告</x:String>
+    <x:String x:Key="Text_Settings_General">通用</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">本機插件的程序路徑</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">本機插件的文件路徑</x:String>
+    <x:String x:Key="Text_Settings_General_DeveloperSetting">開發者設定</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncement">啓動時顯示公告</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">查看新公告</x:String>
     
     
-    <x:String x:Key="Text_Settings_Tab_Personalise">個性化</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Palette">調色板</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme">主題</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Light">日光白 (淺色)</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Dark">午夜黑 (深色)</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_HighContrast">高對比度</x:String>
-    <x:String x:Key="Text_Settings_Tab_Personalise_Theme_Follow">跟隨系統</x:String>
+    <x:String x:Key="Text_Settings_Personalise">個性化</x:String>
+    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">顯示語言</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect">雲母效果</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">是否啟用雲母效果?</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">此效果僅限 Windows 11 系統開啟</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">透明度</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Palette">調色板</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme">主題</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Light">日光白 (淺色)</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">午夜黑 (深色)</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">高對比度</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">跟隨系統</x:String>
 
     
-    <x:String x:Key="Text_Settings_Tab_Performence">性能</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Web_Port">端口</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Web_MyIP_Filter">本機IP過濾器</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_Greeting_Interval">招呼語更新延遲</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileSize">日志文檔大小限制</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileMaxCount">日志文檔數量限制</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileFlushInterval">日志文檔緩衝延時</x:String>
-    <x:String x:Key="Text_Settings_Tab_Performence_LogFileLevel">日志級別</x:String>
+    <x:String x:Key="Text_Settings_Performence">性能</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_Port">端口</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">本機IP過濾器</x:String>
+    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">招呼語更新延遲</x:String>
+    <x:String x:Key="Text_Settings_Performence_Log">日志文檔相關設定</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileSize">日志文檔大小限制</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">日志文檔數量限制</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">日志文檔緩衝延時</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileLevel">日志級別</x:String>
 
 
-    <x:String x:Key="Text_Settings_Tab_Update">更新</x:String>
+    <x:String x:Key="Text_Settings_Update">更新</x:String>
+    <x:String x:Key="Text_Settings_Update_Check">檢查更新</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentName">組件名稱</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentMD5">組件 MD5 值</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentSHA1">組件 SHA1 值</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">可更新</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">個組件已發現</x:String>
 
 
-    <x:String x:Key="Text_Settings_Tab_About">關於</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_Version">版本:</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_Authors">製作人員</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_Links">友情鏈接</x:String>
-    <x:String x:Key="Text_Settings_Tab_About_ThirdPartLicense">第三方許可</x:String>
+    <x:String x:Key="Text_Settings_About">關於</x:String>
+    <x:String x:Key="Text_Settings_About_Version">版本:</x:String>
+    <x:String x:Key="Text_Settings_About_Authors">製作人員</x:String>
+    <x:String x:Key="Text_Settings_About_Links">友情鏈接</x:String>
+    <x:String x:Key="Text_Settings_About_ThirdPartLicense">第三方許可</x:String>
 
 
     <x:String x:Key="Text_AnouncementWindow_Receive">收到</x:String>

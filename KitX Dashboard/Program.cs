@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
 using KitX_Dashboard.Data;
-using KitX_Dashboard.Models;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;

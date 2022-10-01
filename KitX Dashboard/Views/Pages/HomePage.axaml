@@ -12,19 +12,19 @@
         <StackPanel Orientation="Vertical">
             
             --><!--最近使用--><!--
-            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold" x:Name="SeparatorColorProvider"
+            <TextBlock Margin="20,10,0,0" FontSize="28"  x:Name="SeparatorColorProvider"
                        Text="{DynamicResource Text_MainWindow_HomePage_Recent}"/>
             <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
             <localControls:MainWindow_RecentUse Margin="20,10"/>
             
             --><!--统计--><!--
-            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+            <TextBlock Margin="20,10,0,0" FontSize="28" 
                        Text="{DynamicResource Text_MainWindow_HomePage_Count}"/>
             <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
             <localControls:MainWindow_Count Margin="20,10"/>
             
             --><!--活动日志--><!--
-            <TextBlock Margin="20,10,0,0" FontSize="28" FontWeight="Bold"
+            <TextBlock Margin="20,10,0,0" FontSize="28" 
                        Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"/>
             <Rectangle Margin="20,10" Height="2" Fill="{Binding #SeparatorColorProvider.Foreground}"/>
             <localControls:MainWindow_ActivityLog Margin="20,10"/>
@@ -45,8 +45,7 @@
                         <icon:MaterialIcon Kind="Clock" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_Recent}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -57,8 +56,7 @@
                         <icon:MaterialIcon Kind="Numbers" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_Count}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -69,8 +67,7 @@
                         <icon:MaterialIcon Kind="DocumentSign" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
-                                   FontWeight="Bold"/>
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>

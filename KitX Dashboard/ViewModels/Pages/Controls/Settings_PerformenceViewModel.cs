@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
+using KitX_Dashboard.Services;
 using Serilog;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -76,6 +77,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 Program.Config.Windows.MainWindow.GreetingUpdateInterval = value;
                 EventHandlers.Invoke("GreetingTextIntervalUpdated");
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 日志相关设置区域是否展开
+        /// </summary>
+        internal static bool LogReletiveAreaExpanded
+        {
+            get => Program.Config.Pages.Settings.LogReletiveAreaExpanded;
+            set
+            {
+                Program.Config.Pages.Settings.LogReletiveAreaExpanded = value;
                 SaveChanges();
             }
         }
