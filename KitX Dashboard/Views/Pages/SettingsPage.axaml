@@ -86,8 +86,7 @@
                         <icon:MaterialIcon Kind="Globe" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_General}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -98,8 +97,7 @@
                         <icon:MaterialIcon Kind="Palette" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Personalise}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -110,8 +108,7 @@
                         <icon:MaterialIcon Kind="Speedometer" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Performence}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -122,8 +119,7 @@
                         <icon:MaterialIcon Kind="Update" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_Update}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -134,8 +130,7 @@
                         <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_Settings_About}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>

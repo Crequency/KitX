@@ -21,21 +21,17 @@
                 
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                            Text="{Binding ComponentsCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                           />
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,0"
                            Text="{DynamicResource Text_Settings_Update_ComponentsCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                           />
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="10,0,0,0"
                            Text="{Binding CanUpdateCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                           />
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,0"
                            Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                           />
+                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                 
                 <Button DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
                         Content="{DynamicResource Text_Settings_Update}"

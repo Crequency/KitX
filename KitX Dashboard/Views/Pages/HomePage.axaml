@@ -45,8 +45,7 @@
                         <icon:MaterialIcon Kind="Clock" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_Recent}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -57,8 +56,7 @@
                         <icon:MaterialIcon Kind="Numbers" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_Count}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
@@ -69,8 +67,7 @@
                         <icon:MaterialIcon Kind="DocumentSign" VerticalAlignment="Center"/>
                         <TextBlock Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"
                                    VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   />
+                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
