@@ -1,6 +1,5 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Add Resources Here -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--  Add Resources Here  -->
     <x:String x:Key="Text_MainWindow_Title">KitX ダッシュボード</x:String>
 
 
@@ -27,39 +26,39 @@
     <x:String x:Key="Text_Log_Fatal">崩壊</x:String>
 
 
-    <!--GreetingStart-->
+    <!--  GreetingStart  -->
 
-    <!--MorningStart-->
+    <!--  MorningStart  -->
     <x:String x:Key="Text_Greeting_Morning_1">おはよう! ο(=•ω＜=)ρ⌒☆</x:String>
     <x:String x:Key="Text_Greeting_Morning_2">毎日良い気分を OvO</x:String>
     <x:String x:Key="Text_Greeting_Morning_3">今日のイベント、今日の終わり!</x:String>
     <x:String x:Key="Text_Greeting_Morning_4">良い一日が始まります~</x:String>
-    <!--MorningEnd-->
+    <!--  MorningEnd  -->
 
-    <!--NoonStart-->
+    <!--  NoonStart  -->
     <x:String x:Key="Text_Greeting_Noon_1">こんにちは! o(〃＾▽＾〃)o</x:String>
     <x:String x:Key="Text_Greeting_Noon_2">正午です、休憩してください~</x:String>
     <x:String x:Key="Text_Greeting_Noon_3">今日もおはようございます</x:String>
-    <!--NoonEnd-->
+    <!--  NoonEnd  -->
 
-    <!--AfterNoonStart-->
+    <!--  AfterNoonStart  -->
     <x:String x:Key="Text_Greeting_AfterNoon_1">こんにちは! ヾ(≧▽≦*)o</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_2">アフタヌーンティータイム!</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_3">今日、どのようなタスクが未完了のままになっていますか？</x:String>
-    <!--AfterNoonEnd-->
+    <!--  AfterNoonEnd  -->
 
-    <!--EveningStart-->
+    <!--  EveningStart  -->
     <x:String x:Key="Text_Greeting_Evening_1">こんばんは! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Evening_2">今夜は美味しい食事をします!</x:String>
-    <!--EveningEnd-->
+    <!--  EveningEnd  -->
 
-    <!--NightStart-->
+    <!--  NightStart  -->
     <x:String x:Key="Text_Greeting_Night_1">夜は静かです! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Night_2">夜遅く、早く休む</x:String>
     <x:String x:Key="Text_Greeting_Night_3">明日はいい日になる!</x:String>
-    <!--NightEnd-->
+    <!--  NightEnd  -->
 
-    <!--GreetingEnd-->
+    <!--  GreetingEnd  -->
 
     <x:String x:Key="Text_MainWindow_NavigationView_Home">表紙</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Lib">庫</x:String>
@@ -117,21 +116,22 @@
 
     <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
     <x:String x:Key="Text_Device_This">この装置</x:String>
+    <x:String x:Key="Text_Device_Type">從控</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
     <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
     <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
 
-    
+
     <x:String x:Key="Text_Settings_General">ユニバーサル</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_General_DeveloperSetting">開発者向けオプション</x:String>
     <x:String x:Key="Text_Settings_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
     <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">最新のお知らせを見る</x:String>
-    
-    
+
+
     <x:String x:Key="Text_Settings_Personalise">パーソナライズ</x:String>
     <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">表示言語</x:String>
     <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica 効果</x:String>
@@ -145,7 +145,7 @@
     <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">ハイコントラスト</x:String>
     <x:String x:Key="Text_Settings_Personalise_Theme_Follow">システムに従ってください</x:String>
 
-    
+
     <x:String x:Key="Text_Settings_Performence">パフォーマンス</x:String>
     <x:String x:Key="Text_Settings_Performence_Web_Port">ポート</x:String>
     <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>

@@ -1,6 +1,5 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Add Resources Here -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--  Add Resources Here  -->
     <x:String x:Key="Text_MainWindow_Title">KitX 仪表盘</x:String>
 
 
@@ -17,8 +16,8 @@
     <x:String x:Key="Text_Public_ShowMainWindow">显示主窗口</x:String>
     <x:String x:Key="Text_Public_Second">秒</x:String>
     <x:String x:Key="Text_Public_Tip">提示</x:String>
-    
-    
+
+
     <x:String x:Key="Text_Log_Verbose">详细</x:String>
     <x:String x:Key="Text_Log_Debug">调试</x:String>
     <x:String x:Key="Text_Log_Information">信息</x:String>
@@ -27,40 +26,40 @@
     <x:String x:Key="Text_Log_Fatal">崩溃</x:String>
 
 
-    <!--GreetingStart-->
-    
-    <!--MorningStart-->
+    <!--  GreetingStart  -->
+
+    <!--  MorningStart  -->
     <x:String x:Key="Text_Greeting_Morning_1">上午好! ο(=•ω＜=)ρ⌒☆</x:String>
     <x:String x:Key="Text_Greeting_Morning_2">每天都要有好心情哟 OvO</x:String>
     <x:String x:Key="Text_Greeting_Morning_3">今日事, 今日毕!</x:String>
     <x:String x:Key="Text_Greeting_Morning_4">美好的一天开始啦~</x:String>
-    <!--MorningEnd-->
-    
-    <!--NoonStart-->
+    <!--  MorningEnd  -->
+
+    <!--  NoonStart  -->
     <x:String x:Key="Text_Greeting_Noon_1">中午好! o(〃＾▽＾〃)o</x:String>
     <x:String x:Key="Text_Greeting_Noon_2">中午啦, 小憩一会儿吧~</x:String>
     <x:String x:Key="Text_Greeting_Noon_3">今天也是一个充实的上午呢</x:String>
-    <!--NoonEnd-->
-    
-    <!--AfterNoonStart-->
+    <!--  NoonEnd  -->
+
+    <!--  AfterNoonStart  -->
     <x:String x:Key="Text_Greeting_AfterNoon_1">下午好! ヾ(≧▽≦*)o</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_2">下午茶时间!</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_3">今天的任务还有哪些没完成呢</x:String>
-    <!--AfterNoonEnd-->
-    
-    <!--EveningStart-->
+    <!--  AfterNoonEnd  -->
+
+    <!--  EveningStart  -->
     <x:String x:Key="Text_Greeting_Evening_1">晚上好! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Evening_2">今晚我要美美饱餐一顿!</x:String>
-    <!--EveningEnd-->
-    
-    <!--NightStart-->
+    <!--  EveningEnd  -->
+
+    <!--  NightStart  -->
     <x:String x:Key="Text_Greeting_Night_1">夜深人静呐! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Night_2">夜深了, 早点休息吧</x:String>
     <x:String x:Key="Text_Greeting_Night_3">明天也会是美好的一天!</x:String>
-    <!--NightEnd-->
-    
-    <!--GreetingEnd-->
-    
+    <!--  NightEnd  -->
+
+    <!--  GreetingEnd  -->
+
     <x:String x:Key="Text_MainWindow_NavigationView_Home">首页</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Lib">库</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Market">市场</x:String>
@@ -69,17 +68,17 @@
     <x:String x:Key="Text_MainWindow_NavigationView_Devices">设备管理</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Account">账户</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Settings">设置</x:String>
-    
+
     <x:String x:Key="Text_MainWindow_HomePage_Recent">最近使用</x:String>
     <x:String x:Key="Text_MainWindow_HomePage_Count">统计</x:String>
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活动日志</x:String>
-    
+
     <x:String x:Key="Text_MainWindow_Recent_No">没有最近使用记录呢~</x:String>
-    
-    
+
+
     <x:String x:Key="Text_MainWindow_Count_No">尚未做出统计</x:String>
-    
-    
+
+
     <x:String x:Key="Text_MainWindow_ActivityLog_No">活动日志是空滴!</x:String>
 
 
@@ -87,18 +86,18 @@
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
     <x:String x:Key="Text_Lib_Tip_NoPlugin">还没有插件连接呢~</x:String>
     <x:String x:Key="Text_Lib_Tip_Connected">个插件已连接</x:String>
-    
-    
+
+
     <x:String x:Key="Text_Repo_No_Plugin">仓库中没有插件呢~</x:String>
     <x:String x:Key="Text_Repo_Search_In_Network">在局域网中搜索</x:String>
     <x:String x:Key="Text_Repo_Tip_Installed">个插件已安装</x:String>
-    
-    
+
+
     <x:String x:Key="Text_PluginBar_Launch">启动</x:String>
     <x:String x:Key="Text_PluginBar_Details">详细信息</x:String>
     <x:String x:Key="Text_PluginBar_Remove">移除</x:String>
     <x:String x:Key="Text_PluginBar_RemoveAndDelete">移除并删除</x:String>
-    
+
     <x:String x:Key="Text_PluginBar_Name">内部名称:</x:String>
     <x:String x:Key="Text_PluginBar_Version">版本:</x:String>
     <x:String x:Key="Text_PluginBar_DisplayName">显示名称:</x:String>
@@ -117,13 +116,14 @@
 
     <x:String x:Key="Text_Device_No">网络中没有其它设备</x:String>
     <x:String x:Key="Text_Device_This">此设备</x:String>
+    <x:String x:Key="Text_Device_Type">从控</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">内存</x:String>
     <x:String x:Key="Text_Device_Resources_NET">网络</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">个设备已发现</x:String>
     <x:String x:Key="Text_Device_PluginsCount">在线插件数量:</x:String>
-    
-    
+
+
     <x:String x:Key="Text_Settings_General">通用</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">本地插件程序目录</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">本地插件数据目录</x:String>
@@ -131,7 +131,7 @@
     <x:String x:Key="Text_Settings_General_ShowAnnouncement">启动时显示公告</x:String>
     <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">查看最新公告</x:String>
 
-    
+
     <x:String x:Key="Text_Settings_Personalise">个性化</x:String>
     <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">显示语言</x:String>
     <x:String x:Key="Text_Settings_Personalise_MicaEffect">云母效果</x:String>
@@ -145,7 +145,7 @@
     <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">高对比度</x:String>
     <x:String x:Key="Text_Settings_Personalise_Theme_Follow">跟随系统</x:String>
 
-    
+
     <x:String x:Key="Text_Settings_Performence">性能</x:String>
     <x:String x:Key="Text_Settings_Performence_Web_Port">端口</x:String>
     <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">本机IP过滤规则</x:String>
@@ -155,8 +155,8 @@
     <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">日志文件数量限制</x:String>
     <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">日志文件缓存延时</x:String>
     <x:String x:Key="Text_Settings_Performence_LogFileLevel">日志等级</x:String>
-    
-    
+
+
     <x:String x:Key="Text_Settings_Update">更新</x:String>
     <x:String x:Key="Text_Settings_Update_Check">检查更新</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentName">组件名称</x:String>
@@ -171,8 +171,8 @@
     <x:String x:Key="Text_Settings_About_Authors">制作人员</x:String>
     <x:String x:Key="Text_Settings_About_Links">友情链接</x:String>
     <x:String x:Key="Text_Settings_About_ThirdPartLicense">第三方许可</x:String>
-    
-    
+
+
     <x:String x:Key="Text_AnouncementWindow_Receive">收到</x:String>
     <x:String x:Key="Text_AnouncementWindow_ReceiveAll">收到全部</x:String>
 
