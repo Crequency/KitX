@@ -73,30 +73,69 @@
                   CanUserReorderColumns="True"
                   CanUserResizeColumns="True"
                   CanUserSortColumns="True"
+                  ColumnWidth="Auto"
                   CornerRadius="5"
+                  GridLinesVisibility="All"
                   IsReadOnly="True"
                   Items="{Binding Components}"
                   SelectionMode="Single">
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Width="Auto"
-                                        Binding="{Binding CanUpdate}"
-                                        Header="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
-                                        IsThreeState="False"/>
+                <DataGridTemplateColumn Width="90"
+                                        CanUserReorder="False"
+                                        CanUserResize="False"
+                                        Header="{DynamicResource Text_Settings_Update_ComponentUpdatable}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Width="200">
+                                <CheckBox Margin="10,0"
+                                          HorizontalAlignment="Right"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding CanUpdate}"
+                                          IsEnabled="False"
+                                          IsThreeState="False"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Width="Auto"
                                     Binding="{Binding Name}"
                                     FontFamily="{StaticResource SourceHanSans}"
                                     FontWeight="Bold"
                                     Header="{DynamicResource Text_Settings_Update_ComponentName}"/>
-                <DataGridTextColumn Width="Auto"
-                                    Binding="{Binding MD5}"
-                                    FontFamily="{StaticResource SarasaMonoCL}"
-                                    FontWeight="Regular"
-                                    Header="{DynamicResource Text_Settings_Update_ComponentMD5}"/>
-                <DataGridTextColumn Width="Auto"
-                                    Binding="{Binding SHA1}"
-                                    FontFamily="{StaticResource SarasaMonoCL}"
-                                    FontWeight="Regular"
-                                    Header="{DynamicResource Text_Settings_Update_ComponentSHA1}"/>
+                <DataGridTemplateColumn Header="{DynamicResource Text_Settings_Update_ComponentHash}">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ScrollViewer Height="29">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                        <TextBlock Margin="10,5,0,5"
+                                                   FontFamily="{StaticResource SarasaMonoCL}"
+                                                   FontWeight="Regular"
+                                                   Text="MD5: "/>
+                                        <TextBlock Margin="5"
+                                                   FontFamily="{StaticResource SarasaMonoCL}"
+                                                   FontWeight="Regular"
+                                                   Text="{Binding MD5}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal">
+                                        <TextBlock Margin="10,5,0,5"
+                                                   FontFamily="{StaticResource SarasaMonoCL}"
+                                                   FontWeight="Regular"
+                                                   Text="SHA1:"/>
+                                        <TextBlock Margin="5"
+                                                   FontFamily="{StaticResource SarasaMonoCL}"
+                                                   FontWeight="Regular"
+                                                   Text="{Binding SHA1}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </ScrollViewer>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 

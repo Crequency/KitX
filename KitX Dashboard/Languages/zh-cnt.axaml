@@ -1,6 +1,5 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Add Resources Here -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--  Add Resources Here  -->
     <x:String x:Key="Text_MainWindow_Title">KitX 儀表盤</x:String>
 
 
@@ -27,40 +26,40 @@
     <x:String x:Key="Text_Log_Fatal">崩潰</x:String>
 
 
-    <!--GreetingStart-->
+    <!--  GreetingStart  -->
 
-    <!--MorningStart-->
+    <!--  MorningStart  -->
     <x:String x:Key="Text_Greeting_Morning_1">上午好! ο(=•ω＜=)ρ⌒☆</x:String>
     <x:String x:Key="Text_Greeting_Morning_2">每天都要有好心情哦 OvO</x:String>
     <x:String x:Key="Text_Greeting_Morning_3">今日是, 今日畢!</x:String>
     <x:String x:Key="Text_Greeting_Morning_4">美好的一天開始啦~</x:String>
-    <!--MorningEnd-->
+    <!--  MorningEnd  -->
 
-    <!--NoonStart-->
+    <!--  NoonStart  -->
     <x:String x:Key="Text_Greeting_Noon_1">中午好! o(〃＾▽＾〃)o</x:String>
     <x:String x:Key="Text_Greeting_Noon_2">中午啦, 小憩一會兒吧~</x:String>
     <x:String x:Key="Text_Greeting_Noon_3">今天也是一個充實的上午呢</x:String>
-    <!--NoonEnd-->
+    <!--  NoonEnd  -->
 
-    <!--AfterNoonStart-->
+    <!--  AfterNoonStart  -->
     <x:String x:Key="Text_Greeting_AfterNoon_1">下午好! ヾ(≧▽≦*)o</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_2">下午茶時間!</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_3">今天的任務還有哪些沒完成呢</x:String>
-    <!--AfterNoonEnd-->
+    <!--  AfterNoonEnd  -->
 
-    <!--EveningStart-->
+    <!--  EveningStart  -->
     <x:String x:Key="Text_Greeting_Evening_1">晚上好! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Evening_2">今晚我要美美飽餐一頓!</x:String>
-    <!--EveningEnd-->
+    <!--  EveningEnd  -->
 
-    <!--NightStart-->
+    <!--  NightStart  -->
     <x:String x:Key="Text_Greeting_Night_1">夜深人靜呐! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Night_2">夜深了, 早點休息吧</x:String>
     <x:String x:Key="Text_Greeting_Night_3">明天也是美好的一天!</x:String>
-    <!--NightEnd-->
+    <!--  NightEnd  -->
 
-    <!--GreetingEnd-->
-    
+    <!--  GreetingEnd  -->
+
     <x:String x:Key="Text_MainWindow_NavigationView_Home">首頁</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Lib">庫</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Market">市場</x:String>
@@ -117,12 +116,14 @@
 
     <x:String x:Key="Text_Device_No">網路中空無一物</x:String>
     <x:String x:Key="Text_Device_This">本機</x:String>
+    <x:String x:Key="Text_Device_Type_Slave">從控</x:String>
+    <x:String x:Key="Text_Device_Type_Master">主控</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">内存</x:String>
     <x:String x:Key="Text_Device_Resources_NET">網路</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">個設備已發現</x:String>
     <x:String x:Key="Text_Device_PluginsCount">在綫插件數量:</x:String>
-    
+
 
     <x:String x:Key="Text_Settings_General">通用</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">本機插件的程序路徑</x:String>
@@ -130,8 +131,8 @@
     <x:String x:Key="Text_Settings_General_DeveloperSetting">開發者設定</x:String>
     <x:String x:Key="Text_Settings_General_ShowAnnouncement">啓動時顯示公告</x:String>
     <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">查看新公告</x:String>
-    
-    
+
+
     <x:String x:Key="Text_Settings_Personalise">個性化</x:String>
     <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">顯示語言</x:String>
     <x:String x:Key="Text_Settings_Personalise_MicaEffect">雲母效果</x:String>
@@ -145,7 +146,7 @@
     <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">高對比度</x:String>
     <x:String x:Key="Text_Settings_Personalise_Theme_Follow">跟隨系統</x:String>
 
-    
+
     <x:String x:Key="Text_Settings_Performence">性能</x:String>
     <x:String x:Key="Text_Settings_Performence_Web_Port">端口</x:String>
     <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">本機IP過濾器</x:String>
@@ -160,8 +161,7 @@
     <x:String x:Key="Text_Settings_Update">更新</x:String>
     <x:String x:Key="Text_Settings_Update_Check">檢查更新</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentName">組件名稱</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentMD5">組件 MD5 值</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentSHA1">組件 SHA1 值</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentHash">校驗值</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">可更新</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">個組件已發現</x:String>
 
