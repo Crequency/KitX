@@ -34,7 +34,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 if (_canUpdateDataGridView)
                 {
-                    CanUpdateCount = $"{Components.Count(x => x.CanUpdate)}";
+                    CanUpdateCount = Components.Count(x => x.CanUpdate);
                     PropertyChanged?.Invoke(this, new(nameof(ComponentsCount)));
                 }
             };
@@ -56,12 +56,12 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         }
 
-        internal string canUpdateCount = "0";
+        internal int canUpdateCount = 0;
 
         /// <summary>
         /// 可以更新的插件数量
         /// </summary>
-        internal string CanUpdateCount
+        internal int CanUpdateCount
         {
             get => canUpdateCount;
             set
@@ -128,6 +128,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         .AppendIgnoreFolder("Config")
                         .AppendIgnoreFolder("Languages")
                         .AppendIgnoreFolder("Log")
+                        .AppendIgnoreFolder(Program.Config.App.LocalPluginsFileDirectory)
+                        .AppendIgnoreFolder(Program.Config.App.LocalPluginsDataDirectory)
                         .AppendIncludeFile($"{ld}/zh-cn.axaml")
                         .AppendIncludeFile($"{ld}/zh-cnt.axaml")
                         .AppendIncludeFile($"{ld}/en-us.axaml")
@@ -160,7 +162,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                             });
                         }
 
-                        AbleUpdateCommand(true);
+                        if (canUpdateCount > 0)
+                            AbleUpdateCommand(true);
                     });
                 }
                 else

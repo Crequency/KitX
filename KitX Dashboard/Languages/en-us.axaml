@@ -161,8 +161,7 @@
     <x:String x:Key="Text_Settings_Update">Update</x:String>
     <x:String x:Key="Text_Settings_Update_Check">Check Update</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentName">Component Name</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentMD5">MD5</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentSHA1">SHA1</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentHash">Hash Code</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Updatable</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">Components founded</x:String>
 
