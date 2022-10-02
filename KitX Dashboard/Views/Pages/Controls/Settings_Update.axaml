@@ -26,26 +26,26 @@
 
                 <TextBlock VerticalAlignment="Center"
                            DockPanel.Dock="Left"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{Binding ComponentsCount}"/>
                 <TextBlock Margin="5,0,0,0"
                            VerticalAlignment="Center"
                            DockPanel.Dock="Left"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{DynamicResource Text_Settings_Update_ComponentsCount}"/>
 
                 <TextBlock Margin="10,0,0,0"
                            VerticalAlignment="Center"
                            DockPanel.Dock="Left"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{Binding CanUpdateCount}"/>
                 <TextBlock Margin="5,0,0,0"
                            VerticalAlignment="Center"
                            DockPanel.Dock="Left"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"/>
 
@@ -55,13 +55,13 @@
                         Command="{Binding UpdateCommand}"
                         Content="{DynamicResource Text_Settings_Update}"
                         DockPanel.Dock="Right"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontFamily="{StaticResource SourceHanSans}"
                         FontWeight="Bold"/>
                 <Button VerticalAlignment="Center"
                         Command="{Binding CheckUpdateCommand}"
                         Content="{DynamicResource Text_Settings_Update_Check}"
                         DockPanel.Dock="Right"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontFamily="{StaticResource SourceHanSans}"
                         FontWeight="Bold"/>
 
                 <Border/>
@@ -84,17 +84,17 @@
                                         IsThreeState="False"/>
                 <DataGridTextColumn Width="Auto"
                                     Binding="{Binding Name}"
-                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                    FontFamily="{StaticResource SourceHanSans}"
                                     FontWeight="Bold"
                                     Header="{DynamicResource Text_Settings_Update_ComponentName}"/>
                 <DataGridTextColumn Width="Auto"
                                     Binding="{Binding MD5}"
-                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    FontFamily="{StaticResource SarasaMonoCL}"
                                     FontWeight="Regular"
                                     Header="{DynamicResource Text_Settings_Update_ComponentMD5}"/>
                 <DataGridTextColumn Width="Auto"
                                     Binding="{Binding SHA1}"
-                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+                                    FontFamily="{StaticResource SarasaMonoCL}"
                                     FontWeight="Regular"
                                     Header="{DynamicResource Text_Settings_Update_ComponentSHA1}"/>
             </DataGrid.Columns>

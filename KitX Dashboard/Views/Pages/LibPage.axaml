@@ -15,7 +15,7 @@
             <AutoCompleteBox Width="400"
                              HorizontalAlignment="Center"
                              VerticalAlignment="Center"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontFamily="{StaticResource SourceHanSans}"
                              FontWeight="Bold"
                              IsTextCompletionEnabled="True"
                              Text="{Binding SearchingText}"
@@ -24,11 +24,11 @@
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
                         Orientation="Horizontal">
-                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                <TextBlock FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{Binding PluginsCount}"/>
                 <TextBlock Margin="5,0,0,0"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{DynamicResource Text_Lib_Tip_Connected}"/>
             </StackPanel>
@@ -52,7 +52,7 @@
             <Border Height="{Binding NoPlugins_TipHeight}" DockPanel.Dock="Top">
                 <TextBlock HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontWeight="Bold"
                            Text="{DynamicResource Text_Lib_Tip_NoPlugin}"/>
             </Border>

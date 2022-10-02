@@ -13,7 +13,7 @@
         MinHeight="600"
         d:DesignHeight="450"
         d:DesignWidth="800"
-        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+        FontFamily="{StaticResource SourceHanSans}"
         FontWeight="Bold"
         Icon="/Assets/KitX.png"
         mc:Ignorable="d">
@@ -69,7 +69,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="Home"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Home}"/>
                         </StackPanel>
@@ -83,7 +83,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="Layers"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Lib}"/>
                         </StackPanel>
@@ -97,7 +97,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="Folder"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Repo}"/>
                         </StackPanel>
@@ -111,7 +111,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="Devices"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Devices}"/>
                         </StackPanel>
@@ -128,7 +128,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="Tag"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Market}"/>
                         </StackPanel>
@@ -142,7 +142,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="At"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Account}"/>
                         </StackPanel>
@@ -156,7 +156,7 @@
                             <icon:MaterialIcon VerticalAlignment="Center" Kind="Settings"/>
                             <TextBlock Margin="15,0,0,0"
                                        VerticalAlignment="Center"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_MainWindow_NavigationView_Settings}"/>
                         </StackPanel>

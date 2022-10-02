@@ -31,7 +31,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="Clock"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_MainWindow_HomePage_Recent}"/>
                     </StackPanel>
@@ -47,7 +47,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="Numbers"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_MainWindow_HomePage_Count}"/>
                     </StackPanel>
@@ -63,7 +63,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="DocumentSign"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_MainWindow_HomePage_ActivityLog}"/>
                     </StackPanel>

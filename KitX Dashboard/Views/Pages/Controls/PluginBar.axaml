@@ -17,25 +17,25 @@
             <Button Command="{Binding LaunchCommand}"
                     Content="{DynamicResource Text_PluginBar_Launch}"
                     DockPanel.Dock="Right"
-                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
+                    FontFamily="{StaticResource SourceHanSans}"/>
 
             <ui:Button Margin="0,0,20,0"
                        Content="..."
                        DockPanel.Dock="Right"
-                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
+                       FontFamily="{StaticResource SourceHanSans}">
                 <ui:Button.Flyout>
                     <ui:MenuFlyout Placement="Bottom">
                         <ui:MenuFlyoutItem Command="{Binding ViewDetailsCommand}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontFamily="{StaticResource SourceHanSans}"
                                            Icon="Copy"
                                            Text="{DynamicResource Text_PluginBar_Details}"/>
                         <ui:MenuFlyoutItem Command="{Binding RemoveCommand}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontFamily="{StaticResource SourceHanSans}"
                                            Icon="Remove"
                                            Text="{DynamicResource Text_PluginBar_Remove}"/>
                         <ui:MenuFlyoutSeparator/>
                         <ui:MenuFlyoutItem Command="{Binding DeleteCommand}"
-                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontFamily="{StaticResource SourceHanSans}"
                                            Icon="Delete"
                                            Text="{DynamicResource Text_PluginBar_RemoveAndDelete}"/>
                     </ui:MenuFlyout>
@@ -60,7 +60,7 @@
                            Stretch="UniformToFill"/>
                     <TextBlock Margin="15,0,0,0"
                                VerticalAlignment="Center"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                FontSize="24"
                                Text="{Binding DisplayName}"/>
                 </StackPanel>
@@ -68,22 +68,22 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <TextBlock Margin="20,0,0,0"
                                VerticalAlignment="Center"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                Text="{DynamicResource Text_PluginBar_AuthorName}"/>
                     <TextBlock Margin="10,0,0,0"
                                VerticalAlignment="Center"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                Text="{Binding AuthorName}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <TextBlock Margin="30,0,0,0"
                                VerticalAlignment="Center"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                Text="{DynamicResource Text_PluginBar_Version}"/>
                     <TextBlock Margin="10,0,0,0"
                                VerticalAlignment="Center"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                Text="{Binding Version}"/>
                 </StackPanel>
             </Grid>

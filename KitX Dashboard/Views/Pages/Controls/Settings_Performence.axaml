@@ -26,13 +26,13 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="Portrait"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Performence_Web_Port}"/>
                     </StackPanel>
 
                     <ui:NumberBox DockPanel.Dock="Right"
-                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                  FontFamily="{StaticResource SourceHanSans}"
                                   FontWeight="Bold"
                                   IsEnabled="False"
                                   SpinButtonPlacementMode="Compact"
@@ -51,13 +51,13 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="Portrait"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Performence_Web_MyIP_Filter}"/>
                     </StackPanel>
 
                     <TextBox DockPanel.Dock="Right"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontFamily="{StaticResource SourceHanSans}"
                              FontWeight="Bold"
                              Text="{Binding LocalIPFilter}"/>
 
@@ -74,13 +74,13 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="Clock"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Performence_Greeting_Interval}"/>
                     </StackPanel>
 
                     <ui:NumberBox DockPanel.Dock="Right"
-                                  FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                  FontFamily="{StaticResource SourceHanSans}"
                                   FontWeight="Bold"
                                   IsEnabled="True"
                                   Maximum="60"
@@ -96,7 +96,7 @@
                 <Expander.Header>
                     <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="FileChart"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Performence_Log}"/>
                     </StackPanel>
@@ -113,7 +113,7 @@
                                         DockPanel.Dock="Left"
                                         Orientation="Horizontal">
                                 <icon:MaterialIcon Margin="5,0" Kind="Sd"/>
-                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                            FontWeight="Bold"
                                            Text="{DynamicResource Text_Settings_Performence_LogFileSize}"/>
                             </StackPanel>
@@ -121,11 +121,11 @@
                             <TextBlock Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        DockPanel.Dock="Right"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="MB"/>
                             <ui:NumberBox DockPanel.Dock="Right"
-                                          FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                          FontFamily="{StaticResource SourceHanSans}"
                                           FontWeight="Bold"
                                           IsEnabled="True"
                                           Minimum="1"
@@ -145,13 +145,13 @@
                                         DockPanel.Dock="Left"
                                         Orientation="Horizontal">
                                 <icon:MaterialIcon Margin="5,0" Kind="FileMultiple"/>
-                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                            FontWeight="Bold"
                                            Text="{DynamicResource Text_Settings_Performence_LogFileMaxCount}"/>
                             </StackPanel>
 
                             <ui:NumberBox DockPanel.Dock="Right"
-                                          FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                          FontFamily="{StaticResource SourceHanSans}"
                                           FontWeight="Bold"
                                           IsEnabled="True"
                                           SpinButtonPlacementMode="Compact"
@@ -170,7 +170,7 @@
                                         DockPanel.Dock="Left"
                                         Orientation="Horizontal">
                                 <icon:MaterialIcon Margin="5,0" Kind="FileClock"/>
-                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                            FontWeight="Bold"
                                            Text="{DynamicResource Text_Settings_Performence_LogFileFlushInterval}"/>
                             </StackPanel>
@@ -178,11 +178,11 @@
                             <TextBlock Margin="10,0,0,0"
                                        VerticalAlignment="Center"
                                        DockPanel.Dock="Right"
-                                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                       FontFamily="{StaticResource SourceHanSans}"
                                        FontWeight="Bold"
                                        Text="{DynamicResource Text_Public_Second}"/>
                             <ui:NumberBox DockPanel.Dock="Right"
-                                          FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                          FontFamily="{StaticResource SourceHanSans}"
                                           FontWeight="Bold"
                                           IsEnabled="True"
                                           SpinButtonPlacementMode="Compact"
@@ -201,21 +201,21 @@
                                         DockPanel.Dock="Left"
                                         Orientation="Horizontal">
                                 <icon:MaterialIcon Margin="5,0" Kind="FileDocument"/>
-                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                            FontWeight="Bold"
                                            Text="{DynamicResource Text_Settings_Performence_LogFileLevel}"/>
                             </StackPanel>
 
                             <ComboBox VerticalContentAlignment="Center"
                                       DockPanel.Dock="Right"
-                                      FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                      FontFamily="{StaticResource SourceHanSans}"
                                       FontWeight="Bold"
                                       IsTextSearchEnabled="True"
                                       Items="{Binding SurpportLogLevels}"
                                       SelectedItem="{Binding CurrentLogLevel}">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate>
-                                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                                    FontWeight="Bold"
                                                    Text="{Binding LogLevelDisplayName}"/>
                                     </DataTemplate>

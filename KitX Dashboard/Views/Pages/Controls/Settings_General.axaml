@@ -26,13 +26,13 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="Folder"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_General_LocalPluginsFileDirectory}"/>
                     </StackPanel>
 
                     <TextBox DockPanel.Dock="Right"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontFamily="{StaticResource SourceHanSans}"
                              FontWeight="Bold"
                              Text="{Binding LocalPluginsFileDirectory}"/>
 
@@ -49,13 +49,13 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="FolderTransfer"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_General_LocalPluginsDataDirectory}"/>
                     </StackPanel>
 
                     <TextBox DockPanel.Dock="Right"
-                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontFamily="{StaticResource SourceHanSans}"
                              FontWeight="Bold"
                              Text="{Binding LocalPluginsDataDirectory}"/>
 
@@ -72,14 +72,14 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="Announcement"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_General_ShowAnnouncement}"/>
                     </StackPanel>
 
                     <ComboBox VerticalContentAlignment="Center"
                               DockPanel.Dock="Right"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontFamily="{StaticResource SourceHanSans}"
                               FontWeight="Bold"
                               SelectedIndex="{Binding ShowAnnouncementsStatus}">
                         <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
@@ -90,7 +90,7 @@
                             Command="{Binding ShowAnnouncementsNowCommand}"
                             Content="{DynamicResource Text_Settings_General_ShowAnnouncementNow}"
                             DockPanel.Dock="Right"
-                            FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                            FontFamily="{StaticResource SourceHanSans}"
                             FontWeight="Bold"/>
 
                     <Border/>
@@ -107,14 +107,14 @@
                                 DockPanel.Dock="Left"
                                 Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0" Kind="Code"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_General_DeveloperSetting}"/>
                     </StackPanel>
 
                     <ComboBox VerticalContentAlignment="Center"
                               DockPanel.Dock="Right"
-                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontFamily="{StaticResource SourceHanSans}"
                               FontWeight="Bold"
                               SelectedIndex="{Binding DeveloperSettingStatus}">
                         <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>

@@ -18,11 +18,11 @@
                                    Kind="{Binding DeviceOSKind}"/>
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                FontSize="20"
                                FontWeight="ExtraBold"
                                Text="{Binding DeviceName}"/>
-                    <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                    <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                FontSize="14"
                                Text="{Binding DeviceVersion}"/>
                 </DockPanel>
@@ -32,7 +32,7 @@
                         VerticalAlignment="Center"
                         Content="从控"
                         DockPanel.Dock="Right"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontFamily="{StaticResource SourceHanSans}"
                         FontSize="16"
                         FontWeight="Bold"/>
                 <Grid Margin="5,0,0,0">
@@ -41,19 +41,19 @@
                         <RowDefinition/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0"
-                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontFamily="{StaticResource SourceHanSans}"
                                FontSize="12"
                                FontWeight="Bold"
                                Text="{Binding LastOnlineTime}"/>
                     <DockPanel Grid.Row="1">
                         <TextBlock DockPanel.Dock="Left"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontSize="12"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Device_PluginsCount}"/>
                         <TextBlock Margin="10,0,0,0"
                                    DockPanel.Dock="Left"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontSize="12"
                                    FontWeight="Bold"
                                    Text="{Binding PluginsCount}"/>
@@ -62,19 +62,19 @@
                 </Grid>
             </DockPanel>
             <TextBlock Margin="5,5,0,0"
-                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                       FontFamily="{StaticResource SourceHanSans}"
                        FontSize="10"
                        FontWeight="Bold"
                        Text="{Binding DeviceMacAddress}"/>
             <DockPanel Margin="5,5,0,0">
                 <TextBlock DockPanel.Dock="Left"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontSize="10"
                            FontWeight="Bold"
                            Text="{Binding IPv4}"/>
                 <TextBlock Margin="20,0,0,0"
                            DockPanel.Dock="Right"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontSize="10"
                            FontWeight="Bold"
                            Text="{Binding IPv6}"/>

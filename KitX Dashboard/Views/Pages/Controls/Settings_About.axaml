@@ -31,7 +31,7 @@
                         Command="{Binding AppNameButtonClickedCommand}"
                         Content="KitX"
                         CornerRadius="45"
-                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontFamily="{StaticResource SourceHanSans}"
                         FontSize="30"
                         FontWeight="ExtraBold"
                         KeyDown="AppNameButtonKeyDown"/>
@@ -44,14 +44,14 @@
 
                 <TextBlock Margin="2.5,0"
                            VerticalAlignment="Center"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontSize="20"
                            FontWeight="Medium"
                            Text="{DynamicResource Text_Settings_About_Version}"/>
 
                 <TextBlock Margin="2.5,0"
                            VerticalAlignment="Center"
-                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontFamily="{StaticResource SourceHanSans}"
                            FontSize="20"
                            FontWeight="Medium"
                            Text="{Binding VersionText}"/>
@@ -67,7 +67,7 @@
                                     ToolTip.Tip="{Binding $self.NavigateUri}">
                     <StackPanel Orientation="Horizontal">
                         <icon:MaterialIcon Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}" Kind="Github"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
                                    Text=" GitHub Repo "/>
@@ -79,7 +79,7 @@
                                     ToolTip.Tip="{Binding $self.NavigateUri}">
                     <StackPanel Orientation="Horizontal">
                         <icon:MaterialIcon Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}" Kind="OfficeBuilding"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
                                    Text=" Official Website "/>
@@ -91,7 +91,7 @@
                                     ToolTip.Tip="{Binding $self.NavigateUri}">
                     <StackPanel Orientation="Horizontal">
                         <icon:MaterialIcon Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}" Kind="BlogOutline"/>
-                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
                                    Text=" Author Blog "/>
@@ -107,7 +107,7 @@
                                            VerticalAlignment="Center"
                                            Kind="InfoCircle"/>
                         <TextBlock VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_About}"/>
                     </StackPanel>
@@ -125,7 +125,7 @@
                                            VerticalAlignment="Center"
                                            Kind="User"/>
                         <TextBlock VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_About_Authors}"/>
                     </StackPanel>
@@ -134,37 +134,37 @@
                 <WrapPanel Margin="10">
                     <ui:HyperlinkButton Margin="4"
                                         Content="常青园晚"
-                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontFamily="{StaticResource SourceHanSans}"
                                         FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
                                         NavigateUri="https://blog.catrol.cn"/>
                     <ui:HyperlinkButton Margin="4"
                                         Content="LYF"
-                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontFamily="{StaticResource SourceHanSans}"
                                         FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
                                         NavigateUri="https://github.com/LYF511"/>
                     <ui:HyperlinkButton Margin="4"
                                         Content="白学森"
-                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontFamily="{StaticResource SourceHanSans}"
                                         FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
                                         NavigateUri="https://github.com/MrBBBaiXue"/>
                     <ui:HyperlinkButton Margin="4"
                                         Content="truebigsand"
-                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontFamily="{StaticResource SourceHanSans}"
                                         FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
                                         NavigateUri="https://github.com/truebigsand"/>
                     <ui:HyperlinkButton Margin="4"
                                         Content="felixonmars"
-                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontFamily="{StaticResource SourceHanSans}"
                                         FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
                                         NavigateUri="https://github.com/felixonmars"/>
                     <ui:HyperlinkButton Margin="4"
                                         Content="SpaceTimee"
-                                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                        FontFamily="{StaticResource SourceHanSans}"
                                         FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
                                         NavigateUri="https://github.com/SpaceTimee"/>
@@ -179,7 +179,7 @@
                                            VerticalAlignment="Center"
                                            Kind="Link"/>
                         <TextBlock VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_About_Links}"/>
                     </StackPanel>
@@ -194,7 +194,7 @@
                                            VerticalAlignment="Center"
                                            Kind="ToyBrick"/>
                         <TextBlock VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_About_ThirdPartLicense}"/>
                     </StackPanel>

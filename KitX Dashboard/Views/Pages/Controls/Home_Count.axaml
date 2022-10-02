@@ -10,7 +10,7 @@
         <Border Height="{Binding NoCount_TipHeight}" DockPanel.Dock="Top">
             <TextBlock HorizontalAlignment="Center"
                        VerticalAlignment="Center"
-                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                       FontFamily="{StaticResource SourceHanSans}"
                        FontWeight="Bold"
                        Text="{DynamicResource Text_MainWindow_Count_No}"/>
         </Border>

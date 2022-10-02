@@ -37,7 +37,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="Globe"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_General}"/>
                     </StackPanel>
@@ -53,7 +53,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="Palette"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Personalise}"/>
                     </StackPanel>
@@ -69,7 +69,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="Speedometer"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Performence}"/>
                     </StackPanel>
@@ -85,7 +85,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="Update"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_Update}"/>
                     </StackPanel>
@@ -101,7 +101,7 @@
                         <icon:MaterialIcon VerticalAlignment="Center" Kind="InfoCircle"/>
                         <TextBlock Margin="15,0,0,0"
                                    VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontFamily="{StaticResource SourceHanSans}"
                                    FontWeight="Bold"
                                    Text="{DynamicResource Text_Settings_About}"/>
                     </StackPanel>
