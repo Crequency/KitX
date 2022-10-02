@@ -61,7 +61,8 @@
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem x:Name="Page_Home"
                                        Margin="0,5,0,0"
-                                       Tag="Page_Home">
+                                       Tag="Page_Home"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Home}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
@@ -75,7 +76,9 @@
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="Page_Lib" Tag="Page_Lib">
+                <ui:NavigationViewItem x:Name="Page_Lib"
+                                       Tag="Page_Lib"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Lib}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
@@ -89,7 +92,9 @@
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="Page_Repo" Tag="Page_Repo">
+                <ui:NavigationViewItem x:Name="Page_Repo"
+                                       Tag="Page_Repo"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Repo}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
@@ -103,7 +108,9 @@
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="Page_Device" Tag="Page_Device">
+                <ui:NavigationViewItem x:Name="Page_Device"
+                                       Tag="Page_Device"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Devices}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
@@ -120,7 +127,9 @@
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>
-                <ui:NavigationViewItem x:Name="Page_Market" Tag="Page_Market">
+                <ui:NavigationViewItem x:Name="Page_Market"
+                                       Tag="Page_Market"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Market}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
@@ -134,7 +143,9 @@
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="Page_Account" Tag="Page_Account">
+                <ui:NavigationViewItem x:Name="Page_Account"
+                                       Tag="Page_Account"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Account}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
@@ -148,7 +159,9 @@
                         </StackPanel>
                     </ui:NavigationViewItem.Content>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="Page_Settings" Tag="Page_Settings">
+                <ui:NavigationViewItem x:Name="Page_Settings"
+                                       Tag="Page_Settings"
+                                       ToolTip.Tip="{DynamicResource Text_MainWindow_NavigationView_Settings}">
                     <ui:NavigationViewItem.Content>
                         <StackPanel Margin="-3,0,0,0"
                                     HorizontalAlignment="Left"
