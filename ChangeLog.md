@@ -1,62 +1,134 @@
 # 目录
-- [目录](#markdown-header-目录)
-- [v3.x](#markdown-header-v3x)
-  - [v3.22.x](#markdown-header-v322x)
-    - [v3.22.04](#markdown-header-v32204)
-      - [2022.08.07 04:05 v3.22.04.6230 Preview](#markdown-header-20220807-0405-v322046230-preview)
-- [v2.x](#markdown-header-v2x)
-  - [v2.0.x](#markdown-header-v20x)
-    - [v2.0.5](#markdown-header-v205)
-      - [2021-&&-&& &&:&& v2.0.5 preview](#markdown-header-2021-v205-preview)
-    - [v2.0.4](#markdown-header-v204)
-      - [2021-06-27 14:25 v2.0.4](#markdown-header-2021-06-27-1425-v204)
-    - [v2.0.3](#markdown-header-v203)
-      - [2021-06-20 13:49 v2.0.3](#markdown-header-2021-06-20-1349-v203)
-    - [v2.0.2](#markdown-header-v202)
-      - [2021-06-14 13:08 v2.0.2](#markdown-header-2021-06-14-1308-v202)
-    - [v2.0.1](#markdown-header-v201)
-      - [2021-06-08 14:23 v2.0.1](#markdown-header-2021-06-08-1423-v201)
-    - [v2.0.0](#markdown-header-v200)
-      - [2021-05-28 14:00 v2.0.0](#markdown-header-2021-05-28-1400-v200)
-- [v1.x](#markdown-header-v1x)
-  - [v1.2.x](#markdown-header-v12x)
-    - [v1.2.7](#markdown-header-v127)
-      - [2021-05-18 17:11 v1.2.7 修正](#markdown-header-2021-05-18-1711-v127-修正)
-      - [2021-05-04 12:58 KitX v1.2.7 Release Note](#markdown-header-2021-05-04-1258-kitx-v127-release-note)
-    - [v1.2.6](#markdown-header-v126)
-      - [2021-04-18 15:58 KitX v1.2.6 Release Note](#markdown-header-2021-04-18-1558-kitx-v126-release-note)
-    - [v1.2.5](#markdown-header-v125)
-      - [2021-04-11 14:20 KitX v1.2.5 Release Note](#markdown-header-2021-04-11-1420-kitx-v125-release-note)
-    - [v1.2.4](#markdown-header-v124)
-      - [2021-04-05 13:10 KitX v1.2.4 Release Note](#markdown-header-2021-04-05-1310-kitx-v124-release-note)
-      - [2021-04-02 21:45 KitX v1.2.4 Preview Note](#markdown-header-2021-04-02-2145-kitx-v124-preview-note)
-    - [v1.2.2](#markdown-header-v122)
-      - [2021-03-14 01:11 KitX v1.2.2 Release Note](#markdown-header-2021-03-14-0111-kitx-v122-release-note)
-    - [v1.2.1](#markdown-header-v121)
-      - [2021-03-13 23:12 KitX v1.2.1 Release Note](#markdown-header-2021-03-13-2312-kitx-v121-release-note)
-    - [v1.2.0](#markdown-header-v120)
-      - [2021-02-25 04:51 KitX v1.2.0 Release Note](#markdown-header-2021-02-25-0451-kitx-v120-release-note)
-  - [v1.1.x](#markdown-header-v11x)
-    - [v1.1.5](#markdown-header-v115)
-    - [v1.1.4](#markdown-header-v114)
-    - [v1.1.2](#markdown-header-v112)
-    - [v1.1.1](#markdown-header-v111)
-    - [v1.1.0](#markdown-header-v110)
-      - [2021/02/10 04:10 KitX v1.1.0 Release Note](#markdown-header-20210210-0410-kitx-v110-release-note)
-  - [v1.0.x](#markdown-header-v10x)
-    - [v1.0.5](#markdown-header-v105)
-    - [v1.0.4](#markdown-header-v104)
-    - [v1.0.0](#markdown-header-v100)
-- [Beta](#markdown-header-beta)
-  - [Beta](#markdown-header-beta-1)
-    - [Beta_10235, Beta_10213, Beta_10016](#markdown-header-beta_10235-beta_10213-beta_10016)
-      - [时间过于久远 KitX Beta 版本上新 Beta Note](#markdown-header-时间过于久远-kitx-beta-版本上新-beta-note)
+- [目录](#目录)
+- [v3.x](#v3-x)
+  - [v3.22.x](#v3-22-x)
+    - [v3.22.04](#v3-22-04)
+      - [2022.10.03 02:24 v3.22.04.6287 Preview](#2022-10-03-02-24-v3-22-04-6287-Preview)
+        - [💾 Features](#Features)
+        - [🔧 Fixes](#Fixes)
+        - [🍻 New Contributors](#New-Contributors)
+      - [2022.08.12 00:32 v3.22.04.6235 Release](#2022-08-12-00-32-v3-22-04-6235-Release)
+        - [💾 Features](#Features-1)
+        - [🔧 Fixes](#Fixes-1)
+      - [2022.08.07 04:05 v3.22.04.6230 Preview](#2022-08-07-04-05-v3-22-04-6230-Preview)
+- [v2.x](#v2-x)
+  - [v2.0.x](#v2-0-x)
+    - [v2.0.5](#v2-0-5)
+      - [2021-&&-&& &&:&& v2.0.5 preview](#2021-v2-0-5-preview)
+    - [v2.0.4](#v2-0-4)
+      - [2021-06-27 14:25 v2.0.4](#2021-06-27-14-25-v2-0-4)
+    - [v2.0.3](#v2-0-3)
+      - [2021-06-20 13:49 v2.0.3](#2021-06-20-13-49-v2-0-3)
+    - [v2.0.2](#v2-0-2)
+      - [2021-06-14 13:08 v2.0.2](#2021-06-14-13-08-v2-0-2)
+    - [v2.0.1](#v2-0-1)
+      - [2021-06-08 14:23 v2.0.1](#2021-06-08-14-23-v2-0-1)
+    - [v2.0.0](#v2-0-0)
+      - [2021-05-28 14:00 v2.0.0](#2021-05-28-14-00-v2-0-0)
+- [v1.x](#v1-x)
+  - [v1.2.x](#v1-2-x)
+    - [v1.2.7](#v1-2-7)
+      - [2021-05-18 17:11 v1.2.7 修正](#2021-05-18-17-11-v1-2-7-修正)
+      - [2021-05-04 12:58 KitX v1.2.7 Release Note](#2021-05-04-12-58-KitX-v1-2-7-Release-Note)
+    - [v1.2.6](#v1-2-6)
+      - [2021-04-18 15:58 KitX v1.2.6 Release Note](#2021-04-18-15-58-KitX-v1-2-6-Release-Note)
+    - [v1.2.5](#v1-2-5)
+      - [2021-04-11 14:20 KitX v1.2.5 Release Note](#2021-04-11-14-20-KitX-v1-2-5-Release-Note)
+    - [v1.2.4](#v1-2-4)
+      - [2021-04-05 13:10 KitX v1.2.4 Release Note](#2021-04-05-13-10-KitX-v1-2-4-Release-Note)
+      - [2021-04-02 21:45 KitX v1.2.4 Preview Note](#2021-04-02-21-45-KitX-v1-2-4-Preview-Note)
+    - [v1.2.2](#v1-2-2)
+      - [2021-03-14 01:11 KitX v1.2.2 Release Note](#2021-03-14-01-11-KitX-v1-2-2-Release-Note)
+    - [v1.2.1](#v1-2-1)
+      - [2021-03-13 23:12 KitX v1.2.1 Release Note](#2021-03-13-23-12-KitX-v1-2-1-Release-Note)
+    - [v1.2.0](#v1-2-0)
+      - [2021-02-25 04:51 KitX v1.2.0 Release Note](#2021-02-25-04-51-KitX-v1-2-0-Release-Note)
+  - [v1.1.x](#v1-1-x)
+    - [v1.1.5](#v1-1-5)
+    - [v1.1.4](#v1-1-4)
+    - [v1.1.2](#v1-1-2)
+    - [v1.1.1](#v1-1-1)
+    - [v1.1.0](#v1-1-0)
+      - [2021/02/10 04:10 KitX v1.1.0 Release Note](#2021-02-10-04-10-KitX-v1-1-0-Release-Note)
+  - [v1.0.x](#v1-0-x)
+    - [v1.0.5](#v1-0-5)
+    - [v1.0.4](#v1-0-4)
+    - [v1.0.0](#v1-0-0)
+- [Beta](#Beta)
+  - [Beta](#Beta-1)
+    - [Beta_10235, Beta_10213, Beta_10016](#Beta-10235-Beta-10213-Beta-10016)
+      - [时间过于久远 KitX Beta 版本上新 Beta Note](#时间过于久远-KitX-Beta-版本上新-Beta-Note)
 
 # v3.x
 
 ## v3.22.x
 
 ### v3.22.04
+
+#### 2022.10.03 02:24 v3.22.04.6287 Preview
+##### 💾 Features
+* 公告面板按照从新到旧的顺序排列公告 by @Dynesshely in #60
+* 新增启动时显示公告的设置项 by @Dynesshely in #66
+* 二级菜单状态保留, 仓库页面开发者导入按钮, 心跳包过期时间调整, 配置文件重构, 新增语言项 by @Dynesshely in #77
+* .kxp 格式编解码器完工, 一些其它更新, CI流程更新 by @Dynesshely in #78
+* 导入包逻辑动工, Win平台安装包增加文件关联,增强异常捕获能力 by @Dynesshely in #80
+* 新的版本号规则 by @Dynesshely in #83
+* 推送包转为手动执行, 以及更先进的 CI 流程控制 by @Dynesshely in #85 #86
+* Win安装包有关权限的改进 by @Dynesshely in #91
+* Win安装包在安装和卸载时同步更新任务栏进度 by @Dynesshely in #92
+* 改用文件信息的产品版本,而不是从程序集中获取 by @Dynesshely in #93
+* KXP文件增加格式识别头 by @Dynesshely in #94
+* KXP 现在打包 PluginStruct by @Dynesshely in #98
+* 错误代码 | Error Codes by @Dynesshely in #100
+* 插件列表, 代码样式, 配置项, 语言项 by @Dynesshely in #103
+* UI更新, 插件列表 by @Dynesshely in #104
+* 插件名称多语言支持, 更详尽的UI布局 by @Dynesshely in #105
+* 有关托盘图标的逻辑(已在Win11,Ubuntu22.04中测试并通过) by @Dynesshely in #110
+* 基于 Blazor 重写官网, 加入插件市场 by @Dynesshely in #117
+* 几个工具项目的创建, 网络部分优化 by @Dynesshely in #122
+* 图标更新 by @Dynesshely in #124
+* 更新支持情况, 添加新的路线图 by @Dynesshely in #126
+* 全部 Framework 项目迁移到 .Net 4.6 by @Dynesshely in #127
+* 接口变更, 日志框架更换 by @Dynesshely in #132
+* 插件逻辑优化 by @LYF511 in #135
+* 设置页面拆分, 多语言主题设置, UI更新 by @Dynesshely in #140
+* 日志系统及设置UI大改 by @Dynesshely in #141
+* 根目录结构优化, 网络通信规则变更, 更新页面逻辑完善, 更换到等宽字体-更纱黑体 by @Dynesshely in #146
+* 一些 UI 更新 by @Dynesshely in #154
+
+##### 🔧 Fixes
+* 修复了调色板相关错误 by @Dynesshely in #64 #66
+* Correct a typo in KitX Dashboard.csproj by @felixonmars in #113
+* 文档目录链接修复 by @Dynesshely in #129
+* 链接修复, 文本校对 by @Dynesshely in #130
+* 链接修正, 更多折叠 by @Dynesshely in #131
+* 一堆bug修复与优化 by @Dynesshely in #137
+* 配置系统升级, 自发现逻辑优化, 修复多网络适配器导致的问题 by @Dynesshely in #139
+
+##### 🍻 New Contributors
+* @felixonmars made their first contribution in #113
+* @truebigsand made their first contribution in #114
+* @LYF511 made their first contribution in #135
+* @orzMaster made their first contribution in #152
+
+**Full Changelog**: https://github.com/Crequency/KitX/compare/v3.22.04.6235...v3.22.04.6287
+
+#### 2022.08.12 00:32 v3.22.04.6235 Release
+##### 💾 Features
+* 添加 Light 主题下的窗口透明度效果
+* Mica 透明度支持无级调节
+* 临时配置保存按钮需要开启开发者选项才变为可见
+* 局域网设备发现功能更新
+* 日志系统 等模块的功能更新
+* 设备页UI更新
+* 异常捕获, 新的插件页管理逻辑, 弃用子线程, 降低CPU占用率
+* 公告系统更新, 可以在线获取新公告了
+
+##### 🔧 Fixes
+* Fixed #42, 修复了多个插件同时退出导致的线程不安全
+* Fixed #44, 修复了进入库页面但之前已经有插件连接了的显示错误
+
+**Full Changelog**: https://github.com/Crequency/KitX/compare/v3.22.04.6230...v3.22.04.6235
 
 #### 2022.08.07 04:05 v3.22.04.6230 Preview
 基础UI逻辑基本完工, 一些逻辑也大差不差, 现开放公测.
