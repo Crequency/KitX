@@ -1,44 +1,64 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.RepoPage"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:icon="using:Material.Icons.Avalonia"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.RepoPage">
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
     <DockPanel>
         <Grid Height="80" DockPanel.Dock="Top">
-            <AutoCompleteBox Width="400" HorizontalAlignment="Center" VerticalAlignment="Center"
-                             IsTextCompletionEnabled="True" Text="{Binding SearchingText}"
-                             Watermark="{DynamicResource Text_Repo_Search_In_Network}"
-                             FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-            <StackPanel Orientation="Horizontal" Margin="25,0,0,0"
-                        HorizontalAlignment="Left" VerticalAlignment="Center">
-                <TextBlock Text="{Binding PluginsCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                <TextBlock Text="{DynamicResource Text_Repo_Tip_Installed}" Margin="5,0,0,0"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+            <AutoCompleteBox Width="400"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                             FontWeight="Bold"
+                             IsTextCompletionEnabled="True"
+                             Text="{Binding SearchingText}"
+                             Watermark="{DynamicResource Text_Repo_Search_In_Network}"/>
+            <StackPanel Margin="25,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{Binding PluginsCount}"/>
+                <TextBlock Margin="5,0,0,0"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{DynamicResource Text_Repo_Tip_Installed}"/>
             </StackPanel>
 
-            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
+            <StackPanel Margin="0,0,20,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
                         Orientation="Horizontal">
-                <Button Content="{DynamicResource Text_Public_Import}"
-                        Command="{Binding ImportPluginCommand}" CommandParameter="{DynamicResource MainWindow}"
-                        IsVisible="{Binding ImportButtonVisibility}"
-                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                         FontSize="14"/>
-                <Button Command="{Binding RefreshPluginsCommand}" Margin="10,0">
-                    <icon:MaterialIcon Kind="Refresh" Width="20" Height="20"/>
+                <Button Command="{Binding ImportPluginCommand}"
+                        CommandParameter="{DynamicResource MainWindow}"
+                        Content="{DynamicResource Text_Public_Import}"
+                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        IsVisible="{Binding ImportButtonVisibility}"/>
+                <Button Margin="10,0" Command="{Binding RefreshPluginsCommand}">
+                    <icon:MaterialIcon Width="20"
+                                       Height="20"
+                                       Kind="Refresh"/>
                 </Button>
             </StackPanel>
         </Grid>
 
         <DockPanel Margin="10">
-            <Border DockPanel.Dock="Top" Height="{Binding NoPlugins_TipHeight}">
-                <TextBlock Text="{DynamicResource Text_Repo_No_Plugin}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border Height="{Binding NoPlugins_TipHeight}" DockPanel.Dock="Top">
+                <TextBlock HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{DynamicResource Text_Repo_No_Plugin}"/>
             </Border>
             <ScrollViewer>
-                <StackPanel Orientation="Vertical" Margin="0,0,10,0">
+                <StackPanel Margin="0,0,10,0" Orientation="Vertical">
                     <ItemsControl Items="{Binding PluginBars}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>

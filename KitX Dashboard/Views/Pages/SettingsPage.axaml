@@ -1,136 +1,109 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.SettingsPage"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:KitX_Dashboard.Views.Pages.Controls"
+             xmlns:converters="using:KitX_Dashboard.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icon="using:Material.Icons.Avalonia"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:KitX_Dashboard.ViewModels.Pages"
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
-             xmlns:icon="using:Material.Icons.Avalonia"
-             xmlns:converters="using:KitX_Dashboard.Converters"
-             xmlns:controls="using:KitX_Dashboard.Views.Pages.Controls"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.SettingsPage">
+             xmlns:vm="using:KitX_Dashboard.ViewModels.Pages"
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
 
     <Design.DataContext>
         <vm:SettingsPageViewModel/>
     </Design.DataContext>
 
-    <!--<TabControl SelectedIndex="{Binding TabControlSelectedIndex}">
-
-        -->
-    <!-- <General> -->
-    <!--
-        <TabItem Width="200">
-            <TabItem.Header>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <icon:MaterialIcon Kind="Globe" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                    <TextBlock Text="{DynamicResource Text_Settings_General}" FontSize="18"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-            </TabItem.Header>
-
-            <controls:Settings_General/>
-
-        </TabItem>
-        -->
-    <!-- </General> -->
-    <!--
-
-        -->
-    <!-- <Performence> -->
-    <!--
-        <TabItem Width="200">
-            <TabItem.Header>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <icon:MaterialIcon Kind="Speedometer" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                    <TextBlock Text="{DynamicResource Text_Settings_Performence}" FontSize="18"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-            </TabItem.Header>
-
-        </TabItem>
-        -->
-    <!-- </Performence> -->
-    <!--
-
-        -->
-    <!-- <About> -->
-    <!--
-        <TabItem Width="200">
-            <TabItem.Header>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center" FontSize="18" Margin="5,0"/>
-                    <TextBlock Text="{DynamicResource Text_Settings_About}" FontSize="18"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-            </TabItem.Header>
-
-            <controls:Settings_About/>
-            
-        </TabItem>
-        -->
-    <!-- </About> -->
-    <!--
-    </TabControl>-->
-
-    <ui:NavigationView IsBackEnabled="False" IsBackButtonVisible="False" IsSettingsVisible="False"
+    <ui:NavigationView x:Name="SettingsNavigationView"
+                       IsBackButtonVisible="False"
+                       IsBackEnabled="False"
                        IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
-                       PaneDisplayMode="Auto" OpenPaneLength="270"
-                       x:Name="SettingsNavigationView"
+                       IsSettingsVisible="False"
+                       OpenPaneLength="270"
+                       PaneDisplayMode="Auto"
                        SelectionChanged="SettingsNavigationView_SelectionChanged">
         <ui:NavigationView.MenuItems>
-            <ui:NavigationViewItem x:Name="View_General" Tag="View_General" Margin="0,5,0,0"
+            <ui:NavigationViewItem x:Name="View_General"
+                                   Margin="0,5,0,0"
+                                   Tag="View_General"
                                    ToolTip.Tip="{DynamicResource Text_Settings_General}">
                 <ui:NavigationViewItem.Content>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
-                        <icon:MaterialIcon Kind="Globe" VerticalAlignment="Center"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_General}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel Margin="-3,0,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon VerticalAlignment="Center" Kind="Globe"/>
+                        <TextBlock Margin="15,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_General}"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
-            <ui:NavigationViewItem x:Name="View_Personalise" Tag="View_Personalise"
+            <ui:NavigationViewItem x:Name="View_Personalise"
+                                   Tag="View_Personalise"
                                    ToolTip.Tip="{DynamicResource Text_Settings_Personalise}">
                 <ui:NavigationViewItem.Content>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
-                        <icon:MaterialIcon Kind="Palette" VerticalAlignment="Center"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Personalise}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel Margin="-3,0,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon VerticalAlignment="Center" Kind="Palette"/>
+                        <TextBlock Margin="15,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Personalise}"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
-            <ui:NavigationViewItem x:Name="View_Performence" Tag="View_Performence"
+            <ui:NavigationViewItem x:Name="View_Performence"
+                                   Tag="View_Performence"
                                    ToolTip.Tip="{DynamicResource Text_Settings_Performence}">
                 <ui:NavigationViewItem.Content>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
-                        <icon:MaterialIcon Kind="Speedometer" VerticalAlignment="Center"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Performence}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel Margin="-3,0,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon VerticalAlignment="Center" Kind="Speedometer"/>
+                        <TextBlock Margin="15,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Performence}"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
-            <ui:NavigationViewItem x:Name="View_Update" Tag="View_Update"
+            <ui:NavigationViewItem x:Name="View_Update"
+                                   Tag="View_Update"
                                    ToolTip.Tip="{DynamicResource Text_Settings_Update}">
                 <ui:NavigationViewItem.Content>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
-                        <icon:MaterialIcon Kind="Update" VerticalAlignment="Center"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Update}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel Margin="-3,0,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon VerticalAlignment="Center" Kind="Update"/>
+                        <TextBlock Margin="15,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Update}"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
-            <ui:NavigationViewItem x:Name="View_About" Tag="View_About"
+            <ui:NavigationViewItem x:Name="View_About"
+                                   Tag="View_About"
                                    ToolTip.Tip="{DynamicResource Text_Settings_About}">
                 <ui:NavigationViewItem.Content>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-3,0,0,0">
-                        <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About}"
-                                   VerticalAlignment="Center" Margin="15,0,0,0"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel Margin="-3,0,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon VerticalAlignment="Center" Kind="InfoCircle"/>
+                        <TextBlock Margin="15,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_About}"/>
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>

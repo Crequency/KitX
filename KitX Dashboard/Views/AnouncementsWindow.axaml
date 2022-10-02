@@ -1,22 +1,31 @@
-<Window xmlns="https://github.com/avaloniaui"
+<Window x:Class="KitX_Dashboard.Views.AnouncementsWindow"
+        xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:md="using:Markdown.Avalonia"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
         xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
-        xmlns:md="using:Markdown.Avalonia"
-        xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
-        x:Class="KitX_Dashboard.Views.AnouncementsWindow"
         Title="{DynamicResource Text_Public_Announcement}"
+        Width="{Binding Window_Width}"
+        Height="{Binding Window_Height}"
+        MinWidth="800"
+        MinHeight="600"
+        d:DesignHeight="450"
+        d:DesignWidth="800"
         Icon="/Assets/KitX.png"
-        Width="{Binding Window_Width}" Height="{Binding Window_Height}"
-        MinWidth="800" MinHeight="600">
+        mc:Ignorable="d">
     <Grid>
-        <ui:NavigationView IsSettingsVisible="False" PaneDisplayMode="Left" IsPaneToggleButtonVisible="False"
-                           IsPaneOpen="True" IsPaneVisible="True"
-                           IsBackEnabled="False" IsBackButtonVisible="False"
-                           SelectedItem="{Binding SelectedMenuItem}" MenuItems="{Binding MenuItems}">
+        <ui:NavigationView IsBackButtonVisible="False"
+                           IsBackEnabled="False"
+                           IsPaneOpen="True"
+                           IsPaneToggleButtonVisible="False"
+                           IsPaneVisible="True"
+                           IsSettingsVisible="False"
+                           MenuItems="{Binding MenuItems}"
+                           PaneDisplayMode="Left"
+                           SelectedItem="{Binding SelectedMenuItem}">
             <md:MarkdownScrollViewer Markdown="{Binding Markdown}">
                 <md:MarkdownScrollViewer.Styles>
                     <Style Selector="ctxt|CTextBlock.Heading1">
@@ -36,8 +45,7 @@
                         <Style.Setters>
                             <Setter Property="BorderThickness" Value="0"/>
                             <Setter Property="Margin" Value="10"/>
-                            <Setter Property="Background"
-                                    Value="{StaticResource ThemePrimaryAccentTransparent33}"/>
+                            <Setter Property="Background" Value="{StaticResource ThemePrimaryAccentTransparent33}"/>
                             <Setter Property="CornerRadius" Value="10"/>
                         </Style.Setters>
                     </Style>
@@ -52,12 +60,14 @@
             </md:MarkdownScrollViewer>
         </ui:NavigationView>
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                    Margin="20">
-            <Button Content="{DynamicResource Text_AnouncementWindow_Receive}"
-                    Command="{Binding ConfirmReceivedCommand}"/>
-            <Button Content="{DynamicResource Text_AnouncementWindow_ReceiveAll}"
-                    Command="{Binding ConfirmReceivedAllCommand}" Margin="20,0,0,0"/>
+        <StackPanel Margin="20"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Orientation="Horizontal">
+            <Button Command="{Binding ConfirmReceivedCommand}" Content="{DynamicResource Text_AnouncementWindow_Receive}"/>
+            <Button Margin="20,0,0,0"
+                    Command="{Binding ConfirmReceivedAllCommand}"
+                    Content="{DynamicResource Text_AnouncementWindow_ReceiveAll}"/>
         </StackPanel>
     </Grid>
 </Window>

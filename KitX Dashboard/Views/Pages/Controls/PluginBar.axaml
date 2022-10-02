@@ -1,33 +1,43 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.Controls.PluginBar"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icon="using:Material.Icons.Avalonia"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
-             xmlns:icon="using:Material.Icons.Avalonia"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.Controls.PluginBar"
-             Margin="10,5,10,5">
-    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False">
+             Margin="10,5,10,5"
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
+    <ui:InfoBar IsClosable="False"
+                IsIconVisible="False"
+                IsOpen="True">
         <DockPanel Margin="0,10,10,10">
-            <Button Content="{DynamicResource Text_PluginBar_Launch}"
-                    DockPanel.Dock="Right" Command="{Binding LaunchCommand}"
-                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+            <Button Command="{Binding LaunchCommand}"
+                    Content="{DynamicResource Text_PluginBar_Launch}"
+                    DockPanel.Dock="Right"
+                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"/>
 
-            <ui:Button Content="..." DockPanel.Dock="Right" Margin="0,0,20,0"
-                       FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
+            <ui:Button Margin="0,0,20,0"
+                       Content="..."
+                       DockPanel.Dock="Right"
+                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF">
                 <ui:Button.Flyout>
                     <ui:MenuFlyout Placement="Bottom">
-                        <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_Details}"
-                                           Icon="Copy" Command="{Binding ViewDetailsCommand}"
-                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                        <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_Remove}"
-                                           Icon="Remove" Command="{Binding RemoveCommand}"
-                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                        <ui:MenuFlyoutItem Command="{Binding ViewDetailsCommand}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           Icon="Copy"
+                                           Text="{DynamicResource Text_PluginBar_Details}"/>
+                        <ui:MenuFlyoutItem Command="{Binding RemoveCommand}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           Icon="Remove"
+                                           Text="{DynamicResource Text_PluginBar_Remove}"/>
                         <ui:MenuFlyoutSeparator/>
-                        <ui:MenuFlyoutItem Text="{DynamicResource Text_PluginBar_RemoveAndDelete}"
-                                           Icon="Delete" Command="{Binding DeleteCommand}"
-                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                        <ui:MenuFlyoutItem Command="{Binding DeleteCommand}"
+                                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           Icon="Delete"
+                                           Text="{DynamicResource Text_PluginBar_RemoveAndDelete}"/>
                     </ui:MenuFlyout>
                 </ui:Button.Flyout>
             </ui:Button>
@@ -39,30 +49,42 @@
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" Grid.Column="0"
-                            HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <Image Width="40" Height="40" Stretch="UniformToFill" Source="{Binding IconDisplay}"
-                           VerticalAlignment="Center"/>
-                    <TextBlock Margin="15,0,0,0" VerticalAlignment="Center"
-                               Text="{Binding DisplayName}"
-                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                FontSize="24"/>
+                <StackPanel Grid.Column="0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                    <Image Width="40"
+                           Height="40"
+                           VerticalAlignment="Center"
+                           Source="{Binding IconDisplay}"
+                           Stretch="UniformToFill"/>
+                    <TextBlock Margin="15,0,0,0"
+                               VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               FontSize="24"
+                               Text="{Binding DisplayName}"/>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Grid.Column="1">
-                    <TextBlock Margin="20,0,0,0" VerticalAlignment="Center"
-                               Text="{DynamicResource Text_PluginBar_AuthorName}"
-                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding AuthorName}"
-                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock Margin="20,0,0,0"
+                               VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               Text="{DynamicResource Text_PluginBar_AuthorName}"/>
+                    <TextBlock Margin="10,0,0,0"
+                               VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               Text="{Binding AuthorName}"/>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Grid.Column="2">
-                    <TextBlock Margin="30,0,0,0" VerticalAlignment="Center"
-                               Text="{DynamicResource Text_PluginBar_Version}"
-                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding Version}"
-                               FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Margin="30,0,0,0"
+                               VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               Text="{DynamicResource Text_PluginBar_Version}"/>
+                    <TextBlock Margin="10,0,0,0"
+                               VerticalAlignment="Center"
+                               FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                               Text="{Binding Version}"/>
                 </StackPanel>
             </Grid>
         </DockPanel>

@@ -77,6 +77,7 @@
         <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
         <None Remove=".gitignore" />
         <None Remove="Assets\Fonts\sarasa-mono-cl-regular.ttf" />
+        <None Remove="Assets\Fonts\SourceHanSans-VF.ttf" />
         <None Remove="Assets\KitX-Icon-128x.ico" />
         <None Remove="Assets\KitX-Icon-16x.ico" />
         <None Remove="Assets\KitX-Icon-256x.ico" />
@@ -84,7 +85,6 @@
         <None Remove="Assets\KitX-Icon-48x.ico" />
         <None Remove="Assets\KitX-Icon-64x.ico" />
         <None Remove="Assets\KitX.png" />
-        <None Remove="Assets\SourceHanSans-VF.ttf" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="Languages\en-us.axaml">

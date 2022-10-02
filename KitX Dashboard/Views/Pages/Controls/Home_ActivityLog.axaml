@@ -1,16 +1,19 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Controls.Home_ActivityLog"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Controls.Home_ActivityLog">
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
     <DockPanel>
-        <Border DockPanel.Dock="Top" Height="{Binding NoActivityLog_TipHeight}">
-            <TextBlock Text="{DynamicResource Text_MainWindow_ActivityLog_No}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border Height="{Binding NoActivityLog_TipHeight}" DockPanel.Dock="Top">
+            <TextBlock HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                       FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_ActivityLog_No}"/>
         </Border>
-        <ScrollViewer>
-
-        </ScrollViewer>
+        <ScrollViewer/>
     </DockPanel>
 </UserControl>

@@ -1,13 +1,15 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_Update"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:ui="using:FluentAvalonia.UI.Controls"
-             xmlns:icon="using:Material.Icons.Avalonia"
              xmlns:converters="using:KitX_Dashboard.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:models="using:KitX_Dashboard.Models"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_Update">
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
 
     <UserControl.Resources>
         <converters:Selection2VisibleConverter x:Key="Converter_S2V"/>
@@ -15,60 +17,86 @@
 
     <DockPanel Margin="0,10">
 
-        <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5"
-                    DockPanel.Dock="Bottom">
+        <ui:InfoBar Margin="20,5"
+                    DockPanel.Dock="Bottom"
+                    IsClosable="False"
+                    IsIconVisible="False"
+                    IsOpen="True">
             <DockPanel Margin="0,10,10,10">
-                
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Text="{Binding ComponentsCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,0"
-                           Text="{DynamicResource Text_Settings_Update_ComponentsCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="10,0,0,0"
-                           Text="{Binding CanUpdateCount}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,0"
-                           Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                
-                <Button DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
-                        Content="{DynamicResource Text_Settings_Update}"
-                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
+
+                <TextBlock VerticalAlignment="Center"
+                           DockPanel.Dock="Left"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{Binding ComponentsCount}"/>
+                <TextBlock Margin="5,0,0,0"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Left"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{DynamicResource Text_Settings_Update_ComponentsCount}"/>
+
+                <TextBlock Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Left"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{Binding CanUpdateCount}"/>
+                <TextBlock Margin="5,0,0,0"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Left"
+                           FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                           FontWeight="Bold"
+                           Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"/>
+
+                <Button Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource ThemePrimaryAccent}"
                         Command="{Binding UpdateCommand}"
-                        Background="{DynamicResource ThemePrimaryAccent}"/>
-                <Button DockPanel.Dock="Right" VerticalAlignment="Center"
+                        Content="{DynamicResource Text_Settings_Update}"
+                        DockPanel.Dock="Right"
+                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontWeight="Bold"/>
+                <Button VerticalAlignment="Center"
+                        Command="{Binding CheckUpdateCommand}"
                         Content="{DynamicResource Text_Settings_Update_Check}"
-                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                        Command="{Binding CheckUpdateCommand}"/>
+                        DockPanel.Dock="Right"
+                        FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                        FontWeight="Bold"/>
 
                 <Border/>
             </DockPanel>
         </ui:InfoBar>
 
-        <DataGrid Margin="25,5" AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
-                  CornerRadius="5" SelectionMode="Single" Items="{Binding Components}">
+        <DataGrid Margin="25,5"
+                  AutoGenerateColumns="False"
+                  CanUserReorderColumns="True"
+                  CanUserResizeColumns="True"
+                  CanUserSortColumns="True"
+                  CornerRadius="5"
+                  IsReadOnly="True"
+                  Items="{Binding Components}"
+                  SelectionMode="Single">
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Header="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
-                                        Binding="{Binding CanUpdate}" IsThreeState="False"
-                                        Width="Auto"/>
-                <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentName}"
+                <DataGridCheckBoxColumn Width="Auto"
+                                        Binding="{Binding CanUpdate}"
+                                        Header="{DynamicResource Text_Settings_Update_ComponentUpdatable}"
+                                        IsThreeState="False"/>
+                <DataGridTextColumn Width="Auto"
                                     Binding="{Binding Name}"
-                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                    
-                                    Width="Auto"/>
-                <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentMD5}"
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                    FontWeight="Bold"
+                                    Header="{DynamicResource Text_Settings_Update_ComponentName}"/>
+                <DataGridTextColumn Width="Auto"
                                     Binding="{Binding MD5}"
                                     FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                    
-                                    Width="Auto"/>
-                <DataGridTextColumn Header="{DynamicResource Text_Settings_Update_ComponentSHA1}"
+                                    FontWeight="Regular"
+                                    Header="{DynamicResource Text_Settings_Update_ComponentMD5}"/>
+                <DataGridTextColumn Width="Auto"
                                     Binding="{Binding SHA1}"
                                     FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                    
-                                    Width="Auto"/>
+                                    FontWeight="Regular"
+                                    Header="{DynamicResource Text_Settings_Update_ComponentSHA1}"/>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -76,8 +104,8 @@
 
     <!--<ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Orientation="Vertical" Margin="0,10">
-            
-            
+
+
 
             <Border Height="100"/>
 

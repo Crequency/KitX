@@ -1,36 +1,48 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_Personalise"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:KitX_Dashboard.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icon="using:Material.Icons.Avalonia"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="using:FluentAvalonia.UI.Controls"
-             xmlns:icon="using:Material.Icons.Avalonia"
-             xmlns:converters="using:KitX_Dashboard.Converters"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_Personalise">
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
 
     <UserControl.Resources>
         <converters:Selection2VisibleConverter x:Key="Converter_S2V"/>
     </UserControl.Resources>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Orientation="Vertical" Margin="0,10">
+        <StackPanel Margin="0,10" Orientation="Vertical">
 
-            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+            <ui:InfoBar Margin="20,5"
+                        IsClosable="False"
+                        IsIconVisible="False"
+                        IsOpen="True">
                 <DockPanel Margin="0,10,10,10">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Language" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_DisplayLanguage}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel VerticalAlignment="Center"
+                                DockPanel.Dock="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0" Kind="Language"/>
+                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Personalise_DisplayLanguage}"/>
                     </StackPanel>
 
-                    <ComboBox DockPanel.Dock="Right" SelectedIndex="{Binding LanguageSelected}"
-                              VerticalContentAlignment="Center"
-                              IsTextSearchEnabled="True" Items="{Binding SurpportLanguages}"
-                              FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
+                    <ComboBox VerticalContentAlignment="Center"
+                              DockPanel.Dock="Right"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold"
+                              IsTextSearchEnabled="True"
+                              Items="{Binding SurpportLanguages}"
+                              SelectedIndex="{Binding LanguageSelected}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding LanguageName}"
-                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"
+                                           Text="{Binding LanguageName}"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
@@ -39,22 +51,32 @@
                 </DockPanel>
             </ui:InfoBar>
 
-            <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="20,5">
+            <ui:InfoBar Margin="20,5"
+                        IsClosable="False"
+                        IsIconVisible="False"
+                        IsOpen="True">
                 <DockPanel Margin="0,10,10,10">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Brightness4" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_Theme}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel VerticalAlignment="Center"
+                                DockPanel.Dock="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0" Kind="Brightness4"/>
+                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Personalise_Theme}"/>
                     </StackPanel>
 
-                    <ComboBox DockPanel.Dock="Right" SelectedItem="{Binding CurrentAppTheme}"
-                              VerticalContentAlignment="Center"
-                              IsTextSearchEnabled="True" Items="{Binding SurpportThemes}"
-                              FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
+                    <ComboBox VerticalContentAlignment="Center"
+                              DockPanel.Dock="Right"
+                              FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                              FontWeight="Bold"
+                              IsTextSearchEnabled="True"
+                              Items="{Binding SurpportThemes}"
+                              SelectedItem="{Binding CurrentAppTheme}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding ThemeDisplayName}"
-                                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"
+                                           Text="{Binding ThemeDisplayName}"/>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
@@ -65,33 +87,44 @@
 
             <Expander Margin="20,5" IsExpanded="{Binding MicaAreaExpanded}">
                 <Expander.Header>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <icon:MaterialIcon Kind="Spray" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_MicaEffect}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0" Kind="Spray"/>
+                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Personalise_MicaEffect}"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <StackPanel>
-                    <ui:InfoBar IsOpen="{Binding MicaToolTipIsOpen}" IsIconVisible="True" IsClosable="True"
-                                Margin="0,5,0,10" CloseButtonCommand="{Binding MicaToolTipClosedCommand}"
-                                Title="{DynamicResource Text_Public_Tip}"
-                                Message="{DynamicResource Text_Settings_Personalise_MicaEffect_EnableTip}"
-                                FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <ui:InfoBar Title="{DynamicResource Text_Settings_Personalise_MicaEffect_EnableTip}"
+                                Margin="0,5,0,10"
+                                CloseButtonCommand="{Binding MicaToolTipClosedCommand}"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold"
+                                IsClosable="True"
+                                IsIconVisible="True"
+                                IsOpen="{Binding MicaToolTipIsOpen}"/>
 
-                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,0,0,5">
+                    <ui:InfoBar Margin="0,0,0,5"
+                                IsClosable="False"
+                                IsIconVisible="False"
+                                IsOpen="True">
                         <DockPanel Margin="0,10,10,10">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                        DockPanel.Dock="Left">
-                                <icon:MaterialIcon Kind="SelectColor" Margin="5,0"/>
-                                <TextBlock
-                                    Text="{DynamicResource Text_Settings_Personalise_MicaEffect_Enable}"
-                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                            <StackPanel VerticalAlignment="Center"
+                                        DockPanel.Dock="Left"
+                                        Orientation="Horizontal">
+                                <icon:MaterialIcon Margin="5,0" Kind="SelectColor"/>
+                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"
+                                           Text="{DynamicResource Text_Settings_Personalise_MicaEffect_Enable}"/>
                             </StackPanel>
 
-                            <ComboBox x:Name="MicaEffectEnabler" SelectedIndex="{Binding MicaStatus}"
-                                      DockPanel.Dock="Right" VerticalContentAlignment="Center"
-                                      FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
+                            <ComboBox x:Name="MicaEffectEnabler"
+                                      VerticalContentAlignment="Center"
+                                      DockPanel.Dock="Right"
+                                      FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                      FontWeight="Bold"
+                                      SelectedIndex="{Binding MicaStatus}">
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Enable}"/>
                                 <ComboBoxItem Content="{DynamicResource Text_Public_Disable}"/>
                             </ComboBox>
@@ -100,30 +133,43 @@
                         </DockPanel>
                     </ui:InfoBar>
 
-                    <ui:InfoBar IsOpen="True" IsIconVisible="False" IsClosable="False" Margin="0,5"
-                                FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL">
+                    <ui:InfoBar Margin="0,5"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold"
+                                IsClosable="False"
+                                IsIconVisible="False"
+                                IsOpen="True">
                         <DockPanel Margin="0,10,10,10">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                        DockPanel.Dock="Left">
-                                <icon:MaterialIcon Kind="Opacity" Margin="5,0"/>
-                                <TextBlock
-                                    Text="{DynamicResource Text_Settings_Personalise_MicaEffect_Opacity}"
-                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                            <StackPanel VerticalAlignment="Center"
+                                        DockPanel.Dock="Left"
+                                        Orientation="Horizontal">
+                                <icon:MaterialIcon Margin="5,0" Kind="Opacity"/>
+                                <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                           FontWeight="Bold"
+                                           Text="{DynamicResource Text_Settings_Personalise_MicaEffect_Opacity}"/>
                             </StackPanel>
 
-                            <Button DockPanel.Dock="Right" Content="{DynamicResource Text_Public_Confirm}"
-                                    HorizontalAlignment="Right" VerticalAlignment="Center"
-                                    Margin="10,0" Command="{Binding MicaOpacityConfirmed}"
-                                    FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                    
+                            <Button Margin="10,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding MicaOpacityConfirmed}"
+                                    Content="{DynamicResource Text_Public_Confirm}"
+                                    DockPanel.Dock="Right"
+                                    FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                    FontWeight="Bold"
                                     IsVisible="{Binding MicaOpacityConfirmButtonVisibility}"/>
 
-                            <Slider DockPanel.Dock="Right" Width="250" Minimum="0" Maximum="1"
-                                    IsSnapToTickEnabled="True" TickFrequency="0.01"
-                                    SmallChange="0.01" LargeChange="0.01" ToolTip.Tip="{Binding $self.Value}"
-                                    Value="{Binding MicaOpacity}"
-                                    IsEnabled="{Binding ElementName=MicaEffectEnabler, Path=SelectedIndex,
-                                                Converter={StaticResource Converter_S2V}}"/>
+                            <Slider Width="250"
+                                    DockPanel.Dock="Right"
+                                    IsEnabled="{Binding ElementName=MicaEffectEnabler, Path=SelectedIndex, Converter={StaticResource Converter_S2V}}"
+                                    IsSnapToTickEnabled="True"
+                                    LargeChange="0.01"
+                                    Maximum="1"
+                                    Minimum="0"
+                                    SmallChange="0.01"
+                                    TickFrequency="0.01"
+                                    ToolTip.Tip="{Binding $self.Value}"
+                                    Value="{Binding MicaOpacity}"/>
 
                             <Border/>
                         </DockPanel>
@@ -135,25 +181,38 @@
 
             <Expander Margin="20,5" IsExpanded="{Binding PaletteAreaExpanded}">
                 <Expander.Header>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                        <icon:MaterialIcon Kind="Palette" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_Personalise_Palette}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel VerticalAlignment="Center"
+                                DockPanel.Dock="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0" Kind="Palette"/>
+                        <TextBlock FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_Personalise_Palette}"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <DockPanel Margin="10">
-                    <ui:ColorPicker Color="{Binding ThemeColor}" DockPanel.Dock="Top"
-                                    IsMoreButtonVisible="True" IsCompact="False" IsAlphaEnabled="True"
-                                    UseColorWheel="True" UseColorTriangle="True" UseColorPalette="False"
-                                    UseSpectrum="True" ColorTextType="HexAlpha"/>
-                    <Grid DockPanel.Dock="Bottom" Margin="0,15,0,0">
-                        <Border HorizontalAlignment="Left" Width="100" Height="30"
+                    <ui:ColorPicker ColorTextType="HexAlpha"
+                                    DockPanel.Dock="Top"
+                                    IsAlphaEnabled="True"
+                                    IsCompact="False"
+                                    IsMoreButtonVisible="True"
+                                    UseColorPalette="False"
+                                    UseColorTriangle="True"
+                                    UseColorWheel="True"
+                                    UseSpectrum="True"
+                                    Color="{Binding ThemeColor}"/>
+                    <Grid Margin="0,15,0,0" DockPanel.Dock="Bottom">
+                        <Border Width="100"
+                                Height="30"
+                                HorizontalAlignment="Left"
                                 Background="{DynamicResource ThemePrimaryAccent}"/>
-                        <Button Content="{DynamicResource Text_Public_Confirm}"
-                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        <Button HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
                                 Command="{Binding ColorConfirmed}"
-                                FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                                Content="{DynamicResource Text_Public_Confirm}"
+                                FontFamily="/Assets/Fonts/SourceHanSans-VF.ttf#Source Han Sans VF"
+                                FontWeight="Bold"/>
                     </Grid>
                     <Border/>
                 </DockPanel>
