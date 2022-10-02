@@ -38,14 +38,14 @@
 
 ---
 
-![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_about.png)
+![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_about.png)
 
 <details>
 <summary>更多截图 More Screenshots</summary>
 
-![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_plugins.png)
-![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_devices.png)
-![ScreenShot of About View](./KitX%20Docs/README/src/screenshot_update.png)
+![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_plugins.png)
+![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_devices.png)
+![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_update.png)
 
 </details>
 
@@ -86,10 +86,10 @@
 # 文档总览 | Docs Preview
 | Languages | Docs                                                 |
 |-----------|------------------------------------------------------|
-| zh-cn     | [简体中文](./KitX%20Docs/README/zh-cn/README.md)     |
-| zh-cnt    | [繁體中文](./KitX%20Docs/README/zh-cnt/README.md)    |
-| en-us     | [English (US)](./KitX%20Docs/README/en-us/README.md) |
-| ja-jp     | [日本語](./KitX%20Docs/README/ja-jp/README.md)       |
+| zh-cn     | [简体中文](./KitX%20Docs/zh-cn/README.md)     |
+| zh-cnt    | [繁體中文](./KitX%20Docs/zh-cnt/README.md)    |
+| en-us     | [English (US)](./KitX%20Docs/en-us/README.md) |
+| ja-jp     | [日本語](./KitX%20Docs/ja-jp/README.md)       |
 
 ---
 
