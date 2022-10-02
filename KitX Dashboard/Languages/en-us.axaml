@@ -1,6 +1,5 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Add Resources Here -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--  Add Resources Here  -->
     <x:String x:Key="Text_MainWindow_Title">KitX Dashboard</x:String>
 
 
@@ -27,40 +26,40 @@
     <x:String x:Key="Text_Log_Fatal">Fatal</x:String>
 
 
-    <!--GreetingStart-->
+    <!--  GreetingStart  -->
 
-    <!--MorningStart-->
+    <!--  MorningStart  -->
     <x:String x:Key="Text_Greeting_Morning_1">Good Morning! ο(=•ω＜=)ρ⌒☆</x:String>
     <x:String x:Key="Text_Greeting_Morning_2">Have a good mood every day! OvO</x:String>
     <x:String x:Key="Text_Greeting_Morning_3">Today's event, today's end!</x:String>
     <x:String x:Key="Text_Greeting_Morning_4">Nice day begins~</x:String>
-    <!--MorningEnd-->
+    <!--  MorningEnd  -->
 
-    <!--NoonStart-->
+    <!--  NoonStart  -->
     <x:String x:Key="Text_Greeting_Noon_1">Good noon! o(〃＾▽＾〃)o</x:String>
     <x:String x:Key="Text_Greeting_Noon_2">It's noon, take a break~</x:String>
     <x:String x:Key="Text_Greeting_Noon_3">Today is also a full morning</x:String>
-    <!--NoonEnd-->
+    <!--  NoonEnd  -->
 
-    <!--AfterNoonStart-->
+    <!--  AfterNoonStart  -->
     <x:String x:Key="Text_Greeting_AfterNoon_1">Good afternoon! ヾ(≧▽≦*)o</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_2">Afternoon tea time!</x:String>
     <x:String x:Key="Text_Greeting_AfterNoon_3">What tasks are left unfinished today?</x:String>
-    <!--AfterNoonEnd-->
+    <!--  AfterNoonEnd  -->
 
-    <!--EveningStart-->
+    <!--  EveningStart  -->
     <x:String x:Key="Text_Greeting_Evening_1">Good evening! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Evening_2">I'm going to have a nice meal tonight!</x:String>
-    <!--EveningEnd-->
+    <!--  EveningEnd  -->
 
-    <!--NightStart-->
+    <!--  NightStart  -->
     <x:String x:Key="Text_Greeting_Night_1">It's quiet at night! o(*￣▽￣*)ブ</x:String>
     <x:String x:Key="Text_Greeting_Night_2">It's late at night, rest early~</x:String>
     <x:String x:Key="Text_Greeting_Night_3">Tomorrow will be a good day!</x:String>
-    <!--NightEnd-->
+    <!--  NightEnd  -->
 
-    <!--GreetingEnd-->
-    
+    <!--  GreetingEnd  -->
+
     <x:String x:Key="Text_MainWindow_NavigationView_Home">Home</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Lib">Library</x:String>
     <x:String x:Key="Text_MainWindow_NavigationView_Market">Market</x:String>
@@ -117,12 +116,14 @@
 
     <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
     <x:String x:Key="Text_Device_This">This Device</x:String>
+    <x:String x:Key="Text_Device_Type_Slave">Slave</x:String>
+    <x:String x:Key="Text_Device_Type_Master">Master</x:String>
     <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
     <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
     <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Enabled Plugins Count:</x:String>
-    
+
 
     <x:String x:Key="Text_Settings_General">General</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
@@ -131,7 +132,7 @@
     <x:String x:Key="Text_Settings_General_ShowAnnouncement">Show Announcements When Start</x:String>
     <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">Show Announcements Now</x:String>
 
-    
+
     <x:String x:Key="Text_Settings_Personalise">Personalise</x:String>
     <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">Display Language</x:String>
     <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica Effect</x:String>
