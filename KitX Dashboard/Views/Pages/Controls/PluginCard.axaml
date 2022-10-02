@@ -1,33 +1,61 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.Controls.PluginCard"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
-             mc:Ignorable="d" Margin="10"
-             x:Class="KitX_Dashboard.Views.Pages.Controls.PluginCard">
+             Margin="10"
+             mc:Ignorable="d">
     <UserControl.Styles>
         <Style Selector="Image.img:pointerover">
             <Setter Property="Opacity" Value="0.8"/>
         </Style>
     </UserControl.Styles>
     <Grid Width="160" Height="240">
-        <ui:Button Width="140" Height="220" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                   HorizontalContentAlignment="Center" VerticalContentAlignment="Bottom">
-            <StackPanel Orientation="Vertical" Width="120" Height="130">
-                <TextBlock Text="{Binding DisplayName}" FontSize="20" FontWeight="ExtraBold"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                <TextBlock Text="{Binding Version}" FontSize="14" FontWeight="Light"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
-                <TextBlock Text="{Binding SimpleDescription}" FontSize="16" TextWrapping="Wrap"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+        <ui:Button Width="140"
+                   Height="220"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Bottom"
+                   HorizontalContentAlignment="Center"
+                   VerticalContentAlignment="Bottom">
+            <StackPanel Width="120"
+                        Height="130"
+                        Orientation="Vertical">
+                <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                           FontSize="20"
+                           FontWeight="ExtraBold"
+                           Text="{Binding DisplayName}"/>
+                <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                           FontSize="14"
+                           FontWeight="Light"
+                           Text="{Binding Version}"/>
+                <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Text="{Binding SimpleDescription}"
+                           TextWrapping="Wrap"/>
             </StackPanel>
         </ui:Button>
-        <ui:Button x:Name="Imager" Width="100" Height="100" HorizontalAlignment="Left" VerticalAlignment="Top"
-                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CornerRadius="10">
-            <Border Width="90" Height="90" ClipToBounds="True" CornerRadius="6">
-                <Image Source="{Binding IconDisplay}" Stretch="UniformToFill" Classes="img"
-                       Width="90" Height="90" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <ui:Button x:Name="Imager"
+                   Width="100"
+                   Height="100"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Top"
+                   HorizontalContentAlignment="Center"
+                   VerticalContentAlignment="Center"
+                   CornerRadius="10">
+            <Border Width="90"
+                    Height="90"
+                    ClipToBounds="True"
+                    CornerRadius="6">
+                <Image Width="90"
+                       Height="90"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Classes="img"
+                       Source="{Binding IconDisplay}"
+                       Stretch="UniformToFill"/>
             </Border>
         </ui:Button>
     </Grid>

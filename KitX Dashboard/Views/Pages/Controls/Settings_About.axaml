@@ -1,81 +1,100 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_About"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:ui="using:FluentAvalonia.UI.Controls"
-             xmlns:icon="using:Material.Icons.Avalonia"
-             xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
              xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Pages.Controls.Settings_About">
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Orientation="Vertical" Margin="0,10">
+        <StackPanel Margin="0,10" Orientation="Vertical">
 
             <Grid>
 
-                <Button HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,20,20,30">
-                    <Image Source="/Assets/KitX.png" Width="128" Height="128" Margin="20"/>
+                <Button Margin="20,20,20,30"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top">
+                    <Image Width="128"
+                           Height="128"
+                           Margin="20"
+                           Source="/Assets/KitX.png"/>
                 </Button>
 
-                <Button Content="KitX" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                        Width="110" Background="{DynamicResource ThemePrimaryAccentTransparentDD}"
+                <Button Width="110"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Background="{DynamicResource ThemePrimaryAccentTransparentDD}"
+                        Command="{Binding AppNameButtonClickedCommand}"
+                        Content="KitX"
                         CornerRadius="45"
-                        KeyDown="AppNameButtonKeyDown" Command="{Binding AppNameButtonClickedCommand}"
-                        FontSize="30" FontWeight="ExtraBold"
-                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                        FontFamily="{StaticResource SourceHanSans}"
+                        FontSize="30"
+                        FontWeight="ExtraBold"
+                        KeyDown="AppNameButtonKeyDown"/>
 
             </Grid>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,5">
+            <StackPanel Margin="0,20,0,5"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal">
 
-                <TextBlock Text="{DynamicResource Text_Settings_About_Version}" FontSize="20"
-                           Margin="2.5,0" VerticalAlignment="Center" FontWeight="Medium"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                <TextBlock Margin="2.5,0"
+                           VerticalAlignment="Center"
+                           FontFamily="{StaticResource SourceHanSans}"
+                           FontSize="20"
+                           FontWeight="Medium"
+                           Text="{DynamicResource Text_Settings_About_Version}"/>
 
-                <TextBlock Text="{Binding VersionText}" FontSize="20" Margin="2.5,0"
-                           VerticalAlignment="Center" FontWeight="Medium"
-                           FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                <TextBlock Margin="2.5,0"
+                           VerticalAlignment="Center"
+                           FontFamily="{StaticResource SourceHanSans}"
+                           FontSize="20"
+                           FontWeight="Medium"
+                           Text="{Binding VersionText}"/>
 
             </StackPanel>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10">
+            <StackPanel Margin="0,10"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal">
 
-                <ui:HyperlinkButton NavigateUri="https://github.com/Crequency/KitX/"
-                                    ToolTip.Tip="{Binding $self.NavigateUri}"
-                                    Margin="5,0">
+                <ui:HyperlinkButton Margin="5,0"
+                                    NavigateUri="https://github.com/Crequency/KitX/"
+                                    ToolTip.Tip="{Binding $self.NavigateUri}">
                     <StackPanel Orientation="Horizontal">
-                        <icon:MaterialIcon Kind="Github"
-                                           Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
-                        <TextBlock Text=" GitHub Repo "
+                        <icon:MaterialIcon Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}" Kind="Github"/>
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   FontWeight="Bold"/>
+                                   Text=" GitHub Repo "/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
-                <ui:HyperlinkButton NavigateUri="https://kitx.apps.catrol.cn"
-                                    ToolTip.Tip="{Binding $self.NavigateUri}"
-                                    Margin="5,0">
+                <ui:HyperlinkButton Margin="5,0"
+                                    NavigateUri="https://kitx.apps.catrol.cn"
+                                    ToolTip.Tip="{Binding $self.NavigateUri}">
                     <StackPanel Orientation="Horizontal">
-                        <icon:MaterialIcon Kind="OfficeBuilding"
-                                           Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
-                        <TextBlock Text=" Official Website "
+                        <icon:MaterialIcon Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}" Kind="OfficeBuilding"/>
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   FontWeight="Bold"/>
+                                   Text=" Official Website "/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
-                <ui:HyperlinkButton NavigateUri="https://blog.catrol.cn"
-                                    ToolTip.Tip="{Binding $self.NavigateUri}"
-                                    Margin="5,0">
+                <ui:HyperlinkButton Margin="5,0"
+                                    NavigateUri="https://blog.catrol.cn"
+                                    ToolTip.Tip="{Binding $self.NavigateUri}">
                     <StackPanel Orientation="Horizontal">
-                        <icon:MaterialIcon Kind="BlogOutline"
-                                           Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"/>
-                        <TextBlock Text=" Author Blog "
+                        <icon:MaterialIcon Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}" Kind="BlogOutline"/>
+                        <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
                                    Foreground="{DynamicResource ThemePrimaryAccentTransparentDD}"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                   FontWeight="Bold"/>
+                                   Text=" Author Blog "/>
                     </StackPanel>
                 </ui:HyperlinkButton>
 
@@ -83,67 +102,86 @@
 
             <Expander Margin="20,5" IsExpanded="{Binding AboutAreaExpanded}">
                 <Expander.Header>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="InfoCircle" VerticalAlignment="Center"
-                                           Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About}"
-                                   VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0"
+                                           VerticalAlignment="Center"
+                                           Kind="InfoCircle"/>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_About}"/>
                     </StackPanel>
                 </Expander.Header>
 
             </Expander>
 
-            <Expander x:Name="AuthorsList" Margin="20,5" IsExpanded="{Binding AuthorsAreaExpanded}"
+            <Expander x:Name="AuthorsList"
+                      Margin="20,5"
+                      IsExpanded="{Binding AuthorsAreaExpanded}"
                       IsVisible="{Binding AuthorsListVisibility}">
                 <Expander.Header>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="User" VerticalAlignment="Center" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About_Authors}"
-                                   VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0"
+                                           VerticalAlignment="Center"
+                                           Kind="User"/>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_About_Authors}"/>
                     </StackPanel>
                 </Expander.Header>
 
                 <WrapPanel Margin="10">
-                    <ui:HyperlinkButton Margin="4" Content="常青园晚" NavigateUri="https://blog.catrol.cn"
+                    <ui:HyperlinkButton Margin="4"
+                                        Content="常青园晚"
+                                        FontFamily="{StaticResource SourceHanSans}"
+                                        FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                        FontWeight="Bold"/>
-                    <ui:HyperlinkButton Margin="4" Content="LYF" NavigateUri="https://github.com/LYF511"
+                                        NavigateUri="https://blog.catrol.cn"/>
+                    <ui:HyperlinkButton Margin="4"
+                                        Content="LYF"
+                                        FontFamily="{StaticResource SourceHanSans}"
+                                        FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                        FontWeight="Bold"/>
-                    <ui:HyperlinkButton Margin="4" Content="白学森" NavigateUri="https://github.com/MrBBBaiXue"
+                                        NavigateUri="https://github.com/LYF511"/>
+                    <ui:HyperlinkButton Margin="4"
+                                        Content="白学森"
+                                        FontFamily="{StaticResource SourceHanSans}"
+                                        FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                        FontWeight="Bold"/>
-                    <ui:HyperlinkButton Margin="4" Content="truebigsand"
-                                        NavigateUri="https://github.com/truebigsand"
+                                        NavigateUri="https://github.com/MrBBBaiXue"/>
+                    <ui:HyperlinkButton Margin="4"
+                                        Content="truebigsand"
+                                        FontFamily="{StaticResource SourceHanSans}"
+                                        FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                        FontWeight="Bold"/>
-                    <ui:HyperlinkButton Margin="4" Content="felixonmars"
-                                        NavigateUri="https://github.com/felixonmars"
+                                        NavigateUri="https://github.com/truebigsand"/>
+                    <ui:HyperlinkButton Margin="4"
+                                        Content="felixonmars"
+                                        FontFamily="{StaticResource SourceHanSans}"
+                                        FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                        FontWeight="Bold"/>
-                    <ui:HyperlinkButton Margin="4" Content="SpaceTimee"
-                                        NavigateUri="https://github.com/SpaceTimee"
+                                        NavigateUri="https://github.com/felixonmars"/>
+                    <ui:HyperlinkButton Margin="4"
+                                        Content="SpaceTimee"
+                                        FontFamily="{StaticResource SourceHanSans}"
+                                        FontWeight="Bold"
                                         Foreground="{DynamicResource ThemePrimaryAccent}"
-                                        FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"
-                                        FontWeight="Bold"/>
+                                        NavigateUri="https://github.com/SpaceTimee"/>
                 </WrapPanel>
 
             </Expander>
 
             <Expander Margin="20,5" IsExpanded="{Binding LinksAreaExpanded}">
                 <Expander.Header>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="Link" VerticalAlignment="Center" Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About_Links}"
-                                   VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0"
+                                           VerticalAlignment="Center"
+                                           Kind="Link"/>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_About_Links}"/>
                     </StackPanel>
                 </Expander.Header>
 
@@ -151,23 +189,26 @@
 
             <Expander Margin="20,5" IsExpanded="{Binding ThirdPartyLicensesAreaExpanded}">
                 <Expander.Header>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <icon:MaterialIcon Kind="ToyBrick" VerticalAlignment="Center"
-                                           Margin="5,0"/>
-                        <TextBlock Text="{DynamicResource Text_Settings_About_ThirdPartLicense}"
-                                   VerticalAlignment="Center"
-                                   FontFamily="/Assets/Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL"/>
+                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                        <icon:MaterialIcon Margin="5,0"
+                                           VerticalAlignment="Center"
+                                           Kind="ToyBrick"/>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_Settings_About_ThirdPartLicense}"/>
                     </StackPanel>
                 </Expander.Header>
                 <DockPanel Margin="5">
                     <DockPanel Margin="5" DockPanel.Dock="Top">
-                        <Button DockPanel.Dock="Left" Command="{Binding LoadThirdPartLicense}"
-                                Content="{DynamicResource Text_Public_Read}"/>
+                        <Button Command="{Binding LoadThirdPartLicense}"
+                                Content="{DynamicResource Text_Public_Read}"
+                                DockPanel.Dock="Left"/>
                     </DockPanel>
-                    <Border Background="Transparent"
-                            Margin="5,15,5,5" CornerRadius="10">
-                        <md:MarkdownScrollViewer Markdown="{Binding ThirdPartLicenseString}"
-                                                 Margin="5">
+                    <Border Margin="5,15,5,5"
+                            Background="Transparent"
+                            CornerRadius="10">
+                        <md:MarkdownScrollViewer Margin="5" Markdown="{Binding ThirdPartLicenseString}">
                             <md:MarkdownScrollViewer.Styles>
                                 <Style Selector="ctxt|CTextBlock.Heading1">
                                     <Setter Property="FontSize" Value="36"/>
@@ -186,8 +227,7 @@
                                     <Style.Setters>
                                         <Setter Property="BorderThickness" Value="0"/>
                                         <Setter Property="Margin" Value="0,20"/>
-                                        <Setter Property="Background"
-                                                Value="{DynamicResource ThemePrimaryAccentTransparent33}"/>
+                                        <Setter Property="Background" Value="{DynamicResource ThemePrimaryAccentTransparent33}"/>
                                         <Setter Property="CornerRadius" Value="10"/>
                                     </Style.Setters>
                                 </Style>
@@ -204,7 +244,7 @@
                 </DockPanel>
 
             </Expander>
-            
+
             <Border Height="100"/>
 
         </StackPanel>

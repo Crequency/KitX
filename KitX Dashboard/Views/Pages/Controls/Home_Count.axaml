@@ -1,16 +1,19 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl x:Class="KitX_Dashboard.Views.Controls.Home_Count"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="KitX_Dashboard.Views.Controls.Home_Count">
+             d:DesignHeight="450"
+             d:DesignWidth="800"
+             mc:Ignorable="d">
     <DockPanel>
-        <Border DockPanel.Dock="Top" Height="{Binding NoCount_TipHeight}">
-            <TextBlock Text="{DynamicResource Text_MainWindow_Count_No}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border Height="{Binding NoCount_TipHeight}" DockPanel.Dock="Top">
+            <TextBlock HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontFamily="{StaticResource SourceHanSans}"
+                       FontWeight="Bold"
+                       Text="{DynamicResource Text_MainWindow_Count_No}"/>
         </Border>
-        <ScrollViewer>
-
-        </ScrollViewer>
+        <ScrollViewer/>
     </DockPanel>
 </UserControl>

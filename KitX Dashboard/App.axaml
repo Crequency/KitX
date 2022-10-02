@@ -1,9 +1,9 @@
-<Application xmlns="https://github.com/avaloniaui"
+<Application x:Class="KitX_Dashboard.App"
+             xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="using:KitX_Dashboard"
-             xmlns:sty="using:FluentAvalonia.Styling"
              xmlns:fluent="using:FluentAvalonia.UI.Media"
-             x:Class="KitX_Dashboard.App">
+             xmlns:local="using:KitX_Dashboard"
+             xmlns:sty="using:FluentAvalonia.Styling">
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
@@ -29,6 +29,9 @@
             <SolidColorBrush x:Key="ThemePrimaryAccentTransparent33" Color="#333873D9"/>
             <SolidColorBrush x:Key="ThemePrimaryAccentTransparent22" Color="#223873D9"/>
             <SolidColorBrush x:Key="ThemePrimaryAccentTransparent11" Color="#113873D9"/>
+
+            <FontFamily x:Key="SarasaMonoCL">avares://KitX.Fonts/sarasa-mono-cl-regular.ttf#Sarasa Mono CL</FontFamily>
+            <FontFamily x:Key="SourceHanSans">avares://KitX.Fonts/SourceHanSans-VF.ttf#Source Han Sans VF</FontFamily>
         </ResourceDictionary>
     </Application.Resources>
 
