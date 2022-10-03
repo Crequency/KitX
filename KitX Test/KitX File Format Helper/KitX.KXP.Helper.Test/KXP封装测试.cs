@@ -1,13 +1,13 @@
-using KitX.Web.Rules;
+ï»¿using KitX.Web.Rules;
 using System.Text.Json;
 
 namespace KitX.KXP.Helper.Test
 {
     [TestClass]
-    public class KXP·â×°²âÊÔ
+    public class KXPå°è£…æµ‹è¯•
     {
         [TestMethod]
-        public void »ù×¼²âÊÔ()
+        public void åŸºå‡†æµ‹è¯•()
         {
             string baseDir = @"D:\tmp\";
             Encoder encoder = new(new()
@@ -38,8 +38,8 @@ namespace KitX.KXP.Helper.Test
                     },
                     DisplayName = new()
                     {
-                        { "zh-cn", "ÏÔÊ¾Ãû³Æ" },
-                        { "zh-cnt", "ï@Ê¾Ãû·Q" },
+                        { "zh-cn", "æ˜¾ç¤ºåç§°" },
+                        { "zh-cnt", "é¡¯ç¤ºåç¨±" },
                         { "en-us", "DisplayName" },
                     },
                     Functions = new()
@@ -50,8 +50,8 @@ namespace KitX.KXP.Helper.Test
                                 "FunctionA",
                                 new()
                                 {
-                                    { "zh-cn", "Ä³¸ö·½·¨" },
-                                    { "zh-cnt", "Ä³‚€·½·¨" },
+                                    { "zh-cn", "æŸä¸ªæ–¹æ³•" },
+                                    { "zh-cnt", "æŸå€‹æ–¹æ³•" },
                                     { "en-us", "One Function" }
                                 }
                             }
@@ -69,7 +69,7 @@ namespace KitX.KXP.Helper.Test
                                             Name = "ParameterA",
                                             DisplayName = new()
                                             {
-                                                { "zh-cn", "²ÎÊıA" }
+                                                { "zh-cn", "å‚æ•°A" }
                                             },
                                             Type = "string"
                                         }

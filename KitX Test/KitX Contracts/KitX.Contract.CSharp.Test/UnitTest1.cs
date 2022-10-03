@@ -1,4 +1,4 @@
-namespace KitX.Contract.CSharp.Test
+﻿namespace KitX.Contract.CSharp.Test
 {
     [TestClass]
     public class UnitTest1

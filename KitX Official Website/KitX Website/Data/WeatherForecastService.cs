@@ -1,4 +1,4 @@
-namespace KitX_Website.Data
+﻿namespace KitX_Website.Data
 {
     public class WeatherForecastService
     {

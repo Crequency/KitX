@@ -1,4 +1,4 @@
-namespace KitX.Loader.Winform.Core
+﻿namespace KitX.Loader.Winform.Core
 {
     internal static class Program
     {

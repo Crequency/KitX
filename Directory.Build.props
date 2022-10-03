@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
     <PropertyGroup>
         <Deterministic>false</Deterministic>
     </PropertyGroup>

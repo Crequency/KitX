@@ -1,4 +1,4 @@
-# 文档目录
+﻿# 文档目录
 
 * [项目架构](./struct/README.md)
 * [仪表盘](./dashboard/README.md)

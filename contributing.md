@@ -1,4 +1,4 @@
-# 欢迎 | Welcome
+﻿# 欢迎 | Welcome
 很荣幸此项目能够受到阁下的青睐, 为了给所有贡献者带来一个愉快的合作氛围, 请所有协作开发者务必遵守以下几项要求.
 
 We are honored that this project has been favored by you. In order to bring a pleasant cooperation atmosphere to all contributors, please all cooperating developers must abide by the following requirements.

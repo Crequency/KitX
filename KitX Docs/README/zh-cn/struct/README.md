@@ -1,4 +1,4 @@
-# 项目架构
+﻿# 项目架构
 
 - **.github**   :   GitHub 相关配置文件
   - **ISSUE_TEMPLATE**  :   issue 模板

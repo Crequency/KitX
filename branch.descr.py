@@ -1,4 +1,4 @@
-def descr():
+﻿def descr():
     print("Branches Description Start");
     sep();
     print("main                         |       stable codes storage");

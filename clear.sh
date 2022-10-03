@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 
 rm -rf ./KitX\ Publish/
 rm -rf ./KitX\ Build/
