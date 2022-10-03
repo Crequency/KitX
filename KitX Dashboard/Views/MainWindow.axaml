@@ -15,7 +15,7 @@
         d:DesignWidth="800"
         FontFamily="{StaticResource SourceHanSans}"
         FontWeight="Bold"
-        Icon="/Assets/KitX.png"
+        Icon="avares://KitX.Assets/KitX.png"
         mc:Ignorable="d">
 
     <!--  Width="{Binding DB_Width}" Height="{Binding DB_Height}"  -->

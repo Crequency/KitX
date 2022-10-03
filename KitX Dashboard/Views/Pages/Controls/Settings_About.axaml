@@ -21,7 +21,7 @@
                     <Image Width="128"
                            Height="128"
                            Margin="20"
-                           Source="/Assets/KitX.png"/>
+                           Source="avares://KitX.Assets/KitX.png"/>
                 </Button>
 
                 <Button Width="110"
