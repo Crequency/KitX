@@ -1,12 +1,22 @@
 ﻿using KitX_Dashboard.Services;
 
+using System.ComponentModel;
+
 namespace KitX_Dashboard.ViewModels.Pages
 {
-    internal class HomePageViewModel : ViewModelBase
+    internal class HomePageViewModel : ViewModelBase, INotifyPropertyChanged
     {
         public HomePageViewModel()
         {
+            InitEvent();
+        }
 
+        private void InitEvent()
+        {
+            EventHandlers.DevelopSettingsChanged += () =>
+            {
+                IsDeveloperSettingStatus = Program.Config.App.DeveloperSetting;
+            };
         }
 
         internal static bool IsPaneOpen
@@ -18,6 +28,18 @@ namespace KitX_Dashboard.ViewModels.Pages
                 EventHandlers.Invoke("ConfigSettingsChanged");
             }
         }
+
+        internal bool IsDeveloperSettingStatus
+        {
+            get => Program.Config.App.DeveloperSetting;
+            set
+            {
+                Program.Config.App.DeveloperSetting = value;
+                PropertyChanged?.Invoke(this, new(nameof(IsDeveloperSettingStatus)));
+            }
+        }
+
+        public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
 

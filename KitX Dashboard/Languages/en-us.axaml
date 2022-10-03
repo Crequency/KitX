@@ -2,6 +2,8 @@
     <!--  Add Resources Here  -->
     <x:String x:Key="Text_MainWindow_Title">KitX Dashboard</x:String>
 
+    <x:String x:Key="Text_Public_Login">Login</x:String>
+    <x:String x:Key="Text_Public_Logout">Logout</x:String>
 
     <x:String x:Key="Text_Public_Enable">Enable</x:String>
     <x:String x:Key="Text_Public_Disable">Disable</x:String>
@@ -72,6 +74,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_Recent">Recent Using</x:String>
     <x:String x:Key="Text_MainWindow_HomePage_Count">Statistics</x:String>
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_DebugLog">Debug Log</x:String>
 
     <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
 
@@ -80,6 +83,12 @@
 
 
     <x:String x:Key="Text_MainWindow_ActivityLog_No">No activity logged.</x:String>
+
+
+    <x:String x:Key="Text_MainWindow_DebugLog_No">No debug logged.</x:String>
+
+
+    <x:String x:Key="Text_Account_No_Login">You are not currently logged in with an account.</x:String>
 
 
     <x:String x:Key="Text_Lib_Search">Search</x:String>

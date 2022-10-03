@@ -194,6 +194,8 @@ namespace KitX_Dashboard.Views
             {
                 SelectedPageName = ((sender as NavigationView).SelectedItem as Control).Tag.ToString();
                 MainFrame.Navigate(GetPageTypeFromName(SelectedPageName));
+
+                EventHandlers.Invoke("DebugLogAdd", $"[MainFrame] SelectionChanged {SelectedPageName}");
             }
             catch (NullReferenceException o)
             {

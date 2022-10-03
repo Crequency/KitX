@@ -76,6 +76,7 @@
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
             <ui:NavigationViewItem x:Name="View_Update"
+                                   IsVisible="{Binding IsDeveloperSettingStatus}"
                                    Tag="View_Update"
                                    ToolTip.Tip="{DynamicResource Text_Settings_Update}">
                 <ui:NavigationViewItem.Content>

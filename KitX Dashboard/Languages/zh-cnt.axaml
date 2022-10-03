@@ -2,6 +2,8 @@
     <!--  Add Resources Here  -->
     <x:String x:Key="Text_MainWindow_Title">KitX 儀表盤</x:String>
 
+    <x:String x:Key="Text_Public_Login">登入</x:String>
+    <x:String x:Key="Text_Public_Logout">登出</x:String>
 
     <x:String x:Key="Text_Public_Enable">啟用</x:String>
     <x:String x:Key="Text_Public_Disable">禁用</x:String>
@@ -80,6 +82,12 @@
 
 
     <x:String x:Key="Text_MainWindow_ActivityLog_No">活動來生成活動日志</x:String>
+
+
+    <x:String x:Key="Text_MainWindow_DebugLog_No">無調試日誌</x:String>
+
+
+    <x:String x:Key="Text_Account_No_Login">當前沒有使用賬號登錄呢~</x:String>
 
 
     <x:String x:Key="Text_Lib_Search">搜索</x:String>

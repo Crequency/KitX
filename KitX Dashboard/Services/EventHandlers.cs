@@ -20,6 +20,10 @@ namespace KitX_Dashboard.Services
 
         internal delegate void LogConfigUpdatedHandler();
 
+        internal delegate void DebugLogAddHandler(string value);
+
+        internal delegate void DebugLogUpdatedHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
@@ -34,6 +38,10 @@ namespace KitX_Dashboard.Services
 
         internal static event LogConfigUpdatedHandler? LogConfigUpdated;
 
+        internal static event DebugLogAddHandler? DebugLogAdd;
+
+        internal static event DebugLogUpdatedHandler? DebugLogUpdated;
+
 
         /// <summary>
         /// 必要的初始化
@@ -47,13 +55,15 @@ namespace KitX_Dashboard.Services
             PluginsListChanged += () => { };
             DevelopSettingsChanged += () => { };
             LogConfigUpdated += () => { };
+            DebugLogAdd += (string value) => { };
+            DebugLogUpdated += () => { };
         }
 
         /// <summary>
         /// 执行全局事件
         /// </summary>
         /// <param name="eventName">事件名称</param>
-        internal static void Invoke(string eventName)
+        internal static void Invoke(string eventName, string value = "")
         {
             switch (eventName)
             {
@@ -77,6 +87,12 @@ namespace KitX_Dashboard.Services
                     break;
                 case nameof(LogConfigUpdated):
                     LogConfigUpdated();
+                    break;
+                case nameof(DebugLogAdd):
+                    DebugLogAdd(value);
+                    break;
+                case nameof(DebugLogUpdated):
+                    DebugLogUpdated();
                     break;
             }
         }

@@ -58,6 +58,8 @@ namespace KitX_Dashboard.Views.Pages
                     (sender as NavigationView).SelectedItem as Control
                 ).Tag.ToString();
                 this.FindControl<Frame>("SettingsFrame").Navigate(SelectedViewType());
+
+                EventHandlers.Invoke("DebugLogAdd", $"[SettingsFrame] SelectionChanged {SelectedViewName}");
             }
             catch (NullReferenceException o)
             {

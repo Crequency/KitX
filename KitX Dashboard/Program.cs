@@ -23,6 +23,8 @@ namespace KitX_Dashboard
 
         internal static PluginsList PluginsList = new();
 
+        internal static ObservableCollection<string> DebugLogs = new();
+
         /// <summary>
         /// 主函数, 应用程序入口; 展开 summary 查看警告
         /// </summary>

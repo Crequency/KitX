@@ -53,6 +53,7 @@ namespace KitX_Dashboard.Services
             GlobalInfo.ServerPortNumber = port; // 全局端口号标明
 
             Log.Information($"Server Port: {port}");
+            EventHandlers.Invoke("DebugLogAdd", $"[WebServer.Start]Server Port: {port}");
 
             acceptClientThread.Start();
         }

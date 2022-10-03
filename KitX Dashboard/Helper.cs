@@ -29,6 +29,13 @@ namespace KitX_Dashboard
 
             //InitLiteLogger(Program.LocalLogger);
 
+            EventHandlers.DebugLogAdd += (value) =>
+            {
+                Program.DebugLogs.Add(string.Format("{0} => {1}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), value));
+
+                EventHandlers.Invoke("DebugLogUpdated");
+            };
+
             string logdir = Path.GetFullPath(Program.Config.Log.LogFilePath);
 
             if (!Directory.Exists(logdir))
@@ -69,6 +76,8 @@ namespace KitX_Dashboard
             EventHandlers.ConfigSettingsChanged += () => SaveConfig();
 
             EventHandlers.PluginsListChanged += () => SavePluginsListConfig();
+
+            EventHandlers.Invoke("DebugLogAdd", $"[EventHandlers]Init");
 
             #endregion
         }
@@ -198,6 +207,8 @@ namespace KitX_Dashboard
                     Algorithm.Interop.Environment.InstallEnvironment();
                 }).Start();
             #endregion
+
+            EventHandlers.Invoke("DebugLogAdd", $"[Environment]Init");
         }
 
         /// <summary>
