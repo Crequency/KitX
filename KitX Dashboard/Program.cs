@@ -1,4 +1,4 @@
-using Avalonia;
+ï»¿using Avalonia;
 using Avalonia.ReactiveUI;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
@@ -24,25 +24,25 @@ namespace KitX_Dashboard
         internal static PluginsList PluginsList = new();
 
         /// <summary>
-        /// Ö÷º¯Êı, Ó¦ÓÃ³ÌĞòÈë¿Ú; Õ¹¿ª summary ²é¿´¾¯¸æ
+        /// ä¸»å‡½æ•°, åº”ç”¨ç¨‹åºå…¥å£; å±•å¼€ summary æŸ¥çœ‹è­¦å‘Š
         /// </summary>
-        /// <param name="args">³ÌĞòÆô¶¯²ÎÊı</param>
+        /// <param name="args">ç¨‹åºå¯åŠ¨å‚æ•°</param>
         /// Initialization code. Don't use any Avalonia, third-party APIs or any
         /// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
         /// yet and stuff might break.
-        /// ³õÊ¼»¯´úÂë. Çë²»ÒªÔÚ AppMain ±»µ÷ÓÃÖ®Ç°Ê¹ÓÃÈÎºÎ Avalonia, µÚÈı·½µÄ API »òÕß Í¬²½ÉÏÏÂÎÄÏà¹ØµÄ´úÂë:
-        /// Ïà¹ØµÄ´úÂë»¹Ã»ÓĞ±»³õÊ¼»¯, ¶øÇÒ»·¾³¿ÉÄÜ»á±»ÆÆ»µ
+        /// åˆå§‹åŒ–ä»£ç . è¯·ä¸è¦åœ¨ AppMain è¢«è°ƒç”¨ä¹‹å‰ä½¿ç”¨ä»»ä½• Avalonia, ç¬¬ä¸‰æ–¹çš„ API æˆ–è€… åŒæ­¥ä¸Šä¸‹æ–‡ç›¸å…³çš„ä»£ç :
+        /// ç›¸å…³çš„ä»£ç è¿˜æ²¡æœ‰è¢«åˆå§‹åŒ–, è€Œä¸”ç¯å¢ƒå¯èƒ½ä¼šè¢«ç ´å
         [STAThread]
         public static void Main(string[] args)
         {
 
-            #region ±ØÒªµÄ³õÊ¼»¯
+            #region å¿…è¦çš„åˆå§‹åŒ–
 
             EventHandlers.Init();
 
             #endregion
 
-            #region ´¦ÀíÆô¶¯²ÎÊı
+            #region å¤„ç†å¯åŠ¨å‚æ•°
 
             try
             {
@@ -73,14 +73,14 @@ namespace KitX_Dashboard
 
             #endregion
 
-            #region Õı³£Æô¶¯Á÷³Ì
+            #region æ­£å¸¸å¯åŠ¨æµç¨‹
 
             try
             {
                 if (File.Exists(Path.GetFullPath("./dump.log")))
                     File.Delete(Path.GetFullPath("./dump.log"));
 
-                #region Ö´ĞĞÆô¶¯Ê±¼ì²é
+                #region æ‰§è¡Œå¯åŠ¨æ—¶æ£€æŸ¥
 
                 Helper.StartUpCheck();
 
@@ -88,19 +88,19 @@ namespace KitX_Dashboard
 
                 Config.App.RanTime++;
 
-                #region ½øÈëÓ¦ÓÃÉúÃüÖÜÆÚÑ­»·
+                #region è¿›å…¥åº”ç”¨ç”Ÿå‘½å‘¨æœŸå¾ªç¯
 
                 BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 
                 #endregion
 
-                #region ±£´æÅäÖÃĞÅÏ¢
+                #region ä¿å­˜é…ç½®ä¿¡æ¯
 
                 Helper.SaveInfo();
 
                 #endregion
 
-                #region ÍË³ö½ø³Ì
+                #region é€€å‡ºè¿›ç¨‹
 
                 Helper.Exit();
 
@@ -120,11 +120,11 @@ namespace KitX_Dashboard
         }
 
         /// <summary>
-        /// ¹¹½¨ Avalonia Ó¦ÓÃ; Õ¹¿ª summary ²é¿´¾¯¸æ
+        /// æ„å»º Avalonia åº”ç”¨; å±•å¼€ summary æŸ¥çœ‹è­¦å‘Š
         /// </summary>
-        /// <returns>Ó¦ÓÃ¹¹ÔìÆ÷</returns>
+        /// <returns>åº”ç”¨æ„é€ å™¨</returns>
         /// Avalonia configuration, don't remove; also used by visual designer.
-        /// Avalonia ÅäÖÃÏî, Çë²»ÒªÉ¾³ı; Í¬Ê±Ò²ÓÃÓÚ¿ÉÊÓ»¯Éè¼ÆÆ÷
+        /// Avalonia é…ç½®é¡¹, è¯·ä¸è¦åˆ é™¤; åŒæ—¶ä¹Ÿç”¨äºå¯è§†åŒ–è®¾è®¡å™¨
         public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
             .UsePlatformDetect().LogToTrace().UseReactiveUI();
     }

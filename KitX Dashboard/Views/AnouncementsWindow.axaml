@@ -1,4 +1,4 @@
-<Window x:Class="KitX_Dashboard.Views.AnouncementsWindow"
+﻿<Window x:Class="KitX_Dashboard.Views.AnouncementsWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"

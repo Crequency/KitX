@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using KitX_Dashboard.ViewModels.Pages.Controls;
 
 namespace KitX_Dashboard.Views.Pages.Controls

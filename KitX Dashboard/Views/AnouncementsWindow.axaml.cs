@@ -1,4 +1,4 @@
-using Avalonia;
+ï»¿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using KitX_Dashboard.Converters;
@@ -20,7 +20,7 @@ namespace KitX_Dashboard.Views
 
             DataContext = viewModel;
 
-            // ÉèÖÃ´°Ìå×ø±ê
+            // è®¾ç½®çª—ä½“åæ ‡
 
             Position = new(
                 WindowAttributesConverter.PositionCameCenter(
