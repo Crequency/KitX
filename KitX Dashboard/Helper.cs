@@ -1,4 +1,5 @@
-﻿using KitX_Dashboard.Data;
+﻿using BasicHelper.IO;
+using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
 using Serilog;
 using System;
@@ -19,9 +20,11 @@ namespace KitX_Dashboard
         /// </summary>
         public static void StartUpCheck()
         {
-            #region 初始化 Config
+            #region 初始化 Config 并加载资源
 
             InitConfig();
+
+            LoadResource();
 
             #endregion
 
@@ -112,19 +115,29 @@ namespace KitX_Dashboard
         /// <summary>
         /// 读取配置
         /// </summary>
-        public static void LoadConfig()
+        public static async void LoadConfig()
         {
             Program.Config = JsonSerializer.Deserialize<AppConfig>(
-                BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
+                await FileHelper.ReadAllAsync(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
         }
 
         /// <summary>
         /// 读取插件列表配置
         /// </summary>
-        public static void LoadPluginsListConfig()
+        public static async void LoadPluginsListConfig()
         {
             Program.PluginsList = JsonSerializer.Deserialize<PluginsList>(
-                BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)));
+                await FileHelper.ReadAllAsync(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)));
+        }
+
+        /// <summary>
+        /// 读取资源
+        /// </summary>
+        public static async void LoadResource()
+        {
+            GlobalInfo.KitXIconBase64 = await FileHelper.ReadAllAsync(Path.GetFullPath(
+                $"{GlobalInfo.AssetsPath}{GlobalInfo.IconBase64FileName}"
+            ));
         }
 
         /// <summary>
