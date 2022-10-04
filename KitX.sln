@@ -134,7 +134,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Dashboard Helper", "Ki
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Updater", "KitX Dashboard Helper\KitX.Updater\KitX.Updater.csproj", "{7E3B3FAF-3895-466A-9753-64A64BB70FBE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Fonts", "KitX Dashboard Helper\KitX.Fonts\KitX.Fonts.csproj", "{613E83D8-E54E-4B72-9C98-38E6957AA226}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Fonts", "KitX Dashboard Helper\KitX.Fonts\KitX.Fonts.csproj", "{613E83D8-E54E-4B72-9C98-38E6957AA226}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Assets", "KitX Dashboard Helper\KitX.Assets\KitX.Assets.csproj", "{F52536C8-44F9-44E1-B023-75D51973AA81}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -398,6 +400,18 @@ Global
 		{613E83D8-E54E-4B72-9C98-38E6957AA226}.Release|x64.Build.0 = Release|Any CPU
 		{613E83D8-E54E-4B72-9C98-38E6957AA226}.Release|x86.ActiveCfg = Release|Any CPU
 		{613E83D8-E54E-4B72-9C98-38E6957AA226}.Release|x86.Build.0 = Release|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Debug|x64.Build.0 = Debug|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Debug|x86.Build.0 = Debug|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Release|x64.ActiveCfg = Release|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Release|x64.Build.0 = Release|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Release|x86.ActiveCfg = Release|Any CPU
+		{F52536C8-44F9-44E1-B023-75D51973AA81}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -435,6 +449,7 @@ Global
 		{5993287C-8663-4C13-8B6A-76F89FA1FC46} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
 		{7E3B3FAF-3895-466A-9753-64A64BB70FBE} = {0BE49855-23A1-46C9-BA6E-1B94ECF5F213}
 		{613E83D8-E54E-4B72-9C98-38E6957AA226} = {0BE49855-23A1-46C9-BA6E-1B94ECF5F213}
+		{F52536C8-44F9-44E1-B023-75D51973AA81} = {0BE49855-23A1-46C9-BA6E-1B94ECF5F213}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}

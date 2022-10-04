@@ -1,6 +1,6 @@
 ﻿using Avalonia.Media.Imaging;
-using BasicHelper.IO;
 using KitX.Web.Rules;
+using KitX_Dashboard.Data;
 using Serilog;
 using System;
 using System.IO;
@@ -13,7 +13,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         public PluginCardViewModel()
         {
-            pluginStruct.IconInBase64 = FileHelper.ReadAll(Path.GetFullPath($"./Assets/KitX.Base64.txt"));
+            pluginStruct.IconInBase64 = GlobalInfo.KitXIconBase64;
             Log.Information($"Icon Loaded: {pluginStruct.IconInBase64}");
         }
 

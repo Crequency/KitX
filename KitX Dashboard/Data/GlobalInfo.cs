@@ -24,6 +24,8 @@
 
         internal const string ThirdPartLicenseFilePath = $"{AssetsPath}ThirdPartLicense.md";
 
+        internal const string IconBase64FileName = "KitX.Base64.txt";
+
         internal const int LastBreakAfterExit = 2000;
 
         //internal const string LogTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] " +
@@ -44,6 +46,8 @@
         internal const string AnnouncementsJsonPath = $"{ConfigPath}announcements.json";
 
         internal static string MyMacAddress = string.Empty;
+
+        internal static string KitXIconBase64 = string.Empty;
     }
 }
 

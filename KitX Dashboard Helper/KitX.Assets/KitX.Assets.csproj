@@ -6,16 +6,14 @@
         <!--Avalonia doesen't support TrimMode=link currently,but we are working on that https://github.com/AvaloniaUI/Avalonia/issues/6892 -->
         <TrimMode>copyused</TrimMode>
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-        <BaseOutputPath>..\..\KitX Build\Dashboard Helper\Fonts\</BaseOutputPath>
-        <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Dashboard Helper\Fonts\</BaseIntermediateOutputPath>
+        <BaseOutputPath>..\..\KitX Build\Dashboard Helper\Assets\</BaseOutputPath>
+        <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Dashboard Helper\Assets\</BaseIntermediateOutputPath>
     </PropertyGroup>
     <ItemGroup>
-        <None Remove="sarasa-mono-cl-regular.ttf" />
-        <None Remove="SourceHanSans-VF.ttf" />
+        <None Remove="KitX.png" />
     </ItemGroup>
     <ItemGroup>
-        <AvaloniaResource Include="sarasa-mono-cl-regular.ttf" />
-        <AvaloniaResource Include="SourceHanSans-VF.ttf" />
+        <AvaloniaResource Include="KitX.png" />
     </ItemGroup>
     <ItemGroup>
         <!--This helps with theme dll-s trimming.

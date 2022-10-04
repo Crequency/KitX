@@ -44,33 +44,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\**" />
-        <AvaloniaXaml Remove="FakesAssemblies\**" />
-        <Compile Remove="FakesAssemblies\**" />
-        <EmbeddedResource Remove="FakesAssemblies\**" />
-        <None Remove="FakesAssemblies\**" />
-        <AvaloniaResource Remove="Assets\avalonia-logo.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Background.png" />
-        <AvaloniaResource Remove="Assets\KitX-Icon-128x.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Icon-16x.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Icon-256x.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Icon-32x.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Icon-48x.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Icon-64x.ico" />
-        <AvaloniaResource Remove="Assets\KitX-Icon.png" />
-        <AvaloniaResource Remove="Assets\KitX.Base64.txt" />
-        <AvaloniaResource Remove="Assets\ThirdPartLicense.md" />
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
         <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
+        <AvaloniaXaml Remove="FakesAssemblies\**" />
+        <Compile Remove="FakesAssemblies\**" />
+        <EmbeddedResource Remove="FakesAssemblies\**" />
+        <None Remove="FakesAssemblies\**" />
         <None Remove="Assets\KitX-Icon-128x.ico" />
         <None Remove="Assets\KitX-Icon-16x.ico" />
         <None Remove="Assets\KitX-Icon-256x.ico" />
         <None Remove="Assets\KitX-Icon-32x.ico" />
         <None Remove="Assets\KitX-Icon-48x.ico" />
         <None Remove="Assets\KitX-Icon-64x.ico" />
-        <None Remove="Assets\KitX.png" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="Languages\en-us.axaml">
@@ -150,6 +137,7 @@
         <PackageReference Include="XamlNameReferenceGenerator" Version="1.3.4" />
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="..\KitX Dashboard Helper\KitX.Assets\KitX.Assets.csproj" />
         <ProjectReference Include="..\KitX Dashboard Helper\KitX.Fonts\KitX.Fonts.csproj" />
         <ProjectReference Include="..\KitX File Format Helper\KitX.KXP.Helper\KitX.KXP.Helper.csproj" />
         <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
