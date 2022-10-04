@@ -78,6 +78,21 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         internal static ObservableCollection<Component> Components { get; } = new();
 
+        internal string? tip = string.Empty;
+
+        /// <summary>
+        /// 进度提示
+        /// </summary>
+        internal string? Tip
+        {
+            get => tip;
+            set
+            {
+                tip = value;
+                PropertyChanged?.Invoke(this, new(nameof(Tip)));
+            }
+        }
+
         /// <summary>
         /// 启用或禁用检查更新命令
         /// </summary>
@@ -99,6 +114,26 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         }
 
         /// <summary>
+        /// 获取不同语言的提示
+        /// </summary>
+        /// <param name="key">值</param>
+        /// <returns>提示</returns>
+        private static string GetResources(string key)
+        {
+            if (Application.Current.TryFindResource(key, out object? result))
+                if (result != null) return (string)result;
+                else return string.Empty;
+            else return string.Empty;
+        }
+
+        /// <summary>
+        /// 获取更新提示
+        /// </summary>
+        /// <param name="key">提示键</param>
+        /// <returns>提示值</returns>
+        private static string GetUpdateTip(string key) => GetResources($"Text_Settings_Update_Tip_{key}");
+
+        /// <summary>
         /// 检查更新命令
         /// </summary>
         internal DelegateCommand? CheckUpdateCommand { get; set; }
@@ -114,7 +149,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             AbleUpdateCommand(false);
             AbleCheckUpdateCommand(false);
             _canUpdateDataGridView = false;
-            new Thread(() =>
+            Tip = GetUpdateTip("Start");
             {
                 string? wd = Path.GetFullPath("./");
                 string? ld = Path.GetFullPath(GlobalInfo.LanguageFilePath);
@@ -134,6 +169,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         .AppendIncludeFile($"{ld}/zh-cnt.axaml")
                         .AppendIncludeFile($"{ld}/en-us.axaml")
                         .AppendIncludeFile($"{ld}/ja-jp.axaml");
+                    Tip = GetUpdateTip("Scan");
                     checker.Scan();
                     checker.Calculate();
                     var result = checker.GetCalculateResult()
@@ -160,6 +196,9 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                                 MD5 = item.Value.Item1.ToUpper(),
                                 SHA1 = item.Value.Item2.ToUpper()
                             });
+                    Tip = GetUpdateTip("Compare");
+                        Tip = GetUpdateTip("Download");
+                        Tip = GetUpdateTip("Prepared");
                         }
 
                         if (canUpdateCount > 0)
