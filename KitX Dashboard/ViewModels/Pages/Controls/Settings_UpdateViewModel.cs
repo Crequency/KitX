@@ -145,11 +145,29 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         private void CheckUpdate(object _)
         {
+            try
+            {
+                _CheckUpdate();
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.Message, e);
+            }
+        }
+
+        private void _CheckUpdate()
+        {
+            #region 更新前准备工作
+
             Components.Clear();
             AbleUpdateCommand(false);
             AbleCheckUpdateCommand(false);
             _canUpdateDataGridView = false;
             Tip = GetUpdateTip("Start");
+
+            #endregion
+
+            new Thread(async () =>
             {
                 string? wd = Path.GetFullPath("./");
                 string? ld = Path.GetFullPath(GlobalInfo.LanguageFilePath);
