@@ -52,12 +52,6 @@
         <Compile Remove="FakesAssemblies\**" />
         <EmbeddedResource Remove="FakesAssemblies\**" />
         <None Remove="FakesAssemblies\**" />
-        <None Remove="Assets\KitX-Icon-128x.ico" />
-        <None Remove="Assets\KitX-Icon-16x.ico" />
-        <None Remove="Assets\KitX-Icon-256x.ico" />
-        <None Remove="Assets\KitX-Icon-32x.ico" />
-        <None Remove="Assets\KitX-Icon-48x.ico" />
-        <None Remove="Assets\KitX-Icon-64x.ico" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="Languages\en-us.axaml">
