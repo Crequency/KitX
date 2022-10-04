@@ -158,7 +158,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         {
             try
             {
-                _CheckUpdate();
+                CheckUpdate();
             }
             catch (Exception e)
             {
@@ -166,7 +166,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             }
         }
 
-        private void _CheckUpdate()
+        private void CheckUpdate()
         {
             #region 更新前准备工作
 
