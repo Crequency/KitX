@@ -41,31 +41,45 @@ namespace KitX_Dashboard.Views
             DataContext = viewModel;
 
             // 设置窗体坐标
-
-            Position = new(
-                WindowAttributesConverter.PositionCameCenter(
-                    Program.Config.Windows.MainWindow.Window_Left,
-                    true, Screens
-                ),
-                WindowAttributesConverter.PositionCameCenter(
-                    Program.Config.Windows.MainWindow.Window_Top,
-                    false, Screens
-                )
-            );
-
-            if (OperatingSystem.IsWindows())
+            try
             {
-                ClientSize = new(
-                    Program.Config.Windows.MainWindow.Window_Width + 16,
-                    Program.Config.Windows.MainWindow.Window_Height + 38
+                Position = new(
+                    WindowAttributesConverter.PositionCameCenter(
+                        Program.Config.Windows.MainWindow.Window_Left,
+                        true, Screens
+                    ),
+                    WindowAttributesConverter.PositionCameCenter(
+                        Program.Config.Windows.MainWindow.Window_Top,
+                        false, Screens
+                    )
                 );
             }
-            else
+            catch (Exception e)
             {
-                ClientSize = new(
-                    Program.Config.Windows.MainWindow.Window_Width,
-                    Program.Config.Windows.MainWindow.Window_Height
-                );
+                Log.Error(e, e.Message);
+            }
+
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    ClientSize = new(
+                        Program.Config.Windows.MainWindow.Window_Width + 16,
+                        Program.Config.Windows.MainWindow.Window_Height + 38
+                    );
+                }
+                else
+                {
+                    ClientSize = new(
+                        Program.Config.Windows.MainWindow.Window_Width,
+                        Program.Config.Windows.MainWindow.Window_Height
+                    );
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, e.Message);
+                ClientSize = new(800, 600);
             }
 
             InitMainWindow();
