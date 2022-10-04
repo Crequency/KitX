@@ -234,8 +234,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         foreach (var item in result)
                         {
                             ++index;
-                            if (index == result.Count)
-                                _canUpdateDataGridView = true;
+                            if (index == result.Count) _canUpdateDataGridView = true;
                             Components.Add(new()
                             {
                                 CanUpdate = false,
@@ -243,14 +242,93 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                                 MD5 = item.Value.Item1.ToUpper(),
                                 SHA1 = item.Value.Item2.ToUpper()
                             });
-                    Tip = GetUpdateTip("Compare");
-                        Tip = GetUpdateTip("Download");
-                        Tip = GetUpdateTip("Prepared");
                         }
+                    });
+
+                    Tip = GetUpdateTip("Compare");
+                    while (Components.Count != result.Count) { }    //  阻塞直到前台加载完毕
+
+                    #region 获取最新的组件列表
+
+                    HttpClient client = new();  //  Http客户端
+                    client.DefaultRequestHeaders.Accept.Clear();    //  清除请求头部
+                    string link = $"https://" +
+                        $"{Program.Config.Web.UpdateServer}" +
+                        $"{Program.Config.Web.UpdatePath}" +
+                        $"{Program.Config.Web.UpdateSource}";
+                    string json = await client.GetStringAsync(link);
+
+                    #endregion
+
+                    #region 反序列化最新的组件列表到字典
+
+                    JsonSerializerOptions options = new()
+                    {
+                        WriteIndented = true,
+                        IncludeFields = true,
+                        PropertyNamingPolicy = new UpdateHashNamePolicy(),
+                    };
+                    var latestComponents =
+                        JsonSerializer.Deserialize<Dictionary<string, (string, string)>>(json, options);
+
+                    #endregion
+
+                    if (latestComponents != null)
+                    {
+                        #region 对比有变更的, 新增的, 减少的文件
+
+                        List<string> updatedComponents = new();
+                        List<string> tdeleteComponents = new();
+                        foreach (var component in latestComponents)
+                        {
+                            if (result.ContainsKey(component.Key))
+                            {
+                                var current = result[component.Key];
+                                if (!current.Item1.ToUpper().Equals(component.Value.Item1.ToUpper())
+                                    || !current.Item2.ToUpper().Equals(component.Value.Item2.ToUpper()))
+                                    updatedComponents.Add(component.Key);
+                            }
+                            else
+                            {
+                                updatedComponents.Add(component.Key);
+                            }
+                        }
+                        foreach (var item in result)
+                            if (!latestComponents.ContainsKey(item.Key))
+                                tdeleteComponents.Add(item.Key);
+
+                        #endregion
+
+                        #region 更新前台可更新组件
+
+                        foreach (var item in Components)
+                        {
+                            if (updatedComponents.Contains(item.Name))
+                                item.CanUpdate = true;
+                        }
+
+                        CanUpdateCount = Components.Count(x => x.CanUpdate);
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Components)));
+
+                        #endregion
+
+                        Tip = GetUpdateTip("Download");
+
+                        //TODO: 下载有变更的文件
+
+
+                        Tip = GetUpdateTip("Prepared");
+
+                        if (CanUpdateCount > 0) AbleUpdateCommand(true);
+                        }
+                    else
+                    {
 
                         if (canUpdateCount > 0)
                             AbleUpdateCommand(true);
                     });
+                }
+
                 }
                 else
                 {
@@ -277,6 +355,8 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         public new event PropertyChangedEventHandler? PropertyChanged;
     }
 }
+
+#pragma warning restore CS8604 // 引用类型参数可能为 null。
 
 //                         ,  o ' .
 //                        .  -  -  o
