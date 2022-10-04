@@ -320,14 +320,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         Tip = GetUpdateTip("Prepared");
 
                         if (CanUpdateCount > 0) AbleUpdateCommand(true);
-                        }
+                    }
                     else
                     {
 
-                        if (canUpdateCount > 0)
-                            AbleUpdateCommand(true);
-                    });
-                }
+                    }
 
                 }
                 else
@@ -340,10 +337,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     });
                 }
 
-                Dispatcher.UIThread.Post(() =>
-                {
-                    AbleCheckUpdateCommand(true);
-                });
+                AbleCheckUpdateCommand(true);
             }).Start();
         }
 
