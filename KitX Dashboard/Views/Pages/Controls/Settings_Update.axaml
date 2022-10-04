@@ -49,6 +49,13 @@
                            FontWeight="Bold"
                            Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"/>
 
+                <TextBlock Margin="15,0,0,0"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Left"
+                           FontFamily="{StaticResource SourceHanSans}"
+                           FontWeight="Bold"
+                           Text="{Binding Tip}"/>
+
                 <Button Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         Background="{DynamicResource ThemePrimaryAccent}"
