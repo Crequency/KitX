@@ -39,26 +39,27 @@ namespace KitX_Dashboard.Views
             //(Resources["TrayIcon"] as TrayIcon).CommandParameter = this;
 
             DataContext = viewModel;
-
+            
             // 设置窗体坐标
-            try
-            {
-                Position = new(
-                    WindowAttributesConverter.PositionCameCenter(
-                        Program.Config.Windows.MainWindow.Window_Left,
-                        true, Screens
-                    ),
-                    WindowAttributesConverter.PositionCameCenter(
-                        Program.Config.Windows.MainWindow.Window_Top,
-                        false, Screens
-                    )
-                );
+            if(!RuntimeInformation.IsOSPlatform(OSPlatform.Linux)){ // 一刀切
+                try
+                {
+                    Position = new(
+                        WindowAttributesConverter.PositionCameCenter(
+                            Program.Config.Windows.MainWindow.Window_Left,
+                            true, Screens
+                        ),
+                        WindowAttributesConverter.PositionCameCenter(
+                            Program.Config.Windows.MainWindow.Window_Top,
+                            false, Screens
+                        )
+                    );
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, e.Message);
+                }
             }
-            catch (Exception e)
-            {
-                Log.Error(e, e.Message);
-            }
-
             try
             {
                 if (OperatingSystem.IsWindows())

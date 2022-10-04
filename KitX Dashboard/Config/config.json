@@ -1,0 +1,83 @@
+{
+  "App": {
+    "AppLanguage": "zh-cn",
+    "Theme": "Follow",
+    "ThemeColor": "#FF3873D9",
+    "SurpportLanguages": {
+      "zh-cn": "\u7B80\u4F53\u4E2D\u6587",
+      "zh-cnt": "\u7E41\u9AD4\u4E2D\u6587",
+      "en-us": "English (US)",
+      "ja-jp": "\u65E5\u672C\u8A9E"
+    },
+    "LocalPluginsFileDirectory": "./Plugins/",
+    "LocalPluginsDataDirectory": "./PluginsDatas/",
+    "DeveloperSetting": false,
+    "ShowAnnouncementWhenStart": true,
+    "RanTime": 5
+  },
+  "Windows": {
+    "MainWindow": {
+      "Window_Width": 1280,
+      "Window_Height": 720,
+      "Window_Left": -1,
+      "Window_Top": -1,
+      "Tags": {
+        "SelectedPage": "Page_Settings"
+      },
+      "EnabledMica": true,
+      "MicaOpacity": 0.15,
+      "GreetingTextCount_Morning": 4,
+      "GreetingTextCount_Noon": 3,
+      "GreetingTextCount_AfterNoon": 3,
+      "GreetingTextCount_Evening": 2,
+      "GreetingTextCount_Night": 3,
+      "GreetingUpdateInterval": 10
+    },
+    "AnnouncementWindow": {
+      "Window_Width": 1280,
+      "Window_Height": 720,
+      "Window_Left": -1,
+      "Window_Top": -1
+    }
+  },
+  "Pages": {
+    "Home": {
+      "SelectedViewName": "View_Count",
+      "IsNavigationViewPaneOpened": false
+    },
+    "Market": {},
+    "Settings": {
+      "SelectedViewName": "View_General",
+      "MicaAreaExpanded": true,
+      "MicaToolTipIsOpen": true,
+      "PaletteAreaExpanded": false,
+      "LogReletiveAreaExpanded": true,
+      "AboutAreaExpanded": false,
+      "AuthorsAreaExpanded": false,
+      "LinksAreaExpanded": false,
+      "ThirdPartyLicensesAreaExpanded": false,
+      "IsNavigationViewPaneOpened": false
+    }
+  },
+  "Web": {
+    "APIServer": "api.catrol.cn",
+    "APIPath": "/apps/kitx/",
+    "UDPPortSend": 23404,
+    "UDPPortReceive": 24040,
+    "UDPBroadcastAddress": "224.0.0.0",
+    "IPFilter": "192.168",
+    "SocketBufferSize": 102400,
+    "DeviceInfoStructTTLSeconds": 5
+  },
+  "Log": {
+    "LogFileSingleMaxSize": 10485760,
+    "LogFilePath": "./Log/",
+    "LogTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+    "LogFileMaxCount": 50,
+    "LogFileFlushInterval": 30,
+    "LogLevel": 2
+  },
+  "IO": {
+    "UpdatingCheckPerThreadFilesCount": 20
+  }
+}

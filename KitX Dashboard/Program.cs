@@ -4,6 +4,7 @@ using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
 using System;
+using System.Runtime.InteropServices;
 using System.Collections.ObjectModel;
 using System.IO;
 
@@ -37,6 +38,15 @@ namespace KitX_Dashboard
         {
 
             #region 必要的初始化
+
+            //临时修复用 "System.InvalidOperationException: Default font family name can't be null or empty"
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)){
+                [DllImport("libexecwl.so")]
+                static extern void exec_with_lc(string path, string file);
+                if (!Equals(System.Environment.GetEnvironmentVariable("LC_ALL"), "C")){
+                    exec_with_lc("./KitX Dashboard", "KitX Dashboard");
+                } 
+            }
 
             EventHandlers.Init();
 
