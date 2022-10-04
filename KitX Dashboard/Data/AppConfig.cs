@@ -245,6 +245,18 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public int DeviceInfoStructTTLSeconds { get; set; } = 5;
+
+            [JsonInclude]
+            public string UpdateServer { get; set; } = "api.catrol.cn";
+
+            [JsonInclude]
+            public string UpdatePath { get; set; } = "/apps/kitx/";
+
+            [JsonInclude]
+            public string UpdateDownloadPath { get; set; } = "/apps/kitx/update/";
+
+            [JsonInclude]
+            public string UpdateSource { get; set; } = "latest-components.json";
         }
 
         /// <summary>
