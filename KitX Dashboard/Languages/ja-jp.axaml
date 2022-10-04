@@ -164,6 +164,12 @@
     <x:String x:Key="Text_Settings_Update_ComponentHash">チェック値</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">新しい！</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">見つかった</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Start">アップデートのチェックを開始...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Scan">コンポーネントのスキャン...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Calculate">コンポーネントハッシュの計算... %Progress%</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Compare">変更ファイル一覧のダウンロード...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Download">変更ファイルをダウンロードしています...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Prepared">更新準備完了!</x:String>
 
 
     <x:String x:Key="Text_Settings_About">約</x:String>

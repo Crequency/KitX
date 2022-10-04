@@ -164,6 +164,12 @@
     <x:String x:Key="Text_Settings_Update_ComponentHash">Hash Code</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Updatable</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">Components founded</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Start">Start Updating...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Scan">Scanning components...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Calculate">Calculating components hash code... %Progress%</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Compare">Comparing updated components...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Download">Downloading updated components...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Prepared">Updating prepared!</x:String>
 
 
     <x:String x:Key="Text_Settings_About">About</x:String>

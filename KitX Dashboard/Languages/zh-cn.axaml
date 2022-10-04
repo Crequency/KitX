@@ -164,6 +164,12 @@
     <x:String x:Key="Text_Settings_Update_ComponentHash">校验值</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">可更新</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">个组件已发现</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Start">开始检查更新...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Scan">正在扫描组件...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Calculate">正在计算组件散列值... %Progress%</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Compare">正在下载变更组件列表...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Download">正在下载变更组件...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Prepared">更新准备完毕!</x:String>
 
 
     <x:String x:Key="Text_Settings_About">关于</x:String>
