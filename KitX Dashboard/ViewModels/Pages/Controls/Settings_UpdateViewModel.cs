@@ -171,7 +171,25 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         .AppendIncludeFile($"{ld}/ja-jp.axaml");
                     Tip = GetUpdateTip("Scan");
                     checker.Scan();
+
+                    bool _calculateFinished = false;
+                    Timer timer = new()
+                    {
+                        Interval = 10,
+                        AutoReset = true
+                    };
+                    timer.Elapsed += (_, _) =>
+                    {
+                        var progress = checker.GetProgress();
+                        Tip = GetUpdateTip("Calculate")
+                            .Replace("%Progress%", $"({progress.Item1}/{progress.Item2})");
+                        if (_calculateFinished) timer.Stop();
+                    };
+                    timer.Start();
+
                     checker.Calculate();
+                    _calculateFinished = true;
+
                     var result = checker.GetCalculateResult()
                     .OrderBy(
                         x =>
