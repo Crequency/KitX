@@ -86,7 +86,7 @@ namespace KitX_Dashboard
             if (Program.Config.App.ShowAnnouncementWhenStart)
                 new Thread(async () =>
                 {
-                    await Services.AnouncementManager.CheckNewAnnouncements();
+                    await AnouncementManager.CheckNewAnnouncements();
                 }).Start();
 
             base.OnFrameworkInitializationCompleted();
