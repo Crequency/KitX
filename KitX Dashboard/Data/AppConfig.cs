@@ -33,6 +33,12 @@ namespace KitX_Dashboard.Data
         public class Config_App
         {
             [JsonInclude]
+            public string IconFileName { get; set; } = "KitX-Icon-1920x-margin-2x.png";
+
+            [JsonInclude]
+            public string CoverIconFileName { get; set; } = "KitX-Icon-Background.png";
+
+            [JsonInclude]
             public string AppLanguage { get; set; } = "zh-cn";
 
             [JsonInclude]

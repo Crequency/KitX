@@ -1,4 +1,5 @@
 ﻿using KitX_Dashboard.Commands;
+using KitX_Dashboard.Data;
 using KitX_Dashboard.Models;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.Views.Pages.Controls;
@@ -71,13 +72,13 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         using var ms = new MemoryStream(src);
                         return new(ms);
                     }
-                    else return new("./Assets/KitX-Background.png");
+                    else return new($"{GlobalInfo.AssetsPath}{Program.Config.App.CoverIconFileName}");
                 }
                 catch (Exception e)
                 {
                     Log.Warning($"Icon transform error from base64 to byte[] or " +
                         $"create bitmap from MemoryStream error: {e.Message}");
-                    return new("./Assets/KitX-Background.png");
+                    return new($"{GlobalInfo.AssetsPath}{Program.Config.App.CoverIconFileName}");
                 }
             }
         }

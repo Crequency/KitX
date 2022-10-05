@@ -10,10 +10,30 @@
         <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Dashboard Helper\Assets\</BaseIntermediateOutputPath>
     </PropertyGroup>
     <ItemGroup>
-        <None Remove="KitX.png" />
+      <None Remove="KitX-Icon-1024x-margin-2x.png" />
+      <None Remove="KitX-Icon-1024x.png" />
+      <None Remove="KitX-Icon-128x.png" />
+      <None Remove="KitX-Icon-1920x-margin-1x.png" />
+      <None Remove="KitX-Icon-1920x-margin-2x.png" />
+      <None Remove="KitX-Icon-1920x.png" />
+      <None Remove="KitX-Icon-256x-margin-2x.png" />
+      <None Remove="KitX-Icon-256x.png" />
+      <None Remove="KitX-Icon-32x.png" />
+      <None Remove="KitX-Icon-512x-margin-2x.png" />
+      <None Remove="KitX-Icon-512x.png" />
     </ItemGroup>
     <ItemGroup>
-        <AvaloniaResource Include="KitX.png" />
+      <AvaloniaResource Include="KitX-Icon-1024x-margin-2x.png" />
+      <AvaloniaResource Include="KitX-Icon-1024x.png" />
+      <AvaloniaResource Include="KitX-Icon-128x.png" />
+      <AvaloniaResource Include="KitX-Icon-1920x-margin-1x.png" />
+      <AvaloniaResource Include="KitX-Icon-1920x-margin-2x.png" />
+      <AvaloniaResource Include="KitX-Icon-1920x.png" />
+      <AvaloniaResource Include="KitX-Icon-256x-margin-2x.png" />
+      <AvaloniaResource Include="KitX-Icon-256x.png" />
+      <AvaloniaResource Include="KitX-Icon-32x.png" />
+      <AvaloniaResource Include="KitX-Icon-512x-margin-2x.png" />
+      <AvaloniaResource Include="KitX-Icon-512x.png" />
     </ItemGroup>
     <ItemGroup>
         <!--This helps with theme dll-s trimming.

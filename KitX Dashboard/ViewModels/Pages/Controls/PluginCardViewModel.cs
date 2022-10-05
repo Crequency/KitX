@@ -45,7 +45,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 {
                     Log.Warning($"Icon transform error from base64 to byte[] or " +
                         $"create bitmap from MemoryStream error: {e.Message}");
-                    return new("./Assets/KitX-Background.png");
+                    return new($"{GlobalInfo.AssetsPath}{Program.Config.App.CoverIconFileName}");
                 }
             }
         }

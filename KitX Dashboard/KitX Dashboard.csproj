@@ -68,39 +68,33 @@
         </Content>
     </ItemGroup>
     <ItemGroup>
-        <None Update="Assets\avalonia-logo.ico">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <None Update="Assets\KitX-Icon-1920x-margin-2x.png">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="Assets\KitX-Background.png">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="Assets\KitX-Icon.png">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <None Update="Assets\KitX-Icon-Background.png">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
         <None Update="Assets\ThirdPartLicense.md">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
         <None Update="Assets\KitX.Base64.txt">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
     <ItemGroup>
-        <EmbeddedResource Include="Assets\KitX-Icon-128x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </EmbeddedResource>
-        <EmbeddedResource Include="Assets\KitX-Icon-16x.ico">
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </EmbeddedResource>
         <EmbeddedResource Include="Assets\KitX-Icon-256x.ico">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </EmbeddedResource>
-        <EmbeddedResource Include="Assets\KitX-Icon-32x.ico">
+        <EmbeddedResource Include="Assets\KitX-Icon-64x.ico">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </EmbeddedResource>
         <EmbeddedResource Include="Assets\KitX-Icon-48x.ico">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </EmbeddedResource>
-        <EmbeddedResource Include="Assets\KitX-Icon-64x.ico">
+        <EmbeddedResource Include="Assets\KitX-Icon-32x.ico">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </EmbeddedResource>
+        <EmbeddedResource Include="Assets\KitX-Icon-16x.ico">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </EmbeddedResource>
     </ItemGroup>

@@ -14,7 +14,7 @@
 
         internal const string KXPTempReleasePath = "Temp/";
 
-        internal const string IconFilePath = $"{AssetsPath}KitX-Icon.png";
+        internal const string UpdateSavePath = "./Update/";
 
         internal const string ConfigFilePath = $"{ConfigPath}config.json";
 
