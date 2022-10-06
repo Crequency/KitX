@@ -45,9 +45,12 @@
 
     <ItemGroup>
         <AvaloniaXaml Remove="Languages\en-us.axaml" />
+        <AvaloniaXaml Remove="Languages\fr-fr.axaml" />
         <AvaloniaXaml Remove="Languages\ja-jp.axaml" />
+        <AvaloniaXaml Remove="Languages\ko-kr.axaml" />
+        <AvaloniaXaml Remove="Languages\ru-ru.axaml" />
         <AvaloniaXaml Remove="Languages\zh-cn.axaml" />
-        <AvaloniaXaml Remove="Languages\zh-cnt.axaml" />
+        <AvaloniaXaml Remove="Languages\zh-tw.axaml" />
         <AvaloniaXaml Remove="FakesAssemblies\**" />
         <Compile Remove="FakesAssemblies\**" />
         <EmbeddedResource Remove="FakesAssemblies\**" />
@@ -60,19 +63,28 @@
         <Content Include="Languages\ja-jp.axaml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+        <Content Include="Languages\ko-kr.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Languages\ru-ru.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Languages\fr-fr.axaml">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
         <Content Include="Languages\zh-cn.axaml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
-        <Content Include="Languages\zh-cnt.axaml">
+        <Content Include="Languages\zh-tw.axaml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
     <ItemGroup>
         <None Update="Assets\KitX-Icon-1920x-margin-2x.png">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
         <None Update="Assets\KitX-Icon-Background.png">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
         <None Update="Assets\ThirdPartLicense.md">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

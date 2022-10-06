@@ -50,10 +50,13 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public Dictionary<string, string> SurpportLanguages { get; set; } = new()
             {
-                { "zh-cn", "简体中文" },
-                { "zh-cnt", "繁體中文" },
+                { "zh-cn", "中文 (简体)" },
+                { "zh-tw", "中文 (繁體)" },
+                { "ru-ru", "Русский" },
                 { "en-us", "English (US)" },
+                { "fr-fr", "Français" },
                 { "ja-jp", "日本語" },
+                { "ko-kr", "한국어" },
             };
 
             [JsonInclude]
