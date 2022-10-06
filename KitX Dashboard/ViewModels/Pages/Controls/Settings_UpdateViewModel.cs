@@ -239,11 +239,9 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         .AppendIgnoreFolder("Languages")
                         .AppendIgnoreFolder("Log")
                         .AppendIgnoreFolder(Program.Config.App.LocalPluginsFileDirectory)
-                        .AppendIgnoreFolder(Program.Config.App.LocalPluginsDataDirectory)
-                        .AppendIncludeFile($"{ld}/zh-cn.axaml")
-                        .AppendIncludeFile($"{ld}/zh-cnt.axaml")
-                        .AppendIncludeFile($"{ld}/en-us.axaml")
-                        .AppendIncludeFile($"{ld}/ja-jp.axaml");
+                        .AppendIgnoreFolder(Program.Config.App.LocalPluginsDataDirectory);
+                    foreach (var item in Program.Config.App.SurpportLanguages)
+                        _ = checker.AppendIncludeFile($"{ld}/{item.Key}.axaml");
                     Tip = GetUpdateTip("Scan");
                     checker.Scan();
 
