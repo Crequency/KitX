@@ -16,6 +16,12 @@
     <x:String x:Key="Text_Public_ShowMainWindow">メインウィンドウを表示</x:String>
     <x:String x:Key="Text_Public_Second">2番目</x:String>
     <x:String x:Key="Text_Public_Tip">ヒント</x:String>
+    <x:String x:Key="Text_Public_Delete">消去</x:String>
+    <x:String x:Key="Text_Public_Replace">交換</x:String>
+    <x:String x:Key="Text_Public_Add">追加</x:String>
+    <x:String x:Key="Text_Public_Option">オプション</x:String>
+    <x:String x:Key="Text_Public_Task">仕事</x:String>
+    <x:String x:Key="Text_Public_Size">サイズ</x:String>
 
 
     <x:String x:Key="Text_Log_Verbose">详细</x:String>

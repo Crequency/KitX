@@ -16,6 +16,12 @@
     <x:String x:Key="Text_Public_ShowMainWindow">顯示主窗口</x:String>
     <x:String x:Key="Text_Public_Second">秒</x:String>
     <x:String x:Key="Text_Public_Tip">提示</x:String>
+    <x:String x:Key="Text_Public_Delete">刪除</x:String>
+    <x:String x:Key="Text_Public_Replace">替換</x:String>
+    <x:String x:Key="Text_Public_Add">添加</x:String>
+    <x:String x:Key="Text_Public_Option">選項</x:String>
+    <x:String x:Key="Text_Public_Task">任務</x:String>
+    <x:String x:Key="Text_Public_Size">大小</x:String>
 
 
     <x:String x:Key="Text_Log_Verbose">詳細</x:String>

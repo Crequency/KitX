@@ -16,6 +16,12 @@
     <x:String x:Key="Text_Public_ShowMainWindow">Show Main Window</x:String>
     <x:String x:Key="Text_Public_Second">s</x:String>
     <x:String x:Key="Text_Public_Tip">Tip</x:String>
+    <x:String x:Key="Text_Public_Delete">Delete</x:String>
+    <x:String x:Key="Text_Public_Replace">Replace</x:String>
+    <x:String x:Key="Text_Public_Add">Add</x:String>
+    <x:String x:Key="Text_Public_Option">Option</x:String>
+    <x:String x:Key="Text_Public_Task">Task</x:String>
+    <x:String x:Key="Text_Public_Size">Size</x:String>
 
 
     <x:String x:Key="Text_Log_Verbose">Verbose</x:String>
