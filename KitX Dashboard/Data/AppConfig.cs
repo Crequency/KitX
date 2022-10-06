@@ -287,8 +287,13 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public int LogFileFlushInterval { get; set; } = 30;
 
+#if DEBUG
             [JsonInclude]
             public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
+#else
+            [JsonInclude]
+            public LogEventLevel LogLevel { get; set; } = LogEventLevel.Error;
+#endif
         }
 
         public class Config_IO
