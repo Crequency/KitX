@@ -49,6 +49,17 @@
                            FontWeight="Bold"
                            Text="{DynamicResource Text_Settings_Update_ComponentUpdatable}"/>
 
+                <icon:MaterialIcon Margin="10,0,0,0"
+                                   VerticalAlignment="Center"
+                                   DockPanel.Dock="Left"
+                                   Kind="Harddisk"/>
+                <TextBlock Margin="5,0,0,0"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Left"
+                           FontFamily="{StaticResource SourceHanSans}"
+                           FontWeight="Bold"
+                           Text="{Binding DiskUseStatus}"/>
+
                 <TextBlock Margin="15,0,0,0"
                            VerticalAlignment="Center"
                            DockPanel.Dock="Left"
@@ -109,6 +120,16 @@
                                     FontFamily="{StaticResource SourceHanSans}"
                                     FontWeight="Bold"
                                     Header="{DynamicResource Text_Settings_Update_ComponentName}"/>
+                <DataGridTextColumn Width="Auto"
+                                    Binding="{Binding Size}"
+                                    FontFamily="{StaticResource SourceHanSans}"
+                                    FontWeight="Bold"
+                                    Header="{DynamicResource Text_Public_Size}"/>
+                <DataGridTextColumn Width="Auto"
+                                    Binding="{Binding Task}"
+                                    FontFamily="{StaticResource SourceHanSans}"
+                                    FontWeight="Bold"
+                                    Header="{DynamicResource Text_Public_Task}"/>
                 <DataGridTemplateColumn Header="{DynamicResource Text_Settings_Update_ComponentHash}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

@@ -104,6 +104,21 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             }
         }
 
+        internal string diskUseStatus = string.Empty;
+
+        /// <summary>
+        /// 磁盘使用情况
+        /// </summary>
+        internal string DiskUseStatus
+        {
+            get => diskUseStatus;
+            set
+            {
+                diskUseStatus = value;
+                PropertyChanged?.Invoke(this, new(nameof(DiskUseStatus)));
+            }
+        }
+
         /// <summary>
         /// 启用或禁用检查更新命令
         /// </summary>
@@ -145,6 +160,25 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         private static string GetUpdateTip(string key) => GetResources($"Text_Settings_Update_Tip_{key}");
 
         /// <summary>
+        /// 下载新组件
+        /// </summary>
+        /// <param name="url">下载 URL</param>
+        /// <param name="to">下载到</param>
+        /// <param name="client">Http 客户端</param>
+        private static async void DownloadNewComponent(string url, string to, HttpClient client)
+        {
+            try
+            {
+                byte[] bytes = await client.GetByteArrayAsync(url);
+                await File.WriteAllBytesAsync(to, bytes);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.Message, e);
+            }
+        }
+
+        /// <summary>
         /// 检查更新命令
         /// </summary>
         internal DelegateCommand? CheckUpdateCommand { get; set; }
@@ -164,6 +198,18 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 Log.Error(e.Message, e);
             }
+        }
+
+        /// <summary>
+        /// 获取大小
+        /// </summary>
+        /// <param name="size">字节数</param>
+        /// <returns>大小表示</returns>
+        private static string GetDisplaySize(long size)
+        {
+            if (size / (1024 * 1024) > 2000) return $"{size / (1024 * 1024 * 1024)} GB";
+            else if (size / 1024 > 1200) return $"{size / (1024 * 1024)} MB";
+            else return $"{size / 1024} KB";
         }
 
         private void CheckUpdate()
@@ -228,20 +274,31 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         x => x.Value
                     );
 
+                    long localComponentsTotalSize = 0;
+                    long latestComponentsTotalSize = 0;
+
+                    List<Component> localComponents = new();
+                    foreach (var item in result)
+                    {
+                        long size = new FileInfo(Path.GetFullPath($"{wd}/{item.Key}")).Length;
+                        localComponentsTotalSize += size;
+                        localComponents.Add(new()
+                        {
+                            CanUpdate = false,
+                            Name = item.Key,
+                            MD5 = item.Value.Item1.ToUpper(),
+                            SHA1 = item.Value.Item2.ToUpper(),
+                            Size = GetDisplaySize(size),
+                        });
+                    }
                     Dispatcher.UIThread.Post(() =>
                     {
                         int index = 0;
-                        foreach (var item in result)
+                        foreach (var item in localComponents)
                         {
                             ++index;
-                            if (index == result.Count) _canUpdateDataGridView = true;
-                            Components.Add(new()
-                            {
-                                CanUpdate = false,
-                                Name = item.Key,
-                                MD5 = item.Value.Item1.ToUpper(),
-                                SHA1 = item.Value.Item2.ToUpper()
-                            });
+                            if (index == localComponents.Count) _canUpdateDataGridView = true;
+                            Components.Add(item);
                         }
                     });
 
@@ -262,14 +319,14 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
                     #region 反序列化最新的组件列表到字典
 
-                    JsonSerializerOptions options = new()
+                    JsonSerializerOptions option = new()
                     {
                         WriteIndented = true,
                         IncludeFields = true,
                         PropertyNamingPolicy = new UpdateHashNamePolicy(),
                     };
                     var latestComponents =
-                        JsonSerializer.Deserialize<Dictionary<string, (string, string)>>(json, options);
+                        JsonSerializer.Deserialize<Dictionary<string, (string, string, long)>>(json, option);
 
                     #endregion
 
@@ -277,8 +334,9 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                     {
                         #region 对比有变更的, 新增的, 减少的文件
 
-                        List<string> updatedComponents = new();
-                        List<string> tdeleteComponents = new();
+                        Dictionary<string, long> updatedComponents = new();
+                        Dictionary<string, long> new2addComponents = new();
+                        Dictionary<string, long> tdeleteComponents = new();
                         foreach (var component in latestComponents)
                         {
                             if (result.ContainsKey(component.Key))
@@ -286,36 +344,90 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                                 var current = result[component.Key];
                                 if (!current.Item1.ToUpper().Equals(component.Value.Item1.ToUpper())
                                     || !current.Item2.ToUpper().Equals(component.Value.Item2.ToUpper()))
-                                    updatedComponents.Add(component.Key);
+                                    updatedComponents.Add(component.Key, component.Value.Item3);
                             }
                             else
                             {
-                                updatedComponents.Add(component.Key);
+                                new2addComponents.Add(component.Key, component.Value.Item3);
                             }
+                            latestComponentsTotalSize += component.Value.Item3;
                         }
                         foreach (var item in result)
                             if (!latestComponents.ContainsKey(item.Key))
-                                tdeleteComponents.Add(item.Key);
+                                tdeleteComponents.Add(item.Key,
+                                    new FileInfo(Path.GetFullPath($"{wd}/{item.Key}")).Length);
 
                         #endregion
 
                         #region 更新前台可更新组件
 
+                        _canUpdateDataGridView = false;
+
                         foreach (var item in Components)
                         {
-                            if (updatedComponents.Contains(item.Name))
+                            if (updatedComponents.ContainsKey(item.Name))
+                            {
                                 item.CanUpdate = true;
+                                item.Task = GetResources("Text_Public_Replace");
+                            }
+                            else if (tdeleteComponents.ContainsKey(item.Name))
+                            {
+                                item.CanUpdate = true;
+                                item.Task = GetResources("Text_Public_Delete");
+                            }
                         }
 
-                        CanUpdateCount = Components.Count(x => x.CanUpdate);
-                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Components)));
+                        List<Component> newComponents = new();
+                        foreach (var item in new2addComponents)
+                        {
+                            newComponents.Add(new Component()
+                            {
+                                Name = item.Key,
+                                CanUpdate = true,
+                                MD5 = latestComponents[item.Key].Item1,
+                                SHA1 = latestComponents[item.Key].Item2,
+                                Task = GetResources("Text_Public_Add"),
+                                Size = GetDisplaySize(item.Value)
+                            });
+                        }
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            int index = 0;
+                            foreach (var item in newComponents)
+                            {
+                                ++index;
+                                if (index == new2addComponents.Count) _canUpdateDataGridView = true;
+                                Components.Add(item);
+                            }
+                        });
+
+                        if (new2addComponents.Count == 0)
+                        {
+                            CanUpdateCount = Components.Count(x => x.CanUpdate);
+                            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Components)));
+                        }
+
+                        while (Components.Count != result.Count + new2addComponents.Count) { }
+
+                        DiskUseStatus = localComponentsTotalSize > latestComponentsTotalSize
+                            ? $"- {GetDisplaySize(localComponentsTotalSize - latestComponentsTotalSize)}"
+                            : $"+ {GetDisplaySize(latestComponentsTotalSize - localComponentsTotalSize)}";
 
                         #endregion
 
                         Tip = GetUpdateTip("Download");
 
                         //TODO: 下载有变更的文件
-
+                        string downloadLinkBase = $"https://" +
+                        $"{Program.Config.Web.UpdateServer}" +
+                        $"{Program.Config.Web.UpdateDownloadPath}";
+                        if (!Directory.Exists(Path.GetFullPath(GlobalInfo.UpdateSavePath)))
+                            Directory.CreateDirectory(Path.GetFullPath(GlobalInfo.UpdateSavePath));
+                        foreach (var item in updatedComponents)
+                        {
+                            DownloadNewComponent($"{downloadLinkBase}{item.Key.Replace(@"\", "/")}",
+                                Path.GetFullPath($"{GlobalInfo.UpdateSavePath}{item}"), client);
+                        }
 
                         Tip = GetUpdateTip("Prepared");
 
@@ -326,6 +438,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
                     }
 
+                    client.Dispose();
                 }
                 else
                 {
