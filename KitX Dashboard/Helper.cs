@@ -76,6 +76,8 @@ namespace KitX_Dashboard
             #endregion
         }
 
+        private static readonly object _configWriteLock = new();
+
         /// <summary>
         /// 保存配置
         /// </summary>
@@ -89,8 +91,11 @@ namespace KitX_Dashboard
 
             new Thread(() =>
             {
-                BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
-                    JsonSerializer.Serialize(Program.Config, options));
+                lock (_configWriteLock)
+                {
+                    FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
+                        JsonSerializer.Serialize(Program.Config, options));
+                }
             }).Start();
         }
 
@@ -174,30 +179,6 @@ namespace KitX_Dashboard
 
             GlobalInfo.Running = false;
         }
-
-        /// <summary>
-        /// 初始化日志管理器
-        /// </summary>
-        /// <param name="LocalLogger">日志管理器</param>
-        //public static void InitLiteLogger(LoggerManager LocalLogger)
-        //{
-        //    DirectoryInfo log_dir = new("./Log/");
-        //    if (!log_dir.Exists) log_dir.Create();
-
-        //    LocalLogger.AppendLogger("Logger_Debug", new(
-        //        "Logger_Debug",
-        //        Path.GetFullPath("./Log/"),
-        //        lv: LoggerManager.LogLevel.Debug,
-        //        lfs: 1024 * 10
-        //    ));
-
-        //    LocalLogger.AppendLogger("Logger_Error", new(
-        //        "Logger_Error",
-        //        Path.GetFullPath("./Log/"),
-        //        lv: LoggerManager.LogLevel.Error,
-        //        lfs: 1024 * 10
-        //    ));
-        //}
 
         /// <summary>
         /// 初始化环境
