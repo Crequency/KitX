@@ -8,6 +8,7 @@ namespace KitX_Dashboard.Converters
         {
             "Item1" => "MD5",
             "Item2" => "SHA1",
+            "Item3" => "Size",
             _ => name,
         };
     }
