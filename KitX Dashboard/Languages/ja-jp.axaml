@@ -162,6 +162,7 @@
     <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
     <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>
     <x:String x:Key="Text_Settings_Performence_LogFileLevel">ログレベル</x:String>
+    <x:String x:Key="Text_Settings_Performence_CheckerPerThreadFilesCountLimit">更新は、スレッドごとに処理されるファイルの数をチェックします</x:String>
 
 
     <x:String x:Key="Text_Settings_Update">更新する</x:String>
