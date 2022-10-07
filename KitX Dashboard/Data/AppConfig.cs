@@ -33,6 +33,12 @@ namespace KitX_Dashboard.Data
         public class Config_App
         {
             [JsonInclude]
+            public string IconFileName { get; set; } = "KitX-Icon-1920x-margin-2x.png";
+
+            [JsonInclude]
+            public string CoverIconFileName { get; set; } = "KitX-Icon-Background.png";
+
+            [JsonInclude]
             public string AppLanguage { get; set; } = "zh-cn";
 
             [JsonInclude]
@@ -44,10 +50,13 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public Dictionary<string, string> SurpportLanguages { get; set; } = new()
             {
-                { "zh-cn", "简体中文" },
-                { "zh-cnt", "繁體中文" },
+                { "zh-cn", "中文 (简体)" },
+                { "zh-tw", "中文 (繁體)" },
+                { "ru-ru", "Русский" },
                 { "en-us", "English (US)" },
+                { "fr-fr", "Français" },
                 { "ja-jp", "日本語" },
+                { "ko-kr", "한국어" },
             };
 
             [JsonInclude]
@@ -245,6 +254,18 @@ namespace KitX_Dashboard.Data
 
             [JsonInclude]
             public int DeviceInfoStructTTLSeconds { get; set; } = 5;
+
+            [JsonInclude]
+            public string UpdateServer { get; set; } = "api.catrol.cn";
+
+            [JsonInclude]
+            public string UpdatePath { get; set; } = "/apps/kitx/";
+
+            [JsonInclude]
+            public string UpdateDownloadPath { get; set; } = "/apps/kitx/update/";
+
+            [JsonInclude]
+            public string UpdateSource { get; set; } = "latest-components.json";
         }
 
         /// <summary>
@@ -269,8 +290,13 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public int LogFileFlushInterval { get; set; } = 30;
 
+#if DEBUG
             [JsonInclude]
             public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
+#else
+            [JsonInclude]
+            public LogEventLevel LogLevel { get; set; } = LogEventLevel.Error;
+#endif
         }
 
         public class Config_IO

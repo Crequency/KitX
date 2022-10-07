@@ -196,9 +196,9 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 try
                 {
-                    languageSelected = value;
                     Program.Config.App.AppLanguage = SurpportLanguages[value].LanguageCode;
-                    LoadLanguage();
+                    if (languageSelected != -1) LoadLanguage();
+                    languageSelected = value;
                     SaveChanges();
                 }
                 catch

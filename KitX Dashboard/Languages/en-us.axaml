@@ -1,8 +1,6 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!--  Add Resources Here  -->
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
     <x:String x:Key="Text_MainWindow_Title">KitX Dashboard</x:String>
-
-
     <x:String x:Key="Text_Public_Enable">Enable</x:String>
     <x:String x:Key="Text_Public_Disable">Disable</x:String>
     <x:String x:Key="Text_Public_Auto">Auto</x:String>
@@ -16,15 +14,113 @@
     <x:String x:Key="Text_Public_ShowMainWindow">Show Main Window</x:String>
     <x:String x:Key="Text_Public_Second">s</x:String>
     <x:String x:Key="Text_Public_Tip">Tip</x:String>
-
-
+    <x:String x:Key="Text_Public_Delete">Delete</x:String>
+    <x:String x:Key="Text_Public_Replace">Replace</x:String>
+    <x:String x:Key="Text_Public_Add">Add</x:String>
+    <x:String x:Key="Text_Public_Option">Option</x:String>
+    <x:String x:Key="Text_Public_Task">Task</x:String>
+    <x:String x:Key="Text_Public_Size">Size</x:String>
     <x:String x:Key="Text_Log_Verbose">Verbose</x:String>
     <x:String x:Key="Text_Log_Debug">Debug</x:String>
     <x:String x:Key="Text_Log_Information">Infomation</x:String>
     <x:String x:Key="Text_Log_Warning">Warning</x:String>
     <x:String x:Key="Text_Log_Error">Error</x:String>
     <x:String x:Key="Text_Log_Fatal">Fatal</x:String>
-
+    <x:String x:Key="Text_MainWindow_NavigationView_Home">Home</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Lib">Library</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Market">Market</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Repo">Repository</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Plan">Task and Plan</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Devices">Devices</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Account">Account</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">Recent Using</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">Statistics</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
+    <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
+    <x:String x:Key="Text_MainWindow_Count_No">No statistics produced.</x:String>
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">No activity logged.</x:String>
+    <x:String x:Key="Text_Lib_Search">Search</x:String>
+    <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">No plugins connection.</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">Plugins Connected.</x:String>
+    <x:String x:Key="Text_Repo_No_Plugin">No Plugin in Repository.</x:String>
+    <x:String x:Key="Text_Repo_Search_In_Network">Search local network</x:String>
+    <x:String x:Key="Text_Repo_Tip_Installed">Plugins Installed.</x:String>
+    <x:String x:Key="Text_PluginBar_Launch">Launch</x:String>
+    <x:String x:Key="Text_PluginBar_Details">Details</x:String>
+    <x:String x:Key="Text_PluginBar_Remove">Remove</x:String>
+    <x:String x:Key="Text_PluginBar_RemoveAndDelete">Remove and Delete</x:String>
+    <x:String x:Key="Text_PluginBar_Name">Internal Name:</x:String>
+    <x:String x:Key="Text_PluginBar_Version">Version:</x:String>
+    <x:String x:Key="Text_PluginBar_DisplayName">Display Name:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorName">Author:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherName">Publisher:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorLink">Author Link:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherLink">Publisher Link:</x:String>
+    <x:String x:Key="Text_PluginBar_PublishDate">Publish Date:</x:String>
+    <x:String x:Key="Text_PluginBar_LastUpdateDate">Last Update Date:</x:String>
+    <x:String x:Key="Text_PluginBar_IsMarketVersion">Is Market Version:</x:String>
+    <x:String x:Key="Text_PluginBar_SimpleDescription">Simple Description:</x:String>
+    <x:String x:Key="Text_PluginBar_ComplexDescription">Complex Description:</x:String>
+    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">Docs:</x:String>
+    <x:String x:Key="Text_PluginBar_RootStartupFileName">Root Startup File Name:</x:String>
+    <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
+    <x:String x:Key="Text_Device_This">This Device</x:String>
+    <x:String x:Key="Text_Device_Type_Slave">Slave</x:String>
+    <x:String x:Key="Text_Device_Type_Master">Master</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
+    <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
+    <x:String x:Key="Text_Device_PluginsCount">Enabled Plugins Count:</x:String>
+    <x:String x:Key="Text_Settings_General">General</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
+    <x:String x:Key="Text_Settings_General_DeveloperSetting">Developer Settings</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncement">Show Announcements When Start</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">Show Announcements Now</x:String>
+    <x:String x:Key="Text_Settings_Personalise">Personalise</x:String>
+    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">Display Language</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica Effect</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">Enable Mica Effect?</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">Opacity</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Palette">Palette</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme">Theme</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Light">Light</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">Dark</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">High Contrast</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">Follow System</x:String>
+    <x:String x:Key="Text_Settings_Performence">Performence</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_Port">Port</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">Native IP Filter</x:String>
+    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">Greeting Text Update Interval</x:String>
+    <x:String x:Key="Text_Settings_Performence_Log">Log File Relative Settings</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileSize">Log File Max Size</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">Log File Max Count</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">Log File Flush Interval</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileLevel">Log Level</x:String>
+    <x:String x:Key="Text_Settings_Performence_CheckerPerThreadFilesCountLimit">Checker Per Threads Handled Files Count Limit</x:String>
+    <x:String x:Key="Text_Settings_Update">Update</x:String>
+    <x:String x:Key="Text_Settings_Update_Check">Check Update</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentName">Component Name</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentHash">Hash Code</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Updatable</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">Components founded</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Start">Start Updating...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Scan">Scanning components...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Calculate">Calculating components hash code... %Progress%</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Compare">Comparing updated components...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Download">Downloading updated components...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Prepared">Updating prepared!</x:String>
+    <x:String x:Key="Text_Settings_About">About</x:String>
+    <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
+    <x:String x:Key="Text_Settings_About_Authors">Authors</x:String>
+    <x:String x:Key="Text_Settings_About_Links">Links</x:String>
+    <x:String x:Key="Text_Settings_About_ThirdPartLicense">Third-Part License</x:String>
+    <x:String x:Key="Text_AnouncementWindow_Receive">Receive</x:String>
+    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">Receive All</x:String>
 
     <!--  GreetingStart  -->
 
@@ -59,121 +155,5 @@
     <!--  NightEnd  -->
 
     <!--  GreetingEnd  -->
-
-    <x:String x:Key="Text_MainWindow_NavigationView_Home">Home</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Lib">Library</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Market">Market</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Repo">Repository</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Plan">Task and Plan</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Devices">Devices</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Account">Account</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Settings">Settings</x:String>
-
-    <x:String x:Key="Text_MainWindow_HomePage_Recent">Recent Using</x:String>
-    <x:String x:Key="Text_MainWindow_HomePage_Count">Statistics</x:String>
-    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
-
-    <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
-
-
-    <x:String x:Key="Text_MainWindow_Count_No">No statistics produced.</x:String>
-
-
-    <x:String x:Key="Text_MainWindow_ActivityLog_No">No activity logged.</x:String>
-
-
-    <x:String x:Key="Text_Lib_Search">Search</x:String>
-    <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
-    <x:String x:Key="Text_Lib_Tip_NoPlugin">No plugins connection.</x:String>
-    <x:String x:Key="Text_Lib_Tip_Connected">Plugins Connected.</x:String>
-
-
-    <x:String x:Key="Text_Repo_No_Plugin">No Plugin in Repository.</x:String>
-    <x:String x:Key="Text_Repo_Search_In_Network">Search local network</x:String>
-    <x:String x:Key="Text_Repo_Tip_Installed">Plugins Installed.</x:String>
-
-
-    <x:String x:Key="Text_PluginBar_Launch">Launch</x:String>
-    <x:String x:Key="Text_PluginBar_Details">Details</x:String>
-    <x:String x:Key="Text_PluginBar_Remove">Remove</x:String>
-    <x:String x:Key="Text_PluginBar_RemoveAndDelete">Remove and Delete</x:String>
-
-    <x:String x:Key="Text_PluginBar_Name">Internal Name:</x:String>
-    <x:String x:Key="Text_PluginBar_Version">Version:</x:String>
-    <x:String x:Key="Text_PluginBar_DisplayName">Display Name:</x:String>
-    <x:String x:Key="Text_PluginBar_AuthorName">Author:</x:String>
-    <x:String x:Key="Text_PluginBar_PublisherName">Publisher:</x:String>
-    <x:String x:Key="Text_PluginBar_AuthorLink">Author Link:</x:String>
-    <x:String x:Key="Text_PluginBar_PublisherLink">Publisher Link:</x:String>
-    <x:String x:Key="Text_PluginBar_PublishDate">Publish Date:</x:String>
-    <x:String x:Key="Text_PluginBar_LastUpdateDate">Last Update Date:</x:String>
-    <x:String x:Key="Text_PluginBar_IsMarketVersion">Is Market Version:</x:String>
-    <x:String x:Key="Text_PluginBar_SimpleDescription">Simple Description:</x:String>
-    <x:String x:Key="Text_PluginBar_ComplexDescription">Complex Description:</x:String>
-    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">Docs:</x:String>
-    <x:String x:Key="Text_PluginBar_RootStartupFileName">Root Startup File Name:</x:String>
-
-
-    <x:String x:Key="Text_Device_No">No other devices in network.</x:String>
-    <x:String x:Key="Text_Device_This">This Device</x:String>
-    <x:String x:Key="Text_Device_Type_Slave">Slave</x:String>
-    <x:String x:Key="Text_Device_Type_Master">Master</x:String>
-    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
-    <x:String x:Key="Text_Device_Resources_RAM">RAM</x:String>
-    <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
-    <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
-    <x:String x:Key="Text_Device_PluginsCount">Enabled Plugins Count:</x:String>
-
-
-    <x:String x:Key="Text_Settings_General">General</x:String>
-    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
-    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
-    <x:String x:Key="Text_Settings_General_DeveloperSetting">Developer Settings</x:String>
-    <x:String x:Key="Text_Settings_General_ShowAnnouncement">Show Announcements When Start</x:String>
-    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">Show Announcements Now</x:String>
-
-
-    <x:String x:Key="Text_Settings_Personalise">Personalise</x:String>
-    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">Display Language</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica Effect</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">Enable Mica Effect?</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">Enable this effect only on Windows 11</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">Opacity</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Palette">Palette</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme">Theme</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_Light">Light</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">Dark</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">High Contrast</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">Follow System</x:String>
-
-
-    <x:String x:Key="Text_Settings_Performence">Performence</x:String>
-    <x:String x:Key="Text_Settings_Performence_Web_Port">Port</x:String>
-    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">Native IP Filter</x:String>
-    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">Greeting Text Update Interval</x:String>
-    <x:String x:Key="Text_Settings_Performence_Log">Log File Relative Settings</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileSize">Log File Max Size</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">Log File Max Count</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">Log File Flush Interval</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileLevel">Log Level</x:String>
-
-
-    <x:String x:Key="Text_Settings_Update">Update</x:String>
-    <x:String x:Key="Text_Settings_Update_Check">Check Update</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentName">Component Name</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentHash">Hash Code</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Updatable</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentsCount">Components founded</x:String>
-
-
-    <x:String x:Key="Text_Settings_About">About</x:String>
-    <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
-    <x:String x:Key="Text_Settings_About_Authors">Authors</x:String>
-    <x:String x:Key="Text_Settings_About_Links">Links</x:String>
-    <x:String x:Key="Text_Settings_About_ThirdPartLicense">Third-Part License</x:String>
-
-
-    <x:String x:Key="Text_AnouncementWindow_Receive">Receive</x:String>
-    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">Receive All</x:String>
 
 </ResourceDictionary>

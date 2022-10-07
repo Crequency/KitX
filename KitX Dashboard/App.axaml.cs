@@ -1,4 +1,4 @@
-using Avalonia;
+ï»¿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -13,7 +13,7 @@ using Serilog;
 using System.Linq;
 using System.Threading;
 
-#pragma warning disable CS8604 // ÒıÓÃÀàĞÍ²ÎÊı¿ÉÄÜÎª null¡£
+#pragma warning disable CS8604 // å¼•ç”¨ç±»å‹å‚æ•°å¯èƒ½ä¸º nullã€‚
 
 namespace KitX_Dashboard
 {
@@ -86,7 +86,7 @@ namespace KitX_Dashboard
             if (Program.Config.App.ShowAnnouncementWhenStart)
                 new Thread(async () =>
                 {
-                    await Services.AnouncementManager.CheckNewAnnouncements();
+                    await AnouncementManager.CheckNewAnnouncements();
                 }).Start();
 
             base.OnFrameworkInitializationCompleted();
@@ -94,7 +94,7 @@ namespace KitX_Dashboard
     }
 }
 
-#pragma warning restore CS8604 // ÒıÓÃÀàĞÍ²ÎÊı¿ÉÄÜÎª null¡£
+#pragma warning restore CS8604 // å¼•ç”¨ç±»å‹å‚æ•°å¯èƒ½ä¸º nullã€‚
 
 //                                         .....'',;;::cccllllllllllllcccc:::;;,,,''...'',,'..
 //                              ..';cldkO00KXNNNNXXXKK000OOkkkkkxxxxxddoooddddddxxxxkkkkOO0XXKx:.

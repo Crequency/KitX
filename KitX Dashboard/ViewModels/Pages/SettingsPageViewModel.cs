@@ -1,4 +1,4 @@
-using KitX_Dashboard.Services;
+﻿using KitX_Dashboard.Services;
 
 namespace KitX_Dashboard.ViewModels.Pages
 {

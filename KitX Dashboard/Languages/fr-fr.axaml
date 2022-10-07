@@ -1,0 +1,159 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <x:String x:Key="Text_MainWindow_Title">KitX tableau de bord</x:String>
+    <x:String x:Key="Text_Public_Enable">activer</x:String>
+    <x:String x:Key="Text_Public_Disable">désactivé</x:String>
+    <x:String x:Key="Text_Public_Auto">automatique</x:String>
+    <x:String x:Key="Text_Public_Confirm">confirmer</x:String>
+    <x:String x:Key="Text_Public_Read">lis</x:String>
+    <x:String x:Key="Text_Public_Search">chercher</x:String>
+    <x:String x:Key="Text_Public_Announcement">annonce</x:String>
+    <x:String x:Key="Text_Public_Import">importer</x:String>
+    <x:String x:Key="Text_Public_Export">exporter</x:String>
+    <x:String x:Key="Text_Public_Exit">quitter</x:String>
+    <x:String x:Key="Text_Public_ShowMainWindow">Afficher la fenêtre principale</x:String>
+    <x:String x:Key="Text_Public_Second">deuxième</x:String>
+    <x:String x:Key="Text_Public_Tip">indice</x:String>
+    <x:String x:Key="Text_Public_Delete">effacer</x:String>
+    <x:String x:Key="Text_Public_Replace">remplacer</x:String>
+    <x:String x:Key="Text_Public_Add">Ajouter à</x:String>
+    <x:String x:Key="Text_Public_Option">Choix</x:String>
+    <x:String x:Key="Text_Public_Task">Tâche</x:String>
+    <x:String x:Key="Text_Public_Size">Taille</x:String>
+    <x:String x:Key="Text_Log_Verbose">détaillé</x:String>
+    <x:String x:Key="Text_Log_Debug">débogage</x:String>
+    <x:String x:Key="Text_Log_Information">informations</x:String>
+    <x:String x:Key="Text_Log_Warning">prévenir</x:String>
+    <x:String x:Key="Text_Log_Error">erreur</x:String>
+    <x:String x:Key="Text_Log_Fatal">effondrement</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Home">page de garde</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Lib">bibliothèque</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Market">marché</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Repo">entrepôt</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Plan">plan de mission</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Devices">Gestion d'appareils</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Account">Compte</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Settings">d'installation</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">Utilisé récemment</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">statistiques</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">journal d'activité</x:String>
+    <x:String x:Key="Text_MainWindow_Recent_No">Aucun enregistrement d'utilisation récente~</x:String>
+    <x:String x:Key="Text_MainWindow_Count_No">Statistiques pas encore</x:String>
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">Le journal d'activité est vide!</x:String>
+    <x:String x:Key="Text_Lib_Search">chercher</x:String>
+    <x:String x:Key="Text_Lib_Search_In_Local">Rechercher localement</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">Pas encore de connexion au plugin~</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">plugins connectés</x:String>
+    <x:String x:Key="Text_Repo_No_Plugin">Il n'y a pas de plugins dans le référentiel~</x:String>
+    <x:String x:Key="Text_Repo_Search_In_Network">Rechercher dans le réseau local</x:String>
+    <x:String x:Key="Text_Repo_Tip_Installed">plugins installés</x:String>
+    <x:String x:Key="Text_PluginBar_Launch">Commencez</x:String>
+    <x:String x:Key="Text_PluginBar_Details">détails</x:String>
+    <x:String x:Key="Text_PluginBar_Remove">retirer</x:String>
+    <x:String x:Key="Text_PluginBar_RemoveAndDelete">enlever et supprimer</x:String>
+    <x:String x:Key="Text_PluginBar_Name">Nom interne:</x:String>
+    <x:String x:Key="Text_PluginBar_Version">Version:</x:String>
+    <x:String x:Key="Text_PluginBar_DisplayName">afficher le nom:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorName">auteur:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherName">Éditeur:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorLink">Lien auteur:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherLink">Lien de l'éditeur:</x:String>
+    <x:String x:Key="Text_PluginBar_PublishDate">date de sortie:</x:String>
+    <x:String x:Key="Text_PluginBar_LastUpdateDate">Date de la dernière mise à jour:</x:String>
+    <x:String x:Key="Text_PluginBar_IsMarketVersion">Est-ce la version du marché:</x:String>
+    <x:String x:Key="Text_PluginBar_SimpleDescription">Aperçu:</x:String>
+    <x:String x:Key="Text_PluginBar_ComplexDescription">décris:</x:String>
+    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">Documentation:</x:String>
+    <x:String x:Key="Text_PluginBar_RootStartupFileName">nom de fichier racine de départ:</x:String>
+    <x:String x:Key="Text_Device_No">Aucun autre appareil sur le réseau</x:String>
+    <x:String x:Key="Text_Device_This">cet appareil</x:String>
+    <x:String x:Key="Text_Device_Type_Slave">trimer</x:String>
+    <x:String x:Key="Text_Device_Type_Master">Maître</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">Mémoire</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">réseau</x:String>
+    <x:String x:Key="Text_Device_Tip_Detected">appareils découverts</x:String>
+    <x:String x:Key="Text_Device_PluginsCount">Nombre de plugins en ligne:</x:String>
+    <x:String x:Key="Text_Settings_General">Universel</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">répertoire local des plugins</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Répertoire de données du plug-in local</x:String>
+    <x:String x:Key="Text_Settings_General_DeveloperSetting">option de développeur</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncement">Afficher l'annonce au démarrage</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">Voir les dernières annonces</x:String>
+    <x:String x:Key="Text_Settings_Personalise">personnaliser</x:String>
+    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">langue d'affichage</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect">Effet mica</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">Activer ou non l'effet mica?</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">Cet effet n'est activé que sur les systèmes Windows 11</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">transparence</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Palette">palette</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme">thème</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Light">Blanc lumière du jour (Lumière)</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">Noir de minuit (foncé)</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">contraste élevé</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">suivre le système</x:String>
+    <x:String x:Key="Text_Settings_Performence">performance</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_Port">Port</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">Règles de filtrage IP natives</x:String>
+    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">Mise à jour du message d'accueil retardée</x:String>
+    <x:String x:Key="Text_Settings_Performence_Log">Paramètres liés au fichier journal</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileSize">Limite de taille du fichier journal</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">limite du fichier journal</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">Délai du cache du fichier journal</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileLevel">niveau de journalisation</x:String>
+    <x:String x:Key="Text_Settings_Performence_CheckerPerThreadFilesCountLimit">La mise à jour vérifie le nombre de fichiers traités par thread</x:String>
+    <x:String x:Key="Text_Settings_Update">renouveler</x:String>
+    <x:String x:Key="Text_Settings_Update_Check">Vérifier les mises à jour</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentName">Nom du composant</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentHash">vérifier la valeur</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Actualisable</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">composants trouvés</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Start">Commencez à vérifier les mises à jour...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Scan">Composants de numérisation...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Calculate">Calcul du hachage des composants... %Progress%</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Compare">Téléchargement de la liste des composants de modification...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Download">Téléchargement des composants de modification...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Prepared">mise à jour prête!</x:String>
+    <x:String x:Key="Text_Settings_About">sur</x:String>
+    <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
+    <x:String x:Key="Text_Settings_About_Authors">personnel de production</x:String>
+    <x:String x:Key="Text_Settings_About_Links">Liens</x:String>
+    <x:String x:Key="Text_Settings_About_ThirdPartLicense">licence tierce</x:String>
+    <x:String x:Key="Text_AnouncementWindow_Receive">recevoir</x:String>
+    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">recevoir tout</x:String>
+
+    <!--  GreetingStart  -->
+
+    <!--  MorningStart  -->
+    <x:String x:Key="Text_Greeting_Morning_1">Bonjour! ο(=•ω＜=)ρ⌒☆</x:String>
+    <x:String x:Key="Text_Greeting_Morning_2">Ayez de la bonne humeur tous les joursOvO</x:String>
+    <x:String x:Key="Text_Greeting_Morning_3">l'événement d'aujourd'hui, la fin d'aujourd'hui!</x:String>
+    <x:String x:Key="Text_Greeting_Morning_4">bonne journée commence~</x:String>
+    <!--  MorningEnd  -->
+
+    <!--  NoonStart  -->
+    <x:String x:Key="Text_Greeting_Noon_1">bonne après-midi! o(〃＾▽＾〃)o</x:String>
+    <x:String x:Key="Text_Greeting_Noon_2">Il est midi, fais une pause~</x:String>
+    <x:String x:Key="Text_Greeting_Noon_3">Aujourd'hui est aussi une matinée bien remplie</x:String>
+    <!--  NoonEnd  -->
+
+    <!--  AfterNoonStart  -->
+    <x:String x:Key="Text_Greeting_AfterNoon_1">bonne après-midi! ヾ(≧▽≦*)o</x:String>
+    <x:String x:Key="Text_Greeting_AfterNoon_2">l'heure du thé de l'après-midi!</x:String>
+    <x:String x:Key="Text_Greeting_AfterNoon_3">Quelles tâches restent inachevées aujourd'hui ?</x:String>
+    <!--  AfterNoonEnd  -->
+
+    <!--  EveningStart  -->
+    <x:String x:Key="Text_Greeting_Evening_1">bonsoir! o(*￣▽￣*)ブ</x:String>
+    <x:String x:Key="Text_Greeting_Evening_2">je vais bien manger ce soir!</x:String>
+    <!--  EveningEnd  -->
+
+    <!--  NightStart  -->
+    <x:String x:Key="Text_Greeting_Night_1">C'est calme la nuit! o(*￣▽￣*)ブ</x:String>
+    <x:String x:Key="Text_Greeting_Night_2">Il est tard dans la nuit, repose-toi tôt</x:String>
+    <x:String x:Key="Text_Greeting_Night_3">Demain sera une bonne journée!</x:String>
+    <!--  NightEnd  -->
+
+    <!--  GreetingEnd  -->
+
+</ResourceDictionary>

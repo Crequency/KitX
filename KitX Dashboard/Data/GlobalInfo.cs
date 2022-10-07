@@ -14,7 +14,7 @@
 
         internal const string KXPTempReleasePath = "Temp/";
 
-        internal const string IconFilePath = $"{AssetsPath}KitX-Icon.png";
+        internal const string UpdateSavePath = "./Update/";
 
         internal const string ConfigFilePath = $"{ConfigPath}config.json";
 
@@ -23,6 +23,8 @@
         internal const string PluginsListConfigFilePath = $"{ConfigPath}plugins.json";
 
         internal const string ThirdPartLicenseFilePath = $"{AssetsPath}ThirdPartLicense.md";
+
+        internal const string IconBase64FileName = "KitX.Base64.txt";
 
         internal const int LastBreakAfterExit = 2000;
 
@@ -44,6 +46,8 @@
         internal const string AnnouncementsJsonPath = $"{ConfigPath}announcements.json";
 
         internal static string MyMacAddress = string.Empty;
+
+        internal static string KitXIconBase64 = string.Empty;
     }
 }
 

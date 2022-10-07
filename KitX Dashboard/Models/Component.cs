@@ -14,5 +14,9 @@
         internal string? MD5 { get; set; }
 
         internal string? SHA1 { get; set; }
+
+        internal string? Task { get; set; }
+
+        internal string? Size { get; set; }
     }
 }

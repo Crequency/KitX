@@ -1,6 +1,6 @@
 ﻿using Avalonia.Media.Imaging;
-using BasicHelper.IO;
 using KitX.Web.Rules;
+using KitX_Dashboard.Data;
 using Serilog;
 using System;
 using System.IO;
@@ -13,7 +13,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
         public PluginCardViewModel()
         {
-            pluginStruct.IconInBase64 = FileHelper.ReadAll(Path.GetFullPath($"./Assets/KitX.Base64.txt"));
+            pluginStruct.IconInBase64 = GlobalInfo.KitXIconBase64;
             Log.Information($"Icon Loaded: {pluginStruct.IconInBase64}");
         }
 
@@ -45,7 +45,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 {
                     Log.Warning($"Icon transform error from base64 to byte[] or " +
                         $"create bitmap from MemoryStream error: {e.Message}");
-                    return new("./Assets/KitX-Background.png");
+                    return new($"{GlobalInfo.AssetsPath}{Program.Config.App.CoverIconFileName}");
                 }
             }
         }

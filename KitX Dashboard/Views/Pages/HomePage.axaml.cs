@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+ï»¿using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using FluentAvalonia.UI.Controls;
 using KitX_Dashboard.Services;
@@ -7,8 +7,8 @@ using KitX_Dashboard.Views.Controls;
 using Serilog;
 using System;
 
-#pragma warning disable CS8602 // ½âÒıÓÃ¿ÉÄÜ³öÏÖ¿ÕÒıÓÃ¡£
-#pragma warning disable CS8601 // ÒıÓÃÀàĞÍ¸³Öµ¿ÉÄÜÎª null¡£
+#pragma warning disable CS8602 // è§£å¼•ç”¨å¯èƒ½å‡ºç°ç©ºå¼•ç”¨ã€‚
+#pragma warning disable CS8601 // å¼•ç”¨ç±»å‹èµ‹å€¼å¯èƒ½ä¸º nullã€‚
 
 namespace KitX_Dashboard.Views.Pages
 {
@@ -31,7 +31,7 @@ namespace KitX_Dashboard.Views.Pages
         }
 
         /// <summary>
-        /// ³õÊ¼»¯Ö÷Ò³
+        /// åˆå§‹åŒ–ä¸»é¡µ
         /// </summary>
         private void InitHomePage()
         {
@@ -40,7 +40,7 @@ namespace KitX_Dashboard.Views.Pages
         }
 
         /// <summary>
-        /// ±£´æ¶ÔÅäÖÃÎÄ¼şµÄĞŞ¸Ä
+        /// ä¿å­˜å¯¹é…ç½®æ–‡ä»¶çš„ä¿®æ”¹
         /// </summary>
         private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
 
@@ -55,10 +55,10 @@ namespace KitX_Dashboard.Views.Pages
         }
 
         /// <summary>
-        /// Ç°Ì¨Ò³ÃæÇĞ»»ÊÂ¼ş
+        /// å‰å°é¡µé¢åˆ‡æ¢äº‹ä»¶
         /// </summary>
-        /// <param name="sender">±»µã»÷µÄ NavigationViewItem</param>
-        /// <param name="e">Â·ÓÉÊÂ¼ş²ÎÊı</param>
+        /// <param name="sender">è¢«ç‚¹å‡»çš„ NavigationViewItem</param>
+        /// <param name="e">è·¯ç”±äº‹ä»¶å‚æ•°</param>
         private void HomeNavigationView_SelectionChanged(object? sender,
             NavigationViewSelectionChangedEventArgs e)
         {
@@ -85,8 +85,8 @@ namespace KitX_Dashboard.Views.Pages
     }
 }
 
-#pragma warning restore CS8601 // ÒıÓÃÀàĞÍ¸³Öµ¿ÉÄÜÎª null¡£
-#pragma warning restore CS8602 // ½âÒıÓÃ¿ÉÄÜ³öÏÖ¿ÕÒıÓÃ¡£
+#pragma warning restore CS8601 // å¼•ç”¨ç±»å‹èµ‹å€¼å¯èƒ½ä¸º nullã€‚
+#pragma warning restore CS8602 // è§£å¼•ç”¨å¯èƒ½å‡ºç°ç©ºå¼•ç”¨ã€‚
 
 //
 //                            __ _..._ _ 

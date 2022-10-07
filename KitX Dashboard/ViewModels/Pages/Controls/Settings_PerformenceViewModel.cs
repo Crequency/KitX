@@ -64,7 +64,11 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         internal static string LocalIPFilter
         {
             get => Program.Config.Web.IPFilter;
-            set => Program.Config.Web.IPFilter = value;
+            set
+            {
+                Program.Config.Web.IPFilter = value;
+                SaveChanges();
+            }
         }
 
         /// <summary>
@@ -132,6 +136,19 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             {
                 Program.Config.Log.LogFileFlushInterval = value;
                 EventHandlers.Invoke("LogConfigUpdated");
+                SaveChanges();
+            }
+        }
+
+        /// <summary>
+        /// 更新器每个线程检查文件数量限制
+        /// </summary>
+        internal static int CheckerPerThreadFilesCountLimit
+        {
+            get => Program.Config.IO.UpdatingCheckPerThreadFilesCount;
+            set
+            {
+                Program.Config.IO.UpdatingCheckPerThreadFilesCount = value;
                 SaveChanges();
             }
         }

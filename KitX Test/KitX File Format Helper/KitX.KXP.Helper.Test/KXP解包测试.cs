@@ -1,10 +1,10 @@
 namespace KitX.KXP.Helper.Test
 {
     [TestClass]
-    public class KXP解包测试
+    public class KXP瑙ｅ寘娴嬭瘯
     {
         [TestMethod]
-        public void 基准测试()
+        public void 鍩哄噯娴嬭瘯()
         {
             string package = @"D:\tmp\test.kxp";
             Decoder decoder = new(package);

@@ -1,4 +1,4 @@
-<Window x:Class="KitX_Dashboard.Views.MainWindow"
+﻿<Window x:Class="KitX_Dashboard.Views.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -15,7 +15,7 @@
         d:DesignWidth="800"
         FontFamily="{StaticResource SourceHanSans}"
         FontWeight="Bold"
-        Icon="/Assets/KitX.png"
+        Icon="avares://KitX.Assets/KitX-Icon-1920x.png"
         mc:Ignorable="d">
 
     <!--  Width="{Binding DB_Width}" Height="{Binding DB_Height}"  -->
@@ -28,7 +28,7 @@
             <TrayIcon x:Key="TrayIcon"
                       Command="{Binding TrayIconClickedCommand}"
                       CommandParameter="{DynamicResource MainWindow}"
-                      Icon="resm:KitX_Dashboard.Assets.KitX-Icon-256x.ico"
+                      Icon="resm:KitX_Dashboard.Assets.KitX-Icon-16x.ico"
                       IsVisible="True"
                       ToolTipText="{DynamicResource Text_MainWindow_Title}">
                 <TrayIcon.Menu>
