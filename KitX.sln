@@ -52,7 +52,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		.gitignore = .gitignore
 		async.ps1 = async.ps1
 		async.sh = async.sh
-		branch.descr.py = branch.descr.py
 		BUSINESS-LICENSE = BUSINESS-LICENSE
 		ChangeLog.md = ChangeLog.md
 		clear.sh = clear.sh
