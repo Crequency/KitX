@@ -56,12 +56,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		ChangeLog.md = ChangeLog.md
 		clear.sh = clear.sh
 		CODE_OF_CONDUCT.md = CODE_OF_CONDUCT.md
-		contributing.md = contributing.md
-		Directory.Build.props = Directory.Build.props
 		ErrorCodes.md = ErrorCodes.md
 		LICENSE = LICENSE
 		nuget.config = nuget.config
-		push-repos.json = push-repos.json
 		README.md = README.md
 		SECURITY.md = SECURITY.md
 	EndProjectSection
