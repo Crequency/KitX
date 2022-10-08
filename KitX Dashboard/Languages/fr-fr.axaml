@@ -119,6 +119,7 @@
     <x:String x:Key="Text_Settings_About_Authors">personnel de production</x:String>
     <x:String x:Key="Text_Settings_About_Links">Liens</x:String>
     <x:String x:Key="Text_Settings_About_ThirdPartLicense">licence tierce</x:String>
+    <x:String x:Key="Text_Settings_About_Found">trouvé par vous!~OvO</x:String>
     <x:String x:Key="Text_AnouncementWindow_Receive">recevoir</x:String>
     <x:String x:Key="Text_AnouncementWindow_ReceiveAll">recevoir tout</x:String>
 

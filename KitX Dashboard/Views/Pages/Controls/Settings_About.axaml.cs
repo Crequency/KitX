@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using KitX_Dashboard.ViewModels.Pages.Controls;
@@ -49,6 +50,32 @@ namespace KitX_Dashboard.Views.Pages.Controls
                     viewModel.AuthorsListVisibility = pass;
                 }
             }
+        }
+
+        private void WQY_LeftEnter(object sender, PointerEventArgs e)
+        {
+            Button Btn_WQY = this.FindControl<Button>("Btn_WQY");
+            Btn_WQY.Width = 120;
+            Btn_WQY.Margin = new Thickness(180, 30, 0, 30);
+        }
+
+        private void WQY_CenterEnter(object sender, PointerEventArgs e)
+        {
+
+        }
+
+        private void WQY_RightEnter(object sender, PointerEventArgs e)
+        {
+            Button Btn_WQY = this.FindControl<Button>("Btn_WQY");
+            Btn_WQY.Width = 120;
+            Btn_WQY.Margin = new Thickness(0, 30, 180, 30);
+        }
+
+        private void WQY_Leave(object sender, PointerEventArgs e)
+        {
+            Button Btn_WQY = this.FindControl<Button>("Btn_WQY");
+            Btn_WQY.Width = 200;
+            Btn_WQY.Margin = new Thickness(50, 30);
         }
     }
 }
