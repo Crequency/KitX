@@ -56,6 +56,10 @@
         <EmbeddedResource Remove="FakesAssemblies\**" />
         <None Remove="FakesAssemblies\**" />
     </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Assets\KitX-Icon-256x256.ico" />
+    </ItemGroup>
     <ItemGroup>
         <Content Include="Languages\en-us.axaml">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -97,6 +101,7 @@
         <EmbeddedResource Include="Assets\KitX-Icon-256x.ico">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </EmbeddedResource>
+        <EmbeddedResource Include="Assets\KitX-Icon-256x256.ico" />
         <EmbeddedResource Include="Assets\KitX-Icon-64x.ico">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </EmbeddedResource>
