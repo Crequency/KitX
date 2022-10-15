@@ -10,3 +10,6 @@
 [submodule "KitX Plugins"]
 	path = KitX Plugins
 	url = git@github.com:Crequency/KitX-Plugins.git
+[submodule "KitX Docs"]
+	path = KitX Docs
+	url = git@github.com:Crequency/KitX-Docs.git
