@@ -119,6 +119,7 @@
     <x:String x:Key="Text_Settings_About_Authors">생산 직원</x:String>
     <x:String x:Key="Text_Settings_About_Links">연결</x:String>
     <x:String x:Key="Text_Settings_About_ThirdPartLicense">제3자 라이선스</x:String>
+    <x:String x:Key="Text_Settings_About_Found">당신에 의해 발견!~OvO</x:String>
     <x:String x:Key="Text_AnouncementWindow_Receive">받다</x:String>
     <x:String x:Key="Text_AnouncementWindow_ReceiveAll">모두 받기</x:String>
 

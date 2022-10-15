@@ -14,7 +14,7 @@
         MinHeight="600"
         d:DesignHeight="450"
         d:DesignWidth="800"
-        Icon="avares://KitX.Assets/KitX-Icon-1920x.png"
+        Icon="avares://KitX.Assets/KitX-Icon-32x32.png"
         mc:Ignorable="d">
     <Grid>
         <ui:NavigationView IsBackButtonVisible="False"

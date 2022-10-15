@@ -281,7 +281,7 @@ namespace KitX_Dashboard.Services
                 }
                 catch (Exception e)
                 {
-                    Log.Error($"In MultiDevicesBroadCastSend: {e.Message}");
+                    Log.Error($"In MultiDevicesBroadCastSend: {e.Message}", e);
                 }
                 if (!GlobalInfo.Running)
                 {
@@ -322,7 +322,15 @@ namespace KitX_Dashboard.Services
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e.Message);
+                    Log.Error(e.Message, e);
+                }
+                if (!GlobalInfo.Running)
+                {
+                    udpClient.Close();
+                }
+                else
+                {
+                    MultiDevicesBroadCastReceive();
                 }
             }).Start();
         }

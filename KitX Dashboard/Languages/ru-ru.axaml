@@ -119,6 +119,7 @@
     <x:String x:Key="Text_Settings_About_Authors">Сотрудники производства</x:String>
     <x:String x:Key="Text_Settings_About_Links">Ссылки</x:String>
     <x:String x:Key="Text_Settings_About_ThirdPartLicense">лицензия третьей стороны</x:String>
+    <x:String x:Key="Text_Settings_About_Found">найдено вами!~OvO</x:String>
     <x:String x:Key="Text_AnouncementWindow_Receive">Получать</x:String>
     <x:String x:Key="Text_AnouncementWindow_ReceiveAll">получить все</x:String>
 
