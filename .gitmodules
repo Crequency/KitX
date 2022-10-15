@@ -1,6 +1,3 @@
-[submodule "KitX Loaders/KitX.Loader.Python"]
-	path = KitX Loaders/KitX.Loader.Python
-	url = https://github.com/LYF511/KitX.Loader.Python
 [submodule "KitX Mobile"]
 	path = KitX Mobile
 	url = https://github.com/Crequency/KitX-Mobile
