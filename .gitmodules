@@ -4,3 +4,6 @@
 [submodule "KitX Mobile"]
 	path = KitX Mobile
 	url = https://github.com/Crequency/KitX-Mobile
+[submodule "KitX Website"]
+	path = KitX Website
+	url = git@github.com:Crequency/KitX-Website.git
