@@ -29,8 +29,12 @@ jobs:
 
       - name: Build Plugins
         run: |
+          cd "KitX Plugins"
+
           cd "TestPlugin.WPF.Core"
           dotnet build -c Release
+          cd ".."
+
           cd ".."
 
   # build-plugins-on-ubuntu:

@@ -29,6 +29,8 @@ jobs:
       
       - name: Build Loaders
         run: |
+          cd "KitX Loaders"
+
           cd "KitX.Loader.Winform.Framework"
           dotnet build -c Release
           cd ".."
@@ -43,6 +45,8 @@ jobs:
 
           cd "KitX.Loader.WPF.Core"
           dotnet build -c Release
+          cd ".."
+
           cd ".."
 
   # build-loaders-on-ubuntu:
