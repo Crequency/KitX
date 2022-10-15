@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <BaseOutputPath>..\..\KitX Build\Plugins\TestPlugin.WPF.Core\</BaseOutputPath>
+    <BaseIntermediateOutputPath>..\..\KitX Build\Temp\Plugins\TestPlugin.WPF.Core\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="KitX.Contract.CSharp" Version="22.4.6276.566" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\Descr\zh-cn.md">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Update="LoaderStruct.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="PluginStruct.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

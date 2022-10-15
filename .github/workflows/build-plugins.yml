@@ -29,9 +29,9 @@ jobs:
 
       - name: Build Plugins
         run: |
-          cd "KitX Official Plugins"
+          cd "KitX Plugins"
 
-          cd "TestPlugin.WPF.COre"
+          cd "TestPlugin.WPF.Core"
           dotnet build -c Release
           cd ".."
 
