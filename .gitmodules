@@ -13,3 +13,6 @@
 [submodule "KitX Installer"]
 	path = KitX Installer
 	url = git@github.com:Crequency/KitX-Installer.git
+[submodule "KitX Loaders"]
+	path = KitX Loaders
+	url = git@github.com:Crequency/KitX-Loaders.git
