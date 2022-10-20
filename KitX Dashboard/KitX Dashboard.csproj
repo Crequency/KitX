@@ -147,4 +147,9 @@
         <ProjectReference Include="..\KitX File Format Helper\KitX.KXP.Helper\KitX.KXP.Helper.csproj" />
         <ProjectReference Include="..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj" />
     </ItemGroup>
+    <ItemGroup>
+      <Compile Update="Views\Pages\Controls\Home_DebugLog.axaml.cs">
+        <DependentUpon>Home_DebugLog.axaml</DependentUpon>
+      </Compile>
+    </ItemGroup>
 </Project>

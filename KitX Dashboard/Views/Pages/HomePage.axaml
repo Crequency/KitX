@@ -69,6 +69,23 @@
                     </StackPanel>
                 </ui:NavigationViewItem.Content>
             </ui:NavigationViewItem>
+            <ui:NavigationViewItem x:Name="View_DebugLog"
+                                   IsVisible="{Binding IsDeveloperSettingStatus}"
+                                   Tag="View_DebugLog"
+                                   ToolTip.Tip="{DynamicResource Text_MainWindow_HomePage_DebugLog}">
+                <ui:NavigationViewItem.Content>
+                    <StackPanel Margin="-3,0,0,0"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                        <icon:MaterialIcon VerticalAlignment="Center" Kind="BugReport"/>
+                        <TextBlock Margin="15,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="{StaticResource SourceHanSans}"
+                                   FontWeight="Bold"
+                                   Text="{DynamicResource Text_MainWindow_HomePage_DebugLog}"/>
+                    </StackPanel>
+                </ui:NavigationViewItem.Content>
+            </ui:NavigationViewItem>
         </ui:NavigationView.MenuItems>
 
         <ui:Frame x:Name="HomeFrame" IsNavigationStackEnabled="False"/>

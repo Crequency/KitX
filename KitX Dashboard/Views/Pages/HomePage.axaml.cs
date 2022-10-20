@@ -68,6 +68,8 @@ namespace KitX_Dashboard.Views.Pages
                     (sender as NavigationView).SelectedItem as Control
                 ).Tag.ToString();
                 this.FindControl<Frame>("HomeFrame").Navigate(SelectedViewType());
+
+                EventHandlers.Invoke("DebugLogAdd", $"[HomeFrame] SelectionChanged {SelectedViewName}");
             }
             catch (NullReferenceException o)
             {
@@ -80,6 +82,7 @@ namespace KitX_Dashboard.Views.Pages
             "View_Recent" => typeof(Home_RecentUse),
             "View_Count" => typeof(Home_Count),
             "View_ActivityLog" => typeof(Home_ActivityLog),
+            "View_DebugLog" => typeof(Home_DebugLog),
             _ => typeof(Home_RecentUse),
         };
     }
