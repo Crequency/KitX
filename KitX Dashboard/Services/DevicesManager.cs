@@ -46,6 +46,8 @@ namespace KitX_Dashboard.Services
                 }
 
                 List<string> MacAddressVisited = new();
+                List<string> IPv4AddressVisited = new();
+                List<string> IPv6AddressVisited = new();
                 List<DeviceCard> DevicesNeed2BeRemoved = new();
 
                 foreach (var item in Program.DeviceCards)
@@ -55,7 +57,19 @@ namespace KitX_Dashboard.Services
                         DevicesNeed2BeRemoved.Add(item);
                         continue;
                     }
+                    if (IPv4AddressVisited.Contains(item.viewModel.DeviceInfo.IPv4))
+                    {
+                        DevicesNeed2BeRemoved.Add(item);
+                        continue;
+                    }
+                    if(IPv6AddressVisited.Contains(item.viewModel.DeviceInfo.IPv6))
+                    {
+                        DevicesNeed2BeRemoved.Add(item);
+                        continue;
+                    }
                     MacAddressVisited.Add(item.viewModel.DeviceInfo.DeviceMacAddress);
+                    IPv4AddressVisited.Add(item.viewModel.DeviceInfo.IPv4);
+                    IPv6AddressVisited.Add(item.viewModel.DeviceInfo.IPv6);
                     if (DateTime.Now - item.viewModel.DeviceInfo.SendTime
                         > new TimeSpan(0, 0, Program.Config.Web.DeviceInfoStructTTLSeconds))
                         DevicesNeed2BeRemoved.Add(item);

@@ -1,4 +1,4 @@
-<Application x:Class="KitX_Dashboard.App"
+﻿<Application x:Class="KitX_Dashboard.App"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:fluent="using:FluentAvalonia.UI.Media"

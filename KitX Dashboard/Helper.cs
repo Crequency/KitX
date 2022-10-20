@@ -1,4 +1,5 @@
-﻿using KitX_Dashboard.Data;
+﻿using BasicHelper.IO;
+using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
 using Serilog;
 using System;
@@ -19,9 +20,11 @@ namespace KitX_Dashboard
         /// </summary>
         public static void StartUpCheck()
         {
-            #region 初始化 Config
+            #region 初始化 Config 并加载资源
 
             InitConfig();
+
+            LoadResource();
 
             #endregion
 
@@ -82,6 +85,8 @@ namespace KitX_Dashboard
             #endregion
         }
 
+        private static readonly object _configWriteLock = new();
+
         /// <summary>
         /// 保存配置
         /// </summary>
@@ -95,8 +100,11 @@ namespace KitX_Dashboard
 
             new Thread(() =>
             {
-                BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
-                    JsonSerializer.Serialize(Program.Config, options));
+                lock (_configWriteLock)
+                {
+                    FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.ConfigFilePath),
+                        JsonSerializer.Serialize(Program.Config, options));
+                }
             }).Start();
         }
 
@@ -121,19 +129,29 @@ namespace KitX_Dashboard
         /// <summary>
         /// 读取配置
         /// </summary>
-        public static void LoadConfig()
+        public static async void LoadConfig()
         {
             Program.Config = JsonSerializer.Deserialize<AppConfig>(
-                BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
+                await FileHelper.ReadAllAsync(Path.GetFullPath(GlobalInfo.ConfigFilePath)));
         }
 
         /// <summary>
         /// 读取插件列表配置
         /// </summary>
-        public static void LoadPluginsListConfig()
+        public static async void LoadPluginsListConfig()
         {
             Program.PluginsList = JsonSerializer.Deserialize<PluginsList>(
-                BasicHelper.IO.FileHelper.ReadAll(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)));
+                await FileHelper.ReadAllAsync(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath)));
+        }
+
+        /// <summary>
+        /// 读取资源
+        /// </summary>
+        public static async void LoadResource()
+        {
+            GlobalInfo.KitXIconBase64 = await FileHelper.ReadAllAsync(Path.GetFullPath(
+                $"{GlobalInfo.AssetsPath}{GlobalInfo.IconBase64FileName}"
+            ));
         }
 
         /// <summary>
@@ -170,30 +188,6 @@ namespace KitX_Dashboard
 
             GlobalInfo.Running = false;
         }
-
-        /// <summary>
-        /// 初始化日志管理器
-        /// </summary>
-        /// <param name="LocalLogger">日志管理器</param>
-        //public static void InitLiteLogger(LoggerManager LocalLogger)
-        //{
-        //    DirectoryInfo log_dir = new("./Log/");
-        //    if (!log_dir.Exists) log_dir.Create();
-
-        //    LocalLogger.AppendLogger("Logger_Debug", new(
-        //        "Logger_Debug",
-        //        Path.GetFullPath("./Log/"),
-        //        lv: LoggerManager.LogLevel.Debug,
-        //        lfs: 1024 * 10
-        //    ));
-
-        //    LocalLogger.AppendLogger("Logger_Error", new(
-        //        "Logger_Error",
-        //        Path.GetFullPath("./Log/"),
-        //        lv: LoggerManager.LogLevel.Error,
-        //        lfs: 1024 * 10
-        //    ));
-        //}
 
         /// <summary>
         /// 初始化环境

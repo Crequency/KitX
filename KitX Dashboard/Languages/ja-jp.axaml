@@ -1,10 +1,6 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!--  Add Resources Here  -->
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
     <x:String x:Key="Text_MainWindow_Title">KitX ダッシュボード</x:String>
-
-    <x:String x:Key="Text_Public_Login">登入</x:String>
-    <x:String x:Key="Text_Public_Logout">登出</x:String>
-
     <x:String x:Key="Text_Public_Enable">有効</x:String>
     <x:String x:Key="Text_Public_Disable">無効</x:String>
     <x:String x:Key="Text_Public_Auto">自動</x:String>
@@ -18,15 +14,114 @@
     <x:String x:Key="Text_Public_ShowMainWindow">メインウィンドウを表示</x:String>
     <x:String x:Key="Text_Public_Second">2番目</x:String>
     <x:String x:Key="Text_Public_Tip">ヒント</x:String>
-
-
+    <x:String x:Key="Text_Public_Delete">消去</x:String>
+    <x:String x:Key="Text_Public_Replace">交換</x:String>
+    <x:String x:Key="Text_Public_Add">追加</x:String>
+    <x:String x:Key="Text_Public_Option">オプション</x:String>
+    <x:String x:Key="Text_Public_Task">仕事</x:String>
+    <x:String x:Key="Text_Public_Size">サイズ</x:String>
     <x:String x:Key="Text_Log_Verbose">详细</x:String>
     <x:String x:Key="Text_Log_Debug">调试</x:String>
     <x:String x:Key="Text_Log_Information">情報</x:String>
     <x:String x:Key="Text_Log_Warning">警告</x:String>
     <x:String x:Key="Text_Log_Error">エラー</x:String>
     <x:String x:Key="Text_Log_Fatal">崩壊</x:String>
-
+    <x:String x:Key="Text_MainWindow_NavigationView_Home">表紙</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Lib">庫</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Market">市場</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Plan">ミッションプラン</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Devices">端末管理</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Account">アカウント</x:String>
+    <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Recent">最近使用された</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_Count">統計学</x:String>
+    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動記録</x:String>
+    <x:String x:Key="Text_MainWindow_Recent_No">最近の歴史はありません.</x:String>
+    <x:String x:Key="Text_MainWindow_Count_No">統計はまだありません</x:String>
+    <x:String x:Key="Text_MainWindow_ActivityLog_No">アクティビティログなし</x:String>
+    <x:String x:Key="Text_Lib_Search">検索</x:String>
+    <x:String x:Key="Text_Lib_Search_In_Local">ローカルで検索</x:String>
+    <x:String x:Key="Text_Lib_Tip_NoPlugin">プラグイン接続はまだありません</x:String>
+    <x:String x:Key="Text_Lib_Tip_Connected">接続されたプラグイン</x:String>
+    <x:String x:Key="Text_Repo_No_Plugin">リポジトリにプラグインがありません</x:String>
+    <x:String x:Key="Text_Repo_Search_In_Network">LANで検索</x:String>
+    <x:String x:Key="Text_Repo_Tip_Installed">インストールされたプラグイン</x:String>
+    <x:String x:Key="Text_PluginBar_Launch">起動</x:String>
+    <x:String x:Key="Text_PluginBar_Details">詳細</x:String>
+    <x:String x:Key="Text_PluginBar_Remove">削除する</x:String>
+    <x:String x:Key="Text_PluginBar_RemoveAndDelete">削除して破壊する</x:String>
+    <x:String x:Key="Text_PluginBar_Name">内部名:</x:String>
+    <x:String x:Key="Text_PluginBar_Version">バージョン：</x:String>
+    <x:String x:Key="Text_PluginBar_DisplayName">番組名:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorName">著者：</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherName">出版社:</x:String>
+    <x:String x:Key="Text_PluginBar_AuthorLink">著者リンク:</x:String>
+    <x:String x:Key="Text_PluginBar_PublisherLink">発行者リンク:</x:String>
+    <x:String x:Key="Text_PluginBar_PublishDate">発売日：</x:String>
+    <x:String x:Key="Text_PluginBar_LastUpdateDate">最終更新日:</x:String>
+    <x:String x:Key="Text_PluginBar_IsMarketVersion">それは市場のバージョンですか：</x:String>
+    <x:String x:Key="Text_PluginBar_SimpleDescription">概要：</x:String>
+    <x:String x:Key="Text_PluginBar_ComplexDescription">説明：</x:String>
+    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">ドキュメンテーション：</x:String>
+    <x:String x:Key="Text_PluginBar_RootStartupFileName">ルートファイル名の開始:</x:String>
+    <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
+    <x:String x:Key="Text_Device_This">この装置</x:String>
+    <x:String x:Key="Text_Device_Type_Slave">Slave</x:String>
+    <x:String x:Key="Text_Device_Type_Master">Master</x:String>
+    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
+    <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
+    <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
+    <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
+    <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
+    <x:String x:Key="Text_Settings_General">ユニバーサル</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
+    <x:String x:Key="Text_Settings_General_DeveloperSetting">開発者向けオプション</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
+    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">最新のお知らせを見る</x:String>
+    <x:String x:Key="Text_Settings_Personalise">パーソナライズ</x:String>
+    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">表示言語</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica 効果</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
+    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">透明性</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Palette">パレット</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme">テーマ</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Light">デイライトホワイト（ライト）</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">ハイコントラスト</x:String>
+    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">システムに従ってください</x:String>
+    <x:String x:Key="Text_Settings_Performence">パフォーマンス</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_Port">ポート</x:String>
+    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
+    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
+    <x:String x:Key="Text_Settings_Performence_Log">ログファイル関連の設定</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileSize">ログ ファイルのサイズ制限</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>
+    <x:String x:Key="Text_Settings_Performence_LogFileLevel">ログレベル</x:String>
+    <x:String x:Key="Text_Settings_Performence_CheckerPerThreadFilesCountLimit">更新は、スレッドごとに処理されるファイルの数をチェックします</x:String>
+    <x:String x:Key="Text_Settings_Update">更新する</x:String>
+    <x:String x:Key="Text_Settings_Update_Check">アップデートを確認</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentName">コンポーネント名</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentHash">チェック値</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">新しい！</x:String>
+    <x:String x:Key="Text_Settings_Update_ComponentsCount">見つかった</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Start">アップデートのチェックを開始...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Scan">コンポーネントのスキャン...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Calculate">コンポーネントハッシュの計算... %Progress%</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Compare">変更ファイル一覧のダウンロード...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Download">変更ファイルをダウンロードしています...</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Prepared">更新準備完了!</x:String>
+    <x:String x:Key="Text_Settings_About">約</x:String>
+    <x:String x:Key="Text_Settings_About_Version">バージョン:</x:String>
+    <x:String x:Key="Text_Settings_About_Authors">制作スタッフ</x:String>
+    <x:String x:Key="Text_Settings_About_Links">リンク</x:String>
+    <x:String x:Key="Text_Settings_About_ThirdPartLicense">サードパーティライセンス</x:String>
+    <x:String x:Key="Text_Settings_About_Found">あなたが見つけた!~OvO</x:String>
+    <x:String x:Key="Text_AnouncementWindow_Receive">受け取る</x:String>
+    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">すべて受け取る</x:String>
 
     <!--  GreetingStart  -->
 
@@ -61,128 +156,5 @@
     <!--  NightEnd  -->
 
     <!--  GreetingEnd  -->
-
-    <x:String x:Key="Text_MainWindow_NavigationView_Home">表紙</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Lib">庫</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Market">市場</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Repo">倉庫</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Plan">ミッションプラン</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Devices">端末管理</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Account">アカウント</x:String>
-    <x:String x:Key="Text_MainWindow_NavigationView_Settings">設定</x:String>
-
-    <x:String x:Key="Text_MainWindow_HomePage_Recent">最近使用された</x:String>
-    <x:String x:Key="Text_MainWindow_HomePage_Count">統計学</x:String>
-    <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動記録</x:String>
-    <x:String x:Key="Text_MainWindow_HomePage_DebugLog">Debug Log</x:String>
-
-    <x:String x:Key="Text_MainWindow_Recent_No">最近の歴史はありません.</x:String>
-
-
-    <x:String x:Key="Text_MainWindow_Count_No">統計はまだありません</x:String>
-
-
-    <x:String x:Key="Text_MainWindow_ActivityLog_No">アクティビティログなし</x:String>
-
-
-    <x:String x:Key="Text_MainWindow_DebugLog_No">No debug logged.</x:String>
-
-
-    <x:String x:Key="Text_Account_No_Login">現在アカウントでログインしていない.</x:String>
-
-
-    <x:String x:Key="Text_Lib_Search">検索</x:String>
-    <x:String x:Key="Text_Lib_Search_In_Local">ローカルで検索</x:String>
-    <x:String x:Key="Text_Lib_Tip_NoPlugin">プラグイン接続はまだありません</x:String>
-    <x:String x:Key="Text_Lib_Tip_Connected">接続されたプラグイン</x:String>
-
-
-    <x:String x:Key="Text_Repo_No_Plugin">リポジトリにプラグインがありません</x:String>
-    <x:String x:Key="Text_Repo_Search_In_Network">LANで検索</x:String>
-    <x:String x:Key="Text_Repo_Tip_Installed">インストールされたプラグイン</x:String>
-
-
-    <x:String x:Key="Text_PluginBar_Launch">起動</x:String>
-    <x:String x:Key="Text_PluginBar_Details">詳細</x:String>
-    <x:String x:Key="Text_PluginBar_Remove">削除する</x:String>
-    <x:String x:Key="Text_PluginBar_RemoveAndDelete">削除して破壊する</x:String>
-
-    <x:String x:Key="Text_PluginBar_Name">内部名:</x:String>
-    <x:String x:Key="Text_PluginBar_Version">バージョン：</x:String>
-    <x:String x:Key="Text_PluginBar_DisplayName">番組名:</x:String>
-    <x:String x:Key="Text_PluginBar_AuthorName">著者：</x:String>
-    <x:String x:Key="Text_PluginBar_PublisherName">出版社:</x:String>
-    <x:String x:Key="Text_PluginBar_AuthorLink">著者リンク:</x:String>
-    <x:String x:Key="Text_PluginBar_PublisherLink">発行者リンク:</x:String>
-    <x:String x:Key="Text_PluginBar_PublishDate">発売日：</x:String>
-    <x:String x:Key="Text_PluginBar_LastUpdateDate">最終更新日:</x:String>
-    <x:String x:Key="Text_PluginBar_IsMarketVersion">それは市場のバージョンですか：</x:String>
-    <x:String x:Key="Text_PluginBar_SimpleDescription">概要：</x:String>
-    <x:String x:Key="Text_PluginBar_ComplexDescription">説明：</x:String>
-    <x:String x:Key="Text_PluginBar_TotalDescriptionInMarkdown">ドキュメンテーション：</x:String>
-    <x:String x:Key="Text_PluginBar_RootStartupFileName">ルートファイル名の開始:</x:String>
-
-
-    <x:String x:Key="Text_Device_No">ネットワーク上に他のデバイスがない</x:String>
-    <x:String x:Key="Text_Device_This">この装置</x:String>
-    <x:String x:Key="Text_Device_Type_Slave">Slave</x:String>
-    <x:String x:Key="Text_Device_Type_Master">Master</x:String>
-    <x:String x:Key="Text_Device_Resources_CPU">CPU</x:String>
-    <x:String x:Key="Text_Device_Resources_RAM">メモリー</x:String>
-    <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
-    <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
-    <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
-
-
-    <x:String x:Key="Text_Settings_General">ユニバーサル</x:String>
-    <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
-    <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
-    <x:String x:Key="Text_Settings_General_DeveloperSetting">開発者向けオプション</x:String>
-    <x:String x:Key="Text_Settings_General_ShowAnnouncement">起動時にアナウンスを表示</x:String>
-    <x:String x:Key="Text_Settings_General_ShowAnnouncementNow">最新のお知らせを見る</x:String>
-
-
-    <x:String x:Key="Text_Settings_Personalise">パーソナライズ</x:String>
-    <x:String x:Key="Text_Settings_Personalise_DisplayLanguage">表示言語</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect">Mica 効果</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Enable">Mica 効果を有効にするかどうか?</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect_EnableTip">この効果は、Windows11 システムでのみ有効になります</x:String>
-    <x:String x:Key="Text_Settings_Personalise_MicaEffect_Opacity">透明性</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Palette">パレット</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme">テーマ</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_Light">デイライトホワイト（ライト）</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_Dark">ミッドナイトブラック（ダーク）</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_HighContrast">ハイコントラスト</x:String>
-    <x:String x:Key="Text_Settings_Personalise_Theme_Follow">システムに従ってください</x:String>
-
-
-    <x:String x:Key="Text_Settings_Performence">パフォーマンス</x:String>
-    <x:String x:Key="Text_Settings_Performence_Web_Port">ポート</x:String>
-    <x:String x:Key="Text_Settings_Performence_Web_MyIP_Filter">ネイティブ IP フィルタリング ルール</x:String>
-    <x:String x:Key="Text_Settings_Performence_Greeting_Interval">あいさつ更新が遅れる</x:String>
-    <x:String x:Key="Text_Settings_Performence_Log">ログファイル関連の設定</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileSize">ログ ファイルのサイズ制限</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileMaxCount">ログ ファイルの制限</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileFlushInterval">ログ ファイル キャッシュの遅延</x:String>
-    <x:String x:Key="Text_Settings_Performence_LogFileLevel">ログレベル</x:String>
-
-
-    <x:String x:Key="Text_Settings_Update">更新する</x:String>
-    <x:String x:Key="Text_Settings_Update_Check">アップデートを確認</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentName">コンポーネント名</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentHash">チェック値</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentUpdatable">新しい！</x:String>
-    <x:String x:Key="Text_Settings_Update_ComponentsCount">見つかった</x:String>
-
-
-    <x:String x:Key="Text_Settings_About">約</x:String>
-    <x:String x:Key="Text_Settings_About_Version">バージョン:</x:String>
-    <x:String x:Key="Text_Settings_About_Authors">制作スタッフ</x:String>
-    <x:String x:Key="Text_Settings_About_Links">リンク</x:String>
-    <x:String x:Key="Text_Settings_About_ThirdPartLicense">サードパーティライセンス</x:String>
-
-
-    <x:String x:Key="Text_AnouncementWindow_Receive">受け取る</x:String>
-    <x:String x:Key="Text_AnouncementWindow_ReceiveAll">すべて受け取る</x:String>
 
 </ResourceDictionary>

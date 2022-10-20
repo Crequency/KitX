@@ -1,4 +1,4 @@
-using KitX_Dashboard.Views.Pages.Controls;
+ï»¿using KitX_Dashboard.Views.Pages.Controls;
 using System.Collections.ObjectModel;
 
 namespace KitX_Dashboard.ViewModels.Pages.Controls
@@ -9,7 +9,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         public double NoRecent_TipHeight { get; set; } = 200;
 
         /// <summary>
-        /// ²å¼ş¿¨Æ¬¼¯ºÏ
+        /// æ’ä»¶å¡ç‰‡é›†åˆ
         /// </summary>
         public ObservableCollection<PluginCard> RecentPluginCards { get; } = new();
     }

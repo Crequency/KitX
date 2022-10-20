@@ -1,10 +1,10 @@
-using ReactiveUI;
+ï»¿using ReactiveUI;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-#pragma warning disable CS0108 // ³ÉÔ±Òş²Ø¼Ì³ĞµÄ³ÉÔ±£»È±ÉÙ¹Ø¼ü×Ö new
-#pragma warning disable CS8618 // ÔÚÍË³ö¹¹Ôìº¯ÊıÊ±£¬²»¿ÉÎª null µÄ×Ö¶Î±ØĞë°üº¬·Ç null Öµ¡£Çë¿¼ÂÇÉùÃ÷Îª¿ÉÒÔÎª null¡£
+#pragma warning disable CS0108 // æˆå‘˜éšè—ç»§æ‰¿çš„æˆå‘˜ï¼›ç¼ºå°‘å…³é”®å­— new
+#pragma warning disable CS8618 // åœ¨é€€å‡ºæ„é€ å‡½æ•°æ—¶ï¼Œä¸å¯ä¸º null çš„å­—æ®µå¿…é¡»åŒ…å«é null å€¼ã€‚è¯·è€ƒè™‘å£°æ˜ä¸ºå¯ä»¥ä¸º nullã€‚
 
 namespace KitX_Dashboard.ViewModels
 {
@@ -27,8 +27,8 @@ namespace KitX_Dashboard.ViewModels
     }
 }
 
-#pragma warning restore CS8618 // ÔÚÍË³ö¹¹Ôìº¯ÊıÊ±£¬²»¿ÉÎª null µÄ×Ö¶Î±ØĞë°üº¬·Ç null Öµ¡£Çë¿¼ÂÇÉùÃ÷Îª¿ÉÒÔÎª null¡£
-#pragma warning restore CS0108 // ³ÉÔ±Òş²Ø¼Ì³ĞµÄ³ÉÔ±£»È±ÉÙ¹Ø¼ü×Ö new
+#pragma warning restore CS8618 // åœ¨é€€å‡ºæ„é€ å‡½æ•°æ—¶ï¼Œä¸å¯ä¸º null çš„å­—æ®µå¿…é¡»åŒ…å«é null å€¼ã€‚è¯·è€ƒè™‘å£°æ˜ä¸ºå¯ä»¥ä¸º nullã€‚
+#pragma warning restore CS0108 // æˆå‘˜éšè—ç»§æ‰¿çš„æˆå‘˜ï¼›ç¼ºå°‘å…³é”®å­— new
 
 //                                                    _______
 //                                              .,add88YYYYY88ba,
