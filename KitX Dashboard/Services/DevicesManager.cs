@@ -1,6 +1,7 @@
 ﻿using Avalonia.Threading;
 using KitX.Web.Rules;
 using KitX_Dashboard.Views.Pages.Controls;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Timers;
@@ -103,7 +104,14 @@ namespace KitX_Dashboard.Services
                 }
                 if (index != 0)
                 {
-                    Program.DeviceCards.Move(index, 0);
+                    try
+                    {
+                        Program.DeviceCards.Move(index, 0);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Warning($"Can't move self 2 first. {e.Message}", e);
+                    }
                 }
             };
             timer.Start();
