@@ -64,8 +64,8 @@ namespace KitX_Dashboard.Views
                 if (OperatingSystem.IsWindows())
                 {
                     ClientSize = new(
-                        Program.Config.Windows.MainWindow.Window_Width + 16,
-                        Program.Config.Windows.MainWindow.Window_Height + 38
+                        Program.Config.Windows.MainWindow.Window_Width,
+                        Program.Config.Windows.MainWindow.Window_Height + 30
                     );
                 }
                 else
