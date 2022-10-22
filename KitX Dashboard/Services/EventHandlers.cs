@@ -20,6 +20,8 @@ namespace KitX_Dashboard.Services
 
         internal delegate void LogConfigUpdatedHandler();
 
+        internal delegate void ThemeConfigChangedHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
@@ -34,6 +36,8 @@ namespace KitX_Dashboard.Services
 
         internal static event LogConfigUpdatedHandler? LogConfigUpdated;
 
+        internal static event ThemeConfigChangedHandler? ThemeConfigChanged;
+
 
         /// <summary>
         /// 必要的初始化
@@ -47,6 +51,7 @@ namespace KitX_Dashboard.Services
             PluginsListChanged += () => { };
             DevelopSettingsChanged += () => { };
             LogConfigUpdated += () => { };
+            ThemeConfigChanged += () => { };
         }
 
         /// <summary>
@@ -77,6 +82,9 @@ namespace KitX_Dashboard.Services
                     break;
                 case nameof(LogConfigUpdated):
                     LogConfigUpdated();
+                    break;
+                case nameof(ThemeConfigChanged):
+                    ThemeConfigChanged();
                     break;
             }
         }
