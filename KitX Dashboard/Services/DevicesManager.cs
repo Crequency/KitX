@@ -81,7 +81,10 @@ namespace KitX_Dashboard.Services
                 }
                 foreach (var item in DevicesNeed2BeRemoved)
                 {
-                    Program.DeviceCards.Remove(item);
+                    lock (AddDeviceCard2ViewLock)
+                    {
+                        Program.DeviceCards.Remove(item);
+                    }
                 }
 
                 int index = 0;
