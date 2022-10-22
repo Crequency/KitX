@@ -39,6 +39,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">No statistics produced.</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">Use time</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">No activity logged.</x:String>
     <x:String x:Key="Text_Lib_Search">Search</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>

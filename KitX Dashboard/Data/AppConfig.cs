@@ -178,6 +178,9 @@ namespace KitX_Dashboard.Data
 
                 [JsonInclude]
                 public bool IsNavigationViewPaneOpened { get; set; } = true;
+
+                [JsonInclude]
+                public bool UseAreaExpanded { get; set; } = true;
             }
 
             /// <summary>

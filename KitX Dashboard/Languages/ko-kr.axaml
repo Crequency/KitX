@@ -39,6 +39,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">활동 로그</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">최근 사용 기록이 없습니다.~</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">통계가 아직 없음</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">사용시간</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">활동 로그가 비어 있습니다.!</x:String>
     <x:String x:Key="Text_Lib_Search">검색</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">로컬에서 검색</x:String>

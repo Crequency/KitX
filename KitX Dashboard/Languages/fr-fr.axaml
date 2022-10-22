@@ -39,6 +39,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">journal d'activité</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">Aucun enregistrement d'utilisation récente~</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">Statistiques pas encore</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">Utiliser le temps</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">Le journal d'activité est vide!</x:String>
     <x:String x:Key="Text_Lib_Search">chercher</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Rechercher localement</x:String>

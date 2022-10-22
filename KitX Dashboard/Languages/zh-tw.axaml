@@ -39,6 +39,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動日志</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">無最近使用記錄.</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">統計無法完成</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">使用時長</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">活動來生成活動日志</x:String>
     <x:String x:Key="Text_Lib_Search">搜索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
