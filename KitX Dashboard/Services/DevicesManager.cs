@@ -44,7 +44,7 @@ namespace KitX_Dashboard.Services
                         {
                             lock (AddDeviceCard2ViewLock)
                             {
-                            Program.DeviceCards.Add(new(deviceInfoStruct));
+                                Program.DeviceCards.Add(new(deviceInfoStruct));
                             }
                         });
                     }
@@ -67,7 +67,7 @@ namespace KitX_Dashboard.Services
                         DevicesNeed2BeRemoved.Add(item);
                         continue;
                     }
-                    if(IPv6AddressVisited.Contains(item.viewModel.DeviceInfo.IPv6))
+                    if (IPv6AddressVisited.Contains(item.viewModel.DeviceInfo.IPv6))
                     {
                         DevicesNeed2BeRemoved.Add(item);
                         continue;
@@ -82,6 +82,25 @@ namespace KitX_Dashboard.Services
                 foreach (var item in DevicesNeed2BeRemoved)
                 {
                     Program.DeviceCards.Remove(item);
+                }
+
+                int index = 0;
+                DeviceCard? localMachine = null;
+                foreach (var item in Program.DeviceCards)
+                {
+                    if (item.viewModel.DeviceInfo.DeviceMacAddress.Equals(
+                            WebServer.DefaultDeviceInfoStruct.DeviceMacAddress)
+                        && item.viewModel.DeviceInfo.DeviceName.Equals(
+                            WebServer.DefaultDeviceInfoStruct.DeviceName))
+                    {
+                        localMachine = item;
+                        break;
+                    }
+                    ++index;
+                }
+                if (index != 0)
+                {
+                    Program.DeviceCards.Move(index, 0);
                 }
             };
             timer.Start();
