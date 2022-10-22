@@ -57,7 +57,7 @@ namespace KitX_Dashboard
                 Log.Error($"No surpport language file loaded.");
             }
 
-            EventHandlers.Invoke("LanguageChanged");
+            EventHandlers.Invoke(nameof(EventHandlers.LanguageChanged));
 
             #endregion
             

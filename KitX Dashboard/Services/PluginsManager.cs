@@ -197,7 +197,7 @@ namespace KitX_Dashboard.Services
                     if (inGraphic) throw;       //  如果是图形界面调用, 则再次抛出便于给出图形化提示
                 }
             }
-            EventHandlers.Invoke("PluginsListChanged");
+            EventHandlers.Invoke(nameof(EventHandlers.PluginsListChanged));
         }
 
         /// <summary>
@@ -251,7 +251,7 @@ namespace KitX_Dashboard.Services
                     }
                 }
 
-                if (isPluginsListUpdated) EventHandlers.Invoke("PluginsListChanged");
+                if (isPluginsListUpdated) EventHandlers.Invoke(nameof(EventHandlers.PluginsListChanged));
             };
             timer.Start();
         }

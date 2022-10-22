@@ -28,7 +28,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 保存对配置文件的修改
         /// </summary>
-        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+        private static void SaveChanges()
+        {
+            EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
+        }
 
         /// <summary>
         /// 版本号属性

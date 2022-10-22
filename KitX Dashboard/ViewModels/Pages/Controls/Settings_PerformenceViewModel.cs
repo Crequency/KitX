@@ -51,7 +51,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 保存变更
         /// </summary>
-        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+        private static void SaveChanges()
+        {
+            EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
+        }
 
         /// <summary>
         /// 网络服务端口属性
@@ -80,7 +83,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             set
             {
                 Program.Config.Windows.MainWindow.GreetingUpdateInterval = value;
-                EventHandlers.Invoke("GreetingTextIntervalUpdated");
+                EventHandlers.Invoke(nameof(EventHandlers.GreetingTextIntervalUpdated));
                 SaveChanges();
             }
         }
@@ -107,7 +110,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             set
             {
                 Program.Config.Log.LogFileSingleMaxSize = value * 1024 * 1024;
-                EventHandlers.Invoke("LogConfigUpdated");
+                EventHandlers.Invoke(nameof(EventHandlers.LogConfigUpdated));
                 SaveChanges();
             }
         }
@@ -121,7 +124,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             set
             {
                 Program.Config.Log.LogFileMaxCount = value;
-                EventHandlers.Invoke("LogConfigUpdated");
+                EventHandlers.Invoke(nameof(EventHandlers.LogConfigUpdated));
                 SaveChanges();
             }
         }
@@ -135,7 +138,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             set
             {
                 Program.Config.Log.LogFileFlushInterval = value;
-                EventHandlers.Invoke("LogConfigUpdated");
+                EventHandlers.Invoke(nameof(EventHandlers.LogConfigUpdated));
                 SaveChanges();
             }
         }
@@ -225,7 +228,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 if (value != null)
                 {
                     Program.Config.Log.LogLevel = value.LogEventLevel;
-                    EventHandlers.Invoke("LogConfigUpdated");
+                    EventHandlers.Invoke(nameof(EventHandlers.LogConfigUpdated));
                     SaveChanges();
                 }
             }

@@ -144,7 +144,10 @@ namespace KitX_Dashboard.Views
         /// <summary>
         /// 保存对配置文件的修改
         /// </summary>
-        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+        private static void SaveChanges()
+        {
+            EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
+        }
 
         /// <summary>
         /// 更新招呼语
