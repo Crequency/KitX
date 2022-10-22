@@ -5,10 +5,13 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
 using BasicHelper.Util;
+using FluentAvalonia.Styling;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
 using Serilog;
 using System.Linq;
 using System.Threading;
@@ -22,6 +25,8 @@ namespace KitX_Dashboard
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
+            
+            #region 加载语言
 
             string lang = Program.Config.App.AppLanguage;
             try
@@ -54,6 +59,10 @@ namespace KitX_Dashboard
 
             EventHandlers.Invoke("LanguageChanged");
 
+            #endregion
+            
+            #region 计算主题色
+
             Color c = Color.Parse(Program.Config.App.ThemeColor);
 
             if (Current != null)
@@ -71,6 +80,34 @@ namespace KitX_Dashboard
                         new SolidColorBrush(new Color((byte)(i * 10 + i), c.R, c.G, c.B));
                 }
             }
+
+            #endregion
+
+            #region 初始化图表系统
+
+            LiveCharts.Configure(config =>
+            {
+                config.AddSkiaSharp()
+                    .AddDefaultMappers();
+                switch (AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>()?.RequestedTheme)
+                {
+                    case "Light": config.AddLightTheme(); break;
+                    case "Dark": config.AddDarkTheme(); break;
+                    default: config.AddLightTheme(); break;
+                };
+            });
+
+            EventHandlers.ThemeConfigChanged += () =>
+            {
+                switch (AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>()?.RequestedTheme)
+                {
+                    case "Light": LiveCharts.CurrentSettings.AddLightTheme(); break;
+                    case "Dark": LiveCharts.CurrentSettings.AddDarkTheme(); break;
+                    default: LiveCharts.CurrentSettings.AddLightTheme(); break;
+                };
+            };
+
+            #endregion
         }
 
         public override void OnFrameworkInitializationCompleted()
