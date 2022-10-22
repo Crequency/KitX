@@ -11,6 +11,8 @@ namespace KitX_Dashboard.Services
     {
         internal static readonly Queue<DeviceInfoStruct> deviceInfoStructs = new();
 
+        private static readonly object AddDeviceCard2ViewLock = new();
+
         /// <summary>
         /// 持续检查并移除
         /// </summary>
@@ -40,7 +42,10 @@ namespace KitX_Dashboard.Services
                     {
                         Dispatcher.UIThread.Post(() =>
                         {
+                            lock (AddDeviceCard2ViewLock)
+                            {
                             Program.DeviceCards.Add(new(deviceInfoStruct));
+                            }
                         });
                     }
                 }
