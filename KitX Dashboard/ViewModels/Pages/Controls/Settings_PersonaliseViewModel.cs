@@ -153,6 +153,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 Program.Config.App.Theme = value.ThemeName;
                 var faTheme = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
                 faTheme.RequestedTheme = value.ThemeName == "Follow" ? null : value.ThemeName;
+                EventHandlers.Invoke("ThemeConfigChanged");
                 SaveChanges();
             }
         }
