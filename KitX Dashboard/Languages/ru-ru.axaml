@@ -74,6 +74,7 @@
     <x:String x:Key="Text_Device_Resources_NET">сеть</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">устройства обнаружены</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Количество онлайн-плагинов:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MAC-адрес не получен</x:String>
     <x:String x:Key="Text_Settings_General">Универсальный</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">локальный каталог плагинов</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Локальный каталог данных плагина</x:String>

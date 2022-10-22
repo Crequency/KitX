@@ -28,7 +28,7 @@
                 </DockPanel>
             </DockPanel>
             <DockPanel Margin="0,10,0,0">
-                <Button Margin="5,0,0,0"
+                <Button Margin="25,0,0,0"
                         VerticalAlignment="Center"
                         Content="{DynamicResource Text_Device_Type_Slave}"
                         DockPanel.Dock="Right"

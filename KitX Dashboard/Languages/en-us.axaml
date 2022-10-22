@@ -74,6 +74,7 @@
     <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Enabled Plugins Count:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MAC address not obtained</x:String>
     <x:String x:Key="Text_Settings_General">General</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>

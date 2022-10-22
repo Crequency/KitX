@@ -74,6 +74,7 @@
     <x:String x:Key="Text_Device_Resources_NET">réseau</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">appareils découverts</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Nombre de plugins en ligne:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">Adresse MAC non obtenue</x:String>
     <x:String x:Key="Text_Settings_General">Universel</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">répertoire local des plugins</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Répertoire de données du plug-in local</x:String>

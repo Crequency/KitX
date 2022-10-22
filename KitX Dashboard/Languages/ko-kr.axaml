@@ -74,6 +74,7 @@
     <x:String x:Key="Text_Device_Resources_NET">회로망</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">발견된 장치</x:String>
     <x:String x:Key="Text_Device_PluginsCount">온라인 플러그인 수:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MAC 주소를 얻지 못했습니다</x:String>
     <x:String x:Key="Text_Settings_General">만능인</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">로컬 플러그인 디렉토리</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">로컬 플러그인 데이터 디렉토리</x:String>

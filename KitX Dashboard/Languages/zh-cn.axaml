@@ -74,6 +74,7 @@
     <x:String x:Key="Text_Device_Resources_NET">网络</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">个设备已发现</x:String>
     <x:String x:Key="Text_Device_PluginsCount">在线插件数量:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">未获取到MAC地址</x:String>
     <x:String x:Key="Text_Settings_General">通用</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">本地插件程序目录</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">本地插件数据目录</x:String>
