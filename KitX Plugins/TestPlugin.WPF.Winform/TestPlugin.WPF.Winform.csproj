@@ -38,6 +38,12 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="KitX.Contract.CSharp, Version=22.4.6279.427, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\KitX.Contract.CSharp.22.4.6279.427\lib\net46\KitX.Contract.CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="KitX.Web.Rules, Version=22.4.6279.427, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\KitX.Web.Rules.22.4.6279.427\lib\net46\KitX.Web.Rules.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Data" />
@@ -88,16 +94,6 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj">
-      <Project>{c1a05e25-8dba-4ca4-88d5-e28d69b76d13}</Project>
-      <Name>KitX.Contract.CSharp</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\KitX Rules\KitX.Web.Rules\KitX.Web.Rules.csproj">
-      <Project>{bc6fc695-381a-4556-89a3-7918651e8d56}</Project>
-      <Name>KitX.Web.Rules</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
