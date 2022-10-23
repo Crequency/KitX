@@ -30,8 +30,10 @@
                         </StackPanel>
                     </Expander.Header>
                     <lvc:CartesianChart Height="400"
-                                        Series="{Binding UseSeries}"
+                                        Series="{Binding Use_Series}"
                                         TooltipPosition="Top"
+                                        XAxes="{Binding Use_XAxes}"
+                                        YAxes="{Binding Use_YAxes}"
                                         ZoomMode="X"/>
                 </Expander>
 
