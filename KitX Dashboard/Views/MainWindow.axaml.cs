@@ -63,17 +63,13 @@ namespace KitX_Dashboard.Views
             {
                 if (OperatingSystem.IsWindows())
                 {
-                    ClientSize = new(
-                        Program.Config.Windows.MainWindow.Window_Width,
-                        Program.Config.Windows.MainWindow.Window_Height + 30
-                    );
+                    Width = Program.Config.Windows.MainWindow.Window_Width;
+                    Height = Program.Config.Windows.MainWindow.Window_Height + 30;
                 }
                 else
                 {
-                    ClientSize = new(
-                        Program.Config.Windows.MainWindow.Window_Width,
-                        Program.Config.Windows.MainWindow.Window_Height
-                    );
+                    Width = Program.Config.Windows.MainWindow.Window_Width;
+                    Height = Program.Config.Windows.MainWindow.Window_Height;
                 }
             }
             catch (Exception e)
@@ -227,13 +223,13 @@ namespace KitX_Dashboard.Views
             Program.Config.Windows.MainWindow.Window_Top = Position.Y;
             if (OperatingSystem.IsWindows())
             {
-                Program.Config.Windows.MainWindow.Window_Width = ClientSize.Width;
-                Program.Config.Windows.MainWindow.Window_Height = ClientSize.Height - 30;
+                Program.Config.Windows.MainWindow.Window_Width = Width;
+                Program.Config.Windows.MainWindow.Window_Height = Height - 30;
             }
             else
             {
-                Program.Config.Windows.MainWindow.Window_Width = ClientSize.Width;
-                Program.Config.Windows.MainWindow.Window_Height = ClientSize.Height;
+                Program.Config.Windows.MainWindow.Window_Width = Width;
+                Program.Config.Windows.MainWindow.Window_Height = Height;
             }
             Program.Config.Windows.MainWindow.
                 Tags["SelectedPage"] = SelectedPageName;
