@@ -67,6 +67,16 @@ namespace KitX_Dashboard
 
             #endregion
 
+            #region 初始化数据记录管理器
+
+            StatisticsManager.InitEvents();
+
+            StatisticsManager.RecoverOldStatistics();
+
+            StatisticsManager.BeginRecord();
+
+            #endregion
+
             #region 初始化事件
 
             EventHandlers.ConfigSettingsChanged += () => SaveConfig();
