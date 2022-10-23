@@ -4,6 +4,8 @@
     {
         internal const string ConfigPath = "./Config/";
 
+        internal const string DataPath = "./Data/";
+
         internal const string DataBasePath = "./DataBase/";
 
         //internal const string LogPath = "./Log/";
