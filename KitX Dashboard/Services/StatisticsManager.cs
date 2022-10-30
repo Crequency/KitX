@@ -1,9 +1,9 @@
 ﻿using KitX_Dashboard.Data;
 using Serilog;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Timers;
 
@@ -47,6 +47,15 @@ namespace KitX_Dashboard.Services
                 {
                     string useCountJson = await File.ReadAllTextAsync(usePath);
                     UseStatistics = JsonSerializer.Deserialize<Dictionary<string, double>>(useCountJson);
+                    if(UseStatistics != null)
+                    {
+                        DateTime lastDT = DateTime.Parse(UseStatistics.Keys.Last());
+                        while (!lastDT.ToString("MM.dd").Equals(DateTime.Now.ToString("MM.dd")))
+                        {
+                            lastDT = lastDT.AddDays(1);
+                            UseStatistics.Add(lastDT.ToString("MM.dd"), 0);
+                        }
+                    }
                 }
                 else
                 {
