@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">Опции</x:String>
     <x:String x:Key="Text_Public_Task">Задача</x:String>
     <x:String x:Key="Text_Public_Size">размер</x:String>
+    <x:String x:Key="Text_Public_Developing">В развитие</x:String>
     <x:String x:Key="Text_Log_Verbose">подробный</x:String>
     <x:String x:Key="Text_Log_Debug">отладка</x:String>
     <x:String x:Key="Text_Log_Information">Информация</x:String>

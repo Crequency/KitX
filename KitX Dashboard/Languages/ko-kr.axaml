@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">옵션</x:String>
     <x:String x:Key="Text_Public_Task">일</x:String>
     <x:String x:Key="Text_Public_Size">크기</x:String>
+    <x:String x:Key="Text_Public_Developing">개발 중</x:String>
     <x:String x:Key="Text_Log_Verbose">상세한</x:String>
     <x:String x:Key="Text_Log_Debug">디버깅</x:String>
     <x:String x:Key="Text_Log_Information">정보</x:String>

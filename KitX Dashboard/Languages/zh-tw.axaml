@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">選項</x:String>
     <x:String x:Key="Text_Public_Task">任務</x:String>
     <x:String x:Key="Text_Public_Size">大小</x:String>
+    <x:String x:Key="Text_Public_Developing">該部分正在開發中</x:String>
     <x:String x:Key="Text_Log_Verbose">詳細</x:String>
     <x:String x:Key="Text_Log_Debug">調試</x:String>
     <x:String x:Key="Text_Log_Information">信息</x:String>

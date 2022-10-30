@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">Choix</x:String>
     <x:String x:Key="Text_Public_Task">Tâche</x:String>
     <x:String x:Key="Text_Public_Size">Taille</x:String>
+    <x:String x:Key="Text_Public_Developing">En développement</x:String>
     <x:String x:Key="Text_Log_Verbose">détaillé</x:String>
     <x:String x:Key="Text_Log_Debug">débogage</x:String>
     <x:String x:Key="Text_Log_Information">informations</x:String>

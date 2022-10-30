@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">Option</x:String>
     <x:String x:Key="Text_Public_Task">Task</x:String>
     <x:String x:Key="Text_Public_Size">Size</x:String>
+    <x:String x:Key="Text_Public_Developing">Developing ...</x:String>
     <x:String x:Key="Text_Log_Verbose">Verbose</x:String>
     <x:String x:Key="Text_Log_Debug">Debug</x:String>
     <x:String x:Key="Text_Log_Information">Infomation</x:String>
