@@ -116,8 +116,7 @@
             </Expander>
 
             <Expander Margin="20,5"
-                      IsExpanded="{Binding AuthorsAreaExpanded}"
-                      IsVisible="{Binding AuthorsListVisibility}">
+                      IsExpanded="{Binding AuthorsAreaExpanded}">
                 <Expander.Header>
                     <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0"
@@ -175,7 +174,7 @@
             </Expander>
 
 
-            <Expander Margin="20,5" IsVisible="{Binding AuthorsListVisibility}">
+            <Expander Margin="20,5" IsVisible="{Binding EasterEggsFounded}">
                 <Expander.Header>
                     <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
                         <icon:MaterialIcon Margin="5,0"

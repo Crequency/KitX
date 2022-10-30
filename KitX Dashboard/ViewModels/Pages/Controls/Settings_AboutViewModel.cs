@@ -38,18 +38,18 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// </summary>
         internal static string VersionText => $"v{Assembly.GetEntryAssembly().GetName().Version}";
 
-        internal bool authorsListVisibility = false;
+        internal bool easterEggsFounded = false;
 
         /// <summary>
         /// 制作人员列表属性
         /// </summary>
-        internal bool AuthorsListVisibility
+        internal bool EasterEggsFounded
         {
-            get => authorsListVisibility;
+            get => easterEggsFounded;
             set
             {
-                authorsListVisibility = value;
-                PropertyChanged?.Invoke(this, new(nameof(AuthorsListVisibility)));
+                easterEggsFounded = value;
+                PropertyChanged?.Invoke(this, new(nameof(EasterEggsFounded)));
             }
         }
 

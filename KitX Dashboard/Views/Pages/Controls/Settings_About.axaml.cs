@@ -47,7 +47,7 @@ namespace KitX_Dashboard.Views.Pages.Controls
                             pass = false;
                             break;
                         }
-                    viewModel.AuthorsListVisibility = pass;
+                    viewModel.EasterEggsFounded = pass;
                 }
             }
         }
