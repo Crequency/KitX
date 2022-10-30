@@ -122,7 +122,7 @@ namespace KitX_Dashboard
 
             new Thread(() =>
             {
-                BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath),
+                FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath),
                     JsonSerializer.Serialize(Program.PluginsList, options));
             }).Start();
         }
