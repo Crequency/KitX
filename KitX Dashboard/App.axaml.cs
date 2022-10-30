@@ -13,6 +13,7 @@ using KitX_Dashboard.Views;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Serilog;
+using System;
 using System.Linq;
 using System.Threading;
 
@@ -25,7 +26,7 @@ namespace KitX_Dashboard
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
-            
+
             #region 加载语言
 
             string lang = Program.Config.App.AppLanguage;
@@ -44,23 +45,37 @@ namespace KitX_Dashboard
 
                 string backup_lang = Program.Config.App.SurpportLanguages.Keys.First();
                 Resources.MergedDictionaries.Clear();
-                Resources.MergedDictionaries.Add(
-                    AvaloniaRuntimeXamlLoader.Load(
-                        FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{backup_lang}.axaml")
-                    ) as ResourceDictionary
-                );
+                try
+                {
+                    Resources.MergedDictionaries.Add(
+                        AvaloniaRuntimeXamlLoader.Load(
+                            FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{backup_lang}.axaml")
+                        ) as ResourceDictionary
+                    );
 
-                Program.Config.App.AppLanguage = backup_lang;
+                    Program.Config.App.AppLanguage = backup_lang;
+                }
+                catch (Exception e)
+                {
+                    Log.Warning($"Suspected absence of language files on record.", e);
+                }
             }
             finally
             {
                 Log.Error($"No surpport language file loaded.");
             }
 
-            EventHandlers.Invoke(nameof(EventHandlers.LanguageChanged));
+            try
+            {
+                EventHandlers.Invoke(nameof(EventHandlers.LanguageChanged));
+            }
+            catch (Exception e)
+            {
+                Log.Warning($"Failed to invoke language changed event.", e);
+            }
 
             #endregion
-            
+
             #region 计算主题色
 
             Color c = Color.Parse(Program.Config.App.ThemeColor);
