@@ -2,9 +2,11 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Common.Update.Checker;
+using KitX.Web.Rules;
 using KitX_Dashboard.Commands;
 using KitX_Dashboard.Converters;
 using KitX_Dashboard.Data;
+using KitX_Dashboard.Services;
 using MessageBox.Avalonia;
 using Serilog;
 using System;
@@ -237,6 +239,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         .SetTransHash2String(true)
                         .AppendIgnoreFolder("Config")
                         .AppendIgnoreFolder("Languages")
+                        .AppendIgnoreFolder("Data")
                         .AppendIgnoreFolder("Log")
                         .AppendIgnoreFolder(Program.Config.App.LocalPluginsFileDirectory)
                         .AppendIgnoreFolder(Program.Config.App.LocalPluginsDataDirectory);
@@ -307,10 +310,18 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
 
                     HttpClient client = new();  //  Http客户端
                     client.DefaultRequestHeaders.Accept.Clear();    //  清除请求头部
-                    string link = $"https://" +
-                        $"{Program.Config.Web.UpdateServer}" +
-                        $"{Program.Config.Web.UpdatePath}" +
-                        $"{Program.Config.Web.UpdateSource}";
+                    string link = "https://" +
+                        Program.Config.Web.UpdateServer +
+                        Program.Config.Web.UpdatePath.Replace("%platform%",
+                            WebServer.DefaultDeviceInfoStruct.DeviceOSType switch
+                            {
+                                OperatingSystems.Windows => "win",
+                                OperatingSystems.Linux => "linux",
+                                OperatingSystems.MacOS => "mac",
+                                _ => ""
+                            }) +
+                        $"{Program.Config.Web.UpdateChannel}/" +
+                        Program.Config.Web.UpdateSource;
                     string json = await client.GetStringAsync(link);
 
                     #endregion
@@ -416,9 +427,17 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                         Tip = GetUpdateTip("Download");
 
                         //TODO: 下载有变更的文件
-                        string downloadLinkBase = $"https://" +
-                        $"{Program.Config.Web.UpdateServer}" +
-                        $"{Program.Config.Web.UpdateDownloadPath}";
+                        string downloadLinkBase = "https://" +
+                        Program.Config.Web.UpdateServer +
+                        Program.Config.Web.UpdateDownloadPath.Replace("%platform%",
+                            WebServer.DefaultDeviceInfoStruct.DeviceOSType switch
+                            {
+                                OperatingSystems.Windows => "win",
+                                OperatingSystems.Linux => "linux",
+                                OperatingSystems.MacOS => "mac",
+                                _ => ""
+                            }) +
+                        $"{Program.Config.Web.UpdateChannel}/";
                         if (!Directory.Exists(Path.GetFullPath(GlobalInfo.UpdateSavePath)))
                             Directory.CreateDirectory(Path.GetFullPath(GlobalInfo.UpdateSavePath));
                         foreach (var item in updatedComponents)

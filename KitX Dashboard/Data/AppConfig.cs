@@ -261,11 +261,20 @@ namespace KitX_Dashboard.Data
             [JsonInclude]
             public string UpdateServer { get; set; } = "api.catrol.cn";
 
+            /// <summary>
+            /// %platform%  -   Windows, Linux, MacOS (win, linux, mac)
+            /// </summary>
             [JsonInclude]
-            public string UpdatePath { get; set; } = "/apps/kitx/";
+            public string UpdatePath { get; set; } = "/apps/kitx/%platform%/";
 
             [JsonInclude]
-            public string UpdateDownloadPath { get; set; } = "/apps/kitx/update/";
+            public string UpdateDownloadPath { get; set; } = "/apps/kitx/update/%platform%/";
+
+            /// <summary>
+            /// %channel%   -   Stable, Beta, Alpha (stable, beta, alpha)
+            /// </summary>
+            [JsonInclude]
+            public string UpdateChannel { get; set; } = "stable";
 
             [JsonInclude]
             public string UpdateSource { get; set; } = "latest-components.json";
