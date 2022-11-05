@@ -117,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">Comparing updated components...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">Downloading updated components...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">Updating prepared!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">Update preparation failed</x:String>
     <x:String x:Key="Text_Settings_About">About</x:String>
     <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">Authors</x:String>

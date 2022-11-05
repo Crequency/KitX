@@ -117,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">Téléchargement de la liste des composants de modification...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">Téléchargement des composants de modification...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">mise à jour prête!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">La préparation de la mise à jour a échoué</x:String>
     <x:String x:Key="Text_Settings_About">sur</x:String>
     <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">personnel de production</x:String>

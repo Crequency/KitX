@@ -117,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">Загрузка списка компонентов изменений...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">Загрузка компонентов изменений...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">обновление готово!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">Не удалось подготовить обновление</x:String>
     <x:String x:Key="Text_Settings_About">о</x:String>
     <x:String x:Key="Text_Settings_About_Version">Версия:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">Сотрудники производства</x:String>

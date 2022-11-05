@@ -117,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">正在下载变更组件列表...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">正在下载变更组件...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">更新准备完毕!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">更新准备失败</x:String>
     <x:String x:Key="Text_Settings_About">关于</x:String>
     <x:String x:Key="Text_Settings_About_Version">版本:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">制作人员</x:String>
