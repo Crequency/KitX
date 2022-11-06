@@ -84,8 +84,8 @@
 ---
 
 # 文档总览 | Docs Preview
-| Languages | Docs                                                 |
-|-----------|------------------------------------------------------|
+| Languages | Docs                                          |
+|-----------|-----------------------------------------------|
 | zh-cn     | [简体中文](./KitX%20Docs/zh-cn/README.md)     |
 | zh-cnt    | [繁體中文](./KitX%20Docs/zh-cnt/README.md)    |
 | en-us     | [English (US)](./KitX%20Docs/en-us/README.md) |
@@ -226,41 +226,44 @@ iOS:     Optional online installation from the App Store.
 <details>
 <summary>旧版 Old versions</summary>
 
-| Version    | Info    | Code       | Support | Term | Require            | Runs on |
-|------------|---------|------------|---------|------|--------------------|---------|
-| Beta_10016 | Beta    | Beta1      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| Beta_10213 | Beta    | Beta2      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| Beta_10235 | Beta    | Beta3      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.0.0     | Release | Hello      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.0.4     | Release | WoW        | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.0.5     | Release | Nice Try   | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.1.0     | Release | Apple      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.1.1     | Release | Banana     | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.1.2     | Release | Cabbage    | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.1.4     | Release | Durin      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.1.5     | Release | Grape      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.0     | Release | Herring    | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.1     | Release | Wonderful  | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.2     | Release | Abandon    | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.4     | Preview | Panda      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.4     | Release | Panda      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.5     | Release | Orange     | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.6     | Release | Muik       | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v1.2.7     | Release | Cookie     | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v2.0.0     | Release | Sea        | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v2.0.1     | Release | Ocean      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v2.0.2     | Release | Calculator | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v2.0.4     | Release | Computer   | :x:     | 0    | .Net Framework 4.8 | Windows |
-| v2.0.5     | Preview | Laptop     | :x:     | 0    | .Net Framework 4.8 | Windows |
+| Version                                                                 | Info    | Code       | Support | Term | Require            | Runs on |
+|-------------------------------------------------------------------------|---------|------------|---------|------|--------------------|---------|
+| Beta_10016                                                              | Beta    | Beta1      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| Beta_10213                                                              | Beta    | Beta2      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| Beta_10235                                                              | Beta    | Beta3      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.0.0](https://github.com/Crequency/KitX/releases/tag/v1.0.0)         | Release | Hello      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.0.4](https://github.com/Crequency/KitX/releases/tag/v1.0.4)         | Release | WoW        | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.0.5](https://github.com/Crequency/KitX/releases/tag/v1.0.5)         | Release | Nice Try   | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.1.0](https://github.com/Crequency/KitX/releases/tag/v1.1.0)         | Release | Apple      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.1.1](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Banana     | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.1.2](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Cabbage    | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.1.4](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Durin      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.1.5](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Grape      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.0](https://github.com/Crequency/KitX/releases/tag/v1.2.0)         | Release | Herring    | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.1](https://github.com/Crequency/KitX/releases/tag/v1.2.1)         | Release | Wonderful  | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.2](https://github.com/Crequency/KitX/releases/tag/v1.2.2)         | Release | Abandon    | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4-preview) | Preview | Panda      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4)         | Release | Panda      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.5](https://github.com/Crequency/KitX/releases/tag/v1.2.5)         | Release | Orange     | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.6](https://github.com/Crequency/KitX/releases/tag/v1.2.6)         | Release | Muik       | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v1.2.7](https://github.com/Crequency/KitX/releases/tag/v1.2.7)         | Release | Cookie     | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v2.0.0](https://github.com/Crequency/KitX/releases/tag/v2.0.0)         | Release | Sea        | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v2.0.1](https://github.com/Crequency/KitX/releases/tag/v2.0.1)         | Release | Ocean      | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v2.0.2](https://github.com/Crequency/KitX/releases/tag/v2.0.2)         | Release | Calculator | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v2.0.3](https://github.com/Crequency/KitX/releases/tag/v2.0.3)         | Release | Wood       | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v2.0.4](https://github.com/Crequency/KitX/releases/tag/v2.0.4)         | Release | Computer   | :x:     | 0    | .Net Framework 4.8 | Windows |
+| [v2.0.5](https://github.com/Crequency/KitX/releases/tag/v2.0.5-preview) | Preview | Laptop     | :x:     | 0    | .Net Framework 4.8 | Windows |
 
 </details>
 
-| Version       | Info    | Code     | Support            | Term               | Require                      | Runs on                                                    |
-|---------------|---------|----------|--------------------|--------------------|------------------------------|------------------------------------------------------------|
-| v3.22.04.6230 | Preview | Telegram | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| v3.22.04.6235 | Release | Break    | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| v3.22.10.x    | Release | Hi       | coding             | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| v3.23.04.x    | Release | ToYou    | coding             | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| Version                                                                           | Info    | Code      | Support            | Term               | Require                      | Runs on                                                    |
+|-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|------------------------------|------------------------------------------------------------|
+| [v3.0.6187.47831](https://github.com/Crequency/KitX/releases/tag/v3.0.6187.47831) | Preview | Fly       | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| [v3.22.04.6230](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6230)     | Preview | Telegram  | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Preview | Evolution | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| v3.22.10.x                                                                        | Release | Hi        | coding             | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| v3.23.04.x                                                                        | Release | ToYou     | coding             | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 
 # 贡献者 Contributors
 <a href = "https://github.com/Crequency/KitX/graphs/contributors">
