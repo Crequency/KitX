@@ -28,3 +28,6 @@
 [submodule "KitX Tools"]
 	path = KitX Tools
 	url = git@github.com:Crequency/KitX-Tools.git
+[submodule "KitX Rules"]
+	path = KitX Rules
+	url = git@github.com:Crequency/KitX-Rules.git
