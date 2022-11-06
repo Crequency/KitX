@@ -31,6 +31,10 @@ jobs:
         uses: nuget/setup-nuget@v1
         with:
           nuget-version: '6.x'
+          
+      - name: Update SubModules
+        run: |
+          git submodule update
 
       - name: Build and Publish `KitX.Contract.CSharp`
         if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')

@@ -26,6 +26,10 @@ jobs:
         run: |
           bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
           C:\sdk.exe
+          
+      - name: Update SubModules
+        run: |
+          git submodule update
 
       - name: Build Plugins
         run: |
