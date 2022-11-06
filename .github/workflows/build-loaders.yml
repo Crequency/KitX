@@ -15,6 +15,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
@@ -26,11 +28,6 @@ jobs:
         run: |
           bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
           C:\sdk.exe
-
-      - name: Prepare Source
-        run: |
-          git clone https://github.com/Crequency/KitX
-          cd KitX
       
       - name: Build Loaders
         run: |

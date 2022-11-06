@@ -16,6 +16,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
@@ -31,11 +33,6 @@ jobs:
         uses: nuget/setup-nuget@v1
         with:
           nuget-version: '6.x'
-
-      - name: Prepare Source
-        run: |
-          git clone https://github.com/Crequency/KitX
-          cd KitX
 
       - name: Build and Publish `KitX.Contract.CSharp`
         if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')

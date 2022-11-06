@@ -15,17 +15,14 @@ jobs:
     steps:
     
       - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
         with:
           dotnet-version: '6.0.x'
           include-prerelease: false
-
-      - name: Prepare Source
-        run: |
-          git clone https://github.com/Crequency/KitX
-          cd KitX
 
       - name: Build Contracts
         run: |
@@ -69,6 +66,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
@@ -76,15 +75,9 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
-      - name: Prepare Source
-        run: |
-          git clone https://github.com/Crequency/KitX
-          cd KitX
-
       - name: Build Contracts
         run: |
           cd "KitX Contracts"
-          ls
 
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
@@ -124,6 +117,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
@@ -131,11 +126,6 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
           
-      - name: Prepare Source
-        run: |
-          git clone https://github.com/Crequency/KitX
-          cd KitX
-
       - name: Build Contracts
         run: |
           cd "KitX Contracts"
