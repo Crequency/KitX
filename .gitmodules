@@ -19,3 +19,6 @@
 [submodule "KitX Loaders/KitX.Loader.Python"]
 	path = KitX Loaders/KitX.Loader.Python
 	url = git@github.com:LYF511/KitX.Loader.Python.git
+[submodule "KitX Contracts"]
+	path = KitX Contracts
+	url = git@github.com:Crequency/KitX-Contracts.git
