@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-
+    
       - uses: actions/checkout@v3
 
       - name: Setup .NET
@@ -83,13 +83,14 @@ jobs:
 
       - name: Build Contracts
         run: |
-          cd KitX\ Contracts
+          cd "KitX Contracts"
+          ls
 
-          cd ./KitX.Contract.CSharp/
+          cd "KitX.Contract.CSharp"
           dotnet build -c Release
-          cd ..
+          cd ".."
 
-          cd ..
+          cd ".."
 
       - name: Build Dashboard
         run: |
