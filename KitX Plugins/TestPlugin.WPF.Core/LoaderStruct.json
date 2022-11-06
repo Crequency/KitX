@@ -1,8 +1,0 @@
-{
-    "LoaderName": "Loader.WPF.Core",
-    "LoaderVersion": "v1.0.0",
-    "LoaderLanguage": "CSharp",
-    "LoaderFramework": "WPF.Core",
-    "LoaderRunType": 2,
-    "SupportOS": [ 10 ]
-}
