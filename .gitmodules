@@ -16,9 +16,6 @@
 [submodule "KitX Loaders"]
 	path = KitX Loaders
 	url = git@github.com:Crequency/KitX-Loaders.git
-[submodule "KitX Loaders/KitX.Loader.Python"]
-	path = KitX Loaders/KitX.Loader.Python
-	url = git@github.com:LYF511/KitX.Loader.Python.git
 [submodule "KitX Contracts"]
 	path = KitX Contracts
 	url = git@github.com:Crequency/KitX-Contracts.git
@@ -37,3 +34,6 @@
 [submodule "KitX Dashboard"]
 	path = KitX Dashboard
 	url = git@github.com:Crequency/KitX-Dashboard.git
+[submodule "KitX File Format Helper"]
+	path = KitX File Format Helper
+	url = git@github.com:Crequency/KitX-File-Format-Helper.git
