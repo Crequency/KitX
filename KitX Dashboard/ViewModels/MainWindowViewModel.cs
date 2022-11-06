@@ -1,4 +1,5 @@
-﻿using KitX_Dashboard.Commands;
+﻿using Avalonia.Controls;
+using KitX_Dashboard.Commands;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.Views;
@@ -27,12 +28,9 @@ namespace KitX_Dashboard.ViewModels
         internal void TrayIconClicked(object mainWindow)
         {
             MainWindow? win = mainWindow as MainWindow;
+            if (win?.WindowState == WindowState.Minimized)
+                win.WindowState = WindowState.Normal;
             win?.Show();
-            //if (win != null)
-            //{
-            //    win.Topmost = true;
-            //    win.Topmost = false;
-            //}
             win?.Activate();
         }
 
