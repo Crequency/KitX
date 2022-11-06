@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">選項</x:String>
     <x:String x:Key="Text_Public_Task">任務</x:String>
     <x:String x:Key="Text_Public_Size">大小</x:String>
+    <x:String x:Key="Text_Public_Developing">該部分正在開發中</x:String>
     <x:String x:Key="Text_Log_Verbose">詳細</x:String>
     <x:String x:Key="Text_Log_Debug">調試</x:String>
     <x:String x:Key="Text_Log_Information">信息</x:String>
@@ -39,6 +40,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動日志</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">無最近使用記錄.</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">統計無法完成</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">使用時長</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">活動來生成活動日志</x:String>
     <x:String x:Key="Text_Lib_Search">搜索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">在本地搜索</x:String>
@@ -74,6 +76,7 @@
     <x:String x:Key="Text_Device_Resources_NET">網路</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">個設備已發現</x:String>
     <x:String x:Key="Text_Device_PluginsCount">在綫插件數量:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">未獲取到MAC地址</x:String>
     <x:String x:Key="Text_Settings_General">通用</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">本機插件的程序路徑</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">本機插件的文件路徑</x:String>
@@ -114,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">正在下載變更軟體列表...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">正在下載變更軟體...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">更新準備完畢!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">更新準備失敗</x:String>
     <x:String x:Key="Text_Settings_About">關於</x:String>
     <x:String x:Key="Text_Settings_About_Version">版本:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">製作人員</x:String>

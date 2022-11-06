@@ -1,6 +1,7 @@
 ﻿using Avalonia.Threading;
 using KitX.Web.Rules;
 using KitX_Dashboard.Views.Pages.Controls;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Timers;
@@ -10,6 +11,8 @@ namespace KitX_Dashboard.Services
     internal class DevicesManager
     {
         internal static readonly Queue<DeviceInfoStruct> deviceInfoStructs = new();
+
+        private static readonly object AddDeviceCard2ViewLock = new();
 
         /// <summary>
         /// 持续检查并移除
@@ -40,7 +43,10 @@ namespace KitX_Dashboard.Services
                     {
                         Dispatcher.UIThread.Post(() =>
                         {
-                            Program.DeviceCards.Add(new(deviceInfoStruct));
+                            lock (AddDeviceCard2ViewLock)
+                            {
+                                Program.DeviceCards.Add(new(deviceInfoStruct));
+                            }
                         });
                     }
                 }
@@ -62,7 +68,7 @@ namespace KitX_Dashboard.Services
                         DevicesNeed2BeRemoved.Add(item);
                         continue;
                     }
-                    if(IPv6AddressVisited.Contains(item.viewModel.DeviceInfo.IPv6))
+                    if (IPv6AddressVisited.Contains(item.viewModel.DeviceInfo.IPv6))
                     {
                         DevicesNeed2BeRemoved.Add(item);
                         continue;
@@ -76,7 +82,36 @@ namespace KitX_Dashboard.Services
                 }
                 foreach (var item in DevicesNeed2BeRemoved)
                 {
-                    Program.DeviceCards.Remove(item);
+                    lock (AddDeviceCard2ViewLock)
+                    {
+                        Program.DeviceCards.Remove(item);
+                    }
+                }
+
+                int index = 0;
+                DeviceCard? localMachine = null;
+                foreach (var item in Program.DeviceCards)
+                {
+                    if (item.viewModel.DeviceInfo.DeviceMacAddress.Equals(
+                            WebServer.DefaultDeviceInfoStruct.DeviceMacAddress)
+                        && item.viewModel.DeviceInfo.DeviceName.Equals(
+                            WebServer.DefaultDeviceInfoStruct.DeviceName))
+                    {
+                        localMachine = item;
+                        break;
+                    }
+                    ++index;
+                }
+                if (index != 0)
+                {
+                    try
+                    {
+                        Program.DeviceCards.Move(index, 0);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Warning($"Can't move self 2 first. {e.Message}", e);
+                    }
                 }
             };
             timer.Start();

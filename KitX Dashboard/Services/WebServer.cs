@@ -195,6 +195,8 @@ namespace KitX_Dashboard.Services
 
         private static readonly List<int> SurpportedNetworkInterfaces = new();
 
+        internal static DeviceInfoStruct DefaultDeviceInfoStruct = GetDeviceInfo();
+
         /// <summary>
         /// UDP 发包客户端
         /// </summary>
@@ -269,7 +271,8 @@ namespace KitX_Dashboard.Services
             {
                 try
                 {
-                    string sendText = JsonSerializer.Serialize(GetDeviceInfo());
+                    UpdateDefaultDeviceInfoStruct();
+                    string sendText = JsonSerializer.Serialize(DefaultDeviceInfoStruct);
                     byte[] sendBytes = Encoding.UTF8.GetBytes(sendText);
 
                     foreach (var item in SurpportedNetworkInterfaces)
@@ -388,6 +391,23 @@ namespace KitX_Dashboard.Services
             ServingPort = GlobalInfo.ServerPortNumber,
             PluginsCount = Program.PluginCards.Count,
         };
+
+        /// <summary>
+        /// 更新默认设备信息结构
+        /// </summary>
+        private static void UpdateDefaultDeviceInfoStruct()
+        {
+            DefaultDeviceInfoStruct.IsMainDevice = GlobalInfo.IsMainMachine;
+            DefaultDeviceInfoStruct.SendTime = DateTime.Now;
+            DefaultDeviceInfoStruct.DeviceOSVersion = Environment.OSVersion.VersionString;
+            DefaultDeviceInfoStruct.IPv4 = GetInterNetworkIPv4();
+            DefaultDeviceInfoStruct.IPv6 = (from ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList
+                    where ip.AddressFamily == AddressFamily.InterNetworkV6
+                        && !ip.ToString().Equals("::1")
+                    select ip).First().ToString();
+            DefaultDeviceInfoStruct.ServingPort = GlobalInfo.ServerPortNumber;
+            DefaultDeviceInfoStruct.PluginsCount = Program.PluginCards.Count;
+        }
 
         #endregion
 

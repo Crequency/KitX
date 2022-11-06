@@ -15,7 +15,7 @@ namespace KitX_Dashboard.ViewModels.Pages
             set
             {
                 Program.Config.Pages.Home.IsNavigationViewPaneOpened = value;
-                EventHandlers.Invoke("ConfigSettingsChanged");
+                EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
             }
         }
     }

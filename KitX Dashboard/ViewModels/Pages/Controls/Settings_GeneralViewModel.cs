@@ -24,7 +24,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 保存变更
         /// </summary>
-        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+        private static void SaveChanges()
+        {
+            EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
+        }
 
         /// <summary>
         /// 本地插件程序目录
@@ -74,7 +77,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             set
             {
                 Program.Config.App.DeveloperSetting = value == 0;
-                EventHandlers.Invoke("DevelopSettingsChanged");
+                EventHandlers.Invoke(nameof(EventHandlers.DevelopSettingsChanged));
                 SaveChanges();
             }
         }

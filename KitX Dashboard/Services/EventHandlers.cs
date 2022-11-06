@@ -1,6 +1,5 @@
 ﻿#pragma warning disable CS8602 // 解引用可能出现空引用。
 
-
 namespace KitX_Dashboard.Services
 {
     internal static class EventHandlers
@@ -20,6 +19,12 @@ namespace KitX_Dashboard.Services
 
         internal delegate void LogConfigUpdatedHandler();
 
+        internal delegate void ThemeConfigChangedHandler();
+
+        internal delegate void UseStatisticsChangedHandler();
+
+        internal delegate void OnExitingHandler();
+
         internal static event LanguageChangedHandler? LanguageChanged;
 
         internal static event GreetingTextIntervalUpdatedHandler? GreetingTextIntervalUpdated;
@@ -34,6 +39,12 @@ namespace KitX_Dashboard.Services
 
         internal static event LogConfigUpdatedHandler? LogConfigUpdated;
 
+        internal static event ThemeConfigChangedHandler? ThemeConfigChanged;
+
+        internal static event UseStatisticsChangedHandler? UseStatisticsChanged;
+
+        internal static event OnExitingHandler? OnExiting;
+
 
         /// <summary>
         /// 必要的初始化
@@ -47,6 +58,9 @@ namespace KitX_Dashboard.Services
             PluginsListChanged += () => { };
             DevelopSettingsChanged += () => { };
             LogConfigUpdated += () => { };
+            ThemeConfigChanged += () => { };
+            UseStatisticsChanged += () => { };
+            OnExiting += () => { };
         }
 
         /// <summary>
@@ -77,6 +91,15 @@ namespace KitX_Dashboard.Services
                     break;
                 case nameof(LogConfigUpdated):
                     LogConfigUpdated();
+                    break;
+                case nameof(ThemeConfigChanged):
+                    ThemeConfigChanged();
+                    break;
+                case nameof(UseStatisticsChanged):
+                    UseStatisticsChanged();
+                    break;
+                case nameof(OnExiting):
+                    OnExiting();
                     break;
             }
         }

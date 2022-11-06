@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">Choix</x:String>
     <x:String x:Key="Text_Public_Task">Tâche</x:String>
     <x:String x:Key="Text_Public_Size">Taille</x:String>
+    <x:String x:Key="Text_Public_Developing">En développement</x:String>
     <x:String x:Key="Text_Log_Verbose">détaillé</x:String>
     <x:String x:Key="Text_Log_Debug">débogage</x:String>
     <x:String x:Key="Text_Log_Information">informations</x:String>
@@ -39,6 +40,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">journal d'activité</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">Aucun enregistrement d'utilisation récente~</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">Statistiques pas encore</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">Utiliser le temps</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">Le journal d'activité est vide!</x:String>
     <x:String x:Key="Text_Lib_Search">chercher</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Rechercher localement</x:String>
@@ -74,6 +76,7 @@
     <x:String x:Key="Text_Device_Resources_NET">réseau</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">appareils découverts</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Nombre de plugins en ligne:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">Adresse MAC non obtenue</x:String>
     <x:String x:Key="Text_Settings_General">Universel</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">répertoire local des plugins</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Répertoire de données du plug-in local</x:String>
@@ -114,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">Téléchargement de la liste des composants de modification...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">Téléchargement des composants de modification...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">mise à jour prête!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">La préparation de la mise à jour a échoué</x:String>
     <x:String x:Key="Text_Settings_About">sur</x:String>
     <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">personnel de production</x:String>

@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">オプション</x:String>
     <x:String x:Key="Text_Public_Task">仕事</x:String>
     <x:String x:Key="Text_Public_Size">サイズ</x:String>
+    <x:String x:Key="Text_Public_Developing">開発中</x:String>
     <x:String x:Key="Text_Log_Verbose">详细</x:String>
     <x:String x:Key="Text_Log_Debug">调试</x:String>
     <x:String x:Key="Text_Log_Information">情報</x:String>
@@ -39,6 +40,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">活動記録</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">最近の歴史はありません.</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">統計はまだありません</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">利用時間</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">アクティビティログなし</x:String>
     <x:String x:Key="Text_Lib_Search">検索</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">ローカルで検索</x:String>
@@ -74,6 +76,7 @@
     <x:String x:Key="Text_Device_Resources_NET">通信網</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">台のデバイスが検出されました</x:String>
     <x:String x:Key="Text_Device_PluginsCount">利用可能なプラグインの数:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MACアドレスが取得できません</x:String>
     <x:String x:Key="Text_Settings_General">ユニバーサル</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">ローカル プラグイン ディレクトリ</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">ローカル プラグイン データ ディレクトリ</x:String>
@@ -114,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">変更ファイル一覧のダウンロード...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">変更ファイルをダウンロードしています...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">更新準備完了!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">アップデートの準備に失敗しました</x:String>
     <x:String x:Key="Text_Settings_About">約</x:String>
     <x:String x:Key="Text_Settings_About_Version">バージョン:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">制作スタッフ</x:String>

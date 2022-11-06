@@ -42,7 +42,10 @@ namespace KitX_Dashboard.Views.Pages
         /// <summary>
         /// 保存对配置文件的修改
         /// </summary>
-        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+        private static void SaveChanges()
+        {
+            EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
+        }
 
         private static string SelectedViewName
         {

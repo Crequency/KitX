@@ -67,6 +67,16 @@ namespace KitX_Dashboard
 
             #endregion
 
+            #region 初始化数据记录管理器
+
+            StatisticsManager.InitEvents();
+
+            StatisticsManager.RecoverOldStatistics();
+
+            StatisticsManager.BeginRecord();
+
+            #endregion
+
             #region 初始化事件
 
             EventHandlers.ConfigSettingsChanged += () => SaveConfig();
@@ -112,7 +122,7 @@ namespace KitX_Dashboard
 
             new Thread(() =>
             {
-                BasicHelper.IO.FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath),
+                FileHelper.WriteIn(Path.GetFullPath(GlobalInfo.PluginsListConfigFilePath),
                     JsonSerializer.Serialize(Program.PluginsList, options));
             }).Start();
         }

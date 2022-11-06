@@ -84,7 +84,10 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
         /// <summary>
         /// 保存变更
         /// </summary>
-        private static void SaveChanges() => EventHandlers.Invoke("ConfigSettingsChanged");
+        private static void SaveChanges()
+        {
+            EventHandlers.Invoke(nameof(EventHandlers.ConfigSettingsChanged));
+        }
 
         private Color2 nowColor = new();
 
@@ -153,6 +156,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 Program.Config.App.Theme = value.ThemeName;
                 var faTheme = AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>();
                 faTheme.RequestedTheme = value.ThemeName == "Follow" ? null : value.ThemeName;
+                EventHandlers.Invoke(nameof(EventHandlers.ThemeConfigChanged));
                 SaveChanges();
             }
         }
@@ -181,7 +185,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
                 Log.Warning($"Language File {lang}.axaml not found.");
             }
 
-            EventHandlers.Invoke("LanguageChanged");
+            EventHandlers.Invoke(nameof(EventHandlers.LanguageChanged));
         }
 
         internal int languageSelected = -1;
@@ -243,7 +247,7 @@ namespace KitX_Dashboard.ViewModels.Pages.Controls
             set
             {
                 Program.Config.Windows.MainWindow.MicaOpacity = value;
-                EventHandlers.Invoke("MicaOpacityChanged");
+                EventHandlers.Invoke(nameof(EventHandlers.MicaOpacityChanged));
             }
         }
 

@@ -5,11 +5,15 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using BasicHelper.IO;
 using BasicHelper.Util;
+using FluentAvalonia.Styling;
 using KitX_Dashboard.Data;
 using KitX_Dashboard.Services;
 using KitX_Dashboard.ViewModels;
 using KitX_Dashboard.Views;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
 using Serilog;
+using System;
 using System.Linq;
 using System.Threading;
 
@@ -22,6 +26,8 @@ namespace KitX_Dashboard
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
+
+            #region 加载语言
 
             string lang = Program.Config.App.AppLanguage;
             try
@@ -39,20 +45,38 @@ namespace KitX_Dashboard
 
                 string backup_lang = Program.Config.App.SurpportLanguages.Keys.First();
                 Resources.MergedDictionaries.Clear();
-                Resources.MergedDictionaries.Add(
-                    AvaloniaRuntimeXamlLoader.Load(
-                        FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{backup_lang}.axaml")
-                    ) as ResourceDictionary
-                );
+                try
+                {
+                    Resources.MergedDictionaries.Add(
+                        AvaloniaRuntimeXamlLoader.Load(
+                            FileHelper.ReadAll($"{GlobalInfo.LanguageFilePath}/{backup_lang}.axaml")
+                        ) as ResourceDictionary
+                    );
 
-                Program.Config.App.AppLanguage = backup_lang;
+                    Program.Config.App.AppLanguage = backup_lang;
+                }
+                catch (Exception e)
+                {
+                    Log.Warning($"Suspected absence of language files on record.", e);
+                }
             }
             finally
             {
                 Log.Error($"No surpport language file loaded.");
             }
 
-            EventHandlers.Invoke("LanguageChanged");
+            try
+            {
+                EventHandlers.Invoke(nameof(EventHandlers.LanguageChanged));
+            }
+            catch (Exception e)
+            {
+                Log.Warning($"Failed to invoke language changed event.", e);
+            }
+
+            #endregion
+
+            #region 计算主题色
 
             Color c = Color.Parse(Program.Config.App.ThemeColor);
 
@@ -71,6 +95,34 @@ namespace KitX_Dashboard
                         new SolidColorBrush(new Color((byte)(i * 10 + i), c.R, c.G, c.B));
                 }
             }
+
+            #endregion
+
+            #region 初始化图表系统
+
+            LiveCharts.Configure(config =>
+            {
+                config.AddSkiaSharp()
+                    .AddDefaultMappers();
+                switch (AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>()?.RequestedTheme)
+                {
+                    case "Light": config.AddLightTheme(); break;
+                    case "Dark": config.AddDarkTheme(); break;
+                    default: config.AddLightTheme(); break;
+                };
+            });
+
+            EventHandlers.ThemeConfigChanged += () =>
+            {
+                switch (AvaloniaLocator.Current.GetService<FluentAvaloniaTheme>()?.RequestedTheme)
+                {
+                    case "Light": LiveCharts.CurrentSettings.AddLightTheme(); break;
+                    case "Dark": LiveCharts.CurrentSettings.AddDarkTheme(); break;
+                    default: LiveCharts.CurrentSettings.AddLightTheme(); break;
+                };
+            };
+
+            #endregion
         }
 
         public override void OnFrameworkInitializationCompleted()

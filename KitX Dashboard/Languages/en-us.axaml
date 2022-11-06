@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">Option</x:String>
     <x:String x:Key="Text_Public_Task">Task</x:String>
     <x:String x:Key="Text_Public_Size">Size</x:String>
+    <x:String x:Key="Text_Public_Developing">Developing ...</x:String>
     <x:String x:Key="Text_Log_Verbose">Verbose</x:String>
     <x:String x:Key="Text_Log_Debug">Debug</x:String>
     <x:String x:Key="Text_Log_Information">Infomation</x:String>
@@ -39,6 +40,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">Activity Log</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">No recent using records.</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">No statistics produced.</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">Use time</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">No activity logged.</x:String>
     <x:String x:Key="Text_Lib_Search">Search</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Search local</x:String>
@@ -74,6 +76,7 @@
     <x:String x:Key="Text_Device_Resources_NET">NET</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">Devices Detected.</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Enabled Plugins Count:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MAC address not obtained</x:String>
     <x:String x:Key="Text_Settings_General">General</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">Local Plugins Program Files Path</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Local Plugins Program Data Path</x:String>
@@ -114,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">Comparing updated components...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">Downloading updated components...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">Updating prepared!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">Update preparation failed</x:String>
     <x:String x:Key="Text_Settings_About">About</x:String>
     <x:String x:Key="Text_Settings_About_Version">Version:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">Authors</x:String>

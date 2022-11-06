@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">Опции</x:String>
     <x:String x:Key="Text_Public_Task">Задача</x:String>
     <x:String x:Key="Text_Public_Size">размер</x:String>
+    <x:String x:Key="Text_Public_Developing">В развитие</x:String>
     <x:String x:Key="Text_Log_Verbose">подробный</x:String>
     <x:String x:Key="Text_Log_Debug">отладка</x:String>
     <x:String x:Key="Text_Log_Information">Информация</x:String>
@@ -39,6 +40,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">журнал активности</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">Нет записей о недавнем использовании~</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">Статистики пока нет</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">Используйте время</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">Журнал активности пуст!</x:String>
     <x:String x:Key="Text_Lib_Search">поиск</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">Искать локально</x:String>
@@ -74,6 +76,7 @@
     <x:String x:Key="Text_Device_Resources_NET">сеть</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">устройства обнаружены</x:String>
     <x:String x:Key="Text_Device_PluginsCount">Количество онлайн-плагинов:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MAC-адрес не получен</x:String>
     <x:String x:Key="Text_Settings_General">Универсальный</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">локальный каталог плагинов</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">Локальный каталог данных плагина</x:String>
@@ -114,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">Загрузка списка компонентов изменений...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">Загрузка компонентов изменений...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">обновление готово!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">Не удалось подготовить обновление</x:String>
     <x:String x:Key="Text_Settings_About">о</x:String>
     <x:String x:Key="Text_Settings_About_Version">Версия:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">Сотрудники производства</x:String>

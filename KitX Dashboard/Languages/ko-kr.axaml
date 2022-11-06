@@ -20,6 +20,7 @@
     <x:String x:Key="Text_Public_Option">옵션</x:String>
     <x:String x:Key="Text_Public_Task">일</x:String>
     <x:String x:Key="Text_Public_Size">크기</x:String>
+    <x:String x:Key="Text_Public_Developing">개발 중</x:String>
     <x:String x:Key="Text_Log_Verbose">상세한</x:String>
     <x:String x:Key="Text_Log_Debug">디버깅</x:String>
     <x:String x:Key="Text_Log_Information">정보</x:String>
@@ -39,6 +40,7 @@
     <x:String x:Key="Text_MainWindow_HomePage_ActivityLog">활동 로그</x:String>
     <x:String x:Key="Text_MainWindow_Recent_No">최근 사용 기록이 없습니다.~</x:String>
     <x:String x:Key="Text_MainWindow_Count_No">통계가 아직 없음</x:String>
+    <x:String x:Key="Text_MainWindow_Count_Use">사용시간</x:String>
     <x:String x:Key="Text_MainWindow_ActivityLog_No">활동 로그가 비어 있습니다.!</x:String>
     <x:String x:Key="Text_Lib_Search">검색</x:String>
     <x:String x:Key="Text_Lib_Search_In_Local">로컬에서 검색</x:String>
@@ -74,6 +76,7 @@
     <x:String x:Key="Text_Device_Resources_NET">회로망</x:String>
     <x:String x:Key="Text_Device_Tip_Detected">발견된 장치</x:String>
     <x:String x:Key="Text_Device_PluginsCount">온라인 플러그인 수:</x:String>
+    <x:String x:Key="Text_Device_NoMacAddress">MAC 주소를 얻지 못했습니다</x:String>
     <x:String x:Key="Text_Settings_General">만능인</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsFileDirectory">로컬 플러그인 디렉토리</x:String>
     <x:String x:Key="Text_Settings_General_LocalPluginsDataDirectory">로컬 플러그인 데이터 디렉토리</x:String>
@@ -114,6 +117,7 @@
     <x:String x:Key="Text_Settings_Update_Tip_Compare">변경 구성 요소 목록 다운로드 중...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Download">변경 구성 요소 다운로드...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Prepared">업데이트 준비!</x:String>
+    <x:String x:Key="Text_Settings_Update_Tip_Failed">업데이트 준비 실패</x:String>
     <x:String x:Key="Text_Settings_About">~에 대한</x:String>
     <x:String x:Key="Text_Settings_About_Version">버전:</x:String>
     <x:String x:Key="Text_Settings_About_Authors">생산 직원</x:String>

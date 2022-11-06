@@ -2,7 +2,10 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:icon="using:Material.Icons.Avalonia"
+             xmlns:lvc="using:LiveChartsCore.SkiaSharpView.Avalonia"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
              d:DesignHeight="450"
              d:DesignWidth="800"
              mc:Ignorable="d">
@@ -14,6 +17,29 @@
                        FontWeight="Bold"
                        Text="{DynamicResource Text_MainWindow_Count_No}"/>
         </Border>
-        <ScrollViewer/>
+        <ScrollViewer Margin="0,20,0,0">
+            <StackPanel>
+
+                <Expander Margin="20,5" IsExpanded="{Binding UseAreaExpanded}">
+                    <Expander.Header>
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <icon:MaterialIcon Margin="5,0" Kind="ChartGantt"/>
+                            <TextBlock FontFamily="{StaticResource SourceHanSans}"
+                                       FontWeight="Bold"
+                                       Text="{DynamicResource Text_MainWindow_Count_Use}"/>
+                        </StackPanel>
+                    </Expander.Header>
+                    <lvc:CartesianChart Height="400"
+                                        Series="{Binding Use_Series}"
+                                        TooltipPosition="Top"
+                                        XAxes="{Binding Use_XAxes}"
+                                        YAxes="{Binding Use_YAxes}"
+                                        ZoomMode="X"/>
+                </Expander>
+
+                <Border Height="100"/>
+
+            </StackPanel>
+        </ScrollViewer>
     </DockPanel>
 </UserControl>
