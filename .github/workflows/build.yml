@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-
+    
       - uses: actions/checkout@v3
 
       - name: Setup .NET
@@ -22,9 +22,10 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
-      - name: Update SubModules
+      - name: Prepare Source
         run: |
-          git submodule update
+          git clone https://github.com/Crequency/KitX
+          cd KitX
 
       - name: Build Contracts
         run: |
@@ -75,9 +76,10 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
 
-      - name: Update SubModules
+      - name: Prepare Source
         run: |
-          git submodule update
+          git clone https://github.com/Crequency/KitX
+          cd KitX
 
       - name: Build Contracts
         run: |
@@ -128,9 +130,10 @@ jobs:
           dotnet-version: '6.0.x'
           include-prerelease: false
           
-      - name: Update SubModules
+      - name: Prepare Source
         run: |
-          git submodule update
+          git clone https://github.com/Crequency/KitX
+          cd KitX
 
       - name: Build Contracts
         run: |

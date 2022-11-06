@@ -26,10 +26,11 @@ jobs:
         run: |
           bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
           C:\sdk.exe
-          
-      - name: Update SubModules
+
+      - name: Prepare Source
         run: |
-          git submodule update
+          git clone https://github.com/Crequency/KitX
+          cd KitX
 
       - name: Build Plugins
         run: |
