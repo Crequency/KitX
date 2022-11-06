@@ -111,6 +111,10 @@
     <x:String x:Key="Text_Settings_Update_ComponentHash">값 확인</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">업데이트 가능</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">발견된 구성 요소</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel">채널 업데이트</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Stable">Stable</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Beta">Beta</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Alpha">Alpha</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Start">업데이트 확인 시작...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Scan">스캔 구성 요소...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Calculate">컴퓨팅 구성 요소 해시... %Progress%</x:String>

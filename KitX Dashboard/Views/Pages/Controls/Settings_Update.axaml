@@ -81,6 +81,22 @@
                         DockPanel.Dock="Right"
                         FontFamily="{StaticResource SourceHanSans}"
                         FontWeight="Bold"/>
+                <ComboBox Margin="0,0,10,0"
+                          VerticalAlignment="Center"
+                          DockPanel.Dock="Right"
+                          FontFamily="{StaticResource SourceHanSans}"
+                          FontWeight="Bold"
+                          SelectedIndex="{Binding UpdateChannel}">
+                    <ComboBoxItem Content="{DynamicResource Text_Settings_Update_Channel_Stable}"/>
+                    <ComboBoxItem Content="{DynamicResource Text_Settings_Update_Channel_Beta}"/>
+                    <ComboBoxItem Content="{DynamicResource Text_Settings_Update_Channel_Alpha}"/>
+                </ComboBox>
+                <TextBlock Margin="0,0,10,0"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Right"
+                           FontFamily="{StaticResource SourceHanSans}"
+                           FontWeight="Bold"
+                           Text="{DynamicResource Text_Settings_Update_Channel}"/>
 
                 <Border/>
             </DockPanel>

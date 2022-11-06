@@ -111,6 +111,10 @@
     <x:String x:Key="Text_Settings_Update_ComponentHash">контрольное значение</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">Обновляемый</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">компоненты найдены</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel">обновить канал</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Stable">Stable</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Beta">Beta</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Alpha">Alpha</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Start">Начать проверку обновлений...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Scan">Компоненты сканирования...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Calculate">Хэш вычислительного компонента... %Progress%</x:String>

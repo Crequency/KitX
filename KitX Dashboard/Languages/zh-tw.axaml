@@ -111,6 +111,10 @@
     <x:String x:Key="Text_Settings_Update_ComponentHash">校驗值</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentUpdatable">可更新</x:String>
     <x:String x:Key="Text_Settings_Update_ComponentsCount">個組件已發現</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel">更新頻道</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Stable">穩定版</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Beta">公測版</x:String>
+    <x:String x:Key="Text_Settings_Update_Channel_Alpha">內測版</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Start">開始檢查更新...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Scan">正在掃描軟體...</x:String>
     <x:String x:Key="Text_Settings_Update_Tip_Calculate">正在計算軟體校驗值... %Progress%</x:String>
