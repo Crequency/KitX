@@ -25,3 +25,6 @@
 [submodule "KitX Test"]
 	path = KitX Test
 	url = git@github.com:Crequency/KitX-Test.git
+[submodule "KitX Tools"]
+	path = KitX Tools
+	url = git@github.com:Crequency/KitX-Tools.git
