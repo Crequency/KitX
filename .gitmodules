@@ -31,3 +31,6 @@
 [submodule "KitX Rules"]
 	path = KitX Rules
 	url = git@github.com:Crequency/KitX-Rules.git
+[submodule "KitX Dashboard Helper"]
+	path = KitX Dashboard Helper
+	url = git@github.com:Crequency/KitX-Dashboard-Helper.git
