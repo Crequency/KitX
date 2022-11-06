@@ -22,3 +22,6 @@
 [submodule "KitX Contracts"]
 	path = KitX Contracts
 	url = git@github.com:Crequency/KitX-Contracts.git
+[submodule "KitX Test"]
+	path = KitX Test
+	url = git@github.com:Crequency/KitX-Test.git
