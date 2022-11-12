@@ -1,4 +1,4 @@
-<pre align="center">
+﻿<pre align="center">
 ██╗  ██╗    ██╗    ████████╗              ██╗  ██╗
 ██║ ██╔╝    ██║    ╚══██╔══╝              ╚██╗██╔╝
 █████╔╝     ██║       ██║       █████╗     ╚███╔╝ 
@@ -84,12 +84,12 @@
 ---
 
 # 文档总览 | Docs Preview
-| Languages | Docs                                          |
-|-----------|-----------------------------------------------|
-| zh-cn     | [简体中文](./KitX%20Docs/zh-cn/README.md)     |
-| zh-cnt    | [繁體中文](./KitX%20Docs/zh-cnt/README.md)    |
-| en-us     | [English (US)](./KitX%20Docs/en-us/README.md) |
-| ja-jp     | [日本語](./KitX%20Docs/ja-jp/README.md)       |
+| Languages | Docs                                                                             |
+|-----------|----------------------------------------------------------------------------------|
+| zh-cn     | [简体中文](https://github.com/Crequency/KitX-Docs/blob/main/zh-cn/README.md)     |
+| zh-cnt    | [繁體中文](https://github.com/Crequency/KitX-Docs/blob/main/zh-cnt/README.md)    |
+| en-us     | [English (US)](https://github.com/Crequency/KitX-Docs/blob/main/en-us/README.md) |
+| ja-jp     | [日本語](https://github.com/Crequency/KitX-Docs/blob/main/ja-jp/README.md)       |
 
 ---
 
