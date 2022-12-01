@@ -7,7 +7,7 @@
 ╚═╝  ╚═╝    ╚═╝       ╚═╝                 ╚═╝  ╚═╝
 </pre>
 
-<a href="https://apps.catrol.cn/KitX/">
+<a href="https://kitx.apps.catrol.cn/">
   <img align="right" src="https://source.catrol.cn/icons/Project/Catrol/KitX/KitX.png" height="200" width="200"/>
 </a>
 
