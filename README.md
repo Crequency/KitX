@@ -25,10 +25,14 @@
 [![Code Size](https://img.shields.io/github/languages/code-size/Crequency/KitX?style=for-the-badge)](#)
 [![Commit Activity](https://img.shields.io/github/commit-activity/m/Crequency/KitX?style=for-the-badge)](https://github.com/Crequency/KitX/commits/)
 
-##### 🗒 Status
+<details>
+<summary>状态 | Status</summary>
+
 [![Build Universal](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Universal?style=for-the-badge&label=Build%20Universal)](https://github.com/Crequency/KitX/actions/workflows/build.yml)
 [![Build Loaders](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Loaders?style=for-the-badge&label=Build%20Loaders)](https://github.com/Crequency/KitX/actions/workflows/build-loaders.yml)
 [![Build Plugins](https://img.shields.io/github/workflow/status/Crequency/KitX/Build%20Plugins?style=for-the-badge&label=Build%20Plugins)](https://github.com/Crequency/KitX/actions/workflows/build-plugins.yml)
+
+</details>
 
 ##### 📧 Social
 [![Forks](https://img.shields.io/github/forks/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/network/members)
@@ -59,31 +63,40 @@
 
 <br>
 
-- [文档总览 | Docs Preview](#文档总览-Docs-Preview)
+<details>
+<summary>目录 | Toc</summary>
+
+- [文档总览 | Docs Preview](#文档总览-docs-preview)
 - [📃 中文简介](#中文简介)
   - [ℹ 应用简介](#ℹ-应用简介)
   - [🗃 应用架构](#应用架构)
   - [🪧 运行要求](#运行要求)
-    - [KitX Dashboard (面向最终用户)](#KitX-Dashboard-面向最终用户)
+    - [KitX Dashboard (面向最终用户)](#kitx-dashboard-面向最终用户)
       - [系统支持](#系统支持)
       - [环境支持](#环境支持)
         - [桌面端支持](#桌面端支持)
         - [移动端支持](#移动端支持)
-- [📃 English Introduction](#English-Introduction)
-  - [ℹ App Description](#ℹ-App-Description)
-  - [🗃 Application Architecture](#Application-Architecture)
-  - [🪧 Operating requirements](#Operating-requirements)
-    - [KitX Dashboard (For end users)](#KitX-Dashboard-For-end-users)
-      - [System Support](#System-Support)
-      - [Environmental support](#Environmental-support)
-        - [Desktop support](#Desktop-support)
-        - [Mobile support](#Mobile-support)
-- [更新周期 Update Plan](#更新周期-Update-Plan)
-- [贡献者 Contributors](#贡献者-Contributors)
+- [📃 English Introduction](#english-introduction)
+  - [ℹ App Description](#ℹ-app-description)
+  - [🗃 Application Architecture](#application-architecture)
+  - [🪧 Operating requirements](#operating-requirements)
+    - [KitX Dashboard (For end users)](#kitx-dashboard-for-end-users)
+      - [System Support](#system-support)
+      - [Environmental support](#environmental-support)
+        - [Desktop support](#desktop-support)
+        - [Mobile support](#mobile-support)
+- [更新周期 Update Plan](#更新周期-update-plan)
+- [贡献者 Contributors](#贡献者-contributors)
+
+</details>
 
 ---
 
 # 文档总览 | Docs Preview
+
+<details>
+<summary>展开 | Expand</summary>
+
 | Languages | Docs                                                                             |
 |-----------|----------------------------------------------------------------------------------|
 | zh-cn     | [简体中文](https://github.com/Crequency/KitX-Docs/blob/main/zh-cn/README.md)     |
@@ -91,9 +104,14 @@
 | en-us     | [English (US)](https://github.com/Crequency/KitX-Docs/blob/main/en-us/README.md) |
 | ja-jp     | [日本語](https://github.com/Crequency/KitX-Docs/blob/main/ja-jp/README.md)       |
 
+</details>
+
 ---
 
 # 📃 中文简介
+
+<details>
+<summary>中文简介</summary>
 
 ## ℹ 应用简介
 KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)`以任何`受支持的语言, 框架`为这个平台增添功能.  
@@ -127,6 +145,10 @@ KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)
 </details>
 
 ## 🗃 应用架构
+
+<details>
+<summary>展开</summary>
+
 KitX 采用了三层设计
 
 
@@ -138,16 +160,22 @@ KitX 采用了三层设计
 而这三层设计中的每一层都是可以替换的, 任何一层都可以自定义或是采用第三方的解决方案.  
 如此一来, 局域网中的其它设备上的插件也可以连接到当前设备, 因此可以实现局域网互联.  
 
+</details>
+
 ## 🪧 运行要求
+
+<details>
+<summary>展开</summary>
+
 ### KitX Dashboard (面向最终用户)
 #### 系统支持
 桌面端支持: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
-移动端支持: Android (7+) arm, iOS (12+) arm
+移动端支持: Android (5+) arm, iOS (12+) arm
 
 #### 环境支持
 ##### 桌面端支持
 全平台支持 .NET AOT 编译, 进一步增强运行速度, 但是缺少测试, 稳定性没有保证  
-Windows: 可选 带环境 , 与 不带环境 的便携版, 以及 在线安装包 和 离线安装包.  
+Windows: 可选 带环境 与 不带环境 的便携版, 以及 在线安装包 和 离线安装包.  
 Linux:   可选 带环境 的便携版, 也可以在 snap 中在线安装, 或者使用 .deb .rpm 包进行安装.  
 MacOS:   可选 带环境 的便携版, 也可以在 App Store 中在线安装.  
 
@@ -155,9 +183,17 @@ MacOS:   可选 带环境 的便携版, 也可以在 App Store 中在线安装.
 Android: 可选 .apk 直接安装, 以及 Crequency Hub 中在线安装.  
 iOS:     可选 App Store 中在线安装.  
 
+</details>
+
+</details>
+
 ---
 
 # 📃 English Introduction
+
+<details>
+<summary>English Introduction</summary>
+
 ## ℹ App Description
 
 KitX is an open, shared, free tool platform. Allows `developers (3rd party)` to add functionality to the platform in any `supported languages, frameworks`.  
@@ -191,6 +227,10 @@ Also thanks to the excellent `three-layer design`, `third parties` can use their
 </details>
 
 ## 🗃 Application Architecture
+
+<details>
+<summary>Expand</summary>
+
 KitX uses a three-layer design
 
 
@@ -202,11 +242,17 @@ Each language or framework will have a corresponding Loader to achieve interoper
 Each of these three-layer designs can be replaced, and any layer can be customized or a third-party solution can be used.  
 In this way, plug-ins on other devices in the LAN can also be connected to the current device, so LAN interconnection can be achieved.  
 
+</details>
+
 ## 🪧 Operating requirements
+
+<details>
+<summary>Expand</summary>
+
 ### KitX Dashboard (For end users)
 #### System Support
 Desktop support: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
-Mobile support:  Android (7+) arm, iOS (12+) arm
+Mobile support:  Android (5+) arm, iOS (12+) arm
 
 #### Environmental support
 ##### Desktop support
@@ -218,6 +264,10 @@ MacOS:   Optional portable version with environment, can also be installed onlin
 ##### Mobile support
 Android: Optional .apk direct installation, and online installation in Crequency Hub.
 iOS:     Optional online installation from the App Store.
+
+</details>
+
+</details>
 
 ---
 
@@ -261,7 +311,7 @@ iOS:     Optional online installation from the App Store.
 | [v3.0.6187.47831](https://github.com/Crequency/KitX/releases/tag/v3.0.6187.47831) | Preview | Fly       | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 | [v3.22.04.6230](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6230)     | Preview | Telegram  | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 | [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Preview | Evolution | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+| [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Release | Evolution | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 | v3.22.10.x                                                                        | Release | Hi        | coding             | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 | v3.23.04.x                                                                        | Release | ToYou     | coding             | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 
