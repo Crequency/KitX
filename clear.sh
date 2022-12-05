@@ -49,7 +49,7 @@ go ./KitX\ Loaders/ KitX.Loader.WPF.Framework
 
 # KitX Official Plugins
 go ./KitX\ Official\ Plugins/ TestPlugin.WPF.Core
-go ./KitX\ Official\ Plugins/ TestPlugin.WPF.Winform
+go ./KitX\ Official\ Plugins/ TestPlugin.WPF.Framework
 
 # KitX Rules
 go ./KitX\ Rules/ KitX.Web.Rules
