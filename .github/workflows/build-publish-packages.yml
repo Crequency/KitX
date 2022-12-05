@@ -1,4 +1,4 @@
-name: Publish Packages
+﻿name: Publish Packages
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
 jobs:
   build-on-ubuntu:
     runs-on: ubuntu-latest
+    environment: Publish Packages
     if: "contains(github.event.head_commit.message, '[Publish Packages]')"
 
     steps:
