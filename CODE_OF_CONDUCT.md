@@ -112,9 +112,6 @@ individual, or aggression toward or disparagement of classes of individuals.
 **Consequence**: A permanent ban from any sort of public interaction within
 the community.
 
-## Other Rules About How To Contribute
-**View This**: https://docs.catrol.cn/rules/team/git/#%E6%8F%90%E4%BA%A4%E6%B6%88%E6%81%AF%E8%A7%84%E8%8C%83
-
 ## Attribution
 
 This Code of Conduct is adapted from the [Contributor Covenant][homepage],
