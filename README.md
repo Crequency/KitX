@@ -1,4 +1,4 @@
-﻿<pre align="center">
+<pre align="center">
 ██╗  ██╗    ██╗    ████████╗              ██╗  ██╗
 ██║ ██╔╝    ██║    ╚══██╔══╝              ╚██╗██╔╝
 █████╔╝     ██║       ██║       █████╗     ╚███╔╝ 
@@ -319,3 +319,5 @@ iOS:     Optional online installation from the App Store.
 <a href = "https://github.com/Crequency/KitX/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=Crequency/KitX"/>
 </a>
+
+    
