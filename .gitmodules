@@ -37,3 +37,18 @@
 [submodule "KitX Dashboard"]
 	path = KitX Dashboard
 	url = git@github.com:Crequency/KitX-Dashboard.git
+[submodule "Reference/Common.ExternalConsole"]
+	path = Reference/Common.ExternalConsole
+	url = git@github.com:Crequency/Common.ExternalConsole.git
+[submodule "Reference/Common.BasicHelper"]
+	path = Reference/Common.BasicHelper
+	url = git@github.com:Crequency/Common.BasicHelper.git
+[submodule "Reference/Common.Activity"]
+	path = Reference/Common.Activity
+	url = git@github.com:Crequency/Common.Activity.git
+[submodule "Reference/Common.Update"]
+	path = Reference/Common.Update
+	url = git@github.com:Crequency/Common.Update.git
+[submodule "Reference/Common.Algorithm"]
+	path = Reference/Common.Algorithm
+	url = git@github.com:Crequency/Common.Algorithm.git
