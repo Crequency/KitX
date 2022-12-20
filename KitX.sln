@@ -46,17 +46,13 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{F9F655A9-54A3-4E3C-853F-EFA24615ED67}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
-		async.ps1 = async.ps1
-		async.sh = async.sh
 		BUSINESS-LICENSE = BUSINESS-LICENSE
 		ChangeLog.md = ChangeLog.md
-		clear.sh = clear.sh
 		CODE_OF_CONDUCT.md = CODE_OF_CONDUCT.md
 		commit.template.txt = commit.template.txt
 		ErrorCodes.md = ErrorCodes.md
 		LICENSE = LICENSE
 		nuget.config = nuget.config
-		publish.cs = publish.cs
 		README.md = README.md
 		SECURITY.md = SECURITY.md
 	EndProjectSection
@@ -182,6 +178,14 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.Algorithm.Interop", "Reference\Common.Algorithm\Common.Algorithm.Interop\Common.Algorithm.Interop.csproj", "{9EC8B0AF-3AD8-49FB-A9DA-154E6EA617C1}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.Algorithm.UnitTest", "Reference\Common.Algorithm\Common.Algorithm.UnitTest\Common.Algorithm.UnitTest.csproj", "{D6E2CBAA-B03E-4190-86A8-6FC5B092B6F0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX ToolKit", "KitX ToolKit", "{C2B042C4-453F-4494-86AF-D1513DC5E9AA}"
+	ProjectSection(SolutionItems) = preProject
+		KitX ToolKit\async.ps1 = KitX ToolKit\async.ps1
+		KitX ToolKit\async.sh = KitX ToolKit\async.sh
+		KitX ToolKit\clear.sh = KitX ToolKit\clear.sh
+		KitX ToolKit\publish.cs = KitX ToolKit\publish.cs
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -744,6 +748,7 @@ Global
 		{4F5B45DC-779A-43D4-AD72-72AF9F4AF371} = {F021B1E7-44AC-469B-AB4D-36541902C694}
 		{9EC8B0AF-3AD8-49FB-A9DA-154E6EA617C1} = {F021B1E7-44AC-469B-AB4D-36541902C694}
 		{D6E2CBAA-B03E-4190-86A8-6FC5B092B6F0} = {F021B1E7-44AC-469B-AB4D-36541902C694}
+		{C2B042C4-453F-4494-86AF-D1513DC5E9AA} = {F9F655A9-54A3-4E3C-853F-EFA24615ED67}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}

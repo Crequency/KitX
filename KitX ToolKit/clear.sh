@@ -21,6 +21,12 @@ go () {
     cd ..
 }
 
+# 判断 basename 是不是 'KitX Dashboard'
+if [ "$(basename `pwd`)" = "KitX Dashboard" ];
+then
+    cd ..
+fi
+
 remove ./KitX\ Publish/
 remove ./KitX\ Build/
 remove ./TestResults/
