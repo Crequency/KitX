@@ -9,7 +9,7 @@ namespace KitX.ToolKits
     {
         public static void Main()
         {
-            var path = "./KitX Dashboard/";
+            var path = "../KitX Dashboard/";
             var pro = "Properties/";
             var pub = "PublishProfiles/";
             var ab_path = Path.GetFullPath(path);
