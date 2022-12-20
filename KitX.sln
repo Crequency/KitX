@@ -179,12 +179,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.Algorithm.Interop", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.Algorithm.UnitTest", "Reference\Common.Algorithm\Common.Algorithm.UnitTest\Common.Algorithm.UnitTest.csproj", "{D6E2CBAA-B03E-4190-86A8-6FC5B092B6F0}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX ToolKit", "KitX ToolKit", "{C2B042C4-453F-4494-86AF-D1513DC5E9AA}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ToolKits", "ToolKits", "{C2B042C4-453F-4494-86AF-D1513DC5E9AA}"
 	ProjectSection(SolutionItems) = preProject
-		KitX ToolKit\async.ps1 = KitX ToolKit\async.ps1
-		KitX ToolKit\async.sh = KitX ToolKit\async.sh
-		KitX ToolKit\clear.sh = KitX ToolKit\clear.sh
-		KitX ToolKit\publish.cs = KitX ToolKit\publish.cs
+		ToolKits\async.ps1 = ToolKits\async.ps1
+		ToolKits\async.sh = ToolKits\async.sh
+		ToolKits\clear.sh = ToolKits\clear.sh
+		ToolKits\publish.cs = ToolKits\publish.cs
 	EndProjectSection
 EndProject
 Global
