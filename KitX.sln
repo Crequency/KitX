@@ -200,6 +200,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Reference", "Reference", "{
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamlMultiLanguageEditor.Winform", "KitX Tools\Reference\XamlMultiLanguageEditor\XamlMultiLanguageEditor.Winform\XamlMultiLanguageEditor.Winform.csproj", "{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.RepairTool", "KitX Dashboard Helper\KitX.RepairTool\KitX.RepairTool.csproj", "{457915B6-1050-448A-A371-86BAAB98A159}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -1084,6 +1086,26 @@ Global
 		{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}.Release|x64.Build.0 = Release|Any CPU
 		{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}.Release|x86.ActiveCfg = Release|Any CPU
 		{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}.Release|x86.Build.0 = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|ARM.Build.0 = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|x64.Build.0 = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Debug|x86.Build.0 = Debug|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|Any CPU.Build.0 = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|ARM.ActiveCfg = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|ARM.Build.0 = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|ARM64.Build.0 = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x64.ActiveCfg = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x64.Build.0 = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x86.ActiveCfg = Release|Any CPU
+		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1148,6 +1170,7 @@ Global
 		{46EAC701-CFA5-4384-8FBA-A325A94D842D} = {0E21D0F4-FD04-454A-B395-E55F5861416D}
 		{DFE993C1-968E-4F09-987B-EB5678CAE98C} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
 		{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11} = {DFE993C1-968E-4F09-987B-EB5678CAE98C}
+		{457915B6-1050-448A-A371-86BAAB98A159} = {0BE49855-23A1-46C9-BA6E-1B94ECF5F213}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
