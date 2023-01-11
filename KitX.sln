@@ -185,6 +185,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ToolKits", "ToolKits", "{C2
 		ToolKits\async.sh = ToolKits\async.sh
 		ToolKits\clear.sh = ToolKits\clear.sh
 		ToolKits\publish.cs = ToolKits\publish.cs
+		start.ps1 = start.ps1
+		start.sh = start.sh
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Simple Test", "KitX Simple Test", "{44633942-8DFC-4A3C-A474-E8AB8E8622B8}"
