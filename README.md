@@ -208,9 +208,9 @@ ToolKits/start.ps1 <type>
 chmod +x ToolKits/start.sh
 ToolKits/start.sh <type>
 ```
-`<type>` 为您要开发的领域, 可选值为 `dashboard`, `mobile`, `loader`, `plugin`, `installer`
-此脚本会帮助您获取该领域子模块的源代码, 包含其依赖的子模块
-如果您要获取全部子模块的源代码, 请执行以下命令:
+`<type>` 为您要开发的领域, 可选值为 `dashboard`, `mobile`, `loader`, `plugin`, `installer`  
+此脚本会帮助您获取该领域子模块的源代码, 包含其依赖的子模块  
+如果您要获取全部子模块的源代码, 请执行以下命令:  
 ```shell
 git submodule update --init --recursive
 ```
@@ -320,9 +320,9 @@ ToolKits/start.ps1 <type>
 chmod +x ToolKits/start.sh
 ToolKits/start.sh <type>
 ```
-`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`
-This script help you get source code of this area, include its dependencies.
-If you want to get source code of all submodules, please execute following command:
+`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`  
+This script help you get source code of this area, include its dependencies.  
+If you want to get source code of all submodules, please execute following command:  
 ```shell
 git submodule update --init --recursive
 ```
