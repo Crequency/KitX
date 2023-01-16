@@ -202,7 +202,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Reference", "Reference", "{
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamlMultiLanguageEditor.Winform", "KitX Tools\Reference\XamlMultiLanguageEditor\XamlMultiLanguageEditor.Winform\XamlMultiLanguageEditor.Winform.csproj", "{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.RepairTool", "KitX Dashboard Helper\KitX.RepairTool\KitX.RepairTool.csproj", "{457915B6-1050-448A-A371-86BAAB98A159}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.RepairTool", "KitX Dashboard Helper\KitX.RepairTool\KitX.RepairTool.csproj", "{457915B6-1050-448A-A371-86BAAB98A159}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
