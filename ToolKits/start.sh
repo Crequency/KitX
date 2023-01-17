@@ -4,7 +4,6 @@ echo "Type: $1"
 
 if [ $1 = "dashboard" ];
 then
-
     echo "    | KitX Dashboard"
     echo "    | KitX Dashboard Helper"
     echo "    | KitX File Format Helper"
@@ -17,6 +16,8 @@ then
     git submodule update "KitX File Format Helper"
     git submodule update "KitX Rules"
 
+    echo ""
+    echo "To develop <dashboard> sets, you need <reference> sets too."
 fi
 
 if [ $1 = "mobile" ];
@@ -63,6 +64,23 @@ then
     echo "executing ..."
 
     git submodule update "KitX Installer"
+fi
+
+if [ $1 = "reference" ];
+then
+    echo "    | Reference/Common.Activity"
+    echo "    | Reference/Common.Algorithm"
+    echo "    | Reference/Common.BasicHelper"
+    echo "    | Reference/Common.ExternalConsole"
+    echo "    \ Reference/Common.Update"
+    echo ""
+    echo "executing ..."
+
+    git submodule update "Reference/Common.Activity"
+    git submodule update "Reference/Common.Algorithm"
+    git submodule update "Reference/Common.BasicHelper"
+    git submodule update "Reference/Common.ExternalConsole"
+    git submodule update "Reference/Common.Update"
 fi
 
 sleep 3
