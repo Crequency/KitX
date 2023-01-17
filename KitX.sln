@@ -181,10 +181,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.Algorithm.UnitTest",
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ToolKits", "ToolKits", "{C2B042C4-453F-4494-86AF-D1513DC5E9AA}"
 	ProjectSection(SolutionItems) = preProject
-		ToolKits\async.ps1 = ToolKits\async.ps1
-		ToolKits\async.sh = ToolKits\async.sh
-		ToolKits\clear.sh = ToolKits\clear.sh
-		ToolKits\publish.cs = ToolKits\publish.cs
 		ToolKits\start.ps1 = ToolKits\start.ps1
 		ToolKits\start.sh = ToolKits\start.sh
 	EndProjectSection
@@ -203,6 +199,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamlMultiLanguageEditor.Winform", "KitX Tools\Reference\XamlMultiLanguageEditor\XamlMultiLanguageEditor.Winform\XamlMultiLanguageEditor.Winform.csproj", "{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.RepairTool", "KitX Dashboard Helper\KitX.RepairTool\KitX.RepairTool.csproj", "{457915B6-1050-448A-A371-86BAAB98A159}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ToolKits", "ToolKits", "{D18593CB-C881-4796-A2E2-EFB2195A8F86}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.ToolKits.Publisher", "ToolKits\KitX.ToolKits.Publisher\KitX.ToolKits.Publisher.csproj", "{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -1108,6 +1108,26 @@ Global
 		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x64.Build.0 = Release|Any CPU
 		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x86.ActiveCfg = Release|Any CPU
 		{457915B6-1050-448A-A371-86BAAB98A159}.Release|x86.Build.0 = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|ARM.Build.0 = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|x64.Build.0 = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Debug|x86.Build.0 = Debug|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|ARM.ActiveCfg = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|ARM.Build.0 = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|ARM64.Build.0 = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|x64.ActiveCfg = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|x64.Build.0 = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|x86.ActiveCfg = Release|Any CPU
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -1173,6 +1193,7 @@ Global
 		{DFE993C1-968E-4F09-987B-EB5678CAE98C} = {CF9D7D6C-CE00-4D88-AD1C-B084BB35CA99}
 		{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11} = {DFE993C1-968E-4F09-987B-EB5678CAE98C}
 		{457915B6-1050-448A-A371-86BAAB98A159} = {0BE49855-23A1-46C9-BA6E-1B94ECF5F213}
+		{1E1253F3-F24B-4085-833F-C2BEAE6C0B64} = {D18593CB-C881-4796-A2E2-EFB2195A8F86}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
