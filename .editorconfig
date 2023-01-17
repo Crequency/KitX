@@ -3,7 +3,7 @@ file_header_template = Copyright (c) Crequency Studio. All Rights Reserved.\nLic
 
 
 [*]
-end_of_line = lf
+end_of_line = crlf
 charset = utf-8-bom
 trim_trailing_whitespace = true
 insert_final_newline = true
@@ -133,6 +133,7 @@ csharp_style_inlined_variable_declaration = true:suggestion
 csharp_style_deconstructed_variable_declaration = true:suggestion
 csharp_style_unused_value_assignment_preference = discard_variable:suggestion
 csharp_style_unused_value_expression_statement_preference = discard_variable:silent
+csharp_style_prefer_readonly_struct = true:suggestion
 
 [*.vb]
 #### ÃüÃûÑùÊ½ ####

@@ -76,6 +76,7 @@
       - [环境支持](#环境支持)
         - [桌面端支持](#桌面端支持)
         - [移动端支持](#移动端支持)
+  - [⛏ 参与开发](#参与开发)
 - [📃 English Introduction](#english-introduction)
   - [ℹ App Description](#ℹ-app-description)
   - [🗃 Application Architecture](#application-architecture)
@@ -85,6 +86,7 @@
       - [Environmental support](#environmental-support)
         - [Desktop support](#desktop-support)
         - [Mobile support](#mobile-support)
+  - [⛏ Participating in development](#participating-in-development)
 - [更新周期 Update Plan](#更新周期-update-plan)
 - [贡献者 Contributors](#贡献者-contributors)
 
@@ -185,6 +187,36 @@ iOS:     可选 App Store 中在线安装.
 
 </details>
 
+## ⛏ 参与开发
+
+<details>
+<summary>展开</summary>
+
+1. 获取源代码
+```shell
+git clone git@github.com:Crequency/KitX.git
+cd KitX
+```
+
+2. 选择您要开发的领域
+- Windows
+```shell
+ToolKits/start.ps1 <type>
+```
+- Linux/MacOS
+```shell
+chmod +x ToolKits/start.sh
+ToolKits/start.sh <type>
+```
+`<type>` 为您要开发的领域, 可选值为 `dashboard`, `mobile`, `loader`, `plugin`, `installer`  
+此脚本会帮助您获取该领域子模块的源代码, 包含其依赖的子模块  
+如果您要获取全部子模块的源代码, 请执行以下命令:  
+```shell
+git submodule update --init --recursive
+```
+
+</details>
+
 </details>
 
 ---
@@ -264,6 +296,36 @@ MacOS:   Optional portable version with environment, can also be installed onlin
 ##### Mobile support
 Android: Optional .apk direct installation, and online installation in Crequency Hub.
 iOS:     Optional online installation from the App Store.
+
+</details>
+
+## ⛏ Participating in development
+
+<details>
+<summary>Expand</summary>
+
+1. Get source code
+```shell
+git clone git@github.com:Crequency/KitX.git
+cd KitX
+```
+
+2. Select your development area
+- Windows
+```shell
+ToolKits/start.ps1 <type>
+```
+- Linux/MacOS
+```shell
+chmod +x ToolKits/start.sh
+ToolKits/start.sh <type>
+```
+`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`  
+This script help you get source code of this area, include its dependencies.  
+If you want to get source code of all submodules, please execute following command:  
+```shell
+git submodule update --init --recursive
+```
 
 </details>
 
