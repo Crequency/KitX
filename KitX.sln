@@ -130,8 +130,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Simple Test", "KitX Si
 		KitX Test\KitX Simple Test\Test-Dashboard-DebugService-ReplaceQuotes(string).linq = KitX Test\KitX Simple Test\Test-Dashboard-DebugService-ReplaceQuotes(string).linq
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Mobile", "KitX Mobile", "{0E21D0F4-FD04-454A-B395-E55F5861416D}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Reference", "Reference", "{DFE993C1-968E-4F09-987B-EB5678CAE98C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamlMultiLanguageEditor.Winform", "KitX Tools\Reference\XamlMultiLanguageEditor\XamlMultiLanguageEditor.Winform\XamlMultiLanguageEditor.Winform.csproj", "{DDDBDC20-C4FA-44B7-AF71-DC2E39DF5C11}"
