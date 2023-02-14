@@ -7,7 +7,8 @@ if($type -eq "dashboard"){
     echo "    | KitX Dashboard"
     echo "    | KitX Dashboard Helper"
     echo "    | KitX File Format Helper"
-    echo "    \ KitX Rules"
+    echo "    | KitX Rules"
+    echo "    \ KitX Script"
     echo ""
     echo "executing ..."
 
@@ -28,6 +29,11 @@ if($type -eq "dashboard"){
 
     git submodule update "KitX Rules"
     cd "KitX Rules"
+    git checkout main
+    cd ".."
+
+    git submodule update "KitX Script"
+    cd "KitX Script"
     git checkout main
     cd ".."
 
@@ -138,7 +144,7 @@ if($type -eq "reference"){
 
     git submodule update "Reference/Common.ExternalConsole"
     cd "Reference/Common.ExternalConsole"
-    git checkout main
+    git checkout dev=main
     cd "../.."
 
     git submodule update "Reference/Common.Update"

@@ -140,6 +140,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.Algorithm.Interop.Te
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.BasicHelper.Test", "Reference\Common.BasicHelper\Common.BasicHelper.Test\Common.BasicHelper.Test.csproj", "{15DBFE35-0C68-4949-B275-81FABE4895CF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Script", "KitX Script", "{66197398-F358-45EC-AF57-7A4F0BEB2B2E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
