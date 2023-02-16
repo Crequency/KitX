@@ -22,6 +22,7 @@
 [![LICENSE](https://img.shields.io/github/license/Crequency/KitX?style=for-the-badge)](./LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/Crequency/KitX/total?style=for-the-badge&color=%239F7AEA)](https://github.com/Crequency/KitX/releases)
 [![Discussions](https://img.shields.io/github/discussions/Crequency/KitX?color=%23ED8936&style=for-the-badge)](https://github.com/Crequency/KitX/discussions)
+![GitHub Repo Size](https://img.shields.io/github/repo-size/Crequency/KitX?style=for-the-badge&color=%234682B4)
 [![Code Size](https://img.shields.io/github/languages/code-size/Crequency/KitX?style=for-the-badge)](#)
 [![Commit Activity](https://img.shields.io/github/commit-activity/m/Crequency/KitX?style=for-the-badge)](https://github.com/Crequency/KitX/commits/)
 
