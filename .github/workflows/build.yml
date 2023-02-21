@@ -2,164 +2,137 @@ name: Build Universal
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths-ignore:
+      - ".*/**"
+      - "**/*.md"
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths-ignore:
+      - ".*/**"
+      - "**/*.md"
 
   workflow_dispatch:
-  
+
 jobs:
   build-on-windows:
     runs-on: windows-latest
 
     steps:
-    
       - uses: actions/checkout@v3
         with:
-          submodules: 'true'
+          submodules: "true"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: "6.0.x"
           include-prerelease: false
 
       - name: Build Contracts
+        working-directory: "KitX Contracts"
         run: |
-          cd "KitX Contracts"
-
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
           cd ".."
 
-          cd ".."
-
       - name: Build Dashboard
+        working-directory: "KitX Dashboard"
         run: |
-          cd "KitX Dashboard"
           dotnet build -c Release
-          cd ".."
 
       - name: Build Rules
+        working-directory: "KitX Rules"
         run: |
-          cd "KitX Rules"
-
           cd "KitX.Web.Rules"
           dotnet build -c Release
           cd ".."
 
-          cd ".."
-
       - name: Build File Format Helper
+        working-directory: "KitX File Format Helper"
         run: |
-          cd "KitX File Format Helper"
-
           cd "KitX.KXP.Helper"
           dotnet build -c Release
-          cd ".."
-
           cd ".."
 
   build-on-ubuntu:
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: actions/checkout@v3
         with:
-          submodules: 'true'
+          submodules: "true"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: "6.0.x"
           include-prerelease: false
 
       - name: Build Contracts
+        working-directory: "KitX Contracts"
         run: |
-          cd "KitX Contracts"
-
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
           cd ".."
 
-          cd ".."
-
       - name: Build Dashboard
+        working-directory: "KitX Dashboard"
         run: |
-          cd "KitX Dashboard"
           dotnet build -c Release
-          cd ".."
 
       - name: Build Rules
+        working-directory: "KitX Rules"
         run: |
-          cd "KitX Rules"
-
           cd "KitX.Web.Rules"
           dotnet build -c Release
           cd ".."
 
-          cd ".."
-
       - name: Build File Format Helper
+        working-directory: "KitX File Format Helper"
         run: |
-          cd "KitX File Format Helper"
-
           cd "KitX.KXP.Helper"
           dotnet build -c Release
-          cd ".."
-
           cd ".."
 
   build-on-macos:
     runs-on: macos-latest
 
     steps:
-
       - uses: actions/checkout@v3
         with:
-          submodules: 'true'
+          submodules: "true"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: "6.0.x"
           include-prerelease: false
-          
-      - name: Build Contracts
-        run: |
-          cd "KitX Contracts"
 
+      - name: Build Contracts
+        working-directory: "KitX Contracts"
+        run: |
           cd "KitX.Contract.CSharp"
           dotnet build -c Release
           cd ".."
 
-          cd ".."
-
       - name: Build Dashboard
+        working-directory: "KitX Dashboard"
         run: |
-          cd "KitX Dashboard"
           dotnet build -c Release
-          cd ".."
 
       - name: Build Rules
+        working-directory: "KitX Rules"
         run: |
-          cd "KitX Rules"
-
           cd "KitX.Web.Rules"
           dotnet build -c Release
           cd ".."
 
-          cd ".."
-
       - name: Build File Format Helper
+        working-directory: "KitX File Format Helper"
         run: |
-          cd "KitX File Format Helper"
-
           cd "KitX.KXP.Helper"
           dotnet build -c Release
           cd ".."
-
-          cd ".."
-
-
