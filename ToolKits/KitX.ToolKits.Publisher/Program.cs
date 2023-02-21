@@ -5,6 +5,10 @@ Console.WriteLine("""
     Copyright (C) Crequency 2023
     """);
 
+var publishDir = Path.GetFullPath("../../KitX Publish");
+if (publishDir is not null && Directory.Exists(publishDir))
+    Directory.Delete(publishDir, true);
+
 var path = Path.GetFullPath("../../KitX Dashboard/");
 var pro = "Properties/";
 var pub = "PublishProfiles/";
