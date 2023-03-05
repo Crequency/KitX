@@ -2,37 +2,43 @@ name: Build Loaders
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths-ignore:
+      - ".*/**"
+      - "**/*.md"
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths-ignore:
+      - ".*/**"
+      - "**/*.md"
 
   workflow_dispatch:
-  
+
 jobs:
   build-loaders-on-windows:
     runs-on: windows-latest
 
     steps:
-
       - uses: actions/checkout@v3
         with:
-          submodules: 'true'
+          submodules: "true"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: "6.0.x"
           include-prerelease: false
 
       - name: Setup Dotnet SDK
         run: |
           bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
           C:\sdk.exe
-      
-      - name: Build Loaders
-        run: |
-          cd "KitX Loaders"
 
+      - name: Build Loaders
+        working-directory: "KitX Loaders"
+        run: |
           cd "KitX.Loader.Winform.Framework"
           dotnet build -c Release
           cd ".."
@@ -48,33 +54,3 @@ jobs:
           cd "KitX.Loader.WPF.Core"
           dotnet build -c Release
           cd ".."
-
-          cd ".."
-
-  # build-loaders-on-ubuntu:
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-
-  #     - uses: actions/checkout@v3
-
-  #     - name: Setup .NET
-  #       uses: actions/setup-dotnet@v2
-  #       with:
-  #         dotnet-version: '6.0.x'
-  #         include-prerelease: false
-
-  # build-loaders-on-macos:
-  #   runs-on: macos-latest
-
-  #   steps:
-
-  #     - uses: actions/checkout@v3
-
-  #     - name: Setup .NET
-  #       uses: actions/setup-dotnet@v2
-  #       with:
-  #         dotnet-version: '6.0.x'
-  #         include-prerelease: false
-
-

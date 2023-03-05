@@ -15,26 +15,31 @@ then
     git submodule update "KitX Dashboard"
     cd "KitX Dashboard"
     git checkout dev=main
+    git pull
     cd ".."
 
     git submodule update "KitX Dashboard Helper"
     cd "KitX Dashboard Helper"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX File Format Helper"
     cd "KitX File Format Helper"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Rules"
     cd "KitX Rules"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Script"
     cd "KitX Script"
     git checkout main
+    git pull
     cd ".."
 
     echo ""
@@ -48,6 +53,9 @@ then
     echo "executing ..."
 
     git submodule update "KitX Mobile"
+    cd "KitX Mobile"
+    git checkout main
+    git pull
     cd ".."
 fi
 
@@ -62,16 +70,19 @@ then
     git submodule update "KitX Contracts"
     cd "KitX Contracts"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Loaders"
     cd "KitX Loaders"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Rules"
     cd "KitX Rules"
     git checkout main
+    git pull
     cd ".."
 fi
 
@@ -87,21 +98,25 @@ then
     git submodule update "KitX Contracts"
     cd "KitX Contracts"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Loaders"
     cd "KitX Loaders"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Plugins"
     cd "KitX Plugins"
     git checkout main
+    git pull
     cd ".."
 
     git submodule update "KitX Rules"
     cd "KitX Rules"
     git checkout main
+    git pull
     cd ".."
 fi
 
@@ -114,6 +129,7 @@ then
     git submodule update "KitX Installer"
     cd "KitX Installer"
     git checkout main
+    git pull
     cd ".."
 fi
 
@@ -130,26 +146,31 @@ then
     git submodule update "Reference/Common.Activity"
     cd "Reference/Common.Activity"
     git checkout main
+    git pull
     cd "../.."
 
     git submodule update "Reference/Common.Algorithm"
     cd "Reference/Common.Algorithm"
     git checkout dev=main
+    git pull
     cd "../.."
 
     git submodule update "Reference/Common.BasicHelper"
     cd "Reference/Common.BasicHelper"
     git checkout dev=main
+    git pull
     cd "../.."
 
     git submodule update "Reference/Common.ExternalConsole"
     cd "Reference/Common.ExternalConsole"
     git checkout dev=main
+    git pull
     cd "../.."
 
     git submodule update "Reference/Common.Update"
     cd "Reference/Common.Update"
     git checkout main
+    git pull
     cd "../.."
 fi
 
