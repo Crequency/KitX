@@ -1,52 +1,53 @@
-<pre align="center">
-██╗  ██╗    ██╗    ████████╗              ██╗  ██╗
-██║ ██╔╝    ██║    ╚══██╔══╝              ╚██╗██╔╝
-█████╔╝     ██║       ██║       █████╗     ╚███╔╝ 
-██╔═██╗     ██║       ██║       ╚════╝     ██╔██╗ 
-██║  ██╗    ██║       ██║                 ██╔╝ ██╗
-╚═╝  ╚═╝    ╚═╝       ╚═╝                 ╚═╝  ╚═╝
-</pre>
 
-<a href="https://kitx.apps.catrol.cn/">
-  <img align="right" src="https://source.catrol.cn/icons/Project/Catrol/KitX/KitX.png" height="200" width="200"/>
-</a>
+<p align="center">
+  <a href="https://kitx.apps.catrol.cn/" target="_blank" rel="noopener noreferrer">
+    <img width="128" src="https://source.catrol.cn/icons/Project/Catrol/KitX/KitX.png" alt="KitX Logo">
+  </a>
+</p>
 
-##### 💻 Support OS
-[![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](#)
-[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#)
-[![MacOS](https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0)](#)
-[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#)
-[![iOS](https://img.shields.io/badge/iOS-000000?style=for-the-badge&logo=ios&logoColor=white)](#)
+<br>
 
-##### 📢 Info
-[![LICENSE](https://img.shields.io/github/license/Crequency/KitX?style=for-the-badge)](./LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/Crequency/KitX/total?style=for-the-badge&color=%239F7AEA)](https://github.com/Crequency/KitX/releases)
-[![Discussions](https://img.shields.io/github/discussions/Crequency/KitX?color=%23ED8936&style=for-the-badge)](https://github.com/Crequency/KitX/discussions)
-![GitHub Repo Size](https://img.shields.io/github/repo-size/Crequency/KitX?style=for-the-badge&color=%234682B4)
-[![Code Size](https://img.shields.io/github/languages/code-size/Crequency/KitX?style=for-the-badge)](#)
-[![Commit Activity](https://img.shields.io/github/commit-activity/m/Crequency/KitX?style=for-the-badge)](https://github.com/Crequency/KitX/commits/)
+<p align="center">
+  Intro: 🌐 <a href="#中文简介">中文简介</a> | <a href="#english-introduction">English</a><br>
+</p>
 
-<details>
-<summary>状态 | Status</summary>
+<p align="center">
+  Docs: 🌐 
+  <a href="https://crequency.github.io/KitX-Docs/">简体中文</a> | <a href="https://crequency.github.io/KitX-Docs/en/">English</a>
+</p>
 
-[![Build Universal](https://img.shields.io/github/actions/workflow/status/Crequency/KitX/build.yml?branch=main&style=for-the-badge&label=Build%20Universal)](https://github.com/Crequency/KitX/actions/workflows/build.yml)
-[![Build Loaders](https://img.shields.io/github/actions/workflow/status/Crequency/KitX/build-loaders.yml?branch=main&style=for-the-badge&label=Build%20Loaders)](https://github.com/Crequency/KitX/actions/workflows/build-loaders.yml)
-[![Build Plugins](https://img.shields.io/github/actions/workflow/status/Crequency/KitX/build-plugins.yml?branch=main&style=for-the-badge&label=Build%20Plugins)](https://github.com/Crequency/KitX/actions/workflows/build-plugins.yml)
+<br>
 
-</details>
+<p align="center">
+  <a href="https://github.com/Crequency/KitX/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/Crequency/KitX/build.yml?branch=main&label=Build%20Universal" alt="Build Universal"></a>
+  <a href="https://github.com/Crequency/KitX/actions/workflows/build-loaders.yml"><img src="https://img.shields.io/github/actions/workflow/status/Crequency/KitX/build-loaders.yml?branch=main&label=Build%20Loaders" alt="Build Loaders"></a>
+  <a href="https://github.com/Crequency/KitX/actions/workflows/build-plugins.yml"><img src="https://img.shields.io/github/actions/workflow/status/Crequency/KitX/build-plugins.yml?branch=main&label=Build%20Plugins" alt="Build Plugins"></a>
+</p>
 
-##### 📧 Social
-[![Forks](https://img.shields.io/github/forks/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/network/members)
-[![Stars](https://img.shields.io/github/stars/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/stargazers)
-[![Watches](https://img.shields.io/github/watchers/Crequency/KitX?style=social)](https://github.com/Crequency/KitX/watchers)
-[![Discord](https://img.shields.io/discord/935095924785549372?style=social&label=Discord)](https://discord.gg/TGx3FYbUBb)
+<p align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/Crequency/KitX" alt="License"></a>
+  <a href="https://github.com/Crequency/KitX/releases"><img src="https://img.shields.io/github/downloads/Crequency/KitX/total?color=%239F7AEA" alt="Release Downloads"></a>
+  <a href="#"><img src="https://img.shields.io/github/repo-size/Crequency/KitX?color=%234682B4" alt="GitHub Repo Size"></a>
+  <a href="#"><img src="https://img.shields.io/github/languages/code-size/Crequency/KitX" alt="Code Size"></a>
+  <a href="https://github.com/Crequency/KitX/commits/"><img src="https://img.shields.io/github/commit-activity/m/Crequency/KitX" alt="Commit Activity"></a>
+</p>
 
----
+<p align="center">
+  <a href="https://github.com/Crequency/KitX/network/members"><img src="https://img.shields.io/github/forks/Crequency/KitX?style=social" alt="Forks"></a>
+  <a href="https://github.com/Crequency/KitX/stargazers"><img src="https://img.shields.io/github/stars/Crequency/KitX?style=social" alt="Stars"></a>
+  <a href="https://github.com/Crequency/KitX/watchers"><img src="https://img.shields.io/github/watchers/Crequency/KitX?style=social" alt="Watches"></a>
+  <a href="https://github.com/Crequency/KitX/discussions"><img src="https://img.shields.io/github/discussions/Crequency/KitX?style=social" alt="Discussions"></a>
+  <a href="https://discord.gg/TGx3FYbUBb"><img src="https://img.shields.io/discord/935095924785549372?style=social&label=Discord" alt="Discord"></a>
+</p>
+
+<br>
 
 ![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_about.png)
 
 <details>
 <summary>更多截图 More Screenshots</summary>
+    
+<br>
 
 ![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_plugins.png)
 ![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_devices.png)
@@ -54,62 +55,45 @@
 
 </details>
 
+<br>
+
 ---
 
 <br>
 
-<p align="center">  
-  🌐 <a href="#-中文简介">中文简介</a> | <a href="#-english-introduction">English Introduction</a><br>
-</p>
-
-<br>
-
-<details>
-<summary>目录 | Toc</summary>
-
-- [文档总览 | Docs Preview](#文档总览-docs-preview)
-- [📃 中文简介](#中文简介)
-  - [ℹ 应用简介](#ℹ-应用简介)
-  - [🗃 应用架构](#应用架构)
-  - [🪧 运行要求](#运行要求)
+- [中文简介](#中文简介)
+  - [应用简介](#应用简介)
+  - [应用架构](#应用架构)
+  - [运行要求](#运行要求)
     - [KitX Dashboard (面向最终用户)](#kitx-dashboard-面向最终用户)
       - [系统支持](#系统支持)
       - [环境支持](#环境支持)
         - [桌面端支持](#桌面端支持)
         - [移动端支持](#移动端支持)
-  - [⛏ 参与开发](#参与开发)
-- [📃 English Introduction](#english-introduction)
-  - [ℹ App Description](#ℹ-app-description)
-  - [🗃 Application Architecture](#application-architecture)
-  - [🪧 Operating requirements](#operating-requirements)
+  - [参与开发](#参与开发)
+- [English Introduction](#english-introduction)
+  - [App Description](#app-description)
+  - [Application Architecture](#application-architecture)
+  - [Operating requirements](#operating-requirements)
     - [KitX Dashboard (For end users)](#kitx-dashboard-for-end-users)
       - [System Support](#system-support)
       - [Environmental support](#environmental-support)
         - [Desktop support](#desktop-support)
         - [Mobile support](#mobile-support)
-  - [⛏ Participating in development](#participating-in-development)
-- [更新周期 Update Plan](#更新周期-update-plan)
-- [贡献者 Contributors](#贡献者-contributors)
+  - [Participating in development](#participating-in-development)
+- [Update Plan | 更新周期](#update-plan--更新周期)
+- [Contributors | 贡献者](#contributors--贡献者)
 
-</details>
+<br>
 
----
-
-# 文档总览 | Docs Preview
-
-| Languages | Docs                                                      | Link                                      |
-|-----------|-----------------------------------------------------------|-------------------------------------------|
-| zh-cn     | [简体中文](https://crequency.github.io/KitX-Docs/)         | https://crequency.github.io/KitX-Docs/    |
-| en-us     | [English (US)](https://crequency.github.io/KitX-Docs/en/) | https://crequency.github.io/KitX-Docs/en/ |
-
----
-
-# 📃 中文简介
+# 中文简介
 
 <details>
 <summary>中文简介</summary>
 
-## ℹ 应用简介
+<br>
+
+## 应用简介
 KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)`以任何`受支持的语言, 框架`为这个平台增添功能.  
 `最终用户`可以从`市场`中自由下载免费插件或是购买付费插件来搭建符合自己`工作流`的`快捷自动化环境`.  
 基于 KitX 的`三层设计`, 使得`最终用户`可以轻易在`终端场景`中进行不同设备间的流转与同步, 也可以轻松进行`终端场景`中的`多设备协同`.  
@@ -117,6 +101,8 @@ KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)
 
 <details>
 <summary>注解</summary>
+
+<br>
 
 > `开发者(第三方)` => 指为 KitX 平台开发插件, 新功能或是更新旧有代码使之支持 KitX 平台的开发者们.
 
@@ -140,10 +126,12 @@ KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)
 
 </details>
 
-## 🗃 应用架构
+## 应用架构
 
 <details>
 <summary>展开</summary>
+
+<br>
 
 KitX 采用了三层设计
 
@@ -158,33 +146,50 @@ KitX 采用了三层设计
 
 </details>
 
-## 🪧 运行要求
+## 运行要求
 
 <details>
 <summary>展开</summary>
 
+<br>
+
 ### KitX Dashboard (面向最终用户)
+
 #### 系统支持
+
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux"></a>
+  <a href="#"><img src="https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0" alt="MacOS"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white" alt="Android"></a>
+  <a href="#"><img src="https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white" alt="iOS"></a>
+</p>
+
 桌面端支持: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
 移动端支持: Android (5+) arm, iOS (12+) arm
 
 #### 环境支持
+
 ##### 桌面端支持
+
 全平台支持 .NET AOT 编译, 进一步增强运行速度, 但是缺少测试, 稳定性没有保证  
 Windows: 可选 带环境 与 不带环境 的便携版, 以及 在线安装包 和 离线安装包.  
 Linux:   可选 带环境 的便携版, 也可以在 snap 中在线安装, 或者使用 .deb .rpm 包进行安装.  
 MacOS:   可选 带环境 的便携版, 也可以在 App Store 中在线安装.  
 
 ##### 移动端支持
+
 Android: 可选 .apk 直接安装, 以及 Crequency Hub 中在线安装.  
 iOS:     可选 App Store 中在线安装.  
 
 </details>
 
-## ⛏ 参与开发
+## 参与开发
 
 <details>
 <summary>展开</summary>
+
+<br>
 
 1. 获取源代码
 ```shell
@@ -215,12 +220,14 @@ git submodule update --init --recursive
 
 ---
 
-# 📃 English Introduction
+# English Introduction
 
 <details>
 <summary>English Introduction</summary>
 
-## ℹ App Description
+<br>
+
+## App Description
 
 KitX is an open, shared, free tool platform. Allows `developers (3rd party)` to add functionality to the platform in any `supported languages, frameworks`.  
 `End users` can freely download from `market` for free Plug-ins or purchase paid plug-ins to build a `quick automation environment` that conforms to your `workflow`.  
@@ -229,6 +236,8 @@ Also thanks to the excellent `three-layer design`, `third parties` can use their
 
 <details>
 <summary>Annotation</summary>
+
+<br>
 
 > `Developer (Third Party)` => Refers to developers who develop plugins for the KitX platform, new functions or update old code to support the KitX platform.
 
@@ -252,10 +261,12 @@ Also thanks to the excellent `three-layer design`, `third parties` can use their
 
 </details>
 
-## 🗃 Application Architecture
+## Application Architecture
 
 <details>
 <summary>Expand</summary>
+
+<br>
 
 KitX uses a three-layer design
 
@@ -270,33 +281,51 @@ In this way, plug-ins on other devices in the LAN can also be connected to the c
 
 </details>
 
-## 🪧 Operating requirements
+## Operating requirements
 
 <details>
 <summary>Expand</summary>
 
+<br>
+
 ### KitX Dashboard (For end users)
+
 #### System Support
+
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux"></a>
+  <a href="#"><img src="https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0" alt="MacOS"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white" alt="Android"></a>
+  <a href="#"><img src="https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white" alt="iOS"></a>
+</p>
+
 Desktop support: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
 Mobile support:  Android (5+) arm, iOS (12+) arm
 
 #### Environmental support
+
+
 ##### Desktop support
+
 Any platform supports .NET AOT compilation, which further enhances the running speed, but lacks testing and stability is not guaranteed.  
 Windows: Optional with environment, and portable version without environment, as well as online installation package and offline installation package.  
 Linux:   Optional portable version with environment, can also be installed online in snap, or installed using .deb .rpm package.  
 MacOS:   Optional portable version with environment, can also be installed online in the App Store.
 
 ##### Mobile support
+
 Android: Optional .apk direct installation, and online installation in Crequency Hub.
 iOS:     Optional online installation from the App Store.
 
 </details>
 
-## ⛏ Participating in development
+## Participating in development
 
 <details>
 <summary>Expand</summary>
+
+<br>
 
 1. Get source code
 ```shell
@@ -327,10 +356,12 @@ git submodule update --init --recursive
 
 ---
 
-# 更新周期 Update Plan
+# Update Plan | 更新周期
 
 <details>
-<summary>旧版 Old versions</summary>
+<summary>Old versions | 旧版</summary>
+
+<br>
 
 | Version                                                                 | Info    | Code       | Support | Term | Require            | Runs on |
 |-------------------------------------------------------------------------|---------|------------|---------|------|--------------------|---------|
@@ -371,9 +402,20 @@ git submodule update --init --recursive
 | v3.22.10.x                                                                        | Release | Hi        | coding             | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 | v3.23.04.x                                                                        | Release | ToYou     | coding             | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
 
-# 贡献者 Contributors
+# Contributors | 贡献者
+
 <a href = "https://github.com/Crequency/KitX/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=Crequency/KitX"/>
 </a>
 
-    
+<br>
+<br>
+
+<pre align="center">
+██╗  ██╗    ██╗    ████████╗              ██╗  ██╗
+██║ ██╔╝    ██║    ╚══██╔══╝              ╚██╗██╔╝
+█████╔╝     ██║       ██║       █████╗     ╚███╔╝ 
+██╔═██╗     ██║       ██║       ╚════╝     ██╔██╗ 
+██║  ██╗    ██║       ██║                 ██╔╝ ██╗
+╚═╝  ╚═╝    ╚═╝       ╚═╝                 ╚═╝  ╚═╝
+</pre>
