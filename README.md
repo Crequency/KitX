@@ -46,6 +46,8 @@
 
 <details>
 <summary>更多截图 More Screenshots</summary>
+    
+<br>
 
 ![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_plugins.png)
 ![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_devices.png)
@@ -89,6 +91,8 @@
 <details>
 <summary>中文简介</summary>
 
+<br>
+
 ## 应用简介
 KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)`以任何`受支持的语言, 框架`为这个平台增添功能.  
 `最终用户`可以从`市场`中自由下载免费插件或是购买付费插件来搭建符合自己`工作流`的`快捷自动化环境`.  
@@ -97,6 +101,8 @@ KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)
 
 <details>
 <summary>注解</summary>
+
+<br>
 
 > `开发者(第三方)` => 指为 KitX 平台开发插件, 新功能或是更新旧有代码使之支持 KitX 平台的开发者们.
 
@@ -125,6 +131,8 @@ KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)
 <details>
 <summary>展开</summary>
 
+<br>
+
 KitX 采用了三层设计
 
 
@@ -142,6 +150,8 @@ KitX 采用了三层设计
 
 <details>
 <summary>展开</summary>
+
+<br>
 
 ### KitX Dashboard (面向最终用户)
 
@@ -179,6 +189,8 @@ iOS:     可选 App Store 中在线安装.
 <details>
 <summary>展开</summary>
 
+<br>
+
 1. 获取源代码
 ```shell
 git clone git@github.com:Crequency/KitX.git
@@ -213,6 +225,8 @@ git submodule update --init --recursive
 <details>
 <summary>English Introduction</summary>
 
+<br>
+
 ## App Description
 
 KitX is an open, shared, free tool platform. Allows `developers (3rd party)` to add functionality to the platform in any `supported languages, frameworks`.  
@@ -222,6 +236,8 @@ Also thanks to the excellent `three-layer design`, `third parties` can use their
 
 <details>
 <summary>Annotation</summary>
+
+<br>
 
 > `Developer (Third Party)` => Refers to developers who develop plugins for the KitX platform, new functions or update old code to support the KitX platform.
 
@@ -250,6 +266,8 @@ Also thanks to the excellent `three-layer design`, `third parties` can use their
 <details>
 <summary>Expand</summary>
 
+<br>
+
 KitX uses a three-layer design
 
 
@@ -267,6 +285,8 @@ In this way, plug-ins on other devices in the LAN can also be connected to the c
 
 <details>
 <summary>Expand</summary>
+
+<br>
 
 ### KitX Dashboard (For end users)
 
@@ -305,6 +325,8 @@ iOS:     Optional online installation from the App Store.
 <details>
 <summary>Expand</summary>
 
+<br>
+
 1. Get source code
 ```shell
 git clone git@github.com:Crequency/KitX.git
@@ -338,6 +360,8 @@ git submodule update --init --recursive
 
 <details>
 <summary>Old versions | 旧版</summary>
+
+<br>
 
 | Version                                                                 | Info    | Code       | Support | Term | Require            | Runs on |
 |-------------------------------------------------------------------------|---------|------------|---------|------|--------------------|---------|
