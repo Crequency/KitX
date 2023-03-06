@@ -37,7 +37,7 @@
   <a href="https://github.com/Crequency/KitX/stargazers"><img src="https://img.shields.io/github/stars/Crequency/KitX?style=social" alt="Stars"></a>
   <a href="https://github.com/Crequency/KitX/watchers"><img src="https://img.shields.io/github/watchers/Crequency/KitX?style=social" alt="Watches"></a>
   <a href="https://github.com/Crequency/KitX/discussions"><img src="https://img.shields.io/github/discussions/Crequency/KitX?style=social" alt="Discussions"></a>
-  <a href="https://discord.gg/TGx3FYbUBb"><img src="https://img.shields.io/discord/935095924785549372?style=social&label=Discord" alt="Discord"></a>
+  <a href="https://discord.gg/TGx3FYbUBb"><img src="https://img.shields.io/discord/935095924785549372?style=social&label=Discord&logo=discord&logoColor=grey" alt="Discord"></a>
 </p>
 
 <br>
