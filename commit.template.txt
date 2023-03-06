@@ -1,4 +1,9 @@
-# 💾/🔧/📄/🎇/🧩/✅/❌/📝/📦/🐛 Feat/Fix/Docs/Style/Refactor/Test/Test/Chore/Struct/Bug(scope): issue or changelog
+
+
+# <emoji> <types>(<scope>): <subject>
+# <emoji>: 💾/🔧/📄/🎇/🧩/✅/❌/📝/📦/🐛
+# <types>: Feat/Fix/Docs/Style/Refactor/Test/Test/Chore/Struct/Bug
+# demo: 💾 📝 📦 Feat, Chore, Struct(Scope): issue or changelog
 
 # <body>
 
