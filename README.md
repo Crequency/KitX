@@ -8,12 +8,12 @@
 <br>
 
 <p align="center">
-  Intro: 🌐 <a href="#中文简介">中文简介</a> | <a href="#english-introduction">English</a><br>
+  Intro: 🌐 <a href="#english-introduction">English</a> | <a href="#中文简介">中文简介</a>
 </p>
 
 <p align="center">
   Docs: 🌐 
-  <a href="https://crequency.github.io/KitX-Docs/">简体中文</a> | <a href="https://crequency.github.io/KitX-Docs/en/">English</a>
+  <a href="https://crequency.github.io/KitX-Docs/en/">English</a> | <a href="https://crequency.github.io/KitX-Docs/">简体中文</a>
 </p>
 
 <br>
@@ -44,8 +44,10 @@
 
 ![ScreenShot of About View](https://raw.githubusercontent.com/Dynesshely/SmallStorge/master/Crequency-KitX/screenshot_about.png)
 
+<br>
+
 <details>
-<summary>更多截图 More Screenshots</summary>
+<summary>More Screenshots | 更多截图</summary>
     
 <br>
 
@@ -55,11 +57,17 @@
 
 </details>
 
-<br>
+<!-- <p align="center">
+  <a href=""><img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows"></a>
+  <a href=""><img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux"></a>
+  <a href=""><img src="https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0" alt="MacOS"></a>
+  <a href=""><img src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white" alt="Android"></a>
+  <a href=""><img src="https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white" alt="iOS"></a>
+  <a href=""><img src="https://img.shields.io/badge/Browser-4285F4?logo=GoogleChrome&logoColor=white" alt="Browser"></a>
+  <a href=""><img src="https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi" alt="Raspberry Pi"></a>
+</p> -->
 
----
-
-<br>
+<!-- <br>
 
 - [中文简介](#中文简介)
   - [应用简介](#应用简介)
@@ -82,56 +90,41 @@
         - [Mobile support](#mobile-support)
   - [Participating in development](#participating-in-development)
 - [Update Plan | 更新周期](#update-plan--更新周期)
-- [Contributors | 贡献者](#contributors--贡献者)
+- [Contributors | 贡献者](#contributors--贡献者) -->
 
 <br>
 
 # 中文简介
 
 <details>
-<summary>中文简介</summary>
-
-<br>
+<summary>应用简介</summary>
 
 ## 应用简介
-KitX 是一个开放, 共享, 免费的工具平台. 允许`开发者(第三方)`以任何`受支持的语言, 框架`为这个平台增添功能.  
-`最终用户`可以从`市场`中自由下载免费插件或是购买付费插件来搭建符合自己`工作流`的`快捷自动化环境`.  
-基于 KitX 的`三层设计`, 使得`最终用户`可以轻易在`终端场景`中进行不同设备间的流转与同步, 也可以轻松进行`终端场景`中的`多设备协同`.  
-同样得益于优秀的`三层设计`, `第三方`可以使用自己熟悉的语言, 框架来工作, 同样可以很轻松将旧有的代码进行迁移, 甚至可以保持旧有逻辑的同时支持 KitX 平台.  
 
-<details>
-<summary>注解</summary>
+KitX 是一个开放, 共享, 免费的工具平台. 允许 `开发者(第三方)` 以任何 `受支持的语言, 框架` 为这个平台增添功能.  
+`最终用户` 可以从 `市场` 中自由下载免费插件或是购买付费插件来搭建符合自己 `工作流` 的 `快捷自动化环境` .  
+基于 KitX 的 `三层设计` , 使得 `最终用户` 可以轻易在 `终端场景` 中进行不同设备间的流转与同步, 也可以轻松进行 `终端场景` 中的 `多设备协同` .  
+同样得益于优秀的 `三层设计` , `第三方` 可以使用自己熟悉的语言, 框架来工作, 同样可以很轻松将旧有的代码进行迁移, 甚至可以保持旧有逻辑的同时支持 KitX 平台.  
 
-<br>
-
-> `开发者(第三方)` => 指为 KitX 平台开发插件, 新功能或是更新旧有代码使之支持 KitX 平台的开发者们.
-
-> `受支持的语言, 框架` => 取决于第一方开发者(即我们)为 KitX 开发了哪些 Loader (三层设计中的一层).
-
-> `最终用户` => 指在终端设备安装 KitX 来使用 KitX 平台以及社区功能并搭建符合自己工作流的用户.
-
-> `市场` => KitX 当然支持旁加载, 但市场是一个更加方便, 有组织, 安全的插件获取平台(KitX Marketplace).
-
-> `工作流` => KitX 所有的插件支持管道消息, 可以在插件间进行任务流动, 以达到插件间协作的目的.
-
-> `快捷自动化环境` => KitX 的`任务计划`模块允许用户设定触发条件, 触发钩子等使工作流自动化.
-
-> `三层设计` => 见下方`应用架构`部分.
-
-> `终端场景` => 最终用户具体使用 KitX 平台的具体场景, 某些语境下指最终用户的局域网环境.
-
-> `多设备协同` => KitX Dashboard (三层设计中的一层) 目前已支持的系统参见下方`运行要求`部分.
-
-> `第三方` => 同上`开发者(第三方)`.
+> `开发者(第三方)` => 指为 KitX 平台开发插件, 新功能或是更新旧有代码使之支持 KitX 平台的开发者们.  
+> `受支持的语言, 框架` => 取决于第一方开发者(即我们)为 KitX 开发了哪些 Loader (三层设计中的一层).  
+> `最终用户` => 指在终端设备安装 KitX 来使用 KitX 平台以及社区功能并搭建符合自己工作流的用户.  
+> `市场` => KitX 当然支持旁加载, 但市场是一个更加方便, 有组织, 安全的插件获取平台(KitX Marketplace).  
+> `工作流` => KitX 所有的插件支持管道消息, 可以在插件间进行任务流动, 以达到插件间协作的目的.  
+> `快捷自动化环境` => KitX 的`任务计划`模块允许用户设定触发条件, 触发钩子等使工作流自动化.  
+> `三层设计` => 见下方`应用架构`部分.  
+> `终端场景` => 最终用户具体使用 KitX 平台的具体场景, 某些语境下指最终用户的局域网环境.  
+> `多设备协同` => KitX Dashboard (三层设计中的一层) 目前已支持的系统参见下方`运行要求`部分.  
+> `第三方` => 同上`开发者(第三方)`.  
 
 </details>
 
-## 应用架构
+<br>
 
 <details>
-<summary>展开</summary>
+<summary>应用架构</summary>
 
-<br>
+## 应用架构
 
 KitX 采用了三层设计
 
@@ -146,50 +139,29 @@ KitX 采用了三层设计
 
 </details>
 
-## 运行要求
-
-<details>
-<summary>展开</summary>
-
 <br>
 
-### KitX Dashboard (面向最终用户)
+<details>
+<summary>运行要求</summary>
 
-#### 系统支持
+## 运行要求
 
-<p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux"></a>
-  <a href="#"><img src="https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0" alt="MacOS"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white" alt="Android"></a>
-  <a href="#"><img src="https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white" alt="iOS"></a>
-</p>
-
-桌面端支持: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
-移动端支持: Android (5+) arm, iOS (12+) arm
-
-#### 环境支持
-
-##### 桌面端支持
-
-全平台支持 .NET AOT 编译, 进一步增强运行速度, 但是缺少测试, 稳定性没有保证  
-Windows: 可选 带环境 与 不带环境 的便携版, 以及 在线安装包 和 离线安装包.  
-Linux:   可选 带环境 的便携版, 也可以在 snap 中在线安装, 或者使用 .deb .rpm 包进行安装.  
-MacOS:   可选 带环境 的便携版, 也可以在 App Store 中在线安装.  
-
-##### 移动端支持
-
-Android: 可选 .apk 直接安装, 以及 Crequency Hub 中在线安装.  
-iOS:     可选 App Store 中在线安装.  
+| x86          | arm                        | platforms                                                                            |
+|--------------|----------------------------|--------------------------------------------------------------------------------------|
+| `x32`, `x64` | `arm`, `arm64`             | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| `x64`        | `arm`, `arm64`             | ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)       |
+| `x64`        | `arm64`                    | ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)   |
+| `x64`        | `armeabi-v7a`, `arm64-v8a` | ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) |
+|              | `arm64`                    | ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white)             |
 
 </details>
 
-## 参与开发
+<br>
 
 <details>
-<summary>展开</summary>
+<summary>参与开发</summary>
 
-<br>
+## 参与开发
 
 1. 获取源代码
 ```shell
@@ -216,16 +188,12 @@ git submodule update --init --recursive
 
 </details>
 
-</details>
-
----
+<br>
 
 # English Introduction
 
 <details>
-<summary>English Introduction</summary>
-
-<br>
+<summary>App Description</summary>
 
 ## App Description
 
@@ -234,39 +202,25 @@ KitX is an open, shared, free tool platform. Allows `developers (3rd party)` to 
 Based on the `three-layer design` of KitX, `end users` can easily transfer and exchange between different devices in the `terminal scene` Synchronization, you can also easily perform `multi-device collaboration` in `terminal scene`.  
 Also thanks to the excellent `three-layer design`, `third parties` can use their familiar languages and frameworks to work, and can also easily integrate The old code can be migrated, and even the KitX platform can be supported while maintaining the old logic.  
 
-<details>
-<summary>Annotation</summary>
-
-<br>
-
-> `Developer (Third Party)` => Refers to developers who develop plugins for the KitX platform, new functions or update old code to support the KitX platform.
-
-> `Supported Languages, Frameworks` => Depends on what Loaders (one of the three-tier design) the first-party developer (i.e. us) has developed for KitX.
-
-> `End user` => Refers to installing KitX on the terminal device to use the KitX platform and community functions and build users who conform to their own workflow.
-
-> `Market` => KitX certainly supports sideloading, but the Marketplace is a much more convenient, organized, and secure platform for getting plugins (KitX Marketplace).
-
-> `Workflow` => All KitX plugins support pipeline messages, and tasks can flow between plugins to achieve the purpose of collaboration between plugins.
-
-> `Quick Automation Environment` => KitX's `Task Scheduler` module allows users to set trigger conditions, trigger hooks, etc. to automate workflows.
-
-> `Three-Tier Design` => See the `Application Architecture` section below.
-
-> `Terminal scene` => The specific scene of the end user using the KitX platform, in some contexts it refers to the end user's local area network environment.
-
-> `Multi-device collaboration` => KitX Dashboard (one layer of the three-tier design) Currently supported systems see the `Running Requirements` section below.
-
-> `Third Party` => Same as above `Developer (Third Party)`.
+> `Developer (Third Party)` => Refers to developers who develop plugins for the KitX platform, new functions or update old code to support the KitX platform.  
+> `Supported Languages, Frameworks` => Depends on what Loaders (one of the three-tier design) the first-party developer (i.e. us) has developed for KitX.  
+> `End user` => Refers to installing KitX on the terminal device to use the KitX platform and community functions and build users who conform to their own workflow.  
+> `Market` => KitX certainly supports sideloading, but the Marketplace is a much more convenient, organized, and secure platform for getting plugins (KitX Marketplace).  
+> `Workflow` => All KitX plugins support pipeline messages, and tasks can flow between plugins to achieve the purpose of collaboration between plugins.  
+> `Quick Automation Environment` => KitX's `Task Scheduler` module allows users to set trigger conditions, trigger hooks, etc. to automate workflows.  
+> `Three-Tier Design` => See the `Application Architecture` section below.  
+> `Terminal scene` => The specific scene of the end user using the KitX platform, in some contexts it refers to the end user's local area network environment.  
+> `Multi-device collaboration` => KitX Dashboard (one layer of the three-tier design) Currently supported systems see the `Running Requirements` section below.  
+> `Third Party` => Same as above `Developer (Third Party)`.  
 
 </details>
 
-## Application Architecture
+<br>
 
 <details>
-<summary>Expand</summary>
+<summary>Application Architecture</summary>
 
-<br>
+## Application Architecture
 
 KitX uses a three-layer design
 
@@ -281,51 +235,29 @@ In this way, plug-ins on other devices in the LAN can also be connected to the c
 
 </details>
 
-## Operating requirements
-
-<details>
-<summary>Expand</summary>
-
 <br>
 
-### KitX Dashboard (For end users)
+<details>
+<summary>Operating requirements</summary>
 
-#### System Support
+## Operating requirements
 
-<p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" alt="Windows"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black" alt="Linux"></a>
-  <a href="#"><img src="https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0" alt="MacOS"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white" alt="Android"></a>
-  <a href="#"><img src="https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white" alt="iOS"></a>
-</p>
-
-Desktop support: Windows (10, 11) x64 arm, Linux x64 arm, MacOS x64 arm  
-Mobile support:  Android (5+) arm, iOS (12+) arm
-
-#### Environmental support
-
-
-##### Desktop support
-
-Any platform supports .NET AOT compilation, which further enhances the running speed, but lacks testing and stability is not guaranteed.  
-Windows: Optional with environment, and portable version without environment, as well as online installation package and offline installation package.  
-Linux:   Optional portable version with environment, can also be installed online in snap, or installed using .deb .rpm package.  
-MacOS:   Optional portable version with environment, can also be installed online in the App Store.
-
-##### Mobile support
-
-Android: Optional .apk direct installation, and online installation in Crequency Hub.
-iOS:     Optional online installation from the App Store.
+| x86          | arm                        | platforms                                                                            |
+|--------------|----------------------------|--------------------------------------------------------------------------------------|
+| `x32`, `x64` | `arm`, `arm64`             | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| `x64`        | `arm`, `arm64`             | ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)       |
+| `x64`        | `arm64`                    | ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)   |
+| `x64`        | `armeabi-v7a`, `arm64-v8a` | ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) |
+|              | `arm64`                    | ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white)             |
 
 </details>
 
-## Participating in development
+<br>
 
 <details>
-<summary>Expand</summary>
+<summary>Participating in development</summary>
 
-<br>
+## Participating in development
 
 1. Get source code
 ```shell
@@ -352,14 +284,14 @@ git submodule update --init --recursive
 
 </details>
 
-</details>
-
----
+<br>
 
 # Update Plan | 更新周期
 
+<br>
+
 <details>
-<summary>Old versions | 旧版</summary>
+<summary>Deprecated Versions | 旧版 (弃用的版本)</summary>
 
 <br>
 
@@ -393,14 +325,18 @@ git submodule update --init --recursive
 
 </details>
 
-| Version                                                                           | Info    | Code      | Support            | Term               | Require                      | Runs on                                                    |
-|-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|------------------------------|------------------------------------------------------------|
-| [v3.0.6187.47831](https://github.com/Crequency/KitX/releases/tag/v3.0.6187.47831) | Preview | Fly       | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| [v3.22.04.6230](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6230)     | Preview | Telegram  | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Release | Evolution | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| v3.22.10.x                                                                        | Release | Hi        | coding             | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
-| v3.23.04.x                                                                        | Release | ToYou     | coding             | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | Windows, Linux, MacOS, Android, iOS, Browser, Raspberry Pi |
+<br>
+
+| Version                                                                           | Info    | Code      | Support            | Term               | Require                      | Runs on                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+|-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [v3.0.6187.47831](https://github.com/Crequency/KitX/releases/tag/v3.0.6187.47831) | Preview | Fly       | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
+| [v3.22.04.6230](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6230)     | Preview | Telegram  | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
+| [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
+| [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Release | Evolution | :white_check_mark: | 2022.04 -> 2023.04 | .Net 6 (Also Self-Contained) | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
+| v3.22.10.x                                                                        | Release | Hi        | developing         | 2022.10 -> 2023.04 | .Net 6 (Also Self-Contained) | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Browser](https://img.shields.io/badge/Browser-4285F4?logo=GoogleChrome&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
+| v3.23.04.x                                                                        | Release | ToYou     | developing         | 2023.04 -> 2024.04 | .Net 6 (Also Self-Contained) | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Browser](https://img.shields.io/badge/Browser-4285F4?logo=GoogleChrome&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
+
+<br>
 
 # Contributors | 贡献者
 
