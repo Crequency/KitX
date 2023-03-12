@@ -1,64 +1,181 @@
+
 # 目录
+
 - [目录](#目录)
-- [v3.x](#v3-x)
-  - [v3.22.x](#v3-22-x)
-    - [v3.22.04](#v3-22-04)
-      - [2022.10.03 02:24 v3.22.04.6287 Release](#2022-10-03-02-24-v3-22-04-6287-release)
-        - [💾 Features](#features)
-        - [🔧 Fixes](#fixes)
-        - [🍻 New Contributors](#new-contributors)
-      - [2022.08.12 00:32 v3.22.04.6235 Release](#2022-08-12-00-32-v3-22-04-6235-release)
-        - [💾 Features](#features-1)
-        - [🔧 Fixes](#fixes-1)
-      - [2022.08.07 04:05 v3.22.04.6230 Preview](#2022-08-07-04-05-v3-22-04-6230-preview)
-      - [2022.07.25 v3.0.6187.47831 Preview](#2022-07-25-v3-0-6187-47831-preview)
-- [v2.x](#v2-x)
-  - [v2.0.x](#v2-0-x)
-    - [v2.0.5](#v2-0-5)
-      - [2021-\&\&-\&\& \&\&:\&\& v2.0.5 preview](#2021-v2-0-5-preview)
-    - [v2.0.4](#v2-0-4)
-      - [2021-06-27 14:25 v2.0.4](#2021-06-27-14-25-v2-0-4)
-    - [v2.0.3](#v2-0-3)
-      - [2021-06-20 13:49 v2.0.3](#2021-06-20-13-49-v2-0-3)
-    - [v2.0.2](#v2-0-2)
-      - [2021-06-14 13:08 v2.0.2](#2021-06-14-13-08-v2-0-2)
-    - [v2.0.1](#v2-0-1)
-      - [2021-06-08 14:23 v2.0.1](#2021-06-08-14-23-v2-0-1)
-    - [v2.0.0](#v2-0-0)
-      - [2021-05-28 14:00 v2.0.0](#2021-05-28-14-00-v2-0-0)
-- [v1.x](#v1-x)
-  - [v1.2.x](#v1-2-x)
-    - [v1.2.7](#v1-2-7)
-      - [2021-05-18 17:11 v1.2.7 修正](#2021-05-18-17-11-v1-2-7-修正)
-      - [2021-05-04 12:58 KitX v1.2.7 Release Note](#2021-05-04-12-58-kitx-v1-2-7-release-note)
-    - [v1.2.6](#v1-2-6)
-      - [2021-04-18 15:58 KitX v1.2.6 Release Note](#2021-04-18-15-58-kitx-v1-2-6-release-note)
-    - [v1.2.5](#v1-2-5)
-      - [2021-04-11 14:20 KitX v1.2.5 Release Note](#2021-04-11-14-20-kitx-v1-2-5-release-note)
-    - [v1.2.4](#v1-2-4)
-      - [2021-04-05 13:10 KitX v1.2.4 Release Note](#2021-04-05-13-10-kitx-v1-2-4-release-note)
-      - [2021-04-02 21:45 KitX v1.2.4 Preview Note](#2021-04-02-21-45-kitx-v1-2-4-preview-note)
-    - [v1.2.2](#v1-2-2)
-      - [2021-03-14 01:11 KitX v1.2.2 Release Note](#2021-03-14-01-11-kitx-v1-2-2-release-note)
-    - [v1.2.1](#v1-2-1)
-      - [2021-03-13 23:12 KitX v1.2.1 Release Note](#2021-03-13-23-12-kitx-v1-2-1-release-note)
-    - [v1.2.0](#v1-2-0)
-      - [2021-02-25 04:51 KitX v1.2.0 Release Note](#2021-02-25-04-51-kitx-v1-2-0-release-note)
-  - [v1.1.x](#v1-1-x)
-    - [v1.1.5](#v1-1-5)
-    - [v1.1.4](#v1-1-4)
-    - [v1.1.2](#v1-1-2)
-    - [v1.1.1](#v1-1-1)
-    - [v1.1.0](#v1-1-0)
-      - [2021/02/10 04:10 KitX v1.1.0 Release Note](#2021-02-10-04-10-kitx-v1-1-0-release-note)
-  - [v1.0.x](#v1-0-x)
-    - [v1.0.5](#v1-0-5)
-    - [v1.0.4](#v1-0-4)
-    - [v1.0.0](#v1-0-0)
+- [23.04](#2304)
+  - [🎉 Welcome](#-welcome)
+  - [💾 What's Changed](#-whats-changed)
+  - [🍻 New Contributors](#-new-contributors)
+  - [🛡 Hashes of the Release Artifacts](#-hashes-of-the-release-artifacts)
+- [v3.x](#v3x)
+  - [v3.22.x](#v322x)
+    - [v3.22.04](#v32204)
+      - [2022.10.03 02:24 v3.22.04.6287 Release](#20221003-0224-v322046287-release)
+        - [💾 Features](#-features)
+        - [🔧 Fixes](#-fixes)
+        - [🍻 New Contributors](#-new-contributors-1)
+      - [2022.08.12 00:32 v3.22.04.6235 Release](#20220812-0032-v322046235-release)
+        - [💾 Features](#-features-1)
+        - [🔧 Fixes](#-fixes-1)
+      - [2022.08.07 04:05 v3.22.04.6230 Preview](#20220807-0405-v322046230-preview)
+      - [2022.07.25 v3.0.6187.47831 Preview](#20220725-v30618747831-preview)
+- [v2.x](#v2x)
+  - [v2.0.x](#v20x)
+    - [v2.0.5](#v205)
+      - [2021-\&\&-\&\& \&\&:\&\& v2.0.5 preview](#2021----v205-preview)
+    - [v2.0.4](#v204)
+      - [2021-06-27 14:25 v2.0.4](#2021-06-27-1425-v204)
+    - [v2.0.3](#v203)
+      - [2021-06-20 13:49 v2.0.3](#2021-06-20-1349-v203)
+    - [v2.0.2](#v202)
+      - [2021-06-14 13:08 v2.0.2](#2021-06-14-1308-v202)
+    - [v2.0.1](#v201)
+      - [2021-06-08 14:23 v2.0.1](#2021-06-08-1423-v201)
+    - [v2.0.0](#v200)
+      - [2021-05-28 14:00 v2.0.0](#2021-05-28-1400-v200)
+- [v1.x](#v1x)
+  - [v1.2.x](#v12x)
+    - [v1.2.7](#v127)
+      - [2021-05-18 17:11 v1.2.7 修正](#2021-05-18-1711-v127-修正)
+      - [2021-05-04 12:58 KitX v1.2.7 Release Note](#2021-05-04-1258-kitx-v127-release-note)
+    - [v1.2.6](#v126)
+      - [2021-04-18 15:58 KitX v1.2.6 Release Note](#2021-04-18-1558-kitx-v126-release-note)
+    - [v1.2.5](#v125)
+      - [2021-04-11 14:20 KitX v1.2.5 Release Note](#2021-04-11-1420-kitx-v125-release-note)
+    - [v1.2.4](#v124)
+      - [2021-04-05 13:10 KitX v1.2.4 Release Note](#2021-04-05-1310-kitx-v124-release-note)
+      - [2021-04-02 21:45 KitX v1.2.4 Preview Note](#2021-04-02-2145-kitx-v124-preview-note)
+    - [v1.2.2](#v122)
+      - [2021-03-14 01:11 KitX v1.2.2 Release Note](#2021-03-14-0111-kitx-v122-release-note)
+    - [v1.2.1](#v121)
+      - [2021-03-13 23:12 KitX v1.2.1 Release Note](#2021-03-13-2312-kitx-v121-release-note)
+    - [v1.2.0](#v120)
+      - [2021-02-25 04:51 KitX v1.2.0 Release Note](#2021-02-25-0451-kitx-v120-release-note)
+  - [v1.1.x](#v11x)
+    - [v1.1.5](#v115)
+    - [v1.1.4](#v114)
+    - [v1.1.2](#v112)
+    - [v1.1.1](#v111)
+    - [v1.1.0](#v110)
+      - [2021/02/10 04:10 KitX v1.1.0 Release Note](#20210210-0410-kitx-v110-release-note)
+  - [v1.0.x](#v10x)
+    - [v1.0.5](#v105)
+    - [v1.0.4](#v104)
+    - [v1.0.0](#v100)
 - [Beta](#beta)
   - [Beta](#beta-1)
-    - [Beta\_10235, Beta\_10213, Beta\_10016](#beta-10235-beta-10213-beta-10016)
+    - [Beta\_10235, Beta\_10213, Beta\_10016](#beta_10235-beta_10213-beta_10016)
       - [时间过于久远 KitX Beta 版本上新 Beta Note](#时间过于久远-kitx-beta-版本上新-beta-note)
+
+
+# 23.04
+
+## 🎉 Welcome
+Out first android build came out this time!
+
+## 💾 What's Changed
+* [Pull Request] 清理 git, 仪表盘窗口大小自适应 by @Dynesshely in https://github.com/Crequency/KitX/pull/174
+* [Pull Request] 适用于 Windows 平台的安装包逻辑更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/177
+* [Pull Request] KitX Loaders 逻辑更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/178
+* [Pull Request] KitX Rules 更新, KitX Dashboard 更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/179
+* [Pull Request] 仪表盘自组网完成-UI优化-库界面支持拖拽安装kxp插件, 一些其它更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/181
+* [Pull Request] 测试插件适配新 Web.Rules by @Dynesshely in https://github.com/Crequency/KitX/pull/182
+* [Pull Request] 单进程检查, 配置文件热重载, 库中直接启动, 更易用的开发工具 by @Dynesshely in https://github.com/Crequency/KitX/pull/184
+* [Pull Request] 完成插件详情页, 新增视觉效果测试项目 by @Dynesshely in https://github.com/Crequency/KitX/pull/186
+* [Pull Request] 修复一个问题, 调整一处UI, 修改了插件协议 by @Dynesshely in https://github.com/Crequency/KitX/pull/188
+* [Pull Request] Feat, Chore, Struct, Docs by @Dynesshely in https://github.com/Crequency/KitX/pull/189
+* [Pull Request] Update README by @RedAlert3 in https://github.com/Crequency/KitX/pull/190
+* [Pull Request] CI Environment 尝试 by @Dynesshely in https://github.com/Crequency/KitX/pull/192
+* [Pull Request] 更新 NuGet 应用, 应用编译器建议, 准备发布新的包 by @Dynesshely in https://github.com/Crequency/KitX/pull/193
+* [Pull Request] Chore by @Dynesshely in https://github.com/Crequency/KitX/pull/194
+* [Pull Request] .github Issue and Feature Request templates by @Dynesshely in https://github.com/Crequency/KitX/pull/197
+* [Pull Request] 关于赞助 [skip ci] by @Dynesshely in https://github.com/Crequency/KitX/pull/198
+* [Pull Request] Git 配置更新, GitHub 配置更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/200
+* [Pull Request] Update by @Dynesshely in https://github.com/Crequency/KitX/pull/201
+* [Pull Request] 六项新增 by @Dynesshely in https://github.com/Crequency/KitX/pull/204
+* [Pull Request] 一项合并; 多项开发工具更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/211
+* [Pull Request] ToolKits 更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/212
+* [Pull Request] 两项更新; 一项移除 by @Dynesshely in https://github.com/Crequency/KitX/pull/214
+* [Pull Request] 多项更新 by @Dynesshely in https://github.com/Crequency/KitX/pull/218
+* [Pull Request] Mainly updates in `KitX Mobile` and `KitX Website` by @Dynesshely in https://github.com/Crequency/KitX/pull/234
+* [Pull Request] Updated commit template by @Cronyet in https://github.com/Crequency/KitX/pull/235
+* [Pull Request] 3 repos updated. by @Dynesshely in https://github.com/Crequency/KitX/pull/240
+* [Pull Request] Motification related to documents. by @Cronyeter in https://github.com/Crequency/KitX/pull/238
+
+## 🍻 New Contributors
+* @RedAlert3 made their first contribution in https://github.com/Crequency/KitX/pull/190
+* @Cronyet made their first contribution in https://github.com/Crequency/KitX/pull/235
+* @Cronyeter made their first contribution in https://github.com/Crequency/KitX/pull/238
+
+**Full Changelog**: https://github.com/Crequency/KitX/commits/v3.23.04.6488
+
+## 🛡 Hashes of the Release Artifacts
+
+- kitx-linux-arm-single-cut.7z
+  - MD5: 57ceec8267c76c1064875944f4f49a0c
+  - SHA1: 4ff07275be8493efc8a1b111c3d078dd9190f024
+- kitx-linux-arm-single.7z
+  - MD5: b23d656690bedc6231b2097446d852c8
+  - SHA1: 68f1975846dab860f47b4e7d2bf573e1fdcfa321
+- kitx-linux-arm64-single-cut.7z
+  - MD5: 2968ff224f30970678aac4236379a3ae
+  - SHA1: f26cbc99c066073bf7bd048dfa7b44036829ad10
+- kitx-linux-arm64-single.7z
+  - MD5: a9072e9b31c7f58a53fe949dccbbe6db
+  - SHA1: 37bb1606bd37c1b652cc48f373037f5c51cb39ea
+- kitx-linux-x64-runtime-relied.7z
+  - MD5: 9d3d6ee817a5870955ddccd91ce22f76
+  - SHA1: b5bbfd1f8166e7a4ea0f0e730d31049e5c9492fa
+- kitx-linux-x64-single-cut.7z
+  - MD5: 530aa9a3997ad109c71028735d7f0f57
+  - SHA1: 28ce10406166c8085000d8e1a31417810d33d723
+- kitx-linux-x64-single.7z
+  - MD5: 0be6141d8ea2d53ce2eea62078bf2218
+  - SHA1: def15ec90348daf7356faf1b3fc43c95347a7883
+- kitx-linux-x64.7z
+  - MD5: a0c44796bb8780b641de109a8fec19c4
+  - SHA1: e71cf1d51f834ad606be8d071c2e8c8b695f6834
+- kitx-osx-arm64-single.7z
+  - MD5: 3e9eb6491ebee6ec8cd2eb47aa6f0cec
+  - SHA1: 2790ac7a256d66c9579e754a3d2d6261acc198f9
+- kitx-osx-x64-single-cut.7z
+  - MD5: 94ef53ca645262aa6fcde3933aadd7c2
+  - SHA1: 21438b5eef21873998e764f90fd6688db970fad7
+- kitx-osx-x64-single.7z
+  - MD5: f6540ad1c23837b9715996c3032cf6bc
+  - SHA1: d271bffef4da08e28babab04dd1bed3a21102148
+- kitx-win-arm-single.7z
+  - MD5: 23e39f751eb3791dea88122efe3330ec
+  - SHA1: a04f8156138891c64313520964a58e3050c12bfb
+- kitx-win-x64-runtime-relied.7z
+  - MD5: 4f888b3efa768a3caf2b616b29683f91
+  - SHA1: bc440a4ab621c891287ff355558b3f676f2ff25e
+- kitx-win-x64-single-cut.7z
+  - MD5: f85de6717c3ab699354ace681b7514fb
+  - SHA1: ef3354b28892bd33256c74eb4d32bab191904eba
+- kitx-win-x64-single.7z
+  - MD5: 074c5816400a19aafa7dab7be7fb67ff
+  - SHA1: ca7e2d9c0d77dea4a05b9608cece6d1c728062d5
+- kitx-win-x64.7z
+  - MD5: 4f7304e7cdf1a9a10c7ddfd426bdd3e1
+  - SHA1: 688610f1adcd933537bfd651ff49b937564ccea6
+- kitx-win-x86-single-cut.7z
+  - MD5: 6412cf17952e010958064a1569dccdf7
+  - SHA1: 1e9e4ad878caad8ff7c3f5aaa2c8eb3649e931f7
+- kitx-win-x86-single.7z
+  - MD5: 61f088776135a4321349af8eb5a6eaa3
+  - SHA1: 8fed4a3b19dd7595194a3d701250b6c71a915a19
+- kitx-win-x86.7z
+  - MD5: e85d42db311399178883f1e2fb24fc20
+  - SHA1: c76039cdfcd8a76aa138cd2e8da14619ad1dfa0a
+- kitx-mobile-arm64-v8a-release.apk
+  - SHA1: dae298422da449144da6b4b9abbf3a3110502991
+- kitx-mobile-armeabi-v7a-release.apk
+  - SHA1: f1b75736c0a0e396b6097b21223fa6246d851124
+- kitx-mobile-release.apk
+  - SHA1: 82cae15677035b38aa0dcccf83ddf038cb6ebc18
+- kitx-mobile-x86_64-release.apk
+  - SHA1: 69a1fa7d89d02efa269fd836841c559d7d665f27
 
 # v3.x
 
