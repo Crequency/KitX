@@ -6,7 +6,8 @@ echo "Last updated at: 2023.03.26 23:09"
 echo ""
 echo "Type: $type"
 
-if($type -eq "list"){
+if($type -eq "list")
+{
     echo "    - dashboard"
     echo "    - mobile"
     echo "    - loader"
@@ -15,8 +16,8 @@ if($type -eq "list"){
     echo "    - reference"
 }
 
-if($type -eq "dashboard"){
-
+if($type -eq "dashboard")
+{
     echo "    | KitX Dashboard"
     echo "    | KitX Dashboard Helper"
     echo "    | KitX File Format Helper"
@@ -59,8 +60,8 @@ if($type -eq "dashboard"){
     echo "To develop <dashboard> sets, you need <reference> sets too."
 }
 
-if($type -eq "mobile"){
-
+if($type -eq "mobile")
+{
     echo "    \ KitX Mobile"
     echo ""
     echo "executing ..."
@@ -72,8 +73,8 @@ if($type -eq "mobile"){
     cd ".."
 }
 
-if($type -eq "loader"){
-
+if($type -eq "loader")
+{
     echo "    | KitX Contracts"
     echo "    | KitX Loaders"
     echo "    \ KitX Rules"
@@ -99,8 +100,8 @@ if($type -eq "loader"){
     cd ".."
 }
 
-if($type -eq "plugin"){
-
+if($type -eq "plugin")
+{
     echo "    | KitX Contracts"
     echo "    | KitX Loaders"
     echo "    | KitX Plugins"
@@ -133,8 +134,8 @@ if($type -eq "plugin"){
     cd ".."
 }
 
-if($type -eq "installer"){
-
+if($type -eq "installer")
+{
     echo "    \ KitX Installer"
     echo ""
     echo "executing ..."
@@ -146,8 +147,8 @@ if($type -eq "installer"){
     cd ".."
 }
 
-if($type -eq "reference"){
-
+if($type -eq "reference")
+{
     echo "    | Reference/Common.Activity"
     echo "    | Reference/Common.Algorithm"
     echo "    | Reference/Common.BasicHelper"
