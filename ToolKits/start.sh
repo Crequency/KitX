@@ -1,5 +1,9 @@
 ﻿#!/usr/bin/bash
 
+echo "KitX Repository Initialize Script"
+echo "Last updated at: 2023.03.26 23:09"
+
+echo ""
 echo "Type: $1"
 
 if [ $1 = "list" ];

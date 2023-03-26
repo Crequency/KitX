@@ -1,5 +1,9 @@
 ﻿param($type)
 
+echo "KitX Repository Initialize Script"
+echo "Last updated at: 2023.03.26 23:09"
+
+echo ""
 echo "Type: $type"
 
 if($type -eq "list"){
