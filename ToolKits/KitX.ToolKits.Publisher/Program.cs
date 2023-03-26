@@ -3,6 +3,8 @@
 Console.WriteLine("""
     KitX.ToolKits.Publisher
     Copyright (C) Crequency 2023
+    Last updated at: 2023.03.26 23:16
+
     """);
 
 var publishDir = Path.GetFullPath("../../KitX Publish");
