@@ -2,6 +2,16 @@
 
 echo "Type: $1"
 
+if [ $1 = "list" ];
+then
+    echo "    - dashboard"
+    echo "    - mobile"
+    echo "    - loader"
+    echo "    - plugin"
+    echo "    - installer"
+    echo "    - reference"
+fi
+
 if [ $1 = "dashboard" ];
 then
     echo "    | KitX Dashboard"
