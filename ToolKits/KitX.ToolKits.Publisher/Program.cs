@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using KitX.ToolKits.Publisher;
+using System.Diagnostics;
 
 Console.WriteLine("""
     KitX.ToolKits.Publisher
@@ -20,27 +21,28 @@ var files = Directory.GetFiles(ab_pub_path, "*.pubxml",
 
 var finished_threads = 0;
 var executing_thread_index = 0;
+
 var update_finished_threads_lock = new object();
 var single_thread_update_lock = new object();
+
+var random = new Random();
+
 var thread_output_colors = new Dictionary<int, ConsoleColor>();
-var available_colors = new List<int>()
-{
-    1, 2, 3, 5, 9, 10, 11, 13
-};
 var used_colors_count = 0;
 var default_color = Console.ForegroundColor;
-var random = new Random();
+var get_random_index = (int max) => random.Next(0, max);
 var get_random_color = () =>
 {
-    var cc = available_colors[random.Next(0, available_colors.Count)];
-    if (used_colors_count < available_colors.Count)
+    var cc = Defines.AvailableColors[get_random_index(Defines.AvailableColors.Count)];
+    if (used_colors_count < Defines.AvailableColors.Count)
     {
         while (thread_output_colors.Values.ToList().Contains((ConsoleColor)cc))
-            cc = available_colors[random.Next(0, available_colors.Count)];
+            cc = Defines.AvailableColors[get_random_index(Defines.AvailableColors.Count)];
     }
     ++used_colors_count;
     return (ConsoleColor)cc;
 };
+
 var tasks = new List<Action>();
 
 foreach (var item in files)
@@ -108,10 +110,9 @@ foreach (var item in files)
 foreach (var task in tasks)
     task.Invoke();
 
-while (finished_threads != files.Length)
-{
-
-}
+//  Wait until all tasks done.
+while (finished_threads != files.Length) ;
+//Task.WhenAll(tasks); // If you want to use async/await, you can use this.
 
 Console.WriteLine($"" +
     $">>> All tasks done.");
