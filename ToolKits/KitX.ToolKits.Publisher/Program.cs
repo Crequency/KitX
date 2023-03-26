@@ -8,6 +8,8 @@ Console.WriteLine("""
 
     """);
 
+Configs.ProcessParameters(Environment.GetCommandLineArgs());
+
 var publishDir = Path.GetFullPath("../../KitX Publish");
 if (publishDir is not null && Directory.Exists(publishDir))
     Directory.Delete(publishDir, true);
@@ -107,11 +109,12 @@ foreach (var item in files)
         $">>> New task: task_{index}\t->   {filename}");
 }
 
-foreach (var task in tasks)
-    task.Invoke();
+if (!Configs.SkipGenerate)
+    foreach (var task in tasks)
+        task.Invoke();
 
-//  Wait until all tasks done.
-while (finished_threads != files.Length) ;
+if (!Configs.SkipGenerate)
+    while (finished_threads != files.Length) ;  //  Wait until all tasks done.
 //Task.WhenAll(tasks); // If you want to use async/await, you can use this.
 
 Console.WriteLine($"" +
