@@ -2,6 +2,15 @@
 
 echo "Type: $type"
 
+if($type -eq "list"){
+    echo "    - dashboard"
+    echo "    - mobile"
+    echo "    - loader"
+    echo "    - plugin"
+    echo "    - installer"
+    echo "    - reference"
+}
+
 if($type -eq "dashboard"){
 
     echo "    | KitX Dashboard"

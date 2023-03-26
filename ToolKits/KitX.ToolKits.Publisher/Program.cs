@@ -87,7 +87,6 @@ foreach (var item in files)
         while (!process.StandardOutput.EndOfStream)
         {
             string? line = process.StandardOutput.ReadLine();
-            Console.ForegroundColor = default_color;
             Console.WriteLine($"" +
                 $"            {line}");
         }
