@@ -142,11 +142,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.BasicHelper.Test", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Script", "KitX Script", "{66197398-F358-45EC-AF57-7A4F0BEB2B2E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kscript.Parser", "KitX Script\Kscript.Parser\Kscript.Parser.csproj", "{AF3C47C6-7CAC-48C0-85B5-9732C122ACF6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kscript.Parser", "KitX Script\Kscript.Parser\Kscript.Parser.csproj", "{AF3C47C6-7CAC-48C0-85B5-9732C122ACF6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kscript.VM", "KitX Script\Kscript.VM\Kscript.VM.csproj", "{6BA9D3B7-40B0-43CD-83D0-723B76E4B754}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kscript.VM", "KitX Script\Kscript.VM\Kscript.VM.csproj", "{6BA9D3B7-40B0-43CD-83D0-723B76E4B754}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kscript.Compiler", "KitX Script\Kscript.Compiler\Kscript.Compiler.csproj", "{0F55AC99-33B2-4F19-91BC-598F2065F8EF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kscript.Compiler", "KitX Script\Kscript.Compiler\Kscript.Compiler.csproj", "{0F55AC99-33B2-4F19-91BC-598F2065F8EF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Kscript.Editor", "Kscript.Editor", "{AC9867CA-A09D-4308-9C11-25E6B3BD8513}"
 EndProject
