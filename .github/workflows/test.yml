@@ -1,0 +1,62 @@
+name: Build Universal
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".*/**"
+      - "**/*.md"
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - ".*/**"
+      - "**/*.md"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: "true"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: "6.0.x"
+          include-prerelease: false
+
+      - name: Build Contracts
+        working-directory: "KitX Contracts"
+        run: |
+          cd "KitX.Contract.CSharp"
+          dotnet build -c Release
+          cd ".."
+
+      - name: Build Dashboard
+        working-directory: "KitX Dashboard"
+        run: |
+          dotnet build -c Release
+
+      - name: Build Rules
+        working-directory: "KitX Rules"
+        run: |
+          cd "KitX.Web.Rules"
+          dotnet build -c Release
+          cd ".."
+
+      - name: Build File Format Helper
+        working-directory: "KitX File Format Helper"
+        run: |
+          cd "KitX.KXP.Helper"
+          dotnet build -c Release
+          cd ".."
