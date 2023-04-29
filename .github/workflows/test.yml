@@ -1,4 +1,4 @@
-name: Build Universal
+name: Build Universal Test
 
 on:
   push:
