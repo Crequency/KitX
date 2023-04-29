@@ -1,5 +1,6 @@
 ﻿using KitX.ToolKits.Publisher;
 using System.Diagnostics;
+using System.IO.Compression;
 
 Console.WriteLine("""
     KitX.ToolKits.Publisher
@@ -11,15 +12,20 @@ Console.WriteLine("""
 Configs.ProcessParameters(Environment.GetCommandLineArgs());
 
 var publishDir = Path.GetFullPath("../../KitX Publish");
-if (publishDir is not null && Directory.Exists(publishDir))
-    Directory.Delete(publishDir, true);
+
+if (publishDir is not null && Directory.Exists(publishDir) && !Configs.SkipGenerate)
+    foreach (var dir in new DirectoryInfo(publishDir).GetDirectories())
+        Directory.Delete(dir.FullName, true);
 
 var path = Path.GetFullPath("../../KitX Dashboard/");
 var pro = "Properties/";
 var pub = "PublishProfiles/";
 var ab_pub_path = Path.GetFullPath($"{path}{pro}{pub}");
-var files = Directory.GetFiles(ab_pub_path, "*.pubxml",
-    SearchOption.AllDirectories);
+var files = Directory.GetFiles(
+    ab_pub_path,
+    "*.pubxml",
+    SearchOption.AllDirectories
+);
 
 var finished_threads = 0;
 var executing_thread_index = 0;
@@ -119,3 +125,26 @@ if (!Configs.SkipGenerate)
 
 Console.WriteLine($"" +
     $">>> All tasks done.");
+
+if (!Configs.SkipPacking && publishDir is not null)
+{
+    Console.WriteLine(">>> Begin packing.");
+
+    var folders = new DirectoryInfo(publishDir).GetDirectories();
+
+    foreach (var folder in folders)
+    {
+        var name = folder.Name;
+
+        Console.WriteLine($">>> Packing {name}");
+
+        ZipFile.CreateFromDirectory(
+            folder.FullName,
+            $"{publishDir}/{name}.zip",
+            CompressionLevel.SmallestSize,
+            true
+        );
+    }
+
+    Console.WriteLine(">>> Packing done.");
+}
