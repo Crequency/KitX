@@ -1,6 +1,20 @@
-﻿#!/bin/bash
+﻿#!/usr/bin/bash
 
+echo "KitX Repository Initialize Script"
+echo "Last updated at: 2023.03.26 23:09"
+
+echo ""
 echo "Type: $1"
+
+if [ $1 = "list" ];
+then
+    echo "    - dashboard"
+    echo "    - mobile"
+    echo "    - loader"
+    echo "    - plugin"
+    echo "    - installer"
+    echo "    - reference"
+fi
 
 if [ $1 = "dashboard" ];
 then
