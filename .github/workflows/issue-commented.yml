@@ -1,6 +1,8 @@
 name: On Issue Commented
 
-on: issue_comment
+on:
+  issue_comment:
+    types: [created]
 
 jobs:
   issue_tracked:
@@ -58,14 +60,10 @@ jobs:
       - name: Add tracking label
         if: ${{ env.response == 'tracked' }}
         uses: actions/github-script@v6
-        env:
-          ISSUE_NUMBER: ${{ env.tracked_issue_number }}
         with:
           script: |
-            const { ISSUE_NUMBER } = process.env
-            
             github.rest.issues.addLabels({
-              issue_number: ${ISSUE_NUMBER},
+              issue_number: ${{ env.tracked_issue_number }},
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: ["tracking"]
