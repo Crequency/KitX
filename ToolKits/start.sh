@@ -68,7 +68,7 @@ then
 
     git submodule update "KitX Mobile"
     cd "KitX Mobile"
-    git checkout main
+    git checkout dev=main
     git pull
     cd ".."
 fi
@@ -159,7 +159,7 @@ then
 
     git submodule update "Reference/Common.Activity"
     cd "Reference/Common.Activity"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 

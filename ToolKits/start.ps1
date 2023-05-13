@@ -68,7 +68,7 @@ if($type -eq "mobile")
 
     git submodule update "KitX Mobile"
     cd "KitX Mobile"
-    git checkout main
+    git checkout dev=main
     git pull
     cd ".."
 }
@@ -159,7 +159,7 @@ if($type -eq "reference")
 
     git submodule update "Reference/Common.Activity"
     cd "Reference/Common.Activity"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
