@@ -39,6 +39,14 @@ jobs:
       - name: Build Plugins
         working-directory: "KitX Plugins"
         run: |
+          cd "TestPlugin.CSharp"
+          dotnet build -c Release
+          cd ..
+          
+          cd "TestPlugin.Winform.Core"
+          dotnet build -c Release
+          cd ..
+          
           cd "TestPlugin.WPF.Core"
           dotnet build -c Release
-          cd ".."
+          cd ..
