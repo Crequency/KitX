@@ -1,6 +1,42 @@
+[submodule "KitX Clients/KitX Dashboard"]
+	path = KitX Clients/KitX Dashboard
+	url = git@github.com:Crequency/KitX-Dashboard.git
+[submodule "KitX Clients/KitX Installer"]
+	path = KitX Clients/KitX Installer
+	url = git@github.com:Crequency/KitX-Installer.git
+[submodule "KitX Clients/KitX Mobile"]
+	path = KitX Clients/KitX Mobile
+	url = git@github.com:Crequency/KitX-Mobile.git
+[submodule "KitX Clients/KitX Website"]
+	path = KitX Clients/KitX Website
+	url = git@github.com:Crequency/KitX-Website.git
+[submodule "KitX Core"]
+	path = KitX Core
+	url = git@github.com:Crequency/KitX-Core.git
 [submodule "KitX Docs"]
 	path = KitX Docs
 	url = git@github.com:Crequency/KitX-Docs.git
+[submodule "KitX SDK"]
+	path = KitX SDK
+	url = git@github.com:Crequency/KitX-SDK.git
+[submodule "KitX Standard/KitX Contracts"]
+	path = KitX Standard/KitX Contracts
+	url = git@github.com:Crequency/KitX-Contracts.git
+[submodule "KitX Standard/KitX File Formats"]
+	path = KitX Standard/KitX File Formats
+	url = git@github.com:Crequency/KitX-File-Formats.git
+[submodule "KitX Standard/KitX Loaders"]
+	path = KitX Standard/KitX Loaders
+	url = git@github.com:Crequency/KitX-Loaders.git
+[submodule "KitX Standard/KitX Plugins"]
+	path = KitX Standard/KitX Plugins
+	url = git@github.com:Crequency/KitX-Plugins.git
+[submodule "KitX Standard/KitX Rules"]
+	path = KitX Standard/KitX Rules
+	url = git@github.com:Crequency/KitX-Rules.git
+[submodule "KitX Standard/KitX Script"]
+	path = KitX Standard/KitX Script
+	url = git@github.com:Crequency/KitX-Script.git
 [submodule "Reference/Common.ExternalConsole"]
 	path = Reference/Common.ExternalConsole
 	url = git@github.com:Crequency/Common.ExternalConsole.git
@@ -16,9 +52,3 @@
 [submodule "Reference/Common.Algorithm"]
 	path = Reference/Common.Algorithm
 	url = git@github.com:Crequency/Common.Algorithm.git
-[submodule "KitX Standard/KitX File Formats"]
-	path = KitX Standard/KitX File Formats
-	url = git@github.com:Crequency/KitX-File-Formats.git
-[submodule "KitX SDK"]
-	path = KitX SDK
-	url = git@github.com:Crequency/KitX-SDK.git
