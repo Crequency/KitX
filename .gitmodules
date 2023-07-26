@@ -1,42 +1,6 @@
-[submodule "KitX Mobile"]
-	path = KitX Mobile
-	url = git@github.com:Crequency/KitX-Mobile.git
-[submodule "KitX Website"]
-	path = KitX Website
-	url = git@github.com:Crequency/KitX-Website.git
-[submodule "KitX Plugins"]
-	path = KitX Plugins
-	url = git@github.com:Crequency/KitX-Plugins.git
 [submodule "KitX Docs"]
 	path = KitX Docs
 	url = git@github.com:Crequency/KitX-Docs.git
-[submodule "KitX Installer"]
-	path = KitX Installer
-	url = git@github.com:Crequency/KitX-Installer.git
-[submodule "KitX Loaders"]
-	path = KitX Loaders
-	url = git@github.com:Crequency/KitX-Loaders.git
-[submodule "KitX Contracts"]
-	path = KitX Contracts
-	url = git@github.com:Crequency/KitX-Contracts.git
-[submodule "KitX Test"]
-	path = KitX Test
-	url = git@github.com:Crequency/KitX-Test.git
-[submodule "KitX Tools"]
-	path = KitX Tools
-	url = git@github.com:Crequency/KitX-Tools.git
-[submodule "KitX Rules"]
-	path = KitX Rules
-	url = git@github.com:Crequency/KitX-Rules.git
-[submodule "KitX Dashboard Helper"]
-	path = KitX Dashboard Helper
-	url = git@github.com:Crequency/KitX-Dashboard-Helper.git
-[submodule "KitX File Format Helper"]
-	path = KitX File Format Helper
-	url = git@github.com:Crequency/KitX-File-Format-Helper.git
-[submodule "KitX Dashboard"]
-	path = KitX Dashboard
-	url = git@github.com:Crequency/KitX-Dashboard.git
 [submodule "Reference/Common.ExternalConsole"]
 	path = Reference/Common.ExternalConsole
 	url = git@github.com:Crequency/Common.ExternalConsole.git
@@ -52,6 +16,6 @@
 [submodule "Reference/Common.Algorithm"]
 	path = Reference/Common.Algorithm
 	url = git@github.com:Crequency/Common.Algorithm.git
-[submodule "KitX Script"]
-	path = KitX Script
-	url = git@github.com:Crequency/KitX-Script.git
+[submodule "KitX Standard/KitX File Formats"]
+	path = KitX Standard/KitX File Formats
+	url = git@github.com:Crequency/KitX-File-Formats.git
