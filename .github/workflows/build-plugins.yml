@@ -1,52 +1,52 @@
 name: Build Plugins
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - ".*/**"
-      - "**/*.md"
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - ".*/**"
-      - "**/*.md"
+    push:
+        branches:
+            - main
+        paths-ignore:
+            - ".*/**"
+            - "**/*.md"
+    pull_request:
+        branches:
+            - main
+        paths-ignore:
+            - ".*/**"
+            - "**/*.md"
 
-  workflow_dispatch:
+    workflow_dispatch:
 
 jobs:
-  build-plugins-on-windows:
-    runs-on: windows-latest
+    build-plugins-on-windows:
+        runs-on: windows-latest
 
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: "true"
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  submodules: "true"
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: "6.0.x"
-          include-prerelease: false
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v2
+              with:
+                  dotnet-version: "6.0.x"
+                  include-prerelease: false
 
-      - name: Setup Dotnet SDK
-        run: |
-          bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
-          C:\sdk.exe
+            - name: Setup Dotnet SDK
+              run: |
+                  bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
+                  C:\sdk.exe
 
-      - name: Build Plugins
-        working-directory: "KitX Plugins"
-        run: |
-          cd "TestPlugin.CSharp"
-          dotnet build -c Release
-          cd ..
-          
-          cd "TestPlugin.Winform.Core"
-          dotnet build -c Release
-          cd ..
-          
-          cd "TestPlugin.WPF.Core"
-          dotnet build -c Release
-          cd ..
+            - name: Build Plugins
+              working-directory: "KitX Standard/KitX Plugins"
+              run: |
+                  cd "TestPlugin.CSharp"
+                  dotnet build -c Release
+                  cd ..
+
+                  cd "TestPlugin.Winform.Core"
+                  dotnet build -c Release
+                  cd ..
+
+                  cd "TestPlugin.WPF.Core"
+                  dotnet build -c Release
+                  cd ..

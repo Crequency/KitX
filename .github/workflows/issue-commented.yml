@@ -1,78 +1,77 @@
 name: On Issue Commented
 
 on:
-  issue_comment:
-    types: [created]
+    issue_comment:
+        types: [created]
 
 jobs:
-  issue_tracked:
-    name: Issue tracked
-    if: ${{ !github.event.issue.pull_request }}
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-    steps:
-      
-      - name: Check command
-        shell: pwsh
-        run: |
-          $content = $env:CONTENT
-          $number = $env:NUMBER
-          $author = $env:Author
-          $role = $env:ROLE
-          
-          echo "Content: $content"
-          echo "Issue: #$number"
-          echo "Author: $author"
-          echo "Role: $role"
-          
-          if ($content -match '^Tracking #(\d*) .$') {
-            if (($role -eq "MEMBER") -or ($role -eq "OWNER")) {
-              $tracked = $Matches.1
+    issue_tracked:
+        name: Issue tracked
+        if: ${{ !github.event.issue.pull_request }}
+        runs-on: ubuntu-latest
+        permissions:
+            issues: write
+        steps:
+            - name: Check command
+              shell: pwsh
+              run: |
+                  $content = $env:CONTENT
+                  $number = $env:NUMBER
+                  $author = $env:Author
+                  $role = $env:ROLE
 
-              echo "Tracked: #$tracked"
-              echo "Tracker: #$tracker"
+                  echo "Content: $content"
+                  echo "Issue: #$number"
+                  echo "Author: $author"
+                  echo "Role: $role"
 
-              echo "tracked_issue_number=$tracked" >> $env:GITHUB_ENV
-              echo "tracker_issue_number=$number" >> $env:GITHUB_ENV
-              
-              echo "response=tracked" >> $env:GITHUB_ENV
-            } else {
-              echo "response=no-permission" >> $env:GITHUB_ENV
-            }
-          } else {
-            echo "response=false" >> $env:GITHUB_ENV
-          }
-        env:
-          NUMBER: ${{ github.event.issue.number }}
-          CONTENT: ${{ github.event.comment.body }}
-          AUTHOR: ${{ github.event.sender.login }}
-          ROLE: ${{ github.event.comment.author_association }}
-        
-      - name: Add tracked comment
-        if: ${{ env.response == 'tracked' }}
-        uses: peter-evans/create-or-update-comment@a35cf36e5301d70b76f316e867e7788a55a31dae
-        with:
-          issue-number: ${{ env.tracked_issue_number }}
-          body: |
-            Tracked by #${{ env.tracker_issue_number }} .
-            
-      - name: Add tracking label
-        if: ${{ env.response == 'tracked' }}
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.addLabels({
-              issue_number: ${{ env.tracked_issue_number }},
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: ["tracking"]
-            })
-            
-      - name: Add no permission comment
-        if: ${{ env.response == 'no-permission' }}
-        uses: peter-evans/create-or-update-comment@a35cf36e5301d70b76f316e867e7788a55a31dae
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            @${{ github.event.sender.login }}, You have no permission to run this command .
+                  if ($content -match '^Tracking #(\d*) .$') {
+                    if (($role -eq "MEMBER") -or ($role -eq "OWNER")) {
+                      $tracked = $Matches.1
+
+                      echo "Tracked: #$tracked"
+                      echo "Tracker: #$tracker"
+
+                      echo "tracked_issue_number=$tracked" >> $env:GITHUB_ENV
+                      echo "tracker_issue_number=$number" >> $env:GITHUB_ENV
+
+                      echo "response=tracked" >> $env:GITHUB_ENV
+                    } else {
+                      echo "response=no-permission" >> $env:GITHUB_ENV
+                    }
+                  } else {
+                    echo "response=false" >> $env:GITHUB_ENV
+                  }
+              env:
+                  NUMBER: ${{ github.event.issue.number }}
+                  CONTENT: ${{ github.event.comment.body }}
+                  AUTHOR: ${{ github.event.sender.login }}
+                  ROLE: ${{ github.event.comment.author_association }}
+
+            - name: Add tracked comment
+              if: ${{ env.response == 'tracked' }}
+              uses: peter-evans/create-or-update-comment@a35cf36e5301d70b76f316e867e7788a55a31dae
+              with:
+                  issue-number: ${{ env.tracked_issue_number }}
+                  body: |
+                      Tracked by #${{ env.tracker_issue_number }} .
+
+            - name: Add tracking label
+              if: ${{ env.response == 'tracked' }}
+              uses: actions/github-script@v6
+              with:
+                  script: |
+                      github.rest.issues.addLabels({
+                        issue_number: ${{ env.tracked_issue_number }},
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        labels: ["tracking"]
+                      })
+
+            - name: Add no permission comment
+              if: ${{ env.response == 'no-permission' }}
+              uses: peter-evans/create-or-update-comment@a35cf36e5301d70b76f316e867e7788a55a31dae
+              with:
+                  issue-number: ${{ github.event.issue.number }}
+                  body: |
+                      @${{ github.event.sender.login }}, You have no permission to run this command .
