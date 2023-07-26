@@ -1,103 +1,108 @@
 name: Publish Packages
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
 
-  workflow_dispatch:
+    workflow_dispatch:
 
 jobs:
-  build-on-ubuntu:
-    runs-on: ubuntu-latest
-    environment: Publish Packages
-    if: "contains(github.event.head_commit.message, '[Publish Packages]')"
+    build-on-ubuntu:
+        runs-on: ubuntu-latest
+        environment: Publish Packages
+        if: "contains(github.event.head_commit.message, '[Publish Packages]')"
 
-    steps:
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  submodules: "true"
 
-      - uses: actions/checkout@v3
-        with:
-          submodules: 'true'
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v2
+              with:
+                  dotnet-version: |
+                      6.0.x
+                      7.0.x
+                  include-prerelease: false
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v2
-        with:
-          dotnet-version: |
-            6.0.x
-            7.0.x
-          include-prerelease: false
+            - name: Add to GitHub Repo
+              run: |
+                  nuget sources add -name github -Source https://nuget.pkg.github.com/Crequency/index.json -Username Crequency -Password ${{ secrets.GitHubToken }}
 
-      - name: Add to GitHub Repo
-        run: |
-          nuget sources add -name github -Source https://nuget.pkg.github.com/Crequency/index.json -Username Crequency -Password ${{ secrets.GitHubToken }}
+            - name: Install NuGet
+              uses: nuget/setup-nuget@v1
+              with:
+                  nuget-version: "6.x"
 
-      - name: Install NuGet
-        uses: nuget/setup-nuget@v1
-        with:
-          nuget-version: '6.x'
+            - name: Build and Publish `KitX.Contract.CSharp`
+              if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')
+              run: |
+                  cd "KitX Standard"
 
-      - name: Build and Publish `KitX.Contract.CSharp`
-        if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')
-        run: |
-          cd "KitX Contracts"
+                  cd "KitX Contracts"
 
-          cd "KitX.Contract.CSharp"
-          dotnet build -c Release
+                  cd "KitX.Contract.CSharp"
+                  dotnet build -c Release
 
-          nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
 
-          cd "../.."
+                  cd "../../.."
 
-      - name: Build and Publish `KitX.Web.Rules`
-        if: contains(github.event.head_commit.message, '[KitX.Web.Rules]') || contains(github.event.head_commit.message, '[All]')
-        run: |
-          cd "KitX Rules"
+            - name: Build and Publish `KitX.Web.Rules`
+              if: contains(github.event.head_commit.message, '[KitX.Web.Rules]') || contains(github.event.head_commit.message, '[All]')
+              run: |
+                  cd "KitX Standard"
 
-          cd "KitX.Web.Rules"
-          dotnet build -c Release
+                  cd "KitX Rules"
 
-          nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+                  cd "KitX.Web.Rules"
+                  dotnet build -c Release
 
-          cd "../.."
+                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
 
-      - name: Build and Publish `KitX.KXP.Helper`
-        if: contains(github.event.head_commit.message, '[KitX.KXP.Helper]') || contains(github.event.head_commit.message, '[All]')
-        run: |
-          cd "KitX File Format Helper"
+                  cd "../../.."
 
-          cd "KitX.KXP.Helper"
-          dotnet build -c Release
+            - name: Build and Publish `KitX.KXP.Helper`
+              if: contains(github.event.head_commit.message, '[KitX.KXP.Helper]') || contains(github.event.head_commit.message, '[All]')
+              run: |
+                  cd "KitX Standard"
 
-          nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+                  cd "KitX File Formats"
 
-          cd "../.."
+                  cd "KitX.File.Format.KXP"
+                  dotnet build -c Release
 
-      - name: Build and Publish `KitX.KXP.Tool`
-        if: contains(github.event.head_commit.message, '[KitX.KXP.Tool]') || contains(github.event.head_commit.message, '[All]')
-        run: |
-          cd "KitX Tools"
+                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
 
-          cd "KitX.KXP.Tool"
-          dotnet build -c Release
+                  cd "../../.."
 
-          nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+            - name: Build and Publish `KitX.KXP.Tool`
+              if: contains(github.event.head_commit.message, '[KitX.KXP.Tool]') || contains(github.event.head_commit.message, '[All]')
+              run: |
+                  cd "KitX SDK"
 
-          cd "../.."
+                  cd "KitX.KXP.Tool"
+                  dotnet build -c Release
 
-      - name: Build and Publish `KitX.Struct.Producer`
-        if: contains(github.event.head_commit.message, '[KitX.Struct.Producer]') || contains(github.event.head_commit.message, '[All]')
-        run: |
-          cd "KitX Tools"
+                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
 
-          cd "KitX.Struct.Producer"
-          dotnet build -c Release
+                  cd "../.."
 
-          nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-          nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+            - name: Build and Publish `KitX.Struct.Producer`
+              if: contains(github.event.head_commit.message, '[KitX.Struct.Producer]') || contains(github.event.head_commit.message, '[All]')
+              run: |
+                  cd "KitX SDK"
 
-          cd "../.."
+                  cd "KitX.Struct.Producer"
+                  dotnet build -c Release
+
+                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+
+                  cd "../.."
