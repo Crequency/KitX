@@ -19,3 +19,6 @@
 [submodule "KitX Standard/KitX File Formats"]
 	path = KitX Standard/KitX File Formats
 	url = git@github.com:Crequency/KitX-File-Formats.git
+[submodule "KitX SDK"]
+	path = KitX SDK
+	url = git@github.com:Crequency/KitX-SDK.git
