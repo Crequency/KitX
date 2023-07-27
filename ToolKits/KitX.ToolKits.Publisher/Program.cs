@@ -17,7 +17,7 @@ if (publishDir is not null && Directory.Exists(publishDir) && !Configs.SkipGener
     foreach (var dir in new DirectoryInfo(publishDir).GetDirectories())
         Directory.Delete(dir.FullName, true);
 
-var path = Path.GetFullPath("../../KitX Dashboard/");
+var path = Path.GetFullPath("../../KitX Clients/KitX Dashboard/KitX Dashboard/");
 var pro = "Properties/";
 var pub = "PublishProfiles/";
 var ab_pub_path = Path.GetFullPath($"{path}{pro}{pub}");
@@ -69,7 +69,7 @@ foreach (var item in files)
     {
         var cmd = "dotnet";
         var arg = $"" +
-            $"publish \"{Path.GetFullPath(path + "/KitX Dashboard.csproj")}\" " +
+            $"publish \"{Path.GetFullPath(path + "/KitX.Dashboard.csproj")}\" " +
             $"\"/p:PublishProfile={item}\"";
         lock (single_thread_update_lock)
         {
