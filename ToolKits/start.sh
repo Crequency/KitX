@@ -135,7 +135,7 @@ then
 
     git submodule update "KitX Clients/KitX Installer"
     cd "KitX Clients/KitX Installer"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 fi
