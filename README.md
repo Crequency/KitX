@@ -64,10 +64,13 @@
 > `KitX Project` is going to build a world that everything is connected.
 
 KitX is an open, shared, connected and free tools platform.
+
 After plugins developed by developers with their prefered languages and frameworks uploading to plugins market, users can download and combine plugins they like.
+
 Every plugin contains atomized and platform independent functions, which will be connected with other functions by KitX.
 
 For example:
+
 0. KitX is running on user's all devices
 1. User pressed `Ctrl + Alt + A` which has been assigned to 'Cast remote screenshot' function from plugin 'Screenshot'
 2. This function asked KitX for a remote device and suspended to wait KitX's response
@@ -79,7 +82,13 @@ For example:
 
 KitX uses a three-layer design
 
-`Third Party` Development =--> `Plugins` <--= Interop =--> `Loaders` <--= Socket Communication =--> `Dashboard` <--= UI Operation =--> User
+```plaintext
+Plugin <-> Loader \
+                   \
+Plugin <-> Loader <-> Dashboard <-> User
+                   /
+Plugin <-> Loader /
+```
 
 The third party is responsible for referring to the documentation to implement the interface that the Plugin should implement.
 
@@ -93,17 +102,21 @@ In this way, plug-ins on other devices in the LAN can also be connected to the c
 
 ## Requirements
 
-| platforms                                                                            | x86           | arm                         | loongarch                     |
-|--------------------------------------------------------------------------------------|---------------|-----------------------------|-------------------------------|
-| ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) | `x32` , `x64` | `arm` , `arm64`             | :x:                           |
-| ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)       | `x64`         | `arm` , `arm64`             | `la32 (todo)` , `la64 (todo)` |
-| ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)   | `x64`         | `arm64`                     | :x:                           |
-| ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) | `x64`         | `armeabi-v7a` , `arm64-v8a` | :x:                           |
-| ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white)             | :x:           | `arm64`                     | :x:                           |
+| platforms                                                                                 | versions                                          | x86           | arm                         | risc-v | mips | loongarch                                   |
+|-------------------------------------------------------------------------------------------|---------------------------------------------------|---------------|-----------------------------|--------|------|---------------------------------------------|
+| ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)      | 10, 11                                            | `x32` , `x64` | `arm` , `arm64`             | :x:    | :x:  | :x:                                         |
+| ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)            | -                                                 | `x64`         | `arm` , `arm64`             | :x:    | :x:  | `loongarch32 (ToDo)` , `loongarch64 (ToDo)` |
+| ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)        | -                                                 | `x64`         | `arm64`                     | :x:    | :x:  | :x:                                         |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)      | Android 5.0 + (min: 21, compiled: 33, target: 33) | `x64`         | `armeabi-v7a` , `arm64-v8a` | :x:    | :x:  | :x:                                         |
+| ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white)                  | -                                                 | :x:           | `arm64`                     | :x:    | :x:  | :x:                                         |
+| ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi)       | -                                                 | :x:           | :x:                         | :x:    | :x:  | :x:                                         |
+| ![Browser](https://img.shields.io/badge/Browser-4285F4?logo=GoogleChrome&logoColor=white) | -                                                 | :x:           | :x:                         | :x:    | :x:  | :x:                                         |
 
 # Development
 
-> We strongly suggest you to configure your ssh environment, in order to use git link format like “git@github.com:Crequency/KitX.git” instead of "https://github.com/Crequency/KitX.git"
+> We strongly suggest you to configure your ssh environment,
+> in order to use git link format like “git@github.com:Crequency/KitX.git”
+> instead of "https://github.com/Crequency/KitX.git"
 
 1. Get source code
 
@@ -132,7 +145,9 @@ ToolKits/start.ps1 <type>
 ```
 
 `<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`
+
 This script help you get source code of this area, include its dependencies.
+
 If you want to get source code of all submodules at once, please execute following command instead:
 
 ```shell
@@ -148,33 +163,33 @@ git submodule update --init --recursive
 
 <br>
 
-| Version                                                                 | Info    | Code       | Support | Term | Require            | Runs on |
-|-------------------------------------------------------------------------|---------|------------|---------|------|--------------------|---------|
-| Beta_10016                                                              | Beta    | Beta1      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| Beta_10213                                                              | Beta    | Beta2      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| Beta_10235                                                              | Beta    | Beta3      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.0.0](https://github.com/Crequency/KitX/releases/tag/v1.0.0)         | Release | Hello      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.0.4](https://github.com/Crequency/KitX/releases/tag/v1.0.4)         | Release | WoW        | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.0.5](https://github.com/Crequency/KitX/releases/tag/v1.0.5)         | Release | Nice Try   | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.1.0](https://github.com/Crequency/KitX/releases/tag/v1.1.0)         | Release | Apple      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.1.1](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Banana     | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.1.2](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Cabbage    | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.1.4](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Durin      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.1.5](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | Grape      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.0](https://github.com/Crequency/KitX/releases/tag/v1.2.0)         | Release | Herring    | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.1](https://github.com/Crequency/KitX/releases/tag/v1.2.1)         | Release | Wonderful  | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.2](https://github.com/Crequency/KitX/releases/tag/v1.2.2)         | Release | Abandon    | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4-preview) | Preview | Panda      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4)         | Release | Panda      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.5](https://github.com/Crequency/KitX/releases/tag/v1.2.5)         | Release | Orange     | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.6](https://github.com/Crequency/KitX/releases/tag/v1.2.6)         | Release | Muik       | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v1.2.7](https://github.com/Crequency/KitX/releases/tag/v1.2.7)         | Release | Cookie     | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v2.0.0](https://github.com/Crequency/KitX/releases/tag/v2.0.0)         | Release | Sea        | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v2.0.1](https://github.com/Crequency/KitX/releases/tag/v2.0.1)         | Release | Ocean      | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v2.0.2](https://github.com/Crequency/KitX/releases/tag/v2.0.2)         | Release | Calculator | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v2.0.3](https://github.com/Crequency/KitX/releases/tag/v2.0.3)         | Release | Wood       | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v2.0.4](https://github.com/Crequency/KitX/releases/tag/v2.0.4)         | Release | Computer   | :x:     | 0    | .Net Framework 4.8 | Windows |
-| [v2.0.5](https://github.com/Crequency/KitX/releases/tag/v2.0.5-preview) | Preview | Laptop     | :x:     | 0    | .Net Framework 4.8 | Windows |
+| Version                                                                 | Info    | Code                     | Support | Term                     | Require            | Runs on                                                                              |
+|-------------------------------------------------------------------------|---------|--------------------------|---------|--------------------------|--------------------|--------------------------------------------------------------------------------------|
+| Beta_10016                                                              | Beta    | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| Beta_10213                                                              | Beta    | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| Beta_10235                                                              | Beta    | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.0.0](https://github.com/Crequency/KitX/releases/tag/v1.0.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.0.4](https://github.com/Crequency/KitX/releases/tag/v1.0.4)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.0.5](https://github.com/Crequency/KitX/releases/tag/v1.0.5)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.1.0](https://github.com/Crequency/KitX/releases/tag/v1.1.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.1.1](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.1.2](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.1.4](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.1.5](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.0](https://github.com/Crequency/KitX/releases/tag/v1.2.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.1](https://github.com/Crequency/KitX/releases/tag/v1.2.1)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.2](https://github.com/Crequency/KitX/releases/tag/v1.2.2)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4-preview) | Preview | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.5](https://github.com/Crequency/KitX/releases/tag/v1.2.5)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.6](https://github.com/Crequency/KitX/releases/tag/v1.2.6)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v1.2.7](https://github.com/Crequency/KitX/releases/tag/v1.2.7)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v2.0.0](https://github.com/Crequency/KitX/releases/tag/v2.0.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v2.0.1](https://github.com/Crequency/KitX/releases/tag/v2.0.1)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v2.0.2](https://github.com/Crequency/KitX/releases/tag/v2.0.2)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v2.0.3](https://github.com/Crequency/KitX/releases/tag/v2.0.3)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v2.0.4](https://github.com/Crequency/KitX/releases/tag/v2.0.4)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
+| [v2.0.5](https://github.com/Crequency/KitX/releases/tag/v2.0.5-preview) | Preview | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
 
 </details>
 
@@ -193,13 +208,19 @@ See details in [ChangeLog](./ChangeLog.md)
 
 # Contributors
 
-<a href = "https://github.com/Crequency/KitX/graphs/contributors">
-  <img src = "https://contrib.rocks/image?repo=Crequency/KitX"/>
-</a>
+[![Contributors](https://contrib.rocks/image?repo=Crequency/KitX)](https://github.com/Crequency/KitX/graphs/contributors)
 
+# Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline)
+
+<!--
 <br>
 <br>
+-->
 
+<!--
+<p align="center">
 <pre align="center">
 ██╗  ██╗    ██╗    ████████╗              ██╗  ██╗
 ██║ ██╔╝    ██║    ╚══██╔══╝              ╚██╗██╔╝
@@ -208,3 +229,5 @@ See details in [ChangeLog](./ChangeLog.md)
 ██║  ██╗    ██║       ██║                 ██╔╝ ██╗
 ╚═╝  ╚═╝    ╚═╝       ╚═╝                 ╚═╝  ╚═╝
 </pre>
+</p>
+-->
