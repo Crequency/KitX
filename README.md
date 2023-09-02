@@ -1,7 +1,7 @@
 
 <p align="center">
   <a href="https://kitx.apps.catrol.cn/" target="_blank" rel="noopener noreferrer">
-    <img width="128" src="https://source.catrol.cn/icons/Project/Catrol/KitX/KitX.png" alt="KitX Logo">
+    <img width="128" src="https://img.catrol.cn/icons/projects/kitx/KitX.png" alt="KitX Logo">
   </a>
 </p>
 
