@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/bash
 
 echo "KitX Repository Initialize Script"
-echo "Last updated at: 2023.07.26 20:00"
+echo "Last updated at: 2023.10.02 02:09"
 
 echo ""
 echo "Type: $1"
@@ -10,10 +10,12 @@ if [ $1 = "list" ];
 then
     echo "    - dashboard"
     echo "    - mobile"
+    echo "    - website"
+    echo "    - installer"
     echo "    - loader"
     echo "    - plugin"
-    echo "    - installer"
     echo "    - reference"
+    echo "    - all"
 fi
 
 if [ $1 = "dashboard" ];
@@ -33,19 +35,19 @@ then
 
     git submodule update "KitX Standard/KitX File Formats"
     cd "KitX Standard/KitX File Formats"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Rules"
     cd "KitX Standard/KitX Rules"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Script"
     cd "KitX Standard/KitX Script"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
@@ -66,6 +68,32 @@ then
     cd "../.."
 fi
 
+if [ $1 = "website" ];
+then
+    echo "    \ KitX Website"
+    echo ""
+    echo "executing ..."
+
+    git submodule update "KitX Clients/KitX Website"
+    cd "KitX Clients/KitX Website"
+    git checkout dev=main
+    git pull
+    cd "../.."
+fi
+
+if [ $1 = "installer" ];
+then
+    echo "    \ KitX Installer"
+    echo ""
+    echo "executing ..."
+
+    git submodule update "KitX Clients/KitX Installer"
+    cd "KitX Clients/KitX Installer"
+    git checkout dev=main
+    git pull
+    cd "../.."
+fi
+
 if [ $1 = "loader" ];
 then
     echo "    | KitX Contracts"
@@ -76,19 +104,19 @@ then
 
     git submodule update "KitX Standard/KitX Contracts"
     cd "KitX Standard/KitX Contracts"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Loaders"
     cd "KitX Standard/KitX Loaders"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Rules"
     cd "KitX Standard/KitX Rules"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 fi
@@ -104,37 +132,24 @@ then
 
     git submodule update "KitX Standard/KitX Contracts"
     cd "KitX Standard/KitX Contracts"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Loaders"
     cd "KitX Standard/KitX Loaders"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Plugins"
     cd "KitX Standard/KitX Plugins"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 
     git submodule update "KitX Standard/KitX Rules"
     cd "KitX Standard/KitX Rules"
-    git checkout main
-    git pull
-    cd "../.."
-fi
-
-if [ $1 = "installer" ];
-then
-    echo "    \ KitX Installer"
-    echo ""
-    echo "executing ..."
-
-    git submodule update "KitX Clients/KitX Installer"
-    cd "KitX Clients/KitX Installer"
     git checkout dev=main
     git pull
     cd "../.."
@@ -176,9 +191,18 @@ then
 
     git submodule update "Reference/Common.Update"
     cd "Reference/Common.Update"
-    git checkout main
+    git checkout dev=main
     git pull
     cd "../.."
 fi
 
-sleep 3
+if [ $1 = "all" ];
+then
+    echo "    + All Submodules"
+    echo ""
+    echo "executing ..."
+
+    git submodule
+
+    git submodule update --recursive
+fi
