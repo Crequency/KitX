@@ -135,12 +135,16 @@ if (!Configs.SkipPacking && publishDir is not null)
     foreach (var folder in folders)
     {
         var name = folder.Name;
+        var zipFileName = $"{publishDir}/{name}.zip";
 
         Console.WriteLine($">>> Packing {name}");
 
+        if (File.Exists(zipFileName))
+            File.Delete(zipFileName);
+
         ZipFile.CreateFromDirectory(
             folder.FullName,
-            $"{publishDir}/{name}.zip",
+            zipFileName,
             CompressionLevel.SmallestSize,
             true
         );
