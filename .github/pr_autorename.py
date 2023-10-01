@@ -12,7 +12,7 @@ def check(title:str):
         _type_: _description_
     """
 
-    title = title.strip().replace("【", "[")
+    title = title.strip().replace("【", "[").replace("】", "]")
     if(not title.startswith("[Pull Request]")):
         temp = title.replace("(", "").replace("{", "").replace("[", "") \
             .replace(")", "").replace("}", "").replace("]", "") \
