@@ -33,11 +33,6 @@ jobs:
                       7.0.x
                   include-prerelease: false
 
-            - name: Setup Dotnet SDK
-              run: |
-                  bitsadmin.exe /rawreturn /transfer getfile https://go.microsoft.com/fwlink/?linkid=2088517 C:\sdk.exe
-                  C:\sdk.exe
-
             - name: Build Loaders
               working-directory: "KitX Standard/KitX Loaders"
               run: |
