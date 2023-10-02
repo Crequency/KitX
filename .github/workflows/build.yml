@@ -52,7 +52,7 @@ jobs:
             - name: Build File Format Helper
               working-directory: "KitX Standard/KitX File Formats"
               run: |
-                  cd "KitX.File.Format.KXP"
+                  cd "KitX.Formats.KXP"
                   dotnet build -c Release
                   cd ".."
 
