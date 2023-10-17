@@ -1,35 +1,37 @@
 name: Check Pull Request Title
 
 on:
-  pull_request:
-    types:
-      - opened
+    pull_request:
+        types:
+            - opened
 
 jobs:
-  check_title:
-    runs-on: ubuntu-latest
+    check_title:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Comment on Pull Request
-        run: |
-          pull_request_number=${{ github.event.pull_request.number }}
-          current_title="${{ github.event.pull_request.title }}"
-          message_body="The origin title of this PR is: '$current_title'. GitHub Action is checking and format it ..."
+        steps:
+            - uses: actions/checkout@v3
 
-          curl -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
-            -H "Content-Type: application/json" \
-            -X POST \
-            -d '{"body":"'"$message_body"'"}' \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$pull_request_number/comments"
+            - name: Comment on Pull Request
+              run: |
+                  pull_request_number=${{ github.event.pull_request.number }}
+                  current_title="${{ github.event.pull_request.title }}"
+                  message_body="The origin title of this PR is: '$current_title'. GitHub Action is checking and format it ..."
 
-      - name: Update Pull Request Title
-        run: |
-          pull_request_number=${{ github.event.pull_request.number }}
-          current_title="${{ github.event.pull_request.title }}"
-          updated_title=$(python3 "./ToolKits/Actions/pr_auto_rename.py" "$current_title")
+                  curl -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
+                    -H "Content-Type: application/json" \
+                    -X POST \
+                    -d '{"body":"'"$message_body"'"}' \
+                    "https://api.github.com/repos/${{ github.repository }}/issues/$pull_request_number/comments"
 
-          curl -X PATCH \
-            -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d '{ "title": "'"$updated_title"'" }' \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/$pull_request_number"
+            - name: Update Pull Request Title
+              run: |
+                  pull_request_number=${{ github.event.pull_request.number }}
+                  current_title="${{ github.event.pull_request.title }}"
+                  updated_title=$(python3 "./ToolKits/Actions/pr_auto_rename.py" "$current_title")
+
+                  curl -X PATCH \
+                    -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    -d '{ "title": "'"$updated_title"'" }' \
+                    "https://api.github.com/repos/${{ github.repository }}/pulls/$pull_request_number"
