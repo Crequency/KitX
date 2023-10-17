@@ -8,33 +8,28 @@ on:
 jobs:
   check_title:
     runs-on: ubuntu-latest
-  
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
 
+    steps:
       - name: Comment on Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pull_request_number=${{ github.event.pull_request.number }}
           current_title="${{ github.event.pull_request.title }}"
-          message_body="The origin title of this PR is: '$current_title'. GitHub Action is checking it..."
-          curl -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          message_body="The origin title of this PR is: '$current_title'. GitHub Action is checking and format it ..."
+
+          curl -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
             -H "Content-Type: application/json" \
             -X POST \
             -d '{"body":"'"$message_body"'"}' \
             "https://api.github.com/repos/${{ github.repository }}/issues/$pull_request_number/comments"
 
-      - name: Update Pull Request title
+      - name: Update Pull Request Title
         run: |
           pull_request_number=${{ github.event.pull_request.number }}
           current_title="${{ github.event.pull_request.title }}"
-          
-          updated_title=$(python3 "./.github/pr_autorename.py" "$current_title")
-          token=${{ secrets.GITHUB_TOKEN }}
+          updated_title=$(python3 "./ToolKits/Actions/pr_auto_rename.py" "$current_title")
+
           curl -X PATCH \
-            -H "Authorization: Bearer $token" \
+            -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/$pull_request_number" \
-            -d '{ "title": "'"$updated_title"'" }'
+            -d '{ "title": "'"$updated_title"'" }' \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$pull_request_number"
