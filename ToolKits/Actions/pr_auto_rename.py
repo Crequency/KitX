@@ -17,6 +17,7 @@ right_quotation_en = ['"', "'"]
 
 connection_signs = ["_", "-"]
 
+
 def convert_cn_to_en(title: str):
     for i in range(len(left_brackets_cn)):
         title = title.replace(left_brackets_cn[i], left_brackets_en_replace_to[i]).replace(
@@ -57,5 +58,6 @@ def check_and_format(title: str):
             title = "[Pull Request] " + title
 
     return title
+
 
 print(check_and_format(sys.argv[1]))
