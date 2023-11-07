@@ -30,4 +30,4 @@ else:
 command = "echo \"" + env_to_add + "\" >> $env:GITHUB_ENV"
 
 with open('set_env.ps1', 'w', encoding='utf-8') as file:
-    file.write(env_to_add)
+    file.write(command)
