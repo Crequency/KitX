@@ -1,13 +1,14 @@
-
+﻿
 
 # <emoji> <types>(<scope>): <subject>
 # <emoji>: 💾/🔧/📄/🎇/🧩/✅/❌/📝/📦/🐛
 # <types>: Feat/Fix/Docs/Style/Refactor/Test/Test/Chore/Struct/Bug
 # demo: 💾 📝 📦 Feat, Chore, Struct(Scope): issue or changelog
+# docs: https://docs.catrol.cn/rules/team/git/#%25E6%258F%2590%25E4%25BA%25A4%25E6%25B6%2588%25E6%2581%25AF%25E8%25A7%2584%25E8%258C%2583
 
 # <body>
 
 # <footer> (Breaking Changes)
 
-# Date: 
-# Author: 
+# Date:
+# Author:
