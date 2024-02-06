@@ -17,9 +17,17 @@ time_difference = current_utc_time - datetime_obj
 
 print("Time delta: ", time_difference)
 
+has_new_commit = time_difference > timedelta(days=days_deference)
+env_to_add = "HAS_NEW_COMMIT="
+
 if time_difference > timedelta(days=days_deference):
-    print("No new commit found. Check in env var: [HAS_NEW_COMMIT].")
-    os.putenv("HAS_NEW_COMMIT", "false")
+    print("No new commit found. Check in env var: [env.HAS_NEW_COMMIT].")
+    env_to_add = env_to_add + 'false'
 else:
-    print("New commit found. Check in env var: [HAS_NEW_COMMIT].")
-    os.putenv("HAS_NEW_COMMIT", "true")
+    print("New commit found. Check in env var: [env.HAS_NEW_COMMIT].")
+    env_to_add = env_to_add + 'true'
+
+command = "echo \"" + env_to_add + "\" >> $env:GITHUB_ENV"
+
+with open('set_env.ps1', 'w', encoding='utf-8') as file:
+    file.write(command)

@@ -1,9 +1,11 @@
-﻿
-# Ignore for special folders
+﻿## Platform Ignore
+*.DS_Store
+
+## Ignore for special folders
 KitX\ Build/
 KitX\ Publish/
 
-# Ignore for IDE settings
+## Ignore for IDE settings
 .idea/
 .vscode/
 
