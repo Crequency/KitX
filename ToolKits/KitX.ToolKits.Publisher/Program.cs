@@ -2,12 +2,14 @@
 using System.Diagnostics;
 using System.IO.Compression;
 
-Console.WriteLine("""
+Console.WriteLine(
+    """
     KitX.ToolKits.Publisher
     Copyright (C) Crequency 2023
     Last updated at: 2023.03.26 23:16
 
-    """);
+    """
+);
 
 Configs.ProcessParameters(Environment.GetCommandLineArgs());
 
@@ -59,25 +61,29 @@ foreach (var item in files)
     var color = get_random_color();
     thread_output_colors.Add(index, color);
     var filename = Path.GetFileName(item);
-    var print = (string msg) =>
+
+    void print(string msg)
     {
         Console.ForegroundColor = thread_output_colors[index];
         Console.WriteLine(msg);
         Console.ForegroundColor = default_color;
-    };
+    }
+
     tasks.Add(() =>
     {
         var cmd = "dotnet";
-        var arg = $"" +
-            $"publish \"{Path.GetFullPath(path + "/KitX.Dashboard.csproj")}\" " +
-            $"\"/p:PublishProfile={item}\"";
+        var arg = $"publish \"{Path.GetFullPath(path + "/KitX.Dashboard.csproj")}\" \"/p:PublishProfile={item}\"";
         lock (single_thread_update_lock)
         {
-            print($"" +
-                $">>> On task_{index}:\n" +
-                $"    Task file: {filename}\n" +
-                $"    Executing: {cmd} {arg}\n" +
-                $"    Output:\n");
+            print(
+                $"""
+                >>> On task_{index}:
+                    Task file: {filename}
+                    Executing: {cmd} {arg}
+                    Output:
+
+                """
+            );
         }
         var process = new Process();
         var psi = new ProcessStartInfo()
@@ -89,30 +95,25 @@ foreach (var item in files)
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        //process.StartInfo.FileName = cmd;
-        //process.StartInfo.Arguments = arg;
-        //process.StartInfo.CreateNoWindow = false;
-        //process.StartInfo.UseShellExecute = true;
-        //process.StartInfo.WindowStyle = ProcessWindowStyle.Minimized;
         process.StartInfo = psi;
         process.Start();
+
         while (!process.StandardOutput.EndOfStream)
         {
-            string? line = process.StandardOutput.ReadLine();
-            Console.WriteLine($"" +
-                $"            {line}");
+            var line = process.StandardOutput.ReadLine();
+            Console.WriteLine($"            {line}");
         }
+
         process.WaitForExit();
 
         lock (update_finished_threads_lock)
         {
             ++finished_threads;
-            print($"" +
-                $">>> Finished task_{index}, still {files.Length - finished_threads} tasks running.");
+            print($">>> Finished task_{index}, still {files.Length - finished_threads} tasks running.");
         }
     });
-    print($"" +
-        $">>> New task: task_{index}\t->   {filename}");
+
+    print($">>> New task: task_{index}\t->   {filename}");
 }
 
 if (!Configs.SkipGenerate)
@@ -123,8 +124,7 @@ if (!Configs.SkipGenerate)
     while (finished_threads != files.Length) ;  //  Wait until all tasks done.
 //Task.WhenAll(tasks); // If you want to use async/await, you can use this.
 
-Console.WriteLine($"" +
-    $">>> All tasks done.");
+Console.WriteLine($">>> All tasks done.");
 
 if (!Configs.SkipPacking && publishDir is not null)
 {
