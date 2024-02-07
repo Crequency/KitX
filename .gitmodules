@@ -31,3 +31,6 @@
 [submodule "Reference/Common.Algorithm"]
 	path = Reference/Common.Algorithm
 	url = git@github.com:Crequency/Common.Algorithm.git
+[submodule "KitX Standard"]
+	path = KitX Standard
+	url = git@github.com:Crequency/KitX-Standard.git
