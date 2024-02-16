@@ -81,9 +81,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Dashboard", "KitX Clie
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cheese", "KitX SDK\Cheese\Cheese.csproj", "{9663A503-6B07-4F77-A5F5-CF3DC6C682BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.Shared", "KitX Standard\KitX.Shared\KitX.Shared.csproj", "{7A13A899-AA70-4E24-94AB-DD505514DF51}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Shared", "KitX Standard\KitX.Shared\KitX.Shared.csproj", "{7A13A899-AA70-4E24-94AB-DD505514DF51}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitX.FileFormats", "KitX Standard\KitX.FileFormats\KitX.FileFormats.csproj", "{DA83377C-20F5-4954-8CE5-CFDB5BAAA910}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.FileFormats", "KitX Standard\KitX.FileFormats\KitX.FileFormats.csproj", "{DA83377C-20F5-4954-8CE5-CFDB5BAAA910}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Loaders", "KitX Loaders", "{D6625876-40E0-4222-A6A9-4449BCA61D60}"
 EndProject
@@ -100,6 +100,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPlugin.Winform.Core", "KitX SDK\KitX Plugins\TestPlugin.Winform.Core\TestPlugin.Winform.Core.csproj", "{21365AC3-9A36-4014-B9D0-A427C17E600D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPlugin.WPF.Core", "KitX SDK\KitX Plugins\TestPlugin.WPF.Core\TestPlugin.WPF.Core.csproj", "{73C9C918-2222-4425-9214-887BED47C77F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common.BasicHelper.ConsoleTester", "Reference\Common.BasicHelper\Common.BasicHelper.ConsoleTester\Common.BasicHelper.ConsoleTester.csproj", "{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -815,6 +817,26 @@ Global
 		{73C9C918-2222-4425-9214-887BED47C77F}.Release|x64.Build.0 = Release|Any CPU
 		{73C9C918-2222-4425-9214-887BED47C77F}.Release|x86.ActiveCfg = Release|Any CPU
 		{73C9C918-2222-4425-9214-887BED47C77F}.Release|x86.Build.0 = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|ARM.Build.0 = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|x64.Build.0 = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Debug|x86.Build.0 = Debug|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|ARM.ActiveCfg = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|ARM.Build.0 = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|ARM64.Build.0 = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|x64.ActiveCfg = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|x64.Build.0 = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|x86.ActiveCfg = Release|Any CPU
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -862,6 +884,7 @@ Global
 		{CE84BF72-98C0-41A1-828B-1B09FB6C47B3} = {447D9264-1F5D-4E66-801A-C43CA36B8D4F}
 		{21365AC3-9A36-4014-B9D0-A427C17E600D} = {447D9264-1F5D-4E66-801A-C43CA36B8D4F}
 		{73C9C918-2222-4425-9214-887BED47C77F} = {447D9264-1F5D-4E66-801A-C43CA36B8D4F}
+		{305A9FDE-A36B-4186-AE39-B116ACFFAB8A} = {F021B1E7-44AC-469B-AB4D-36541902C694}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09BBC227-F41B-4D10-9E38-0EEE07ED17BC}
