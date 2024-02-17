@@ -34,3 +34,6 @@
 [submodule "KitX Standard"]
 	path = KitX Standard
 	url = git@github.com:Crequency/KitX-Standard.git
+[submodule "Reference/CSharpell"]
+	path = Reference/CSharpell
+	url = git@github.com:Dynesshely/CSharpell.git
