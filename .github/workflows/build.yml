@@ -33,8 +33,7 @@ jobs:
               uses: actions/setup-dotnet@v3
               with:
                   dotnet-version: |
-                      6.0.x
-                      7.0.x
+                      8.0.x
 
             - name: Build Contracts
               working-directory: "KitX Standard/KitX Contracts"
@@ -43,19 +42,15 @@ jobs:
                   dotnet build -c Release
                   cd ".."
 
-            - name: Build Rules
-              working-directory: "KitX Standard/KitX Rules"
+            - name: Build Shared
+              working-directory: "KitX Standard/KitX.Shared"
               run: |
-                  cd "KitX.Web.Rules"
                   dotnet build -c Release
-                  cd ".."
 
-            - name: Build File Format Helper
-              working-directory: "KitX Standard/KitX File Formats"
+            - name: Build File Formats
+              working-directory: "KitX Standard/KitX.FileFormats"
               run: |
-                  cd "KitX.Formats.KXP"
                   dotnet build -c Release
-                  cd ".."
 
             - name: Build Dashboard
               working-directory: "KitX Clients/KitX Dashboard/KitX Dashboard"

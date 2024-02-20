@@ -29,12 +29,15 @@ jobs:
               uses: actions/setup-dotnet@v3
               with:
                   dotnet-version: |
-                      6.0.x
-                      7.0.x
+                      8.0.x
 
             - name: Build Loaders
-              working-directory: "KitX Standard/KitX Loaders"
+              working-directory: "KitX SDK/KitX Loaders"
               run: |
+                  cd "KitX.Loader.CSharp"
+                  dotnet build -c Release
+                  cd ".."
+
                   cd "KitX.Loader.Winform.Core"
                   dotnet build -c Release
                   cd ".."

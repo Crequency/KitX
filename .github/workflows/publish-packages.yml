@@ -23,8 +23,7 @@ jobs:
               uses: actions/setup-dotnet@v3
               with:
                   dotnet-version: |
-                      6.0.x
-                      7.0.x
+                      8.0.x
 
             - name: Add to GitHub Repo
               run: |
@@ -34,6 +33,19 @@ jobs:
               uses: nuget/setup-nuget@v1
               with:
                   nuget-version: "6.x"
+
+            - name: Build and Publish `Cheese`
+              if: contains(github.event.head_commit.message, '[Cheese]') || contains(github.event.head_commit.message, '[All]')
+              run: |
+                  cd "KitX SDK"
+
+                  cd "Cheese"
+                  dotnet build -c Release
+
+                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
+                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
+
+                  cd "../.."
 
             - name: Build and Publish `KitX.Contract.CSharp`
               if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')
@@ -50,42 +62,12 @@ jobs:
 
                   cd "../../.."
 
-            - name: Build and Publish `KitX.Web.Rules`
-              if: contains(github.event.head_commit.message, '[KitX.Web.Rules]') || contains(github.event.head_commit.message, '[All]')
+            - name: Build and Publish `KitX.Shared`
+              if: contains(github.event.head_commit.message, '[KitX.Shared]') || contains(github.event.head_commit.message, '[All]')
               run: |
                   cd "KitX Standard"
 
-                  cd "KitX Rules"
-
-                  cd "KitX.Web.Rules"
-                  dotnet build -c Release
-
-                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
-
-                  cd "../../.."
-
-            - name: Build and Publish `KitX.KXP.Helper`
-              if: contains(github.event.head_commit.message, '[KitX.KXP.Helper]') || contains(github.event.head_commit.message, '[All]')
-              run: |
-                  cd "KitX Standard"
-
-                  cd "KitX File Formats"
-
-                  cd "KitX.File.Format.KXP"
-                  dotnet build -c Release
-
-                  nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
-                  nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
-
-                  cd "../../.."
-
-            - name: Build and Publish `KitX.KXP.Tool`
-              if: contains(github.event.head_commit.message, '[KitX.KXP.Tool]') || contains(github.event.head_commit.message, '[All]')
-              run: |
-                  cd "KitX SDK"
-
-                  cd "KitX.KXP.Tool"
+                  cd "KitX.Shared"
                   dotnet build -c Release
 
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
@@ -93,12 +75,12 @@ jobs:
 
                   cd "../.."
 
-            - name: Build and Publish `KitX.Struct.Producer`
-              if: contains(github.event.head_commit.message, '[KitX.Struct.Producer]') || contains(github.event.head_commit.message, '[All]')
+            - name: Build and Publish `KitX.FileFormats`
+              if: contains(github.event.head_commit.message, '[KitX.FileFormats]') || contains(github.event.head_commit.message, '[All]')
               run: |
-                  cd "KitX SDK"
+                  cd "KitX Standard"
 
-                  cd "KitX.Struct.Producer"
+                  cd "KitX.FileFormats"
                   dotnet build -c Release
 
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
