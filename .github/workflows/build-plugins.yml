@@ -26,16 +26,19 @@ jobs:
                   ref: dev=main
                   submodules: "true"
 
+            - name: Checkout KitX SDK
+              uses: actions/checkout@v4
+              with:
+                  repository: "Crequency/KitX-SDK"
+                  ref: "dev=main"
+                  path: "KitX SDK"
+                  submodules: "true"
+
             - name: Setup .NET
               uses: actions/setup-dotnet@v4
               with:
                   dotnet-version: |
                       8.0.x
-
-            - uses: actions/checkout@v4
-            - run: |
-                  cd "KitX SDK"
-                  git submodule update --init --recursive
 
             - name: Build Plugins
               working-directory: "KitX SDK/KitX Plugins"
