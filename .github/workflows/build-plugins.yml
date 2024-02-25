@@ -26,6 +26,14 @@ jobs:
                   ref: dev=main
                   submodules: "true"
 
+            - name: Checkout KitX Standard
+              uses: actions/checkout@v4
+              with:
+                  repository: "Crequency/KitX-Standard"
+                  ref: "dev=main"
+                  path: "KitX Standard"
+                  submodules: "true"
+
             - name: Checkout KitX SDK
               uses: actions/checkout@v4
               with:

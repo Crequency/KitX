@@ -38,6 +38,14 @@ jobs:
                   path: "KitX Standard"
                   submodules: "true"
 
+            - name: Checkout KitX SDK
+              uses: actions/checkout@v4
+              with:
+                  repository: "Crequency/KitX-SDK"
+                  ref: "dev=main"
+                  path: "KitX SDK"
+                  submodules: "true"
+
             - name: Setup .NET
               uses: actions/setup-dotnet@v4
               with:
