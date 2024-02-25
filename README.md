@@ -8,8 +8,7 @@
 <br>
 
 <p align="center">
-  Docs website: 
-  <a href="https://crequency.github.io/KitX-Docs/en/">English</a> | <a href="https://crequency.github.io/KitX-Docs/">简体中文</a>
+  Docs website: <a href="https://kitx.docs.catrol.cn/en/">English</a> | <a href="https://kitx.docs.catrol.cn/">简体中文</a>
   🌐
 </p>
 
@@ -108,7 +107,7 @@ In this way, plug-ins on other devices in the LAN can also be connected to the c
 | ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)            | -                                                 | `x64`         | `arm` , `arm64`             | :x:    | :x:  | `loongarch32 (ToDo)` , `loongarch64 (ToDo)` |
 | ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)        | -                                                 | `x64`         | `arm64`                     | :x:    | :x:  | :x:                                         |
 | ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)      | Android 5.0 + (min: 21, compiled: 33, target: 33) | `x64`         | `armeabi-v7a` , `arm64-v8a` | :x:    | :x:  | :x:                                         |
-| ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white)                  | -                                                 | :x:           | `arm64`                     | :x:    | :x:  | :x:                                         |
+| ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white)                  | iOS 12.0 +                                        | :x:           | `arm64`                     | :x:    | :x:  | :x:                                         |
 | ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi)       | -                                                 | :x:           | :x:                         | :x:    | :x:  | :x:                                         |
 | ![Browser](https://img.shields.io/badge/Browser-4285F4?logo=GoogleChrome&logoColor=white) | -                                                 | :x:           | :x:                         | :x:    | :x:  | :x:                                         |
 
@@ -134,19 +133,21 @@ git submodule init
 3. Select and init your development area
 
 ```shell
-# Linux / MacOS
-chmod +x ToolKits/start.sh
-ToolKits/start.sh <type>
+## Linux / MacOS
+# chmod +x ToolKits/start.sh
+# ToolKits/start.sh <type>
 
-# or
+## or
 
-# Windows OS
-ToolKits/start.ps1 <type>
+## Windows OS
+# ToolKits/start.ps1 <type>
 ```
 
-`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`
+> The new development tool `Cheese` is coming.
 
-This script help you get source code of this area, include its dependencies.
+~~`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`~~
+
+~~This script help you get source code of this area, include its dependencies.~~
 
 If you want to get source code of all submodules at once, please execute following command instead:
 
@@ -202,7 +203,7 @@ git submodule update --init --recursive
 | [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
 | [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Release | Evolution | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
 | [v3.23.04.6488](https://github.com/Crequency/KitX/releases/tag/v3.23.04.6488)     | Release | ToYou     | :white_check_mark: | 2023.04 -> 2024.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi)                                                                                                                                                                    |
-| v3.24.10.x                                                                        | Release | -         | developing         | 2024.10 -> 2025.04 | `Desktop`: .Net 7 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Browser](https://img.shields.io/badge/Browser-4285F4?logo=GoogleChrome&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
+| v3.24.10.x                                                                        | Release | -         | developing         | 2024.10 -> 2025.04 | `Desktop`: .Net 8 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
 
 See details in [ChangeLog](./ChangeLog.md)
 
@@ -213,21 +214,3 @@ See details in [ChangeLog](./ChangeLog.md)
 # Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline)
-
-<!--
-<br>
-<br>
--->
-
-<!--
-<p align="center">
-<pre align="center">
-██╗  ██╗    ██╗    ████████╗              ██╗  ██╗
-██║ ██╔╝    ██║    ╚══██╔══╝              ╚██╗██╔╝
-█████╔╝     ██║       ██║       █████╗     ╚███╔╝
-██╔═██╗     ██║       ██║       ╚════╝     ██╔██╗
-██║  ██╗    ██║       ██║                 ██╔╝ ██╗
-╚═╝  ╚═╝    ╚═╝       ╚═╝                 ╚═╝  ╚═╝
-</pre>
-</p>
--->
