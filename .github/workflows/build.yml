@@ -36,9 +36,9 @@ jobs:
                   dotnet-version: |
                       8.0.x
 
-            - name: Setup Sub-submodules in `KitX Standard`
-              working-directory: "KitX Standard"
-              run: |
+            - uses: actions/checkout@v4
+            - run: |
+                  cd "KitX Standard"
                   git submodule update --init --recursive
 
             - name: Build Contracts
