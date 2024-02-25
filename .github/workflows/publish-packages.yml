@@ -17,6 +17,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
+                  ref: dev=main
                   submodules: "true"
 
             - name: Setup .NET
@@ -24,6 +25,16 @@ jobs:
               with:
                   dotnet-version: |
                       8.0.x
+
+            - name: Setup Sub-submodules in `KitX Standard`
+              working-directory: "KitX Standard"
+              run: |
+                  git submodule update --init --recursive
+
+            - name: Setup Sub-submodules in `KitX SDK`
+              working-directory: "KitX SDK"
+              run: |
+                  git submodule update --init --recursive
 
             - name: Add to GitHub Repo
               run: |
@@ -35,55 +46,37 @@ jobs:
                   nuget-version: "6.x"
 
             - name: Build and Publish `Cheese`
+              working-directory: "KitX SDK/Cheese"
               if: contains(github.event.head_commit.message, '[Cheese]') || contains(github.event.head_commit.message, '[All]')
               run: |
-                  cd "KitX SDK"
-
-                  cd "Cheese"
                   dotnet build -c Release
 
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
                   nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
-
-                  cd "../.."
 
             - name: Build and Publish `KitX.Contract.CSharp`
+              working-directory: "KitX Standard/KitX Contracts/KitX.Contract.CSharp"
               if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')
               run: |
-                  cd "KitX Standard"
-
-                  cd "KitX Contracts"
-
-                  cd "KitX.Contract.CSharp"
                   dotnet build -c Release
 
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
                   nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
-
-                  cd "../../.."
 
             - name: Build and Publish `KitX.Shared`
+              working-directory: "KitX Standard/KitX.Shared"
               if: contains(github.event.head_commit.message, '[KitX.Shared]') || contains(github.event.head_commit.message, '[All]')
               run: |
-                  cd "KitX Standard"
-
-                  cd "KitX.Shared"
                   dotnet build -c Release
 
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
                   nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
-
-                  cd "../.."
 
             - name: Build and Publish `KitX.FileFormats`
+              working-directory: "KitX Standard/KitX.FileFormats"
               if: contains(github.event.head_commit.message, '[KitX.FileFormats]') || contains(github.event.head_commit.message, '[All]')
               run: |
-                  cd "KitX Standard"
-
-                  cd "KitX.FileFormats"
                   dotnet build -c Release
 
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
                   nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
-
-                  cd "../.."

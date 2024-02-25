@@ -32,6 +32,11 @@ jobs:
                   dotnet-version: |
                       8.0.x
 
+            - name: Setup Sub-submodules in `KitX SDK`
+              working-directory: "KitX SDK"
+              run: |
+                  git submodule update --init --recursive
+
             - name: Build Loaders
               working-directory: "KitX SDK/KitX Loaders"
               run: |

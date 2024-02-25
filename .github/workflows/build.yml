@@ -36,12 +36,16 @@ jobs:
                   dotnet-version: |
                       8.0.x
 
+            - name: Setup Sub-submodules in `KitX Standard`
+              working-directory: "KitX Standard"
+              run: |
+                  git submodule update --init --recursive
+
             - name: Build Contracts
               working-directory: "KitX Standard/KitX Contracts"
               run: |
                   cd "KitX.Contract.CSharp"
                   dotnet build -c Release
-                  cd ".."
 
             - name: Build Shared
               working-directory: "KitX Standard/KitX.Shared"
