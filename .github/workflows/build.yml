@@ -30,14 +30,6 @@ jobs:
                   ref: dev=main
                   submodules: "true"
 
-            - name: Checkout KitX Standard
-              uses: actions/checkout@v4
-              with:
-                  repository: "Crequency/KitX-Standard"
-                  ref: "dev=main"
-                  path: "KitX Standard"
-                  submodules: "true"
-
             - name: Checkout KitX SDK
               uses: actions/checkout@v4
               with:
@@ -59,16 +51,19 @@ jobs:
                   dotnet build -c Release
 
             - name: Build Shared
-              working-directory: "KitX Standard/KitX.Shared"
+              working-directory: "KitX Standard/KitX Shared"
               run: |
+                  cd "KitX.Shared.CSharp"
                   dotnet build -c Release
 
             - name: Build File Formats
-              working-directory: "KitX Standard/KitX.FileFormats"
+              working-directory: "KitX Standard/KitX File Formats"
               run: |
+                  cd "KitX.FileFormats.CSharp"
                   dotnet build -c Release
 
             - name: Build Dashboard
-              working-directory: "KitX Clients/KitX Dashboard/KitX Dashboard"
+              working-directory: "KitX Clients/KitX Dashboard"
               run: |
+                  cd "KitX Dashboard"
                   dotnet build -c Release

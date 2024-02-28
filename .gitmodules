@@ -16,9 +16,6 @@
 [submodule "KitX SDK"]
 	path = KitX SDK
 	url = git@github.com:Crequency/KitX-SDK.git
-[submodule "Reference/Common.ExternalConsole"]
-	path = Reference/Common.ExternalConsole
-	url = git@github.com:Crequency/Common.ExternalConsole.git
 [submodule "Reference/Common.BasicHelper"]
 	path = Reference/Common.BasicHelper
 	url = git@github.com:Crequency/Common.BasicHelper.git
