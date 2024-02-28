@@ -7,12 +7,16 @@ on:
         branches: ["main"]
 
     workflow_dispatch:
+        inputs:
+            command:
+                description: "Command"
+                default: "[Publish Packages][All]"
 
 jobs:
     build-on-ubuntu:
         runs-on: ubuntu-latest
         environment: Publish Packages
-        if: contains(github.event.head_commit.message, '[Publish Packages]')
+        if: contains(github.event.head_commit.message, '[Publish Packages]') || contains(github.event.inputs.command, '[Publish Packages]')
 
         steps:
             - uses: actions/checkout@v4
@@ -45,7 +49,7 @@ jobs:
 
             - name: Build and Publish `Cheese`
               working-directory: "KitX SDK/Cheese"
-              if: contains(github.event.head_commit.message, '[Cheese]') || contains(github.event.head_commit.message, '[All]')
+              if: contains(github.event.head_commit.message, '[Cheese]') || contains(github.event.head_commit.message, '[All]') || contains(github.event.inputs.command, '[Cheese]') || contains(github.event.inputs.command, '[All]')
               run: |
                   dotnet build -c Release
 
@@ -54,7 +58,7 @@ jobs:
 
             - name: Build and Publish `KitX.Contract.CSharp`
               working-directory: "KitX Standard/KitX Contracts/KitX.Contract.CSharp"
-              if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]')
+              if: contains(github.event.head_commit.message, '[KitX.Contract.CSharp]') || contains(github.event.head_commit.message, '[All]') || contains(github.event.inputs.command, '[KitX.Contract.CSharp]') || contains(github.event.inputs.command, '[All]')
               run: |
                   dotnet build -c Release
 
@@ -63,7 +67,7 @@ jobs:
 
             - name: Build and Publish `KitX.Shared.CSharp`
               working-directory: "KitX Standard/KitX Shared/KitX.Shared.CSharp"
-              if: contains(github.event.head_commit.message, '[KitX.Shared]') || contains(github.event.head_commit.message, '[All]')
+              if: contains(github.event.head_commit.message, '[KitX.Shared.CSharp]') || contains(github.event.head_commit.message, '[All]') || contains(github.event.inputs.command, '[KitX.Shared.CSharp]') || contains(github.event.inputs.command, '[All]')
               run: |
                   dotnet build -c Release
 
@@ -72,7 +76,7 @@ jobs:
 
             - name: Build and Publish `KitX.FileFormats.CSharp`
               working-directory: "KitX Standard/KitX File Formats/KitX.FileFormats.CSharp"
-              if: contains(github.event.head_commit.message, '[KitX.FileFormats]') || contains(github.event.head_commit.message, '[All]')
+              if: contains(github.event.head_commit.message, '[KitX.FileFormats.CSharp]') || contains(github.event.head_commit.message, '[All]') || contains(github.event.inputs.command, '[KitX.FileFormats.CSharp]') || contains(github.event.inputs.command, '[All]')
               run: |
                   dotnet build -c Release
 
