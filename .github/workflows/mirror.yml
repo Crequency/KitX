@@ -1,0 +1,24 @@
+﻿name: Mirror Repo
+
+on:
+    push:
+        branches:
+            - "*"
+    workflow_dispatch:
+
+jobs:
+    mirror-repo:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Mirror
+              uses: Yikun/hub-mirror-action@master
+              with:
+                  src: github/Crequency
+                  dst: gitee/Crequency
+                  dst_key: ${{ secrets.GITEE_SYNC_KEY }}
+                  dst_token: ${{ secrets.GITEE_SYNC_TOKEN }}
+                  account_type: org
+                  static_list: "KitX"
+                  force_update: true
+                  debug: true
