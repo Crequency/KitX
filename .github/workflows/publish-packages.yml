@@ -20,14 +20,6 @@ jobs:
                   ref: dev=main
                   submodules: "true"
 
-            - name: Checkout KitX Standard
-              uses: actions/checkout@v4
-              with:
-                  repository: "Crequency/KitX-Standard"
-                  ref: "dev=main"
-                  path: "KitX Standard"
-                  submodules: "true"
-
             - name: Checkout KitX SDK
               uses: actions/checkout@v4
               with:
@@ -69,8 +61,8 @@ jobs:
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
                   nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
 
-            - name: Build and Publish `KitX.Shared`
-              working-directory: "KitX Standard/KitX.Shared"
+            - name: Build and Publish `KitX.Shared.CSharp`
+              working-directory: "KitX Standard/KitX Shared/KitX.Shared.CSharp"
               if: contains(github.event.head_commit.message, '[KitX.Shared]') || contains(github.event.head_commit.message, '[All]')
               run: |
                   dotnet build -c Release
@@ -78,8 +70,8 @@ jobs:
                   nuget push ./bin/Release/*.nupkg -Source https://api.nuget.org/v3/index.json -SkipDuplicate -ApiKey ${{ secrets.NugetKey }} -NoSymbol
                   nuget push ./bin/Release/*.nupkg -Source github -SkipDuplicate
 
-            - name: Build and Publish `KitX.FileFormats`
-              working-directory: "KitX Standard/KitX.FileFormats"
+            - name: Build and Publish `KitX.FileFormats.CSharp`
+              working-directory: "KitX Standard/KitX File Formats/KitX.FileFormats.CSharp"
               if: contains(github.event.head_commit.message, '[KitX.FileFormats]') || contains(github.event.head_commit.message, '[All]')
               run: |
                   dotnet build -c Release
