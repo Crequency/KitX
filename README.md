@@ -1,4 +1,4 @@
-
+﻿
 <p align="center">
   <a href="https://kitx.apps.catrol.cn/" target="_blank" rel="noopener noreferrer">
     <img width="128" src="https://github.com/Crequency/KitX/assets/50760269/d2f5ee3b-5e01-49d7-ae69-19318a74b8c2" alt="KitX Logo">
@@ -35,7 +35,9 @@
   <a href="https://github.com/Crequency/KitX/discussions"><img src="https://img.shields.io/github/discussions/Crequency/KitX?style=social" alt="Discussions"></a>
 </p>
 
-<br>
+<p align="center">
+    <img src="https://profile-counter.glitch.me/Crequency-KitX/count.svg"></img>
+</p>
 
 <!--
 
