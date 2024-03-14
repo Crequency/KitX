@@ -129,32 +129,13 @@ cd KitX
 2. Init submodules
 
 ```shell
-git submodule init
-```
-
-3. Select and init your development area
-
-```shell
-## Linux / MacOS
-# chmod +x ToolKits/start.sh
-# ToolKits/start.sh <type>
-
-## or
-
-## Windows OS
-# ToolKits/start.ps1 <type>
-```
-
-> The new development tool `Cheese` is coming.
-
-~~`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`~~
-
-~~This script help you get source code of this area, include its dependencies.~~
-
-If you want to get source code of all submodules at once, please execute following command instead:
-
-```shell
 git submodule update --init --recursive
+```
+
+3. Setup
+
+```shell
+cheese setup --reference
 ```
 
 # Versions Roadmap
