@@ -5,6 +5,10 @@
 KitX\ Build/
 KitX\ Publish/
 
+## Ignore for refernces
+Reference/
+KitX\ SDK/Reference/
+
 ## Ignore for IDE settings
 .idea/
 .vscode/
