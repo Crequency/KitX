@@ -3,6 +3,7 @@
     "Name": "Common.Activity",
     "Location": "Reference/Common.Activity",
     "Url": "git@github.com:Crequency/Common.Activity.git",
+    "Branch": "dev=main",
     "Type": 1,
     "InSubmodule": false
   },
@@ -10,6 +11,7 @@
     "Name": "Common.Algorithm",
     "Location": "Reference/Common.Algorithm",
     "Url": "git@github.com:Crequency/Common.Algorithm.git",
+    "Branch": "dev=main",
     "Type": 1,
     "InSubmodule": false
   },
@@ -17,6 +19,7 @@
     "Name": "Common.BasicHelper",
     "Location": "Reference/Common.BasicHelper",
     "Url": "git@github.com:Crequency/Common.BasicHelper.git",
+    "Branch": "dev=main",
     "Type": 1,
     "InSubmodule": false
   },
@@ -24,6 +27,7 @@
     "Name": "Common.Update",
     "Location": "Reference/Common.Update",
     "Url": "git@github.com:Crequency/Common.Update.git",
+    "Branch": "dev=main",
     "Type": 1,
     "InSubmodule": false
   },
@@ -31,6 +35,7 @@
     "Name": "Csharpell",
     "Location": "Reference/Csharpell",
     "Url": "git@github.com:Dynesshely/Csharpell.git",
+    "Branch": "dev=main",
     "Type": 1,
     "InSubmodule": false
   },
@@ -38,6 +43,7 @@
     "Name": "XamlMultiLanguageEditor",
     "Location": "KitX SDK/Reference/XamlMultiLanguageEditor",
     "Url": "git@github.com:Dynesshely/XamlMultiLanguageEditor.git",
+    "Branch": "dev=main",
     "Type": 1,
     "InSubmodule": true
   }
