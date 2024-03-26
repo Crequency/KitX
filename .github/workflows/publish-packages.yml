@@ -38,6 +38,11 @@ jobs:
                   dotnet-version: |
                       8.0.x
 
+            - name: Initialize References
+              run: |
+                  dotnet tool install --global Cheese
+                  cheese reference --setup --convert-ssl-link-to-https-link
+
             - name: Add to GitHub Repo
               run: |
                   nuget sources add -name github -Source https://nuget.pkg.github.com/Crequency/index.json -Username Crequency -Password ${{ secrets.GitHubToken }}

@@ -1,4 +1,4 @@
-
+﻿
 <p align="center">
   <a href="https://kitx.apps.catrol.cn/" target="_blank" rel="noopener noreferrer">
     <img width="128" src="https://github.com/Crequency/KitX/assets/50760269/d2f5ee3b-5e01-49d7-ae69-19318a74b8c2" alt="KitX Logo">
@@ -35,7 +35,9 @@
   <a href="https://github.com/Crequency/KitX/discussions"><img src="https://img.shields.io/github/discussions/Crequency/KitX?style=social" alt="Discussions"></a>
 </p>
 
-<br>
+<p align="center">
+    <img src="https://profile-counter.glitch.me/Crequency-KitX/count.svg"></img>
+</p>
 
 <!--
 
@@ -127,32 +129,13 @@ cd KitX
 2. Init submodules
 
 ```shell
-git submodule init
-```
-
-3. Select and init your development area
-
-```shell
-## Linux / MacOS
-# chmod +x ToolKits/start.sh
-# ToolKits/start.sh <type>
-
-## or
-
-## Windows OS
-# ToolKits/start.ps1 <type>
-```
-
-> The new development tool `Cheese` is coming.
-
-~~`<type>` is area you want to develop, you can choose `dashboard`, `mobile`, `loader`, `plugin`, `installer`~~
-
-~~This script help you get source code of this area, include its dependencies.~~
-
-If you want to get source code of all submodules at once, please execute following command instead:
-
-```shell
 git submodule update --init --recursive
+```
+
+3. Setup
+
+```shell
+cheese setup --reference
 ```
 
 # Versions Roadmap
@@ -213,4 +196,18 @@ See details in [ChangeLog](./ChangeLog.md)
 
 # Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline)
+<!-- [![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline) -->
+
+[![Star History Chart](https://starchart.cc/Crequency/KitX.svg?variant=adaptive)](https://starchart.cc/Crequency/KitX)
+
+# Thanks to
+
+<p align="center">
+  <a href="https://www.jetbrains.com/" target="_blank" rel="noopener noreferrer">
+    <img width="128" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="JetBrains Logo (Main) logo">
+  </a>
+</p>
+
+<p align="center">
+    Thanks to the great tools from <a href="https://www.jetbrains.com/" target="_blank">JetBrains</a>, we can turn our ideas into reality.
+</p>

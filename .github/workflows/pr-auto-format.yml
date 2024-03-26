@@ -28,7 +28,7 @@ jobs:
               run: |
                   pull_request_number=${{ github.event.pull_request.number }}
                   current_title="${{ github.event.pull_request.title }}"
-                  updated_title=$(python3 "./ToolKits/Actions/pr_format.py" "$current_title")
+                  updated_title=$(python3 "./.github/scripts/pr_format.py" "$current_title")
 
                   curl -X PATCH \
                     -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \

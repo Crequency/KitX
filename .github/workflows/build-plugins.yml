@@ -40,6 +40,11 @@ jobs:
                   dotnet-version: |
                       8.0.x
 
+            - name: Initialize References
+              run: |
+                  dotnet tool install --global Cheese
+                  cheese reference --setup --convert-ssl-link-to-https-link
+
             - name: Build Plugins
               working-directory: "KitX SDK/KitX Plugins"
               run: |
