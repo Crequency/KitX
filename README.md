@@ -196,4 +196,18 @@ See details in [ChangeLog](./ChangeLog.md)
 
 # Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline)
+<!-- [![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline) -->
+
+[![Star History Chart](https://starchart.cc/Crequency/KitX.svg?variant=adaptive)](https://starchart.cc/Crequency/KitX)
+
+# Thanks to
+
+<p align="center">
+  <a href="https://www.jetbrains.com/" target="_blank" rel="noopener noreferrer">
+    <img width="128" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="JetBrains Logo (Main) logo">
+  </a>
+</p>
+
+<p align="center">
+    Thanks to the great tools from <a href="https://www.jetbrains.com/" target="_blank">JetBrains</a>, we can turn our ideas into reality.
+</p>
