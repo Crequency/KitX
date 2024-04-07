@@ -33,12 +33,31 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Clients", "KitX Clients", "{673CF32C-65BF-4EB3-83D3-47FEC77B47A0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Standard", "KitX Standard", "{37E33B90-88B7-4404-9D42-D672A2916E6C}"
+	ProjectSection(SolutionItems) = preProject
+		KitX Standard\.gitignore = KitX Standard\.gitignore
+		KitX Standard\LICENSE = KitX Standard\LICENSE
+		KitX Standard\README.md = KitX Standard\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX SDK", "KitX SDK", "{69E9C41D-1848-4F9F-8C9C-0CAC1C167336}"
+	ProjectSection(SolutionItems) = preProject
+		KitX SDK\.gitignore = KitX SDK\.gitignore
+		KitX SDK\.gitmodules = KitX SDK\.gitmodules
+		KitX SDK\LICENSE = KitX SDK\LICENSE
+		KitX SDK\README.md = KitX SDK\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Dashboard", "KitX Dashboard", "{0194E969-1457-4C16-AFAB-D2753DFA07F0}"
+	ProjectSection(SolutionItems) = preProject
+		KitX Clients\KitX Dashboard\.gitignore = KitX Clients\KitX Dashboard\.gitignore
+		KitX Clients\KitX Dashboard\LICENSE = KitX Clients\KitX Dashboard\LICENSE
+		KitX Clients\KitX Dashboard\README.md = KitX Clients\KitX Dashboard\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Contracts", "KitX Contracts", "{42654B2B-4B5A-4B78-BC0A-8D3B3D82EC9A}"
+	ProjectSection(SolutionItems) = preProject
+		KitX Standard\KitX Contracts\README.md = KitX Standard\KitX Contracts\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Script", "KitX Script", "{7C64F32B-E1EE-45F7-94A7-DA2AD9288249}"
 EndProject
@@ -67,8 +86,18 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Dashboard", "KitX Clients\KitX Dashboard\KitX Dashboard\KitX.Dashboard.csproj", "{1DA8715C-E5A1-40CC-9C6C-F39E90A0C3E7}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Loaders", "KitX Loaders", "{D6625876-40E0-4222-A6A9-4449BCA61D60}"
+	ProjectSection(SolutionItems) = preProject
+		KitX SDK\KitX Loaders\.gitignore = KitX SDK\KitX Loaders\.gitignore
+		KitX SDK\KitX Loaders\LICENSE = KitX SDK\KitX Loaders\LICENSE
+		KitX SDK\KitX Loaders\README.md = KitX SDK\KitX Loaders\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX Plugins", "KitX Plugins", "{447D9264-1F5D-4E66-801A-C43CA36B8D4F}"
+	ProjectSection(SolutionItems) = preProject
+		KitX SDK\KitX Plugins\.gitignore = KitX SDK\KitX Plugins\.gitignore
+		KitX SDK\KitX Plugins\LICENSE = KitX SDK\KitX Plugins\LICENSE
+		KitX SDK\KitX Plugins\README.md = KitX SDK\KitX Plugins\README.md
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KitX.Loader.CSharp", "KitX SDK\KitX Loaders\KitX.Loader.CSharp\KitX.Loader.CSharp.csproj", "{5A8A4A32-653E-4DC5-99CB-5F1E59737835}"
 EndProject
