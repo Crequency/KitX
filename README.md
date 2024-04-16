@@ -1,6 +1,6 @@
 ﻿
 <p align="center">
-  <a href="https://kitx.apps.catrol.cn/" target="_blank" rel="noopener noreferrer">
+  <a href="https://kitx.apps.crequency.com" target="_blank" rel="noopener noreferrer">
     <img width="128" src="https://github.com/Crequency/KitX/assets/50760269/d2f5ee3b-5e01-49d7-ae69-19318a74b8c2" alt="KitX Logo">
   </a>
 </p>
@@ -8,7 +8,7 @@
 <br>
 
 <p align="center">
-  Docs website: <a href="https://kitx.docs.catrol.cn/en/">English</a> | <a href="https://kitx.docs.catrol.cn/">简体中文</a>
+  Docs website: <a href="https://kitx.docs.crequency.com/en/">English</a> | <a href="https://kitx.docs.catrol.cn/">简体中文</a>
   🌐
 </p>
 
