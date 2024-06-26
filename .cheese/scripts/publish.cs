@@ -7,7 +7,8 @@ using Spectre.Console;
 AnsiConsole.Write(
     new FigletText("KitX Publisher")
         .Centered()
-        .Color(Color.Blue));
+        .Color(Color.Blue)
+);
 
 PathHelper.Instance.AssertInSlnDirectory(out _);
 
@@ -42,111 +43,111 @@ var executingThreadIndex = 0;
 
 const string prompt = "[white]>>>[/]";
 
-AnsiConsole.Progress()
-        .Columns(new ProgressColumn[]
+AnsiConsole
+    .Progress()
+    .Columns(
+        new ProgressColumn[]
         {
             new TaskDescriptionColumn(),
             new ProgressBarColumn(),
             new PercentageColumn(),
-            // new RemainingTimeColumn(),
             new SpinnerColumn(),
-        })
-        .Start(ctx =>
+        }
+    )
+    .Start(ctx =>
+    {
+        var genTask = ctx.AddTask("[green]Publishing[/]");
+        var packTask = ctx.AddTask("[blue]Packing[/]");
+
         {
-            var genTask = ctx.AddTask("[green]Publishing[/]");
-            var packTask = ctx.AddTask("[blue]Packing[/]");
+            AnsiConsole.Write(new Rule($"[blue]Begin Generating[/]"));
 
+            AnsiConsole.MarkupLine($"{prompt} Found {files.Length} profiles");
+            AnsiConsole.Markup($"{prompt} Generating logs at: \"{Path.GetRelativePath(baseDir, log)}\"");
+            AnsiConsole.WriteLine();
+
+            packTask.IsIndeterminate = true;
+
+            foreach (var item in files)
             {
-                AnsiConsole.Write(new Rule($"[blue]Begin Generating[/]"));
+                var index = executingThreadIndex++;
+                var filename = Path.GetFileName(item);
+                const string cmd = "dotnet";
+                var arg = $"publish \"{(path + "/KitX.Dashboard.csproj").GetFullPath()}\" \"/p:PublishProfile={item}\"";
 
-                AnsiConsole.MarkupLine($"{prompt} Found {files.Length} profiles");
-                AnsiConsole.Markup($"{prompt} Generating logs at: \"{Path.GetRelativePath(baseDir, log)}\"");
-                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"{prompt} 📄 [white]{filename}[/]: [gray]{cmd} {arg}[/]");
 
-                packTask.IsIndeterminate = true;
-
-                foreach (var item in files)
+                var process = new Process();
+                var psi = new ProcessStartInfo()
                 {
-                    var index = executingThreadIndex++;
-                    var filename = Path.GetFileName(item);
-                    const string cmd = "dotnet";
-                    var arg = $"publish \"{(path + "/KitX.Dashboard.csproj").GetFullPath()}\" \"/p:PublishProfile={item}\"";
+                    FileName = cmd,
+                    Arguments = arg,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                process.StartInfo = psi;
+                process.Start();
 
-                    AnsiConsole.MarkupLine($"{prompt} 📄 [white]{filename}[/]: [gray]{cmd} {arg}[/]");
+                while (!process.StandardOutput.EndOfStream)
+                {
+                    var line = process.StandardOutput.ReadLine();
 
-                    var process = new Process();
-                    var psi = new ProcessStartInfo()
-                    {
-                        FileName = cmd,
-                        Arguments = arg,
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    };
-                    process.StartInfo = psi;
-                    process.Start();
-
-                    while (!process.StandardOutput.EndOfStream)
-                    {
-                        var line = process.StandardOutput.ReadLine();
-
-                        File.AppendAllText(log, Environment.NewLine + line);
-                    }
-
-                    // Thread.Sleep(700);
-
-                    process.WaitForExit();
-
-                    ++finishedThreads;
-
-                    genTask.Increment((1.0 / files.Length) * 100);
-
-                    AnsiConsole.MarkupLine($"{prompt} Finished task_{index}, still {files.Length - finishedThreads} tasks waiting");
-
-                    AnsiConsole.Write(new Rule($"[red]Finished task-{index}[/]"));
+                    File.AppendAllText(log, Environment.NewLine + line);
                 }
 
-                AnsiConsole.MarkupLine($"{prompt} All tasks done.");
+                process.WaitForExit();
 
-                genTask.StopTask();
+                ++finishedThreads;
+
+                genTask.Increment((1.0 / files.Length) * 100);
+
+                AnsiConsole.MarkupLine($"{prompt} Finished task_{index}, still {files.Length - finishedThreads} tasks waiting");
+
+                AnsiConsole.Write(new Rule($"[red]Finished task-{index}[/]"));
             }
 
+            AnsiConsole.MarkupLine($"{prompt} All tasks done.");
+
+            genTask.StopTask();
+        }
+
+        {
+            AnsiConsole.MarkupLine($"{prompt} Begin packing.");
+
+            packTask.IsIndeterminate = false;
+
+            var ignoredDirectories = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(packIgnore));
+
+            var folders = new DirectoryInfo(publishDir).GetDirectories().ToList();
+
+            folders.RemoveAll(f => ignoredDirectories.Contains(f.Name));
+
+            foreach (var folder in folders)
             {
-                AnsiConsole.MarkupLine($"{prompt} Begin packing.");
+                var name = folder.Name;
+                var zipFileName = $"{publishDir}/{name}.zip";
 
-                packTask.IsIndeterminate = false;
+                AnsiConsole.MarkupLine($"{prompt} Packing 📂 [yellow]{name}[/]");
 
-                var ignoredDirectories = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(packIgnore));
+                if (File.Exists(zipFileName))
+                    File.Delete(zipFileName);
 
-                var folders = new DirectoryInfo(publishDir).GetDirectories().ToList();
+                ZipFile.CreateFromDirectory(
+                    folder.FullName,
+                    zipFileName,
+                    CompressionLevel.SmallestSize,
+                    true
+                );
 
-                folders.RemoveAll(f => ignoredDirectories.Contains(f.Name));
+                AnsiConsole.MarkupLine($"    Packed to {Path.GetRelativePath(baseDir, zipFileName)}");
 
-                foreach (var folder in folders)
-                {
-                    var name = folder.Name;
-                    var zipFileName = $"{publishDir}/{name}.zip";
-
-                    AnsiConsole.MarkupLine($"{prompt} Packing 📂 [yellow]{name}[/]");
-
-                    if (File.Exists(zipFileName))
-                        File.Delete(zipFileName);
-
-                    ZipFile.CreateFromDirectory(
-                        folder.FullName,
-                        zipFileName,
-                        CompressionLevel.SmallestSize,
-                        true
-                    );
-
-                    AnsiConsole.MarkupLine($"    Packed to {Path.GetRelativePath(baseDir, zipFileName)}");
-
-                    packTask.Increment((1.0 / folders.Count) * 100);
-                }
-
-                AnsiConsole.MarkupLine($"{prompt} Packing done.");
-
-                packTask.StopTask();
+                packTask.Increment((1.0 / folders.Count) * 100);
             }
-        });
+
+            AnsiConsole.MarkupLine($"{prompt} Packing done.");
+
+            packTask.StopTask();
+        }
+    });
