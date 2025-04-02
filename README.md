@@ -1,6 +1,6 @@
 ﻿
 <p align="center">
-  <a href="https://kitx.apps.catrol.cn/" target="_blank" rel="noopener noreferrer">
+  <a href="https://kitx.apps.crequency.com" target="_blank" rel="noopener noreferrer">
     <img width="128" src="https://github.com/Crequency/KitX/assets/50760269/d2f5ee3b-5e01-49d7-ae69-19318a74b8c2" alt="KitX Logo">
   </a>
 </p>
@@ -8,7 +8,7 @@
 <br>
 
 <p align="center">
-  Docs website: <a href="https://kitx.docs.catrol.cn/en/">English</a> | <a href="https://kitx.docs.catrol.cn/">简体中文</a>
+  Docs website: <a href="https://kitx.docs.crequency.com/en/">English</a> | <a href="https://kitx.docs.catrol.cn/">简体中文</a>
   🌐
 </p>
 
@@ -179,6 +179,11 @@ cheese setup --reference
 
 <br>
 
+<details>
+<summary>Not Finished Versions</summary>
+
+<br>
+
 | Version                                                                           | Info    | Code      | Support            | Term               | Require                                                       | Runs on                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 |-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|---------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [v3.0.6187.47831](https://github.com/Crequency/KitX/releases/tag/v3.0.6187.47831) | Preview | Fly       | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
@@ -186,7 +191,14 @@ cheese setup --reference
 | [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
 | [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Release | Evolution | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
 | [v3.23.04.6488](https://github.com/Crequency/KitX/releases/tag/v3.23.04.6488)     | Release | ToYou     | :white_check_mark: | 2023.04 -> 2024.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi)                                                                                                                                                                    |
-| v3.24.10.x                                                                        | Release | -         | developing         | 2024.10 -> 2025.04 | `Desktop`: .Net 8 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
+
+</details>
+
+<br>
+
+| Version                                                                           | Info    | Code      | Support            | Term               | Require                                                       | Runs on                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+|-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|---------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v3.25.04.x                                                                        | Release | -         | developing         | 2024.10 -> 2025.04 | `Desktop`: .Net 8 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
 
 See details in [ChangeLog](./ChangeLog.md)
 
