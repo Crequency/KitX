@@ -36,7 +36,8 @@
 </p>
 
 <p align="center">
-    <img src="https://profile-counter.glitch.me/Crequency-KitX/count.svg"></img>
+    <!-- <img src="https://profile-counter.glitch.me/Crequency-KitX/count.svg"></img> -->
+    <img src="https://profile-counter.deno.dev/Crequency-KitX/count.svg" alt="Crequency's KitX's Visitor's Count"></img>
 </p>
 
 <!--
@@ -215,10 +216,27 @@ See details in [ChangeLog](./ChangeLog.md)
 # Thanks to
 
 <p align="center">
-  <a href="https://www.jetbrains.com/" target="_blank" rel="noopener noreferrer">
-    <img width="128" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="JetBrains Logo (Main) logo">
+  <a href="catrol.cn" target="_blank" rel="noopener noreferer">
+    <img width="115" src="https://img.catrol.cn/icons/org/crequency/mhch.png" alt="Crequency Developer Community Logo"/>
   </a>
 </p>
+
+<h2 align="center"><b>Crequency</b><br>Developer Community</h2>
+
+<p align="center">
+    Thanks to the great ideas from <a href="https://catrol.cn" target="_blank">Crequency Developer Community</a>, we can make the world better.
+</p>
+
+<br>
+<br>
+
+<p align="center">
+  <a href="https://www.jetbrains.com/" target="_blank" rel="noopener noreferrer">
+    <img width="128" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="JetBrains Logo">
+  </a>
+</p>
+
+<h2 align="center"><b>JetBrains</b><br>Great Softwares for Developers</h2>
 
 <p align="center">
     Thanks to the great tools from <a href="https://www.jetbrains.com/" target="_blank">JetBrains</a>, we can turn our ideas into reality.
