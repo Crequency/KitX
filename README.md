@@ -8,7 +8,7 @@
 <br>
 
 <p align="center">
-  Docs website: <a href="https://kitx.docs.crequency.com/en/">English</a> | <a href="https://kitx.docs.catrol.cn/">简体中文</a>
+  Docs website: <a href="https://kitx.docs.crequency.com/en/">English</a> | <a href="https://kitx.docs.crequency.com/">简体中文</a>
   🌐
 </p>
 
@@ -216,15 +216,15 @@ See details in [ChangeLog](./ChangeLog.md)
 # Thanks to
 
 <p align="center">
-  <a href="catrol.cn" target="_blank" rel="noopener noreferer">
-    <img width="115" src="https://img.catrol.cn/icons/org/crequency/mhch.png" alt="Crequency Developer Community Logo"/>
+  <a href="https://www.crequency.com" target="_blank" rel="noopener noreferer">
+    <img width="115" src="https://img.migrating.dynesshely.top/icons/org/crequency/mhch.png" alt="Crequency Developer Community Logo"/>
   </a>
 </p>
 
 <h2 align="center"><b>Crequency</b><br>Developer Community</h2>
 
 <p align="center">
-    Thanks to the great ideas from <a href="https://catrol.cn" target="_blank">Crequency Developer Community</a>, we can make the world better.
+    Thanks to the great ideas from <a href="https://www.crequency.com" target="_blank">Crequency Developer Community</a>, we can make the world better.
 </p>
 
 <br>
