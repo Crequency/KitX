@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Bash(cd:*)",
+      "Write",
+      "Bash(dir:*)",
+      "Bash(git:*)",
+      "Bash(find:*)",
+      "Bash(del:*)",
+      "Bash(dotnet build:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "csharp-lsp@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true
+  }
+}
