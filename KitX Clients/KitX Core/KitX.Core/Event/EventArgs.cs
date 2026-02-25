@@ -1,4 +1,5 @@
 using System;
+using KitX.Shared.CSharp.Plugin;
 
 namespace KitX.Core.Event;
 
@@ -33,4 +34,31 @@ public class DeviceInfoEventArgs : EventArgs
     /// The device information
     /// </summary>
     public KitX.Shared.CSharp.Device.DeviceInfo? DeviceInfo { get; set; }
+}
+
+/// <summary>
+/// Event args for plugin events
+/// </summary>
+public class PluginEventArgs : EventArgs
+{
+    /// <summary>
+    /// The plugin information
+    /// </summary>
+    public PluginInfo? PluginInfo { get; set; }
+}
+
+/// <summary>
+/// Event args for plugin connection events
+/// </summary>
+public class PluginConnectionEventArgs : EventArgs
+{
+    /// <summary>
+    /// The connection ID
+    /// </summary>
+    public string ConnectionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The plugin information
+    /// </summary>
+    public PluginInfo? PluginInfo { get; set; }
 }

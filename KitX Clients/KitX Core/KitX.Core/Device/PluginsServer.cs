@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Fleck;
+using KitX.Core;
 using KitX.Core.Contract.Plugin;
+using KitX.Core.Event;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
@@ -81,7 +83,10 @@ public class PluginsServer : IPluginServer
     /// </summary>
     private void InitializeServer()
     {
-        var port = 7777;
+        // Use configured port from ConstantTable, or default to 0 (dynamic port)
+        var port = ConstantTable.PluginsServerPort > 0
+            ? ConstantTable.PluginsServerPort
+            : 0;  // 0 means dynamic port assignment
 
         port = port is >= 0 and <= 65535 ? port : 0;
 
@@ -89,7 +94,7 @@ public class PluginsServer : IPluginServer
     }
 
     /// <summary>
-    /// Runs the plugins server
+    /// Runs the plugins server with retry logic for port conflicts
     /// </summary>
     /// <returns>The server instance</returns>
     public IPluginServer Run()
@@ -99,92 +104,154 @@ public class PluginsServer : IPluginServer
 
         _status = ServerStatus.Starting;
 
-        InitializeServer();
+        const int maxRetries = 5;
+        const int startPort = 7777;
+        int currentPort = startPort;
+        bool serverStarted = false;
 
-        _server!.Start(socket =>
+        for (int retryCount = 0; retryCount < maxRetries && !serverStarted; retryCount++)
         {
-            var connectionId = socket.ConnectionInfo.Path.Trim('/');
-
-            if (RegexToVerifyConnectionId().IsMatch(connectionId) == false)
+            try
             {
-                socket.Send("Invalid connection id.");
-                socket.Close();
-                return;
-            }
-
-            var connection = new PluginConnection(socket, connectionId);
-            _connections.Add(connection);
-
-            connection.MessageReceived += (sender, message) =>
-            {
-                try
+                // Try different ports if not using dynamic port
+                if (ConstantTable.PluginsServerPort <= 0)
                 {
-                    var kwc = System.Text.Json.JsonSerializer.Deserialize<KitX.Shared.CSharp.WebCommand.Request>(message);
-                    if (kwc?.Content is not null)
+                    currentPort = startPort + retryCount;
+                    _server = new WebSocketServer($"ws://0.0.0.0:{currentPort}");
+                }
+
+                InitializeServer();
+
+                _server!.Start(socket =>
+                {
+                    var connectionId = socket.ConnectionInfo.Path.Trim('/');
+
+                    if (RegexToVerifyConnectionId().IsMatch(connectionId) == false)
                     {
-                        var cmd = System.Text.Json.JsonSerializer.Deserialize<KitX.Shared.CSharp.WebCommand.Command>(kwc.Content);
-                        if (cmd.Request == KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin)
+                        socket.Send("Invalid connection id.");
+                        socket.Close();
+                        return;
+                    }
+
+                    var connection = new PluginConnection(socket, connectionId);
+                    _connections.Add(connection);
+
+                    // Handle connection closed
+                    connection.Closed += (sender, args) =>
+                    {
+                        _connections.Remove(connection);
+
+                        Log.Information($"[PluginsServer] Connection closed: {connectionId}, PluginInfo: {connection.PluginInfo?.Name}");
+
+                        // Trigger PluginUnregistered if this connection had a registered plugin
+                        if (connection.PluginInfo is not null)
                         {
-                            var body = System.Text.Encoding.UTF8.GetString(cmd.Body.AsSpan(0, cmd.BodyLength).ToArray());
-                            var pluginInfo = System.Text.Json.JsonSerializer.Deserialize<PluginInfo>(body);
-                            if (pluginInfo is not null)
+                            Log.Information($"[PluginsServer] Publishing PluginUnregistered for: {connection.PluginInfo.Name}");
+
+                            PluginUnregistered?.Invoke(this, new PluginUnregisteredEventArgs
                             {
-                                pluginInfo.Tags ??= new();
-                                pluginInfo.Tags[nameof(PluginConnection.ConnectionId)] = connectionId;
-                                pluginInfo.Tags["JoinTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss(FF)");
-                                connection.PluginInfo = pluginInfo;
-                                PluginRegistered?.Invoke(this, new PluginRegisteredEventArgs
+                                PluginInfo = connection.PluginInfo
+                            });
+
+                            // Publish event via EventService
+                            EventService.Instance.Publish(EventNames.PluginUnregistered, new PluginEventArgs
+                            {
+                                PluginInfo = connection.PluginInfo
+                            });
+                        }
+
+                        Log.Information($"[PluginsServer] Publishing PluginDisconnected for: {connectionId}");
+
+                        PluginDisconnected?.Invoke(this, new PluginDisconnectedEventArgs
+                        {
+                            ConnectionId = connectionId
+                        });
+
+                        // Publish event via EventService
+                        EventService.Instance.Publish(EventNames.PluginDisconnected, new PluginConnectionEventArgs
+                        {
+                            ConnectionId = connectionId,
+                            PluginInfo = connection.PluginInfo
+                        });
+                    };
+
+                    connection.MessageReceived += (sender, message) =>
+                    {
+                        try
+                        {
+                            var kwc = System.Text.Json.JsonSerializer.Deserialize<KitX.Shared.CSharp.WebCommand.Request>(message);
+                            if (kwc?.Content is not null)
+                            {
+                                var cmd = System.Text.Json.JsonSerializer.Deserialize<KitX.Shared.CSharp.WebCommand.Command>(kwc.Content);
+                                if (cmd.Request == KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin)
                                 {
-                                    PluginInfo = pluginInfo
-                                });
+                                    var body = System.Text.Encoding.UTF8.GetString(cmd.Body.AsSpan(0, cmd.BodyLength).ToArray());
+                                    var pluginInfo = System.Text.Json.JsonSerializer.Deserialize<PluginInfo>(body);
+                                    if (pluginInfo is not null)
+                                    {
+                                        pluginInfo.Tags ??= new();
+                                        pluginInfo.Tags[nameof(PluginConnection.ConnectionId)] = connectionId;
+                                        pluginInfo.Tags["JoinTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss(FF)");
+                                        connection.PluginInfo = pluginInfo;
+                                        PluginRegistered?.Invoke(this, new PluginRegisteredEventArgs
+                                        {
+                                            PluginInfo = pluginInfo
+                                        });
+
+                                        // Publish event via EventService
+                                        EventService.Instance.Publish(EventNames.PluginRegistered, new PluginEventArgs
+                                        {
+                                            PluginInfo = pluginInfo
+                                        });
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Error handling plugin message");
-                }
+                        catch (Exception ex)
+                        {
+                            Log.Warning(ex, "Error handling plugin message");
+                        }
 
-                PluginMessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
-                {
-                    ConnectionId = connectionId,
-                    Message = message
-                });
-            };
+                        PluginMessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
+                        {
+                            ConnectionId = connectionId,
+                            Message = message
+                        });
+                    };
 
-            connection.Closed += (sender, args) =>
-            {
-                _connections.Remove(connection);
+                    connection.Initialize();
 
-                // Trigger PluginUnregistered if this connection had a registered plugin
-                if (connection.PluginInfo is not null)
-                {
-                    PluginUnregistered?.Invoke(this, new PluginUnregisteredEventArgs
+                    PluginConnected?.Invoke(this, new PluginConnectedEventArgs
                     {
-                        PluginInfo = connection.PluginInfo
+                        ConnectionId = connectionId
                     });
-                }
-
-                PluginDisconnected?.Invoke(this, new PluginDisconnectedEventArgs
-                {
-                    ConnectionId = connectionId
                 });
-            };
 
-            connection.Initialize();
+                Port = _server!.Port;
+                serverStarted = true;
 
-            PluginConnected?.Invoke(this, new PluginConnectedEventArgs
+                // Update ConstantTable with the actual port
+                ConstantTable.PluginsServerPort = Port ?? 0;
+
+                Log.Information($"PluginsServer started on port {Port}");
+
+                // Publish port changed event via EventService only (removed direct PortChanged event to avoid potential recursion)
+                EventService.Instance.Publish(EventNames.PluginsServerPortChanged, new PortChangedEventArgs { Port = Port ?? 0 });
+            }
+            catch (Exception ex) when (ex.Message.Contains("access") || ex.Message.Contains("used"))
             {
-                ConnectionId = connectionId
-            });
-        });
+                Log.Warning($"Port {currentPort} is in use, trying next port... ({retryCount + 1}/{maxRetries})");
+                _server?.Dispose();
+                _server = null;
+            }
+        }
 
-        Port = _server!.Port;
-
-        Log.Information($"PluginsServer started on port {Port}");
-
-        PortChanged?.Invoke(this, Port ?? 0);
+        if (!serverStarted)
+        {
+            Log.Error($"Failed to start PluginsServer after {maxRetries} attempts");
+            _status = ServerStatus.Errored;
+            return this;
+        }
 
         _status = ServerStatus.Running;
 
@@ -395,7 +462,10 @@ public class PluginConnection : IPluginConnection
         _connection.OnError = ex =>
         {
             _status = ServerStatus.Errored;
-            Serilog.Log.Error(ex, $"PluginConnection error for {ConnectionId}");
+            Serilog.Log.Error(ex, $"PluginConnection error for {ConnectionId}, triggering Closed event");
+
+            // Also trigger Closed event when error occurs (e.g., remote host disconnected abruptly)
+            Closed?.Invoke(this, EventArgs.Empty);
         };
     }
 

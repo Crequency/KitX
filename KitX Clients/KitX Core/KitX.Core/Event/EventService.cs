@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Threading;
 using KitX.Core.Contract.Event;
 using KitX.Shared.CSharp.Device;
+using Serilog;
 
 namespace KitX.Core.Event;
 
@@ -21,6 +23,21 @@ public class EventService : IEventService
     private readonly Dictionary<string, List<EventHandler<EventArgs>>> _eventHandlers = new();
 
     /// <summary>
+    /// Lock object for thread-safe access to handlers
+    /// </summary>
+    private readonly object _lock = new();
+
+    /// <summary>
+    /// Thread-local counter to track publish depth for recursion detection
+    /// </summary>
+    private readonly ThreadLocal<int?> _publishDepth = new();
+
+    /// <summary>
+    /// Maximum publish depth before considering it recursive
+    /// </summary>
+    private const int MaxPublishDepth = 10;
+
+    /// <summary>
     /// Private constructor
     /// </summary>
     private EventService() { }
@@ -32,12 +49,15 @@ public class EventService : IEventService
     /// <param name="handler">The event handler</param>
     public void Subscribe(string eventName, EventHandler<EventArgs> handler)
     {
-        if (!_eventHandlers.ContainsKey(eventName))
+        lock (_lock)
         {
-            _eventHandlers[eventName] = new List<EventHandler<EventArgs>>();
-        }
+            if (!_eventHandlers.ContainsKey(eventName))
+            {
+                _eventHandlers[eventName] = new List<EventHandler<EventArgs>>();
+            }
 
-        _eventHandlers[eventName].Add(handler);
+            _eventHandlers[eventName].Add(handler);
+        }
     }
 
     /// <summary>
@@ -47,9 +67,12 @@ public class EventService : IEventService
     /// <param name="handler">The event handler</param>
     public void Unsubscribe(string eventName, EventHandler<EventArgs> handler)
     {
-        if (_eventHandlers.TryGetValue(eventName, out var handlers))
+        lock (_lock)
         {
-            handlers.Remove(handler);
+            if (_eventHandlers.TryGetValue(eventName, out var handlers))
+            {
+                handlers.Remove(handler);
+            }
         }
     }
 
@@ -60,12 +83,29 @@ public class EventService : IEventService
     /// <param name="args">The event arguments</param>
     public void Publish(string eventName, EventArgs args)
     {
-        if (_eventHandlers.TryGetValue(eventName, out var handlers))
+        // Prevent excessive recursion
+        _publishDepth.Value = (_publishDepth.Value ?? 0) + 1;
+        if (_publishDepth.Value > MaxPublishDepth)
         {
-            foreach (var handler in handlers)
+            Log.Error("[EventService] Possible infinite recursion detected! Event: {EventName}, Depth: {Depth}",
+                eventName, _publishDepth.Value);
+            _publishDepth.Value = (_publishDepth.Value ?? 1) - 1;
+            return;
+        }
+
+        try
+        {
+            if (_eventHandlers.TryGetValue(eventName, out var handlers))
             {
-                handler.Invoke(this, args);
+                foreach (var handler in handlers)
+                {
+                    handler.Invoke(this, args);
+                }
             }
+        }
+        finally
+        {
+            _publishDepth.Value = (_publishDepth.Value ?? 1) - 1;
         }
     }
 
@@ -78,18 +118,21 @@ public class EventService : IEventService
     public void Subscribe<TEventArgs>(string eventName, EventHandler<TEventArgs> handler)
         where TEventArgs : EventArgs
     {
-        if (!_eventHandlers.ContainsKey(eventName))
+        lock (_lock)
         {
-            _eventHandlers[eventName] = new List<EventHandler<EventArgs>>();
-        }
-
-        _eventHandlers[eventName].Add((sender, args) =>
-        {
-            if (args is TEventArgs typedArgs)
+            if (!_eventHandlers.ContainsKey(eventName))
             {
-                handler(sender, typedArgs);
+                _eventHandlers[eventName] = new List<EventHandler<EventArgs>>();
             }
-        });
+
+            _eventHandlers[eventName].Add((sender, args) =>
+            {
+                if (args is TEventArgs typedArgs)
+                {
+                    handler(sender, typedArgs);
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -118,7 +161,8 @@ public class EventService : IEventService
     public void Publish<TEventArgs>(string eventName, TEventArgs args)
         where TEventArgs : EventArgs
     {
-        Publish(eventName, args);
+        // Must cast to EventArgs to call the non-generic overload, avoiding infinite recursion
+        Publish(eventName, (EventArgs)args);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -11,6 +12,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Kscript.CSharp.Parser;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Device;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
@@ -239,7 +241,8 @@ public class WorkflowScriptService : IWorkflowService
                 Assembly? pluginApiAssembly = null;
                 try
                 {
-                    pluginApiAssembly = Parser.Generate(requiredPlugins, "KitXWorkflowPlugins");
+                    // Disable cache during development to ensure RealPluginManager is used
+                    pluginApiAssembly = Parser.Generate(requiredPlugins, "KitXWorkflowPlugins", useCache: false);
                     Log.Information($"[WorkflowScriptService] Successfully generated plugin API with {requiredPlugins.Count} plugins");
                 }
                 catch (Exception ex)
@@ -301,6 +304,9 @@ public class WorkflowScriptService : IWorkflowService
     {
         try
         {
+            // Clear previous output before execution
+            WorkflowOutput.GetAndClear();
+
             var result = await Engine.ExecuteAsync(
                 code,
                 options =>
@@ -310,6 +316,7 @@ public class WorkflowScriptService : IWorkflowService
                         .WithImports(
                             "KitX",
                             "KitX.Core",
+                            "KitX.Core.Workflow",
                             "KitX.Shared.CSharp.Plugin",
                             "System",
                             "System.Collections.Generic",
@@ -330,7 +337,18 @@ public class WorkflowScriptService : IWorkflowService
                 cancellationToken: cancellationToken
             );
 
-            return result?.ToString();
+            // Get output from WorkflowOutput and combine with return value
+            var scriptOutput = WorkflowOutput.GetAndClear();
+            var returnValue = result?.ToString();
+
+            if (!string.IsNullOrEmpty(scriptOutput))
+            {
+                return string.IsNullOrEmpty(returnValue)
+                    ? scriptOutput
+                    : $"{scriptOutput}\n{returnValue}";
+            }
+
+            return returnValue;
         }
         catch (Exception ex)
         {
@@ -374,11 +392,19 @@ public class WorkflowScriptService : IWorkflowService
 
         try
         {
+            // Clear previous output before execution
+            WorkflowOutput.GetAndClear();
+
             var result = await Engine.ExecuteAsync(
                 code,
                 options => options
                     .WithReferences(Assembly.GetExecutingAssembly())
-                    .WithImports("System", "System.Collections.Generic", "System.Threading.Tasks")
+                    .WithImports(
+                        "System",
+                        "System.Collections.Generic",
+                        "System.Threading.Tasks",
+                        "KitX.Core.Workflow"
+                    )
                     .WithLanguageVersion(LanguageVersion.Preview),
                 addDefaultImports: true,
                 runInReplMode: false,
@@ -387,13 +413,23 @@ public class WorkflowScriptService : IWorkflowService
 
             sw.Stop();
 
+            // Get output from WorkflowOutput and combine with return value
+            var scriptOutput = WorkflowOutput.GetAndClear();
+            var returnValue = result?.ToString();
+
+            var combinedOutput = !string.IsNullOrEmpty(scriptOutput)
+                ? (string.IsNullOrEmpty(returnValue)
+                    ? scriptOutput
+                    : $"{scriptOutput}\n{returnValue}")
+                : returnValue;
+
             return includeTimestamp
                 ? new StringBuilder()
                     .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
                     .AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [I] Script ended, took {sw.ElapsedMilliseconds} ms.")
-                    .AppendLine(result?.ToString())
+                    .AppendLine(combinedOutput)
                     .ToString()
-                : result?.ToString();
+                : combinedOutput;
         }
         catch (Exception ex)
         {
@@ -420,19 +456,18 @@ public class WorkflowScriptService : IWorkflowService
 
         try
         {
-            // Create a basic plugin service provider
-            // Note: In full implementation, this would use the actual PluginsServer
-            var serviceProvider = new PluginServiceProvider(null);
+            // Use the real plugin manager that communicates via WebSocket
+            var pluginsServer = PluginsServer.Instance;
+            var realPluginManager = new RealPluginManager(pluginsServer);
 
-            // Set up the parser with a mock plugin manager
-            Parser.SetPluginManager(new Kscript.CSharp.Parser.Core.MockPluginManager());
+            Parser.SetPluginManager(realPluginManager);
 
             _isParserInitialized = true;
-            Log.Information("[WorkflowScriptService] Plugin manager initialized");
+            Log.Information("[WorkflowScriptService] Real plugin manager initialized");
         }
         catch (Exception ex)
         {
-            Log.Error($"[WorkflowScriptService] Failed to initialize plugin manager: {ex.Message}");
+            Log.Error($"[WorkflowScriptService] Failed to initialize real plugin manager: {ex.Message}, falling back to mock");
             // Use mock manager as fallback
             Parser.SetPluginManager(new Kscript.CSharp.Parser.Core.MockPluginManager());
             _isParserInitialized = true;

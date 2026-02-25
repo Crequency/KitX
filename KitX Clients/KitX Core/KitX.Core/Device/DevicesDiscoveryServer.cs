@@ -243,7 +243,7 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
         DefaultDeviceInfo.Device.ResetIPv4(NetworkHelper.GetInterNetworkIPv4())
             .ResetIPv6(NetworkHelper.GetInterNetworkIPv6());
         DefaultDeviceInfo.PluginsServerPort = ConstantTable.PluginsServerPort;
-        DefaultDeviceInfo.PluginsCount = 0; // TODO: Will be updated from PluginsManager
+        DefaultDeviceInfo.PluginsCount = PluginsServer.Instance?.Connections?.Count ?? 0;
         DefaultDeviceInfo.IsMainDevice = ConstantTable.IsMainMachine;
         DefaultDeviceInfo.DevicesServerPort = ConstantTable.DevicesServerPort;
         DefaultDeviceInfo.DevicesServerBuildTime = ConstantTable.ServerBuildTime;

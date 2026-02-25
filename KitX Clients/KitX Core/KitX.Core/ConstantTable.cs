@@ -3,7 +3,7 @@ using Common.BasicHelper.Utils.Extensions;
 
 namespace KitX.Core;
 
-internal static class ConstantTable
+public static class ConstantTable
 {
     internal const string AppName = "KitX";
 
@@ -31,9 +31,15 @@ internal static class ConstantTable
 
     internal static string? ExchangeDeviceKeyCode;
 
-    internal static int DevicesServerPort = -1;
+    /// <summary>
+    /// Devices Server Port - public for cross-assembly access
+    /// </summary>
+    public static int DevicesServerPort = -1;
 
-    internal static int PluginsServerPort = -1;
+    /// <summary>
+    /// Plugins Server Port - public for cross-assembly access
+    /// </summary>
+    public static int PluginsServerPort = -1;
 
     internal static bool Running = true;
 

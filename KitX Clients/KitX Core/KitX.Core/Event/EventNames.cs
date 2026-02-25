@@ -89,4 +89,24 @@ public static class EventNames
     /// Accepting device key event
     /// </summary>
     public const string OnAcceptingDeviceKey = "OnAcceptingDeviceKey";
+
+    /// <summary>
+    /// Plugin connected event
+    /// </summary>
+    public const string PluginConnected = "PluginConnected";
+
+    /// <summary>
+    /// Plugin disconnected event
+    /// </summary>
+    public const string PluginDisconnected = "PluginDisconnected";
+
+    /// <summary>
+    /// Plugin registered event
+    /// </summary>
+    public const string PluginRegistered = "PluginRegistered";
+
+    /// <summary>
+    /// Plugin unregistered event
+    /// </summary>
+    public const string PluginUnregistered = "PluginUnregistered";
 }

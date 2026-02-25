@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Device;
+using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -37,6 +38,11 @@ public class DevicesServer : IDeviceServer
     /// Gets the service status
     /// </summary>
     public ServerStatus Status => _status;
+
+    /// <summary>
+    /// Event raised when port changes
+    /// </summary>
+    public event EventHandler<int>? PortChanged;
 
     /// <summary>
     /// Gets or sets the port
@@ -115,6 +121,12 @@ public class DevicesServer : IDeviceServer
                     {
                         var uri = new Uri(addresses.First());
                         Port = uri.Port;
+
+                        // Update ConstantTable with the actual port
+                        ConstantTable.DevicesServerPort = Port ?? 0;
+
+                        // Publish port changed event via EventService only (removed direct PortChanged event to avoid potential recursion)
+                        EventService.Instance.Publish(EventNames.DevicesServerPortChanged, new PortChangedEventArgs { Port = Port ?? 0 });
 
                         Log.Information($"DevicesServer started on port {Port}");
                     }
