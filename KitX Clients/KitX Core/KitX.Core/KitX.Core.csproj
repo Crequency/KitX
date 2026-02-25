@@ -45,8 +45,8 @@
     <PackageReference Include="Common.BasicHelper" Version="1.3.584.228" Condition="!Exists('..\..\..\Reference\Common.BasicHelper\Common.BasicHelper\Common.BasicHelper.csproj')" />
     <ProjectReference Include="..\..\..\Reference\Common.Activity\Common.Activity\Common.Activity.csproj" />
     <ProjectReference Include="..\..\..\Reference\Common.BasicHelper\Common.BasicHelper\Common.BasicHelper.csproj" Condition="Exists('..\..\..\Reference\Common.BasicHelper\Common.BasicHelper\Common.BasicHelper.csproj')" />
-    <ProjectReference Include="..\..\..\Reference\CSharpell\Csharpell.Core\Csharpell.Core.csproj" />
-    <ProjectReference Include="..\..\..\Reference\CSharpell\Csharpell\Csharpell.csproj" />
+    <ProjectReference Include="..\..\..\Reference\Csharpell\Csharpell.Core\Csharpell.Core.csproj" />
+    <ProjectReference Include="..\..\..\Reference\Csharpell\Csharpell\Csharpell.csproj" />
   </ItemGroup>
 
   <!-- DI Test Program - Exclude from normal build, can be run manually -->
