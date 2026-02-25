@@ -8,6 +8,11 @@ KitX\ Publish/
 ## Ignore for refernces
 Reference/
 
+## Ignore local runtime configs
+Config/AppConfig.json
+Config/PluginsConfig.json
+Config/SecurityConfig.json
+
 ## Ignore for IDE settings
 .idea/
 .vscode/
