@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Fleck;
@@ -7,6 +8,7 @@ using KitX.Core;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Event;
 using KitX.Shared.CSharp.Plugin;
+using KitX.Shared.CSharp.WebCommand;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
 
@@ -27,6 +29,16 @@ public class PluginsServer : IPluginServer
     private WebSocketServer? _server;
     private readonly List<IPluginConnection> _connections = new();
     private ServerStatus _status = ServerStatus.Pending;
+
+    /// <summary>
+    /// JSON serializer options (accessible from PluginConnection)
+    /// </summary>
+    internal static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = true,
+        IncludeFields = true,
+        PropertyNameCaseInsensitive = true,
+    };
 
     /// <summary>
     /// Gets the service status
@@ -273,8 +285,9 @@ public class PluginsServer : IPluginServer
     /// <returns>The plugin connector or null if not found</returns>
     public IPluginConnector? FindConnector(PluginInfo pluginInfo)
     {
-        // Return null for now - actual implementation would find by plugin info
-        return null;
+        // Use the existing FindConnection method and cast to IPluginConnector
+        var connection = FindConnection(pluginInfo);
+        return connection as IPluginConnector;
     }
 
     /// <summary>
@@ -397,7 +410,7 @@ public interface IPluginConnection
 /// <summary>
 /// Plugin connection implementation
 /// </summary>
-public class PluginConnection : IPluginConnection
+public class PluginConnection : IPluginConnection, IPluginConnector
 {
     private readonly IWebSocketConnection _connection;
     private ServerStatus _status = ServerStatus.Pending;
@@ -428,6 +441,16 @@ public class PluginConnection : IPluginConnection
     public event EventHandler? Closed;
 
     /// <summary>
+    /// Event raised when a plugin response is received (IPluginConnector implementation)
+    /// </summary>
+    public event EventHandler<PluginResponseEventArgs>? PluginResponse;
+
+    /// <summary>
+    /// Event raised when plugin reports status (IPluginConnector implementation)
+    /// </summary>
+    public event EventHandler<PluginStatusReportEventArgs>? StatusReport;
+
+    /// <summary>
     /// Constructor
     /// </summary>
     /// <param name="connection">The WebSocket connection</param>
@@ -450,6 +473,32 @@ public class PluginConnection : IPluginConnection
 
         _connection.OnMessage = message =>
         {
+            // Handle plugin response messages
+            try
+            {
+                var kwc = JsonSerializer.Deserialize<Request>(message, PluginsServer.SerializerOptions);
+                if (kwc?.Content is not null)
+                {
+                    var command = JsonSerializer.Deserialize<Command>(kwc.Content, PluginsServer.SerializerOptions);
+                    if (command.Tags != null &&
+                        command.Tags.TryGetValue("RequestId", out var requestId))
+                    {
+                        // This is a plugin response - trigger PluginResponse event
+                        PluginResponse?.Invoke(this, new PluginResponseEventArgs
+                        {
+                            RequestId = requestId,
+                            Content = kwc.Content
+                        });
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error parsing plugin response message");
+            }
+
+            // Forward to MessageReceived for other handlers
             MessageReceived?.Invoke(this, message);
         };
 
@@ -476,6 +525,16 @@ public class PluginConnection : IPluginConnection
     public void Send(string message)
     {
         _connection.Send(message);
+    }
+
+    /// <summary>
+    /// Sends a request to the plugin (IPluginConnector implementation)
+    /// </summary>
+    /// <param name="request">The request to send</param>
+    public void Request(object request)
+    {
+        var json = JsonSerializer.Serialize(request, PluginsServer.SerializerOptions);
+        _connection.Send(json);
     }
 
     /// <summary>
