@@ -191,10 +191,10 @@ public class PluginsServer : IPluginServer
                     {
                         try
                         {
-                            var kwc = System.Text.Json.JsonSerializer.Deserialize<KitX.Shared.CSharp.WebCommand.Request>(message);
+                            var kwc = System.Text.Json.JsonSerializer.Deserialize<Request>(message);
                             if (kwc?.Content is not null)
                             {
-                                var cmd = System.Text.Json.JsonSerializer.Deserialize<KitX.Shared.CSharp.WebCommand.Command>(kwc.Content);
+                                var cmd = System.Text.Json.JsonSerializer.Deserialize<Command>(kwc.Content);
                                 if (cmd.Request == KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin)
                                 {
                                     var body = System.Text.Encoding.UTF8.GetString(cmd.Body.AsSpan(0, cmd.BodyLength).ToArray());

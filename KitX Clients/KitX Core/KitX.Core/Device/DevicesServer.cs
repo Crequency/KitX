@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Device;
 using KitX.Core.Event;
+using KitX.Core.Security;
 using KitX.Shared.CSharp.Device;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -33,6 +37,16 @@ public class DevicesServer : IDeviceServer
     private ServerStatus _status = ServerStatus.Pending;
     private IWebHost? _host;
     private int? _configuredPort;
+
+    /// <summary>
+    /// Whether device key exchange is in progress
+    /// </summary>
+    private bool _isExchangingDeviceKey = false;
+
+    /// <summary>
+    /// Device key exchange verification code
+    /// </summary>
+    private string? _exchangeDeviceKeyCode;
 
     /// <summary>
     /// Gets the service status
@@ -96,11 +110,39 @@ public class DevicesServer : IDeviceServer
                             await context.Response.WriteAsync("KitX DevicesServer is running");
                         });
 
-                        // Device authentication endpoint (placeholder for future implementation)
-                        endpoints.MapPost("/api/device/auth", async context =>
+                        // Device controller endpoints (旧架构 API 标准)
+                        // GET /Api/V1/Device?token=xxx
+                        // POST /Api/V1/Device/ExchangeKey?verifyCodeSHA1=xxx&address=xxx
+                        // POST /Api/V1/Device/ExchangeKeyBack
+                        // POST /Api/V1/Device/CancelExchangingKey
+                        // POST /Api/V1/Device/Connect?deviceBase64=xxx
+                        endpoints.MapGet("/Api/V1/Device", async context =>
                         {
-                            // TODO: Implement device authentication logic
-                            await context.Response.WriteAsync("{\"status\":\"pending\"}");
+                            await HandleGetDeviceInfoAsync(context);
+                        });
+
+                        endpoints.MapPost("/Api/V1/Device/{action}", async context =>
+                        {
+                            var action = context.Request.RouteValues["action"]?.ToString();
+                            switch (action)
+                            {
+                                case "ExchangeKey":
+                                    await HandleExchangeKeyAsync(context);
+                                    break;
+                                case "ExchangeKeyBack":
+                                    await HandleExchangeKeyBackAsync(context);
+                                    break;
+                                case "CancelExchangingKey":
+                                    await HandleCancelExchangingKeyAsync(context);
+                                    break;
+                                case "Connect":
+                                    await HandleConnectAsync(context);
+                                    break;
+                                default:
+                                    context.Response.StatusCode = 404;
+                                    await context.Response.WriteAsync("Not found");
+                                    break;
+                            }
                         });
                     });
                 })
@@ -259,4 +301,467 @@ public class DevicesServer : IDeviceServer
 
         return token;
     }
+
+    /// <summary>
+    /// Handles GetDeviceInfo request (旧架构 API)
+    /// GET /Api/V1/Device?token=xxx
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleGetDeviceInfoAsync(HttpContext context)
+    {
+        var token = context.Request.Query["token"].ToString();
+        if (string.IsNullOrEmpty(token))
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("Missing token parameter");
+            return;
+        }
+
+        if (IsDeviceTokenExist(token))
+        {
+            var deviceInfo = DevicesDiscoveryServer.Instance?.DefaultDeviceInfo;
+            if (deviceInfo != null)
+            {
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(deviceInfo));
+            }
+            else
+            {
+                context.Response.StatusCode = 500;
+                await context.Response.WriteAsync("Device info not available");
+            }
+        }
+        else
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("You should connect to this device first.");
+        }
+    }
+
+    /// <summary>
+    /// Handles ExchangeKey request (旧架构 API)
+    /// POST /Api/V1/Device/ExchangeKey?verifyCodeSHA1=xxx&address=xxx
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleExchangeKeyAsync(HttpContext context)
+    {
+        try
+        {
+            if (_isExchangingDeviceKey)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Remote device is exchanging device key.");
+                return;
+            }
+
+            var securityService = SecurityManager.Instance;
+            if (securityService.LocalDeviceKey == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Remote device didn't set up device key.");
+                return;
+            }
+
+            // Read request body
+            using var reader = new StreamReader(context.Request.Body);
+            var body = await reader.ReadToEndAsync();
+            var request = JsonSerializer.Deserialize<ExchangeKeyRequest>(body);
+
+            if (request == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Invalid request");
+                return;
+            }
+
+            // Generate verification code
+            _exchangeDeviceKeyCode = Guid.NewGuid().ToString("N")[..8];
+            _isExchangingDeviceKey = true;
+
+            // Publish event for UI to handle
+            EventService.Instance.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
+
+            // For now, auto-accept the key exchange (in real implementation, this would show a UI)
+            // TODO: Integrate with UI for verification code input
+            var deviceKeyDecrypted = securityService.AesDecrypt(request.DeviceKey, _exchangeDeviceKeyCode);
+            var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
+
+            if (deviceKeyInstance == null)
+            {
+                _isExchangingDeviceKey = false;
+                _exchangeDeviceKeyCode = null;
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Failed to decrypt device key");
+                return;
+            }
+
+            // Add device key
+            securityService.AddDeviceKey(
+                deviceKeyInstance.Device.MacAddress,
+                deviceKeyInstance.Device.DeviceName,
+                deviceKeyInstance.RsaPublicKeyPem ?? ""
+            );
+
+            // Send back local key
+            var currentKey = securityService.GetPrivateDeviceKey();
+            if (currentKey == null)
+            {
+                _isExchangingDeviceKey = false;
+                _exchangeDeviceKeyCode = null;
+                context.Response.StatusCode = 500;
+                await context.Response.WriteAsync("Failed to get local key");
+                return;
+            }
+
+            var currentKeyJson = JsonSerializer.Serialize(currentKey);
+            var currentKeyEncrypted = securityService.AesEncrypt(currentKeyJson, _exchangeDeviceKeyCode!);
+
+            _isExchangingDeviceKey = false;
+            _exchangeDeviceKeyCode = null;
+
+            // Publish accept event
+            EventService.Instance.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(currentKeyEncrypted));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in HandleExchangeKeyAsync");
+            _isExchangingDeviceKey = false;
+            _exchangeDeviceKeyCode = null;
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handles device key exchange back response
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleExchangeKeyBackAsync(HttpContext context)
+    {
+        try
+        {
+            if (_exchangeDeviceKeyCode == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("No pending key exchange");
+                return;
+            }
+
+            // Read request body
+            using var reader = new StreamReader(context.Request.Body);
+            var encryptedKey = await reader.ReadToEndAsync();
+
+            var securityService = SecurityManager.Instance;
+            var deviceKeyDecrypted = securityService.AesDecrypt(encryptedKey, _exchangeDeviceKeyCode);
+            var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
+
+            if (deviceKeyInstance == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Failed to decrypt device key");
+                return;
+            }
+
+            // Add device key
+            securityService.AddDeviceKey(
+                deviceKeyInstance.Device.MacAddress,
+                deviceKeyInstance.Device.DeviceName,
+                deviceKeyInstance.RsaPublicKeyPem ?? ""
+            );
+
+            _exchangeDeviceKeyCode = null;
+
+            // Publish accept event
+            EventService.Instance.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
+
+            context.Response.StatusCode = 200;
+            await context.Response.WriteAsync("OK");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in HandleExchangeKeyBackAsync");
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handles CancelExchangingKey request (旧架构 API)
+    /// POST /Api/V1/Device/CancelExchangingKey
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleCancelExchangingKeyAsync(HttpContext context)
+    {
+        if (_isExchangingDeviceKey == false)
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("Remote device isn't exchanging device key.");
+            return;
+        }
+
+        EventService.Instance.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
+
+        _isExchangingDeviceKey = false;
+        _exchangeDeviceKeyCode = null;
+
+        context.Response.StatusCode = 200;
+        await context.Response.WriteAsync("OK");
+    }
+
+    /// <summary>
+    /// Handles Connect request (旧架构 API)
+    /// POST /Api/V1/Device/Connect?deviceBase64=xxx
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleConnectAsync(HttpContext context)
+    {
+        try
+        {
+            var deviceBase64 = context.Request.Query["deviceBase64"].ToString();
+            if (string.IsNullOrEmpty(deviceBase64))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync($"Missing deviceBase64 parameter");
+                return;
+            }
+
+            // Read request body (encrypted device name)
+            using var reader = new StreamReader(context.Request.Body);
+            var deviceNameEncrypted = await reader.ReadToEndAsync();
+
+            // Decode device locator
+            var deviceBytes = Convert.FromBase64String(deviceBase64);
+            var deviceJson = Encoding.UTF8.GetString(deviceBytes);
+            var device = JsonSerializer.Deserialize<DeviceLocator>(deviceJson);
+
+            if (device == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync($"Invalid deviceBase64 parameter");
+                return;
+            }
+
+            // Search for device key
+            var securityService = SecurityManager.Instance;
+            var key = securityService.SearchDeviceKey(device);
+
+            if (key == null)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("You are not authorized by remote device.");
+                return;
+            }
+
+            // Decrypt and verify device name
+            var deviceNameDecrypted = securityService.RsaDecryptString(key, deviceNameEncrypted);
+
+            if (deviceNameDecrypted == null)
+            {
+                context.Response.StatusCode = 500;
+                await context.Response.WriteAsync("Remote crashed when decrypting device name.");
+                return;
+            }
+
+            if (!device.DeviceName.Equals(deviceNameDecrypted))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("You provided incorrect encrypted device name.");
+                return;
+            }
+
+            // Sign in device
+            var token = SignInDevice(device);
+
+            // Encrypt token with local private key
+            var encryptedToken = securityService.EncryptStringAsync(token, "").Result;
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(encryptedToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in HandleConnectAsync");
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handles legacy ExchangeKey request (旧架构兼容)
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleExchangeKeyLegacyAsync(HttpContext context)
+    {
+        try
+        {
+            if (_isExchangingDeviceKey)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Remote device is exchanging device key.");
+                return;
+            }
+
+            var securityService = SecurityManager.Instance;
+            if (securityService.LocalDeviceKey == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Remote device didn't set up device key.");
+                return;
+            }
+
+            // Read query parameters (legacy format)
+            var verifyCodeSHA1 = context.Request.Query["verifyCodeSHA1"].ToString();
+            var address = context.Request.Query["address"].ToString();
+
+            // Read body (device key as plain string)
+            using var reader = new StreamReader(context.Request.Body);
+            var deviceKey = await reader.ReadToEndAsync();
+
+            // Generate verification code
+            _exchangeDeviceKeyCode = Guid.NewGuid().ToString("N")[..8];
+            _isExchangingDeviceKey = true;
+
+            // Auto-accept for now (legacy would show UI)
+            var deviceKeyDecrypted = securityService.AesDecrypt(deviceKey, _exchangeDeviceKeyCode);
+            var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
+
+            if (deviceKeyInstance == null)
+            {
+                _isExchangingDeviceKey = false;
+                _exchangeDeviceKeyCode = null;
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Failed to decrypt device key");
+                return;
+            }
+
+            // Add device key
+            securityService.AddDeviceKey(
+                deviceKeyInstance.Device.MacAddress,
+                deviceKeyInstance.Device.DeviceName,
+                deviceKeyInstance.RsaPublicKeyPem ?? ""
+            );
+
+            // Send back local key
+            var currentKey = securityService.GetPrivateDeviceKey();
+            if (currentKey == null)
+            {
+                _isExchangingDeviceKey = false;
+                _exchangeDeviceKeyCode = null;
+                context.Response.StatusCode = 500;
+                await context.Response.WriteAsync("Failed to get local key");
+                return;
+            }
+
+            var currentKeyJson = JsonSerializer.Serialize(currentKey);
+            var currentKeyEncrypted = securityService.AesEncrypt(currentKeyJson, _exchangeDeviceKeyCode);
+
+            _isExchangingDeviceKey = false;
+            _exchangeDeviceKeyCode = null;
+
+            // Return as plain string (legacy format)
+            await context.Response.WriteAsync(currentKeyEncrypted);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in HandleExchangeKeyLegacyAsync");
+            _isExchangingDeviceKey = false;
+            _exchangeDeviceKeyCode = null;
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handles legacy Connect request (旧架构兼容)
+    /// </summary>
+    private async System.Threading.Tasks.Task HandleConnectLegacyAsync(HttpContext context)
+    {
+        try
+        {
+            var deviceBase64 = context.Request.Query["deviceBase64"].ToString();
+            if (string.IsNullOrEmpty(deviceBase64))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync($"Missing deviceBase64 parameter");
+                return;
+            }
+
+            // Read body (encrypted device name as plain string)
+            using var reader = new StreamReader(context.Request.Body);
+            var deviceNameEncrypted = await reader.ReadToEndAsync();
+
+            // Decode device locator
+            var deviceBytes = Convert.FromBase64String(deviceBase64);
+            var deviceJson = Encoding.UTF8.GetString(deviceBytes);
+            var device = JsonSerializer.Deserialize<DeviceLocator>(deviceJson);
+
+            if (device == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync($"Invalid deviceBase64 parameter");
+                return;
+            }
+
+            // Search for device key
+            var securityService = SecurityManager.Instance;
+            var key = securityService.SearchDeviceKey(device);
+
+            if (key == null)
+            {
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("You are not authorized by remote device.");
+                return;
+            }
+
+            // Decrypt and verify device name
+            var deviceNameDecrypted = securityService.RsaDecryptString(key, deviceNameEncrypted);
+
+            if (deviceNameDecrypted == null)
+            {
+                context.Response.StatusCode = 500;
+                await context.Response.WriteAsync("Remote crashed when decrypting device name.");
+                return;
+            }
+
+            if (!device.DeviceName.Equals(deviceNameDecrypted))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("You provided incorrect encrypted device name.");
+                return;
+            }
+
+            // Sign in device
+            var token = SignInDevice(device);
+
+            // Encrypt token (legacy uses EncryptString)
+            var encryptedToken = securityService.EncryptStringAsync(token, "").Result;
+
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(encryptedToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in HandleConnectLegacyAsync");
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync($"Error: {ex.Message}");
+        }
+    }
+}
+
+/// <summary>
+/// Exchange key request model
+/// </summary>
+public class ExchangeKeyRequest
+{
+    /// <summary>
+    /// AES encrypted device key
+    /// </summary>
+    public string? DeviceKey { get; set; }
+
+    /// <summary>
+    /// Address of requesting device
+    /// </summary>
+    public string? Address { get; set; }
+
+    /// <summary>
+    /// SHA1 of verification code
+    /// </summary>
+    public string? VerifyCodeSHA1 { get; set; }
 }

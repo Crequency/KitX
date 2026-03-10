@@ -140,7 +140,7 @@ public static class CoreServiceCollectionExtensions
         });
 
         Log.Information("Registering IPluginServer...");
-        services.AddSingleton<KitX.Core.Contract.Plugin.IPluginServer, PluginsServer>(provider =>
+        services.AddSingleton<IPluginServer, PluginsServer>(provider =>
         {
             var service = PluginsServer.Instance;
             return service;
@@ -150,7 +150,7 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IAnnouncementService...");
         services.AddSingleton<IAnnouncementService>(provider =>
         {
-            var configService = provider.GetService<KitX.Core.Contract.Configuration.IConfigService>();
+            var configService = provider.GetService<IConfigService>();
             var service = configService != null
                 ? new AnnouncementManager(configService)
                 : AnnouncementManager.Instance;
