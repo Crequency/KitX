@@ -49,9 +49,25 @@ public class WorkflowScriptService : IWorkflowService
     private List<PluginInfo> _availablePlugins { get; set; } = new();
 
     /// <summary>
-    /// Private constructor
+    /// Private constructor - initializes RealPluginManager immediately
     /// </summary>
-    private WorkflowScriptService() { }
+    private WorkflowScriptService()
+    {
+        // Pre-initialize RealPluginManager to ensure it subscribes to plugin events
+        // This must be done at startup, not when first script is executed
+        try
+        {
+            var pluginsServer = PluginsServer.Instance;
+            var realPluginManager = new RealPluginManager(pluginsServer);
+            Parser.SetPluginManager(realPluginManager);
+            _isParserInitialized = true;
+            Log.Information("[WorkflowScriptService] Real plugin manager pre-initialized at startup");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[WorkflowScriptService] Failed to pre-initialize RealPluginManager, will retry on first script execution");
+        }
+    }
 
     /// <summary>
     /// Gets the script engine, creating it if necessary

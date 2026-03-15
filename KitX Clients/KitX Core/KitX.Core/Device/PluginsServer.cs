@@ -86,9 +86,16 @@ public class PluginsServer : IPluginServer
     public event EventHandler<PluginUnregisteredEventArgs>? PluginUnregistered;
 
     /// <summary>
+    /// Event raised when a plugin sends a response (has RequestId)
+    /// </summary>
+    public event EventHandler<PluginResponseEventArgs>? PluginResponse;
+
+    /// <summary>
     /// Private constructor
     /// </summary>
-    private PluginsServer() { }
+    private PluginsServer()
+    {
+    }
 
     /// <summary>
     /// Initializes the server
@@ -115,6 +122,17 @@ public class PluginsServer : IPluginServer
             return this;
 
         _status = ServerStatus.Starting;
+
+        // Initialize RealPluginManager when server starts, so it can receive plugin messages
+        try
+        {
+            _ = new KitX.Core.Workflow.RealPluginManager(this);
+            Log.Information("[PluginsServer] RealPluginManager initialized for message handling");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[PluginsServer] Failed to initialize RealPluginManager");
+        }
 
         const int maxRetries = 5;
         const int startPort = 7777;
@@ -224,11 +242,19 @@ public class PluginsServer : IPluginServer
                             Log.Warning(ex, "Error handling plugin message");
                         }
 
+                        Log.Information($"[PluginsServer] Invoking PluginMessageReceived event for connection {connectionId}");
                         PluginMessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
                         {
                             ConnectionId = connectionId,
                             Message = message
                         });
+                    };
+
+                    // Forward PluginResponse events from PluginConnection to PluginsServer.PluginResponse
+                    connection.PluginResponse += (sender, args) =>
+                    {
+                        Log.Information($"[PluginsServer] Forwarding PluginResponse event, RequestId: {args.RequestId}");
+                        PluginResponse?.Invoke(this, args);
                     };
 
                     connection.Initialize();
