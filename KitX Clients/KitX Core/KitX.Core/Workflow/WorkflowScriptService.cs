@@ -264,7 +264,7 @@ public class WorkflowScriptService : IWorkflowService
                 catch (Exception ex)
                 {
                     var error = $"Failed to generate plugin API: {ex.Message}";
-                    Log.Error(error);
+                    Log.Error(ex, error);
                 }
 
                 // Execute script with plugins

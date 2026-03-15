@@ -198,13 +198,14 @@ public class RealPluginManager : IPluginManager
                 for (int i = 0; i < callInfo.Parameters.Length; i++)
                 {
                     var paramValue = callInfo.Parameters[i]?.ToString() ?? string.Empty;
+                    var paramName = callInfo.ParameterNames?.Length > i ? callInfo.ParameterNames[i] : i.ToString();
+                    var paramType = callInfo.ParameterTypes?.Length > i ? callInfo.ParameterTypes[i].Name.ToLower() : "string";
                     command.FunctionArgs.Add(new Parameter
                     {
-                        Name = i.ToString(),
+                        Name = paramName,
+                        Type = paramType,
                         Value = paramValue,
-                        Type = callInfo.ParameterTypes?.Length > i
-                            ? callInfo.ParameterTypes[i].Name.ToLower()
-                            : "string"
+                        IsOptional = false
                     });
                 }
                 command.Body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command.FunctionArgs, _serializerOptions));
