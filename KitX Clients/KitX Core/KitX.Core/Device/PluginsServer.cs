@@ -98,21 +98,6 @@ public class PluginsServer : IPluginServer
     }
 
     /// <summary>
-    /// Initializes the server
-    /// </summary>
-    private void InitializeServer()
-    {
-        // Use configured port from ConstantTable, or default to 0 (dynamic port)
-        var port = ConstantTable.PluginsServerPort > 0
-            ? ConstantTable.PluginsServerPort
-            : 0;  // 0 means dynamic port assignment
-
-        port = port is >= 0 and <= 65535 ? port : 0;
-
-        _server ??= new WebSocketServer($"ws://0.0.0.0:{port}");
-    }
-
-    /// <summary>
     /// Runs the plugins server with retry logic for port conflicts
     /// </summary>
     /// <returns>The server instance</returns>
@@ -134,7 +119,7 @@ public class PluginsServer : IPluginServer
             Log.Warning(ex, "[PluginsServer] Failed to initialize RealPluginManager");
         }
 
-        const int maxRetries = 5;
+        const int maxRetries = 10;
         const int startPort = 7777;
         int currentPort = startPort;
         bool serverStarted = false;
@@ -143,14 +128,19 @@ public class PluginsServer : IPluginServer
         {
             try
             {
-                // Try different ports if not using dynamic port
+                // Determine port for this attempt
                 if (ConstantTable.PluginsServerPort <= 0)
                 {
                     currentPort = startPort + retryCount;
-                    _server = new WebSocketServer($"ws://0.0.0.0:{currentPort}");
+                    // Use 127.0.0.1 instead of 0.0.0.0 to avoid permission issues
+                    _server = new WebSocketServer($"ws://127.0.0.1:{currentPort}");
                 }
-
-                InitializeServer();
+                else
+                {
+                    // Use configured port
+                    currentPort = ConstantTable.PluginsServerPort;
+                    _server = new WebSocketServer($"ws://127.0.0.1:{currentPort}");
+                }
 
                 _server!.Start(socket =>
                 {
@@ -239,7 +229,7 @@ public class PluginsServer : IPluginServer
                         }
                         catch (Exception ex)
                         {
-                            Log.Warning(ex, "Error handling plugin message");
+                            Log.Warning(ex, "[PluginsServer] Error handling plugin message");
                         }
 
                         Log.Information($"[PluginsServer] Invoking PluginMessageReceived event for connection {connectionId}");
@@ -271,16 +261,30 @@ public class PluginsServer : IPluginServer
                 // Update ConstantTable with the actual port
                 ConstantTable.PluginsServerPort = Port ?? 0;
 
-                Log.Information($"PluginsServer started on port {Port}");
+                Log.Information($"[PluginsServer] PluginsServer started on port {Port}");
 
                 // Publish port changed event via EventService only (removed direct PortChanged event to avoid potential recursion)
                 EventService.Instance.Publish(EventNames.PluginsServerPortChanged, new PortChangedEventArgs { Port = Port ?? 0 });
             }
-            catch (Exception ex) when (ex.Message.Contains("access") || ex.Message.Contains("used"))
+            catch (System.Net.Sockets.SocketException ex)
             {
-                Log.Warning($"Port {currentPort} is in use, trying next port... ({retryCount + 1}/{maxRetries})");
+                Log.Warning(ex, $"[PluginsServer] Socket error on port {currentPort}: {ex.Message} (attempt {retryCount + 1}/{maxRetries})");
                 _server?.Dispose();
                 _server = null;
+
+                // If using a fixed port, don't retry
+                if (ConstantTable.PluginsServerPort > 0)
+                    break;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"[PluginsServer] Unexpected error starting PluginsServer on port {currentPort}");
+                _server?.Dispose();
+                _server = null;
+
+                // If using a fixed port, don't retry
+                if (ConstantTable.PluginsServerPort > 0)
+                    break;
             }
         }
 
@@ -348,12 +352,12 @@ public class PluginsServer : IPluginServer
 
             _connections.Clear();
 
-            Log.Information("PluginsServer stopped");
+            Log.Information("[PluginsServer] PluginsServer stopped");
             _status = ServerStatus.Pending;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error stopping PluginsServer");
+            Log.Error(ex, "[PluginsServer] Error stopping PluginsServer");
             _status = ServerStatus.Errored;
         }
     }
