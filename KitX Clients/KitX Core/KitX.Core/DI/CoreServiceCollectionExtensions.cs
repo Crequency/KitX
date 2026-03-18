@@ -157,6 +157,22 @@ public static class CoreServiceCollectionExtensions
             return service;
         });
 
+        // KCS File Services
+        Log.Information("Registering IKcsFileService...");
+        services.AddSingleton<IKcsFileService, KcsFileService>(provider =>
+        {
+            var service = new KcsFileService();
+            return service;
+        });
+
+        // Main Program Analyzer
+        Log.Information("Registering IMainProgramAnalyzer...");
+        services.AddSingleton<IMainProgramAnalyzer, MainProgramAnalyzer>(provider =>
+        {
+            var service = new MainProgramAnalyzer();
+            return service;
+        });
+
         Log.Information("AddCoreServices completed.");
         return services;
     }

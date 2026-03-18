@@ -132,10 +132,14 @@ public class RealPluginManager : IPluginManager
     /// <summary>
     /// 调用插件方法（无返回值）
     /// </summary>
+    /// <remarks>
+    /// 使用 fire-and-forget 模式，不等待插件响应。
+    /// 因为 void 返回类型的插件功能不会发送响应。
+    /// </remarks>
     public void Call(PluginCallInfo callInfo)
     {
-        Log.Information($"[RealPluginManager] Call() invoked: {callInfo.PluginName}.{callInfo.MethodName}");
-        CallAsync(callInfo).Wait();
+        Log.Information($"[RealPluginManager] Call() invoked (fire-and-forget): {callInfo.PluginName}.{callInfo.MethodName}");
+        SendRequestWithoutWaitAsync(callInfo);
     }
 
     /// <summary>
@@ -248,6 +252,76 @@ public class RealPluginManager : IPluginManager
         catch (Exception ex)
         {
             Log.Error(ex, $"[RealPluginManager] Error calling {callInfo.PluginName}.{callInfo.MethodName}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 发送请求但不等待响应（fire-and-forget）
+    /// </summary>
+    /// <remarks>
+    /// 用于 void 返回类型的插件调用，因为这类调用不会有响应返回。
+    /// </remarks>
+    private void SendRequestWithoutWaitAsync(PluginCallInfo callInfo)
+    {
+        // 查找插件连接
+        var connection = FindPluginConnection(callInfo.PluginName);
+        if (connection is null)
+        {
+            Log.Error($"[RealPluginManager] Plugin connection not found: {callInfo.PluginName}");
+            throw new InvalidOperationException($"Plugin not found or not connected: {callInfo.PluginName}");
+        }
+
+        Log.Information($"[RealPluginManager] Sending fire-and-forget request to {callInfo.PluginName}.{callInfo.MethodName}");
+
+        try
+        {
+            // 构建命令（不包含 RequestId，因为不需要等待响应）
+            var command = new Command
+            {
+                Request = CommandRequestInfo.ReceiveCommand,
+                FunctionName = callInfo.MethodName,
+                PluginConnectionId = connection.ConnectionId ?? string.Empty
+            };
+
+            // 处理参数
+            if (callInfo.Parameters != null && callInfo.Parameters.Length > 0)
+            {
+                command.FunctionArgs = new();
+                for (int i = 0; i < callInfo.Parameters.Length; i++)
+                {
+                    var paramValue = callInfo.Parameters[i]?.ToString() ?? string.Empty;
+                    var paramName = callInfo.ParameterNames?.Length > i ? callInfo.ParameterNames[i] : i.ToString();
+                    var paramType = callInfo.ParameterTypes?.Length > i ? callInfo.ParameterTypes[i].Name.ToLower() : "string";
+                    command.FunctionArgs.Add(new Parameter
+                    {
+                        Name = paramName,
+                        Type = paramType,
+                        Value = paramValue,
+                        IsOptional = false
+                    });
+                }
+                command.Body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command.FunctionArgs, _serializerOptions));
+                command.BodyLength = command.Body.Length;
+            }
+
+            // 构建请求
+            var request = new Request
+            {
+                Type = RequestTypes.Command,
+                Version = RequestVersions.V1,
+                Content = JsonSerializer.Serialize(command, _serializerOptions)
+            };
+
+            // 发送请求
+            var message = JsonSerializer.Serialize(request, _serializerOptions);
+            connection.Send(message);
+
+            Log.Information($"[RealPluginManager] Fire-and-forget request sent to {callInfo.PluginName}.{callInfo.MethodName}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"[RealPluginManager] Error sending fire-and-forget request to {callInfo.PluginName}.{callInfo.MethodName}");
             throw;
         }
     }
