@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,7 +19,7 @@ public class ConfigManager : IConfigService, IDisposable
     /// <summary>
     /// Gets the singleton instance
     /// </summary>
-    internal static ConfigManager Instance => _instance ??= new();
+    public static ConfigManager Instance => _instance ??= new();
 
     private string? _configLocation;
 

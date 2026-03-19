@@ -20,7 +20,7 @@ using KitX.Core.Hotkey;
 using KitX.Core.Plugin;
 using KitX.Core.Security;
 using KitX.Core.Statistics;
-using KitX.Core.Task;
+using KitX.Core.Tasks;
 using KitX.Core.Workflow;
 using KitX.Core.Event;
 using Serilog;
