@@ -22,6 +22,7 @@ using KitX.Core.Security;
 using KitX.Core.Statistics;
 using KitX.Core.Tasks;
 using KitX.Core.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Event;
 using Serilog;
 
@@ -170,6 +171,28 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IMainProgramAnalyzer, MainProgramAnalyzer>(provider =>
         {
             var service = new MainProgramAnalyzer();
+            return service;
+        });
+
+        // Block Script Services
+        Log.Information("Registering IBlockScriptParser...");
+        services.AddSingleton<IBlockScriptParser, KitX.Core.Workflow.BlockScripting.BlockScriptParser>(provider =>
+        {
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScriptParser();
+            return service;
+        });
+
+        Log.Information("Registering IBlockScriptExecutor...");
+        services.AddSingleton<IBlockScriptExecutor, KitX.Core.Workflow.BlockScripting.BlockScriptExecutor>(provider =>
+        {
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScriptExecutor();
+            return service;
+        });
+
+        Log.Information("Registering IBlockScopeManager...");
+        services.AddSingleton<IBlockScopeManager, KitX.Core.Workflow.BlockScripting.BlockScopeManager>(provider =>
+        {
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScopeManager();
             return service;
         });
 

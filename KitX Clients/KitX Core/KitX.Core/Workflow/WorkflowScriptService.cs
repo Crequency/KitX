@@ -713,6 +713,98 @@ public class WorkflowScriptService : IWorkflowService
         return await ExecuteCodesAsync(fullCode, requiredPlugins, includeTimestamp, cancellationToken);
     }
 
+    #region Block Script Methods
+
+    // Block script parser instance
+    private BlockScripting.BlockScriptParser? _blockScriptParser;
+
+    // Block script executor instance
+    private BlockScripting.BlockScriptExecutor? _blockScriptExecutor;
+
+    /// <summary>
+    /// Gets the block script parser
+    /// </summary>
+    private BlockScripting.BlockScriptParser BlockScriptParser =>
+        _blockScriptParser ??= new BlockScripting.BlockScriptParser();
+
+    /// <summary>
+    /// Gets the block script executor
+    /// </summary>
+    private BlockScripting.BlockScriptExecutor BlockScriptExecutor =>
+        _blockScriptExecutor ??= new BlockScripting.BlockScriptExecutor();
+
+    /// <summary>
+    /// 解析块脚本
+    /// </summary>
+    public BlockScriptParseResult ParseBlockScript(string sourceCode)
+    {
+        return BlockScriptParser.Parse(sourceCode);
+    }
+
+    /// <summary>
+    /// 异步解析块脚本
+    /// </summary>
+    public Task<BlockScriptParseResult> ParseBlockScriptAsync(string sourceCode)
+    {
+        return BlockScriptParser.ParseAsync(sourceCode);
+    }
+
+    /// <summary>
+    /// 验证块脚本
+    /// </summary>
+    public BlockScriptValidationResult ValidateBlockScript(string sourceCode)
+    {
+        return BlockScriptParser.Validate(sourceCode);
+    }
+
+    /// <summary>
+    /// 执行块脚本
+    /// </summary>
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        BlockScript script,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        return BlockScriptExecutor.ExecuteAsync(script, parameters, cancellationToken);
+    }
+
+    /// <summary>
+    /// 从块脚本源代码执行
+    /// </summary>
+    public async Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Parse the block script
+        var parseResult = BlockScriptParser.Parse(sourceCode);
+
+        if (!parseResult.IsSuccess || parseResult.Script == null)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = parseResult.ErrorMessage ?? "Failed to parse block script"
+            };
+        }
+
+        // 2. Validate
+        var validationResult = BlockScriptExecutor.Validate(parseResult.Script);
+        if (!validationResult.IsValid)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = string.Join("; ", validationResult.Errors)
+            };
+        }
+
+        // 3. Execute
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, parameters, cancellationToken);
+    }
+
+    #endregion
+
     #endregion
 }
 
