@@ -362,7 +362,7 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
 
                     var result = System.Text.Encoding.UTF8.GetString(bytes);
 
-                    Log.Information($"UDP From: {client, -21}, Receive: {result}");
+                    Log.Verbose($"UDP From: {client, -21}, Receive: {result}");
 
                     try
                     {

@@ -27,21 +27,6 @@ public class BlockScopeManager : IBlockScopeManager
     public IBlockScope GlobalScope => _globalScope;
 
     /// <summary>
-    /// Creates a new local scope for a block
-    /// </summary>
-    public IBlockScope CreateLocalScope(string blockName)
-    {
-        if (_localScopes.TryGetValue(blockName, out var existing))
-        {
-            return existing;
-        }
-
-        var scope = new BlockScope(blockName, isGlobal: false);
-        _localScopes[blockName] = scope;
-        return scope;
-    }
-
-    /// <summary>
     /// Resolves a variable name to its value (searches local then global)
     /// </summary>
     public object? ResolveVariable(string name)
@@ -125,14 +110,6 @@ public class BlockScopeManager : IBlockScopeManager
                 _globalScope.SetVariable(varDecl.Name, varDecl.DefaultValue);
             }
         }
-    }
-
-    /// <summary>
-    /// Gets a local scope by block name
-    /// </summary>
-    public IBlockScope? GetLocalScope(string blockName)
-    {
-        return _localScopes.TryGetValue(blockName, out var scope) ? scope : null;
     }
 }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -148,12 +148,12 @@ internal class StrictScriptValidator : CSharpSyntaxWalker
             return;
         }
 
-        // 4. 允许：return 语句
-        if (node is ReturnStatementSyntax)
-        {
-            base.Visit(node);
-            return;
-        }
+        // 4. 允许：return 语句 // 不再允许，因为主程序的return语句没有存在的意义
+        // if (node is ReturnStatementSyntax)
+        // {
+        //     base.Visit(node);
+        //     return;
+        // }
 
         // 5. 允许：类型转换
         if (node is CastExpressionSyntax)

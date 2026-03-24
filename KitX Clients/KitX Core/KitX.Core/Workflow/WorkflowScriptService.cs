@@ -803,6 +803,48 @@ public class WorkflowScriptService : IWorkflowService
         return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, parameters, cancellationToken);
     }
 
+    /// <summary>
+    /// 从块脚本源代码执行（带辅助函数）
+    /// </summary>
+    /// <param name="sourceCode">块脚本源代码</param>
+    /// <param name="helperFunctions">辅助函数列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>执行结果</returns>
+    public async Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        List<HelperFunction> helperFunctions,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Parse the block script (using original source with attributes)
+        var parseResult = BlockScriptParser.Parse(sourceCode);
+
+        if (!parseResult.IsSuccess || parseResult.Script == null)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = parseResult.ErrorMessage ?? "Failed to parse block script"
+            };
+        }
+
+        // 2. Validate
+        var validationResult = BlockScriptExecutor.Validate(parseResult.Script);
+        if (!validationResult.IsValid)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = string.Join("; ", validationResult.Errors)
+            };
+        }
+
+        // Store helper functions for execution (these will be injected into each evaluation)
+        parseResult.Script.HelperFunctions = helperFunctions ?? new List<HelperFunction>();
+
+        // 3. Execute
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, null, cancellationToken);
+    }
+
     #endregion
 
     #endregion
@@ -923,103 +965,4 @@ public class WorkflowCase : IWorkflowCase
     public string IconPath { get; set; } = string.Empty;
     public bool IsRunning { get; set; }
     public string? ScriptPath { get; set; }
-}
-
-/// <summary>
-/// Plugin service provider implementation for workflow integration
-/// </summary>
-public class PluginServiceProvider : IPluginServiceProvider
-{
-    private readonly List<PluginInfo> _runningPlugins = new();
-    private readonly object? _pluginsServer;
-
-    /// <summary>
-    /// Constructor
-    /// </summary>
-    /// <param name="pluginsServer">Plugins server instance (can be null)</param>
-    public PluginServiceProvider(object? pluginsServer)
-    {
-        _pluginsServer = pluginsServer;
-    }
-
-    /// <summary>
-    /// Generates a plugin ID from plugin info
-    /// </summary>
-    private Guid GeneratePluginId(PluginInfo pluginInfo)
-    {
-        // Generate deterministic GUID from: PublisherName_AuthorName_Name_Version
-        var input = $"{pluginInfo.PublisherName}_{pluginInfo.AuthorName}_{pluginInfo.Name}_{pluginInfo.Version}";
-
-        // Use MD5 hash to create a deterministic GUID
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
-
-        // Convert first 16 bytes to GUID
-        return new Guid(hash.Take(16).ToArray());
-    }
-
-    /// <summary>
-    /// Gets running plugins
-    /// </summary>
-    public IEnumerable<PluginInfo> GetRunningPlugins()
-    {
-        return _runningPlugins.ToList();
-    }
-
-    /// <summary>
-    /// Finds a plugin by name
-    /// </summary>
-    public PluginInfo? FindPlugin(string pluginName)
-    {
-        return _runningPlugins.FirstOrDefault(p => p.Name == pluginName);
-    }
-
-    /// <summary>
-    /// Finds a connector for a plugin
-    /// </summary>
-    public object? FindConnector(PluginInfo pluginInfo)
-    {
-        // TODO: Implement connector lookup using plugins server
-        return null;
-    }
-
-    /// <summary>
-    /// Sends a request asynchronously
-    /// </summary>
-    public CTask SendRequestAsync(object connector, object request)
-    {
-        // TODO: Implement request sending
-        return CTask.CompletedTask;
-    }
-
-    /// <summary>
-    /// Subscribes to plugin responses
-    /// </summary>
-    public void SubscribeToResponses(Action<string, string> responseHandler)
-    {
-        // TODO: Implement response subscription
-    }
-
-    /// <summary>
-    /// Adds a running plugin
-    /// </summary>
-    public void AddRunningPlugin(PluginInfo pluginInfo)
-    {
-        if (!_runningPlugins.Any(p => GeneratePluginId(p) == GeneratePluginId(pluginInfo)))
-        {
-            _runningPlugins.Add(pluginInfo);
-        }
-    }
-
-    /// <summary>
-    /// Removes a running plugin
-    /// </summary>
-    public void RemoveRunningPlugin(Guid pluginId)
-    {
-        var plugin = _runningPlugins.FirstOrDefault(p => GeneratePluginId(p) == pluginId);
-        if (plugin != null)
-        {
-            _runningPlugins.Remove(plugin);
-        }
-    }
 }
