@@ -779,6 +779,8 @@ public class BlockScriptParser : IBlockScriptParser
         loopBlock.NextBlockName = firstLoop.FalseBlockName;
 
         // Add a copy of the Loop statement to the LoopBlock
+        // IMPORTANT: Set LoopBodyEndReturnTo to the parent block name so that
+        // LoopBodyEnd statements can find this Loop node when they return
         var loopBlockStatement = new FlowControlStatement
         {
             LineNumber = firstLoop.LineNumber,
@@ -786,7 +788,8 @@ public class BlockScriptParser : IBlockScriptParser
             ControlType = FlowControlType.Loop,
             ConditionExpression = firstLoop.ConditionExpression,
             TrueBlockName = firstLoop.TrueBlockName,
-            FalseBlockName = firstLoop.FalseBlockName
+            FalseBlockName = firstLoop.FalseBlockName,
+            LoopBodyEndReturnTo = block.Name  // Parent block name - for LoopBodyEnd lookup
         };
         loopBlock.Statements.Add(loopBlockStatement);
 

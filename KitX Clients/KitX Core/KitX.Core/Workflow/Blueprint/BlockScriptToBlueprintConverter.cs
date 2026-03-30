@@ -1,0 +1,1639 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using KitX.Core.Contract.Workflow;
+using Serilog;
+
+namespace KitX.Core.Workflow.Blueprint;
+
+/// <summary>
+/// Converts BlockScript to Blueprint
+/// </summary>
+public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
+{
+    private readonly IBlockScriptParser _parser;
+
+    public BlockScriptToBlueprintConverter(IBlockScriptParser parser)
+    {
+        _parser = parser;
+    }
+
+    public Contract.Workflow.Blueprint Convert(string sourceCode, List<HelperFunction>? helperFunctions = null)
+    {
+        var result = _parser.Parse(sourceCode);
+        if (!result.IsSuccess || result.Script == null)
+        {
+            throw new InvalidOperationException($"Failed to parse BlockScript: {result.ErrorMessage}");
+        }
+        return Convert(result.Script);
+    }
+
+    public Contract.Workflow.Blueprint Convert(BlockScript script)
+    {
+        var blueprint = new Contract.Workflow.Blueprint
+        {
+            Name = "Imported from BlockScript",
+            HelperFunctions = script.HelperFunctions,
+            PubVarNames = new List<string>()
+        };
+
+        var context = new ConversionContext
+        {
+            Blueprint = blueprint,
+            Script = script,
+            NodeMap = new Dictionary<string, BlueprintNode>(),
+            NextPubVarIndex = 0
+        };
+
+        // Process ConstBlock
+        if (script.ConstBlock != null)
+        {
+            ProcessConstBlock(script.ConstBlock, context);
+        }
+
+        // Process PubVarBlock
+        if (script.PubVarBlock != null)
+        {
+            ProcessPubVarBlock(script.PubVarBlock, context);
+        }
+
+        // Process MainBlock - create Entry node and main execution flow
+        if (script.MainBlock != null)
+        {
+            ProcessMainBlock(script.MainBlock, context);
+        }
+
+        // Process NamedBlocks (for calls from main flow)
+        foreach (var kvp in script.NamedBlocks)
+        {
+            context.NamedBlockMap[kvp.Key] = kvp.Value;
+        }
+
+        // Process LoopBlocks
+        foreach (var kvp in script.LoopBlocks)
+        {
+            ProcessLoopBlock(kvp.Value, context);
+        }
+
+        // Auto-layout nodes
+        LayoutNodes(blueprint);
+
+        Log.Information("[BlueprintConversion] Complete: {NodeCount} nodes, {ConnectionCount} connections",
+            blueprint.Nodes.Count, blueprint.Connections.Count);
+
+        return blueprint;
+    }
+
+    private void ProcessConstBlock(BlockDefinition block, ConversionContext context)
+    {
+        foreach (var variable in block.Variables)
+        {
+            // ✅ 如果 ConstValue 为空，根据类型设置默认值
+            var constValue = variable.DefaultValue?.ToString();
+            if (string.IsNullOrEmpty(constValue))
+            {
+                constValue = variable.Type.ToLower() switch
+                {
+                    "int" or "integer" or "long" or "short" or "byte" => "0",
+                    "float" or "double" or "decimal" => "0",
+                    "bool" or "boolean" => "false",
+                    "string" => "",
+                    "char" => "\0",
+                    _ => ""
+                };
+            }
+
+            var constNode = new ConstNode
+            {
+                ConstName = variable.Name,
+                ConstType = variable.Type,
+                ConstValue = constValue
+            };
+            context.Blueprint.AddNode(constNode);
+            context.Blueprint.ConstValues.Add(new VariableConstant
+            {
+                Name = variable.Name,
+                Type = variable.Type,
+                DefaultValue = variable.DefaultValue
+            });
+            Log.Debug("Created ConstNode: Name={ConstName}, Id={NodeId}", constNode.Name, constNode.Id);
+        }
+    }
+
+    private void ProcessPubVarBlock(BlockDefinition block, ConversionContext context)
+    {
+        foreach (var variable in block.Variables)
+        {
+            context.Blueprint.PubVarNames.Add(variable.Name);
+        }
+    }
+
+    private void ProcessMainBlock(BlockDefinition block, ConversionContext context)
+    {
+        // Create Entry node
+        var entryNode = new EntryNode
+        {
+            X = 50,
+            Y = 50
+        };
+        context.Blueprint.AddNode(entryNode);
+        context.EntryNode = entryNode;
+        Log.Debug("Created EntryNode: Name={NodeName}, Id={NodeId}", entryNode.Name, entryNode.Id);
+
+        // Process all statements in main block
+        var mainFlowNodes = new List<BlueprintNode>();
+        var currentY = 150.0;
+
+        Console.WriteLine($"[DEBUG] ProcessMainBlock: Starting foreach, Statements.Count = {block.Statements.Count}");
+        for (int i = 0; i < block.Statements.Count; i++)
+        {
+            var statement = block.Statements[i];
+            var sourcePreview = statement.SourceCode?.Length > 50
+                ? statement.SourceCode.Substring(0, 50) + "..."
+                : statement.SourceCode ?? "(null)";
+            Console.WriteLine($"[DEBUG] ProcessMainBlock: Processing statement {i}: {statement.GetType().Name}, SourceCode: {sourcePreview}");
+            var node = ProcessStatement(statement, context, 50, currentY);
+            Console.WriteLine($"[DEBUG] ProcessMainBlock: ProcessStatement returned: {node?.Name} ({node?.Id})");
+            if (node != null)
+            {
+                Console.WriteLine($"[DEBUG] ProcessMainBlock: Adding node {node.Name} ({node.Id}) to blueprint");
+                context.Blueprint.AddNode(node);
+                mainFlowNodes.Add(node);
+                currentY += 120;
+            }
+        }
+        Console.WriteLine($"[DEBUG] ProcessMainBlock: Finished foreach, mainFlowNodes.Count = {mainFlowNodes.Count}");
+
+        // Link main flow with Exec connections
+        LinkNodesWithExec(mainFlowNodes, context.Blueprint);
+
+        Console.WriteLine($"[DEBUG] ProcessMainBlock: mainFlowNodes count = {mainFlowNodes.Count}");
+        for (int i = 0; i < mainFlowNodes.Count; i++)
+        {
+            Console.WriteLine($"[DEBUG] ProcessMainBlock: mainFlowNodes[{i}] = {mainFlowNodes[i].Name} ({mainFlowNodes[i].Id})");
+        }
+
+        // ✅ 处理 Branch/Loop 节点与子块的连接
+        // 注意：Loop 节点存储在 LoopBlocks["MainBlock"] 中，不在 MainBlock.Statements
+        // 因此需要从 context.LoopNodesByParentBlock 中查找
+        var flowNode = mainFlowNodes.LastOrDefault(n => n is BranchNode || n is LoopNode);
+        FlowControlStatement? flowCtrl = null;
+
+        // 如果 mainFlowNodes 中没有找到 Loop，尝试从 LoopBlocks 处理
+        if (flowNode == null)
+        {
+            // 检查 LoopBlocks 中是否有 MainBlock 的 Loop
+            if (context.Script.LoopBlocks.TryGetValue("MainBlock", out var loopBlock))
+            {
+                // 获取 Loop FlowControlStatement
+                flowCtrl = loopBlock.Statements.FirstOrDefault(s => s is FlowControlStatement) as FlowControlStatement;
+                if (flowCtrl != null)
+                {
+                    // ✅ 设置 CurrentParentBlock 以便后续 ProcessLoopBlock 复用此 Loop 节点
+                    context.CurrentParentBlock = "MainBlock";
+
+                    // 在 LoopBlocks["MainBlock"] 中创建 Loop 节点
+                    var loopNodeInLoopBlock = ProcessFlowControlStatement(flowCtrl, context, 350, 150);
+                    if (loopNodeInLoopBlock is LoopNode loopFromBlock)
+                    {
+                        flowNode = loopFromBlock;
+                        // ✅ 注册到 LoopNodesByParentBlock 以便后续使用
+                        context.LoopNodesByParentBlock["MainBlock"] = loopFromBlock;
+                        Console.WriteLine($"[DEBUG] ProcessMainBlock: Created Loop node from LoopBlocks, registering as MainBlock's Loop");
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Branch/Loop 在 MainBlock.Statements 中
+            flowCtrl = block.Statements.LastOrDefault(s => s is FlowControlStatement) as FlowControlStatement;
+        }
+
+        Console.WriteLine($"[DEBUG] ProcessMainBlock: flowNode = {flowNode?.Name} ({flowNode?.Id})");
+        if (flowNode != null && flowCtrl != null)
+        {
+            Console.WriteLine($"[DEBUG] ProcessMainBlock: Processing flow node connections");
+            if (flowNode is BranchNode branch)
+            {
+                ProcessBranchNodeConnectionsInMain(branch, flowCtrl, context);
+            }
+            else if (flowNode is LoopNode loop)
+            {
+                ProcessLoopNodeConnectionsInMain(loop, flowCtrl, context);
+            }
+        }
+
+        // Link Entry to first main flow node
+        if (mainFlowNodes.Count > 0)
+        {
+            var firstNode = mainFlowNodes[0];
+            var entryExecPin = entryNode.OutputPins.First(p => p.Name == "Exec");
+            var firstExecPin = firstNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+            if (entryExecPin != null && firstExecPin != null)
+            {
+                context.Blueprint.AddConnection(new BlueprintConnection
+                {
+                    SourceNodeId = entryNode.Id,
+                    SourcePinId = entryExecPin.Id,
+                    TargetNodeId = firstNode.Id,
+                    TargetPinId = firstExecPin.Id
+                });
+            }
+        }
+    }
+
+    private void ProcessBranchNodeConnectionsInMain(BranchNode branch, FlowControlStatement flowCtrl, ConversionContext context)
+    {
+        double x = 350;
+        double targetY = 300;
+
+        // 处理 True 分支
+        if (!string.IsNullOrEmpty(flowCtrl.TrueBlockName))
+        {
+            var trueBlock = context.Script.GetBlockByName(flowCtrl.TrueBlockName);
+            if (trueBlock != null)
+            {
+                var firstTrueNode = ProcessBlockRecursive(trueBlock, context, x, targetY);
+                if (firstTrueNode != null)
+                {
+                    var truePin = branch.OutputPins.FirstOrDefault(p => p.Name == "True");
+                    var firstExecIn = firstTrueNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                    if (truePin != null && firstExecIn != null)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessBranchNodeConnectionsInMain: Creating {branch.Name}.True -> {firstTrueNode.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = branch.Id,
+                            SourcePinId = truePin.Id,
+                            TargetNodeId = firstTrueNode.Id,
+                            TargetPinId = firstExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理 False 分支
+        if (!string.IsNullOrEmpty(flowCtrl.FalseBlockName))
+        {
+            var falseBlock = context.Script.GetBlockByName(flowCtrl.FalseBlockName);
+            if (falseBlock != null)
+            {
+                // ✅ 如果 falseBlock 已经访问过，跳过（避免重复创建连接）
+                if (context.VisitedBlocks.Contains(falseBlock.Name))
+                {
+                    Console.WriteLine($"[DEBUG] ProcessBranchNodeConnectionsInMain: falseBlock {falseBlock.Name} already visited, skipping");
+                }
+                else
+                {
+                    var firstFalseNode = ProcessBlockRecursive(falseBlock, context, x, targetY + 200);
+                    if (firstFalseNode != null && firstFalseNode.Id != branch.Id)
+                    {
+                        var falsePin = branch.OutputPins.FirstOrDefault(p => p.Name == "False");
+                        var firstExecIn = firstFalseNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                        if (falsePin != null && firstExecIn != null)
+                        {
+                            Console.WriteLine($"[DEBUG] ProcessBranchNodeConnectionsInMain: Creating {branch.Name}.False -> {firstFalseNode.Name}.Exec");
+                            context.Blueprint.AddConnection(new BlueprintConnection
+                            {
+                                SourceNodeId = branch.Id,
+                                SourcePinId = falsePin.Id,
+                                TargetNodeId = firstFalseNode.Id,
+                                TargetPinId = firstExecIn.Id
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void ProcessLoopNodeConnectionsInMain(LoopNode loop, FlowControlStatement flowCtrl, ConversionContext context)
+    {
+        // ✅ 使用已创建的 loop 节点，不重新创建
+        double x = 350;
+        double targetY = 300;
+
+        // ✅ 处理 LoopBody
+        if (!string.IsNullOrEmpty(flowCtrl.TrueBlockName))
+        {
+            var loopBodyBlock = context.Script.GetBlockByName(flowCtrl.TrueBlockName);
+            if (loopBodyBlock != null)
+            {
+                // ✅ 同时注册 TrueBlockName 和 ParentBlockName，以便 LoopBodyEnd 查找
+                context.LoopNodesByParentBlock[flowCtrl.TrueBlockName] = loop;
+                if (!string.IsNullOrEmpty(flowCtrl.LoopBodyEndReturnTo))
+                {
+                    context.LoopNodesByParentBlock[flowCtrl.LoopBodyEndReturnTo] = loop;
+                }
+
+                var firstLoopNode = ProcessBlockRecursive(loopBodyBlock, context, x, targetY);
+                if (firstLoopNode != null)
+                {
+                    var loopBodyPin = loop.OutputPins.FirstOrDefault(p => p.Name == "LoopBody");
+                    var firstExecIn = firstLoopNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                    if (loopBodyPin != null && firstExecIn != null)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessLoopNodeConnectionsInMain: Creating {loop.Name}.LoopBody -> {firstLoopNode.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = loop.Id,
+                            SourcePinId = loopBodyPin.Id,
+                            TargetNodeId = firstLoopNode.Id,
+                            TargetPinId = firstExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理 LoopEnd
+        if (!string.IsNullOrEmpty(flowCtrl.FalseBlockName))
+        {
+            var afterLoopBlock = context.Script.GetBlockByName(flowCtrl.FalseBlockName);
+            if (afterLoopBlock != null)
+            {
+                var firstAfterLoopNode = ProcessBlockRecursive(afterLoopBlock, context, x, targetY + 200);
+                if (firstAfterLoopNode != null)
+                {
+                    var loopEndPin = loop.OutputPins.FirstOrDefault(p => p.Name == "LoopEnd");
+                    var firstExecIn = firstAfterLoopNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                    if (loopEndPin != null && firstExecIn != null)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessLoopNodeConnectionsInMain: Creating {loop.Name}.LoopEnd -> {firstAfterLoopNode.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = loop.Id,
+                            SourcePinId = loopEndPin.Id,
+                            TargetNodeId = firstAfterLoopNode.Id,
+                            TargetPinId = firstExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理 LoopBodyEndReturnTo
+        if (!string.IsNullOrEmpty(flowCtrl.LoopBodyEndReturnTo))
+        {
+            context.LoopNodesByParentBlock[flowCtrl.LoopBodyEndReturnTo] = loop;
+        }
+    }
+
+    private BlueprintNode? ProcessStatement(BlockStatement statement, ConversionContext context, double x, double y)
+    {
+        Console.WriteLine($"[DEBUG] ProcessStatement: {statement.GetType().Name}");
+        switch (statement)
+        {
+            case FlowControlStatement flowCtrl:
+                Console.WriteLine($"[DEBUG] ProcessStatement: FlowControlStatement ControlType={flowCtrl.ControlType}, TrueBlock={flowCtrl.TrueBlockName}, FalseBlock={flowCtrl.FalseBlockName}, SourceCode={flowCtrl.SourceCode}");
+                // ✅ NextBlock = Branch/Loop(...) 需要创建节点！不能跳过
+                // 因为 Branch/Loop 节点有输出引脚需要连接到子块
+                if ((flowCtrl.ControlType == FlowControlType.Branch || flowCtrl.ControlType == FlowControlType.Loop) &&
+                    !string.IsNullOrEmpty(flowCtrl.TrueBlockName) &&
+                    !string.IsNullOrEmpty(flowCtrl.FalseBlockName))
+                {
+                    // ✅ 对于 Loop 节点，检查是否已存在（避免重复创建）
+                    if (flowCtrl.ControlType == FlowControlType.Loop &&
+                        context.CurrentParentBlock != null &&
+                        context.LoopNodesByParentBlock.TryGetValue(context.CurrentParentBlock, out var existingLoop))
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessStatement: Reusing existing Loop node for {context.CurrentParentBlock}");
+                        context.LastProcessedNode = existingLoop;
+                        return existingLoop;
+                    }
+
+                    Console.WriteLine($"[DEBUG] ProcessStatement: Creating {flowCtrl.ControlType} node for NextBlock = {flowCtrl.ControlType}(...)");
+                    var flowNode = ProcessFlowControlStatement(flowCtrl, context, x, y);
+                    if (flowNode != null)
+                    {
+                        context.LastProcessedNode = flowNode;
+                    }
+                    return flowNode;
+                }
+                if (flowCtrl.ControlType == FlowControlType.LoopBodyEnd)
+                {
+                    HandleLoopBodyEnd(flowCtrl, context);
+                    return null;
+                }
+                var otherFlowNode = ProcessFlowControlStatement(flowCtrl, context, x, y);
+                if (otherFlowNode != null)
+                {
+                    context.LastProcessedNode = otherFlowNode;
+                }
+                return otherFlowNode;
+
+            case ExpressionStatement expr:
+                if (expr.Expression.StartsWith("NextBlock = "))
+                    return null;
+                var actionNode = CreateActionNodeFromExpression(expr.Expression, context);
+                if (actionNode != null)
+                {
+                    context.LastProcessedNode = actionNode;
+                }
+                return actionNode;
+
+            default:
+                return null;
+        }
+    }
+
+    private void HandleLoopBodyEnd(FlowControlStatement flowCtrl, ConversionContext context)
+    {
+        if (!string.IsNullOrEmpty(flowCtrl.LoopBodyEndReturnTo))
+        {
+            // ✅ 查找对应的Loop节点
+            if (context.LoopNodesByParentBlock.TryGetValue(flowCtrl.LoopBodyEndReturnTo, out var loopNode))
+            {
+                // ✅ 获取当前块中最后一个已处理的节点
+                var lastNode = context.LastProcessedNode;
+
+                if (lastNode != null)
+                {
+                    // ✅ 建立从最后节点到Loop节点Condition输入的执行流回连
+                    var lastExecOut = lastNode.OutputPins.FirstOrDefault(p => p.Name == "Exec");
+                    var loopConditionIn = loopNode.InputPins.FirstOrDefault(p => p.Name == "Condition");
+
+                    if (lastExecOut != null && loopConditionIn != null)
+                    {
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = lastNode.Id,
+                            SourcePinId = lastExecOut.Id,
+                            TargetNodeId = loopNode.Id,
+                            TargetPinId = loopConditionIn.Id,
+                            PubVarName = null
+                        });
+                        Log.Debug("Created LoopBodyEnd Exec return: {LastNode} -> Loop.Condition");
+                    }
+                }
+
+                // ✅ 同时更新LoopNodesByParentBlock以便下次引用
+                context.LoopNodesByParentBlock[flowCtrl.LoopBodyEndReturnTo] = loopNode;
+            }
+        }
+    }
+
+    private BlueprintNode? ProcessFlowControlStatement(FlowControlStatement flowCtrl, ConversionContext context, double x, double y)
+    {
+        var node = CreateControlFlowNode(flowCtrl, context);
+        if (node == null) return null;
+
+        node.X = x;
+        node.Y = y;
+
+        // ✅ 不在这里添加到 blueprint，由调用者（ProcessStatement）负责添加
+        // 这样可以避免重复添加
+
+        if (!string.IsNullOrEmpty(flowCtrl.ConditionExpression))
+        {
+            CreateDataConnectionsForExpression(flowCtrl.ConditionExpression, node, context);
+        }
+
+        double targetY = y + 150;
+
+        switch (flowCtrl.ControlType)
+        {
+            case FlowControlType.Branch:
+                // ✅ 不在这里处理子块连接，由 ProcessBlockRecursive 通过 NextBlock 属性统一处理
+                // 这样可以避免重复处理和 visited 问题
+                Console.WriteLine($"[DEBUG] ProcessFlowControlStatement: Branch node created, TrueBlock={flowCtrl.TrueBlockName}, FalseBlock={flowCtrl.FalseBlockName}");
+                break;
+
+            case FlowControlType.Loop:
+                // ✅ 不在这里处理子块连接，由 ProcessBlockRecursive 通过 NextBlock 属性统一处理
+                Console.WriteLine($"[DEBUG] ProcessFlowControlStatement: Loop node created, LoopBody={flowCtrl.TrueBlockName}, LoopEnd={flowCtrl.FalseBlockName}");
+                break;
+        }
+
+        return node;
+    }
+
+    private BlueprintNode? ProcessBlockRecursive(BlockDefinition block, ConversionContext context, double x, double y)
+    {
+        Console.WriteLine($"[DEBUG] ProcessBlockRecursive: block={block.Name}, type={block.Type}, statements={block.Statements.Count}");
+
+        // 如果块已经访问过，返回第一个节点用于建立连接（而不是null）
+        if (context.VisitedBlocks.Contains(block.Name))
+        {
+            var cachedFirstNode = context.BlockFirstNodes.GetValueOrDefault(block.Name);
+            Console.WriteLine($"[DEBUG] ProcessBlockRecursive: block {block.Name} ALREADY VISITED, returning {(cachedFirstNode != null ? cachedFirstNode.Name : "null")}");
+            return cachedFirstNode;
+        }
+        context.VisitedBlocks.Add(block.Name);
+
+        var nodes = new List<BlueprintNode>();
+        var currentY = y;
+
+        Console.WriteLine($"[DEBUG] ProcessBlockRecursive: Processing {block.Statements.Count} statements for block {block.Name}");
+        // 首先处理所有可执行语句节点
+        foreach (var statement in block.Statements)
+        {
+            Console.WriteLine($"[DEBUG] ProcessBlockRecursive:   Processing statement: {statement.GetType().Name}");
+            var node = ProcessStatement(statement, context, x, currentY);
+            Console.WriteLine($"[DEBUG] ProcessBlockRecursive:   ProcessStatement returned: {node?.Name} ({node?.Id})");
+            if (node != null)
+            {
+                // ✅ 检查节点是否已经存在于 Blueprint 中，避免重复添加
+                if (!context.Blueprint.Nodes.Any(n => n.Id == node.Id))
+                {
+                    Console.WriteLine($"[DEBUG] ProcessBlockRecursive: Adding node {node.Name} ({node.Id}) to blueprint");
+                    context.Blueprint.AddNode(node);
+                }
+                else
+                {
+                    Console.WriteLine($"[DEBUG] ProcessBlockRecursive: Node {node.Name} ({node.Id}) already in blueprint, skipping");
+                }
+                nodes.Add(node);
+                currentY += 120;
+            }
+        }
+        Console.WriteLine($"[DEBUG] ProcessBlockRecursive: After processing statements, nodes.Count = {nodes.Count}");
+
+        // 如果块只有路由语句（nodes为空），仍然需要处理路由以建立连接
+        if (nodes.Count == 0 && block.Statements.Count > 0)
+        {
+            var firstStatement = block.Statements[0];
+            if (firstStatement is FlowControlStatement flowCtrl &&
+                (flowCtrl.ControlType == FlowControlType.Branch || flowCtrl.ControlType == FlowControlType.Loop))
+            {
+                // 这是一个纯路由块，需要处理路由语句以建立连接
+                Console.WriteLine($"[DEBUG] ProcessBlockRecursive: Processing routing-only block {block.Name}");
+                var routingNode = ProcessFlowControlStatement(flowCtrl, context, x, y);
+                if (routingNode != null)
+                {
+                    context.Blueprint.AddNode(routingNode);
+                    nodes.Add(routingNode);
+                    Console.WriteLine($"[DEBUG] ProcessBlockRecursive: Added routing node {routingNode.Name} ({routingNode.Id}) to nodes list");
+                }
+            }
+        }
+
+        LinkNodesWithExec(nodes, context.Blueprint);
+
+        // ✅ 标记为已访问
+        context.VisitedBlocks.Add(block.Name);
+
+        // ✅ 处理 Branch/Loop 节点与子块的连接
+        var flowNode = nodes.LastOrDefault(n => n is BranchNode || n is LoopNode);
+        if (flowNode != null)
+        {
+            Console.WriteLine($"[DEBUG] ProcessBlockRecursive: Processing flow node connections for {block.Name}");
+            if (flowNode is BranchNode branch)
+            {
+                ProcessBranchNodeConnections(branch, block, context, x, y);
+            }
+            else if (flowNode is LoopNode loop)
+            {
+                ProcessLoopNodeConnections(loop, block, context, x, y);
+            }
+        }
+
+        // 处理跨块连接
+        if (!string.IsNullOrEmpty(block.NextBlockName) &&
+            block.Type != BlockType.LoopBlock)
+        {
+            var nextBlock = context.Script.GetBlockByName(block.NextBlockName);
+            if (nextBlock != null && !context.VisitedBlocks.Contains(nextBlock.Name))
+            {
+                if (nodes.Count > 0)
+                {
+                    var lastNode = nodes.Last();
+                    var nextFirstNode = ProcessBlockRecursive(nextBlock, context, x + 300, y);
+                    if (nextFirstNode != null)
+                    {
+                        var lastExecOut = lastNode.OutputPins.FirstOrDefault(p => p.Name == "Exec");
+                        var nextExecIn = nextFirstNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+
+                        // ✅ 验证是有效的 Exec 连接
+                        if (lastExecOut == null || lastExecOut.Direction != PinDirection.Output)
+                        {
+                            Log.Warning("Cannot create cross-block Exec connection: {Node}.Exec is not a valid output pin",
+                                lastNode.Name);
+                        }
+                        else if (lastNode.Id == nextFirstNode.Id)
+                        {
+                            Log.Warning("Skipping self-loop cross-block Exec connection");
+                        }
+                        else if (lastExecOut != null && nextExecIn != null)
+                        {
+                            context.Blueprint.AddConnection(new BlueprintConnection
+                            {
+                                SourceNodeId = lastNode.Id,
+                                SourcePinId = lastExecOut.Id,
+                                TargetNodeId = nextFirstNode.Id,
+                                TargetPinId = nextExecIn.Id
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 存储块的第一个节点，以便后续已访问块的连接
+        var firstNode = nodes.FirstOrDefault();
+        if (firstNode != null)
+        {
+            context.BlockFirstNodes[block.Name] = firstNode;
+        }
+
+        return firstNode;
+    }
+
+    private void ProcessBranchNodeConnections(BranchNode branch, BlockDefinition block, ConversionContext context, double x, double y)
+    {
+        var callId = Guid.NewGuid().ToString().Substring(0, 8);
+        Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections ENTER: callId={callId}, branch={branch.Id.Substring(0,8)}, block={block.Name}");
+        // 找到对应的 FlowControlStatement
+        var flowCtrl = block.Statements.FirstOrDefault(s => s is FlowControlStatement) as FlowControlStatement;
+        if (flowCtrl == null) return;
+
+        double targetY = y + 150;
+
+        // 处理 True 分支
+        if (!string.IsNullOrEmpty(flowCtrl.TrueBlockName))
+        {
+            var trueBlock = context.Script.GetBlockByName(flowCtrl.TrueBlockName);
+            // ✅ 如果 trueBlock 已经访问过，跳过（避免重复创建连接）
+            if (trueBlock != null && context.VisitedBlocks.Contains(trueBlock.Name))
+            {
+                Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections[{callId}]: trueBlock {trueBlock.Name} already visited, skipping");
+            }
+            else if (trueBlock != null)
+            {
+                var firstTrueNode = ProcessBlockRecursive(trueBlock, context, x + 300, targetY);
+                if (firstTrueNode != null && firstTrueNode.Id != branch.Id)
+                {
+                    var truePin = branch.OutputPins.FirstOrDefault(p => p.Name == "True");
+                    var firstExecIn = firstTrueNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                    if (truePin != null && firstExecIn != null)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: Creating {branch.Name}.True -> {firstTrueNode.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = branch.Id,
+                            SourcePinId = truePin.Id,
+                            TargetNodeId = firstTrueNode.Id,
+                            TargetPinId = firstExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理 False 分支
+        if (!string.IsNullOrEmpty(flowCtrl.FalseBlockName))
+        {
+            var falseBlock = context.Script.GetBlockByName(flowCtrl.FalseBlockName);
+            if (falseBlock != null)
+            {
+                // ✅ 无论块是否已访问，都尝试获取第一个节点并建立连接
+                // 对于已访问的块，从 BlockFirstNodes 获取；对于未访问的块，调用 ProcessBlockRecursive
+                BlueprintNode? firstFalseNode;
+                if (context.VisitedBlocks.Contains(falseBlock.Name))
+                {
+                    firstFalseNode = context.BlockFirstNodes.GetValueOrDefault(falseBlock.Name);
+                    Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: falseBlock {falseBlock.Name} already visited, got first node from cache");
+                }
+                else
+                {
+                    firstFalseNode = ProcessBlockRecursive(falseBlock, context, x + 300, targetY + 200);
+                }
+
+                Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: firstFalseNode = {firstFalseNode?.Name} ({firstFalseNode?.Id?.Substring(0,8) ?? "null"}), branch.Id = {branch.Id.Substring(0,8)}");
+
+                if (firstFalseNode == null)
+                {
+                    Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: firstFalseNode is null, skipping");
+                }
+                else if (firstFalseNode.Id == branch.Id)
+                {
+                    Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: Skipping self-loop");
+                }
+                else if (!context.Blueprint.Nodes.Any(n => n.Id == firstFalseNode.Id))
+                {
+                    Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: firstFalseNode NOT FOUND in Blueprint, skipping");
+                }
+                else
+                {
+                    // ✅ 如果目标是路由块（Branch/Loop），获取其实际可连接的子节点
+                    var actualTarget = GetFirstConnectableNode(firstFalseNode, context);
+                    var falsePin = branch.OutputPins.FirstOrDefault(p => p.Name == "False");
+                    var actualExecIn = actualTarget?.InputPins.FirstOrDefault(p => p.Name == "Exec");
+
+                    if (falsePin != null && actualExecIn != null && actualTarget != null && actualTarget.Id != branch.Id)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections: Creating {branch.Name}.False -> {actualTarget.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = branch.Id,
+                            SourcePinId = falsePin.Id,
+                            TargetNodeId = actualTarget.Id,
+                            TargetPinId = actualExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        Console.WriteLine($"[DEBUG] ProcessBranchNodeConnections EXIT: callId={callId}, branch={branch.Id.Substring(0,8)}");
+    }
+
+    /// <summary>
+    /// 获取节点的可连接子节点。如果节点本身有来自外部（跨块）的 Exec 输入引脚连接，直接返回；
+    /// 如果是路由块（Branch/Loop）且其 Exec 输入只被内部连接，使用，则需要找到其连接的目标节点。
+    /// </summary>
+    private BlueprintNode? GetFirstConnectableNode(BlueprintNode node, ConversionContext context)
+    {
+        // 如果节点本身有来自外部的 Exec 输入引脚连接，直接返回
+        var execInputPin = node.InputPins.FirstOrDefault(p => p.Name == "Exec");
+        if (execInputPin != null)
+        {
+            // 检查是否有从其他节点到这个节点 Exec 输入的连接（外部连接）
+            var hasExternalConnection = context.Blueprint.Connections
+                .Any(c => c.TargetNodeId == node.Id &&
+                           c.TargetPinId == execInputPin.Id &&
+                           c.SourceNodeId != node.Id);
+            if (hasExternalConnection)
+            {
+                return node;
+            }
+        }
+
+        // 如果是 Branch 节点，找到其 True 输出连接的目标节点
+        if (node is BranchNode branch)
+        {
+            var trueConn = context.Blueprint.Connections
+                .FirstOrDefault(c => c.SourceNodeId == branch.Id &&
+                    branch.OutputPins.Any(p => p.Id == c.SourcePinId && p.Name == "True"));
+            if (trueConn != null)
+            {
+                var targetNode = context.Blueprint.GetNodeById(trueConn.TargetNodeId);
+                if (targetNode != null)
+                {
+                    // 递归获取实际可连接的节点
+                    return GetFirstConnectableNode(targetNode, context);
+                }
+            }
+        }
+
+        // 如果是 Loop 节点，找到其 LoopBody 输出连接的目标节点
+        if (node is LoopNode loop)
+        {
+            var loopBodyConn = context.Blueprint.Connections
+                .FirstOrDefault(c => c.SourceNodeId == loop.Id &&
+                    loop.OutputPins.Any(p => p.Id == c.SourcePinId && p.Name == "LoopBody"));
+            if (loopBodyConn != null)
+            {
+                var targetNode = context.Blueprint.GetNodeById(loopBodyConn.TargetNodeId);
+                if (targetNode != null)
+                {
+                    return GetFirstConnectableNode(targetNode, context);
+                }
+            }
+        }
+
+        return node;  // 回退
+    }
+
+    private void ProcessLoopNodeConnections(LoopNode loop, BlockDefinition block, ConversionContext context, double x, double y)
+    {
+        // 找到对应的 FlowControlStatement
+        var flowCtrl = block.Statements.FirstOrDefault(s => s is FlowControlStatement) as FlowControlStatement;
+        if (flowCtrl == null) return;
+
+        double targetY = y + 150;
+
+        // 处理 LoopBody
+        if (!string.IsNullOrEmpty(flowCtrl.TrueBlockName))
+        {
+            var loopBodyBlock = context.Script.GetBlockByName(flowCtrl.TrueBlockName);
+            if (loopBodyBlock != null)
+            {
+                // 注册 Loop 节点以便 LoopBodyEnd 引用
+                context.LoopNodesByParentBlock[flowCtrl.TrueBlockName] = loop;
+
+                var firstLoopNode = ProcessBlockRecursive(loopBodyBlock, context, x + 300, targetY);
+                if (firstLoopNode != null)
+                {
+                    var loopBodyPin = loop.OutputPins.FirstOrDefault(p => p.Name == "LoopBody");
+                    var firstExecIn = firstLoopNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                    if (loopBodyPin != null && firstExecIn != null)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessLoopNodeConnections: Creating {loop.Name}.LoopBody -> {firstLoopNode.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = loop.Id,
+                            SourcePinId = loopBodyPin.Id,
+                            TargetNodeId = firstLoopNode.Id,
+                            TargetPinId = firstExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理 LoopEnd
+        if (!string.IsNullOrEmpty(flowCtrl.FalseBlockName))
+        {
+            var afterLoopBlock = context.Script.GetBlockByName(flowCtrl.FalseBlockName);
+            if (afterLoopBlock != null)
+            {
+                var firstAfterLoopNode = ProcessBlockRecursive(afterLoopBlock, context, x + 300, targetY + 200);
+                if (firstAfterLoopNode != null)
+                {
+                    var loopEndPin = loop.OutputPins.FirstOrDefault(p => p.Name == "LoopEnd");
+                    var firstExecIn = firstAfterLoopNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+                    if (loopEndPin != null && firstExecIn != null)
+                    {
+                        Console.WriteLine($"[DEBUG] ProcessLoopNodeConnections: Creating {loop.Name}.LoopEnd -> {firstAfterLoopNode.Name}.Exec");
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = loop.Id,
+                            SourcePinId = loopEndPin.Id,
+                            TargetNodeId = firstAfterLoopNode.Id,
+                            TargetPinId = firstExecIn.Id
+                        });
+                    }
+                }
+            }
+        }
+
+        // 处理 LoopBodyEndReturnTo
+        if (!string.IsNullOrEmpty(flowCtrl.LoopBodyEndReturnTo))
+        {
+            context.LoopNodesByParentBlock[flowCtrl.LoopBodyEndReturnTo] = loop;
+        }
+    }
+
+    private BlueprintNode? CreateControlFlowNode(FlowControlStatement statement, ConversionContext context)
+    {
+        switch (statement.ControlType)
+        {
+            case FlowControlType.Branch:
+                return new BranchNode();
+            case FlowControlType.Loop:
+                return new LoopNode();
+            case FlowControlType.Break:
+                return new BreakNode();
+            default:
+                return null;
+        }
+    }
+
+    private static string GetMethodNameFromExpression(InvocationExpressionSyntax invoke)
+    {
+        if (invoke.Expression is IdentifierNameSyntax id)
+            return id.Identifier.Text;
+        if (invoke.Expression is GenericNameSyntax generic)
+            return generic.Identifier.Text;
+        if (invoke.Expression is MemberAccessExpressionSyntax member)
+            return member.Name.Identifier.Text;
+        return string.Empty;
+    }
+
+    private BlueprintNode? CreateActionNodeFromExpression(string expression, ConversionContext context)
+    {
+        var parsed = TryParseInvocationExpression(expression);
+        if (parsed == null)
+            return null;
+
+        var (funcName, args, assignment) = parsed.Value;
+
+        if (funcName == "Get")
+        {
+            var varName = args?.Arguments.FirstOrDefault()?.Expression.ToString() ?? string.Empty;
+
+            // ✅ 始终为 Get 创建独立的 GetNode
+            // 注意：不在此处添加到 Blueprint，由 ProcessBlockRecursive 统一添加
+            var getNode = new GetNode
+            {
+                VarName = varName,
+                Name = $"Get:{varName}"
+            };
+            Log.Debug("Created GetNode: VarName={VarName}, Id={NodeId}", varName, getNode.Id);
+
+            var getValuePin = getNode.OutputPins.First(p => p.Name == "Value");
+
+            // ✅ 如果是赋值给 PubVar，注册数据源（使用唯一 key）
+            if (assignment != null)
+            {
+                var assignedVarName = assignment.Left.ToString();
+                if (assignedVarName != "_")
+                {
+                    var isPubVar = context.Script.PubVarBlock?.Variables
+                        .Any(v => v.Name == assignedVarName) == true;
+                    // ✅ 使用唯一 key（包含 Guid），避免嵌套复用
+                    context.VariableSources[$"__get_{assignedVarName}_{Guid.NewGuid():N}__"] = new VariableSource
+                    {
+                        Node = getNode,
+                        Pin = getValuePin,
+                        PubVarName = isPubVar ? assignedVarName : null
+                    };
+                    Log.Debug("Registered GetNode output as VariableSource: {VarName}, IsPubVar={IsPubVar}",
+                        assignedVarName, isPubVar);
+                }
+            }
+
+            return getNode; // Return immediately — do NOT fall through to the CallNode block below
+        }
+
+        if (funcName == "Set")
+        {
+            var argList = args?.Arguments.ToList() ?? new List<ArgumentSyntax>();
+            if (argList.Count >= 2)
+            {
+                var varName = argList[0].Expression.ToString();
+                var valueExpr = argList[1].Expression;  // ✅ 使用ExpressionSyntax而非ToString()
+                // 注意：不在此处添加到 Blueprint，由 ProcessBlockRecursive 统一添加
+                var setNode = new SetNode
+                {
+                    VarName = varName,
+                    Name = $"Set:{varName}"
+                };
+                Log.Debug("Created SetNode: VarName={VarName}, Id={NodeId}", varName, setNode.Id);
+
+                // ✅ 获取Set节点的Value输入引脚
+                var setValuePin = setNode.InputPins.FirstOrDefault(p => p.Name == "Value");
+                if (setValuePin != null && valueExpr != null)
+                {
+                    // ✅ 使用ProcessArgumentExpression处理嵌套函数调用
+                    ProcessArgumentExpression(valueExpr, setValuePin, setNode, context);
+                }
+
+                return setNode; // Return immediately — do NOT fall through to the CallNode block below
+            }
+            return null;
+        }
+
+        if (funcName == "Print")
+        {
+            var printNode = new PrintNode();
+            var arg = args?.Arguments.FirstOrDefault()?.Expression.ToString() ?? string.Empty;
+            CreateDataConnectionsForExpression(arg, printNode, context);
+            return printNode;
+        }
+
+        if (funcName == "Pause")
+        {
+            var pauseNode = new PauseNode();
+            var arg = args?.Arguments.FirstOrDefault()?.Expression.ToString() ?? string.Empty;
+            CreateDataConnectionsForExpression(arg, pauseNode, context);
+            return pauseNode;
+        }
+
+        if (assignment != null)
+        {
+            var varName = assignment.Left.ToString();
+
+            if (funcName is "Loop" or "Branch" or "LoopBodyEnd" or "Break")
+            {
+                Log.Debug("Skipped creating CallNode for flow control function: {FuncName}", funcName);
+                return null;
+            }
+
+            // ✅ 检查是否应该复用已有的 VariableSource
+            // 如果 varName 已经有一个来源（相同函数的调用），则复用；否则创建新的
+            var existingSource = context.VariableSources.Values
+                .FirstOrDefault(s => s.PubVarName == varName);
+
+            BlueprintNode callNode;
+            if (existingSource != null)
+            {
+                // ✅ 复用已有的源节点
+                callNode = existingSource.Node;
+                Log.Debug("Reused existing source node {NodeName} for {VarName}", callNode.Name, varName);
+            }
+            else
+            {
+                // ✅ 创建新的 Call 节点
+                var isHelper = context.Script.HelperFunctions.Any(h => h.Name == funcName);
+                if (isHelper)
+                    callNode = new CallHelperNode { HelperFunctionName = funcName, Name = $"Helper:{funcName}" };
+                else
+                    callNode = new CallNode { FunctionName = funcName, Name = $"Call:{funcName}" };
+
+                AddParameterPins(callNode, args?.Arguments);
+                CreateDataConnectionsForArguments(args?.Arguments, callNode, context);
+
+                // ✅ 注册新的数据源
+                var returnPin = callNode.OutputPins.FirstOrDefault(p => p.Name == "Return");
+                if (returnPin != null)
+                {
+                    // Check if varName (assignment target) is a PubVar
+                    var isPubVar = context.Script.PubVarBlock?.Variables
+                        .Any(v => v.Name == varName) == true;
+                    context.VariableSources[varName] = new VariableSource
+                    {
+                        Node = callNode,
+                        Pin = returnPin,
+                        PubVarName = isPubVar ? varName : null  // ✅ Set PubVarName for PubVar
+                    };
+                }
+            }
+
+            return callNode;
+        }
+
+        if (funcName is "Loop" or "Branch" or "LoopBodyEnd" or "Break")
+        {
+            Log.Debug("Skipped creating CallNode for flow control/builtin function: {FuncName}", funcName);
+            return null;
+        }
+
+        BlueprintNode callNode2;
+        var isHelper2 = context.Script.HelperFunctions.Any(h => h.Name == funcName);
+        if (isHelper2)
+            callNode2 = new CallHelperNode { HelperFunctionName = funcName, Name = $"Helper:{funcName}" };
+        else
+            callNode2 = new CallNode { FunctionName = funcName, Name = $"Call:{funcName}" };
+
+        AddParameterPins(callNode2, args?.Arguments);
+        CreateDataConnectionsForArguments(args?.Arguments, callNode2, context);
+
+        return callNode2;
+    }
+
+    private (string? funcName, ArgumentListSyntax? args, AssignmentExpressionSyntax? assignment)? TryParseInvocationExpression(string expression)
+    {
+        var wrappedCode = $"_ = {expression};";
+        var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode, cancellationToken: CancellationToken.None);
+        var root = syntaxTree.GetCompilationUnitRoot();
+
+        var globalStmt = root.Members.FirstOrDefault() as GlobalStatementSyntax;
+        var stmt = globalStmt?.Statement as ExpressionStatementSyntax;
+        
+        if (stmt?.Expression is AssignmentExpressionSyntax outerAssignment)
+        {
+            ExpressionSyntax rightExpr = outerAssignment.Right;
+            // Track the innermost assignment that has a non-underscore variable on the left
+            AssignmentExpressionSyntax? innermostAssignment = null;
+            while (rightExpr is AssignmentExpressionSyntax nestedAssignment)
+            {
+                innermostAssignment = nestedAssignment;
+                rightExpr = nestedAssignment.Right;
+            }
+
+            if (rightExpr is InvocationExpressionSyntax invoke)
+            {
+                var methodName = GetMethodNameFromExpression(invoke);
+                // Use the innermost assignment if available, otherwise the outermost
+                var assignmentToReturn = innermostAssignment ?? outerAssignment;
+                return (methodName, invoke.ArgumentList, assignmentToReturn);
+            }
+        }
+        else if (stmt?.Expression is InvocationExpressionSyntax directInvoke)
+        {
+            var methodName = GetMethodNameFromExpression(directInvoke);
+            return (methodName, directInvoke.ArgumentList, null);
+        }
+        return null;
+    }
+
+    private void AddParameterPins(BlueprintNode node, SeparatedSyntaxList<ArgumentSyntax>? arguments)
+    {
+        if (!arguments.HasValue || arguments.Value.Count == 0) return;
+
+        foreach (var arg in arguments.Value)
+        {
+            node.InputPins.Add(new BlueprintPin
+            {
+                Name = $"param{node.InputPins.Count}",
+                Direction = PinDirection.Input,
+                Type = PinType.Any
+            });
+        }
+    }
+
+    private void ProcessLoopBlock(BlockDefinition block, ConversionContext context)
+    {
+        if (context.VisitedBlocks.Contains(block.Name)) return;
+        context.VisitedBlocks.Add(block.Name);
+
+        // ✅ 设置当前父块名称，以便复用 Loop 节点
+        var parentBlockName = block.ParentBlockName ?? block.Name;
+        context.CurrentParentBlock = parentBlockName;
+
+        var nodes = new List<BlueprintNode>();
+        var currentY = 50.0;
+
+        foreach (var statement in block.Statements)
+        {
+            var node = ProcessStatement(statement, context, 50, currentY);
+            if (node != null)
+            {
+                context.Blueprint.AddNode(node);
+                nodes.Add(node);
+                currentY += 120;
+            }
+        }
+
+        LinkNodesWithExec(nodes, context.Blueprint);
+
+        foreach (var statement in block.Statements)
+        {
+            if (statement is FlowControlStatement flowCtrl)
+            {
+                if (!string.IsNullOrEmpty(flowCtrl.TrueBlockName))
+                {
+                    var trueBlock = context.Script.GetBlockByName(flowCtrl.TrueBlockName);
+                    if (trueBlock != null)
+                        ProcessBlockRecursive(trueBlock, context, 350, 50);
+                }
+                if (!string.IsNullOrEmpty(flowCtrl.FalseBlockName))
+                {
+                    var falseBlock = context.Script.GetBlockByName(flowCtrl.FalseBlockName);
+                    if (falseBlock != null)
+                        ProcessBlockRecursive(falseBlock, context, 350, 200);
+                }
+            }
+        }
+    }
+
+    private void LinkNodesWithExec(List<BlueprintNode> nodes, Contract.Workflow.Blueprint blueprint)
+    {
+        Console.WriteLine($"[DEBUG] === LinkNodesWithExec called with {nodes.Count} nodes: {string.Join(", ", nodes.Select(n => $"{n.Name}({n.Id.Substring(0,8)})"))}");
+
+        for (int i = 0; i < nodes.Count - 1; i++)
+        {
+            var currentNode = nodes[i];
+            var nextNode = nodes[i + 1];
+
+            // ✅ 跳过自环连接
+            if (currentNode.Id == nextNode.Id)
+            {
+                Console.WriteLine($"[DEBUG] LinkNodesWithExec: Skipping self-loop for {currentNode.Name} ({currentNode.Id.Substring(0,8)})");
+                continue;
+            }
+
+            // ✅ 获取 currentNode 的 Exec 输出引脚
+            var currentExecOut = currentNode.OutputPins.FirstOrDefault(p => p.Name == "Exec");
+
+            // ✅ Branch 和 Loop 节点没有 Exec 输出引脚，跳过
+            if (currentExecOut == null)
+            {
+                Log.Debug("Skipping Exec link: {Node} has no Exec output pin", currentNode.Name);
+                continue;
+            }
+
+            // ✅ 确保 currentExecOut 是 OUTPUT 类型的引脚
+            if (currentExecOut.Direction != PinDirection.Output)
+            {
+                Log.Warning("Cannot create Exec connection: {Node}.Exec is not a valid output pin", currentNode.Name);
+                continue;
+            }
+
+            // ✅ 获取 nextNode 的 Exec 输入引脚
+            var nextExecIn = nextNode.InputPins.FirstOrDefault(p => p.Name == "Exec");
+            if (nextExecIn == null)
+            {
+                Log.Warning("Cannot create Exec connection: {Node} has no Exec input pin", nextNode.Name);
+                continue;
+            }
+
+            Console.WriteLine($"[DEBUG] LinkNodesWithExec: Creating {currentNode.Name}.{currentExecOut.Name} -> {nextNode.Name}.{nextExecIn.Name}");
+
+            blueprint.AddConnection(new BlueprintConnection
+            {
+                SourceNodeId = currentNode.Id,
+                SourcePinId = currentExecOut.Id,
+                TargetNodeId = nextNode.Id,
+                TargetPinId = nextExecIn.Id
+            });
+        }
+    }
+
+    private void LayoutNodes(Contract.Workflow.Blueprint blueprint)
+    {
+        var depths = new Dictionary<string, int>();
+        var visited = new HashSet<string>();
+
+        var entry = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
+        if (entry != null)
+        {
+            depths[entry.Id] = 0;
+            CalculateDepths(blueprint, entry, depths, visited);
+        }
+
+        var depthGroups = new Dictionary<int, List<BlueprintNode>>();
+        foreach (var node in blueprint.Nodes)
+        {
+            if (depths.TryGetValue(node.Id, out var depth))
+            {
+                if (!depthGroups.ContainsKey(depth))
+                    depthGroups[depth] = new List<BlueprintNode>();
+                depthGroups[depth].Add(node);
+            }
+        }
+
+        foreach (var group in depthGroups)
+        {
+            var depth = group.Key;
+            var nodes = group.Value;
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                nodes[i].X = 50 + depth * 300;
+                nodes[i].Y = 50 + i * 120;
+            }
+        }
+    }
+
+    private void CalculateDepths(Contract.Workflow.Blueprint blueprint, BlueprintNode node, Dictionary<string, int> depths, HashSet<string> visited)
+    {
+        if (visited.Contains(node.Id)) return;
+        visited.Add(node.Id);
+
+        var outConnections = blueprint.GetConnectionsFrom(node.Id);
+        foreach (var conn in outConnections)
+        {
+            if (blueprint.GetNodeById(conn.TargetNodeId) is { } targetNode)
+            {
+                var currentDepth = depths[node.Id];
+                if (!depths.ContainsKey(targetNode.Id) || depths[targetNode.Id] < currentDepth + 1)
+                {
+                    depths[targetNode.Id] = currentDepth + 1;
+                }
+                CalculateDepths(blueprint, targetNode, depths, visited);
+            }
+        }
+    }
+
+    private bool IsVariableReference(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return false;
+        if (bool.TryParse(token, out _)) return false;
+        if (int.TryParse(token, out _) || double.TryParse(token, out _)) return false;
+        if (token.StartsWith("\"") && token.EndsWith("\"")) return false;
+        if (token.StartsWith("'") && token.EndsWith("'")) return false;
+        if (token.Contains('(')) return false;
+        return System.Text.RegularExpressions.Regex.IsMatch(token, @"^[a-zA-Z_]\w*$");
+    }
+
+    private void CreateDataConnectionsForExpression(string expression, BlueprintNode targetNode, ConversionContext context)
+    {
+        var wrappedCode = $"_ = {expression};";
+        var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode, cancellationToken: CancellationToken.None);
+        var root = syntaxTree.GetCompilationUnitRoot();
+        var globalStmt = root.Members.FirstOrDefault() as GlobalStatementSyntax;
+        var stmt = globalStmt?.Statement as ExpressionStatementSyntax;
+
+        if (stmt?.Expression == null) return;
+
+        ProcessExpressionForDataConnections(stmt.Expression, targetNode, context);
+    }
+
+    private void ProcessExpressionForDataConnections(ExpressionSyntax expr, BlueprintNode targetNode, ConversionContext context)
+    {
+        switch (expr)
+        {
+            case LiteralExpressionSyntax literal:
+                CreateConstNodeForLiteral(literal, targetNode, context);
+                break;
+
+            case IdentifierNameSyntax identifier:
+                CreateDataConnectionForVariable(identifier.Identifier.Text, targetNode, context);
+                break;
+
+            case AssignmentExpressionSyntax assignment:
+                ProcessExpressionForDataConnections(assignment.Right, targetNode, context);
+                break;
+
+            case InvocationExpressionSyntax invoke:
+                var funcName = GetMethodNameFromExpression(invoke);
+
+                // ✅ 注意：Get 和 Set 的处理在 ProcessArgumentExpression 中已正确完成
+                // 这里只需要处理其他函数调用（HelperFuncAdd 等）的情况
+                if (funcName != "Get" && funcName != "Set")
+                {
+                    // ✅ 始终创建新的 Call 节点（不复用）
+                    // 因为 condition 表达式（BEQ/BLT/BLE）是不同的函数调用，不应该复用
+                    var isHelper = context.Script.HelperFunctions.Any(h => h.Name == funcName);
+                    BlueprintNode callNode;
+                    if (isHelper)
+                        callNode = new CallHelperNode { HelperFunctionName = funcName, Name = $"Helper:{funcName}" };
+                    else
+                        callNode = new CallNode { FunctionName = funcName, Name = $"Call:{funcName}" };
+
+                    AddParameterPins(callNode, invoke.ArgumentList.Arguments);
+                    context.Blueprint.AddNode(callNode);
+
+                    // ✅ 处理参数的连接
+                    CreateDataConnectionsForArguments(invoke.ArgumentList.Arguments, callNode, context);
+
+                    // ✅ 将函数调用的返回值连接到 targetNode 的条件引脚
+                    var returnPin = callNode.OutputPins.FirstOrDefault(p => p.Name == "Return");
+                    var targetPin = targetNode.InputPins.FirstOrDefault(p => p.Name != "Exec");
+                    if (returnPin != null && targetPin != null)
+                    {
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = callNode.Id,
+                            SourcePinId = returnPin.Id,
+                            TargetNodeId = targetNode.Id,
+                            TargetPinId = targetPin.Id,
+                            PubVarName = null
+                        });
+                    }
+                }
+                break;
+
+            default:
+                var exprStr = expr.ToString();
+                if (IsVariableReference(exprStr))
+                {
+                    CreateDataConnectionForVariable(exprStr, targetNode, context);
+                }
+                break;
+        }
+    }
+
+    private void CreateConstNodeForLiteral(LiteralExpressionSyntax literal, BlueprintNode targetNode, ConversionContext context)
+    {
+        var targetPin = targetNode.InputPins.FirstOrDefault(p => p.Name != "Exec");
+        if (targetPin == null) return;
+
+        if (literal.Token.Value is string strVal)
+        {
+            // ✅ 不再创建 ConstNode，直接设置预设值
+            targetPin.DefaultValue = strVal;
+            Log.Debug("Set DefaultValue for {TargetNode}.{TargetPin}: {Value}", targetNode.Name, targetPin.Name, strVal);
+        }
+        else if (literal.Token.Value is int intVal)
+        {
+            // ✅ 不再创建 ConstNode，直接设置预设值
+            targetPin.DefaultValue = intVal.ToString();
+            Log.Debug("Set DefaultValue for {TargetNode}.{TargetPin}: {Value}", targetNode.Name, targetPin.Name, intVal);
+        }
+    }
+
+    /// <summary>
+    /// Sets DefaultValue for a literal and connects it to a specific parameter pin.
+    /// Used by ProcessArgumentExpression to set literal defaults for exact parameter pins.
+    /// </summary>
+    private void CreateConstNodeForLiteralWithPin(LiteralExpressionSyntax literal, BlueprintPin targetPin, BlueprintNode targetNode, ConversionContext context)
+    {
+        if (literal.Token.Value is string strVal)
+        {
+            // ✅ 不再创建 ConstNode，直接设置预设值
+            targetPin.DefaultValue = strVal;
+            Log.Debug("Set DefaultValue for {TargetNode}.{TargetPin}: {Value}", targetNode.Name, targetPin.Name, strVal);
+        }
+        else if (literal.Token.Value is int intVal)
+        {
+            // ✅ 不再创建 ConstNode，直接设置预设值
+            targetPin.DefaultValue = intVal.ToString();
+            Log.Debug("Set DefaultValue for {TargetNode}.{TargetPin}: {Value}", targetNode.Name, targetPin.Name, intVal);
+        }
+    }
+
+    private void CreateDataConnectionsForArguments(SeparatedSyntaxList<ArgumentSyntax>? arguments, BlueprintNode callNode, ConversionContext context)
+    {
+        if (!arguments.HasValue || arguments.Value.Count == 0) return;
+
+        // NOTE: AddParameterPins names parameters using node.InputPins.Count at the time of creation.
+        // Since CallNode/CallHelperNode already has Exec (at count=0), the first parameter gets name "param1".
+        // Therefore paramIndex starts at 1 to match the naming convention.
+        var paramIndex = 1;
+        foreach (var arg in arguments.Value)
+        {
+            var paramPin = callNode.InputPins.FirstOrDefault(p => p.Name == $"param{paramIndex}");
+            if (paramPin == null) break;
+            paramIndex++;
+            ProcessArgumentExpression(arg.Expression, paramPin, callNode, context);
+        }
+    }
+
+    private void ProcessArgumentExpression(ExpressionSyntax expr, BlueprintPin targetPin, BlueprintNode callNode, ConversionContext context)
+    {
+        switch (expr)
+        {
+            case InvocationExpressionSyntax invoke:
+                var funcName = GetMethodNameFromExpression(invoke);
+                Log.Debug("[ProcessArgumentExpression] InvocationExpressionSyntax: funcName={FuncName}, expr={Expr}",
+                    funcName, expr.ToString());
+                
+                if (funcName == "Get")
+                {
+                    var varName = invoke.ArgumentList.Arguments.FirstOrDefault()?.Expression.ToString() ?? string.Empty;
+
+                    // ✅ Check if varName is a PubVarBlock variable
+                    var isPubVar = context.Script.PubVarBlock?.Variables
+                        .Any(v => v.Name == varName) == true;
+
+                    if (isPubVar)
+                    {
+                        // ✅ PubVar: 不创建 GetNode，直接从 VariableSources 获取
+                        // 查找时使用简单变量名（PubVarNames 中记录的名称）
+                        var source = context.VariableSources.Values
+                            .FirstOrDefault(s => s.PubVarName == varName);
+                        if (source != null)
+                        {
+                            context.Blueprint.AddConnection(new BlueprintConnection
+                            {
+                                SourceNodeId = source.Node.Id,
+                                SourcePinId = source.Pin.Id,
+                                TargetNodeId = callNode.Id,
+                                TargetPinId = targetPin.Id,
+                                PubVarName = varName  // ✅ PubVar 变量设置 PubVarName
+                            });
+                        }
+                        else
+                        {
+                            Log.Warning("[ProcessArgumentExpression] PubVar {VarName} not found in VariableSources", varName);
+                        }
+                    }
+                    else
+                    {
+                        // ✅ ConstBlock variable: 创建独立的 GetNode（不连接到 ConstNode）
+                        var getNode = new GetNode { VarName = varName, Name = $"Get:{varName}" };
+                        context.Blueprint.AddNode(getNode);
+                        var getValuePin = getNode.OutputPins.First(p => p.Name == "Value");
+
+                        // 连接到目标参数（GetNode 通过 VarName 在运行时获取 ConstBlock 值）
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = getNode.Id,
+                            SourcePinId = getValuePin.Id,
+                            TargetNodeId = callNode.Id,
+                            TargetPinId = targetPin.Id,
+                            PubVarName = null  // ✅ ConstBlock 变量
+                        });
+                    }
+                }
+                else if (funcName == "Set")
+                {
+                    var args = invoke.ArgumentList.Arguments;
+                    if (args.Count >= 2)
+                    {
+                        var varName = args[0].Expression.ToString();
+                        var valueExpr = args[1].Expression;
+                        var setNode = new SetNode { VarName = varName, Name = $"Set:{varName}" };
+                        context.Blueprint.AddNode(setNode);
+                        var setValuePin = setNode.InputPins.FirstOrDefault(p => p.Name == "Value");
+                        if (setValuePin != null)
+                        {
+                            ProcessArgumentExpression(valueExpr, setValuePin, setNode, context);
+                        }
+                    }
+                }
+                else
+                {
+                    var isHelper = context.Script.HelperFunctions.Any(h => h.Name == funcName);
+                    BlueprintNode innerCallNode = isHelper
+                        ? new CallHelperNode { HelperFunctionName = funcName, Name = $"Helper:{funcName}" }
+                        : new CallNode { FunctionName = funcName, Name = $"Call:{funcName}" };
+
+                    AddParameterPins(innerCallNode, invoke.ArgumentList.Arguments);
+                    context.Blueprint.AddNode(innerCallNode);
+                    CreateDataConnectionsForArguments(invoke.ArgumentList.Arguments, innerCallNode, context);
+
+                    var returnPin = innerCallNode.OutputPins.FirstOrDefault(p => p.Name == "Return");
+                    if (returnPin != null)
+                    {
+                        context.Blueprint.AddConnection(new BlueprintConnection
+                        {
+                            SourceNodeId = innerCallNode.Id,
+                            SourcePinId = returnPin.Id,
+                            TargetNodeId = callNode.Id,
+                            TargetPinId = targetPin.Id,
+                            PubVarName = null
+                        });
+                        context.VariableSources[$"__call_{funcName}_{Guid.NewGuid():N}__"] = new VariableSource
+                        {
+                            Node = innerCallNode,
+                            Pin = returnPin,
+                            PubVarName = null
+                        };
+                    }
+                }
+                break;
+
+            case LiteralExpressionSyntax literal:
+                CreateConstNodeForLiteralWithPin(literal, targetPin, callNode, context);
+                break;
+
+            case IdentifierNameSyntax identifier:
+                CreateDataConnectionForVariable(identifier.Identifier.Text, targetPin, callNode, context);
+                break;
+
+            default:
+                var exprStr = expr.ToString();
+                if (IsVariableReference(exprStr))
+                {
+                    CreateDataConnectionForVariable(exprStr, targetPin, callNode, context);
+                }
+                break;
+        }
+    }
+
+    private void CreateDataConnectionForVariable(string varName, BlueprintPin targetPin, BlueprintNode callNode, ConversionContext context)
+    {
+        if (context.Script.ConstBlock?.Variables.Any(v => v.Name == varName) == true)
+        {
+            // ✅ ConstBlock 变量：直接从 ConstNode 建立连接到目标节点
+            var constNode = context.Blueprint.Nodes.OfType<ConstNode>().FirstOrDefault(c => c.ConstName == varName);
+            if (constNode != null)
+            {
+                var constPin = constNode.OutputPins.First(p => p.Name == "Value");
+                context.Blueprint.AddConnection(new BlueprintConnection
+                {
+                    SourceNodeId = constNode.Id,
+                    SourcePinId = constPin.Id,
+                    TargetNodeId = callNode.Id,
+                    TargetPinId = targetPin.Id,
+                    PubVarName = null  // ✅ ConstBlock 变量不应设置 PubVarName
+                });
+            }
+        }
+        else
+        {
+            // ✅ PubVar 或其他变量：按 PubVarName 查找 VariableSources
+            var source = context.VariableSources.Values.FirstOrDefault(s => s.PubVarName == varName);
+            if (source != null)
+            {
+                context.Blueprint.AddConnection(new BlueprintConnection
+                {
+                    SourceNodeId = source.Node.Id,
+                    SourcePinId = source.Pin.Id,
+                    TargetNodeId = callNode.Id,
+                    TargetPinId = targetPin.Id,
+                    PubVarName = source.PubVarName
+                });
+            }
+        }
+    }
+
+    private void CreateDataConnectionForVariable(string varName, BlueprintNode targetNode, ConversionContext context)
+    {
+        var targetPin = targetNode.InputPins.FirstOrDefault(p => p.Name != "Exec");
+        if (targetPin == null) return;
+
+        if (context.Script.ConstBlock?.Variables.Any(v => v.Name == varName) == true)
+        {
+            // ✅ ConstBlock 变量：直接从 ConstNode 建立连接到目标节点
+            var constNode = context.Blueprint.Nodes.OfType<ConstNode>().FirstOrDefault(c => c.ConstName == varName);
+            if (constNode != null)
+            {
+                var constPin = constNode.OutputPins.First(p => p.Name == "Value");
+                context.Blueprint.AddConnection(new BlueprintConnection
+                {
+                    SourceNodeId = constNode.Id,
+                    SourcePinId = constPin.Id,
+                    TargetNodeId = targetNode.Id,
+                    TargetPinId = targetPin.Id,
+                    PubVarName = null  // ✅ ConstBlock 变量不应设置 PubVarName
+                });
+            }
+        }
+        else
+        {
+            // ✅ PubVar 或其他变量：按 PubVarName 查找 VariableSources
+            var source = context.VariableSources.Values.FirstOrDefault(s => s.PubVarName == varName);
+            if (source != null)
+            {
+                context.Blueprint.AddConnection(new BlueprintConnection
+                {
+                    SourceNodeId = source.Node.Id,
+                    SourcePinId = source.Pin.Id,
+                    TargetNodeId = targetNode.Id,
+                    TargetPinId = targetPin.Id,
+                    PubVarName = source.PubVarName
+                });
+            }
+        }
+    }
+
+    public class VariableSource
+    {
+        public BlueprintNode Node { get; set; } = null!;
+        public BlueprintPin Pin { get; set; } = null!;
+        /// <summary>如果是 PubVar，则记录 PubVarName；否则为 null</summary>
+        public string? PubVarName { get; set; }
+    }
+
+    internal class ConversionContext
+    {
+        public required Contract.Workflow.Blueprint Blueprint { get; set; }
+        public required BlockScript Script { get; set; }
+        public Dictionary<string, BlueprintNode> NodeMap { get; set; } = new();
+        public Dictionary<string, BlockDefinition> NamedBlockMap { get; set; } = new();
+        public Dictionary<string, BlueprintNode> BlockFirstNodes { get; set; } = new();
+        public EntryNode? EntryNode { get; set; }
+        public int NextPubVarIndex { get; set; }
+        public HashSet<string> VisitedBlocks { get; set; } = new();
+        public Dictionary<string, VariableSource> VariableSources { get; set; } = new();
+        public List<BlueprintConnection> DataConnections { get; set; } = new();
+        public Dictionary<string, LoopNode> LoopNodesByParentBlock { get; set; } = new();
+        public BlueprintNode? LastProcessedNode { get; set; }
+        /// <summary>
+        /// 当前正在处理的父块名称（用于 Loop 节点复用）
+        /// </summary>
+        public string? CurrentParentBlock { get; set; }
+    }
+}

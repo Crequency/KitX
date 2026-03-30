@@ -23,6 +23,7 @@ using KitX.Core.Statistics;
 using KitX.Core.Tasks;
 using KitX.Core.Workflow;
 using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
 using KitX.Core.Event;
 using Serilog;
 
@@ -193,6 +194,18 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IBlockScopeManager, KitX.Core.Workflow.BlockScripting.BlockScopeManager>(provider =>
         {
             var service = new KitX.Core.Workflow.BlockScripting.BlockScopeManager();
+            return service;
+        });
+
+        // Blueprint Services
+        Log.Information("Registering IBlueprintService...");
+        services.AddSingleton<IBlueprintService, BlueprintService>();
+
+        // Node Template Provider
+        Log.Information("Registering INodeTemplateProvider...");
+        services.AddSingleton<INodeTemplateProvider, NodeTemplateProvider>(provider =>
+        {
+            var service = new NodeTemplateProvider();
             return service;
         });
 
