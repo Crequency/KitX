@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using KitX.Core.Workflow;
@@ -31,20 +31,21 @@ public class BlockScriptExecutionGlobals
 
     /// <summary>
     /// Gets a variable value - called by CSharpScript when accessing unknown properties
+    /// Returns dynamic to allow implicit conversion to target variable types
     /// </summary>
-    public object? GetVariable(string name)
+    public dynamic Get(string name)
     {
         if (name == "NextBlock")
-            return NextBlock;
+            return NextBlock!;
         if (_variables.TryGetValue(name, out var value))
-            return value;
-        return _scopeManager.ResolveVariable(name);
+            return value!;
+        return _scopeManager.ResolveVariable(name)!;
     }
 
     /// <summary>
     /// Sets a variable value
     /// </summary>
-    public void SetVariable(string name, object? value)
+    public void Set(string name, object? value)
     {
         if (name == "NextBlock")
         {

@@ -153,6 +153,40 @@ public class NodeTemplateProvider : INodeTemplateProvider
                 [
                     new PinTemplate { Name = "Exec", Type = PinType.Execution, RelativeY = 25 }
                 ]
+            },
+
+            [BlueprintNodeType.Get] = new NodeTemplate
+            {
+                NodeType = BlueprintNodeType.Get,
+                Name = "Get",
+                Width = 120,
+                Height = 60,
+                InputPins =
+                [
+                    new PinTemplate { Name = "Exec", Type = PinType.Execution, RelativeY = 20 }
+                ],
+                OutputPins =
+                [
+                    new PinTemplate { Name = "Exec", Type = PinType.Execution, RelativeY = 20 },
+                    new PinTemplate { Name = "Value", Type = PinType.Any, RelativeY = 40 }
+                ]
+            },
+
+            [BlueprintNodeType.Set] = new NodeTemplate
+            {
+                NodeType = BlueprintNodeType.Set,
+                Name = "Set",
+                Width = 120,
+                Height = 60,
+                InputPins =
+                [
+                    new PinTemplate { Name = "Exec", Type = PinType.Execution, RelativeY = 20 },
+                    new PinTemplate { Name = "Value", Type = PinType.Any, RelativeY = 40 }
+                ],
+                OutputPins =
+                [
+                    new PinTemplate { Name = "Exec", Type = PinType.Execution, RelativeY = 20 }
+                ]
             }
         };
     }
@@ -168,6 +202,8 @@ public class NodeTemplateProvider : INodeTemplateProvider
         BlueprintNodeType.CallHelper => new CallHelperNode(),
         BlueprintNodeType.Print => new PrintNode(),
         BlueprintNodeType.Pause => new PauseNode(),
+        BlueprintNodeType.Get => new GetNode(),
+        BlueprintNodeType.Set => new SetNode(),
         _ => throw new ArgumentException($"Unknown node type: {type}")
     };
 

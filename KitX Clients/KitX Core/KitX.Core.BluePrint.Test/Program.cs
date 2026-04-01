@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,10 +29,18 @@ public class Program
         Console.WriteLine($"✓ IBlockScriptParser resolved: {parser.GetType().Name}\n");
 
         // ============================================================
-        // Step 2: Create BlockScriptToBlueprintConverter
+        // Step 2: Create Services for Conversion
         // ============================================================
+        var connectionCreationService = new ConnectionCreationService();
+        var flowProcessingService = new FlowProcessingService(connectionCreationService);
+        var layoutService = new LayoutService();
+
         // Note: IBlockScriptToBlueprintConverter is NOT in DI, manually instantiate
-        var converter = new BlockScriptToBlueprintConverter(parser);
+        var converter = new BlockScriptToBlueprintConverter(
+            parser,
+            flowProcessingService,
+            connectionCreationService,
+            layoutService);
 
         // ============================================================
         // Step 3: Sample BlockScript Source Code
@@ -243,7 +251,7 @@ public class Program
             var tgt = blueprint.GetNodeById(conn.TargetNodeId);
             var sp = src?.OutputPins.FirstOrDefault(p => p.Id == conn.SourcePinId);
             var tp = tgt?.InputPins.FirstOrDefault(p => p.Id == conn.TargetPinId);
-            Console.WriteLine($"    • {src?.Name}.{sp?.Name} -> {tgt?.Name}.{tp?.Name}");
+            Console.WriteLine($"    • {src?.Name}[{src?.Id.Substring(0,8)}].{sp?.Name} -> {tgt?.Name}[{tgt?.Id.Substring(0,8)}].{tp?.Name}");
         }
 
         Console.WriteLine($"\n  Data Connections: {dataConnections.Count}");
@@ -254,7 +262,7 @@ public class Program
             var sp = src?.OutputPins.FirstOrDefault(p => p.Id == conn.SourcePinId);
             var tp = tgt?.InputPins.FirstOrDefault(p => p.Id == conn.TargetPinId);
             var pubvar = conn.PubVarName != null ? $" (PubVar: {conn.PubVarName})" : "";
-            Console.WriteLine($"    • {src?.Name}.{sp?.Name} -> {tgt?.Name}.{tp?.Name}{pubvar}");
+            Console.WriteLine($"    • {src?.Name}[{src?.Id.Substring(0,8)}].{sp?.Name} -> {tgt?.Name}[{tgt?.Id.Substring(0,8)}].{tp?.Name}{pubvar}");
         }
 
         Console.WriteLine("\n═════════════════════════════════════════════════════════");
@@ -264,56 +272,64 @@ public class Program
 
     private static string GetSampleBlockScript()
     {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("#ConstBlock");
-        sb.AppendLine("int guessNum = 5;");
-        sb.AppendLine("int loopMax = 3;");
-        sb.AppendLine("int targetNum = 7;");
-        sb.AppendLine("int currentLoop;");
-        sb.AppendLine();
-        sb.AppendLine("#PubVarBlock");
-        sb.AppendLine("var vaaa0001;");
-        sb.AppendLine("var vaaa0002;");
-        sb.AppendLine();
-        sb.AppendLine("#MainBlock");
-        sb.AppendLine("Print(\"开始执行工作流\");");
-        sb.AppendLine("Set(currentLoop, 0);");
-        sb.AppendLine("vaaa0001 = HelperFuncCompare(\"BLE\", Get(currentLoop), loopMax);");
-        sb.AppendLine("NextBlock = Loop(vaaa0001, \"LoopBody\", \"EndLogic\");");
-        sb.AppendLine();
-        sb.AppendLine("#Block LoopBody");
-        sb.AppendLine("vaaa0002 = Get(currentLoop);");
-        sb.AppendLine("Print(vaaa0002);");
-        sb.AppendLine("Set(currentLoop, HelperFuncAdd(Get(currentLoop), 1));");
-        sb.AppendLine("NextBlock = Branch(");
-        sb.AppendLine("    HelperFuncCompare(\"BEQ\", guessNum, targetNum),");
-        sb.AppendLine("    \"SuccessLogic\",");
-        sb.AppendLine("    \"CheckLogic\"");
-        sb.AppendLine(");");
-        sb.AppendLine();
-        sb.AppendLine("#Block CheckLogic");
-        sb.AppendLine("NextBlock = Branch(");
-        sb.AppendLine("    HelperFuncCompare(\"BLT\", guessNum, targetNum),");
-        sb.AppendLine("    \"LessThanLogic\",");
-        sb.AppendLine("    \"GreaterThanLogic\"");
-        sb.AppendLine(");");
-        sb.AppendLine();
-        sb.AppendLine("#Block LessThanLogic");
-        sb.AppendLine("Print(\"猜小了\");");
-        sb.AppendLine("vaaa0001 = HelperFuncCompare(\"BLE\", Get(currentLoop), loopMax);");
-        sb.AppendLine("NextBlock = LoopBodyEnd(\"MainBlock\");");
-        sb.AppendLine();
-        sb.AppendLine("#Block GreaterThanLogic");
-        sb.AppendLine("Print(\"猜大了\");");
-        sb.AppendLine("vaaa0001 = HelperFuncCompare(\"BLE\", Get(currentLoop), loopMax);");
-        sb.AppendLine("NextBlock = LoopBodyEnd(\"MainBlock\");");
-        sb.AppendLine();
-        sb.AppendLine("#Block SuccessLogic");
-        sb.AppendLine("Print(\"猜对啦！\");");
-        sb.AppendLine();
-        sb.AppendLine("#Block EndLogic");
-        sb.AppendLine("Print(\"示例工作流结束\");");
+        string sourceCode = @"#ConstBlock
+int guessNum = 5;  // 可变常量，用户在UI中可修改
+int loopMax = 3;
+int targetNum = 7;
+int currentLoop;	// 无预赋值（值初始化），用户无法在UI中修改
+// 这个currentLoop为什么不能放在PubVarBlock中：
+// 它不是“一次性”的“边数据承载”变量，它是多处、多次使用且随运行而需要变化并持久存储的变量，它的最短生命周期远长于PubVarBlock中的一次性变量（赋值-使用1次后即可销毁，下次用到再重新创建）
 
-        return sb.ToString();
+#PubVarBlock
+// 自动生成，为蓝图预留(是那些数据边为了临时承载数据而使用的变量）
+// 除非你知道自己在做什么并且完全了解块脚本与蓝图互译的过程，否则不要在这个块中添加、删除或修改代码
+// 直接编写BlockScript时不需要在这里设置变量
+bool vaaa0001;
+int vaaa0002;
+
+#MainBlock
+Print(""开始执行工作流"");
+Set(""currentLoop"", 0);
+// NextBlock = Loop(HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax), ""LoopBody"", ""EndLogic""); // 转化前的语句（有嵌套调用）
+vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);  // 脚本转蓝图后，再转回块脚本时，就会利用PubVarBlock中生成的“临时变量”来生成这样的语句（拆分嵌套调用）
+NextBlock = Loop(vaaa0001, ""LoopBody"", ""EndLogic"");  // 主循环
+
+#Block LoopBody
+// Print(Get(currentLoop)); // 原始嵌套调用用法
+// vaaa0001 = Get(currentLoop);
+// Print(vaaa0001); // 其实逻辑上等价但是不推荐的方案──反正PubVarBlock的变量池是“无限大”的，没必要重复使用同一个变量。
+vaaa0002 = Get(""currentLoop"");
+Print(vaaa0002); // 更优的做法，每个临时变量实际上绑定了一条数据边。这样也方便后续直接对蓝图脚本进行Debug时监测数据边上的数据
+Set(""currentLoop"", HelperFuncAdd(Get(""currentLoop""), 1));  // 函数嵌套调用，记得在默认的HelperFunction初始化程序中添加这个HelperFuncAdd
+NextBlock = Branch(
+    HelperFuncCompare(""BEQ"", guessNum, targetNum),  // ✅ 函数调用
+    ""SuccessLogic"",
+    ""CheckLogic""
+);
+
+#Block CheckLogic
+NextBlock = Branch(
+    HelperFuncCompare(""BLT"", guessNum, targetNum),
+    ""LessThanLogic"",
+    ""GreaterThanLogic""
+);
+
+#Block LessThanLogic
+Print(""猜小了"");  // 其实用Print()也行
+vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);  // 原先Loop中的内置嵌套condition表达式由于被拆分，需要在LoopBodyEnd被调用前进行结算，以保持逻辑一致性
+NextBlock = LoopBodyEnd(""MainBlock"");  // 返回到 MainBlock 的 Loop
+
+#Block GreaterThanLogic
+Print(""猜大了"");
+vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);  // 原先Loop中的内置嵌套condition表达式由于被拆分，需要在LoopBodyEnd被调用前进行结算，以保持逻辑一致性
+// 这里仍是vaaa0001是因为在蓝图中实际上是一条边：CallHelper:HelperFuncCompare(BLE).Return --> Loop.Condition | PubVar=vaaa0001
+NextBlock = LoopBodyEnd(""MainBlock"");  // 返回到 MainBlock 的 Loop
+
+#Block SuccessLogic
+Print(""猜对啦！""); // 这个Block没有Branch/Loop/LoopBodyEnd，自然进入下一行
+
+#Block EndLogic
+Print(""示例工作流结束"");";
+        return sourceCode;
     }
 }

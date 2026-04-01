@@ -381,8 +381,7 @@ public class BlockScriptParser : IBlockScriptParser
             switch (recognized.BlockType)
             {
                 case BlockType.ConstBlock:
-                case BlockType.PubVarBlock:
-                    // These blocks should only have variable declarations
+                    // ConstBlock: only variable declarations allowed, initializers are OK (const values)
                     if (stmt is not LocalDeclarationStatementSyntax)
                     {
                         result.IsValid = false;
@@ -392,10 +391,57 @@ public class BlockScriptParser : IBlockScriptParser
                     }
                     break;
 
+                case BlockType.PubVarBlock:
+                    // PubVarBlock: only variable declarations allowed, but NO initializers
+                    if (stmt is not LocalDeclarationStatementSyntax)
+                    {
+                        result.IsValid = false;
+                        result.ErrorMessage = $"[{recognized.BlockType}] Only variable declarations are allowed. Found: {stmt.Kind()}";
+                        result.ErrorLine = recognized.StartLine + stmt.GetLineNumber();
+                        return;
+                    }
+
+                    // PubVarBlock declarations must NOT have initializers
+                    if (stmt is LocalDeclarationStatementSyntax varDecl)
+                    {
+                        foreach (var variable in varDecl.Declaration.Variables)
+                        {
+                            if (variable.Initializer != null)
+                            {
+                                result.IsValid = false;
+                                result.ErrorMessage = $"[{recognized.BlockType}] PubVarBlock variable declarations cannot have initializers. Variable '{variable.Identifier.Text}' has an initializer.";
+                                result.ErrorLine = recognized.StartLine + stmt.GetLineNumber();
+                                return;
+                            }
+                        }
+                    }
+
+                    // PubVarBlock must not contain assignment operations (check for AssignmentExpressionSyntax in any expression statement)
+                    if (stmt is ExpressionStatementSyntax exprStmt)
+                    {
+                        var hasAssignment = exprStmt.DescendantNodes().Any(n => n is AssignmentExpressionSyntax);
+                        if (hasAssignment)
+                        {
+                            result.IsValid = false;
+                            result.ErrorMessage = $"[{recognized.BlockType}] PubVarBlock cannot contain assignment operations.";
+                            result.ErrorLine = recognized.StartLine + stmt.GetLineNumber();
+                            return;
+                        }
+                    }
+                    break;
+
                 case BlockType.MainBlock:
                 case BlockType.NamedBlock:
-                    // These blocks can have any valid C# statement
-                    // But we should check for prohibited constructs like if/else/for/while
+                    // MainBlock and NamedBlock: no variable declarations allowed
+                    if (stmt is LocalDeclarationStatementSyntax)
+                    {
+                        result.IsValid = false;
+                        result.ErrorMessage = $"[{recognized.BlockType}] Variable declarations are not allowed. Use ConstBlock or PubVarBlock instead.";
+                        result.ErrorLine = recognized.StartLine + stmt.GetLineNumber();
+                        return;
+                    }
+
+                    // Check for prohibited syntax (if/else/for/while/try/catch)
                     if (ContainsProhibitedSyntax(stmt))
                     {
                         result.IsValid = false;

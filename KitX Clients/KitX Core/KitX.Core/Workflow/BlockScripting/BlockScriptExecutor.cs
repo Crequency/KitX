@@ -630,6 +630,12 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         initCode.Append(BuildHelperFunctionsCode(script.HelperFunctions));
 
         // Add variable declarations from ConstBlock and PubVarBlock
+        // IMPORTANT: All variables must be declared in CSharpScript, even without initial values
+        //
+        // Key distinction:
+        // - With DefaultValue: use "var name = value;" (C# can infer the type from the literal value)
+        // - Without DefaultValue: use explicit type "type name;" (C# requires explicit type for uninitialized vars)
+        //   Note: "var name;" is INVALID in C# because implicitly-typed variables must be initialized
         if (script.ConstBlock != null)
         {
             foreach (var variable in script.ConstBlock.Variables)
@@ -637,6 +643,11 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                 if (variable.DefaultValue != null)
                 {
                     initCode.AppendLine($"var {variable.Name} = {variable.DefaultValue};");
+                }
+                else
+                {
+                    // Use explicit type since there's no initializer
+                    initCode.AppendLine($"{variable.Type} {variable.Name};");
                 }
             }
         }
@@ -648,6 +659,11 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                 if (variable.DefaultValue != null)
                 {
                     initCode.AppendLine($"var {variable.Name} = {variable.DefaultValue};");
+                }
+                else
+                {
+                    // Use explicit type since there's no initializer
+                    initCode.AppendLine($"{variable.Type} {variable.Name};");
                 }
             }
         }

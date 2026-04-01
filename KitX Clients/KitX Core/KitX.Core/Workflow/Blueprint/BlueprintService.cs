@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using Serilog;
@@ -13,14 +14,25 @@ public class BlueprintService : IBlueprintService
 {
     private readonly IBlockScriptParser _parser;
     private readonly IBlockScriptExecutor _executor;
+    private readonly IFlowProcessingService _flowProcessingService;
+    private readonly IConnectionCreationService _connectionCreationService;
+    private readonly ILayoutService _layoutService;
 
     /// <summary>
     /// Creates a new BlueprintService instance
     /// </summary>
-    public BlueprintService(IBlockScriptParser parser, IBlockScriptExecutor executor)
+    public BlueprintService(
+        IBlockScriptParser parser,
+        IBlockScriptExecutor executor,
+        IFlowProcessingService flowProcessingService,
+        IConnectionCreationService connectionCreationService,
+        ILayoutService layoutService)
     {
         _parser = parser;
         _executor = executor;
+        _flowProcessingService = flowProcessingService;
+        _connectionCreationService = connectionCreationService;
+        _layoutService = layoutService;
     }
 
     /// <summary>
@@ -50,7 +62,11 @@ public class BlueprintService : IBlueprintService
         {
             Log.Information("Importing Blueprint from BlockScript");
 
-            var converter = new BlockScriptToBlueprintConverter(_parser);
+            var converter = new BlockScriptToBlueprintConverter(
+                _parser,
+                _flowProcessingService,
+                _connectionCreationService,
+                _layoutService);
             var blueprint = converter.Convert(sourceCode, helperFunctions);
 
             blueprint.ModifiedAt = DateTime.Now;
