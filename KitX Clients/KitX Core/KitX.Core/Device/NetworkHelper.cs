@@ -16,7 +16,7 @@ namespace KitX.Core.Device;
 internal static class NetworkHelper
 {
     /// <summary>
-    /// Gets the local IPv4 address
+    /// Gets the local IPv4 address (excluding Docker and virtual interfaces)
     /// </summary>
     /// <returns>IPv4 address or empty string if not found</returns>
     internal static string GetInterNetworkIPv4()
@@ -30,7 +30,8 @@ internal static class NetworkHelper
                 .Where(ip =>
                     ip.AddressFamily == AddressFamily.InterNetwork &&
                     !ip.ToString().Equals("127.0.0.1") &&
-                    IsInterNetworkAddressV4(ip))
+                    IsInterNetworkAddressV4(ip) &&
+                    !IsExcludedNetworkInterface(ip))
                 .FirstOrDefault();
 
             var result = search?.ToString();
@@ -42,6 +43,40 @@ internal static class NetworkHelper
             Log.Warning(ex, $"In {location}: {ex.Message}");
             return string.Empty;
         }
+    }
+
+    /// <summary>
+    /// Checks if the IP belongs to an excluded network interface (e.g., Docker)
+    /// </summary>
+    private static bool IsExcludedNetworkInterface(IPAddress ip)
+    {
+        try
+        {
+            var nics = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(n => n.OperationalStatus == OperationalStatus.Up);
+
+            foreach (var nic in nics)
+            {
+                var description = nic.Description.ToLowerInvariant();
+                // Exclude Docker, veth (virtual ethernet), Hyper-V, etc.
+                if (description.Contains("docker") ||
+                    description.Contains("veth") ||
+                    description.Contains("hyper-v") ||
+                    description.Contains("virtual"))
+                {
+                    var addresses = nic.GetIPProperties().UnicastAddresses;
+                    if (addresses.Any(a => a.Address.ToString() == ip.ToString()))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // If we can't determine, don't exclude
+        }
+        return false;
     }
 
     /// <summary>

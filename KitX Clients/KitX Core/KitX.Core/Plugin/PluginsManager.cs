@@ -226,7 +226,7 @@ public class PluginsManager : IPluginService
             // Decode the KXP file
             try
             {
-                var decoder = new KitX.FileFormats.CSharp.ExtensionsPackage.Decoder(kxpFilePath);
+                var decoder = new FileFormats.CSharp.ExtensionsPackage.Decoder(kxpFilePath);
                 decoder.Decode(pluginDir);
                 Log.Information($"Decoded KXP file to: {pluginDir}");
             }
@@ -254,8 +254,8 @@ public class PluginsManager : IPluginService
             var loaderStructPath = Path.Combine(pluginDir, "LoaderStruct.json");
             var pluginStructPath = Path.Combine(pluginDir, "PluginStruct.json");
 
-            KitX.Shared.CSharp.Plugin.PluginInfo? pluginInfo = null;
-            KitX.Shared.CSharp.Loader.LoaderInfo? loaderInfo = null;
+            PluginInfo? pluginInfo = null;
+            LoaderInfo? loaderInfo = null;
 
             // Parse LoaderStruct.json if exists
             if (File.Exists(loaderStructPath))
@@ -263,9 +263,9 @@ public class PluginsManager : IPluginService
                 try
                 {
                     var loaderStructJson = await File.ReadAllTextAsync(loaderStructPath);
-                    var loaderStruct = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(loaderStructJson);
+                    var loaderStruct = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(loaderStructJson);
 
-                    loaderInfo = new KitX.Shared.CSharp.Loader.LoaderInfo
+                    loaderInfo = new LoaderInfo
                     {
                         LoaderName = loaderStruct.TryGetProperty("LoaderName", out var name) ? name.GetString() : "Unknown",
                         LoaderVersion = loaderStruct.TryGetProperty("LoaderVersion", out var version) ? version.GetString() : "1.0.0",
@@ -276,7 +276,7 @@ public class PluginsManager : IPluginService
                     };
 
                     // Copy loader struct to LoaderInfo.json (different format)
-                    var loaderInfoJson = System.Text.Json.JsonSerializer.Serialize(loaderInfo, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                    var loaderInfoJson = System.Text.Json.JsonSerializer.Serialize(loaderInfo, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(Path.Combine(pluginDir, "LoaderInfo.json"), loaderInfoJson);
 
                     Log.Information($"Parsed LoaderStruct: {loaderInfo.LoaderName} v{loaderInfo.LoaderVersion}");
@@ -293,9 +293,9 @@ public class PluginsManager : IPluginService
                 try
                 {
                     var pluginStructJson = await File.ReadAllTextAsync(pluginStructPath);
-                    var pluginStruct = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(pluginStructJson);
+                    var pluginStruct = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(pluginStructJson);
 
-                    pluginInfo = new KitX.Shared.CSharp.Plugin.PluginInfo
+                    pluginInfo = new PluginInfo
                     {
                         Name = pluginStruct.TryGetProperty("Name", out var name) ? name.GetString() ?? "Unknown" : "Unknown",
                         Version = pluginStruct.TryGetProperty("Version", out var ver) ? ver.GetString() ?? "1.0.0" : "1.0.0",
@@ -304,7 +304,7 @@ public class PluginsManager : IPluginService
                         ComplexDescription = new Dictionary<string, string>(),
                         TotalDescriptionInMarkdown = new Dictionary<string, string>(),
                         Tags = new Dictionary<string, string>(),
-                        Functions = new List<KitX.Shared.CSharp.Plugin.Function>()
+                        Functions = new List<Function>()
                     };
 
                     // Parse DisplayName
@@ -366,7 +366,7 @@ public class PluginsManager : IPluginService
             // If no plugin info from KXP, create basic info from filename
             if (pluginInfo == null)
             {
-                pluginInfo = new KitX.Shared.CSharp.Plugin.PluginInfo
+                pluginInfo = new PluginInfo
                 {
                     Name = pluginFileName,
                     Version = "1.0.0",
@@ -377,7 +377,7 @@ public class PluginsManager : IPluginService
                     ComplexDescription = new Dictionary<string, string> { { "en-us", "Imported plugin" } },
                     TotalDescriptionInMarkdown = new Dictionary<string, string>(),
                     Tags = new Dictionary<string, string>(),
-                    Functions = new List<KitX.Shared.CSharp.Plugin.Function>()
+                    Functions = new List<Function>()
                 };
             }
 
@@ -398,7 +398,7 @@ public class PluginsManager : IPluginService
             }
 
             // Create PluginInfo.json
-            var pluginInfoJson = System.Text.Json.JsonSerializer.Serialize(pluginInfo, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            var pluginInfoJson = System.Text.Json.JsonSerializer.Serialize(pluginInfo, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(Path.Combine(pluginDir, "PluginInfo.json"), pluginInfoJson);
 
             // Create installation record
@@ -407,8 +407,8 @@ public class PluginsManager : IPluginService
                 Id = GeneratePluginId(pluginInfo),
                 InstallPath = pluginDir,
                 PluginInfo = pluginInfo,
-                LoaderInfo = loaderInfo ?? new KitX.Shared.CSharp.Loader.LoaderInfo(),
-                InstalledDevices = new List<KitX.Shared.CSharp.Device.DeviceLocator>()
+                LoaderInfo = loaderInfo ?? new LoaderInfo(),
+                InstalledDevices = new List<DeviceLocator>()
             };
 
             _plugins.Add(installation);

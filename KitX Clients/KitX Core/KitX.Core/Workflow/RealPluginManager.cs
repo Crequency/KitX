@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Kscript.CSharp.Parser.Core;
 using Kscript.CSharp.Parser.Models;
+using KitX.Core.Contract.Plugin;
 using KitX.Core.Device;
 using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
@@ -49,6 +50,38 @@ public class RealPluginManager : IPluginManager
 
         // 订阅插件消息接收事件以处理响应
         _pluginsServer.PluginMessageReceived += OnPluginMessageReceived;
+
+        // 订阅插件响应事件（当插件返回带RequestId的响应时触发）
+        _pluginsServer.PluginResponse += OnPluginResponse;
+    }
+
+    /// <summary>
+    /// 处理插件响应事件
+    /// </summary>
+    private void OnPluginResponse(object? sender, PluginResponseEventArgs e)
+    {
+        try
+        {
+            Log.Information($"[RealPluginManager] OnPluginResponse called with RequestId: {e.RequestId}");
+
+            if (_pendingResponses.TryRemove(e.RequestId, out var tcs))
+            {
+                var command = JsonSerializer.Deserialize<Command>(e.Content, _serializerOptions);
+                var responseBody = command.BodyLength > 0
+                    ? Encoding.UTF8.GetString(command.Body.AsSpan(0, command.BodyLength))
+                    : string.Empty;
+                Log.Information($"[RealPluginManager] Setting result from PluginResponse: {responseBody}");
+                tcs.SetResult(responseBody);
+            }
+            else
+            {
+                Log.Warning($"[RealPluginManager] RequestId {e.RequestId} not found in pending responses");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[RealPluginManager] Error handling plugin response");
+        }
     }
 
     /// <summary>
@@ -58,8 +91,16 @@ public class RealPluginManager : IPluginManager
     {
         try
         {
+            Log.Information($"[RealPluginManager] OnPluginMessageReceived called with message: {e.Message?.Substring(0, Math.Min(200, e.Message?.Length ?? 0))}...");
+
             var kwc = JsonSerializer.Deserialize<Request>(e.Message, _serializerOptions);
-            if (kwc?.Content is null) return;
+            if (kwc?.Content is null)
+            {
+                Log.Information($"[RealPluginManager] kwc or kwc.Content is null");
+                return;
+            }
+
+            Log.Information($"[RealPluginManager] kwc.Content: {kwc.Content.Substring(0, Math.Min(100, kwc.Content.Length))}...");
 
             var command = JsonSerializer.Deserialize<Command>(kwc.Content, _serializerOptions);
             if (command.Request is null) return; // Command is a struct, check if Request is empty
@@ -67,12 +108,18 @@ public class RealPluginManager : IPluginManager
             // 检查是否是响应消息
             if (command.Tags != null && command.Tags.TryGetValue("RequestId", out var requestId))
             {
+                Log.Information($"[RealPluginManager] Found RequestId: {requestId}");
                 if (_pendingResponses.TryRemove(requestId, out var tcs))
                 {
                     var responseBody = command.BodyLength > 0
                         ? Encoding.UTF8.GetString(command.Body.AsSpan(0, command.BodyLength))
                         : string.Empty;
+                    Log.Information($"[RealPluginManager] Setting result: {responseBody}");
                     tcs.SetResult(responseBody);
+                }
+                else
+                {
+                    Log.Warning($"[RealPluginManager] RequestId {requestId} not found in pending responses");
                 }
             }
         }
@@ -85,10 +132,14 @@ public class RealPluginManager : IPluginManager
     /// <summary>
     /// 调用插件方法（无返回值）
     /// </summary>
+    /// <remarks>
+    /// 使用 fire-and-forget 模式，不等待插件响应。
+    /// 因为 void 返回类型的插件功能不会发送响应。
+    /// </remarks>
     public void Call(PluginCallInfo callInfo)
     {
-        Log.Information($"[RealPluginManager] Call() invoked: {callInfo.PluginName}.{callInfo.MethodName}");
-        CallAsync(callInfo).Wait();
+        Log.Information($"[RealPluginManager] Call() invoked (fire-and-forget): {callInfo.PluginName}.{callInfo.MethodName}");
+        SendRequestWithoutWaitAsync(callInfo);
     }
 
     /// <summary>
@@ -151,13 +202,14 @@ public class RealPluginManager : IPluginManager
                 for (int i = 0; i < callInfo.Parameters.Length; i++)
                 {
                     var paramValue = callInfo.Parameters[i]?.ToString() ?? string.Empty;
+                    var paramName = callInfo.ParameterNames?.Length > i ? callInfo.ParameterNames[i] : i.ToString();
+                    var paramType = callInfo.ParameterTypes?.Length > i ? callInfo.ParameterTypes[i].Name.ToLower() : "string";
                     command.FunctionArgs.Add(new Parameter
                     {
-                        Name = i.ToString(),
+                        Name = paramName,
+                        Type = paramType,
                         Value = paramValue,
-                        Type = callInfo.ParameterTypes?.Length > i
-                            ? callInfo.ParameterTypes[i].Name.ToLower()
-                            : "string"
+                        IsOptional = false
                     });
                 }
                 command.Body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command.FunctionArgs, _serializerOptions));
@@ -178,14 +230,98 @@ public class RealPluginManager : IPluginManager
 
             Log.Information($"[RealPluginManager] Sent request to {callInfo.PluginName}.{callInfo.MethodName}, RequestId: {requestId}");
 
-            // 注意: Loader 在处理 ReceiveCommand 后不会返回响应
-            // 对于 void 方法，我们直接返回空结果
-            // 对于有返回值的方法，需要插件支持返回响应（当前不支持）
-            return string.Empty;
+            // 等待插件响应，设置超时
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                return await tcs.Task.WaitAsync(cts.Token);
+            }
+            catch (TimeoutException)
+            {
+                Log.Warning($"[RealPluginManager] Request {requestId} timed out");
+                _pendingResponses.TryRemove(requestId, out _);
+                throw new TimeoutException($"Plugin call timed out: {callInfo.PluginName}.{callInfo.MethodName}");
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Warning($"[RealPluginManager] Request {requestId} was cancelled");
+                _pendingResponses.TryRemove(requestId, out _);
+                throw;
+            }
         }
         catch (Exception ex)
         {
             Log.Error(ex, $"[RealPluginManager] Error calling {callInfo.PluginName}.{callInfo.MethodName}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 发送请求但不等待响应（fire-and-forget）
+    /// </summary>
+    /// <remarks>
+    /// 用于 void 返回类型的插件调用，因为这类调用不会有响应返回。
+    /// </remarks>
+    private void SendRequestWithoutWaitAsync(PluginCallInfo callInfo)
+    {
+        // 查找插件连接
+        var connection = FindPluginConnection(callInfo.PluginName);
+        if (connection is null)
+        {
+            Log.Error($"[RealPluginManager] Plugin connection not found: {callInfo.PluginName}");
+            throw new InvalidOperationException($"Plugin not found or not connected: {callInfo.PluginName}");
+        }
+
+        Log.Information($"[RealPluginManager] Sending fire-and-forget request to {callInfo.PluginName}.{callInfo.MethodName}");
+
+        try
+        {
+            // 构建命令（不包含 RequestId，因为不需要等待响应）
+            var command = new Command
+            {
+                Request = CommandRequestInfo.ReceiveCommand,
+                FunctionName = callInfo.MethodName,
+                PluginConnectionId = connection.ConnectionId ?? string.Empty
+            };
+
+            // 处理参数
+            if (callInfo.Parameters != null && callInfo.Parameters.Length > 0)
+            {
+                command.FunctionArgs = new();
+                for (int i = 0; i < callInfo.Parameters.Length; i++)
+                {
+                    var paramValue = callInfo.Parameters[i]?.ToString() ?? string.Empty;
+                    var paramName = callInfo.ParameterNames?.Length > i ? callInfo.ParameterNames[i] : i.ToString();
+                    var paramType = callInfo.ParameterTypes?.Length > i ? callInfo.ParameterTypes[i].Name.ToLower() : "string";
+                    command.FunctionArgs.Add(new Parameter
+                    {
+                        Name = paramName,
+                        Type = paramType,
+                        Value = paramValue,
+                        IsOptional = false
+                    });
+                }
+                command.Body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command.FunctionArgs, _serializerOptions));
+                command.BodyLength = command.Body.Length;
+            }
+
+            // 构建请求
+            var request = new Request
+            {
+                Type = RequestTypes.Command,
+                Version = RequestVersions.V1,
+                Content = JsonSerializer.Serialize(command, _serializerOptions)
+            };
+
+            // 发送请求
+            var message = JsonSerializer.Serialize(request, _serializerOptions);
+            connection.Send(message);
+
+            Log.Information($"[RealPluginManager] Fire-and-forget request sent to {callInfo.PluginName}.{callInfo.MethodName}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"[RealPluginManager] Error sending fire-and-forget request to {callInfo.PluginName}.{callInfo.MethodName}");
             throw;
         }
     }

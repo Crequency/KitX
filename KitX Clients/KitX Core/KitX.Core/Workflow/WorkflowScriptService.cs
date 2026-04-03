@@ -8,7 +8,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Csharpell.Core;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Kscript.CSharp.Parser;
 using KitX.Core.Contract.Workflow;
@@ -49,9 +51,25 @@ public class WorkflowScriptService : IWorkflowService
     private List<PluginInfo> _availablePlugins { get; set; } = new();
 
     /// <summary>
-    /// Private constructor
+    /// Private constructor - initializes RealPluginManager immediately
     /// </summary>
-    private WorkflowScriptService() { }
+    private WorkflowScriptService()
+    {
+        // Pre-initialize RealPluginManager to ensure it subscribes to plugin events
+        // This must be done at startup, not when first script is executed
+        try
+        {
+            var pluginsServer = PluginsServer.Instance;
+            var realPluginManager = new RealPluginManager(pluginsServer);
+            Parser.SetPluginManager(realPluginManager);
+            _isParserInitialized = true;
+            Log.Information("[WorkflowScriptService] Real plugin manager pre-initialized at startup");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[WorkflowScriptService] Failed to pre-initialize RealPluginManager, will retry on first script execution");
+        }
+    }
 
     /// <summary>
     /// Gets the script engine, creating it if necessary
@@ -248,7 +266,7 @@ public class WorkflowScriptService : IWorkflowService
                 catch (Exception ex)
                 {
                     var error = $"Failed to generate plugin API: {ex.Message}";
-                    Log.Error(error);
+                    Log.Error(ex, error);
                 }
 
                 // Execute script with plugins
@@ -482,6 +500,458 @@ public class WorkflowScriptService : IWorkflowService
         _availablePlugins = plugins ?? new List<PluginInfo>();
         Log.Information($"[WorkflowScriptService] Updated available plugins: {_availablePlugins.Count} plugins");
     }
+
+    #region KCS Script Processing Methods
+
+    /// <summary>
+    /// 从代码中解析常量
+    /// </summary>
+    public List<VariableConstant> ParseConstantsFromCode(string code)
+    {
+        var result = new List<VariableConstant>();
+
+        if (string.IsNullOrWhiteSpace(code))
+            return result;
+
+        // 简单的const解析 - 匹配 "const 类型 变量名 = 值;" 模式
+        var lines = code.Split('\n');
+        var newConstants = new Dictionary<string, VariableConstant>();
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("const "))
+            {
+                // 解析 const 类型 名称 = 值;
+                var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 4 && parts[0] == "const")
+                {
+                    var type = parts[1];
+                    var name = parts[2];
+                    var valueStr = string.Join(" ", parts.Skip(3)).TrimStart('=').Trim().TrimEnd(';');
+
+                    if (!newConstants.ContainsKey(name))
+                    {
+                        var defaultValue = ParseValue(valueStr, type);
+
+                        newConstants[name] = new VariableConstant
+                        {
+                            Name = name,
+                            DefaultValue = defaultValue,
+                            UserValue = defaultValue,
+                            Type = type
+                        };
+                    }
+                }
+            }
+        }
+
+        return newConstants.Values.ToList();
+    }
+
+    /// <summary>
+    /// 解析常量值
+    /// </summary>
+    private object? ParseValue(string valueStr, string type)
+    {
+        if (string.IsNullOrEmpty(valueStr)) return null;
+
+        try
+        {
+            return type switch
+            {
+                "int" => int.TryParse(valueStr, out var i) ? i : 0,
+                "double" => double.TryParse(valueStr, out var d) ? d : 0.0,
+                "float" => float.TryParse(valueStr, out var f) ? f : 0.0f,
+                "bool" => bool.TryParse(valueStr, out var b) && b,
+                "string" => valueStr.Trim('"').Trim('\''),
+                _ => valueStr
+            };
+        }
+        catch
+        {
+            return valueStr;
+        }
+    }
+
+    /// <summary>
+    /// 应用常量到代码
+    /// </summary>
+    /// <remarks>
+    /// 使用 CSharpSyntaxRewriter 进行语法树级别的值注入，比正则表达式更准确可靠，
+    /// 不会误匹配注释或字符串中的内容。
+    /// </remarks>
+    public string ApplyConstantsToCode(string code, List<VariableConstant> constants)
+    {
+        if (string.IsNullOrWhiteSpace(code) || constants == null || !constants.Any())
+            return code;
+
+        // 构建常量名称到值的字典
+        var constantValues = new Dictionary<string, object?>();
+        foreach (var constant in constants)
+        {
+            // 根据类型转换 UserValue
+            var typedValue = constant.UserValue;
+            if (typedValue != null && constant.Type != null)
+            {
+                typedValue = ConvertToTypedValue(typedValue, constant.Type);
+            }
+            constantValues[constant.Name] = typedValue;
+        }
+
+        // 解析代码为语法树
+        var tree = CSharpSyntaxTree.ParseText(code);
+        var root = tree.GetRoot();
+
+        // 使用语法重写器注入常量值
+        var rewriter = new ConstantValueRewriter(constantValues);
+        var newRoot = rewriter.Visit(root);
+
+        return newRoot.ToFullString();
+    }
+
+    /// <summary>
+    /// 将值转换为指定类型
+    /// </summary>
+    private object? ConvertToTypedValue(object? value, string type)
+    {
+        if (value == null) return null;
+
+        return type.ToLowerInvariant() switch
+        {
+            "int" => Convert.ToInt32(value),
+            "long" => Convert.ToInt64(value),
+            "double" => Convert.ToDouble(value),
+            "float" => Convert.ToSingle(value),
+            "decimal" => Convert.ToDecimal(value),
+            "bool" or "boolean" => Convert.ToBoolean(value),
+            "string" => value.ToString(),
+            "char" => Convert.ToChar(value),
+            _ => value
+        };
+    }
+
+    /// <summary>
+    /// 合并辅助函数到代码
+    /// </summary>
+    public string MergeHelperFunctions(string mainCode, List<HelperFunction> helperFunctions)
+    {
+        var combined = new StringBuilder();
+
+        // 添加辅助函数作为完整的 C# 方法
+        foreach (var func in helperFunctions)
+        {
+            // 生成方法签名
+            combined.Append("static ");
+            combined.Append(func.ReturnType);
+            combined.Append(" ");
+            combined.Append(func.Name);
+            combined.Append("(");
+
+            // 添加参数
+            for (int i = 0; i < func.Parameters.Count; i++)
+            {
+                if (i > 0) combined.Append(", ");
+                combined.Append(func.Parameters[i].Type);
+                combined.Append(" ");
+                combined.Append(func.Parameters[i].Name);
+            }
+
+            combined.AppendLine(")");
+            combined.AppendLine("{");
+
+            // 添加函数体代码（用户提供的代码被视为方法体内容）
+            if (!string.IsNullOrWhiteSpace(func.Code))
+            {
+                // 逐行添加函数体，保持缩进
+                foreach (var line in func.Code.Split('\n'))
+                {
+                    combined.AppendLine("    " + line);
+                }
+            }
+
+            combined.AppendLine("}");
+            combined.AppendLine();
+        }
+
+        // 添加主程序
+        combined.AppendLine("// --- Main Program ---");
+        combined.AppendLine(mainCode);
+
+        return combined.ToString();
+    }
+
+    /// <summary>
+    /// 执行KCS代码 - 包含代码分析、常量应用、辅助函数合并
+    /// </summary>
+    public async Task<string?> ExecuteKcsCodesAsync(
+        string mainCode,
+        List<HelperFunction> helperFunctions,
+        List<VariableConstant> constants,
+        List<PluginInfo>? requiredPlugins = null,
+        bool includeTimestamp = true,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. 分析主程序代码
+        var analyzer = new MainProgramAnalyzer();
+        var analysisResult = analyzer.Analyze(mainCode);
+
+        if (!analysisResult.IsValid)
+        {
+            return includeTimestamp
+                ? $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [E] Code analysis failed: {analysisResult.ForbiddenReason}"
+                : $"Code analysis failed: {analysisResult.ForbiddenReason}";
+        }
+
+        // 2. 应用常量
+        var codeWithConstants = ApplyConstantsToCode(mainCode, constants);
+
+        // 3. 合并辅助函数
+        var fullCode = MergeHelperFunctions(codeWithConstants, helperFunctions);
+
+        // 4. 执行代码
+        return await ExecuteCodesAsync(fullCode, requiredPlugins, includeTimestamp, cancellationToken);
+    }
+
+    #region Block Script Methods
+
+    // Block script parser instance
+    private BlockScripting.BlockScriptParser? _blockScriptParser;
+
+    // Block script executor instance
+    private BlockScripting.BlockScriptExecutor? _blockScriptExecutor;
+
+    /// <summary>
+    /// Gets the block script parser
+    /// </summary>
+    private BlockScripting.BlockScriptParser BlockScriptParser =>
+        _blockScriptParser ??= new BlockScripting.BlockScriptParser();
+
+    /// <summary>
+    /// Gets the block script executor
+    /// </summary>
+    private BlockScripting.BlockScriptExecutor BlockScriptExecutor =>
+        _blockScriptExecutor ??= new BlockScripting.BlockScriptExecutor();
+
+    /// <summary>
+    /// 解析块脚本
+    /// </summary>
+    public BlockScriptParseResult ParseBlockScript(string sourceCode)
+    {
+        return BlockScriptParser.Parse(sourceCode);
+    }
+
+    /// <summary>
+    /// 异步解析块脚本
+    /// </summary>
+    public Task<BlockScriptParseResult> ParseBlockScriptAsync(string sourceCode)
+    {
+        return BlockScriptParser.ParseAsync(sourceCode);
+    }
+
+    /// <summary>
+    /// 验证块脚本
+    /// </summary>
+    public BlockScriptValidationResult ValidateBlockScript(string sourceCode)
+    {
+        return BlockScriptParser.Validate(sourceCode);
+    }
+
+    /// <summary>
+    /// 执行块脚本
+    /// </summary>
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        BlockScript script,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        return BlockScriptExecutor.ExecuteAsync(script, parameters, cancellationToken);
+    }
+
+    /// <summary>
+    /// 从块脚本源代码执行
+    /// </summary>
+    public async Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Parse the block script
+        var parseResult = BlockScriptParser.Parse(sourceCode);
+
+        if (!parseResult.IsSuccess || parseResult.Script == null)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = parseResult.ErrorMessage ?? "Failed to parse block script"
+            };
+        }
+
+        // 2. Validate
+        var validationResult = BlockScriptExecutor.Validate(parseResult.Script);
+        if (!validationResult.IsValid)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = string.Join("; ", validationResult.Errors)
+            };
+        }
+
+        // 3. Execute
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, parameters, cancellationToken);
+    }
+
+    /// <summary>
+    /// 从块脚本源代码执行（带辅助函数）
+    /// </summary>
+    /// <param name="sourceCode">块脚本源代码</param>
+    /// <param name="helperFunctions">辅助函数列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>执行结果</returns>
+    public async Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        List<HelperFunction> helperFunctions,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Parse the block script (using original source with attributes)
+        var parseResult = BlockScriptParser.Parse(sourceCode);
+
+        if (!parseResult.IsSuccess || parseResult.Script == null)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = parseResult.ErrorMessage ?? "Failed to parse block script"
+            };
+        }
+
+        // 2. Validate
+        var validationResult = BlockScriptExecutor.Validate(parseResult.Script);
+        if (!validationResult.IsValid)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = string.Join("; ", validationResult.Errors)
+            };
+        }
+
+        // Store helper functions for execution (these will be injected into each evaluation)
+        parseResult.Script.HelperFunctions = helperFunctions ?? new List<HelperFunction>();
+
+        // 3. Execute
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, null, cancellationToken);
+    }
+
+    #endregion
+
+    #endregion
+}
+
+/// <summary>
+/// Rewriter for injecting constant values into variable declarations using CSharpSyntaxRewriter
+/// </summary>
+/// <remarks>
+/// This approach is more reliable than regex-based matching as it understands the actual
+/// syntax structure and won't accidentally match content in comments or strings.
+/// </remarks>
+internal class ConstantValueRewriter : CSharpSyntaxRewriter
+{
+    private readonly Dictionary<string, object?> _constantValues;
+
+    public ConstantValueRewriter(Dictionary<string, object?> constantValues)
+    {
+        _constantValues = constantValues;
+    }
+
+    /// <summary>
+    /// Visits variable declarators to replace their initializer values
+    /// </summary>
+    public override SyntaxNode? VisitVariableDeclarator(VariableDeclaratorSyntax node)
+    {
+        // Check if this variable declarator has an initializer and matches a constant name
+        if (node.Initializer != null && _constantValues.TryGetValue(node.Identifier.Text, out var newValue))
+        {
+            var newInitializer = CreateNewInitializer(node.Initializer, newValue);
+            if (newInitializer != null)
+            {
+                return node.WithInitializer(newInitializer);
+            }
+        }
+
+        return base.VisitVariableDeclarator(node);
+    }
+
+    /// <summary>
+    /// Creates a new EqualsValueClauseSyntax with the specified value
+    /// </summary>
+    private EqualsValueClauseSyntax? CreateNewInitializer(EqualsValueClauseSyntax oldInitializer, object? value)
+    {
+        ExpressionSyntax? newExpression = null;
+
+        if (value == null)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression);
+        }
+        else if (value is int intVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.NumericLiteralExpression,
+                SyntaxFactory.Literal(intVal));
+        }
+        else if (value is long longVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.NumericLiteralExpression,
+                SyntaxFactory.Literal(longVal));
+        }
+        else if (value is double doubleVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.NumericLiteralExpression,
+                SyntaxFactory.Literal(doubleVal));
+        }
+        else if (value is float floatVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.NumericLiteralExpression,
+                SyntaxFactory.Literal(floatVal));
+        }
+        else if (value is decimal decimalVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.NumericLiteralExpression,
+                SyntaxFactory.Literal(decimalVal));
+        }
+        else if (value is bool boolVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                boolVal ? SyntaxKind.TrueLiteralExpression : SyntaxKind.FalseLiteralExpression);
+        }
+        else if (value is string stringVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.StringLiteralExpression,
+                SyntaxFactory.Literal(stringVal));
+        }
+        else if (value is char charVal)
+        {
+            newExpression = SyntaxFactory.LiteralExpression(
+                SyntaxKind.CharacterLiteralExpression,
+                SyntaxFactory.Literal(charVal));
+        }
+
+        if (newExpression != null)
+        {
+            return SyntaxFactory.EqualsValueClause(newExpression)
+                .WithLeadingTrivia(oldInitializer.GetLeadingTrivia())
+                .WithTrailingTrivia(oldInitializer.GetTrailingTrivia());
+        }
+
+        return null;
+    }
 }
 
 /// <summary>
@@ -495,103 +965,4 @@ public class WorkflowCase : IWorkflowCase
     public string IconPath { get; set; } = string.Empty;
     public bool IsRunning { get; set; }
     public string? ScriptPath { get; set; }
-}
-
-/// <summary>
-/// Plugin service provider implementation for workflow integration
-/// </summary>
-public class PluginServiceProvider : IPluginServiceProvider
-{
-    private readonly List<PluginInfo> _runningPlugins = new();
-    private readonly object? _pluginsServer;
-
-    /// <summary>
-    /// Constructor
-    /// </summary>
-    /// <param name="pluginsServer">Plugins server instance (can be null)</param>
-    public PluginServiceProvider(object? pluginsServer)
-    {
-        _pluginsServer = pluginsServer;
-    }
-
-    /// <summary>
-    /// Generates a plugin ID from plugin info
-    /// </summary>
-    private Guid GeneratePluginId(PluginInfo pluginInfo)
-    {
-        // Generate deterministic GUID from: PublisherName_AuthorName_Name_Version
-        var input = $"{pluginInfo.PublisherName}_{pluginInfo.AuthorName}_{pluginInfo.Name}_{pluginInfo.Version}";
-
-        // Use MD5 hash to create a deterministic GUID
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
-
-        // Convert first 16 bytes to GUID
-        return new Guid(hash.Take(16).ToArray());
-    }
-
-    /// <summary>
-    /// Gets running plugins
-    /// </summary>
-    public IEnumerable<PluginInfo> GetRunningPlugins()
-    {
-        return _runningPlugins.ToList();
-    }
-
-    /// <summary>
-    /// Finds a plugin by name
-    /// </summary>
-    public PluginInfo? FindPlugin(string pluginName)
-    {
-        return _runningPlugins.FirstOrDefault(p => p.Name == pluginName);
-    }
-
-    /// <summary>
-    /// Finds a connector for a plugin
-    /// </summary>
-    public object? FindConnector(PluginInfo pluginInfo)
-    {
-        // TODO: Implement connector lookup using plugins server
-        return null;
-    }
-
-    /// <summary>
-    /// Sends a request asynchronously
-    /// </summary>
-    public CTask SendRequestAsync(object connector, object request)
-    {
-        // TODO: Implement request sending
-        return CTask.CompletedTask;
-    }
-
-    /// <summary>
-    /// Subscribes to plugin responses
-    /// </summary>
-    public void SubscribeToResponses(Action<string, string> responseHandler)
-    {
-        // TODO: Implement response subscription
-    }
-
-    /// <summary>
-    /// Adds a running plugin
-    /// </summary>
-    public void AddRunningPlugin(PluginInfo pluginInfo)
-    {
-        if (!_runningPlugins.Any(p => GeneratePluginId(p) == GeneratePluginId(pluginInfo)))
-        {
-            _runningPlugins.Add(pluginInfo);
-        }
-    }
-
-    /// <summary>
-    /// Removes a running plugin
-    /// </summary>
-    public void RemoveRunningPlugin(Guid pluginId)
-    {
-        var plugin = _runningPlugins.FirstOrDefault(p => GeneratePluginId(p) == pluginId);
-        if (plugin != null)
-        {
-            _runningPlugins.Remove(plugin);
-        }
-    }
 }

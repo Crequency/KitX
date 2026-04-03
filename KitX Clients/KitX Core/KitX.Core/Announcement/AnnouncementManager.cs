@@ -184,7 +184,7 @@ public class AnnouncementManager : IAnnouncementService
     public void SaveAnnouncementConfig()
     {
         var config = AnnouncementConfig;
-        if (!string.IsNullOrEmpty(config.ConfigFileLocation) && config is Configuration.AnnouncementConfig typedConfig)
+        if (!string.IsNullOrEmpty(config.ConfigFileLocation) && config is AnnouncementConfig typedConfig)
         {
             typedConfig.Save(config.ConfigFileLocation);
         }

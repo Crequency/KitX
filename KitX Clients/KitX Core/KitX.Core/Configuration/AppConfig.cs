@@ -10,8 +10,23 @@ namespace KitX.Core.Configuration;
 /// Application configuration implementation
 /// This class contains all application settings organized into logical sections
 /// </summary>
-public class AppConfig : IAppConfig
+public class AppConfig : IAppConfig, IConfigWithMetadata
 {
+    /// <summary>
+    /// Configuration file location
+    /// </summary>
+    public string? ConfigFileLocation { get; set; }
+
+    /// <summary>
+    /// Configuration file watcher name
+    /// </summary>
+    public string? ConfigFileWatcherName { get; set; }
+
+    /// <summary>
+    /// Configuration generated time
+    /// </summary>
+    public DateTime? ConfigGeneratedTime { get; set; } = DateTime.Now;
+
     public Config_App App { get; set; } = new();
 
     public Config_Windows Windows { get; set; } = new();

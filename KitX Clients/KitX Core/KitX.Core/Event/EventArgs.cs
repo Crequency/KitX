@@ -33,7 +33,7 @@ public class DeviceInfoEventArgs : EventArgs
     /// <summary>
     /// The device information
     /// </summary>
-    public KitX.Shared.CSharp.Device.DeviceInfo? DeviceInfo { get; set; }
+    public Shared.CSharp.Device.DeviceInfo? DeviceInfo { get; set; }
 }
 
 /// <summary>

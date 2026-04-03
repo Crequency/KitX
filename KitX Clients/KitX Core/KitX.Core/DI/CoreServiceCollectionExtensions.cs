@@ -20,8 +20,10 @@ using KitX.Core.Hotkey;
 using KitX.Core.Plugin;
 using KitX.Core.Security;
 using KitX.Core.Statistics;
-using KitX.Core.Task;
+using KitX.Core.Tasks;
 using KitX.Core.Workflow;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
 using KitX.Core.Event;
 using Serilog;
 
@@ -140,7 +142,7 @@ public static class CoreServiceCollectionExtensions
         });
 
         Log.Information("Registering IPluginServer...");
-        services.AddSingleton<KitX.Core.Contract.Plugin.IPluginServer, PluginsServer>(provider =>
+        services.AddSingleton<IPluginServer, PluginsServer>(provider =>
         {
             var service = PluginsServer.Instance;
             return service;
@@ -150,10 +152,67 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IAnnouncementService...");
         services.AddSingleton<IAnnouncementService>(provider =>
         {
-            var configService = provider.GetService<KitX.Core.Contract.Configuration.IConfigService>();
+            var configService = provider.GetService<IConfigService>();
             var service = configService != null
                 ? new AnnouncementManager(configService)
                 : AnnouncementManager.Instance;
+            return service;
+        });
+
+        // KCS File Services
+        Log.Information("Registering IKcsFileService...");
+        services.AddSingleton<IKcsFileService, KcsFileService>(provider =>
+        {
+            var service = new KcsFileService();
+            return service;
+        });
+
+        // Main Program Analyzer
+        Log.Information("Registering IMainProgramAnalyzer...");
+        services.AddSingleton<IMainProgramAnalyzer, MainProgramAnalyzer>(provider =>
+        {
+            var service = new MainProgramAnalyzer();
+            return service;
+        });
+
+        // Block Script Services
+        Log.Information("Registering IBlockScriptParser...");
+        services.AddSingleton<IBlockScriptParser, KitX.Core.Workflow.BlockScripting.BlockScriptParser>(provider =>
+        {
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScriptParser();
+            return service;
+        });
+
+        Log.Information("Registering IBlockScriptExecutor...");
+        services.AddSingleton<IBlockScriptExecutor, KitX.Core.Workflow.BlockScripting.BlockScriptExecutor>(provider =>
+        {
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScriptExecutor();
+            return service;
+        });
+
+        Log.Information("Registering IBlockScopeManager...");
+        services.AddSingleton<IBlockScopeManager, KitX.Core.Workflow.BlockScripting.BlockScopeManager>(provider =>
+        {
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScopeManager();
+            return service;
+        });
+
+        // Blueprint Sub-services (must be registered before IBlueprintService)
+        Log.Information("Registering Blueprint sub-services...");
+        services.AddSingleton<IConnectionCreationService, ConnectionCreationService>();
+        services.AddSingleton<IFlowProcessingService, FlowProcessingService>();
+        services.AddSingleton<ILayoutService, LayoutService>();
+        // INodeCreationService: no implementation class yet, to be added later
+
+        // Blueprint Services
+        Log.Information("Registering IBlueprintService...");
+        services.AddSingleton<IBlueprintService, BlueprintService>();
+
+        // Node Template Provider
+        Log.Information("Registering INodeTemplateProvider...");
+        services.AddSingleton<INodeTemplateProvider, NodeTemplateProvider>(provider =>
+        {
+            var service = new NodeTemplateProvider();
             return service;
         });
 
