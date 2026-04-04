@@ -199,10 +199,9 @@ public static class CoreServiceCollectionExtensions
 
         // Blueprint Sub-services (must be registered before IBlueprintService)
         Log.Information("Registering Blueprint sub-services...");
-        services.AddSingleton<IConnectionCreationService, ConnectionCreationService>();
-        services.AddSingleton<IFlowProcessingService, FlowProcessingService>();
+        services.AddSingleton<INodeCreationService, NodeCreationService>();
         services.AddSingleton<ILayoutService, LayoutService>();
-        // INodeCreationService: no implementation class yet, to be added later
+        services.AddSingleton<IBlueprintRenderDataService, BlueprintRenderDataService>();
 
         // Blueprint Services
         Log.Information("Registering IBlueprintService...");

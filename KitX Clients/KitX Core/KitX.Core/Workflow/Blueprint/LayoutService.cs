@@ -1,106 +1,380 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+using Serilog;
 
 namespace KitX.Core.Workflow.Blueprint;
 
+/// <summary>
+/// Recursive subgraph layout engine.
+/// Builds a tree of LayoutRegions (Linear / Fork) from the exec chain,
+/// then measures and arranges each region with vertical branch separation
+/// and smart line wrapping.
+/// </summary>
 public class LayoutService : ILayoutService
 {
+    // Layout constants
+    private const double HSpacing = 220;
+    private const double VSpacing = 130;
+    private const double ForkVGap = 200;
+    private const double ForkHGap = 40;
+    private const double MaxRowWidth = 1200;
+    private const double XOffset = 50;
+    private const double YOffset = 50;
+    private const double NodeWidth = 200;
+    private const double NodeHeight = 100;
+
+    /// <inheritdoc />
     public void LayoutNodes(Contract.Workflow.Blueprint blueprint)
     {
-        var depths = new Dictionary<string, int>();
-        var visited = new HashSet<string>();
+        if (blueprint.Nodes.Count == 0) return;
 
-        // Phase 1: Calculate depths along exec chain
+        Log.Debug("[Layout] === LayoutNodes called: {NodeCount} nodes, {ConnCount} connections ===",
+            blueprint.Nodes.Count, blueprint.Connections.Count);
+
+        // Phase 1: Build exec adjacency map
+        var execMap = BuildExecAdjacencyMap(blueprint);
+
+        // Phase 2: Find entry node
         var entry = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
-        if (entry != null)
+        if (entry == null)
         {
-            depths[entry.Id] = 0;
-            CalculateExecDepths(blueprint, entry, depths, visited);
+            Log.Warning("[Layout] No Entry node found, skipping layout");
+            return;
         }
 
-        // Phase 2: Place data nodes (Const etc.) at their consumer's depth
+        // Phase 3: Build region tree starting from entry
+        var visited = new HashSet<string>();
+        var placed = new HashSet<string>();
+        var rootRegion = BuildRegionTree(entry.Id, execMap, blueprint, visited, placed);
+
+        // Phase 4: Measure and arrange
+        if (rootRegion != null)
+        {
+            rootRegion.Measure();
+            rootRegion.Arrange(XOffset, YOffset, blueprint);
+        }
+
+        // Phase 5: Place data nodes near their consumers
+        PlaceDataNodes(blueprint, placed);
+
+        // Phase 6: Log final positions
         foreach (var node in blueprint.Nodes)
         {
-            if (depths.ContainsKey(node.Id)) continue;
+            Log.Debug("[Layout]   {Name,-35} ({Type,-6}) at ({X:F0}, {Y:F0})",
+                node.Name, node.NodeType, node.X, node.Y);
+        }
+        Log.Debug("[Layout] === Layout complete: {Placed} nodes positioned ===", placed.Count);
+    }
 
+    /// <summary>
+    /// Builds nodeId → [(pinName, targetNodeId)] mapping for exec-type connections only
+    /// </summary>
+    private Dictionary<string, List<(string PinName, string TargetId)>> BuildExecAdjacencyMap(
+        Contract.Workflow.Blueprint blueprint)
+    {
+        var map = new Dictionary<string, List<(string, string)>>();
+
+        foreach (var conn in blueprint.Connections)
+        {
+            var sourceNode = blueprint.GetNodeById(conn.SourceNodeId);
+            if (sourceNode == null) continue;
+
+            var sourcePin = sourceNode.OutputPins.FirstOrDefault(p => p.Id == conn.SourcePinId);
+            if (sourcePin == null || sourcePin.Type != PinType.Execution) continue;
+
+            if (!map.ContainsKey(conn.SourceNodeId))
+                map[conn.SourceNodeId] = [];
+            map[conn.SourceNodeId].Add((sourcePin.Name, conn.TargetNodeId));
+        }
+
+        Log.Debug("[Layout] Exec adjacency map: {Count} nodes with exec outputs", map.Count);
+        return map;
+    }
+
+    /// <summary>
+    /// Recursively builds a tree of LayoutRegions from the exec chain.
+    /// </summary>
+    private LayoutRegion? BuildRegionTree(
+        string nodeId,
+        Dictionary<string, List<(string PinName, string TargetId)>> execMap,
+        Contract.Workflow.Blueprint blueprint,
+        HashSet<string> visited,
+        HashSet<string> placed)
+    {
+        if (visited.Contains(nodeId)) return null;
+        visited.Add(nodeId);
+
+        if (!execMap.TryGetValue(nodeId, out var targets) || targets.Count == 0)
+        {
+            // Leaf node — single linear region
+            placed.Add(nodeId);
+            return new LinearRegion(nodeId);
+        }
+
+        if (targets.Count == 1)
+        {
+            // Single exec output — linear chain
+            var childId = targets[0].TargetId;
+            var linear = new LinearRegion();
+            linear.NodeIds.Add(nodeId);
+            placed.Add(nodeId);
+
+            // Append child's chain if not yet visited
+            if (!visited.Contains(childId))
+            {
+                var childRegion = BuildRegionTree(childId, execMap, blueprint, visited, placed);
+                if (childRegion is LinearRegion childLinear)
+                {
+                    linear.NodeIds.AddRange(childLinear.NodeIds);
+                    // Preserve the child's Child (e.g., a ForkRegion) when merging
+                    if (childLinear.Child != null)
+                        linear.Child = childLinear.Child;
+                }
+                else if (childRegion != null)
+                {
+                    linear.Child = childRegion;
+                }
+            }
+
+            return linear;
+        }
+
+        if (targets.Count == 2)
+        {
+            // Fork: Branch (True/False) or Loop (LoopBody/LoopEnd)
+            placed.Add(nodeId);
+
+            var node = blueprint.GetNodeById(nodeId);
+            Log.Debug("[Layout]   Fork node: {Name} ({Type}) → [{Pin1}, {Pin2}]",
+                node?.Name, node?.NodeType, targets[0].PinName, targets[1].PinName);
+
+            // First target → UpperBranch (True / LoopBody)
+            var upper = BuildRegionTree(targets[0].TargetId, execMap, blueprint, visited, placed);
+
+            // Second target → LowerBranch (False / LoopEnd)
+            var lower = BuildRegionTree(targets[1].TargetId, execMap, blueprint, visited, placed);
+
+            return new ForkRegion(nodeId, upper, lower);
+        }
+
+        // Fallback: 3+ exec outputs (treat as linear)
+        placed.Add(nodeId);
+        return new LinearRegion(nodeId);
+    }
+
+    /// <summary>
+    /// Places data-only nodes (Const, etc.) near their first consumer
+    /// </summary>
+    private void PlaceDataNodes(Contract.Workflow.Blueprint blueprint, HashSet<string> placed)
+    {
+        var dataNodes = blueprint.Nodes.Where(n => !placed.Contains(n.Id)).ToList();
+        if (dataNodes.Count == 0) return;
+
+        Log.Debug("[Layout] Placing {Count} data nodes (Const, etc.)", dataNodes.Count);
+
+        // Group data nodes by their first consumer target
+        var dataNodeIndex = 0;
+        foreach (var node in dataNodes)
+        {
             var firstConn = blueprint.Connections
                 .FirstOrDefault(c => c.SourceNodeId == node.Id);
-            if (firstConn != null && depths.ContainsKey(firstConn.TargetNodeId))
+            if (firstConn != null)
             {
-                depths[node.Id] = depths[firstConn.TargetNodeId];
+                var targetNode = blueprint.GetNodeById(firstConn.TargetNodeId);
+                if (targetNode != null)
+                {
+                    // Place above-left of the consumer
+                    node.X = targetNode.X - HSpacing;
+                    node.Y = targetNode.Y - (dataNodeIndex + 1) * (NodeHeight * 0.6);
+                    placed.Add(node.Id);
+                    dataNodeIndex++;
+                    continue;
+                }
+            }
+
+            // No consumer found — place at bottom
+            var maxY = blueprint.Nodes.Where(n => placed.Contains(n.Id))
+                .Select(n => n.Y + n.Height).DefaultIfEmpty(0).Max();
+            node.X = XOffset;
+            node.Y = maxY + VSpacing;
+            placed.Add(node.Id);
+        }
+    }
+
+    #region Layout Region Types
+
+    /// <summary>
+    /// Abstract base for a measurable, arrangeable layout region
+    /// </summary>
+    private abstract class LayoutRegion
+    {
+        public double MeasuredWidth { get; protected set; }
+        public double MeasuredHeight { get; protected set; }
+        public abstract void Measure(double availableWidth = MaxRowWidth);
+        public abstract void Arrange(double x, double y, Contract.Workflow.Blueprint bp);
+    }
+
+    /// <summary>
+    /// Linear chain of nodes, left-to-right, with smart wrapping at availableWidth
+    /// </summary>
+    private class LinearRegion : LayoutRegion
+    {
+        public List<string> NodeIds { get; } = [];
+        public LayoutRegion? Child;
+
+        private List<List<string>> _rows = [];
+
+        public LinearRegion() { }
+
+        public LinearRegion(string singleNodeId)
+        {
+            NodeIds.Add(singleNodeId);
+        }
+
+        public override void Measure(double availableWidth = MaxRowWidth)
+        {
+            _rows.Clear();
+            if (NodeIds.Count == 0 && Child == null)
+            {
+                MeasuredWidth = 0;
+                MeasuredHeight = 0;
+                return;
+            }
+
+            // Build rows with wrapping relative to available width
+            var currentRow = new List<string>();
+            double rowWidth = 0;
+
+            foreach (var nodeId in NodeIds)
+            {
+                var nodeWidth = rowWidth == 0 ? NodeWidth : HSpacing + NodeWidth;
+                if (rowWidth + nodeWidth > availableWidth && currentRow.Count > 0)
+                {
+                    _rows.Add(currentRow);
+                    currentRow = [];
+                    rowWidth = 0;
+                    nodeWidth = NodeWidth;
+                }
+                currentRow.Add(nodeId);
+                rowWidth += nodeWidth;
+            }
+
+            if (currentRow.Count > 0)
+                _rows.Add(currentRow);
+
+            // Calculate dimensions
+            MeasuredWidth = _rows.Count > 0
+                ? _rows.Max(r => r.Count * NodeWidth + Math.Max(0, r.Count - 1) * (HSpacing - NodeWidth))
+                : 0;
+            MeasuredHeight = _rows.Count > 0
+                ? _rows.Count * NodeHeight + Math.Max(0, _rows.Count - 1) * (VSpacing - NodeHeight)
+                : 0;
+
+            // Include child region
+            if (Child != null)
+            {
+                Child.Measure(availableWidth);
+                MeasuredWidth = Math.Max(MeasuredWidth, Child.MeasuredWidth);
+                MeasuredHeight += Child.MeasuredHeight > 0 ? VSpacing + Child.MeasuredHeight : 0;
             }
         }
 
-        // Phase 3: Remaining unplaced nodes appended after max depth
-        var maxDepth = depths.Values.Count > 0 ? depths.Values.Max() : 0;
-        foreach (var node in blueprint.Nodes)
+        public override void Arrange(double x, double y, Contract.Workflow.Blueprint bp)
         {
-            if (!depths.ContainsKey(node.Id))
+            double currentY = y;
+
+            foreach (var row in _rows)
             {
-                depths[node.Id] = ++maxDepth;
+                double currentX = x;
+                foreach (var nodeId in row)
+                {
+                    var node = bp.GetNodeById(nodeId);
+                    if (node != null)
+                    {
+                        node.X = currentX;
+                        node.Y = currentY;
+                    }
+                    currentX += HSpacing;
+                }
+                currentY += VSpacing;
             }
-        }
 
-        // Phase 4: Group by depth + assign coordinates
-        var depthGroups = new Dictionary<int, List<BlueprintNode>>();
-        foreach (var node in blueprint.Nodes)
-        {
-            var depth = depths[node.Id];
-            if (!depthGroups.ContainsKey(depth))
-                depthGroups[depth] = new List<BlueprintNode>();
-            depthGroups[depth].Add(node);
-        }
-
-        const double HSpacing = 220;
-        const double VSpacing = 130;
-        const double XOffset = 50;
-        const double YOffset = 50;
-
-        foreach (var group in depthGroups.OrderBy(g => g.Key))
-        {
-            var depth = group.Key;
-            var sorted = group.Value
-                .OrderBy(n => n.NodeType == BlueprintNodeType.Const ? 1 : 0)
-                .ToList();
-            for (int i = 0; i < sorted.Count; i++)
+            // Arrange child region
+            if (Child != null)
             {
-                sorted[i].X = XOffset + depth * HSpacing;
-                sorted[i].Y = YOffset + i * VSpacing;
+                double childX = x;
+                double childY = _rows.Count > 0 ? currentY : y;
+                Child.Arrange(childX, childY, bp);
             }
         }
     }
 
     /// <summary>
-    /// Only traverse Execution-type connections for depth calculation,
-    /// so data-dependency edges don't pull nodes into wrong layers.
+    /// Fork region: a fork node (Branch/Loop) with upper and lower sub-branches
+    /// arranged vertically, indented to the right.
     /// </summary>
-    private void CalculateExecDepths(Contract.Workflow.Blueprint blueprint, BlueprintNode node,
-        Dictionary<string, int> depths, HashSet<string> visited)
+    private class ForkRegion : LayoutRegion
     {
-        if (visited.Contains(node.Id)) return;
-        visited.Add(node.Id);
+        public string ForkNodeId;
+        public LayoutRegion? UpperBranch;
+        public LayoutRegion? LowerBranch;
 
-        // Find output pins that are Exec type (or named "Exec" / "True" / "False" / "LoopBody" / "LoopEnd")
-        var execOutPinIds = node.OutputPins
-            .Where(p => p.Type == PinType.Execution)
-            .Select(p => p.Id)
-            .ToHashSet();
-
-        var execConnections = blueprint.Connections.Where(c =>
-            c.SourceNodeId == node.Id && execOutPinIds.Contains(c.SourcePinId));
-
-        foreach (var conn in execConnections)
+        public ForkRegion(string forkNodeId, LayoutRegion? upper, LayoutRegion? lower)
         {
-            if (blueprint.GetNodeById(conn.TargetNodeId) is { } targetNode)
+            ForkNodeId = forkNodeId;
+            UpperBranch = upper;
+            LowerBranch = lower;
+        }
+
+        public override void Measure(double availableWidth = MaxRowWidth)
+        {
+            // Branches are indented to the right of the fork node
+            double branchAvailableWidth = Math.Max(NodeWidth, availableWidth - NodeWidth - ForkHGap);
+
+            UpperBranch?.Measure(branchAvailableWidth);
+            LowerBranch?.Measure(branchAvailableWidth);
+
+            double upperW = UpperBranch?.MeasuredWidth ?? 0;
+            double lowerW = LowerBranch?.MeasuredWidth ?? 0;
+            double upperH = UpperBranch?.MeasuredHeight ?? 0;
+            double lowerH = LowerBranch?.MeasuredHeight ?? 0;
+
+            // Width: fork node + gap + max of branches (includes indentation)
+            MeasuredWidth = NodeWidth + ForkHGap + Math.Max(upperW, lowerW);
+            // Height: fork node + gap + both branches stacked vertically
+            MeasuredHeight = NodeHeight + ForkVGap + upperH + (lowerH > 0 ? VSpacing + lowerH : 0);
+        }
+
+        public override void Arrange(double x, double y, Contract.Workflow.Blueprint bp)
+        {
+            // Place fork node
+            var forkNode = bp.GetNodeById(ForkNodeId);
+            if (forkNode != null)
             {
-                var currentDepth = depths[node.Id];
-                if (!depths.ContainsKey(targetNode.Id) || depths[targetNode.Id] < currentDepth + 1)
-                {
-                    depths[targetNode.Id] = currentDepth + 1;
-                }
-                CalculateExecDepths(blueprint, targetNode, depths, visited);
+                forkNode.X = x;
+                forkNode.Y = y;
+            }
+
+            // Indent branches to the right of the fork node
+            double branchX = x + NodeWidth + ForkHGap;
+            double upperY = y + NodeHeight + ForkVGap;
+
+            // Arrange upper branch (True / LoopBody)
+            if (UpperBranch != null)
+            {
+                UpperBranch.Arrange(branchX, upperY, bp);
+            }
+
+            // Arrange lower branch below upper branch (False / LoopEnd)
+            if (LowerBranch != null)
+            {
+                double lowerY = upperY + (UpperBranch?.MeasuredHeight ?? 0) + VSpacing;
+                LowerBranch.Arrange(branchX, lowerY, bp);
             }
         }
     }
+
+    #endregion
 }

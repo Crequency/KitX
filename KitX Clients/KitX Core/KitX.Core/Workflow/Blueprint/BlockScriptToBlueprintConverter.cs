@@ -1,34 +1,37 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.Blueprint.Pipeline;
+using Serilog;
+using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.Blueprint.Pipeline;
 using Serilog;
 
 namespace KitX.Core.Workflow.Blueprint;
 
 /// <summary>
-/// Converts BlockScript to Blueprint
+/// Converts BlockScript to Blueprint via a clean 6-phase pipeline.
+/// Acts as a thin orchestrator — all logic lives in individual pipeline phases.
 /// </summary>
 public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
 {
     private readonly IBlockScriptParser _parser;
-    private readonly IFlowProcessingService _flowProcessingService;
-    private readonly IConnectionCreationService _connectionCreationService;
+    private readonly INodeCreationService _nodeFactory;
     private readonly ILayoutService _layoutService;
+
+    /// <summary>
+    /// The pipeline context from the last conversion (for debug inspection).
+    /// </summary>
+    public PipelineContext? LastContext { get; private set; }
 
     public BlockScriptToBlueprintConverter(
         IBlockScriptParser parser,
-        IFlowProcessingService flowProcessingService,
-        IConnectionCreationService connectionCreationService,
+        INodeCreationService nodeFactory,
         ILayoutService layoutService)
     {
         _parser = parser;
-        _flowProcessingService = flowProcessingService;
-        _connectionCreationService = connectionCreationService;
+        _nodeFactory = nodeFactory;
         _layoutService = layoutService;
     }
 
@@ -36,71 +39,113 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
     {
         var result = _parser.Parse(sourceCode);
         if (!result.IsSuccess || result.Script == null)
-        {
             throw new InvalidOperationException($"Failed to parse BlockScript: {result.ErrorMessage}");
-        }
+
+        if (helperFunctions != null)
+            result.Script.HelperFunctions = helperFunctions;
+
         return Convert(result.Script);
     }
 
     public Contract.Workflow.Blueprint Convert(BlockScript script)
     {
-        var blueprint = new Contract.Workflow.Blueprint
-        {
-            Name = "Imported from BlockScript",
-            HelperFunctions = script.HelperFunctions,
-            PubVarNames = new List<string>()
-        };
+        var helpers = script.HelperFunctions ?? new List<HelperFunction>();
 
-        var context = new ConversionContext
+        // ── Phase 1: ConstBlock + PubVarBlock processing ──
+        var context = new PipelineContext
         {
-            Blueprint = blueprint,
             Script = script,
-            NodeMap = new Dictionary<string, BlueprintNode>(),
-            NextPubVarIndex = 0,
-            NamedBlockMap = new Dictionary<string, BlockDefinition>(),
-            BlockFirstNodes = new Dictionary<string, BlueprintNode>(),
-            VisitedBlocks = new HashSet<string>(),
-            VariableSources = new Dictionary<string, VariableSource>(),
-            LoopNodesByParentBlock = new Dictionary<string, LoopNode>(),
-            PendingNodesForExecChain = new List<BlueprintNode>()
+            HelperFunctions = helpers
         };
 
-        // Process ConstBlock
-        if (script.ConstBlock != null)
-        {
-            _flowProcessingService.ProcessConstBlock(script.ConstBlock, context);
-        }
+        Phase1_ProcessConstAndPubVar(context);
+        Log.Debug("[Converter] Phase 1: {ConstCount} const nodes, {PubVarCount} pub vars",
+            context.ConstNodes.Count, context.PubVarNames.Count);
 
-        // Process PubVarBlock
-        if (script.PubVarBlock != null)
-        {
-            _flowProcessingService.ProcessPubVarBlock(script.PubVarBlock, context);
-        }
+        // ── Phase 2: Script formatting (expand nested calls + loop condition duplication) ──
+        var formatter = new ScriptFormatter(helpers);
+        context.FormattedScript = formatter.Format(script, context);
+        Log.Debug("[Converter] Phase 2: {BlockCount} blocks, {StmtCount} statements",
+            context.FormattedScript.Blocks.Count,
+            context.FormattedScript.Blocks.Sum(b => b.Statements.Count));
 
-        // Process MainBlock
-        if (script.MainBlock != null)
-        {
-            _flowProcessingService.ProcessMainBlock(script.MainBlock, context, null);
-        }
+        // ── Phase 3: Node creation + exec edges + PubVar reuse ──
+        var nodeBuilder = new NodeBuilder(_nodeFactory, helpers);
+        nodeBuilder.Build(context.FormattedScript, context);
+        Log.Debug("[Converter] Phase 3: {NodeCount} nodes, {ExecEdgeCount} exec edges",
+            context.AllNodes.Count, context.ExecEdges.Count);
 
-        // Process NamedBlocks
-        foreach (var kvp in script.NamedBlocks)
-        {
-            context.NamedBlockMap[kvp.Key] = kvp.Value;
-        }
+        // ── Phase 4+5: Data edges + deduplication ──
+        var dataEdgeBuilder = new DataEdgeBuilder();
+        dataEdgeBuilder.Build(context);
+        Log.Debug("[Converter] Phase 4+5: {DataEdgeCount} data edges", context.DataEdges.Count);
 
-        // Process LoopBlocks
-        foreach (var kvp in script.LoopBlocks)
-        {
-            _flowProcessingService.ProcessLoopBlock(kvp.Value, context, null);
-        }
+        // ── Phase 6: Assemble Blueprint ──
+        var assembler = new PipelineAssembler();
+        var blueprint = assembler.Assemble(context);
 
-        // Auto-layout nodes
+        // ── Layout ──
         _layoutService.LayoutNodes(blueprint);
 
-        Log.Information("[BlueprintConversion] Complete: {NodeCount} nodes, {ConnectionCount} connections",
+        LastContext = context;
+
+        Log.Information("[Converter] Complete: {NodeCount} nodes, {ConnCount} connections",
             blueprint.Nodes.Count, blueprint.Connections.Count);
 
         return blueprint;
+    }
+
+    // ──────────────────────────────────────────────
+    // Phase 1: ConstBlock + PubVarBlock
+    // ──────────────────────────────────────────────
+
+    private void Phase1_ProcessConstAndPubVar(PipelineContext context)
+    {
+        // Process ConstBlock variables → ConstNodes
+        if (context.Script.ConstBlock != null)
+        {
+            foreach (var varDecl in context.Script.ConstBlock.Variables)
+            {
+                var value = varDecl.DefaultValue?.ToString() ?? varDecl.InitialValueExpression ?? "";
+                var constNode = _nodeFactory.CreateConstNode(varDecl.Name, varDecl.Type, value);
+                context.ConstNodes[varDecl.Name] = constNode;
+                context.AllNodes.Add(constNode);
+            }
+        }
+
+        // Process PubVarBlock variables → PubVarNames
+        if (context.Script.PubVarBlock != null)
+        {
+            foreach (var varDecl in context.Script.PubVarBlock.Variables)
+            {
+                if (!context.PubVarNames.Contains(varDecl.Name))
+                    context.PubVarNames.Add(varDecl.Name);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Dumps the formatted script (Phase 2 output) as a human-readable string.
+    /// </summary>
+    public static string DumpFormattedScript(PipelineContext context)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var block in context.FormattedScript.Blocks)
+        {
+            sb.AppendLine($"#Block {block.Name}  (NextBlock={block.NextBlockName ?? "null"})");
+            foreach (var stmt in block.Statements)
+            {
+                var dup = stmt.IsLoopConditionDuplication ? " [LoopCondDup]" : "";
+                var fp = stmt.Fingerprint != null ? $" FP={stmt.Fingerprint}" : "";
+                var args = stmt.Arguments != null ? string.Join(", ", stmt.Arguments) : "";
+                sb.AppendLine($"  [{stmt.Kind}] {stmt.OriginalExpression}" +
+                    $" | PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName}" +
+                    $" Args=[{args}] SetVar={stmt.SetVarName} GetVar={stmt.GetVarName}" +
+                    $" CondPubVar={stmt.ConditionPubVar} True={stmt.TrueBlockName} False={stmt.FalseBlockName}" +
+                    $" LoopBodyEndReturnTo={stmt.LoopBodyEndReturnTo}{dup}{fp}");
+            }
+            sb.AppendLine();
+        }
+        return sb.ToString();
     }
 }

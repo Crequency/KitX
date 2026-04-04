@@ -14,31 +14,21 @@ public class BlueprintService : IBlueprintService
 {
     private readonly IBlockScriptParser _parser;
     private readonly IBlockScriptExecutor _executor;
-    private readonly IFlowProcessingService _flowProcessingService;
-    private readonly IConnectionCreationService _connectionCreationService;
+    private readonly INodeCreationService _nodeFactory;
     private readonly ILayoutService _layoutService;
 
-    /// <summary>
-    /// Creates a new BlueprintService instance
-    /// </summary>
     public BlueprintService(
         IBlockScriptParser parser,
         IBlockScriptExecutor executor,
-        IFlowProcessingService flowProcessingService,
-        IConnectionCreationService connectionCreationService,
+        INodeCreationService nodeFactory,
         ILayoutService layoutService)
     {
         _parser = parser;
         _executor = executor;
-        _flowProcessingService = flowProcessingService;
-        _connectionCreationService = connectionCreationService;
+        _nodeFactory = nodeFactory;
         _layoutService = layoutService;
     }
 
-    /// <summary>
-    /// Creates a new empty blueprint
-    /// </summary>
-    /// <returns>New blueprint</returns>
     public Contract.Workflow.Blueprint CreateBlueprint()
     {
         Log.Information("Creating new Blueprint");
@@ -50,12 +40,6 @@ public class BlueprintService : IBlueprintService
         };
     }
 
-    /// <summary>
-    /// Imports blueprint from BlockScript source code
-    /// </summary>
-    /// <param name="sourceCode">BlockScript source code</param>
-    /// <param name="helperFunctions">Helper functions available</param>
-    /// <returns>Imported blueprint, or null if conversion failed</returns>
     public Contract.Workflow.Blueprint? ImportFromBlockScript(string sourceCode, List<HelperFunction>? helperFunctions = null)
     {
         try
@@ -63,10 +47,7 @@ public class BlueprintService : IBlueprintService
             Log.Information("Importing Blueprint from BlockScript");
 
             var converter = new BlockScriptToBlueprintConverter(
-                _parser,
-                _flowProcessingService,
-                _connectionCreationService,
-                _layoutService);
+                _parser, _nodeFactory, _layoutService);
             var blueprint = converter.Convert(sourceCode, helperFunctions);
 
             blueprint.ModifiedAt = DateTime.Now;
@@ -79,17 +60,11 @@ public class BlueprintService : IBlueprintService
         }
     }
 
-    /// <summary>
-    /// Exports blueprint to BlockScript source code
-    /// </summary>
-    /// <param name="blueprint">Blueprint to export</param>
-    /// <returns>BlockScript source code</returns>
     public string ExportToBlockScript(Contract.Workflow.Blueprint blueprint)
     {
         try
         {
             Log.Information("Exporting Blueprint to BlockScript");
-
             var converter = new BlueprintToBlockScriptConverter();
             return converter.Convert(blueprint);
         }
@@ -100,27 +75,14 @@ public class BlueprintService : IBlueprintService
         }
     }
 
-    /// <summary>
-    /// Executes blueprint by converting to BlockScript and running
-    /// </summary>
-    /// <param name="blueprint">Blueprint to execute</param>
-    /// <returns>Execution result</returns>
     public async Task<BlockScriptExecutionResult> ExecuteBlueprintAsync(Contract.Workflow.Blueprint blueprint)
     {
         try
         {
             Log.Information("Executing Blueprint");
-
-            // Convert blueprint to BlockScript
             var converter = new BlueprintToBlockScriptConverter();
             var blockScript = converter.ConvertToBlockScript(blueprint);
-
-            // Execute the BlockScript
-            var result = await _executor.ExecuteAsync(
-                blockScript,
-                null,
-                CancellationToken.None);
-
+            var result = await _executor.ExecuteAsync(blockScript, null, CancellationToken.None);
             return result;
         }
         catch (Exception ex)

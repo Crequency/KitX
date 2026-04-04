@@ -255,13 +255,14 @@ public class FlowProcessingService : IFlowProcessingService
 
                 if (context.PendingNodesForExecChain.Count > 0)
                 {
-                    var parentNodeIndex = nodes.Count - 1;
-                    foreach (var pendingNode in context.PendingNodesForExecChain)
+                    var reversed = Enumerable.Reverse(context.PendingNodesForExecChain).ToList();
+                    var insertIndex = nodes.Count - 1;
+                    foreach (var pendingNode in reversed)
                     {
                         if (!nodes.Any(n => n.Id == pendingNode.Id))
                         {
-                            nodes.Insert(parentNodeIndex, pendingNode);
-                            parentNodeIndex++;
+                            nodes.Insert(insertIndex, pendingNode);
+                            insertIndex++;
                         }
                     }
                     context.PendingNodesForExecChain.Clear();
