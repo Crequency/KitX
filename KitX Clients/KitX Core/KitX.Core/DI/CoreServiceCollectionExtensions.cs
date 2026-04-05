@@ -203,6 +203,12 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<IBlueprintRenderDataService, BlueprintRenderDataService>();
 
+        // Blueprint Converters
+        Log.Information("Registering IBlockScriptToBlueprintConverter...");
+        services.AddSingleton<IBlockScriptToBlueprintConverter, BlockScriptToBlueprintConverter>();
+        Log.Information("Registering IBlueprintToBlockScriptConverter...");
+        services.AddSingleton<IBlueprintToBlockScriptConverter, BlueprintToBlockScriptConverter>();
+
         // Blueprint Services
         Log.Information("Registering IBlueprintService...");
         services.AddSingleton<IBlueprintService, BlueprintService>();

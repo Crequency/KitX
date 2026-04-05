@@ -187,106 +187,51 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
     private void ProcessBranchSubGraphs(Contract.Workflow.Blueprint blueprint, BranchNode branch,
         ReverseConversionContext context, HashSet<string> processedTargets)
     {
-        var truePin = branch.OutputPins.FirstOrDefault(p => p.Name == "True");
-        var falsePin = branch.OutputPins.FirstOrDefault(p => p.Name == "False");
-
-        // True branch
-        if (truePin != null)
-        {
-            var trueConn = blueprint.Connections.FirstOrDefault(c => c.SourcePinId == truePin.Id);
-            if (trueConn != null && !processedTargets.Contains(trueConn.TargetNodeId))
-            {
-                var targetNode = blueprint.GetNodeById(trueConn.TargetNodeId);
-                if (targetNode != null)
-                {
-                    var blockName = $"Block_{context.BlockIndex++}";
-                    var block = CollectSubGraph(blueprint, targetNode, context, processedTargets);
-                    context.Script.NamedBlocks[blockName] = block;
-                    processedTargets.Add(trueConn.TargetNodeId);
-
-                    // Set the target block name on the corresponding FlowControlStatement
-                    if (context.ControlFlowMap.TryGetValue(branch.Id, out var flow))
-                    {
-                        flow.TrueBlockName = blockName;
-                    }
-                }
-            }
-        }
-
-        // False branch
-        if (falsePin != null)
-        {
-            var falseConn = blueprint.Connections.FirstOrDefault(c => c.SourcePinId == falsePin.Id);
-            if (falseConn != null && !processedTargets.Contains(falseConn.TargetNodeId))
-            {
-                var targetNode = blueprint.GetNodeById(falseConn.TargetNodeId);
-                if (targetNode != null)
-                {
-                    var blockName = $"Block_{context.BlockIndex++}";
-                    var block = CollectSubGraph(blueprint, targetNode, context, processedTargets);
-                    context.Script.NamedBlocks[blockName] = block;
-                    processedTargets.Add(falseConn.TargetNodeId);
-
-                    // Set the target block name on the corresponding FlowControlStatement
-                    if (context.ControlFlowMap.TryGetValue(branch.Id, out var flow))
-                    {
-                        flow.FalseBlockName = blockName;
-                    }
-                }
-            }
-        }
+        ProcessOutputArm(blueprint, branch, "True", context, processedTargets, null,
+            (flow, blockName) => flow.TrueBlockName = blockName);
+        ProcessOutputArm(blueprint, branch, "False", context, processedTargets, null,
+            (flow, blockName) => flow.FalseBlockName = blockName);
     }
 
     private void ProcessLoopSubGraphs(Contract.Workflow.Blueprint blueprint, LoopNode loop,
         ReverseConversionContext context, HashSet<string> processedTargets)
     {
-        var loopBodyPin = loop.OutputPins.FirstOrDefault(p => p.Name == "LoopBody");
-        var loopEndPin = loop.OutputPins.FirstOrDefault(p => p.Name == "LoopEnd");
+        ProcessOutputArm(blueprint, loop, "LoopBody", context, processedTargets, loop.Id,
+            (flow, blockName) => flow.TrueBlockName = blockName);
+        ProcessOutputArm(blueprint, loop, "LoopEnd", context, processedTargets, null,
+            (flow, blockName) => flow.FalseBlockName = blockName);
+    }
 
-        // Loop body
-        if (loopBodyPin != null)
+    /// <summary>
+    /// Processes a single output arm (True/False for Branch, LoopBody/LoopEnd for Loop).
+    /// Extracted to eliminate duplication between Branch and Loop sub-graph processing.
+    /// </summary>
+    private void ProcessOutputArm(
+        Contract.Workflow.Blueprint blueprint,
+        BlueprintNode controlNode,
+        string outputPinName,
+        ReverseConversionContext context,
+        HashSet<string> processedTargets,
+        string? loopbackTargetId,
+        Action<FlowControlStatement, string> setBlockName)
+    {
+        var pin = controlNode.OutputPins.FirstOrDefault(p => p.Name == outputPinName);
+        if (pin == null) return;
+
+        var conn = blueprint.Connections.FirstOrDefault(c => c.SourcePinId == pin.Id);
+        if (conn == null || processedTargets.Contains(conn.TargetNodeId)) return;
+
+        var targetNode = blueprint.GetNodeById(conn.TargetNodeId);
+        if (targetNode == null) return;
+
+        var blockName = $"Block_{context.BlockIndex++}";
+        var block = CollectSubGraph(blueprint, targetNode, context, processedTargets, loopbackTargetId);
+        context.Script.NamedBlocks[blockName] = block;
+        processedTargets.Add(conn.TargetNodeId);
+
+        if (context.ControlFlowMap.TryGetValue(controlNode.Id, out var flow))
         {
-            var bodyConn = blueprint.Connections.FirstOrDefault(c => c.SourcePinId == loopBodyPin.Id);
-            if (bodyConn != null && !processedTargets.Contains(bodyConn.TargetNodeId))
-            {
-                var targetNode = blueprint.GetNodeById(bodyConn.TargetNodeId);
-                if (targetNode != null)
-                {
-                    var blockName = $"Block_{context.BlockIndex++}";
-                    var block = CollectSubGraph(blueprint, targetNode, context, processedTargets, loop.Id);
-                    context.Script.NamedBlocks[blockName] = block;
-                    processedTargets.Add(bodyConn.TargetNodeId);
-
-                    // Set the target block name on the corresponding FlowControlStatement
-                    if (context.ControlFlowMap.TryGetValue(loop.Id, out var flow))
-                    {
-                        flow.TrueBlockName = blockName;
-                    }
-                }
-            }
-        }
-
-        // Loop end (after loop)
-        if (loopEndPin != null)
-        {
-            var endConn = blueprint.Connections.FirstOrDefault(c => c.SourcePinId == loopEndPin.Id);
-            if (endConn != null && !processedTargets.Contains(endConn.TargetNodeId))
-            {
-                var targetNode = blueprint.GetNodeById(endConn.TargetNodeId);
-                if (targetNode != null)
-                {
-                    var blockName = $"Block_{context.BlockIndex++}";
-                    var block = CollectSubGraph(blueprint, targetNode, context, processedTargets);
-                    context.Script.NamedBlocks[blockName] = block;
-                    processedTargets.Add(endConn.TargetNodeId);
-
-                    // Set the target block name on the corresponding FlowControlStatement
-                    if (context.ControlFlowMap.TryGetValue(loop.Id, out var flow))
-                    {
-                        flow.FalseBlockName = blockName;
-                    }
-                }
-            }
+            setBlockName(flow, blockName);
         }
     }
 
@@ -429,24 +374,7 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
     }
 
     private string GetConditionExpression(BlueprintNode node, Contract.Workflow.Blueprint blueprint)
-    {
-        var condPin = node.InputPins.FirstOrDefault(p => p.Name == "Condition");
-        if (condPin == null) return string.Empty;
-
-        // Find the data connection to the Condition pin
-        var dataConn = blueprint.Connections
-            .FirstOrDefault(c => c.TargetPinId == condPin.Id);
-
-        if (dataConn == null)
-            return condPin.DefaultValue ?? string.Empty;
-
-        var sourceNode = blueprint.GetNodeById(dataConn.SourceNodeId);
-        if (sourceNode is ConstNode constNode)
-            return constNode.ConstName;
-
-        // For other nodes, return the PubVar name if available
-        return dataConn.PubVarName ?? condPin.DefaultValue ?? string.Empty;
-    }
+        => GetInputValue(node, "Condition", blueprint);
 
     private string GetInputValue(BlueprintNode node, string pinName, Contract.Workflow.Blueprint blueprint)
     {

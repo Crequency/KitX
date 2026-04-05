@@ -4,9 +4,6 @@ using System.Linq;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 using Serilog;
-using KitX.Core.Contract.Workflow;
-using KitX.Core.Workflow.Blueprint.Pipeline;
-using Serilog;
 
 namespace KitX.Core.Workflow.Blueprint;
 

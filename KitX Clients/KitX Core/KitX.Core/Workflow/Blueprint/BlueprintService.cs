@@ -12,21 +12,18 @@ namespace KitX.Core.Workflow.Blueprint;
 /// </summary>
 public class BlueprintService : IBlueprintService
 {
-    private readonly IBlockScriptParser _parser;
+    private readonly IBlockScriptToBlueprintConverter _toBlueprintConverter;
+    private readonly IBlueprintToBlockScriptConverter _toBlockScriptConverter;
     private readonly IBlockScriptExecutor _executor;
-    private readonly INodeCreationService _nodeFactory;
-    private readonly ILayoutService _layoutService;
 
     public BlueprintService(
-        IBlockScriptParser parser,
-        IBlockScriptExecutor executor,
-        INodeCreationService nodeFactory,
-        ILayoutService layoutService)
+        IBlockScriptToBlueprintConverter toBlueprintConverter,
+        IBlueprintToBlockScriptConverter toBlockScriptConverter,
+        IBlockScriptExecutor executor)
     {
-        _parser = parser;
+        _toBlueprintConverter = toBlueprintConverter;
+        _toBlockScriptConverter = toBlockScriptConverter;
         _executor = executor;
-        _nodeFactory = nodeFactory;
-        _layoutService = layoutService;
     }
 
     public Contract.Workflow.Blueprint CreateBlueprint()
@@ -45,11 +42,7 @@ public class BlueprintService : IBlueprintService
         try
         {
             Log.Information("Importing Blueprint from BlockScript");
-
-            var converter = new BlockScriptToBlueprintConverter(
-                _parser, _nodeFactory, _layoutService);
-            var blueprint = converter.Convert(sourceCode, helperFunctions);
-
+            var blueprint = _toBlueprintConverter.Convert(sourceCode, helperFunctions);
             blueprint.ModifiedAt = DateTime.Now;
             return blueprint;
         }
@@ -65,8 +58,7 @@ public class BlueprintService : IBlueprintService
         try
         {
             Log.Information("Exporting Blueprint to BlockScript");
-            var converter = new BlueprintToBlockScriptConverter();
-            return converter.Convert(blueprint);
+            return _toBlockScriptConverter.Convert(blueprint);
         }
         catch (Exception ex)
         {
@@ -80,8 +72,7 @@ public class BlueprintService : IBlueprintService
         try
         {
             Log.Information("Executing Blueprint");
-            var converter = new BlueprintToBlockScriptConverter();
-            var blockScript = converter.ConvertToBlockScript(blueprint);
+            var blockScript = _toBlockScriptConverter.ConvertToBlockScript(blueprint);
             var result = await _executor.ExecuteAsync(blockScript, null, CancellationToken.None);
             return result;
         }
