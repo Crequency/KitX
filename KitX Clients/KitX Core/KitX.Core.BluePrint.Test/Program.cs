@@ -20,7 +20,7 @@ public class Program
         var sp = services.BuildServiceProvider();
 
         var parser = sp.GetRequiredService<IBlockScriptParser>();
-        var nodeFactory = sp.GetRequiredService<INodeCreationService>();
+        var nodeRegistry = sp.GetRequiredService<INodeRegistry>();
         var layoutService = sp.GetRequiredService<ILayoutService>();
 
         Console.WriteLine("DI initialized.\n");
@@ -51,7 +51,7 @@ public class Program
             }
         };
 
-        var converter = new BlockScriptToBlueprintConverter(parser, nodeFactory, layoutService);
+        var converter = new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService);
 
         // ── Test A: Pre-expanded format (already in test script) ──
         Console.WriteLine("┌──────────────────────────────────────────┐");

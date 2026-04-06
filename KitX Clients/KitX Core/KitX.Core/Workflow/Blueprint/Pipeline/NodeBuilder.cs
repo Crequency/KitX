@@ -12,7 +12,7 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// </summary>
 public class NodeBuilder
 {
-    private readonly INodeCreationService _factory;
+    private readonly INodeRegistry _registry;
     private readonly List<HelperFunction> _helpers;
     private readonly HashSet<string> _helperNames;
 
@@ -24,9 +24,9 @@ public class NodeBuilder
     private readonly Dictionary<string, string> _blockLastStmtId = new();
     private readonly Dictionary<string, bool> _blockEndsWithFlowCtrl = new();
 
-    public NodeBuilder(INodeCreationService factory, List<HelperFunction> helpers)
+    public NodeBuilder(INodeRegistry registry, List<HelperFunction> helpers)
     {
-        _factory = factory;
+        _registry = registry;
         _helpers = helpers;
         _helperNames = new HashSet<string>(helpers.Select(h => h.Name));
     }
@@ -34,7 +34,9 @@ public class NodeBuilder
     public void Build(FormattedBlockScript script, PipelineContext context)
     {
         // Create EntryNode
-        var entry = _factory.CreateEntryNode(0, 0);
+        var entry = (EntryNode)_registry.Create(BlueprintNodeType.Entry);
+        entry.X = 0;
+        entry.Y = 0;
         context.EntryNode = entry;
         context.AllNodes.Add(entry);
         context.NodeByStatementId["__entry__"] = entry;
@@ -106,27 +108,35 @@ public class NodeBuilder
                 return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
 
             case FormattedStatementKind.Print:
-                return ChainNewNode(_factory.CreatePrintNode(), stmt, context, ref prevNode, ref prevStmtId);
+                return ChainNewNode(_registry.Create(BlueprintNodeType.Print), stmt, context, ref prevNode, ref prevStmtId);
 
             case FormattedStatementKind.Set:
-                return ChainNewNode(_factory.CreateSetNode(stmt.SetVarName ?? ""), stmt, context, ref prevNode, ref prevStmtId);
+                {
+                    var node = (SetNode)_registry.Create(BlueprintNodeType.Set);
+                    node.VarName = stmt.SetVarName ?? "";
+                    return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+                }
 
             case FormattedStatementKind.Get:
-                return ChainNewNode(_factory.CreateGetNode(stmt.GetVarName ?? ""), stmt, context, ref prevNode, ref prevStmtId);
+                {
+                    var node = (GetNode)_registry.Create(BlueprintNodeType.Get);
+                    node.VarName = stmt.GetVarName ?? "";
+                    return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+                }
 
             case FormattedStatementKind.Pause:
-                return ChainNewNode(_factory.CreatePauseNode(), stmt, context, ref prevNode, ref prevStmtId);
+                return ChainNewNode(_registry.Create(BlueprintNodeType.Pause), stmt, context, ref prevNode, ref prevStmtId);
 
             case FormattedStatementKind.Branch:
                 {
-                    var node = ChainNewNode(_factory.CreateBranchNode(), stmt, context, ref prevNode, ref prevStmtId);
+                    var node = ChainNewNode(_registry.Create(BlueprintNodeType.Branch), stmt, context, ref prevNode, ref prevStmtId);
                     _branchDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName));
                     return node;
                 }
 
             case FormattedStatementKind.Loop:
                 {
-                    var node = ChainNewNode(_factory.CreateLoopNode(), stmt, context, ref prevNode, ref prevStmtId);
+                    var node = ChainNewNode(_registry.Create(BlueprintNodeType.Loop), stmt, context, ref prevNode, ref prevStmtId);
                     _loopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, blockName));
                     context.LoopNodesByParent[blockName] = (LoopNode)node!;
                     return node;
@@ -138,7 +148,7 @@ public class NodeBuilder
                 return null;
 
             case FormattedStatementKind.Break:
-                return ChainNewNode(_factory.CreateBreakNode(), stmt, context, ref prevNode, ref prevStmtId);
+                return ChainNewNode(_registry.Create(BlueprintNodeType.Break), stmt, context, ref prevNode, ref prevStmtId);
 
             default:
                 return null;
@@ -193,14 +203,25 @@ public class NodeBuilder
         {
             // Get assignment → create GetNode
             var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
-            mainNode = _factory.CreateGetNode(varName);
+            var getNode = (GetNode)_registry.Create(BlueprintNodeType.Get);
+            getNode.VarName = varName;
+            mainNode = getNode;
         }
         else
         {
             var isHelper = _helperNames.Contains(stmt.FunctionName);
-            mainNode = isHelper
-                ? _factory.CreateCallHelperNode(stmt.FunctionName!)
-                : _factory.CreateCallNode(stmt.FunctionName!);
+            if (isHelper)
+            {
+                var helperNode = (CallHelperNode)_registry.Create(BlueprintNodeType.CallHelper);
+                helperNode.HelperFunctionName = stmt.FunctionName!;
+                mainNode = helperNode;
+            }
+            else
+            {
+                var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
+                callNode.FunctionName = stmt.FunctionName!;
+                mainNode = callNode;
+            }
 
             // Add parameter pins based on helper definition or argument count
             AddParamPins(mainNode, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);

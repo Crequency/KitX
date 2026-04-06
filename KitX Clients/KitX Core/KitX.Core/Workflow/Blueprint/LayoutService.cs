@@ -141,22 +141,23 @@ public class LayoutService : ILayoutService
             return linear;
         }
 
-        if (targets.Count == 2)
+        if (targets.Count >= 2)
         {
-            // Fork: Branch (True/False) or Loop (LoopBody/LoopEnd)
+            // Fork: Branch (True/False), Loop (LoopBody/LoopEnd), or any N-way control flow
             placed.Add(nodeId);
 
             var node = blueprint.GetNodeById(nodeId);
-            Log.Debug("[Layout]   Fork node: {Name} ({Type}) → [{Pin1}, {Pin2}]",
-                node?.Name, node?.NodeType, targets[0].PinName, targets[1].PinName);
+            Log.Debug("[Layout]   Fork node: {Name} ({Type}) → {BranchCount} branches [{Pins}]",
+                node?.Name, node?.NodeType, targets.Count,
+                string.Join(", ", targets.Select(t => t.PinName)));
 
-            // First target → UpperBranch (True / LoopBody)
-            var upper = BuildRegionTree(targets[0].TargetId, execMap, blueprint, visited, placed);
+            var branches = new List<LayoutRegion?>();
+            foreach (var target in targets)
+            {
+                branches.Add(BuildRegionTree(target.TargetId, execMap, blueprint, visited, placed));
+            }
 
-            // Second target → LowerBranch (False / LoopEnd)
-            var lower = BuildRegionTree(targets[1].TargetId, execMap, blueprint, visited, placed);
-
-            return new ForkRegion(nodeId, upper, lower);
+            return new ForkRegion(nodeId, branches);
         }
 
         // Fallback: 3+ exec outputs (treat as linear)
@@ -312,20 +313,23 @@ public class LayoutService : ILayoutService
     }
 
     /// <summary>
-    /// Fork region: a fork node (Branch/Loop) with upper and lower sub-branches
+    /// Fork region: a fork node (Branch/Loop/etc.) with N sub-branches
     /// arranged vertically, indented to the right.
+    /// Supports any number of execution output arms (2 for Branch/Loop, N for future nodes).
     /// </summary>
     private class ForkRegion : LayoutRegion
     {
         public string ForkNodeId;
-        public LayoutRegion? UpperBranch;
-        public LayoutRegion? LowerBranch;
+        public List<LayoutRegion?> Branches;
 
-        public ForkRegion(string forkNodeId, LayoutRegion? upper, LayoutRegion? lower)
+        // Backward-compatible convenience properties for 2-branch case
+        public LayoutRegion? UpperBranch => Branches.Count > 0 ? Branches[0] : null;
+        public LayoutRegion? LowerBranch => Branches.Count > 1 ? Branches[1] : null;
+
+        public ForkRegion(string forkNodeId, List<LayoutRegion?> branches)
         {
             ForkNodeId = forkNodeId;
-            UpperBranch = upper;
-            LowerBranch = lower;
+            Branches = branches;
         }
 
         public override void Measure(double availableWidth = MaxRowWidth)
@@ -333,18 +337,32 @@ public class LayoutService : ILayoutService
             // Branches are indented to the right of the fork node
             double branchAvailableWidth = Math.Max(NodeWidth, availableWidth - NodeWidth - ForkHGap);
 
-            UpperBranch?.Measure(branchAvailableWidth);
-            LowerBranch?.Measure(branchAvailableWidth);
+            // Measure all branches
+            foreach (var branch in Branches)
+                branch?.Measure(branchAvailableWidth);
 
-            double upperW = UpperBranch?.MeasuredWidth ?? 0;
-            double lowerW = LowerBranch?.MeasuredWidth ?? 0;
-            double upperH = UpperBranch?.MeasuredHeight ?? 0;
-            double lowerH = LowerBranch?.MeasuredHeight ?? 0;
+            // Width: fork node + gap + max branch width
+            double maxBranchWidth = Branches
+                .Where(b => b != null)
+                .Select(b => b!.MeasuredWidth)
+                .DefaultIfEmpty(0)
+                .Max();
 
-            // Width: fork node + gap + max of branches (includes indentation)
-            MeasuredWidth = NodeWidth + ForkHGap + Math.Max(upperW, lowerW);
-            // Height: fork node + gap + both branches stacked vertically
-            MeasuredHeight = NodeHeight + ForkVGap + upperH + (lowerH > 0 ? VSpacing + lowerH : 0);
+            MeasuredWidth = NodeWidth + ForkHGap + maxBranchWidth;
+
+            // Height: fork node + gap + all branches stacked vertically with spacing
+            double totalBranchHeight = 0;
+            foreach (var branch in Branches)
+            {
+                if (branch != null && branch.MeasuredHeight > 0)
+                {
+                    if (totalBranchHeight > 0)
+                        totalBranchHeight += VSpacing;
+                    totalBranchHeight += branch.MeasuredHeight;
+                }
+            }
+
+            MeasuredHeight = NodeHeight + ForkVGap + totalBranchHeight;
         }
 
         public override void Arrange(double x, double y, Contract.Workflow.Blueprint bp)
@@ -359,19 +377,17 @@ public class LayoutService : ILayoutService
 
             // Indent branches to the right of the fork node
             double branchX = x + NodeWidth + ForkHGap;
-            double upperY = y + NodeHeight + ForkVGap;
+            double currentY = y + NodeHeight + ForkVGap;
 
-            // Arrange upper branch (True / LoopBody)
-            if (UpperBranch != null)
+            // Arrange all branches stacked vertically
+            foreach (var branch in Branches)
             {
-                UpperBranch.Arrange(branchX, upperY, bp);
-            }
-
-            // Arrange lower branch below upper branch (False / LoopEnd)
-            if (LowerBranch != null)
-            {
-                double lowerY = upperY + (UpperBranch?.MeasuredHeight ?? 0) + VSpacing;
-                LowerBranch.Arrange(branchX, lowerY, bp);
+                if (branch != null)
+                {
+                    branch.Arrange(branchX, currentY, bp);
+                    if (branch.MeasuredHeight > 0)
+                        currentY += branch.MeasuredHeight + VSpacing;
+                }
             }
         }
     }

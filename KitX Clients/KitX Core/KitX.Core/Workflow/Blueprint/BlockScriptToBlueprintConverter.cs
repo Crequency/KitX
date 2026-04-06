@@ -14,7 +14,7 @@ namespace KitX.Core.Workflow.Blueprint;
 public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
 {
     private readonly IBlockScriptParser _parser;
-    private readonly INodeCreationService _nodeFactory;
+    private readonly INodeRegistry _nodeRegistry;
     private readonly ILayoutService _layoutService;
 
     /// <summary>
@@ -24,11 +24,11 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
 
     public BlockScriptToBlueprintConverter(
         IBlockScriptParser parser,
-        INodeCreationService nodeFactory,
+        INodeRegistry nodeRegistry,
         ILayoutService layoutService)
     {
         _parser = parser;
-        _nodeFactory = nodeFactory;
+        _nodeRegistry = nodeRegistry;
         _layoutService = layoutService;
     }
 
@@ -67,7 +67,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             context.FormattedScript.Blocks.Sum(b => b.Statements.Count));
 
         // ── Phase 3: Node creation + exec edges + PubVar reuse ──
-        var nodeBuilder = new NodeBuilder(_nodeFactory, helpers);
+        var nodeBuilder = new NodeBuilder(_nodeRegistry, helpers);
         nodeBuilder.Build(context.FormattedScript, context);
         Log.Debug("[Converter] Phase 3: {NodeCount} nodes, {ExecEdgeCount} exec edges",
             context.AllNodes.Count, context.ExecEdges.Count);
@@ -104,7 +104,10 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             foreach (var varDecl in context.Script.ConstBlock.Variables)
             {
                 var value = varDecl.DefaultValue?.ToString() ?? varDecl.InitialValueExpression ?? "";
-                var constNode = _nodeFactory.CreateConstNode(varDecl.Name, varDecl.Type, value);
+                var constNode = (ConstNode)_nodeRegistry.Create(BlueprintNodeType.Const);
+                constNode.ConstName = varDecl.Name;
+                constNode.ConstType = varDecl.Type;
+                constNode.ConstValue = value;
                 context.ConstNodes[varDecl.Name] = constNode;
                 context.AllNodes.Add(constNode);
             }

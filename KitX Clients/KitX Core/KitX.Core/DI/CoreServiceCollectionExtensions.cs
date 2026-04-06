@@ -24,6 +24,7 @@ using KitX.Core.Tasks;
 using KitX.Core.Workflow;
 using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.ExportStrategies;
 using KitX.Core.Event;
 using Serilog;
 
@@ -199,7 +200,7 @@ public static class CoreServiceCollectionExtensions
 
         // Blueprint Sub-services (must be registered before IBlueprintService)
         Log.Information("Registering Blueprint sub-services...");
-        services.AddSingleton<INodeCreationService, NodeCreationService>();
+        services.AddSingleton<INodeRegistry, NodeRegistry>();
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<IBlueprintRenderDataService, BlueprintRenderDataService>();
 
@@ -209,17 +210,19 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IBlueprintToBlockScriptConverter...");
         services.AddSingleton<IBlueprintToBlockScriptConverter, BlueprintToBlockScriptConverter>();
 
+        // Blueprint Export Strategies
+        Log.Information("Registering node export strategies...");
+        services.AddSingleton<INodeExportStrategy, PrintNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, PauseNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, CallNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, CallHelperNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, BreakNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, BranchNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, LoopNodeExportStrategy>();
+
         // Blueprint Services
         Log.Information("Registering IBlueprintService...");
         services.AddSingleton<IBlueprintService, BlueprintService>();
-
-        // Node Template Provider
-        Log.Information("Registering INodeTemplateProvider...");
-        services.AddSingleton<INodeTemplateProvider, NodeTemplateProvider>(provider =>
-        {
-            var service = new NodeTemplateProvider();
-            return service;
-        });
 
         Log.Information("AddCoreServices completed.");
         return services;

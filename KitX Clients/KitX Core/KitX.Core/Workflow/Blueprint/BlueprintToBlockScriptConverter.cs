@@ -7,17 +7,36 @@ using KitX.Core.Contract.Workflow;
 namespace KitX.Core.Workflow.Blueprint;
 
 /// <summary>
-/// Converts Blueprint to BlockScript
+/// Converts Blueprint to BlockScript using strategy pattern for node type dispatch.
+/// Each node type's conversion logic lives in a dedicated INodeExportStrategy implementation.
 /// </summary>
-public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
+public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter, INodeExportHelper
 {
+    private readonly Dictionary<BlueprintNodeType, INodeExportStrategy> _strategies;
+
+    public BlueprintToBlockScriptConverter(IEnumerable<INodeExportStrategy> strategies)
+    {
+        _strategies = strategies.ToDictionary(s => s.NodeType);
+    }
+
+    /// <inheritdoc/>
+    public Contract.Workflow.Blueprint Blueprint { get; private set; } = null!;
+
+    /// <summary>
+    /// Converts a blueprint to BlockScript source code string.
+    /// </summary>
     public string Convert(Contract.Workflow.Blueprint blueprint)
     {
         return ConvertToBlockScript(blueprint).SourceCode;
     }
 
+    /// <summary>
+    /// Converts a blueprint to a BlockScript object.
+    /// </summary>
     public BlockScript ConvertToBlockScript(Contract.Workflow.Blueprint blueprint)
     {
+        Blueprint = blueprint;
+
         var context = new ReverseConversionContext
         {
             Blueprint = blueprint,
@@ -36,7 +55,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         var entryNode = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
         if (entryNode != null)
         {
-            // Get nodes in main execution flow (from Entry to first control flow)
             var mainFlow = GetMainExecutionFlow(blueprint, entryNode);
             var mainBlock = GenerateBlock(context, mainFlow, "MainBlock");
             context.Script.MainBlock = mainBlock;
@@ -51,6 +69,52 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         return context.Script;
     }
 
+    // ──────────────────────────────────────────────
+    // INodeExportHelper implementation
+    // ──────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public string GetInputValue(BlueprintNode node, string pinName)
+    {
+        var pin = node.InputPins.FirstOrDefault(p => p.Name == pinName);
+        if (pin == null) return string.Empty;
+
+        var dataConn = Blueprint.Connections.FirstOrDefault(c => c.TargetPinId == pin.Id);
+        if (dataConn == null) return pin.DefaultValue ?? string.Empty;
+
+        var sourceNode = Blueprint.GetNodeById(dataConn.SourceNodeId);
+        if (sourceNode is ConstNode constNode)
+            return constNode.ConstName;
+
+        return dataConn.PubVarName ?? pin.DefaultValue ?? string.Empty;
+    }
+
+    /// <inheritdoc/>
+    public string GetInputArgs(BlueprintNode node)
+    {
+        var args = new List<string>();
+        foreach (var pin in node.InputPins)
+        {
+            if (pin.Name != "Exec")
+            {
+                args.Add(GetInputValue(node, pin.Name));
+            }
+        }
+        return string.Join(", ", args);
+    }
+
+    // ──────────────────────────────────────────────
+    // Core conversion logic (strategy-driven)
+    // ──────────────────────────────────────────────
+
+    private BlockStatement? ConvertNodeToStatement(BlueprintNode node, Contract.Workflow.Blueprint blueprint)
+    {
+        if (_strategies.TryGetValue(node.NodeType, out var strategy))
+            return strategy.ToStatement(node, this);
+
+        return null;
+    }
+
     private void GeneratePubVarBlock(ReverseConversionContext context)
     {
         var pubVarBlock = new BlockDefinition
@@ -59,7 +123,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             Name = "PubVarBlock"
         };
 
-        // Also create PubVars for data connections that don't have explicit PubVar
         var dataConnections = context.Blueprint.Connections
             .Where(c => !IsExecConnection(context.Blueprint, c))
             .ToList();
@@ -68,7 +131,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         {
             if (string.IsNullOrEmpty(conn.PubVarName))
             {
-                // Create a new PubVar for this connection
                 var pubVarName = $"temp_{context.PubVarIndex++}";
                 conn.PubVarName = pubVarName;
                 pubVarBlock.Variables.Add(new VariableDeclaration
@@ -133,14 +195,13 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 
         flow.Add(node);
 
-        // Check if this is a control flow node
-        if (node is BranchNode || node is LoopNode)
+        // Use strategy to check if this is a control flow node
+        if (_strategies.TryGetValue(node.NodeType, out var strategy) && strategy.IsControlFlow)
         {
             hitControlFlow = true;
             return;
         }
 
-        // Get next Exec connection
         var execOut = node.OutputPins.FirstOrDefault(p => p.Name == "Exec");
         if (execOut == null)
         {
@@ -173,47 +234,24 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 
         foreach (var node in blueprint.Nodes)
         {
-            if (node is BranchNode branch)
+            if (!_strategies.TryGetValue(node.NodeType, out var strategy) || !strategy.IsControlFlow)
+                continue;
+
+            foreach (var arm in strategy.GetOutputArms(node))
             {
-                ProcessBranchSubGraphs(blueprint, branch, context, processedTargets);
-            }
-            else if (node is LoopNode loop)
-            {
-                ProcessLoopSubGraphs(blueprint, loop, context, processedTargets);
+                ProcessOutputArm(blueprint, node, arm.PinName, arm.IsLoopback,
+                    context, processedTargets);
             }
         }
     }
 
-    private void ProcessBranchSubGraphs(Contract.Workflow.Blueprint blueprint, BranchNode branch,
-        ReverseConversionContext context, HashSet<string> processedTargets)
-    {
-        ProcessOutputArm(blueprint, branch, "True", context, processedTargets, null,
-            (flow, blockName) => flow.TrueBlockName = blockName);
-        ProcessOutputArm(blueprint, branch, "False", context, processedTargets, null,
-            (flow, blockName) => flow.FalseBlockName = blockName);
-    }
-
-    private void ProcessLoopSubGraphs(Contract.Workflow.Blueprint blueprint, LoopNode loop,
-        ReverseConversionContext context, HashSet<string> processedTargets)
-    {
-        ProcessOutputArm(blueprint, loop, "LoopBody", context, processedTargets, loop.Id,
-            (flow, blockName) => flow.TrueBlockName = blockName);
-        ProcessOutputArm(blueprint, loop, "LoopEnd", context, processedTargets, null,
-            (flow, blockName) => flow.FalseBlockName = blockName);
-    }
-
-    /// <summary>
-    /// Processes a single output arm (True/False for Branch, LoopBody/LoopEnd for Loop).
-    /// Extracted to eliminate duplication between Branch and Loop sub-graph processing.
-    /// </summary>
     private void ProcessOutputArm(
         Contract.Workflow.Blueprint blueprint,
         BlueprintNode controlNode,
         string outputPinName,
+        bool isLoopback,
         ReverseConversionContext context,
-        HashSet<string> processedTargets,
-        string? loopbackTargetId,
-        Action<FlowControlStatement, string> setBlockName)
+        HashSet<string> processedTargets)
     {
         var pin = controlNode.OutputPins.FirstOrDefault(p => p.Name == outputPinName);
         if (pin == null) return;
@@ -225,13 +263,20 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         if (targetNode == null) return;
 
         var blockName = $"Block_{context.BlockIndex++}";
+        var loopbackTargetId = isLoopback ? controlNode.Id : null;
         var block = CollectSubGraph(blueprint, targetNode, context, processedTargets, loopbackTargetId);
         context.Script.NamedBlocks[blockName] = block;
         processedTargets.Add(conn.TargetNodeId);
 
         if (context.ControlFlowMap.TryGetValue(controlNode.Id, out var flow))
         {
-            setBlockName(flow, blockName);
+            // Determine which block name property to set based on arm index
+            var arms = _strategies[controlNode.NodeType].GetOutputArms(controlNode).ToList();
+            var armIndex = arms.FindIndex(a => a.PinName == outputPinName);
+            if (armIndex == 0)
+                flow.TrueBlockName = blockName;
+            else
+                flow.FalseBlockName = blockName;
         }
     }
 
@@ -257,20 +302,17 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         if (visited.Contains(node.Id)) return;
         visited.Add(node.Id);
 
-        // Add node to block
         var nodeStatement = ConvertNodeToStatement(node, blueprint);
         if (nodeStatement != null)
         {
             block.Statements.Add(nodeStatement);
 
-            // Track FlowControlStatements for later setting target block names
             if (nodeStatement is FlowControlStatement flow)
             {
                 context.ControlFlowMap[node.Id] = flow;
             }
         }
 
-        // Process all output connections
         foreach (var outPin in node.OutputPins)
         {
             if (outPin.Name == "Exec")
@@ -281,16 +323,15 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
                     var nextNode = blueprint.GetNodeById(conn.TargetNodeId);
                     if (nextNode != null)
                     {
-                        // Check if this is a loopback to the loop node
                         if (nextNode.Id == loopbackTargetId)
                         {
-                            // Add LoopBodyEnd statement to return to loop
                             block.Statements.Add(new FlowControlStatement
                             {
                                 ControlType = FlowControlType.LoopBodyEnd,
-                                LoopBodyEndReturnTo = loopbackTargetId
+                                SourceCode = "LoopBodyEnd();",
+                                LineNumber = 1
                             });
-                            return; // End of loop body
+                            return;
                         }
 
                         CollectNodesRecursive(blueprint, nextNode, block, context, visited, processedTargets, loopbackTargetId);
@@ -298,112 +339,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
                 }
             }
         }
-    }
-
-    private BlockStatement? ConvertNodeToStatement(BlueprintNode node, Contract.Workflow.Blueprint blueprint)
-    {
-        switch (node)
-        {
-            case PrintNode print:
-                var printValue = GetInputValue(print, "Value", blueprint);
-                return new ExpressionStatement
-                {
-                    Expression = $"Print({printValue});",
-                    SourceCode = $"Print({printValue});",
-                    LineNumber = 1
-                };
-
-            case PauseNode pause:
-                var ms = GetInputValue(pause, "Milliseconds", blueprint);
-                return new ExpressionStatement
-                {
-                    Expression = $"Pause({ms});",
-                    SourceCode = $"Pause({ms});",
-                    LineNumber = 1
-                };
-
-            case CallNode call:
-                var callArgs = GetInputArgs(call, blueprint);
-                return new ExpressionStatement
-                {
-                    Expression = $"{call.FunctionName}({callArgs});",
-                    SourceCode = $"{call.FunctionName}({callArgs});",
-                    LineNumber = 1
-                };
-
-            case CallHelperNode callHelper:
-                var helperArgs = GetInputArgs(callHelper, blueprint);
-                return new ExpressionStatement
-                {
-                    Expression = $"{callHelper.HelperFunctionName}({helperArgs});",
-                    SourceCode = $"{callHelper.HelperFunctionName}({helperArgs});",
-                    LineNumber = 1
-                };
-
-            case BreakNode:
-                return new FlowControlStatement
-                {
-                    ControlType = FlowControlType.Break,
-                    SourceCode = "Break();",
-                    LineNumber = 1
-                };
-
-            case BranchNode branch:
-                var branchFlow = new FlowControlStatement
-                {
-                    ControlType = FlowControlType.Branch,
-                    ConditionExpression = GetConditionExpression(branch, blueprint),
-                    SourceCode = $"Branch({GetConditionExpression(branch, blueprint)}, \"\", \"\");",
-                    LineNumber = 1
-                };
-                return branchFlow;
-
-            case LoopNode loop:
-                var loopFlow = new FlowControlStatement
-                {
-                    ControlType = FlowControlType.Loop,
-                    ConditionExpression = GetConditionExpression(loop, blueprint),
-                    SourceCode = $"Loop({GetConditionExpression(loop, blueprint)}, \"\", \"\");",
-                    LineNumber = 1
-                };
-                return loopFlow;
-
-            default:
-                return null;
-        }
-    }
-
-    private string GetConditionExpression(BlueprintNode node, Contract.Workflow.Blueprint blueprint)
-        => GetInputValue(node, "Condition", blueprint);
-
-    private string GetInputValue(BlueprintNode node, string pinName, Contract.Workflow.Blueprint blueprint)
-    {
-        var pin = node.InputPins.FirstOrDefault(p => p.Name == pinName);
-        if (pin == null) return string.Empty;
-
-        // Find the data connection to this pin
-        var dataConn = blueprint.Connections.FirstOrDefault(c => c.TargetPinId == pin.Id);
-        if (dataConn == null) return pin.DefaultValue ?? string.Empty;
-
-        var sourceNode = blueprint.GetNodeById(dataConn.SourceNodeId);
-        if (sourceNode is ConstNode constNode)
-            return constNode.ConstName;
-
-        // For other nodes, return the PubVar name if available
-        return dataConn.PubVarName ?? pin.DefaultValue ?? string.Empty;
-    }
-
-    private string GetInputArgs(BlueprintNode node, Contract.Workflow.Blueprint blueprint)
-    {
-        var args = new List<string>();
-        foreach (var pin in node.InputPins)
-        {
-            if (pin.Name != "Exec")
-            {
-                args.Add(GetInputValue(node, pin.Name, blueprint));
-            }
-        }
-        return string.Join(", ", args);
     }
 
     private BlockDefinition GenerateBlock(ReverseConversionContext context,
@@ -422,7 +357,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             {
                 block.Statements.Add(statement);
 
-                // Track FlowControlStatements for later setting target block names
                 if (statement is FlowControlStatement flow)
                 {
                     context.ControlFlowMap[node.Id] = flow;
@@ -444,7 +378,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
     {
         var sb = new StringBuilder();
 
-        // #ConstBlock
         if (script.ConstBlock != null && script.ConstBlock.Variables.Count > 0)
         {
             sb.AppendLine("#ConstBlock");
@@ -455,7 +388,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             sb.AppendLine();
         }
 
-        // #PubVarBlock
         if (script.PubVarBlock != null && script.PubVarBlock.Variables.Count > 0)
         {
             sb.AppendLine("#PubVarBlock");
@@ -466,7 +398,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             sb.AppendLine();
         }
 
-        // #MainBlock
         if (script.MainBlock != null)
         {
             sb.AppendLine("#MainBlock");
@@ -477,7 +408,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             sb.AppendLine();
         }
 
-        // NamedBlocks
         foreach (var kvp in script.NamedBlocks)
         {
             sb.AppendLine($"#Block {kvp.Key}");
@@ -497,10 +427,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         public required BlockScript Script { get; set; }
         public int PubVarIndex { get; set; }
         public int BlockIndex { get; set; }
-
-        /// <summary>
-        /// Maps node ID to its FlowControlStatement for setting target block names later
-        /// </summary>
         public Dictionary<string, FlowControlStatement> ControlFlowMap { get; set; } = new();
     }
 }
