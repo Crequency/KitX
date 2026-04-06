@@ -17,7 +17,7 @@ public class LayoutService : ILayoutService
     // Layout constants
     private const double HSpacing = 220;
     private const double VSpacing = 130;
-    private const double ForkVGap = 200;
+    private const double ForkVGap = 60;
     private const double ForkHGap = 40;
     private const double MaxRowWidth = 1200;
     private const double XOffset = 50;
@@ -326,10 +326,27 @@ public class LayoutService : ILayoutService
         public LayoutRegion? UpperBranch => Branches.Count > 0 ? Branches[0] : null;
         public LayoutRegion? LowerBranch => Branches.Count > 1 ? Branches[1] : null;
 
+        // Symmetric layout: upper / middle / lower branch groups
+        private double _upperBranchHeight;
+        private double _middleBranchHeight;
+
         public ForkRegion(string forkNodeId, List<LayoutRegion?> branches)
         {
             ForkNodeId = forkNodeId;
             Branches = branches;
+        }
+
+        /// <summary>
+        /// Determines layout direction for a branch by its index.
+        /// <para>-1 = upper-right, 0 = straight-right (same Y as fork), 1 = lower-right</para>
+        /// <para>Rule: compare (index + 1) with (total + 1) / 2.0</para>
+        /// </summary>
+        private static int GetBranchDirection(int index, int total)
+        {
+            double mid = (total + 1) / 2.0;
+            if (index + 1 < mid) return -1;
+            if (index + 1 == mid) return 0;
+            return 1;
         }
 
         public override void Measure(double availableWidth = MaxRowWidth)
@@ -341,7 +358,7 @@ public class LayoutService : ILayoutService
             foreach (var branch in Branches)
                 branch?.Measure(branchAvailableWidth);
 
-            // Width: fork node + gap + max branch width
+            // Width: fork node + gap + max branch width (unchanged)
             double maxBranchWidth = Branches
                 .Where(b => b != null)
                 .Select(b => b!.MeasuredWidth)
@@ -350,43 +367,82 @@ public class LayoutService : ILayoutService
 
             MeasuredWidth = NodeWidth + ForkHGap + maxBranchWidth;
 
-            // Height: fork node + gap + all branches stacked vertically with spacing
-            double totalBranchHeight = 0;
-            foreach (var branch in Branches)
+            // Height: symmetric layout — group branches by direction
+            _upperBranchHeight = 0;
+            _middleBranchHeight = 0;
+            double lowerBranchHeight = 0;
+
+            for (int i = 0; i < Branches.Count; i++)
             {
-                if (branch != null && branch.MeasuredHeight > 0)
+                var branch = Branches[i];
+                if (branch == null || branch.MeasuredHeight <= 0) continue;
+
+                int dir = GetBranchDirection(i, Branches.Count);
+                switch (dir)
                 {
-                    if (totalBranchHeight > 0)
-                        totalBranchHeight += VSpacing;
-                    totalBranchHeight += branch.MeasuredHeight;
+                    case -1: // upper
+                        if (_upperBranchHeight > 0) _upperBranchHeight += VSpacing;
+                        _upperBranchHeight += branch.MeasuredHeight;
+                        break;
+                    case 0: // middle (straight-right)
+                        _middleBranchHeight = branch.MeasuredHeight;
+                        break;
+                    case 1: // lower
+                        if (lowerBranchHeight > 0) lowerBranchHeight += VSpacing;
+                        lowerBranchHeight += branch.MeasuredHeight;
+                        break;
                 }
             }
 
-            MeasuredHeight = NodeHeight + ForkVGap + totalBranchHeight;
+            double middleAndForkHeight = Math.Max(NodeHeight, _middleBranchHeight);
+
+            MeasuredHeight = _upperBranchHeight
+                + (_upperBranchHeight > 0 ? ForkVGap : 0)
+                + middleAndForkHeight
+                + (lowerBranchHeight > 0 ? ForkVGap : 0)
+                + lowerBranchHeight;
         }
 
         public override void Arrange(double x, double y, Contract.Workflow.Blueprint bp)
         {
+            double branchX = x + NodeWidth + ForkHGap;
+
+            // Fork node Y: offset down by upper branch height
+            double forkY = y + _upperBranchHeight
+                + (_upperBranchHeight > 0 ? ForkVGap : 0);
+
             // Place fork node
             var forkNode = bp.GetNodeById(ForkNodeId);
             if (forkNode != null)
             {
                 forkNode.X = x;
-                forkNode.Y = y;
+                forkNode.Y = forkY;
             }
 
-            // Indent branches to the right of the fork node
-            double branchX = x + NodeWidth + ForkHGap;
-            double currentY = y + NodeHeight + ForkVGap;
+            // Arrange branches by direction
+            double currentUpperY = y;
+            double middleAndForkHeight = Math.Max(NodeHeight, _middleBranchHeight);
+            double currentLowerY = forkY + middleAndForkHeight + ForkVGap;
 
-            // Arrange all branches stacked vertically
-            foreach (var branch in Branches)
+            for (int i = 0; i < Branches.Count; i++)
             {
-                if (branch != null)
+                var branch = Branches[i];
+                if (branch == null || branch.MeasuredHeight <= 0) continue;
+
+                int dir = GetBranchDirection(i, Branches.Count);
+                switch (dir)
                 {
-                    branch.Arrange(branchX, currentY, bp);
-                    if (branch.MeasuredHeight > 0)
-                        currentY += branch.MeasuredHeight + VSpacing;
+                    case -1: // upper-right
+                        branch.Arrange(branchX, currentUpperY, bp);
+                        currentUpperY += branch.MeasuredHeight + VSpacing;
+                        break;
+                    case 0: // straight-right (same Y as fork)
+                        branch.Arrange(branchX, forkY, bp);
+                        break;
+                    case 1: // lower-right
+                        branch.Arrange(branchX, currentLowerY, bp);
+                        currentLowerY += branch.MeasuredHeight + VSpacing;
+                        break;
                 }
             }
         }
