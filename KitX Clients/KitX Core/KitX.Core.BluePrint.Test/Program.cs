@@ -22,6 +22,7 @@ public class Program
         var parser = sp.GetRequiredService<IBlockScriptParser>();
         var nodeRegistry = sp.GetRequiredService<INodeRegistry>();
         var layoutService = sp.GetRequiredService<ILayoutService>();
+        var reverseConverter = sp.GetRequiredService<IBlueprintToBlockScriptConverter>();
 
         Console.WriteLine("DI initialized.\n");
 
@@ -66,6 +67,27 @@ public class Program
         Console.WriteLine("└──────────────────────────────────────────┘\n");
 
         RunTest(converter, GetRawNestedScript(), helpers, "Test B");
+
+        // ── Test C: Reverse conversion (Blueprint → Expanded Script) ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test C: Blueprint → Expanded Script      │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunReverseTest(converter, reverseConverter, GetRawNestedScript(), helpers, "Test C");
+
+        // ── Test D: Round-trip consistency test ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test D: Round-trip consistency           │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunRoundTripTest(converter, reverseConverter, GetRawNestedScript(), helpers, "Test D");
+
+        // ── Test E: Manual Blueprint construction test ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test E: Manual Blueprint → Script        │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunManualBlueprintTest(reverseConverter, "Test E");
     }
 
     private static void RunTest(BlockScriptToBlueprintConverter converter,
@@ -260,4 +282,190 @@ Print(""猜对啦！"");
 
 #Block EndLogic
 Print(""示例工作流结束"");";
+
+    // ──────────────────────────────────────────────
+    // Test C: Reverse conversion test
+    // ──────────────────────────────────────────────
+    private static void RunReverseTest(
+        BlockScriptToBlueprintConverter forwardConverter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        string sourceCode, List<HelperFunction> helpers, string label)
+    {
+        try
+        {
+            // Step 1: Forward convert
+            var blueprint = forwardConverter.Convert(sourceCode, helpers);
+            Console.WriteLine($"  [{label}] Forward conversion: {blueprint.Nodes.Count} nodes, {blueprint.Connections.Count} connections");
+
+            // Step 2: Reverse convert
+            var expandedScript = reverseConverter.Convert(blueprint);
+
+            Console.WriteLine($"\n  ── Expanded Script ({label}) ──");
+            Console.WriteLine(expandedScript);
+            Console.WriteLine($"  ── End Expanded Script ({label}) ──\n");
+
+            Console.WriteLine($"[{label}] Success!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{label}] FAILED: {ex.Message}");
+            Console.WriteLine($"  {ex.StackTrace}");
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Test D: Round-trip consistency test
+    // ──────────────────────────────────────────────
+    private static void RunRoundTripTest(
+        BlockScriptToBlueprintConverter forwardConverter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        string sourceCode, List<HelperFunction> helpers, string label)
+    {
+        try
+        {
+            // Script → Blueprint
+            var bp1 = forwardConverter.Convert(sourceCode, helpers);
+
+            // Blueprint → Expanded Script
+            var script1 = reverseConverter.Convert(bp1);
+
+            // Expanded Script → Blueprint (second round)
+            var bp2 = forwardConverter.Convert(script1, helpers);
+
+            // Blueprint → Expanded Script (second round)
+            var script2 = reverseConverter.Convert(bp2);
+
+            // Compare
+            Console.WriteLine($"  Round 1 nodes: {bp1.Nodes.Count}, connections: {bp1.Connections.Count}");
+            Console.WriteLine($"  Round 2 nodes: {bp2.Nodes.Count}, connections: {bp2.Connections.Count}");
+
+            Console.WriteLine($"\n  ── Round 1 Expanded Script ──");
+            Console.WriteLine(script1);
+            Console.WriteLine($"  ── Round 2 Expanded Script ──");
+            Console.WriteLine(script2);
+
+            // Simple structural comparison
+            var lines1 = script1.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+            var lines2 = script2.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim()).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+
+            bool match = lines1.Count == lines2.Count;
+            if (match)
+            {
+                for (int i = 0; i < lines1.Count; i++)
+                {
+                    if (lines1[i] != lines2[i])
+                    {
+                        match = false;
+                        Console.WriteLine($"  Mismatch at line {i}:");
+                        Console.WriteLine($"    Round 1: {lines1[i]}");
+                        Console.WriteLine($"    Round 2: {lines2[i]}");
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine($"  Line count differs: Round 1={lines1.Count}, Round 2={lines2.Count}");
+            }
+
+            Console.WriteLine($"\n[{label}] {(match ? "PASS - Round-trip consistent!" : "DIFF - See differences above")}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{label}] FAILED: {ex.Message}");
+            Console.WriteLine($"  {ex.StackTrace}");
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Test E: Manual Blueprint construction test
+    // ──────────────────────────────────────────────
+    private static void RunManualBlueprintTest(
+        IBlueprintToBlockScriptConverter reverseConverter, string label)
+    {
+        try
+        {
+            var bp = new Contract.Workflow.Blueprint
+            {
+                Name = "ManualTest"
+            };
+
+            // Entry → Print("Hello") → Branch(condition, "TrueBlock", "FalseBlock")
+            var entry = new EntryNode();
+            var printHello = new PrintNode();
+            printHello.InputPins.First(p => p.Name == "Value").DefaultValue = "\"Hello\"";
+            var branch = new BranchNode();
+
+            // ConstNode for condition
+            var constTrue = new ConstNode { ConstName = "myCondition", ConstType = "bool", ConstValue = "true" };
+
+            // True branch: Print("Yes")
+            var printYes = new PrintNode();
+            printYes.InputPins.First(p => p.Name == "Value").DefaultValue = "\"Yes\"";
+
+            // False branch: Print("No")
+            var printNo = new PrintNode();
+            printNo.InputPins.First(p => p.Name == "Value").DefaultValue = "\"No\"";
+
+            bp.AddNode(entry);
+            bp.AddNode(printHello);
+            bp.AddNode(branch);
+            bp.AddNode(constTrue);
+            bp.AddNode(printYes);
+            bp.AddNode(printNo);
+
+            // Exec connections
+            bp.AddConnection(new BlueprintConnection
+            {
+                SourceNodeId = entry.Id,
+                SourcePinId = entry.OutputPins.First(p => p.Name == "Exec").Id,
+                TargetNodeId = printHello.Id,
+                TargetPinId = printHello.InputPins.First(p => p.Name == "Exec").Id
+            });
+            bp.AddConnection(new BlueprintConnection
+            {
+                SourceNodeId = printHello.Id,
+                SourcePinId = printHello.OutputPins.First(p => p.Name == "Exec").Id,
+                TargetNodeId = branch.Id,
+                TargetPinId = branch.InputPins.First(p => p.Name == "Exec").Id
+            });
+            bp.AddConnection(new BlueprintConnection
+            {
+                SourceNodeId = branch.Id,
+                SourcePinId = branch.OutputPins.First(p => p.Name == "True").Id,
+                TargetNodeId = printYes.Id,
+                TargetPinId = printYes.InputPins.First(p => p.Name == "Exec").Id
+            });
+            bp.AddConnection(new BlueprintConnection
+            {
+                SourceNodeId = branch.Id,
+                SourcePinId = branch.OutputPins.First(p => p.Name == "False").Id,
+                TargetNodeId = printNo.Id,
+                TargetPinId = printNo.InputPins.First(p => p.Name == "Exec").Id
+            });
+
+            // Data connection: ConstNode → Branch.Condition
+            bp.AddConnection(new BlueprintConnection
+            {
+                SourceNodeId = constTrue.Id,
+                SourcePinId = constTrue.OutputPins.First(p => p.Name == "Value").Id,
+                TargetNodeId = branch.Id,
+                TargetPinId = branch.InputPins.First(p => p.Name == "Condition").Id
+            });
+
+            var script = reverseConverter.Convert(bp);
+
+            Console.WriteLine($"  ── Manual Blueprint → Script ({label}) ──");
+            Console.WriteLine(script);
+            Console.WriteLine($"  ── End ({label}) ──\n");
+
+            Console.WriteLine($"[{label}] Success!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{label}] FAILED: {ex.Message}");
+            Console.WriteLine($"  {ex.StackTrace}");
+        }
+    }
 }

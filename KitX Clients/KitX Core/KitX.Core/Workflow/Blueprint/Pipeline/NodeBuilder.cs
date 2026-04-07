@@ -17,12 +17,8 @@ public class NodeBuilder
     private readonly HashSet<string> _helperNames;
 
     // Deferred cross-block edge definitions (resolved after all blocks processed)
-    private readonly List<(string stmtId, string? trueBlock, string? falseBlock)> _branchDefs = new();
-    private readonly List<(string stmtId, string? loopBody, string? loopEnd, string parentBlock)> _loopDefs = new();
     private readonly List<(string stmtId, string returnToBlock, string blockName, string? prevStmtId)> _loopBodyEndDefs = new();
-    private readonly Dictionary<string, string> _blockNextBlock = new();
     private readonly Dictionary<string, string> _blockLastStmtId = new();
-    private readonly Dictionary<string, bool> _blockEndsWithFlowCtrl = new();
 
     public NodeBuilder(INodeRegistry registry, List<HelperFunction> helpers)
     {
@@ -63,6 +59,9 @@ public class NodeBuilder
         BlueprintNode? firstNode = null;
         bool endsWithFlowCtrl = false;
 
+        // Initialize block node ID list for scope tracking
+        context.BlockNodeIds[block.Name] = new List<string>();
+
         // MainBlock chains from Entry
         if (block.Name == context.FormattedScript.MainBlockName)
         {
@@ -75,6 +74,10 @@ public class NodeBuilder
             var node = ProcessStatement(stmt, block.Name, context, ref prevNode, ref prevStmtId);
             if (firstNode == null && node != null)
                 firstNode = node;
+
+            // Record node ID in block membership (skip nulls like LoopBodyEnd)
+            if (node != null)
+                context.BlockNodeIds[block.Name].Add(node.Id);
 
             endsWithFlowCtrl = stmt.Kind is FormattedStatementKind.Branch
                 or FormattedStatementKind.Loop
@@ -89,9 +92,9 @@ public class NodeBuilder
         }
 
         if (!string.IsNullOrEmpty(block.NextBlockName))
-            _blockNextBlock[block.Name] = block.NextBlockName;
+            context.BlockNextBlock[block.Name] = block.NextBlockName;
 
-        _blockEndsWithFlowCtrl[block.Name] = endsWithFlowCtrl;
+        context.BlockEndsWithFlowCtrl[block.Name] = endsWithFlowCtrl;
     }
 
     // ──────────────────────────────────────────────
@@ -130,14 +133,14 @@ public class NodeBuilder
             case FormattedStatementKind.Branch:
                 {
                     var node = ChainNewNode(_registry.Create(BlueprintNodeType.Branch), stmt, context, ref prevNode, ref prevStmtId);
-                    _branchDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName));
+                    context.BranchDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName));
                     return node;
                 }
 
             case FormattedStatementKind.Loop:
                 {
                     var node = ChainNewNode(_registry.Create(BlueprintNodeType.Loop), stmt, context, ref prevNode, ref prevStmtId);
-                    _loopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, blockName));
+                    context.LoopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, blockName));
                     context.LoopNodesByParent[blockName] = (LoopNode)node!;
                     return node;
                 }
@@ -169,14 +172,15 @@ public class NodeBuilder
 
         if (stmt.FunctionName == "Get")
         {
-            // Get nodes: only reuse for LOOP_COND_DUP with matching PubVarTarget
-            if (stmt.IsLoopConditionDuplication && !string.IsNullOrEmpty(stmt.PubVarTarget))
+            // Get nodes: reuse when PubVarTarget matches and reads the same variable.
+            // This handles both LOOP_COND_DUP and round-trip re-parsed Get statements
+            // that assign to the same PubVar for the same variable.
+            if (!string.IsNullOrEmpty(stmt.PubVarTarget) && !string.IsNullOrEmpty(stmt.GetVarName))
             {
                 existing = context.PubVarAssignments.Values
                     .FirstOrDefault(p => p.PubVarName == stmt.PubVarTarget
-                        && p.SourceNode.NodeType == BlueprintNodeType.Get);
+                        && p.SourceNode is GetNode gn && gn.VarName == stmt.GetVarName);
             }
-            // Non-DUP Get: never reuse → existing stays null
         }
         else if (!string.IsNullOrEmpty(stmt.Fingerprint)
             && context.PubVarAssignments.TryGetValue(stmt.Fingerprint, out var fpExisting))
@@ -261,7 +265,7 @@ public class NodeBuilder
     private void ResolveCrossBlockEdges(PipelineContext context)
     {
         // Branch: True → trueBlock first, False → falseBlock first
-        foreach (var (stmtId, trueBlock, falseBlock) in _branchDefs)
+        foreach (var (stmtId, trueBlock, falseBlock) in context.BranchDefs)
         {
             if (!string.IsNullOrEmpty(trueBlock) &&
                 context.BlockFirstNodes.TryGetValue(trueBlock, out var trueFirst))
@@ -293,7 +297,7 @@ public class NodeBuilder
         }
 
         // Loop: LoopBody → body first, LoopEnd → end first
-        foreach (var (stmtId, loopBody, loopEnd, _) in _loopDefs)
+        foreach (var (stmtId, loopBody, loopEnd, _) in context.LoopDefs)
         {
             if (!string.IsNullOrEmpty(loopBody) &&
                 context.BlockFirstNodes.TryGetValue(loopBody, out var bodyFirst))
@@ -341,9 +345,9 @@ public class NodeBuilder
         }
 
         // Sequential fall-through for blocks without flow control endings
-        foreach (var (blockName, nextBlockName) in _blockNextBlock)
+        foreach (var (blockName, nextBlockName) in context.BlockNextBlock)
         {
-            if (_blockEndsWithFlowCtrl.GetValueOrDefault(blockName)) continue;
+            if (context.BlockEndsWithFlowCtrl.GetValueOrDefault(blockName)) continue;
             if (string.IsNullOrEmpty(nextBlockName)) continue;
             if (!context.BlockFirstNodes.TryGetValue(nextBlockName, out var nextFirst)) continue;
             if (!_blockLastStmtId.TryGetValue(blockName, out var lastStmtId)) continue;

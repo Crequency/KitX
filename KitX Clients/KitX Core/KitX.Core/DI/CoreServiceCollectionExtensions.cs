@@ -219,6 +219,8 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<INodeExportStrategy, BreakNodeExportStrategy>();
         services.AddSingleton<INodeExportStrategy, BranchNodeExportStrategy>();
         services.AddSingleton<INodeExportStrategy, LoopNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, GetNodeExportStrategy>();
+        services.AddSingleton<INodeExportStrategy, SetNodeExportStrategy>();
 
         // Blueprint Services
         Log.Information("Registering IBlueprintService...");

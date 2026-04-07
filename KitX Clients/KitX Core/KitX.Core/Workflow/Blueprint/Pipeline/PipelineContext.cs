@@ -28,6 +28,13 @@ public class PipelineContext
     public Dictionary<string, BlueprintNode> BlockFirstNodes { get; set; } = new();
     public List<PendingExecEdge> ExecEdges { get; set; } = new();
 
+    // --- Block scope tracking (populated by NodeBuilder, consumed by Assembler) ---
+    public Dictionary<string, List<string>> BlockNodeIds { get; set; } = new();
+    public Dictionary<string, string?> BlockNextBlock { get; set; } = new();
+    public Dictionary<string, bool> BlockEndsWithFlowCtrl { get; set; } = new();
+    public List<(string stmtId, string? trueBlock, string? falseBlock)> BranchDefs { get; set; } = new();
+    public List<(string stmtId, string? loopBody, string? loopEnd, string parentBlock)> LoopDefs { get; set; } = new();
+
     // --- Phase 4 output ---
     public List<PendingDataEdge> DataEdges { get; set; } = new();
 

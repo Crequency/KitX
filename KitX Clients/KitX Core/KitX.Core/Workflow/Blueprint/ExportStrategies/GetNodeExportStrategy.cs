@@ -2,19 +2,16 @@ using KitX.Core.Contract.Workflow;
 
 namespace KitX.Core.Workflow.Blueprint.ExportStrategies;
 
-public class CallNodeExportStrategy : INodeExportStrategy
+public class GetNodeExportStrategy : INodeExportStrategy
 {
-    public BlueprintNodeType NodeType => BlueprintNodeType.Call;
+    public BlueprintNodeType NodeType => BlueprintNodeType.Get;
     public bool IsControlFlow => false;
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
     {
-        if (node is not CallNode call) return null;
-        var callArgs = helper.GetInputArgs(call);
-        var funcRef = string.IsNullOrEmpty(call.PluginName)
-            ? call.FunctionName
-            : $"{call.PluginName}.{call.FunctionName}";
-        var sourceCode = $"{funcRef}({callArgs})";
+        if (node is not GetNode getNode) return null;
+        var varName = getNode.VarName;
+        var sourceCode = $"Get(\"{varName}\")";
         return new ExpressionStatement
         {
             Expression = sourceCode,
