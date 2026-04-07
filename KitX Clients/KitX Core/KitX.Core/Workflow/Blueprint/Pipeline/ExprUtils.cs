@@ -48,7 +48,7 @@ public static class ExprUtils
     }
 
     /// <summary>Parses a full statement (may be assignment or plain expression).</summary>
-    public static (ExpressionSyntax? rightExpr, string? assignedVar, bool isPubVar)? ParseStatement(string statement)
+    public static (ExpressionSyntax? rightExpr, string? assignedVar)? ParseStatement(string statement)
     {
         try
         {
@@ -57,7 +57,7 @@ public static class ExprUtils
             var root = syntaxTree.GetCompilationUnitRoot();
             var globalStmt = root.Members.FirstOrDefault() as GlobalStatementSyntax;
             var stmt = globalStmt?.Statement as ExpressionStatementSyntax;
-            if (stmt?.Expression == null) return (null, null, false);
+            if (stmt?.Expression == null) return (null, null);
 
             if (stmt.Expression is AssignmentExpressionSyntax outerAssignment)
             {
@@ -69,11 +69,11 @@ public static class ExprUtils
                     rightExpr = nested.Right;
                 }
                 var assignedVar = (innermost ?? outerAssignment).Left.ToString().Trim();
-                return (rightExpr, assignedVar, IsPubVarName(assignedVar));
+                return (rightExpr, assignedVar);
             }
-            return (stmt.Expression, null, false);
+            return (stmt.Expression, null);
         }
-        catch { return (null, null, false); }
+        catch { return (null, null); }
     }
 
     /// <summary>Extracts method name from an invocation expression.</summary>
@@ -84,10 +84,6 @@ public static class ExprUtils
         if (invoke.Expression is MemberAccessExpressionSyntax member) return member.Name.Identifier.Text;
         return string.Empty;
     }
-
-    /// <summary>Checks if a name follows the PubVar convention (vaaaNNNN).</summary>
-    public static bool IsPubVarName(string name)
-        => !string.IsNullOrEmpty(name) && name.StartsWith("vaaa") && name.Length >= 8;
 
     /// <summary>Checks if a token is a simple variable reference.</summary>
     public static bool IsVariableReference(string token)
@@ -100,8 +96,35 @@ public static class ExprUtils
         return Regex.IsMatch(token, @"^[a-zA-Z_]\w*$");
     }
 
-    /// <summary>Generates a PubVar name like vaaa0001.</summary>
-    public static string GeneratePubVarName(int counter) => $"vaaa{counter:D4}";
+    /// <summary>
+    /// Generates a PubVar name from a linear counter, cycling from vaaa0001 to vzzz9999.
+    /// Format: 'v' + 3 lowercase letters + 4 digits. Total capacity: 26^3 * 10000 = 175,760,000.
+    /// </summary>
+    public static string GeneratePubVarName(int counter)
+    {
+        int letterPart = counter / 10000;  // 0 = aaa, 1 = aab, ...
+        int digitPart = counter % 10000;
+        char c3 = (char)('a' + letterPart % 26);
+        char c2 = (char)('a' + (letterPart / 26) % 26);
+        char c1 = (char)('a' + (letterPart / 676) % 26);
+        return $"v{c1}{c2}{c3}{digitPart:D4}";
+    }
+
+    /// <summary>
+    /// Tries to extract the linear counter from an auto-generated PubVar name.
+    /// Returns null if the name doesn't match the auto-generation format.
+    /// </summary>
+    public static int? TryExtractPubVarCounter(string name)
+    {
+        // Format: v + 3 lowercase letters + 4 digits
+        if (name == null || name.Length != 8 || name[0] != 'v')
+            return null;
+        for (int i = 1; i <= 3; i++)
+            if (name[i] < 'a' || name[i] > 'z') return null;
+        if (!int.TryParse(name[4..], out var digitPart)) return null;
+        int letterPart = (name[1] - 'a') * 676 + (name[2] - 'a') * 26 + (name[3] - 'a');
+        return letterPart * 10000 + digitPart;
+    }
 
     /// <summary>
     /// Finds all nested invocation arguments in an invocation (non-builtin only).

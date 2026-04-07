@@ -11,10 +11,11 @@ public class CallHelperNodeExportStrategy : INodeExportStrategy
     {
         if (node is not CallHelperNode callHelper) return null;
         var helperArgs = helper.GetInputArgs(callHelper);
+        var expression = $"{callHelper.HelperFunctionName}({helperArgs})";
         return new ExpressionStatement
         {
-            Expression = $"{callHelper.HelperFunctionName}({helperArgs});",
-            SourceCode = $"{callHelper.HelperFunctionName}({helperArgs});",
+            Expression = expression,
+            SourceCode = expression + ";",
             LineNumber = 1
         };
     }

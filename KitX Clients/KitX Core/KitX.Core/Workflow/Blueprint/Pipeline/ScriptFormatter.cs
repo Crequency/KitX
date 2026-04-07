@@ -26,12 +26,13 @@ public class ScriptFormatter
     {
         var result = new FormattedBlockScript();
 
-        // Initialize counter: find max existing PubVar number to avoid conflicts
+        // Initialize counter: find max existing PubVar counter to avoid conflicts
         context.NextPubVarCounter = 1;
         foreach (var name in context.PubVarNames)
         {
-            if (name.StartsWith("vaaa") && name.Length >= 8 && int.TryParse(name[4..], out var num))
-                context.NextPubVarCounter = Math.Max(context.NextPubVarCounter, num + 1);
+            var existingCounter = ExprUtils.TryExtractPubVarCounter(name);
+            if (existingCounter.HasValue)
+                context.NextPubVarCounter = Math.Max(context.NextPubVarCounter, existingCounter.Value + 1);
         }
 
         // Format MainBlock
@@ -194,7 +195,7 @@ public class ScriptFormatter
         var parsed = ExprUtils.ParseStatement(expression);
         if (parsed == null) return result;
 
-        var (rightExpr, assignedVar, isPubVar) = parsed.Value;
+        var (rightExpr, assignedVar) = parsed.Value;
 
         if (rightExpr == null) return result;
 
@@ -264,8 +265,8 @@ public class ScriptFormatter
                     var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
                     getVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? currentArgExprs[0];
                 }
-                // Auto-generate PubVar if not already assigned
-                if (string.IsNullOrEmpty(assignedVar) || !ExprUtils.IsPubVarName(assignedVar))
+                // Auto-generate PubVar if not already assigned per §4.3 (pre-expanded format may already assign PubVars)
+                if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
                 {
                     pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
                     if (!context.PubVarNames.Contains(pubVarTarget))
@@ -281,10 +282,8 @@ public class ScriptFormatter
                 if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
                 {
                     kind = FormattedStatementKind.Assignment;
-                    pubVarTarget = ExprUtils.IsPubVarName(assignedVar) ? assignedVar : null;
-                    // Register as PubVar if it follows the convention
-                    if (ExprUtils.IsPubVarName(assignedVar) && !context.PubVarNames.Contains(assignedVar))
-                        context.PubVarNames.Add(assignedVar);
+                    // PubVarTarget is set only if the assigned variable is a declared PubVar
+                    pubVarTarget = context.PubVarNames.Contains(assignedVar) ? assignedVar : null;
                 }
                 else
                 {
@@ -419,8 +418,10 @@ public class ScriptFormatter
 
         var trimmed = conditionExpression.Trim();
 
-        // Already a PubVar reference
-        if (ExprUtils.IsPubVarName(trimmed))
+        // Already a PubVar reference — skip expansion per BlockScript spec §4.3:
+        // pre-expanded format (where nested calls have already been flattened into PubVar assignments)
+        // is a valid input format and should not be re-expanded.
+        if (context.PubVarNames.Contains(trimmed))
             return (result, trimmed);
 
         // ConstBlock variable

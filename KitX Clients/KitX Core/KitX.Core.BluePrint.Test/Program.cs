@@ -88,6 +88,41 @@ public class Program
         Console.WriteLine("└──────────────────────────────────────────┘\n");
 
         RunManualBlueprintTest(reverseConverter, "Test E");
+
+        // ── Test F: Pure sequential flow (no Branch/Loop) ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test F: Pure sequential flow             │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunTest(converter, GetSequentialScript(), helpers, "Test F");
+
+        // ── Test G: No ConstBlock ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test G: No ConstBlock                    │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunTest(converter, GetNoConstScript(), helpers, "Test G");
+
+        // ── Test H: Break inside Loop ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test H: Break inside Loop                │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunRoundTripTest(converter, reverseConverter, GetBreakScript(), helpers, "Test H");
+
+        // ── Test I: Nested Loop ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test I: Nested Loop                      │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunRoundTripTest(converter, reverseConverter, GetNestedLoopScript(), helpers, "Test I");
+
+        // ── Test J: Single statement ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test J: Single statement (minimal)       │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunTest(converter, GetSingleStatementScript(), helpers, "Test J");
     }
 
     private static void RunTest(BlockScriptToBlueprintConverter converter,
@@ -468,4 +503,85 @@ Print(""示例工作流结束"");";
             Console.WriteLine($"  {ex.StackTrace}");
         }
     }
+
+    // ──────────────────────────────────────────────
+    // Test F: Pure sequential flow (no Branch/Loop)
+    // ──────────────────────────────────────────────
+    private static string GetSequentialScript() => @"#ConstBlock
+string greeting = ""Hello"";
+string name = ""World"";
+
+#MainBlock
+Print(greeting);
+Print(name);
+Set(""counter"", 0);
+Print(""Done"");";
+
+    // ──────────────────────────────────────────────
+    // Test G: No ConstBlock
+    // ──────────────────────────────────────────────
+    private static string GetNoConstScript() => @"#MainBlock
+Print(""No constants needed"");
+Set(""x"", 42);
+Print(""Done"");";
+
+    // ──────────────────────────────────────────────
+    // Test H: Break inside Loop
+    // ──────────────────────────────────────────────
+    private static string GetBreakScript() => @"#ConstBlock
+int maxIter = 10;
+int target = 3;
+
+#MainBlock
+Set(""i"", 0);
+NextBlock = Loop(HelperFuncCompare(""BLE"", Get(""i""), maxIter), ""LoopBody"", ""AfterLoop"");
+
+#Block LoopBody
+NextBlock = Branch(
+    HelperFuncCompare(""BEQ"", Get(""i""), target),
+    ""BreakBlock"",
+    ""ContinueBlock""
+);
+
+#Block BreakBlock
+Break();
+
+#Block ContinueBlock
+Set(""i"", HelperFuncAdd(Get(""i""), 1));
+NextBlock = LoopBodyEnd(""MainBlock"");
+
+#Block AfterLoop
+Print(""Loop finished with break"");";
+
+    // ──────────────────────────────────────────────
+    // Test I: Nested Loop
+    // ──────────────────────────────────────────────
+    private static string GetNestedLoopScript() => @"#ConstBlock
+int outerMax = 2;
+int innerMax = 3;
+
+#MainBlock
+Set(""outer"", 0);
+NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""outer""), outerMax), ""OuterBody"", ""Done"");
+
+#Block OuterBody
+Set(""inner"", 0);
+NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""inner""), innerMax), ""InnerBody"", ""OuterEnd"");
+
+#Block InnerBody
+Set(""inner"", HelperFuncAdd(Get(""inner""), 1));
+NextBlock = LoopBodyEnd(""OuterBody"");
+
+#Block OuterEnd
+Set(""outer"", HelperFuncAdd(Get(""outer""), 1));
+NextBlock = LoopBodyEnd(""MainBlock"");
+
+#Block Done
+Print(""Nested loops done"");";
+
+    // ──────────────────────────────────────────────
+    // Test J: Single statement (minimal)
+    // ──────────────────────────────────────────────
+    private static string GetSingleStatementScript() => @"#MainBlock
+Print(""Hello, World!"");";
 }

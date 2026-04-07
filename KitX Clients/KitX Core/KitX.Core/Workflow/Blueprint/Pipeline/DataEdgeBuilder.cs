@@ -108,7 +108,7 @@ public class DataEdgeBuilder
         }
 
         // PubVar reference → find PubVarAssignment source
-        if (ExprUtils.IsPubVarName(trimmed))
+        if (context.PubVarNames.Contains(trimmed))
         {
             ConnectPubVarSource(trimmed, targetNode, targetPinName, context);
             return;
@@ -174,24 +174,6 @@ public class DataEdgeBuilder
         string targetPinName, PipelineContext context)
     {
         // Find the PubVarAssignment that produces this PubVar
-        foreach (var kvp in context.PubVarAssignments)
-        {
-            if (kvp.Value.PubVarName == pubVarName)
-            {
-                context.DataEdges.Add(new PendingDataEdge
-                {
-                    SourceNodeId = kvp.Value.SourceNode.Id,
-                    SourcePinName = kvp.Value.SourcePin.Name,
-                    TargetNodeId = targetNode.Id,
-                    TargetPinName = targetPinName,
-                    PubVarName = pubVarName
-                });
-                return;
-            }
-        }
-
-        // If not found in PubVarAssignments, check if it's a standalone Get assignment
-        // (e.g., vaaa0002 = Get("currentLoop"))
         foreach (var kvp in context.PubVarAssignments)
         {
             if (kvp.Value.PubVarName == pubVarName)
