@@ -3,6 +3,8 @@ using System.Linq;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint.ReversePipeline;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
+
 namespace KitX.Core.Workflow.Blueprint;
 
 /// <summary>
@@ -46,7 +48,7 @@ internal class NodeExportHelper : INodeExportHelper
         var args = new List<string>();
         foreach (var pin in node.InputPins)
         {
-            if (pin.Name != "Exec")
+            if (pin.Name != Exec)
                 args.Add(GetInputValue(node, pin.Name));
         }
         return string.Join(", ", args);

@@ -3,6 +3,8 @@ using System.Text;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
+
 namespace KitX.Core.Workflow.Blueprint.ReversePipeline;
 
 /// <summary>
@@ -19,7 +21,7 @@ internal class BlockScriptAssembler
         var constNodes = ctx.Blueprint.Nodes.OfType<ConstNode>().ToList();
         if (constNodes.Count > 0)
         {
-            sb.AppendLine("#ConstBlock");
+            sb.AppendLine(MarkerConstBlock);
             foreach (var cn in constNodes)
             {
                 if (string.IsNullOrEmpty(cn.ConstValue))
@@ -38,7 +40,7 @@ internal class BlockScriptAssembler
         // #PubVarBlock — use 'dynamic' for late-bound type resolution
         if (ctx.AllPubVars.Count > 0)
         {
-            sb.AppendLine("#PubVarBlock");
+            sb.AppendLine(MarkerPubVarBlock);
             foreach (var pv in ctx.AllPubVars)
             {
                 sb.AppendLine($"dynamic {pv};");
@@ -49,7 +51,7 @@ internal class BlockScriptAssembler
         // #MainBlock
         if (ctx.Script.MainBlock != null)
         {
-            sb.AppendLine("#MainBlock");
+            sb.AppendLine(MarkerMainBlock);
             foreach (var stmt in ctx.Script.MainBlock.Statements)
             {
                 sb.AppendLine(stmt.SourceCode);
@@ -60,7 +62,7 @@ internal class BlockScriptAssembler
         // Named blocks
         foreach (var kvp in ctx.Script.NamedBlocks)
         {
-            sb.AppendLine($"#Block {kvp.Key}");
+            sb.AppendLine($"{MarkerBlockPrefix}{kvp.Key}");
             foreach (var stmt in kvp.Value.Statements)
             {
                 sb.AppendLine(stmt.SourceCode);

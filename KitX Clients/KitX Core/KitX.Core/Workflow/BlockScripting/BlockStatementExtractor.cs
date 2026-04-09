@@ -7,6 +7,9 @@ using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 using Serilog;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
+
 namespace KitX.Core.Workflow.BlockScripting;
 
 /// <summary>
@@ -26,9 +29,9 @@ internal class BlockStatementExtractor
         {
             blockName = recognized.BlockType switch
             {
-                BlockType.ConstBlock => "ConstBlock",
-                BlockType.PubVarBlock => "PubVarBlock",
-                BlockType.MainBlock => "MainBlock",
+                BlockType.ConstBlock => ConstBlock,
+                BlockType.PubVarBlock => PubVarBlock,
+                BlockType.MainBlock => MainBlock,
                 _ => blockName
             };
         }
@@ -203,15 +206,15 @@ internal class BlockStatementExtractor
                 {
                     var methodName = ExprUtils.GetMethodName(invoke);
 
-                    if (methodName == "Branch")
+                    if (methodName == Branch)
                     {
                         block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.Branch, exprStmt.GetLineNumber(), exprText));
                     }
-                    else if (methodName == "Loop")
+                    else if (methodName == Loop)
                     {
                         block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.Loop, exprStmt.GetLineNumber(), exprText));
                     }
-                    else if (methodName == "LoopBodyEnd")
+                    else if (methodName == LoopBodyEnd)
                     {
                         block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.LoopBodyEnd, exprStmt.GetLineNumber(), exprText));
                     }
@@ -233,15 +236,15 @@ internal class BlockStatementExtractor
                         var methodName = ExprUtils.GetMethodName(assignInvoke);
                         Log.Debug("[BlockStatementExtractor]   assignment.Right is InvocationExpressionSyntax, methodName = {MethodName}", methodName);
 
-                        if (methodName == "Branch")
+                        if (methodName == Branch)
                         {
                             block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.Branch, exprStmt.GetLineNumber(), exprText));
                         }
-                        else if (methodName == "Loop")
+                        else if (methodName == Loop)
                         {
                             block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.Loop, exprStmt.GetLineNumber(), exprText));
                         }
-                        else if (methodName == "LoopBodyEnd")
+                        else if (methodName == LoopBodyEnd)
                         {
                             block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.LoopBodyEnd, exprStmt.GetLineNumber(), exprText));
                         }

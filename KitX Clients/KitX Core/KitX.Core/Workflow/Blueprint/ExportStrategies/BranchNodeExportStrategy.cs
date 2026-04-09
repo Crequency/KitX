@@ -1,4 +1,5 @@
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 
 namespace KitX.Core.Workflow.Blueprint.ExportStrategies;
 
@@ -9,7 +10,7 @@ public class BranchNodeExportStrategy : INodeExportStrategy
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
     {
-        var condition = helper.GetInputValue(node, "Condition");
+        var condition = helper.GetInputValue(node, BlockScriptWellKnown.Pins.Condition);
         return new FlowControlStatement
         {
             ControlType = FlowControlType.Branch,
@@ -23,8 +24,8 @@ public class BranchNodeExportStrategy : INodeExportStrategy
     {
         return
         [
-            new OutputArmDescriptor { PinName = "True", IsLoopback = false },
-            new OutputArmDescriptor { PinName = "False", IsLoopback = false }
+            new OutputArmDescriptor { PinName = BlockScriptWellKnown.Pins.True, IsLoopback = false },
+            new OutputArmDescriptor { PinName = BlockScriptWellKnown.Pins.False, IsLoopback = false }
         ];
     }
 }

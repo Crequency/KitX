@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
+
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
 /// <summary>
@@ -17,7 +19,7 @@ public class FormattedBlockScript
     /// <summary>
     /// Main block name (always first in Blocks list).
     /// </summary>
-    public string MainBlockName { get; set; } = "MainBlock";
+    public string MainBlockName { get; set; } = MainBlock;
 }
 
 /// <summary>

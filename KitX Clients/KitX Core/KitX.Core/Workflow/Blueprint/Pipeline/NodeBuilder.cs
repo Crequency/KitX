@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 using Serilog;
+
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
@@ -170,7 +174,7 @@ public class NodeBuilder
         // For non-Get statements: reuse by fingerprint
         PubVarAssignment? existing = null;
 
-        if (stmt.FunctionName == "Get")
+        if (stmt.FunctionName == Get)
         {
             // Get nodes: reuse when PubVarTarget matches and reads the same variable.
             // This handles both LOOP_COND_DUP and round-trip re-parsed Get statements
@@ -203,7 +207,7 @@ public class NodeBuilder
 
         // --- Create new node ---
         BlueprintNode mainNode;
-        if (stmt.FunctionName == "Get")
+        if (stmt.FunctionName == Get)
         {
             // Get assignment → create GetNode
             var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
@@ -241,11 +245,11 @@ public class NodeBuilder
         // Register PubVar assignment for reuse
         if (!string.IsNullOrEmpty(stmt.PubVarTarget))
         {
-            var outputPinName = stmt.FunctionName == "Get" ? "Value" : "Return";
+            var outputPinName = stmt.FunctionName == Get ? Value : Return;
             var outputPin = mainNode.OutputPins.First(p => p.Name == outputPinName);
             // Get: key by PubVarTarget (each Get is unique, identified by its PubVar)
             // Others: key by fingerprint (for reuse detection)
-            var key = stmt.FunctionName == "Get" ? stmt.PubVarTarget : (stmt.Fingerprint ?? stmt.PubVarTarget);
+            var key = stmt.FunctionName == Get ? stmt.PubVarTarget : (stmt.Fingerprint ?? stmt.PubVarTarget);
             context.PubVarAssignments[key] = new PubVarAssignment
             {
                 PubVarName = stmt.PubVarTarget,
@@ -275,8 +279,8 @@ public class NodeBuilder
                 {
                     SourceStatementId = stmtId,
                     TargetStatementId = targetStmtId,
-                    SourcePinName = "True",
-                    TargetPinName = "Exec",
+                    SourcePinName = True,
+                    TargetPinName = Exec,
                     IsSpecialRouting = true
                 });
             }
@@ -289,8 +293,8 @@ public class NodeBuilder
                 {
                     SourceStatementId = stmtId,
                     TargetStatementId = targetStmtId,
-                    SourcePinName = "False",
-                    TargetPinName = "Exec",
+                    SourcePinName = False,
+                    TargetPinName = Exec,
                     IsSpecialRouting = true
                 });
             }
@@ -307,8 +311,8 @@ public class NodeBuilder
                 {
                     SourceStatementId = stmtId,
                     TargetStatementId = targetStmtId,
-                    SourcePinName = "LoopBody",
-                    TargetPinName = "Exec",
+                    SourcePinName = LoopBody,
+                    TargetPinName = Exec,
                     IsSpecialRouting = true
                 });
             }
@@ -321,8 +325,8 @@ public class NodeBuilder
                 {
                     SourceStatementId = stmtId,
                     TargetStatementId = targetStmtId,
-                    SourcePinName = "LoopEnd",
-                    TargetPinName = "Exec",
+                    SourcePinName = LoopEnd,
+                    TargetPinName = Exec,
                     IsSpecialRouting = true
                 });
             }
@@ -339,8 +343,8 @@ public class NodeBuilder
             {
                 SourceStatementId = prevStmtId,
                 TargetStatementId = loopStmtId,
-                SourcePinName = "Exec",
-                TargetPinName = "Exec"
+                SourcePinName = Exec,
+                TargetPinName = Exec
             });
         }
 
@@ -359,8 +363,8 @@ public class NodeBuilder
             {
                 SourceStatementId = lastStmtId,
                 TargetStatementId = targetStmtId,
-                SourcePinName = "Exec",
-                TargetPinName = "Exec"
+                SourcePinName = Exec,
+                TargetPinName = Exec
             });
         }
     }

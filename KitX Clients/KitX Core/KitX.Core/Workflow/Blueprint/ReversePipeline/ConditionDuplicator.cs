@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
+
 namespace KitX.Core.Workflow.Blueprint.ReversePipeline;
 
 /// <summary>
@@ -57,10 +59,10 @@ internal class ConditionDuplicator
     {
         var result = new List<ExpressionStatement>();
 
-        var conditionPin = loopNode.InputPins.FirstOrDefault(p => p.Name == "Condition");
+        var conditionPin = loopNode.InputPins.FirstOrDefault(p => p.Name == Condition);
         if (conditionPin == null) return result;
 
-        if (!ctx.InputDataMap.TryGetValue((loopNode.Id, "Condition"), out var condInfo))
+        if (!ctx.InputDataMap.TryGetValue((loopNode.Id, Condition), out var condInfo))
             return result;
 
         var chainPubVars = new HashSet<string>();
@@ -108,7 +110,7 @@ internal class ConditionDuplicator
         {
             foreach (var pin in info.SourceNode.InputPins)
             {
-                if (pin.Name == "Exec") continue;
+                if (pin.Name == Exec) continue;
                 if (ctx.InputDataMap.TryGetValue((info.SourceNode.Id, pin.Name), out var argInfo))
                 {
                     CollectConditionChain(argInfo, ctx, pubVars);

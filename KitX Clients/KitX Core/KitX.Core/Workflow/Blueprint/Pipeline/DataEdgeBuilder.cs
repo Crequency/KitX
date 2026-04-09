@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using Serilog;
 
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
@@ -44,7 +46,7 @@ public class DataEdgeBuilder
                 break;
 
             case FormattedStatementKind.Print:
-                ProcessSingleValueInput(stmt, stmt.Arguments, "Value", context);
+                ProcessSingleValueInput(stmt, stmt.Arguments, Value, context);
                 break;
 
             case FormattedStatementKind.Set:
@@ -120,7 +122,7 @@ public class DataEdgeBuilder
             context.DataEdges.Add(new PendingDataEdge
             {
                 SourceNodeId = constNode.Id,
-                SourcePinName = "Value",
+                SourcePinName = Value,
                 TargetNodeId = targetNode.Id,
                 TargetPinName = targetPinName
             });
@@ -153,7 +155,7 @@ public class DataEdgeBuilder
         // Set's Value pin receives the second argument (first was extracted as SetVarName)
         if (stmt.Arguments.Count > 0)
         {
-            ProcessArgument(stmt.Arguments[0], targetNode, "Value", stmt, 0, context);
+            ProcessArgument(stmt.Arguments[0], targetNode, Value, stmt, 0, context);
         }
     }
 
@@ -163,7 +165,7 @@ public class DataEdgeBuilder
         if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
 
         // Condition PubVar → find the PubVarAssignment source and connect to Condition pin
-        ConnectPubVarSource(stmt.ConditionPubVar, targetNode, "Condition", context);
+        ConnectPubVarSource(stmt.ConditionPubVar, targetNode, Condition, context);
     }
 
     // ──────────────────────────────────────────────
@@ -232,7 +234,7 @@ public class DataEdgeBuilder
     private static string? GetParamPinName(BlueprintNode node, int argIndex)
     {
         // Find parameter pins (skip Exec pin at index 0)
-        var paramPins = node.InputPins.Where(p => p.Name != "Exec").ToList();
+        var paramPins = node.InputPins.Where(p => p.Name != Exec).ToList();
         if (argIndex < paramPins.Count)
             return paramPins[argIndex].Name;
         return null;

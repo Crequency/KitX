@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
@@ -17,17 +18,22 @@ public static class ExprUtils
 {
     public static readonly HashSet<string> BuiltinFunctions = new()
     {
-        "Get", "Set", "Print", "Pause", "Branch", "Loop", "LoopBodyEnd", "Break"
+        BlockScriptWellKnown.Functions.Get, BlockScriptWellKnown.Functions.Set,
+        BlockScriptWellKnown.Functions.Print, BlockScriptWellKnown.Functions.Pause,
+        BlockScriptWellKnown.Functions.Branch, BlockScriptWellKnown.Functions.Loop,
+        BlockScriptWellKnown.Functions.LoopBodyEnd, BlockScriptWellKnown.Functions.Break
     };
 
     public static readonly HashSet<string> NonExtractableFunctions = new()
     {
-        "Set", "Print", "Pause"
+        BlockScriptWellKnown.Functions.Set, BlockScriptWellKnown.Functions.Print,
+        BlockScriptWellKnown.Functions.Pause
     };
 
     public static readonly HashSet<string> FlowControlFunctions = new()
     {
-        "Branch", "Loop", "LoopBodyEnd", "Break"
+        BlockScriptWellKnown.Functions.Branch, BlockScriptWellKnown.Functions.Loop,
+        BlockScriptWellKnown.Functions.LoopBodyEnd, BlockScriptWellKnown.Functions.Break
     };
 
     /// <summary>Parses an expression string using Roslyn. Returns null on failure.</summary>

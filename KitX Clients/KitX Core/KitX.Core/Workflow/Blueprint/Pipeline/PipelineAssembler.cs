@@ -4,6 +4,8 @@ using System.Linq;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
+
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
 /// <summary>
@@ -243,12 +245,12 @@ public class PipelineAssembler
             if (trueBlock != null && scopesByName.TryGetValue(trueBlock, out var trueScope))
             {
                 trueScope.OwnerNodeId = branchNode.Id;
-                trueScope.OwnerArmName = "True";
+                trueScope.OwnerArmName = True;
             }
             if (falseBlock != null && scopesByName.TryGetValue(falseBlock, out var falseScope))
             {
                 falseScope.OwnerNodeId = branchNode.Id;
-                falseScope.OwnerArmName = "False";
+                falseScope.OwnerArmName = False;
             }
         }
 
@@ -260,12 +262,12 @@ public class PipelineAssembler
             if (loopBody != null && scopesByName.TryGetValue(loopBody, out var bodyScope))
             {
                 bodyScope.OwnerNodeId = loopNode.Id;
-                bodyScope.OwnerArmName = "LoopBody";
+                bodyScope.OwnerArmName = LoopBody;
             }
             if (loopEnd != null && scopesByName.TryGetValue(loopEnd, out var endScope))
             {
                 endScope.OwnerNodeId = loopNode.Id;
-                endScope.OwnerArmName = "LoopEnd";
+                endScope.OwnerArmName = LoopEnd;
             }
         }
 

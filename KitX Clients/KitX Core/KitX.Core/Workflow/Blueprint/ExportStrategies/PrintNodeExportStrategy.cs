@@ -1,4 +1,5 @@
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 
 namespace KitX.Core.Workflow.Blueprint.ExportStrategies;
 
@@ -9,11 +10,11 @@ public class PrintNodeExportStrategy : INodeExportStrategy
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
     {
-        var value = helper.GetInputValue(node, "Value");
+        var value = helper.GetInputValue(node, BlockScriptWellKnown.Pins.Value);
         return new ExpressionStatement
         {
-            Expression = $"Print({value});",
-            SourceCode = $"Print({value});",
+            Expression = $"{BlockScriptWellKnown.Functions.Print}({value});",
+            SourceCode = $"{BlockScriptWellKnown.Functions.Print}({value});",
             LineNumber = 1
         };
     }

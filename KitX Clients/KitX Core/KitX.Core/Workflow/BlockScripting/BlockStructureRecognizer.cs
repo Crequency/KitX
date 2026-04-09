@@ -4,6 +4,8 @@ using Microsoft.CodeAnalysis.Text;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
+
 namespace KitX.Core.Workflow.BlockScripting;
 
 /// <summary>
@@ -72,7 +74,7 @@ internal class BlockStructureRecognizer
                 var blockName = string.Empty;
                 if (blockType == BlockType.NamedBlock)
                 {
-                    blockName = trimmed.Substring("#Block ".Length).Trim();
+                    blockName = trimmed.Substring(MarkerBlockPrefix.Length).Trim();
                 }
 
                 // Start new block
@@ -122,21 +124,21 @@ internal class BlockStructureRecognizer
     private BlockType? TryParseBlockMarker(string trimmed)
     {
         // #ConstBlock
-        if (trimmed == "#ConstBlock")
+        if (trimmed == MarkerConstBlock)
             return BlockType.ConstBlock;
 
         // #PubVarBlock
-        if (trimmed == "#PubVarBlock")
+        if (trimmed == MarkerPubVarBlock)
             return BlockType.PubVarBlock;
 
         // #MainBlock
-        if (trimmed == "#MainBlock")
+        if (trimmed == MarkerMainBlock)
             return BlockType.MainBlock;
 
         // #Block Name
-        if (trimmed.StartsWith("#Block "))
+        if (trimmed.StartsWith(MarkerBlockPrefix))
         {
-            var name = trimmed.Substring("#Block ".Length).Trim();
+            var name = trimmed.Substring(MarkerBlockPrefix.Length).Trim();
             if (!string.IsNullOrEmpty(name))
                 return BlockType.NamedBlock;
         }
@@ -161,10 +163,10 @@ internal class BlockStructureRecognizer
             var trimmed = line.Trim();
 
             // Skip block marker lines
-            if (trimmed == "#ConstBlock" ||
-                trimmed == "#PubVarBlock" ||
-                trimmed == "#MainBlock" ||
-                trimmed.StartsWith("#Block "))
+            if (trimmed == MarkerConstBlock ||
+                trimmed == MarkerPubVarBlock ||
+                trimmed == MarkerMainBlock ||
+                trimmed.StartsWith(MarkerBlockPrefix))
             {
                 continue;
             }

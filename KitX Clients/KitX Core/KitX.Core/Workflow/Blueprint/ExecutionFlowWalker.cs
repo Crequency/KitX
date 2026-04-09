@@ -1,8 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.Blueprint.ReversePipeline;
 using Serilog;
+
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 
 namespace KitX.Core.Workflow.Blueprint;
 
@@ -37,7 +41,7 @@ internal class ExecutionFlowWalker
             return;
         }
 
-        var mainBlock = new BlockDefinition { Type = BlockType.MainBlock, Name = "MainBlock" };
+        var mainBlock = new BlockDefinition { Type = BlockType.MainBlock, Name = BlockScriptWellKnown.Blocks.MainBlock };
         ctx.Script.MainBlock = mainBlock;
 
         var visited = new HashSet<string>();
@@ -63,7 +67,7 @@ internal class ExecutionFlowWalker
             BlockDefinition block;
             if (scope.IsMainBlock)
             {
-                block = new BlockDefinition { Type = BlockType.MainBlock, Name = "MainBlock" };
+                block = new BlockDefinition { Type = BlockType.MainBlock, Name = BlockScriptWellKnown.Blocks.MainBlock };
                 ctx.Script.MainBlock = block;
             }
             else
@@ -94,9 +98,9 @@ internal class ExecutionFlowWalker
         {
             if (scope.OwnerNodeId == null) continue;
             if (!ctx.ControlFlowMap.TryGetValue(scope.OwnerNodeId, out var flow)) continue;
-            if (scope.OwnerArmName == "True" || scope.OwnerArmName == "LoopBody")
+            if (scope.OwnerArmName == BlockScriptWellKnown.Pins.True || scope.OwnerArmName == BlockScriptWellKnown.Pins.LoopBody)
                 flow.TrueBlockName = scope.Name;
-            else if (scope.OwnerArmName == "False" || scope.OwnerArmName == "LoopEnd")
+            else if (scope.OwnerArmName == BlockScriptWellKnown.Pins.False || scope.OwnerArmName == BlockScriptWellKnown.Pins.LoopEnd)
                 flow.FalseBlockName = scope.Name;
         }
 
@@ -138,7 +142,7 @@ internal class ExecutionFlowWalker
             return;
         }
 
-        var execOut = node.OutputPins.FirstOrDefault(p => p.Name == "Exec");
+        var execOut = node.OutputPins.FirstOrDefault(p => p.Name == Exec);
         if (execOut == null)
         {
             if (loopbackTargetId != null)
@@ -216,11 +220,11 @@ internal class ExecutionFlowWalker
         if (node.NodeType is BlueprintNodeType.Call or BlueprintNodeType.CallHelper
             && stmt is ExpressionStatement exprStmt)
         {
-            var returnPin = node.OutputPins.FirstOrDefault(p => p.Name == "Return");
-            bool hasReturn = returnPin != null && ctx.ConsumedOutputs.Contains((node.Id, "Return"));
+            var returnPin = node.OutputPins.FirstOrDefault(p => p.Name == Return);
+            bool hasReturn = returnPin != null && ctx.ConsumedOutputs.Contains((node.Id, Return));
             if (hasReturn)
             {
-                var pubVar = NodeExportHelper.FindOutputPubVar(node, "Return", ctx);
+                var pubVar = NodeExportHelper.FindOutputPubVar(node, Return, ctx);
                 if (pubVar != null)
                     exprStmt.SourceCode = $"{pubVar} = {exprStmt.Expression};";
             }
@@ -231,10 +235,10 @@ internal class ExecutionFlowWalker
 
     private BlockStatement? GenerateGetStatementViaStrategy(BlueprintNode node, ReverseConversionContext ctx)
     {
-        if (!ctx.ConsumedOutputs.Contains((node.Id, "Value")))
+        if (!ctx.ConsumedOutputs.Contains((node.Id, Value)))
             return null;
 
-        var pubVar = NodeExportHelper.FindOutputPubVar(node, "Value", ctx);
+        var pubVar = NodeExportHelper.FindOutputPubVar(node, Value, ctx);
         if (pubVar == null) return null;
 
         if (!_strategies.TryGetValue(BlueprintNodeType.Get, out var strategy))
@@ -297,7 +301,7 @@ internal class ExecutionFlowWalker
         var falseBlockName = string.Empty;
         var currentLoopback = ctx.CurrentLoopbackTargetId;
 
-        foreach (var pinName in new[] { "True", "False" })
+        foreach (var pinName in new[] { True, False })
         {
             var pin = branchNode.OutputPins.FirstOrDefault(p => p.Name == pinName);
             if (pin == null) continue;
@@ -316,7 +320,7 @@ internal class ExecutionFlowWalker
             ctx.Script.NamedBlocks[blockName] = block;
             processedTargets.Add(conn.TargetNodeId);
 
-            if (pinName == "True") trueBlockName = blockName;
+            if (pinName == True) trueBlockName = blockName;
             else falseBlockName = blockName;
         }
 
@@ -329,7 +333,7 @@ internal class ExecutionFlowWalker
         var loopBodyBlockName = string.Empty;
         var loopEndBlockName = string.Empty;
 
-        var loopBodyPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == "LoopBody");
+        var loopBodyPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == LoopBody);
         if (loopBodyPin != null)
         {
             var conn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == loopBodyPin.Id);
@@ -351,7 +355,7 @@ internal class ExecutionFlowWalker
             }
         }
 
-        var loopEndPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == "LoopEnd");
+        var loopEndPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == LoopEnd);
         if (loopEndPin != null)
         {
             var conn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == loopEndPin.Id);
@@ -420,7 +424,7 @@ internal class ExecutionFlowWalker
             if (current.NodeType == BlueprintNodeType.Loop)
                 return (current, path);
 
-            var execOutPin = current.OutputPins.FirstOrDefault(p => p.Name == "Exec");
+            var execOutPin = current.OutputPins.FirstOrDefault(p => p.Name == Exec);
             if (execOutPin == null) break;
 
             var execConn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == execOutPin.Id);
@@ -438,7 +442,7 @@ internal class ExecutionFlowWalker
     private void GenerateConditionStatements(BlueprintNode loopNode, BlockDefinition blockDef,
         ReverseConversionContext ctx)
     {
-        var condPin = loopNode.InputPins.FirstOrDefault(p => p.Name == "Condition");
+        var condPin = loopNode.InputPins.FirstOrDefault(p => p.Name == Condition);
         if (condPin == null) return;
 
         var condConn = ctx.DataConnections.FirstOrDefault(c => c.TargetPinId == condPin.Id);
@@ -456,7 +460,7 @@ internal class ExecutionFlowWalker
 
         foreach (var inputPin in sourceNode.InputPins)
         {
-            if (inputPin.Name == "Exec") continue;
+            if (inputPin.Name == Exec) continue;
             var upConn = ctx.DataConnections.FirstOrDefault(c => c.TargetPinId == inputPin.Id);
             if (upConn != null)
                 GenerateDataChainStatements(upConn.SourceNodeId, blockDef, ctx, generated);

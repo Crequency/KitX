@@ -6,6 +6,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
+
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
 /// <summary>
@@ -241,13 +243,13 @@ public class ScriptFormatter
 
         switch (funcName)
         {
-            case "Print":
+            case Print:
                 kind = FormattedStatementKind.Print;
                 break;
-            case "Pause":
+            case Pause:
                 kind = FormattedStatementKind.Pause;
                 break;
-            case "Set":
+            case Set:
                 kind = FormattedStatementKind.Set;
                 // First arg is varName (string literal)
                 if (currentArgExprs.Count > 0)
@@ -258,7 +260,7 @@ public class ScriptFormatter
                     currentArgExprs.RemoveAt(0);
                 }
                 break;
-            case "Get":
+            case Get:
                 kind = FormattedStatementKind.Assignment;
                 if (currentArgExprs.Count > 0)
                 {
@@ -370,7 +372,7 @@ public class ScriptFormatter
             // cloned Get statements (from Loop condition duplication) must have
             // GetVarName set so the reuse check (PubVarTarget + GetVarName) can
             // match them to the original Get node instead of creating duplicates.
-            if (funcName == "Get")
+            if (funcName == Get)
             {
                 var varName = invoke.ArgumentList.Arguments.Count > 0
                     ? ExprUtils.GetStringLiteralValue(invoke.ArgumentList.Arguments[0].Expression)
@@ -387,7 +389,7 @@ public class ScriptFormatter
                     {
                         BlockName = blockName,
                         Kind = FormattedStatementKind.Assignment,
-                        FunctionName = "Get",
+                        FunctionName = Get,
                         PubVarTarget = getPubVar,
                         GetVarName = varName,
                         Arguments = new List<string> { $"\"{varName}\"" },

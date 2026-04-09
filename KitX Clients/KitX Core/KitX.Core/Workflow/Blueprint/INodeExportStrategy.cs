@@ -64,7 +64,7 @@ public interface INodeExportStrategy
 public struct OutputArmDescriptor
 {
     /// <summary>
-    /// The output pin name (e.g., "True", "False", "LoopBody", "LoopEnd")
+    /// The output pin name (e.g., Pins.True, Pins.False, Pins.LoopBody, Pins.LoopEnd)
     /// </summary>
     public string PinName { get; set; }
 

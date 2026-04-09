@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+
+using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using KitX.Core.Contract.Workflow;
 
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
@@ -125,8 +127,8 @@ public class PendingExecEdge
 {
     public string SourceStatementId { get; set; } = string.Empty;
     public string TargetStatementId { get; set; } = string.Empty;
-    public string SourcePinName { get; set; } = "Exec";
-    public string TargetPinName { get; set; } = "Exec";
+    public string SourcePinName { get; set; } = Exec;
+    public string TargetPinName { get; set; } = Exec;
 
     // For special routing (Branch.True, Branch.False, Loop.LoopBody, Loop.LoopEnd)
     public bool IsSpecialRouting { get; set; }
