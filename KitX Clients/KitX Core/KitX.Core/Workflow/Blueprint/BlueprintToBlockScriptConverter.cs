@@ -518,20 +518,25 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter,
         foreach (var scope in bp.BlockScopes)
         {
             if (scope.NodeIds.Count == 0) continue;
+            // Skip scopes that themselves own a Loop node — they are the Loop's parent,
+            // not a LoopBodyEnd target.
+            if (scope.NodeIds.Any(id => ctx.NodeById.TryGetValue(id, out var n) && n.NodeType == BlueprintNodeType.Loop))
+                continue;
 
             var lastNodeId = scope.NodeIds[scope.NodeIds.Count - 1];
             if (!ctx.NodeById.TryGetValue(lastNodeId, out var lastNode)) continue;
 
-            var execOutPin = lastNode.OutputPins.FirstOrDefault(p => p.Name == "Exec");
-            if (execOutPin == null) continue;
+            // Follow the exec chain from the last node to find if it reaches a Loop node.
+            // Shared nodes (reused via PubVar) may sit between the scope's last node
+            // and the Loop, so we must follow the chain through multiple hops.
+            var (loopNode, pathNodes) = FollowExecChainToLoop(lastNode, ctx);
+            if (loopNode == null) continue;
 
-            var execConn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == execOutPin.Id);
-            if (execConn == null) continue;
+            // Don't insert LoopBodyEnd if this scope IS the scope containing the Loop
+            var loopScopeName = FindScopeContainingNode(loopNode.Id, bp);
+            if (loopScopeName == scope.Name) continue;
 
-            if (!ctx.NodeById.TryGetValue(execConn.TargetNodeId, out var targetNode)) continue;
-            if (targetNode.NodeType != BlueprintNodeType.Loop) continue;
-
-            var returnToBlock = FindScopeContainingNode(targetNode.Id, bp);
+            var returnToBlock = loopScopeName;
             if (returnToBlock == null) continue;
 
             BlockDefinition? blockDef = scope.IsMainBlock
@@ -539,8 +544,98 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter,
                 : ctx.Script.NamedBlocks.GetValueOrDefault(scope.Name);
             if (blockDef == null) continue;
 
+            // Generate condition re-evaluation statements for the Loop's condition
+            // by tracing the data chain from Loop.Condition back to source nodes.
+            GenerateConditionStatements(loopNode, blockDef, ctx);
+
             blockDef.Statements.Add(CreateLoopBodyEndStatement(returnToBlock));
         }
+    }
+
+    /// <summary>
+    /// Follows the exec output chain from a node until reaching a Loop node.
+    /// Returns the Loop node (if found) and the intermediate nodes traversed.
+    /// </summary>
+    private (BlueprintNode? loopNode, List<BlueprintNode> path) FollowExecChainToLoop(
+        BlueprintNode startNode, ReverseConversionContext ctx)
+    {
+        var path = new List<BlueprintNode>();
+        var current = startNode;
+        var visited = new HashSet<string>();
+
+        while (current != null && !visited.Contains(current.Id))
+        {
+            visited.Add(current.Id);
+
+            if (current.NodeType == BlueprintNodeType.Loop)
+                return (current, path);
+
+            var execOutPin = current.OutputPins.FirstOrDefault(p => p.Name == "Exec");
+            if (execOutPin == null) break;
+
+            var execConn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == execOutPin.Id);
+            if (execConn == null) break;
+
+            if (!ctx.NodeById.TryGetValue(execConn.TargetNodeId, out var next)) break;
+
+            path.Add(next);
+            current = next;
+        }
+
+        return (null, path);
+    }
+
+    /// <summary>
+    /// Generates condition re-evaluation statements for a Loop node by tracing
+    /// the data chain from Loop.Condition back through source nodes.
+    /// Produces statements like:
+    ///   vaaa0001 = Get("currentLoop");
+    ///   vaaa0002 = HelperFuncCompare("BLE", vaaa0001, loopMax);
+    /// </summary>
+    private void GenerateConditionStatements(BlueprintNode loopNode, BlockDefinition blockDef,
+        ReverseConversionContext ctx)
+    {
+        var condPin = loopNode.InputPins.FirstOrDefault(p => p.Name == "Condition");
+        if (condPin == null) return;
+
+        // Find data connection feeding into Loop.Condition
+        var condConn = ctx.DataConnections.FirstOrDefault(c => c.TargetPinId == condPin.Id);
+        if (condConn == null) return;
+
+        // Trace and generate statements in reverse order (deepest source first)
+        var generated = new HashSet<string>();
+        GenerateDataChainStatements(condConn.SourceNodeId, blockDef, ctx, generated);
+    }
+
+    /// <summary>
+    /// Recursively generates assignment statements for the data source chain.
+    /// E.g., if HelperFuncCompare feeds into Loop.Condition, and Get feeds into HelperFuncCompare,
+    /// this generates: Get → HelperFuncCompare statements in order.
+    /// </summary>
+    private void GenerateDataChainStatements(string sourceNodeId,
+        BlockDefinition blockDef, ReverseConversionContext ctx, HashSet<string> generated)
+    {
+        if (generated.Contains(sourceNodeId)) return;
+        if (!ctx.NodeById.TryGetValue(sourceNodeId, out var sourceNode)) return;
+
+        // First, recursively generate any upstream data dependencies
+        foreach (var inputPin in sourceNode.InputPins)
+        {
+            if (inputPin.Name == "Exec") continue;
+            var upConn = ctx.DataConnections.FirstOrDefault(c => c.TargetPinId == inputPin.Id);
+            if (upConn != null)
+                GenerateDataChainStatements(upConn.SourceNodeId, blockDef, ctx, generated);
+        }
+
+        // Skip ConstNode — they are declared in ConstBlock, not inline
+        if (sourceNode.NodeType == BlueprintNodeType.Const) return;
+
+        generated.Add(sourceNodeId);
+
+        // Generate statement for this node
+        var stmt = GenerateStatement(sourceNode, ctx);
+        if (stmt != null)
+            blockDef.Statements.Add(stmt);
     }
 
     private static string? FindScopeContainingNode(string nodeId, Contract.Workflow.Blueprint bp)

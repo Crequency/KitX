@@ -216,13 +216,19 @@ public class PipelineAssembler
             }
         }
 
-        // Remove merged scopes and add remaining to Blueprint
+        // Remove merged scopes and add remaining to Blueprint.
+        // Deduplicate: each node belongs to its FIRST occurrence block only.
+        // This prevents shared data nodes (e.g., loop condition Compare nodes
+        // duplicated into LoopBodyEnd blocks) from appearing in multiple scopes.
+        var assignedNodeIds = new HashSet<string>();
         foreach (var kvp in tempScopes)
         {
             if (merged.Contains(kvp.Key)) continue;
 
             var (scope, nodeIds, _) = kvp.Value;
-            scope.NodeIds = nodeIds;
+            // Filter out nodes already assigned to an earlier block
+            var uniqueNodeIds = nodeIds.Where(id => assignedNodeIds.Add(id)).ToList();
+            scope.NodeIds = uniqueNodeIds;
             bp.BlockScopes.Add(scope);
         }
 

@@ -15,6 +15,11 @@ namespace KitX.Core.Workflow;
 /// </summary>
 public class KcsFileService : IKcsFileService
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
     /// <summary>
     /// 加载KCS文件
     /// </summary>
@@ -23,7 +28,7 @@ public class KcsFileService : IKcsFileService
         try
         {
             var json = await File.ReadAllTextAsync(filePath);
-            var kcs = JsonSerializer.Deserialize<KcsFileFormat>(json);
+            var kcs = JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
             return kcs;
         }
         catch (Exception ex)
@@ -40,10 +45,7 @@ public class KcsFileService : IKcsFileService
     {
         try
         {
-            var json = JsonSerializer.Serialize(kcs, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            var json = JsonSerializer.Serialize(kcs, _jsonOptions);
 
             await File.WriteAllTextAsync(filePath, json);
             Log.Information("[KcsFileService] KCS file saved: {FilePath}", filePath);

@@ -365,6 +365,37 @@ public class ScriptFormatter
             if (ExprUtils.FlowControlFunctions.Contains(funcName))
                 return (new(), invoke.ToString());
 
+            // Get(varName) → extract as a proper Get statement with GetVarName set.
+            // This is critical for PubVar reuse detection in NodeBuilder:
+            // cloned Get statements (from Loop condition duplication) must have
+            // GetVarName set so the reuse check (PubVarTarget + GetVarName) can
+            // match them to the original Get node instead of creating duplicates.
+            if (funcName == "Get")
+            {
+                var varName = invoke.ArgumentList.Arguments.Count > 0
+                    ? ExprUtils.GetStringLiteralValue(invoke.ArgumentList.Arguments[0].Expression)
+                      ?? invoke.ArgumentList.Arguments[0].Expression.ToString().Trim('"')
+                    : "";
+
+                var getPubVar = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
+                if (!context.PubVarNames.Contains(getPubVar))
+                    context.PubVarNames.Add(getPubVar);
+
+                return (new List<FormattedStatement>
+                {
+                    new()
+                    {
+                        BlockName = blockName,
+                        Kind = FormattedStatementKind.Assignment,
+                        FunctionName = "Get",
+                        PubVarTarget = getPubVar,
+                        GetVarName = varName,
+                        Arguments = new List<string> { $"\"{varName}\"" },
+                        OriginalExpression = $"{getPubVar} = Get(\"{varName}\")",
+                    }
+                }, getPubVar);
+            }
+
             // This is a helper/regular function call that needs extraction
             // First, recursively expand ITS arguments
             var allStmts = new List<FormattedStatement>();
