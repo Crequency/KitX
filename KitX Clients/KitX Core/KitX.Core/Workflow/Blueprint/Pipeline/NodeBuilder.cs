@@ -227,7 +227,19 @@ public class NodeBuilder
             else
             {
                 var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
-                callNode.FunctionName = stmt.FunctionName!;
+
+                // Parse plugin name from full dotted method name (e.g. "TestPlugin.WPF.Core.HelloKitX")
+                if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
+                {
+                    var lastDot = stmt.FullFunctionName.LastIndexOf('.');
+                    callNode.PluginName = stmt.FullFunctionName.Substring(0, lastDot);
+                    callNode.FunctionName = stmt.FullFunctionName.Substring(lastDot + 1);
+                }
+                else
+                {
+                    callNode.FunctionName = stmt.FunctionName!;
+                }
+
                 mainNode = callNode;
             }
 

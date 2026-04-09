@@ -692,10 +692,24 @@ public class WorkflowScriptService : IWorkflowService
         _blockScriptParser ??= new BlockScripting.BlockScriptParser();
 
     /// <summary>
-    /// Gets the block script executor
+    /// Gets the block script executor (initialized with plugin manager)
     /// </summary>
-    private BlockScripting.BlockScriptExecutor BlockScriptExecutor =>
-        _blockScriptExecutor ??= new BlockScripting.BlockScriptExecutor();
+    private BlockScripting.BlockScriptExecutor BlockScriptExecutor
+    {
+        get
+        {
+            if (_blockScriptExecutor == null)
+            {
+                _blockScriptExecutor = new BlockScripting.BlockScriptExecutor();
+                if (_isParserInitialized)
+                {
+                    var realPluginManager = new RealPluginManager(PluginsServer.Instance);
+                    _blockScriptExecutor.SetPluginManager(realPluginManager);
+                }
+            }
+            return _blockScriptExecutor;
+        }
+    }
 
     /// <summary>
     /// 解析块脚本

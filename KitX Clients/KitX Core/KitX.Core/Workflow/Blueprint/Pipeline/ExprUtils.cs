@@ -82,12 +82,26 @@ public static class ExprUtils
         catch { return (null, null); }
     }
 
-    /// <summary>Extracts method name from an invocation expression.</summary>
+    /// <summary>Extracts the short method name from an invocation expression.</summary>
     public static string GetMethodName(InvocationExpressionSyntax invoke)
     {
         if (invoke.Expression is IdentifierNameSyntax id) return id.Identifier.Text;
         if (invoke.Expression is GenericNameSyntax generic) return generic.Identifier.Text;
         if (invoke.Expression is MemberAccessExpressionSyntax member) return member.Name.Identifier.Text;
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Extracts the full dotted method path from an invocation expression.
+    /// For "TestPlugin.WPF.Core.HelloKitX()" returns "TestPlugin.WPF.Core.HelloKitX".
+    /// For simple calls like "Get(...)" returns just "Get".
+    /// </summary>
+    public static string GetFullMethodName(InvocationExpressionSyntax invoke)
+    {
+        if (invoke.Expression is IdentifierNameSyntax id) return id.Identifier.Text;
+        if (invoke.Expression is GenericNameSyntax generic) return generic.Identifier.Text;
+        if (invoke.Expression is MemberAccessExpressionSyntax member)
+            return member.Expression.ToString() + "." + member.Name.Identifier.Text;
         return string.Empty;
     }
 

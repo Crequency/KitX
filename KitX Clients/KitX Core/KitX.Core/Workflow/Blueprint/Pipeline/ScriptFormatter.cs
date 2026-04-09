@@ -214,7 +214,8 @@ public class ScriptFormatter
             // Skip flow control functions (handled by FlowControlStatement)
             if (ExprUtils.FlowControlFunctions.Contains(funcName)) return result;
 
-            result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar));
+            var fullFuncName = ExprUtils.GetFullMethodName(invoke);
+            result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar, fullFuncName));
             return result;
         }
 
@@ -227,7 +228,7 @@ public class ScriptFormatter
     /// </summary>
     private List<FormattedStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string funcName, string blockName,
-        PipelineContext context, string? assignedVar)
+        PipelineContext context, string? assignedVar, string? fullFuncName = null)
     {
         var result = new List<FormattedStatement>();
 
@@ -303,6 +304,7 @@ public class ScriptFormatter
             BlockName = blockName,
             Kind = kind,
             FunctionName = funcName,
+            FullFunctionName = fullFuncName,
             PubVarTarget = pubVarTarget,
             SetVarName = setVarName,
             GetVarName = getVarName,
@@ -358,6 +360,7 @@ public class ScriptFormatter
         if (expr is InvocationExpressionSyntax invoke)
         {
             var funcName = ExprUtils.GetMethodName(invoke);
+            var fullFuncName = ExprUtils.GetFullMethodName(invoke);
 
             // Built-in functions (Get/Set/Print/Pause) stay inline
             if (ExprUtils.NonExtractableFunctions.Contains(funcName))
@@ -422,6 +425,7 @@ public class ScriptFormatter
                 Kind = FormattedStatementKind.Assignment,
                 PubVarTarget = pubVarName,
                 FunctionName = funcName,
+                FullFunctionName = fullFuncName,
                 Arguments = currentArgs,
                 OriginalExpression = $"{pubVarName} = {invoke}",
                 Fingerprint = fingerprint
@@ -476,7 +480,8 @@ public class ScriptFormatter
             var funcName = ExprUtils.GetMethodName(invoke);
             if (string.IsNullOrEmpty(funcName)) return (result, null);
 
-            var formatted = FormatInvocation(invoke, funcName, blockName, context, null);
+            var fullFuncName = ExprUtils.GetFullMethodName(invoke);
+            var formatted = FormatInvocation(invoke, funcName, blockName, context, null, fullFuncName);
 
             // The last statement should be the main call
             // If it already has a PubVarTarget, use it
@@ -551,6 +556,7 @@ public class ScriptFormatter
         Kind = source.Kind,
         PubVarTarget = source.PubVarTarget,
         FunctionName = source.FunctionName,
+        FullFunctionName = source.FullFunctionName,
         Arguments = new List<string>(source.Arguments),
         ConditionExpression = source.ConditionExpression,
         ConditionPubVar = source.ConditionPubVar,

@@ -153,6 +153,37 @@ public class RealPluginManager : IPluginManager
     }
 
     /// <summary>
+    /// 自动调用插件方法：根据函数声明的返回类型自动选择调用策略。
+    /// - void 返回类型 → fire-and-forget (Call)，不等待响应
+    /// - 非 void 返回类型 → 类型化同步等待 (Call&lt;T&gt;)，返回具体类型的结果
+    /// 调用方无需关心分发逻辑，所有判断由 Manager 内部完成。
+    /// </summary>
+    /// <param name="callInfo">插件调用信息</param>
+    /// <returns>非 void 函数返回具体类型结果；void 函数返回 null</returns>
+    public object? CallAuto(PluginCallInfo callInfo)
+    {
+        var returnType = GetFunctionReturnType(callInfo.PluginName, callInfo.MethodName);
+
+        if (returnType == null || returnType == typeof(void))
+        {
+            Log.Information("[RealPluginManager] CallAuto: {Plugin}.{Method} → fire-and-forget (void/unknown)",
+                callInfo.PluginName, callInfo.MethodName);
+            Call(callInfo);
+            return null;
+        }
+
+        Log.Information("[RealPluginManager] CallAuto: {Plugin}.{Method} → Call<{Type}>() (typed wait)",
+            callInfo.PluginName, callInfo.MethodName, returnType.Name);
+
+        var typedCallMethod = typeof(IPluginManager)
+            .GetMethods()
+            .First(m => m.Name == "Call" && m.IsGenericMethod)
+            .MakeGenericMethod(returnType);
+
+        return typedCallMethod.Invoke(this, new object[] { callInfo });
+    }
+
+    /// <summary>
     /// 异步调用插件方法
     /// </summary>
     private async Task<string> CallAsync(PluginCallInfo callInfo)
@@ -357,7 +388,22 @@ public class RealPluginManager : IPluginManager
             if (returnType == typeof(bool))
                 return (T)(object)bool.Parse(result);
 
-            // 对于复杂类型，从 JSON 反序列化
+            // 对于 object 类型，先尝试 JSON 反序列化，失败则返回原始字符串
+            // BlockScript 通过 PluginCall() 使用 Call<object?>()，插件可能返回
+            // 纯文本（如 "Hello"）而非 JSON 包装的值
+            if (returnType == typeof(object))
+            {
+                try
+                {
+                    return (T)JsonSerializer.Deserialize<object>(result, _serializerOptions)!;
+                }
+                catch (JsonException)
+                {
+                    return (T)(object)result;
+                }
+            }
+
+            // 对于其他复杂类型，从 JSON 反序列化
             return JsonSerializer.Deserialize<T>(result, _serializerOptions)!;
         }
         catch (Exception ex)
@@ -365,6 +411,46 @@ public class RealPluginManager : IPluginManager
             Log.Warning(ex, $"[RealPluginManager] Error parsing result: {result}");
             return default!;
         }
+    }
+
+    /// <summary>
+    /// 获取插件方法的返回值类型，用于运行时类型化调用
+    /// 与 MethodEmitter 编译期类型解析逻辑一致，但在运行时通过反射使用
+    /// </summary>
+    /// <param name="pluginName">插件名称 (e.g. "TestPlugin.CSharp")</param>
+    /// <param name="methodName">方法名称 (e.g. "SayHello")</param>
+    /// <returns>返回值 Type，未找到则返回 null</returns>
+    public Type? GetFunctionReturnType(string pluginName, string methodName)
+    {
+        var connection = FindPluginConnection(pluginName);
+        if (connection?.PluginInfo?.Functions == null)
+            return null;
+
+        var func = connection.PluginInfo.Functions.Find(f => f.Name == methodName);
+        if (string.IsNullOrEmpty(func.Name))
+            return null;
+
+        return MapReturnType(func.ReturnValueType);
+    }
+
+    /// <summary>
+    /// 将字符串类型名映射为 Type，与 TypeMapper/MethodEmitter 保持一致
+    /// </summary>
+    private static Type? MapReturnType(string? typeName)
+    {
+        return typeName?.ToLowerInvariant() switch
+        {
+            null or "" => null,
+            "void" => typeof(void),
+            "string" => typeof(string),
+            "int" => typeof(int),
+            "long" => typeof(long),
+            "float" => typeof(float),
+            "double" => typeof(double),
+            "bool" => typeof(bool),
+            "object" => typeof(object),
+            _ => Type.GetType(typeName) ?? typeof(object)
+        };
     }
 
     /// <summary>

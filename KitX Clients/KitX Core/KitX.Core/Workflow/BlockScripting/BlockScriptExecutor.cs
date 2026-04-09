@@ -5,6 +5,10 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Kscript.CSharp.Parser.Core;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using KitX.Core.Contract.Workflow;
@@ -24,6 +28,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     private BlockScript? _currentScript;
     private List<string> _output = new();
     private BlockScriptExecutionGlobals? _globals;
+    private IPluginManager? _pluginManager;
 
     /// <summary>
     /// Creates a new block script executor
@@ -39,6 +44,22 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     public BlockScriptExecutor(BlockScopeManager scopeManager)
     {
         _scopeManager = scopeManager;
+    }
+
+    /// <summary>
+    /// Creates a new block script executor with plugin manager support
+    /// </summary>
+    public BlockScriptExecutor(IPluginManager? pluginManager) : this()
+    {
+        _pluginManager = pluginManager;
+    }
+
+    /// <summary>
+    /// Sets the plugin manager for plugin function calls during execution.
+    /// </summary>
+    public void SetPluginManager(IPluginManager? pluginManager)
+    {
+        _pluginManager = pluginManager;
     }
 
     /// <summary>
@@ -488,6 +509,9 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     {
         try
         {
+            // Pre-process: rewrite dotted plugin calls (e.g. "Plugin.Func()") to PluginCall(...)
+            expression = PreProcessPluginCalls(expression);
+
             // Build a complete statement for execution
             var code = WrapExpressionAsStatement(expression);
 
@@ -524,7 +548,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             else
             {
                 // First evaluation: create initial script state using RunAsync to get ScriptState
-                _globals = new BlockScriptExecutionGlobals(_scopeManager, _output);
+                _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
                 var globals = _globals;
                 _scriptState = await CSharpScript.RunAsync(
                     fullCode,
@@ -558,6 +582,106 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         if (expression.EndsWith(';'))
             return expression;
         return expression + ";";
+    }
+
+    /// <summary>
+    /// Preprocesses an expression to rewrite dotted plugin calls into PluginCall() invocations.
+    /// Uses Roslyn SyntaxRewriter for safe, AST-level transformation that correctly handles
+    /// nested parentheses, complex expressions, and all edge cases.
+    /// Transforms: TestPlugin.WPF.Core.HelloKitX(arg1, arg2)
+    /// Into: PluginCall("TestPlugin.WPF.Core", "HelloKitX", arg1, arg2)
+    /// Transforms: TestPlugin.WPF.Core.HelloKitX()
+    /// Into: PluginCall("TestPlugin.WPF.Core", "HelloKitX")
+    /// </summary>
+    private static string PreProcessPluginCalls(string expression)
+    {
+        try
+        {
+            var wrappedCode = "_ = " + expression + ";";
+            var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode);
+            var root = syntaxTree.GetCompilationUnitRoot();
+
+            var rewriter = new PluginCallRewriter();
+            var rewritten = rewriter.Visit(root);
+
+            // Extract the expression back from "_ = ...;"
+            if (rewritten is CompilationUnitSyntax cu
+                && cu.Members.FirstOrDefault() is GlobalStatementSyntax gs
+                && gs.Statement is ExpressionStatementSyntax ess
+                && ess.Expression is AssignmentExpressionSyntax aes)
+            {
+                var result = aes.Right.ToString();
+                if (result != expression)
+                {
+                    Log.Debug("[BlockScriptExecutor] PreProcessPluginCalls: '{Original}' → '{Result}'",
+                        expression, result);
+                }
+                return result;
+            }
+
+            Log.Warning("[BlockScriptExecutor] PreProcessPluginCalls: extraction failed for '{Expression}', " +
+                "rewritten type={Type}", expression, rewritten?.GetType().Name);
+            return expression;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[BlockScriptExecutor] PreProcessPluginCalls: exception for '{Expression}'",
+                expression);
+            return expression;
+        }
+    }
+
+    /// <summary>
+    /// Roslyn SyntaxRewriter that transforms dotted member-access invocations
+    /// (e.g. TestPlugin.WPF.Core.HelloKitX()) into PluginCall("...", "...", args) calls.
+    /// Operates at the AST level, preserving all expression structure and handling nesting.
+    /// </summary>
+    private class PluginCallRewriter : CSharpSyntaxRewriter
+    {
+        public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
+        {
+            // First, recursively rewrite any nested invocations in arguments
+            node = (InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
+
+            // Only rewrite member-access invocations (e.g. A.B.C.Method())
+            if (node.Expression is not MemberAccessExpressionSyntax member)
+                return node;
+
+            // Only rewrite when the expression has dots (plugin namespace path)
+            var fullExpression = member.Expression.ToString();
+            if (!fullExpression.Contains('.'))
+                return node;
+
+            var pluginName = fullExpression;
+            var funcName = member.Name.Identifier.Text;
+
+            Log.Debug("[PluginCallRewriter] Rewriting: {Plugin}.{Method}() → PluginCall()",
+                pluginName, funcName);
+
+            // Build: PluginCall("pluginName", "funcName" [, existingArgs])
+            // 所有分发策略（类型化调用、f-a-f vs 同步等待）由 Manager 内部自动处理
+            var args = new List<ArgumentSyntax>
+            {
+                SyntaxFactory.Argument(
+                    SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal(pluginName))),
+                SyntaxFactory.Argument(
+                    SyntaxFactory.LiteralExpression(
+                        SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal(funcName)))
+            };
+
+            // Append original arguments
+            args.AddRange(node.ArgumentList.Arguments);
+
+            var newArgsList = SyntaxFactory.SeparatedList(args);
+            var newInvocation = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.IdentifierName("PluginCall"),
+                SyntaxFactory.ArgumentList(newArgsList));
+
+            return newInvocation;
+        }
     }
 
     /// <summary>
@@ -644,7 +768,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         if (string.IsNullOrWhiteSpace(initCode))
         {
             // No initialization needed, just do a simple first evaluation to establish session
-            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output);
+            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _scriptState = await CSharpScript.RunAsync(
                 "0",  // Simple expression to establish session
                 ScriptOptions.Default
@@ -659,7 +783,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
         try
         {
-            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output);
+            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _scriptState = await CSharpScript.RunAsync(
                 initCode,
                 ScriptOptions.Default
@@ -672,7 +796,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         {
             Log.Warning(ex, "[BlockScriptExecutor] Initialization script failed, will try without it");
             // Fall back to simple session establishment
-            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output);
+            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _scriptState = await CSharpScript.RunAsync(
                 "0",
                 ScriptOptions.Default

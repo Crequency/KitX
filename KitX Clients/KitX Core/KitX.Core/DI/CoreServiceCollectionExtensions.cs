@@ -188,6 +188,17 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IBlockScriptExecutor, KitX.Core.Workflow.BlockScripting.BlockScriptExecutor>(provider =>
         {
             var service = new KitX.Core.Workflow.BlockScripting.BlockScriptExecutor();
+            // Wire up plugin manager if PluginsServer is available
+            try
+            {
+                var pluginManager = new KitX.Core.Workflow.RealPluginManager(
+                    KitX.Core.Device.PluginsServer.Instance);
+                service.SetPluginManager(pluginManager);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not initialize BlockScriptExecutor with plugin manager");
+            }
             return service;
         });
 

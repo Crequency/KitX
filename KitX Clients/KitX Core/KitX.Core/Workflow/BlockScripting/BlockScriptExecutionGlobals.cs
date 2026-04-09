@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using Kscript.CSharp.Parser.Core;
+using Kscript.CSharp.Parser.Models;
 using KitX.Core.Workflow;
+using Serilog;
 
 namespace KitX.Core.Workflow.BlockScripting;
 
@@ -13,6 +16,7 @@ public class BlockScriptExecutionGlobals
     private readonly BlockScopeManager _scopeManager;
     private readonly List<string> _output;
     private readonly Dictionary<string, object?> _variables = new();
+    private readonly IPluginManager? _pluginManager;
 
     /// <summary>
     /// NextBlock 内置变量 - 设置后执行器会跳转到指定块
@@ -27,6 +31,15 @@ public class BlockScriptExecutionGlobals
     {
         _scopeManager = scopeManager;
         _output = output;
+    }
+
+    /// <summary>
+    /// Creates script globals with plugin manager support
+    /// </summary>
+    public BlockScriptExecutionGlobals(BlockScopeManager scopeManager, List<string> output,
+        IPluginManager? pluginManager) : this(scopeManager, output)
+    {
+        _pluginManager = pluginManager;
     }
 
     /// <summary>
@@ -126,5 +139,41 @@ public class BlockScriptExecutionGlobals
     {
         NextBlock = $"{parentBlockName}_Loop";
         return NextBlock;
+    }
+
+    /// <summary>
+    /// 调用插件函数。所有分发策略（类型化调用、fire-and-forget vs 同步等待）
+    /// 由 RealPluginManager.CallAuto() 内部自动完成，调用方无需关心。
+    /// </summary>
+    public object? PluginCall(string pluginName, string methodName, params object?[] args)
+    {
+        if (_pluginManager == null)
+        {
+            Log.Warning("[BlockScriptGlobals] PluginCall: no plugin manager available, " +
+                "cannot call {PluginName}.{MethodName}", pluginName, methodName);
+            return null;
+        }
+
+        var callInfo = new PluginCallInfo
+        {
+            PluginName = pluginName,
+            MethodName = methodName,
+            Parameters = args ?? Array.Empty<object?>()
+        };
+
+        try
+        {
+            if (_pluginManager is RealPluginManager realManager)
+                return realManager.CallAuto(callInfo);
+
+            // Fallback for other IPluginManager implementations
+            return _pluginManager.Call<object?>(callInfo);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[BlockScriptGlobals] PluginCall failed: {PluginName}.{MethodName}",
+                pluginName, methodName);
+            return null;
+        }
     }
 }

@@ -57,8 +57,15 @@ public class FormattedStatement
     // --- For function calls ---
     /// <summary>
     /// Function name (e.g. "HelperFuncCompare", "Get", "Set", "Print").
+    /// For plugin calls, this is the short name (e.g. "HelloKitX").
     /// </summary>
     public string? FunctionName { get; set; }
+
+    /// <summary>
+    /// Full dotted method path for plugin/external calls (e.g. "TestPlugin.WPF.Core.HelloKitX").
+    /// Null for built-in and helper functions.
+    /// </summary>
+    public string? FullFunctionName { get; set; }
 
     /// <summary>
     /// Raw argument strings after expansion (no nested calls).
