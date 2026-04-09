@@ -18,8 +18,11 @@ internal class BlockScriptAssembler
         var sb = new StringBuilder();
 
         // #ConstBlock — no 'const' keyword in BlockScript ConstBlock
+        // Includes both ConstNode (with initial values) and VariableNode (without initial values)
         var constNodes = ctx.Blueprint.Nodes.OfType<ConstNode>().ToList();
-        if (constNodes.Count > 0)
+        var varNodes = ctx.Blueprint.Nodes.OfType<VariableNode>().ToList();
+
+        if (constNodes.Count > 0 || varNodes.Count > 0)
         {
             sb.AppendLine(MarkerConstBlock);
             foreach (var cn in constNodes)
@@ -33,6 +36,10 @@ internal class BlockScriptAssembler
                     var value = cn.ConstType == "string" ? $"\"{cn.ConstValue}\"" : cn.ConstValue;
                     sb.AppendLine($"{cn.ConstType} {cn.ConstName} = {value};");
                 }
+            }
+            foreach (var vn in varNodes)
+            {
+                sb.AppendLine($"{vn.VarType} {vn.VarName};");
             }
             sb.AppendLine();
         }

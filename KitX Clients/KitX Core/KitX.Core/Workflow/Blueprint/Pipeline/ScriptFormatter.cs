@@ -457,8 +457,8 @@ public class ScriptFormatter
         if (context.PubVarNames.Contains(trimmed))
             return (result, trimmed);
 
-        // ConstBlock variable
-        if (context.ConstNodes.ContainsKey(trimmed))
+        // ConstBlock variable or VariableNode
+        if (context.ConstNodes.ContainsKey(trimmed) || context.VariableNodes.ContainsKey(trimmed))
             return (result, null);
 
         // Parse the expression

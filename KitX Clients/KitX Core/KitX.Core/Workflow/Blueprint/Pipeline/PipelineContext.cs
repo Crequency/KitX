@@ -18,6 +18,7 @@ public class PipelineContext
 
     // --- Phase 1 output ---
     public Dictionary<string, ConstNode> ConstNodes { get; set; } = new();
+    public Dictionary<string, VariableNode> VariableNodes { get; set; } = new();
     public List<string> PubVarNames { get; set; } = new();
 
     // --- Phase 2 output ---

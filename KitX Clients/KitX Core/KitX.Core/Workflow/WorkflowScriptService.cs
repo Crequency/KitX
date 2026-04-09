@@ -794,12 +794,24 @@ public class WorkflowScriptService : IWorkflowService
     }
 
     /// <summary>
+    /// 从块脚本源代码执行（带辅助函数和常量覆盖）
+    /// </summary>
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        List<HelperFunction> helperFunctions,
+        Dictionary<string, object?>? constantOverrides,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteBlockScriptCoreAsync(sourceCode, helperFunctions, constantOverrides, cancellationToken);
+    }
+
+    /// <summary>
     /// 核心块脚本执行逻辑：解析 → 验证 → 执行
     /// </summary>
     private async Task<BlockScriptExecutionResult> ExecuteBlockScriptCoreAsync(
         string sourceCode,
         List<HelperFunction>? helperFunctions,
-        Dictionary<string, object?>? parameters,
+        Dictionary<string, object?>? constantOverrides,
         CancellationToken cancellationToken)
     {
         // 1. Parse
@@ -829,8 +841,20 @@ public class WorkflowScriptService : IWorkflowService
         if (helperFunctions != null)
             parseResult.Script.HelperFunctions = helperFunctions;
 
+        // 3.5. Apply constant overrides from user edits (replaces DefaultValue before execution)
+        if (constantOverrides != null && parseResult.Script.ConstBlock != null)
+        {
+            foreach (var variable in parseResult.Script.ConstBlock.Variables)
+            {
+                if (constantOverrides.TryGetValue(variable.Name, out var userValue))
+                {
+                    variable.DefaultValue = userValue;
+                }
+            }
+        }
+
         // 4. Execute
-        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, parameters, cancellationToken);
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, constantOverrides, cancellationToken);
     }
 
     #endregion

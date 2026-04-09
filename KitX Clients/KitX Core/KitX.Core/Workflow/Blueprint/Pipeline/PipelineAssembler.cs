@@ -28,7 +28,7 @@ public class PipelineAssembler
             HelperFunctions = context.HelperFunctions,
         };
 
-        // Add ConstValues
+        // Add ConstValues (from ConstNodes with initial values)
         foreach (var kvp in context.ConstNodes)
         {
             bp.ConstValues.Add(new VariableConstant
@@ -36,6 +36,17 @@ public class PipelineAssembler
                 Name = kvp.Value.ConstName,
                 DefaultValue = kvp.Value.ConstValue,
                 Type = kvp.Value.ConstType ?? "string"
+            });
+        }
+
+        // Add VariableNodes to ConstValues (no initial value, type-only)
+        foreach (var kvp in context.VariableNodes)
+        {
+            bp.ConstValues.Add(new VariableConstant
+            {
+                Name = kvp.Value.VarName,
+                DefaultValue = null,
+                Type = kvp.Value.VarType ?? "int"
             });
         }
 

@@ -129,6 +129,15 @@ public class DataEdgeBuilder
             return;
         }
 
+        // VariableNode (no initial value) → set as DefaultValue fallback on target pin
+        // VariableNodes have no output ports, so we can't create a data edge.
+        // The variable reference is resolved at runtime.
+        if (context.VariableNodes.ContainsKey(trimmed))
+        {
+            SetDefaultValue(targetNode, targetPinName, trimmed);
+            return;
+        }
+
         // Unknown identifier → try as variable reference (set DefaultValue as fallback)
         Log.Warning("[DataEdgeBuilder] Unresolved argument: {Arg} in stmt {StmtId}", trimmed, parentStmt.StatementId);
         SetDefaultValue(targetNode, targetPinName, trimmed);

@@ -31,6 +31,7 @@ public class NodeRegistry : INodeRegistry
             [BlueprintNodeType.Set] = typeof(SetNode),
             [BlueprintNodeType.Print] = typeof(PrintNode),
             [BlueprintNodeType.Pause] = typeof(PauseNode),
+            [BlueprintNodeType.Variable] = typeof(VariableNode),
         };
 
         // Pre-cache descriptors from each node type

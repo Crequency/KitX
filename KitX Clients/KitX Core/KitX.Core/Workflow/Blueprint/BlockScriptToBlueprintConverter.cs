@@ -98,18 +98,33 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
 
     private void Phase1_ProcessConstAndPubVar(PipelineContext context)
     {
-        // Process ConstBlock variables → ConstNodes
+        // Process ConstBlock variables → ConstNodes or VariableNodes
         if (context.Script.ConstBlock != null)
         {
             foreach (var varDecl in context.Script.ConstBlock.Variables)
             {
-                var value = varDecl.DefaultValue?.ToString() ?? varDecl.InitialValueExpression ?? "";
-                var constNode = (ConstNode)_nodeRegistry.Create(BlueprintNodeType.Const);
-                constNode.ConstName = varDecl.Name;
-                constNode.ConstType = varDecl.Type;
-                constNode.ConstValue = value;
-                context.ConstNodes[varDecl.Name] = constNode;
-                context.AllNodes.Add(constNode);
+                var hasInitialValue = varDecl.DefaultValue != null || !string.IsNullOrEmpty(varDecl.InitialValueExpression);
+
+                if (hasInitialValue)
+                {
+                    // Variable with initial value → ConstNode (editable value)
+                    var value = varDecl.DefaultValue?.ToString() ?? varDecl.InitialValueExpression ?? "";
+                    var constNode = (ConstNode)_nodeRegistry.Create(BlueprintNodeType.Const);
+                    constNode.ConstName = varDecl.Name;
+                    constNode.ConstType = varDecl.Type;
+                    constNode.ConstValue = value;
+                    context.ConstNodes[varDecl.Name] = constNode;
+                    context.AllNodes.Add(constNode);
+                }
+                else
+                {
+                    // Variable without initial value → VariableNode (type-only, floating)
+                    var varNode = (VariableNode)_nodeRegistry.Create(BlueprintNodeType.Variable);
+                    varNode.VarName = varDecl.Name;
+                    varNode.VarType = varDecl.Type;
+                    context.VariableNodes[varDecl.Name] = varNode;
+                    context.AllNodes.Add(varNode);
+                }
             }
         }
 
