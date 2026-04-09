@@ -365,6 +365,7 @@ MigrationBackup/
 
 # Claude Code
 .claude/
+Claude.md
 
 # Package folder
 Package/*
