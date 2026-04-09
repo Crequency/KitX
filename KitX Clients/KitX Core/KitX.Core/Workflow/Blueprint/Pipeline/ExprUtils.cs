@@ -182,4 +182,8 @@ public static class ExprUtils
     /// <summary>Checks if an expression is a numeric literal.</summary>
     public static bool IsNumericLiteral(ExpressionSyntax expr)
         => expr is LiteralExpressionSyntax lit && lit.Token.IsKind(SyntaxKind.NumericLiteralToken);
+
+    /// <summary>Gets the value of any literal expression (string, int, double, bool, null).</summary>
+    public static object? GetLiteralValue(LiteralExpressionSyntax literal)
+        => literal.Token.Value;
 }
