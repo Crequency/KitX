@@ -15,7 +15,7 @@ internal class BlockScriptAssembler
     {
         var sb = new StringBuilder();
 
-        // #ConstBlock
+        // #ConstBlock — no 'const' keyword in BlockScript ConstBlock
         var constNodes = ctx.Blueprint.Nodes.OfType<ConstNode>().ToList();
         if (constNodes.Count > 0)
         {
@@ -29,19 +29,19 @@ internal class BlockScriptAssembler
                 else
                 {
                     var value = cn.ConstType == "string" ? $"\"{cn.ConstValue}\"" : cn.ConstValue;
-                    sb.AppendLine($"const {cn.ConstType} {cn.ConstName} = {value};");
+                    sb.AppendLine($"{cn.ConstType} {cn.ConstName} = {value};");
                 }
             }
             sb.AppendLine();
         }
 
-        // #PubVarBlock
+        // #PubVarBlock — use 'dynamic' for late-bound type resolution
         if (ctx.AllPubVars.Count > 0)
         {
             sb.AppendLine("#PubVarBlock");
             foreach (var pv in ctx.AllPubVars)
             {
-                sb.AppendLine($"object {pv};");
+                sb.AppendLine($"dynamic {pv};");
             }
             sb.AppendLine();
         }

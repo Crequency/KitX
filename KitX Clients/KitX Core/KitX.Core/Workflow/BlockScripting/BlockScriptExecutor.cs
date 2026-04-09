@@ -544,7 +544,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[BlockScriptExecutor] Error evaluating expression: {Expression}", expression);
+            Log.Error(ex, "[BlockScriptExecutor] Error evaluating expression: {Expression}", expression);
             throw;
         }
     }
@@ -565,45 +565,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     /// </summary>
     private string BuildHelperFunctionsCode(List<HelperFunction>? helperFunctions)
     {
-        if (helperFunctions == null || helperFunctions.Count == 0)
-            return string.Empty;
-
-        var code = new System.Text.StringBuilder();
-
-        foreach (var func in helperFunctions)
-        {
-            // Generate function signature (without static modifier for CSharpScript)
-            code.Append(func.ReturnType);
-            code.Append(" ");
-            code.Append(func.Name);
-            code.Append("(");
-
-            // Add parameters
-            for (int i = 0; i < func.Parameters.Count; i++)
-            {
-                if (i > 0) code.Append(", ");
-                code.Append(func.Parameters[i].Type);
-                code.Append(" ");
-                code.Append(func.Parameters[i].Name);
-            }
-
-            code.AppendLine(")");
-            code.AppendLine("{");
-
-            // Add function body
-            if (!string.IsNullOrWhiteSpace(func.Code))
-            {
-                foreach (var line in func.Code.Split('\n'))
-                {
-                    code.AppendLine("    " + line);
-                }
-            }
-
-            code.AppendLine("}");
-            code.AppendLine();
-        }
-
-        return code.ToString();
+        return HelperFunctionCodeGenerator.GenerateCode(helperFunctions, useStaticModifier: false);
     }
 
     /// <summary>

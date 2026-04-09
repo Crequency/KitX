@@ -279,13 +279,7 @@ public class WorkflowScriptService : IWorkflowService
 
                 sw.Stop();
 
-                return includeTimestamp
-                    ? new StringBuilder()
-                        .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
-                        .AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [I] Script ended, took {sw.ElapsedMilliseconds} ms.")
-                        .AppendLine(result)
-                        .ToString()
-                    : result;
+                return FormatExecutionResult(result, begin, sw.ElapsedMilliseconds, includeTimestamp);
             }
             else
             {
@@ -299,15 +293,7 @@ public class WorkflowScriptService : IWorkflowService
 
             Log.Error(ex, $"In {location}: Error executing code: {ex.Message}");
 
-            return includeTimestamp
-                ? new StringBuilder()
-                    .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
-                    .AppendLine(
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [E] Exception caught after {sw.ElapsedMilliseconds} ms, Message: {ex.Message}"
-                    )
-                    .AppendLine(ex.StackTrace)
-                    .ToString()
-                : ex.StackTrace;
+            return FormatExecutionError(ex, begin, sw.ElapsedMilliseconds, includeTimestamp);
         }
     }
 
@@ -359,14 +345,7 @@ public class WorkflowScriptService : IWorkflowService
             var scriptOutput = WorkflowOutput.GetAndClear();
             var returnValue = result?.ToString();
 
-            if (!string.IsNullOrEmpty(scriptOutput))
-            {
-                return string.IsNullOrEmpty(returnValue)
-                    ? scriptOutput
-                    : $"{scriptOutput}\n{returnValue}";
-            }
-
-            return returnValue;
+            return CombineOutput(scriptOutput, returnValue);
         }
         catch (Exception ex)
         {
@@ -435,33 +414,14 @@ public class WorkflowScriptService : IWorkflowService
             var scriptOutput = WorkflowOutput.GetAndClear();
             var returnValue = result?.ToString();
 
-            var combinedOutput = !string.IsNullOrEmpty(scriptOutput)
-                ? (string.IsNullOrEmpty(returnValue)
-                    ? scriptOutput
-                    : $"{scriptOutput}\n{returnValue}")
-                : returnValue;
+            var combinedOutput = CombineOutput(scriptOutput, returnValue);
 
-            return includeTimestamp
-                ? new StringBuilder()
-                    .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
-                    .AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [I] Script ended, took {sw.ElapsedMilliseconds} ms.")
-                    .AppendLine(combinedOutput)
-                    .ToString()
-                : combinedOutput;
+            return FormatExecutionResult(combinedOutput, begin, sw.ElapsedMilliseconds, includeTimestamp);
         }
         catch (Exception ex)
         {
             sw.Stop();
-
-            return includeTimestamp
-                ? new StringBuilder()
-                    .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
-                    .AppendLine(
-                        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [E] Exception caught after {sw.ElapsedMilliseconds} ms, Message: {ex.Message}"
-                    )
-                    .AppendLine(ex.StackTrace)
-                    .ToString()
-                : ex.StackTrace;
+            return FormatExecutionError(ex, begin, sw.ElapsedMilliseconds, includeTimestamp);
         }
     }
 
@@ -500,6 +460,52 @@ public class WorkflowScriptService : IWorkflowService
         _availablePlugins = plugins ?? new List<PluginInfo>();
         Log.Information($"[WorkflowScriptService] Updated available plugins: {_availablePlugins.Count} plugins");
     }
+
+    #region Execution Result Formatting Helpers
+
+    /// <summary>
+    /// Formats successful execution output with optional timestamp header
+    /// </summary>
+    private static string? FormatExecutionResult(string? output, DateTime begin, long elapsedMs, bool includeTimestamp)
+    {
+        if (!includeTimestamp)
+            return output;
+
+        return new StringBuilder()
+            .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
+            .AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [I] Script ended, took {elapsedMs} ms.")
+            .AppendLine(output)
+            .ToString();
+    }
+
+    /// <summary>
+    /// Formats execution error with optional timestamp header
+    /// </summary>
+    private static string? FormatExecutionError(Exception ex, DateTime begin, long elapsedMs, bool includeTimestamp)
+    {
+        if (!includeTimestamp)
+            return ex.StackTrace;
+
+        return new StringBuilder()
+            .AppendLine($"[{begin:yyyy-MM-dd HH:mm:ss}] [I] Workflow script posted.")
+            .AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [E] Exception caught after {elapsedMs} ms, Message: {ex.Message}")
+            .AppendLine(ex.StackTrace)
+            .ToString();
+    }
+
+    /// <summary>
+    /// Combines WorkflowOutput and script return value into a single output string
+    /// </summary>
+    private static string? CombineOutput(string? scriptOutput, string? returnValue)
+    {
+        return !string.IsNullOrEmpty(scriptOutput)
+            ? (string.IsNullOrEmpty(returnValue)
+                ? scriptOutput
+                : $"{scriptOutput}\n{returnValue}")
+            : returnValue;
+    }
+
+    #endregion
 
     #region KCS Script Processing Methods
 
@@ -636,49 +642,7 @@ public class WorkflowScriptService : IWorkflowService
     /// </summary>
     public string MergeHelperFunctions(string mainCode, List<HelperFunction> helperFunctions)
     {
-        var combined = new StringBuilder();
-
-        // 添加辅助函数作为完整的 C# 方法
-        foreach (var func in helperFunctions)
-        {
-            // 生成方法签名
-            combined.Append("static ");
-            combined.Append(func.ReturnType);
-            combined.Append(" ");
-            combined.Append(func.Name);
-            combined.Append("(");
-
-            // 添加参数
-            for (int i = 0; i < func.Parameters.Count; i++)
-            {
-                if (i > 0) combined.Append(", ");
-                combined.Append(func.Parameters[i].Type);
-                combined.Append(" ");
-                combined.Append(func.Parameters[i].Name);
-            }
-
-            combined.AppendLine(")");
-            combined.AppendLine("{");
-
-            // 添加函数体代码（用户提供的代码被视为方法体内容）
-            if (!string.IsNullOrWhiteSpace(func.Code))
-            {
-                // 逐行添加函数体，保持缩进
-                foreach (var line in func.Code.Split('\n'))
-                {
-                    combined.AppendLine("    " + line);
-                }
-            }
-
-            combined.AppendLine("}");
-            combined.AppendLine();
-        }
-
-        // 添加主程序
-        combined.AppendLine("// --- Main Program ---");
-        combined.AppendLine(mainCode);
-
-        return combined.ToString();
+        return BlockScripting.HelperFunctionCodeGenerator.MergeWithMainProgram(mainCode, helperFunctions);
     }
 
     /// <summary>
@@ -758,7 +722,46 @@ public class WorkflowScriptService : IWorkflowService
     }
 
     /// <summary>
-    /// 执行块脚本
+    /// 从 BlockScript 源码的 #ConstBlock 中解析有初始值的常量
+    /// </summary>
+    public List<VariableConstant> ParseConstantsFromBlockScript(string sourceCode)
+    {
+        var result = new List<VariableConstant>();
+
+        if (string.IsNullOrWhiteSpace(sourceCode))
+            return result;
+
+        try
+        {
+            var parseResult = BlockScriptParser.Parse(sourceCode);
+
+            if (!parseResult.IsSuccess || parseResult.Script?.ConstBlock == null)
+                return result;
+
+            foreach (var variable in parseResult.Script.ConstBlock.Variables)
+            {
+                if (variable.DefaultValue != null)
+                {
+                    result.Add(new VariableConstant
+                    {
+                        Name = variable.Name,
+                        DefaultValue = variable.DefaultValue,
+                        UserValue = variable.DefaultValue,
+                        Type = variable.Type
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[WorkflowScriptService] Error parsing constants from BlockScript");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 执行块脚本（从已解析的 BlockScript 对象）
     /// </summary>
     public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
         BlockScript script,
@@ -771,51 +774,35 @@ public class WorkflowScriptService : IWorkflowService
     /// <summary>
     /// 从块脚本源代码执行
     /// </summary>
-    public async Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
         string sourceCode,
         Dictionary<string, object?>? parameters = null,
         CancellationToken cancellationToken = default)
     {
-        // 1. Parse the block script
-        var parseResult = BlockScriptParser.Parse(sourceCode);
-
-        if (!parseResult.IsSuccess || parseResult.Script == null)
-        {
-            return new BlockScriptExecutionResult
-            {
-                IsSuccess = false,
-                ErrorMessage = parseResult.ErrorMessage ?? "Failed to parse block script"
-            };
-        }
-
-        // 2. Validate
-        var validationResult = BlockScriptExecutor.Validate(parseResult.Script);
-        if (!validationResult.IsValid)
-        {
-            return new BlockScriptExecutionResult
-            {
-                IsSuccess = false,
-                ErrorMessage = string.Join("; ", validationResult.Errors)
-            };
-        }
-
-        // 3. Execute
-        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, parameters, cancellationToken);
+        return ExecuteBlockScriptCoreAsync(sourceCode, null, parameters, cancellationToken);
     }
 
     /// <summary>
     /// 从块脚本源代码执行（带辅助函数）
     /// </summary>
-    /// <param name="sourceCode">块脚本源代码</param>
-    /// <param name="helperFunctions">辅助函数列表</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>执行结果</returns>
-    public async Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
         string sourceCode,
         List<HelperFunction> helperFunctions,
         CancellationToken cancellationToken = default)
     {
-        // 1. Parse the block script (using original source with attributes)
+        return ExecuteBlockScriptCoreAsync(sourceCode, helperFunctions, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// 核心块脚本执行逻辑：解析 → 验证 → 执行
+    /// </summary>
+    private async Task<BlockScriptExecutionResult> ExecuteBlockScriptCoreAsync(
+        string sourceCode,
+        List<HelperFunction>? helperFunctions,
+        Dictionary<string, object?>? parameters,
+        CancellationToken cancellationToken)
+    {
+        // 1. Parse
         var parseResult = BlockScriptParser.Parse(sourceCode);
 
         if (!parseResult.IsSuccess || parseResult.Script == null)
@@ -838,11 +825,12 @@ public class WorkflowScriptService : IWorkflowService
             };
         }
 
-        // Store helper functions for execution (these will be injected into each evaluation)
-        parseResult.Script.HelperFunctions = helperFunctions ?? new List<HelperFunction>();
+        // 3. Attach helper functions if provided
+        if (helperFunctions != null)
+            parseResult.Script.HelperFunctions = helperFunctions;
 
-        // 3. Execute
-        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, null, cancellationToken);
+        // 4. Execute
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, parameters, cancellationToken);
     }
 
     #endregion
