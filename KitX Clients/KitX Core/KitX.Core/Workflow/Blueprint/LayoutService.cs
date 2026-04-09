@@ -17,13 +17,18 @@ public class LayoutService : ILayoutService
     // Layout constants
     private const double HSpacing = 220;
     private const double VSpacing = 130;
-    private const double ForkVGap = 60;
-    private const double ForkHGap = 40;
-    private const double MaxRowWidth = 1200;
+    private const double ForkVGap = 100;
+    private const double ForkHGap = 300;
+    private const double MaxRowWidth = 660;
     private const double XOffset = 50;
     private const double YOffset = 50;
     private const double NodeWidth = 200;
     private const double NodeHeight = 100;
+
+    // Data node sidebar constants
+    private const double DataSidebarX = -350;
+    private const double ConstSidebarX = -350;
+    private const double DataNodeVSpacing = 150;
 
     /// <inheritdoc />
     public void LayoutNodes(Contract.Workflow.Blueprint blueprint)
@@ -56,7 +61,7 @@ public class LayoutService : ILayoutService
             rootRegion.Arrange(XOffset, YOffset, blueprint);
         }
 
-        // Phase 5: Place data nodes near their consumers
+        // Phase 5: Place data nodes in sidebar
         PlaceDataNodes(blueprint, placed);
 
         // Phase 6: Log final positions
@@ -69,24 +74,31 @@ public class LayoutService : ILayoutService
     }
 
     /// <summary>
-    /// Builds nodeId → [(pinName, targetNodeId)] mapping for exec-type connections only
+    /// Builds nodeId → [(pinName, targetNodeId)] mapping for exec-type connections only.
+    /// Iterates by node OutputPins order (visual top-to-bottom) to ensure branch
+    /// direction assignment matches physical pin layout.
     /// </summary>
     private Dictionary<string, List<(string PinName, string TargetId)>> BuildExecAdjacencyMap(
         Contract.Workflow.Blueprint blueprint)
     {
         var map = new Dictionary<string, List<(string, string)>>();
 
-        foreach (var conn in blueprint.Connections)
+        foreach (var node in blueprint.Nodes)
         {
-            var sourceNode = blueprint.GetNodeById(conn.SourceNodeId);
-            if (sourceNode == null) continue;
+            var execPins = node.OutputPins.Where(p => p.Type == PinType.Execution).ToList();
+            if (execPins.Count == 0) continue;
 
-            var sourcePin = sourceNode.OutputPins.FirstOrDefault(p => p.Id == conn.SourcePinId);
-            if (sourcePin == null || sourcePin.Type != PinType.Execution) continue;
+            var targets = new List<(string PinName, string TargetId)>();
+            foreach (var pin in execPins)
+            {
+                var conn = blueprint.Connections.FirstOrDefault(c =>
+                    c.SourceNodeId == node.Id && c.SourcePinId == pin.Id);
+                if (conn != null)
+                    targets.Add((pin.Name, conn.TargetNodeId));
+            }
 
-            if (!map.ContainsKey(conn.SourceNodeId))
-                map[conn.SourceNodeId] = [];
-            map[conn.SourceNodeId].Add((sourcePin.Name, conn.TargetNodeId));
+            if (targets.Count > 0)
+                map[node.Id] = targets;
         }
 
         Log.Debug("[Layout] Exec adjacency map: {Count} nodes with exec outputs", map.Count);
@@ -95,6 +107,8 @@ public class LayoutService : ILayoutService
 
     /// <summary>
     /// Recursively builds a tree of LayoutRegions from the exec chain.
+    /// Fork nodes (Branch, Loop, etc.) are kept in the parent LinearRegion
+    /// so they appear at the end of the linear chain, not at the base X.
     /// </summary>
     private LayoutRegion? BuildRegionTree(
         string nodeId,
@@ -143,7 +157,9 @@ public class LayoutService : ILayoutService
 
         if (targets.Count >= 2)
         {
-            // Fork: Branch (True/False), Loop (LoopBody/LoopEnd), or any N-way control flow
+            // Fork: Branch (True/False), Loop (LoopBody/LoopEnd), or any N-way control flow.
+            // The fork node stays in a LinearRegion (so it's placed at end of chain),
+            // and the ForkRegion (branches only) becomes its Child.
             placed.Add(nodeId);
 
             var node = blueprint.GetNodeById(nodeId);
@@ -157,27 +173,51 @@ public class LayoutService : ILayoutService
                 branches.Add(BuildRegionTree(target.TargetId, execMap, blueprint, visited, placed));
             }
 
-            return new ForkRegion(nodeId, branches);
+            var linear = new LinearRegion(nodeId);
+            linear.Child = new ForkRegion(nodeId, branches);
+            return linear;
         }
 
-        // Fallback: 3+ exec outputs (treat as linear)
+        // Fallback: treat as linear
         placed.Add(nodeId);
         return new LinearRegion(nodeId);
     }
 
     /// <summary>
-    /// Places data-only nodes (Const, etc.) near their first consumer
+    /// Places data-only nodes (Const, Variable) in a left sidebar column.
     /// </summary>
     private void PlaceDataNodes(Contract.Workflow.Blueprint blueprint, HashSet<string> placed)
     {
         var dataNodes = blueprint.Nodes.Where(n => !placed.Contains(n.Id)).ToList();
         if (dataNodes.Count == 0) return;
 
-        Log.Debug("[Layout] Placing {Count} data nodes (Const, etc.)", dataNodes.Count);
+        Log.Debug("[Layout] Placing {Count} data nodes (Const, Variable, etc.)", dataNodes.Count);
 
-        // Group data nodes by their first consumer target
-        var dataNodeIndex = 0;
-        foreach (var node in dataNodes)
+        var variableNodes = dataNodes.Where(n => n.NodeType == BlueprintNodeType.Variable).ToList();
+        var constNodes = dataNodes.Where(n => n.NodeType == BlueprintNodeType.Const).ToList();
+        var otherNodes = dataNodes.Where(n =>
+            n.NodeType != BlueprintNodeType.Variable
+            && n.NodeType != BlueprintNodeType.Const).ToList();
+
+        // Variable nodes in the far-left column
+        for (int i = 0; i < variableNodes.Count; i++)
+        {
+            variableNodes[i].X = DataSidebarX;
+            variableNodes[i].Y = YOffset + i * DataNodeVSpacing;
+            placed.Add(variableNodes[i].Id);
+        }
+
+        // Const nodes in the constant column, starting below variables
+        double constStartY = YOffset + variableNodes.Count * DataNodeVSpacing;
+        for (int i = 0; i < constNodes.Count; i++)
+        {
+            constNodes[i].X = ConstSidebarX;
+            constNodes[i].Y = constStartY + i * DataNodeVSpacing;
+            placed.Add(constNodes[i].Id);
+        }
+
+        // Other data nodes: place near first consumer
+        foreach (var node in otherNodes)
         {
             var firstConn = blueprint.Connections
                 .FirstOrDefault(c => c.SourceNodeId == node.Id);
@@ -186,11 +226,9 @@ public class LayoutService : ILayoutService
                 var targetNode = blueprint.GetNodeById(firstConn.TargetNodeId);
                 if (targetNode != null)
                 {
-                    // Place above-left of the consumer
                     node.X = targetNode.X - HSpacing;
-                    node.Y = targetNode.Y - (dataNodeIndex + 1) * (NodeHeight * 0.6);
+                    node.Y = targetNode.Y;
                     placed.Add(node.Id);
-                    dataNodeIndex++;
                     continue;
                 }
             }
@@ -267,10 +305,10 @@ public class LayoutService : ILayoutService
 
             // Calculate dimensions
             MeasuredWidth = _rows.Count > 0
-                ? _rows.Max(r => r.Count * NodeWidth + Math.Max(0, r.Count - 1) * (HSpacing - NodeWidth))
+                ? _rows.Max(r => (r.Count - 1) * HSpacing + NodeWidth)
                 : 0;
             MeasuredHeight = _rows.Count > 0
-                ? _rows.Count * NodeHeight + Math.Max(0, _rows.Count - 1) * (VSpacing - NodeHeight)
+                ? (_rows.Count - 1) * VSpacing + NodeHeight
                 : 0;
 
             // Include child region
@@ -313,18 +351,16 @@ public class LayoutService : ILayoutService
     }
 
     /// <summary>
-    /// Fork region: a fork node (Branch/Loop/etc.) with N sub-branches
-    /// arranged vertically, indented to the right.
+    /// Fork region: arranges N sub-branches vertically around a fork node
+    /// that has already been placed by the parent LinearRegion.
+    /// Does NOT place the fork node itself — only arranges branches
+    /// relative to the fork node's actual position in the blueprint.
     /// Supports any number of execution output arms (2 for Branch/Loop, N for future nodes).
     /// </summary>
     private class ForkRegion : LayoutRegion
     {
         public string ForkNodeId;
         public List<LayoutRegion?> Branches;
-
-        // Backward-compatible convenience properties for 2-branch case
-        public LayoutRegion? UpperBranch => Branches.Count > 0 ? Branches[0] : null;
-        public LayoutRegion? LowerBranch => Branches.Count > 1 ? Branches[1] : null;
 
         // Symmetric layout: upper / middle / lower branch groups
         private double _upperBranchHeight;
@@ -351,21 +387,21 @@ public class LayoutService : ILayoutService
 
         public override void Measure(double availableWidth = MaxRowWidth)
         {
-            // Branches are indented to the right of the fork node
-            double branchAvailableWidth = Math.Max(NodeWidth, availableWidth - NodeWidth - ForkHGap);
+            // Branches use full availableWidth — ForkHGap is horizontal indent, not row-space
+            double branchAvailableWidth = availableWidth;
 
             // Measure all branches
             foreach (var branch in Branches)
                 branch?.Measure(branchAvailableWidth);
 
-            // Width: fork node + gap + max branch width (unchanged)
+            // Width: gap + max branch width (fork node is in parent LinearRegion)
             double maxBranchWidth = Branches
                 .Where(b => b != null)
                 .Select(b => b!.MeasuredWidth)
                 .DefaultIfEmpty(0)
                 .Max();
 
-            MeasuredWidth = NodeWidth + ForkHGap + maxBranchWidth;
+            MeasuredWidth = ForkHGap + maxBranchWidth;
 
             // Height: symmetric layout — group branches by direction
             _upperBranchHeight = 0;
@@ -394,35 +430,43 @@ public class LayoutService : ILayoutService
                 }
             }
 
-            double middleAndForkHeight = Math.Max(NodeHeight, _middleBranchHeight);
+            double middleHeight = _middleBranchHeight;
 
             MeasuredHeight = _upperBranchHeight
                 + (_upperBranchHeight > 0 ? ForkVGap : 0)
-                + middleAndForkHeight
+                + middleHeight
                 + (lowerBranchHeight > 0 ? ForkVGap : 0)
                 + lowerBranchHeight;
         }
 
         public override void Arrange(double x, double y, Contract.Workflow.Blueprint bp)
         {
-            double branchX = x + NodeWidth + ForkHGap;
-
-            // Fork node Y: offset down by upper branch height
-            double forkY = y + _upperBranchHeight
-                + (_upperBranchHeight > 0 ? ForkVGap : 0);
-
-            // Place fork node
+            // Read the fork node's actual position (placed by parent LinearRegion)
             var forkNode = bp.GetNodeById(ForkNodeId);
-            if (forkNode != null)
+            if (forkNode == null) return;
+
+            double branchBaseX = forkNode.X + forkNode.Width + ForkHGap;
+
+            // Upper branches start just above the fork node and flow downward.
+            // Lower branches start below the fork node, but also below any upper branches
+            // to avoid vertical overlap at the same X.
+            double upperStartY = forkNode.Y - ForkVGap;
+
+            double maxUpperBottom = upperStartY;
+            for (int i = 0; i < Branches.Count; i++)
             {
-                forkNode.X = x;
-                forkNode.Y = forkY;
+                if (GetBranchDirection(i, Branches.Count) == -1)
+                {
+                    var b = Branches[i];
+                    if (b != null && b.MeasuredHeight > 0)
+                        maxUpperBottom = Math.Max(maxUpperBottom, upperStartY + b.MeasuredHeight);
+                }
             }
 
-            // Arrange branches by direction
-            double currentUpperY = y;
-            double middleAndForkHeight = Math.Max(NodeHeight, _middleBranchHeight);
-            double currentLowerY = forkY + middleAndForkHeight + ForkVGap;
+            double currentUpperY = upperStartY;
+            double currentLowerY = Math.Max(
+                forkNode.Y + forkNode.Height + ForkVGap,
+                maxUpperBottom + ForkVGap);
 
             for (int i = 0; i < Branches.Count; i++)
             {
@@ -433,14 +477,14 @@ public class LayoutService : ILayoutService
                 switch (dir)
                 {
                     case -1: // upper-right
-                        branch.Arrange(branchX, currentUpperY, bp);
+                        branch.Arrange(branchBaseX, currentUpperY, bp);
                         currentUpperY += branch.MeasuredHeight + VSpacing;
                         break;
                     case 0: // straight-right (same Y as fork)
-                        branch.Arrange(branchX, forkY, bp);
+                        branch.Arrange(branchBaseX, forkNode.Y, bp);
                         break;
                     case 1: // lower-right
-                        branch.Arrange(branchX, currentLowerY, bp);
+                        branch.Arrange(branchBaseX, currentLowerY, bp);
                         currentLowerY += branch.MeasuredHeight + VSpacing;
                         break;
                 }
