@@ -15,6 +15,7 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Kscript.CSharp.Parser;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Device;
+using KitX.Core.Workflow.BlockScripting;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
@@ -689,7 +690,8 @@ public class WorkflowScriptService : IWorkflowService
     /// Gets the block script parser
     /// </summary>
     private BlockScripting.BlockScriptParser BlockScriptParser =>
-        _blockScriptParser ??= new BlockScripting.BlockScriptParser();
+        _blockScriptParser ??= new BlockScripting.BlockScriptParser(
+            BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
 
     /// <summary>
     /// Gets the block script executor (initialized with plugin manager)

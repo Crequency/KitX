@@ -210,14 +210,7 @@ public class ConfigManager : IConfigService, IDisposable
         if (config != null)
         {
             _configs[typeof(T).Name] = config;
-
-            // Update the public properties
-            if (typeof(T) == typeof(AppConfig))
-                AppConfig = config as IAppConfig ?? new AppConfig();
-            else if (typeof(T) == typeof(PluginsConfig))
-                PluginsConfig = config as IPluginsConfig ?? new PluginsConfig();
-            else if (typeof(T) == typeof(SecurityConfig))
-                SecurityConfig = config as ISecurityConfig ?? new SecurityConfig();
+            ApplyConfig(config);
 
             Log.Information("Reloaded config file {FileName}", fileName);
         }
@@ -365,14 +358,7 @@ public class ConfigManager : IConfigService, IDisposable
                 if (config != null)
                 {
                     _configs[typeof(T).Name] = config;
-
-                    // Update the public properties
-                    if (typeof(T) == typeof(AppConfig))
-                        AppConfig = config as IAppConfig ?? new AppConfig();
-                    else if (typeof(T) == typeof(PluginsConfig))
-                        PluginsConfig = config as IPluginsConfig ?? new PluginsConfig();
-                    else if (typeof(T) == typeof(SecurityConfig))
-                        SecurityConfig = config as ISecurityConfig ?? new SecurityConfig();
+                    ApplyConfig(config);
                 }
             }
             else
@@ -383,20 +369,26 @@ public class ConfigManager : IConfigService, IDisposable
 
                 // Save default config
                 SaveConfigFile(config, fileName);
-
-                // Update the public properties
-                if (typeof(T) == typeof(AppConfig))
-                    AppConfig = config as IAppConfig ?? new AppConfig();
-                else if (typeof(T) == typeof(PluginsConfig))
-                    PluginsConfig = config as IPluginsConfig ?? new PluginsConfig();
-                else if (typeof(T) == typeof(SecurityConfig))
-                    SecurityConfig = config as ISecurityConfig ?? new SecurityConfig();
+                ApplyConfig(config);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, $"Error loading config file {fileName}: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Updates the public config properties based on the config object's type
+    /// </summary>
+    private void ApplyConfig(object config)
+    {
+        if (config is IAppConfig appConfig)
+            AppConfig = appConfig;
+        else if (config is IPluginsConfig pluginsConfig)
+            PluginsConfig = pluginsConfig;
+        else if (config is ISecurityConfig securityConfig)
+            SecurityConfig = securityConfig;
     }
 
     /// <summary>
