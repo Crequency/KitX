@@ -16,6 +16,10 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// </summary>
 public static class ExprUtils
 {
+    /// <summary>
+    /// All known built-in function names. Prefer <see cref="BuiltinFunctionRegistry.AllFunctionNames"/> for new code.
+    /// </summary>
+    [Obsolete("Use BuiltinFunctionRegistry.AllFunctionNames instead. This set only covers legacy hardcoded functions.")]
     public static readonly HashSet<string> BuiltinFunctions = new()
     {
         BlockScriptWellKnown.Functions.Get, BlockScriptWellKnown.Functions.Set,
@@ -24,12 +28,21 @@ public static class ExprUtils
         BlockScriptWellKnown.Functions.LoopBodyEnd, BlockScriptWellKnown.Functions.Break
     };
 
+    /// <summary>
+    /// Functions that should not be extracted during argument expansion.
+    /// Prefer <see cref="BuiltinFunctionRegistry.NonExtractableNames"/> for new code.
+    /// </summary>
+    [Obsolete("Use BuiltinFunctionRegistry.NonExtractableNames instead. This set only covers legacy hardcoded functions.")]
     public static readonly HashSet<string> NonExtractableFunctions = new()
     {
         BlockScriptWellKnown.Functions.Set, BlockScriptWellKnown.Functions.Print,
         BlockScriptWellKnown.Functions.Pause
     };
 
+    /// <summary>
+    /// Flow control function names. Prefer <see cref="BuiltinFunctionRegistry.FlowControlNames"/> for new code.
+    /// </summary>
+    [Obsolete("Use BuiltinFunctionRegistry.FlowControlNames instead. This set only covers legacy hardcoded functions.")]
     public static readonly HashSet<string> FlowControlFunctions = new()
     {
         BlockScriptWellKnown.Functions.Branch, BlockScriptWellKnown.Functions.Loop,
@@ -167,7 +180,9 @@ public static class ExprUtils
             foreach (var arg in invoke.ArgumentList.Arguments)
                 CollectNested(arg.Expression, result);
             // Only extract non-builtin, non-flow-control functions
+#pragma warning disable CS0618
             if (!NonExtractableFunctions.Contains(funcName) && !FlowControlFunctions.Contains(funcName))
+#pragma warning restore CS0618
                 result.Add(invoke);
         }
         else if (expr is ParenthesizedExpressionSyntax paren)

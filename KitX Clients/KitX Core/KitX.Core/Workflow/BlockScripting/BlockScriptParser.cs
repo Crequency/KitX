@@ -16,7 +16,14 @@ namespace KitX.Core.Workflow.BlockScripting;
 public class BlockScriptParser : IBlockScriptParser
 {
     private readonly BlockSyntaxValidator _validator = new();
-    private readonly BlockStatementExtractor _extractor = new();
+    private readonly BlockStatementExtractor _extractor;
+
+    public BlockScriptParser() : this(null) { }
+
+    public BlockScriptParser(BuiltinFunctionRegistry? functionRegistry)
+    {
+        _extractor = new BlockStatementExtractor(functionRegistry);
+    }
 
     /// <summary>
     /// Parses a block-based script from source code

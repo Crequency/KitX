@@ -19,16 +19,18 @@ public class NodeBuilder
     private readonly INodeRegistry _registry;
     private readonly List<HelperFunction> _helpers;
     private readonly HashSet<string> _helperNames;
+    private readonly BuiltinFunctionRegistry? _functionRegistry;
 
     // Deferred cross-block edge definitions (resolved after all blocks processed)
     private readonly List<(string stmtId, string returnToBlock, string blockName, string? prevStmtId)> _loopBodyEndDefs = new();
     private readonly Dictionary<string, string> _blockLastStmtId = new();
 
-    public NodeBuilder(INodeRegistry registry, List<HelperFunction> helpers)
+    public NodeBuilder(INodeRegistry registry, List<HelperFunction> helpers, BuiltinFunctionRegistry? functionRegistry = null)
     {
         _registry = registry;
         _helpers = helpers;
         _helperNames = new HashSet<string>(helpers.Select(h => h.Name));
+        _functionRegistry = functionRegistry;
     }
 
     public void Build(FormattedBlockScript script, PipelineContext context)
@@ -86,7 +88,8 @@ public class NodeBuilder
             endsWithFlowCtrl = stmt.Kind is FormattedStatementKind.Branch
                 or FormattedStatementKind.Loop
                 or FormattedStatementKind.LoopBodyEnd
-                or FormattedStatementKind.Break;
+                or FormattedStatementKind.Break
+                || IsRegistryFlowControlTerminator(stmt);
         }
 
         if (firstNode != null)
@@ -108,6 +111,30 @@ public class NodeBuilder
     private BlueprintNode? ProcessStatement(FormattedStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
+        // Registry path: handle NEW control flow terminators with FunctionName set
+        // (e.g. Flip). Standard functions (Branch/Loop/Break) go through FormatFlowControl
+        // which doesn't set FunctionName, so they use the switch cases below.
+        if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName))
+        {
+            var funcDef = _functionRegistry.Get(stmt.FunctionName);
+            if (funcDef != null && funcDef.IsBlockTerminator)
+            {
+                // LoopBodyEnd: no node created, record for deferred resolution
+                if (funcDef.IsFlowControl && stmt.Kind == FormattedStatementKind.LoopBodyEnd)
+                {
+                    _loopBodyEndDefs.Add((stmt.StatementId, stmt.LoopBodyEndReturnTo ?? "", blockName, prevStmtId));
+                    return null;
+                }
+
+                var node = _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
+                node = funcDef.ConfigureNode(node, stmt);
+                ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+                funcDef.OnNodeCreated(node, stmt, context);
+                return node;
+            }
+        }
+
+        // Standard function handling (FormatFlowControl sets Kind but not FunctionName)
         switch (stmt.Kind)
         {
             case FormattedStatementKind.Assignment:
@@ -121,13 +148,6 @@ public class NodeBuilder
                 {
                     var node = (SetNode)_registry.Create(BlueprintNodeType.Set);
                     node.VarName = stmt.SetVarName ?? "";
-                    return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
-                }
-
-            case FormattedStatementKind.Get:
-                {
-                    var node = (GetNode)_registry.Create(BlueprintNodeType.Get);
-                    node.VarName = stmt.GetVarName ?? "";
                     return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
                 }
 
@@ -145,12 +165,11 @@ public class NodeBuilder
                 {
                     var node = ChainNewNode(_registry.Create(BlueprintNodeType.Loop), stmt, context, ref prevNode, ref prevStmtId);
                     context.LoopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, blockName));
-                    context.LoopNodesByParent[blockName] = (LoopNode)node!;
+                    context.LoopNodesByParent[blockName] = node!;
                     return node;
                 }
 
             case FormattedStatementKind.LoopBodyEnd:
-                // No node created. Record for deferred resolution.
                 _loopBodyEndDefs.Add((stmt.StatementId, stmt.LoopBodyEndReturnTo ?? "", blockName, prevStmtId));
                 return null;
 
@@ -160,6 +179,17 @@ public class NodeBuilder
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Checks if a FormattedStatement corresponds to a registry-based control flow terminator.
+    /// Used by ProcessBlock to set endsWithFlowCtrl flag.
+    /// </summary>
+    private bool IsRegistryFlowControlTerminator(FormattedStatement stmt)
+    {
+        if (_functionRegistry == null || string.IsNullOrEmpty(stmt.FunctionName)) return false;
+        var def = _functionRegistry.Get(stmt.FunctionName);
+        return def != null && def.IsBlockTerminator;
     }
 
     // ──────────────────────────────────────────────
@@ -215,6 +245,12 @@ public class NodeBuilder
             getNode.VarName = varName;
             mainNode = getNode;
         }
+        else if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
+        {
+            // BuiltinFunctionRegistry function → create BuiltinFunctionNode
+            mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
+            mainNode = funcDef.ConfigureNode(mainNode, stmt);
+        }
         else
         {
             var isHelper = _helperNames.Contains(stmt.FunctionName);
@@ -258,17 +294,21 @@ public class NodeBuilder
         if (!string.IsNullOrEmpty(stmt.PubVarTarget))
         {
             var outputPinName = stmt.FunctionName == Get ? Value : Return;
-            var outputPin = mainNode.OutputPins.First(p => p.Name == outputPinName);
-            // Get: key by PubVarTarget (each Get is unique, identified by its PubVar)
-            // Others: key by fingerprint (for reuse detection)
-            var key = stmt.FunctionName == Get ? stmt.PubVarTarget : (stmt.Fingerprint ?? stmt.PubVarTarget);
-            context.PubVarAssignments[key] = new PubVarAssignment
+            var outputPin = mainNode.OutputPins.FirstOrDefault(p => p.Name == outputPinName)
+                ?? mainNode.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+            if (outputPin != null)
             {
-                PubVarName = stmt.PubVarTarget,
-                SourceNode = mainNode,
-                SourcePin = outputPin,
-                StatementId = stmt.StatementId,
-            };
+                // Get: key by PubVarTarget (each Get is unique, identified by its PubVar)
+                // Others: key by fingerprint (for reuse detection)
+                var key = stmt.FunctionName == Get ? stmt.PubVarTarget : (stmt.Fingerprint ?? stmt.PubVarTarget);
+                context.PubVarAssignments[key] = new PubVarAssignment
+                {
+                    PubVarName = stmt.PubVarTarget,
+                    SourceNode = mainNode,
+                    SourcePin = outputPin,
+                    StatementId = stmt.StatementId,
+                };
+            }
         }
 
         return mainNode;
@@ -378,6 +418,47 @@ public class NodeBuilder
                 SourcePinName = Exec,
                 TargetPinName = Exec
             });
+        }
+
+        // Generic deferred edges from IBuiltinFunctionDefinition.OnNodeCreated
+        foreach (var deferred in context.DeferredEdges)
+        {
+            foreach (var (pinName, targetBlockName) in deferred.Arms)
+            {
+                if (string.IsNullOrEmpty(targetBlockName)) continue;
+                if (!context.BlockFirstNodes.TryGetValue(targetBlockName, out var firstNode)) continue;
+                var targetStmtId = FindStmtIdForNode(firstNode, context);
+                if (targetStmtId == null) continue;
+
+                context.ExecEdges.Add(new PendingExecEdge
+                {
+                    SourceStatementId = deferred.SourceStatementId,
+                    TargetStatementId = targetStmtId,
+                    SourcePinName = pinName,
+                    TargetPinName = Exec,
+                    IsSpecialRouting = true
+                });
+            }
+
+            // Loopback edge (LoopBodyEnd-style)
+            if (!string.IsNullOrEmpty(deferred.LoopbackTargetBlock))
+            {
+                // Find the LoopNode in the target block's parent for loopback
+                if (context.LoopNodesByParent.TryGetValue(deferred.LoopbackTargetBlock, out var loopNode))
+                {
+                    var loopStmtId = FindStmtIdForNode(loopNode, context);
+                    if (loopStmtId != null)
+                    {
+                        context.ExecEdges.Add(new PendingExecEdge
+                        {
+                            SourceStatementId = deferred.SourceStatementId,
+                            TargetStatementId = loopStmtId,
+                            SourcePinName = Exec,
+                            TargetPinName = Exec
+                        });
+                    }
+                }
+            }
         }
     }
 

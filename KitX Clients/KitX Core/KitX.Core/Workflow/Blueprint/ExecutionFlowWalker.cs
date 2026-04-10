@@ -18,13 +18,16 @@ namespace KitX.Core.Workflow.Blueprint;
 internal class ExecutionFlowWalker
 {
     private readonly Dictionary<BlueprintNodeType, INodeExportStrategy> _strategies;
+    private readonly Dictionary<string, INodeExportStrategy> _builtinFunctionStrategies;
     private readonly NodeExportHelper _exportHelper;
 
     public ExecutionFlowWalker(
         Dictionary<BlueprintNodeType, INodeExportStrategy> strategies,
+        Dictionary<string, INodeExportStrategy> builtinFunctionStrategies,
         NodeExportHelper exportHelper)
     {
         _strategies = strategies;
+        _builtinFunctionStrategies = builtinFunctionStrategies;
         _exportHelper = exportHelper;
     }
 
@@ -136,7 +139,7 @@ internal class ExecutionFlowWalker
             }
         }
 
-        if (node.NodeType is BlueprintNodeType.Branch or BlueprintNodeType.Loop)
+        if (IsBranchNode(node) || IsLoopNode(node))
         {
             ctx.PendingControlFlowNodes.Add(node);
             return;
@@ -201,8 +204,55 @@ internal class ExecutionFlowWalker
                     SourceCode = "Break();",
                     LineNumber = 1
                 };
+            case BlueprintNodeType.BuiltinFunction when IsBreakNode(node):
+                return new FlowControlStatement
+                {
+                    ControlType = FlowControlType.Break,
+                    SourceCode = "Break();",
+                    LineNumber = 1
+                };
             case BlueprintNodeType.Get:
                 return GenerateGetStatementViaStrategy(node, ctx);
+            case BlueprintNodeType.BuiltinFunction when IsGetNode(node):
+                return GenerateGetStatementViaStrategy(node, ctx);
+            case BlueprintNodeType.Call:
+            {
+                if (node is not CallNode call) return null;
+                var callArgs = _exportHelper.GetInputArgs(call);
+                var funcRef = string.IsNullOrEmpty(call.PluginName)
+                    ? call.FunctionName : $"{call.PluginName}.{call.FunctionName}";
+                var sourceCode = $"{funcRef}({callArgs})";
+                var callStmt = new ExpressionStatement
+                {
+                    Expression = sourceCode,
+                    SourceCode = sourceCode + ";",
+                    LineNumber = 1
+                };
+                PostProcessCallReturn(node, callStmt, ctx);
+                return callStmt;
+            }
+            case BlueprintNodeType.CallHelper:
+            {
+                if (node is not CallHelperNode callHelper) return null;
+                var helperArgs = _exportHelper.GetInputArgs(callHelper);
+                var expression = $"{callHelper.HelperFunctionName}({helperArgs})";
+                var helperStmt = new ExpressionStatement
+                {
+                    Expression = expression,
+                    SourceCode = expression + ";",
+                    LineNumber = 1
+                };
+                PostProcessCallReturn(node, helperStmt, ctx);
+                return helperStmt;
+            }
+            case BlueprintNodeType.BuiltinFunction:
+            {
+                // Look up strategy by function name (BuiltinFunction nodes share one NodeType)
+                if (node is BuiltinFunctionNode bfNode
+                    && _builtinFunctionStrategies.TryGetValue(bfNode.FunctionName, out var bfStrategy))
+                    return bfStrategy.ToStatement(node, _exportHelper);
+                return null;
+            }
             default:
                 break;
         }
@@ -217,6 +267,16 @@ internal class ExecutionFlowWalker
         if (stmt == null) return null;
 
         // Post-process: add PubVar prefix for Call/CallHelper with consumed Return
+        PostProcessCallReturn(node, stmt, ctx);
+
+        return stmt;
+    }
+
+    /// <summary>
+    /// Post-processes Call/CallHelper statements to add PubVar prefix when Return pin is consumed.
+    /// </summary>
+    private void PostProcessCallReturn(BlueprintNode node, BlockStatement stmt, ReverseConversionContext ctx)
+    {
         if (node.NodeType is BlueprintNodeType.Call or BlueprintNodeType.CallHelper
             && stmt is ExpressionStatement exprStmt)
         {
@@ -229,8 +289,6 @@ internal class ExecutionFlowWalker
                     exprStmt.SourceCode = $"{pubVar} = {exprStmt.Expression};";
             }
         }
-
-        return stmt;
     }
 
     private BlockStatement? GenerateGetStatementViaStrategy(BlueprintNode node, ReverseConversionContext ctx)
@@ -273,9 +331,11 @@ internal class ExecutionFlowWalker
                 switch (node.NodeType)
                 {
                     case BlueprintNodeType.Branch:
+                    case BlueprintNodeType.BuiltinFunction when IsBranchNode(node):
                         ProcessBranchSubGraphs(node, ctx, processedTargets);
                         break;
                     case BlueprintNodeType.Loop:
+                    case BlueprintNodeType.BuiltinFunction when IsLoopNode(node):
                         ProcessLoopSubGraphs(node, ctx, processedTargets);
                         break;
                 }
@@ -385,7 +445,7 @@ internal class ExecutionFlowWalker
         foreach (var scope in bp.BlockScopes)
         {
             if (scope.NodeIds.Count == 0) continue;
-            if (scope.NodeIds.Any(id => ctx.NodeById.TryGetValue(id, out var n) && n.NodeType == BlueprintNodeType.Loop))
+            if (scope.NodeIds.Any(id => ctx.NodeById.TryGetValue(id, out var n) && IsLoopNode(n)))
                 continue;
 
             var lastNodeId = scope.NodeIds[scope.NodeIds.Count - 1];
@@ -421,7 +481,7 @@ internal class ExecutionFlowWalker
         {
             visited.Add(current.Id);
 
-            if (current.NodeType == BlueprintNodeType.Loop)
+            if (IsLoopNode(current))
                 return (current, path);
 
             var execOutPin = current.OutputPins.FirstOrDefault(p => p.Name == Exec);
@@ -484,4 +544,26 @@ internal class ExecutionFlowWalker
         }
         return null;
     }
+
+    // ─── BuiltinFunction Node Type Helpers ─────────────────────────────────
+
+    /// <summary>
+    /// Checks if a node represents the given logical type, accounting for both
+    /// legacy typed nodes (e.g. LoopNode) and registry-based BuiltinFunctionNode
+    /// with the equivalent function name.
+    /// </summary>
+    private static bool IsNodeType(BlueprintNode node, BlueprintNodeType type) => node.NodeType == type
+        || (node is BuiltinFunctionNode bfn && bfn.FunctionName == type.ToString());
+
+    private static bool IsBranchNode(BlueprintNode node) =>
+        IsNodeType(node, BlueprintNodeType.Branch);
+
+    private static bool IsLoopNode(BlueprintNode node) =>
+        IsNodeType(node, BlueprintNodeType.Loop);
+
+    private static bool IsBreakNode(BlueprintNode node) =>
+        IsNodeType(node, BlueprintNodeType.Break);
+
+    private static bool IsGetNode(BlueprintNode node) =>
+        IsNodeType(node, BlueprintNodeType.Get);
 }

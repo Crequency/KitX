@@ -24,7 +24,6 @@ using KitX.Core.Tasks;
 using KitX.Core.Workflow;
 using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.Blueprint;
-using KitX.Core.Workflow.Blueprint.ExportStrategies;
 using KitX.Core.Event;
 using Serilog;
 
@@ -180,7 +179,8 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IBlockScriptParser...");
         services.AddSingleton<IBlockScriptParser, KitX.Core.Workflow.BlockScripting.BlockScriptParser>(provider =>
         {
-            var service = new KitX.Core.Workflow.BlockScripting.BlockScriptParser();
+            var funcRegistry = provider.GetService<BuiltinFunctionRegistry>();
+            var service = new KitX.Core.Workflow.BlockScripting.BlockScriptParser(funcRegistry);
             return service;
         });
 
@@ -211,27 +211,40 @@ public static class CoreServiceCollectionExtensions
 
         // Blueprint Sub-services (must be registered before IBlueprintService)
         Log.Information("Registering Blueprint sub-services...");
-        services.AddSingleton<INodeRegistry, NodeRegistry>();
+
+        // Discover and register all IBuiltinFunctionDefinition implementations
+        var functionRegistry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        services.AddSingleton(functionRegistry);
+
+        // NodeRegistry with function registry for dynamic node creation
+        services.AddSingleton<INodeRegistry>(provider =>
+        {
+            var reg = provider.GetRequiredService<BuiltinFunctionRegistry>();
+            return new NodeRegistry(reg);
+        });
+
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<IBlueprintRenderDataService, BlueprintRenderDataService>();
 
         // Blueprint Converters
         Log.Information("Registering IBlockScriptToBlueprintConverter...");
-        services.AddSingleton<IBlockScriptToBlueprintConverter, BlockScriptToBlueprintConverter>();
+        services.AddSingleton<IBlockScriptToBlueprintConverter>(provider =>
+        {
+            var parser = provider.GetRequiredService<IBlockScriptParser>();
+            var nodeRegistry = provider.GetRequiredService<INodeRegistry>();
+            var layoutService = provider.GetRequiredService<ILayoutService>();
+            var funcRegistry = provider.GetService<BuiltinFunctionRegistry>();
+            return new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService, funcRegistry!);
+        });
         Log.Information("Registering IBlueprintToBlockScriptConverter...");
         services.AddSingleton<IBlueprintToBlockScriptConverter, BlueprintToBlockScriptConverter>();
 
-        // Blueprint Export Strategies
-        Log.Information("Registering node export strategies...");
-        services.AddSingleton<INodeExportStrategy, PrintNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, PauseNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, CallNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, CallHelperNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, BreakNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, BranchNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, LoopNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, GetNodeExportStrategy>();
-        services.AddSingleton<INodeExportStrategy, SetNodeExportStrategy>();
+        // Blueprint Export Strategies — all auto-registered from IBuiltinFunctionDefinition implementations
+        Log.Information("Registering auto-discovered builtin function export strategies...");
+        foreach (var def in functionRegistry.AllDefinitions)
+        {
+            services.AddSingleton<INodeExportStrategy>(new BuiltinFunctionExportStrategyAdapter(def));
+        }
 
         // Blueprint Services
         Log.Information("Registering IBlueprintService...");

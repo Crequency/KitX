@@ -23,8 +23,25 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 
     public BlueprintToBlockScriptConverter(IEnumerable<INodeExportStrategy> strategies)
     {
-        var strategyMap = strategies.ToDictionary(s => s.NodeType);
-        Walker = new ExecutionFlowWalker(strategyMap, _exportHelper);
+        var strategyMap = new Dictionary<BlueprintNodeType, INodeExportStrategy>();
+        var builtinMap = new Dictionary<string, INodeExportStrategy>();
+
+        foreach (var s in strategies)
+        {
+            if (s is BuiltinFunctionExportStrategyAdapter adapter)
+            {
+                builtinMap[adapter.FunctionName] = s;
+                // Standard functions also register by their legacy NodeType for reverse conversion
+                if (adapter.LegacyNodeType != null)
+                    strategyMap[adapter.LegacyNodeType.Value] = s;
+            }
+            else
+            {
+                strategyMap[s.NodeType] = s;
+            }
+        }
+
+        Walker = new ExecutionFlowWalker(strategyMap, builtinMap, _exportHelper);
     }
 
     /// <summary>Execution flow walker — accessible for testing</summary>

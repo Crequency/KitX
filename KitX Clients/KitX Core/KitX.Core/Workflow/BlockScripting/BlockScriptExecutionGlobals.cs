@@ -133,6 +133,26 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
+    /// Flip counter — tracks odd/even execution state. Reset on each run from Entry.
+    /// </summary>
+    private int _flipCounter = 0;
+
+    /// <summary>
+    /// Resets run-level state (called when execution starts from Entry node)
+    /// </summary>
+    public void ResetRunState() => _flipCounter = 0;
+
+    /// <summary>
+    /// Flip — alternating control flow. Routes to outputA on odd calls, outputB on even calls.
+    /// </summary>
+    public string? Flip(string outputA, string outputB)
+    {
+        _flipCounter++;
+        NextBlock = (_flipCounter % 2 == 1) ? outputA : outputB;
+        return NextBlock;
+    }
+
+    /// <summary>
     /// LoopBodyEnd - marks the end of a loop body and returns to the loop condition block
     /// </summary>
     public string? LoopBodyEnd(string parentBlockName)

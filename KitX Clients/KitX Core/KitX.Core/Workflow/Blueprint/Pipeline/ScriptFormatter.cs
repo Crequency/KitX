@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
@@ -18,10 +19,12 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 public class ScriptFormatter
 {
     private readonly List<HelperFunction> _helperFunctions;
+    private readonly BuiltinFunctionRegistry? _functionRegistry;
 
-    public ScriptFormatter(List<HelperFunction> helperFunctions)
+    public ScriptFormatter(List<HelperFunction> helperFunctions, BuiltinFunctionRegistry? functionRegistry = null)
     {
         _helperFunctions = helperFunctions;
+        _functionRegistry = functionRegistry;
     }
 
     public FormattedBlockScript Format(BlockScript script, PipelineContext context)
@@ -212,7 +215,9 @@ public class ScriptFormatter
             if (string.IsNullOrEmpty(funcName)) return result;
 
             // Skip flow control functions (handled by FlowControlStatement)
+#pragma warning disable CS0618 // Type or member is obsolete
             if (ExprUtils.FlowControlFunctions.Contains(funcName)) return result;
+#pragma warning restore CS0618
 
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
             result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar, fullFuncName));
@@ -252,7 +257,6 @@ public class ScriptFormatter
                 break;
             case Set:
                 kind = FormattedStatementKind.Set;
-                // First arg is varName (string literal)
                 if (currentArgExprs.Count > 0)
                 {
                     var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
@@ -268,7 +272,6 @@ public class ScriptFormatter
                     var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
                     getVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? currentArgExprs[0];
                 }
-                // Auto-generate PubVar if not already assigned per §4.3 (pre-expanded format may already assign PubVars)
                 if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
                 {
                     pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
@@ -281,11 +284,17 @@ public class ScriptFormatter
                 }
                 break;
             default:
+                // Check registry for new/future functions not handled above
+                if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } funcDef)
+                {
+                    result.AddRange(funcDef.FormatInvocation(invoke, blockName, context, assignedVar));
+                    return result;
+                }
+
                 // Helper or regular function call
                 if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
                 {
                     kind = FormattedStatementKind.Assignment;
-                    // PubVarTarget is set only if the assigned variable is a declared PubVar
                     pubVarTarget = context.PubVarNames.Contains(assignedVar) ? assignedVar : null;
                 }
                 else
@@ -363,11 +372,13 @@ public class ScriptFormatter
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
 
             // Built-in functions (Get/Set/Print/Pause) stay inline
+#pragma warning disable CS0618
             if (ExprUtils.NonExtractableFunctions.Contains(funcName))
                 return (new(), invoke.ToString());
 
             // Flow control functions → should not appear as arguments
             if (ExprUtils.FlowControlFunctions.Contains(funcName))
+#pragma warning restore CS0618
                 return (new(), invoke.ToString());
 
             // Get(varName) → extract as a proper Get statement with GetVarName set.

@@ -41,6 +41,9 @@ public class PipelineContext
     // --- Phase 4 output ---
     public List<PendingDataEdge> DataEdges { get; set; } = new();
 
+    // --- Generic control flow deferred edges (populated by IBuiltinFunctionDefinition.OnNodeCreated) ---
+    public List<DeferredControlFlowEdge> DeferredEdges { get; set; } = new();
+
     // --- Shared state ---
     public int NextPubVarCounter { get; set; } = 0;
     public HashSet<string> VisitedBlocks { get; set; } = new();
@@ -55,7 +58,7 @@ public class PipelineContext
     /// <summary>
     /// parentBlockName → LoopNode (for LoopBodyEnd resolution)
     /// </summary>
-    public Dictionary<string, LoopNode> LoopNodesByParent { get; set; } = new();
+    public Dictionary<string, BlueprintNode> LoopNodesByParent { get; set; } = new();
 
     /// <summary>
     /// parentBlockName → condition PubVar assignment info (for Loop condition duplication)
@@ -145,4 +148,21 @@ public class PendingDataEdge
     public string TargetNodeId { get; set; } = string.Empty;
     public string TargetPinName { get; set; } = string.Empty;
     public string? PubVarName { get; set; }
+}
+
+/// <summary>
+/// Generic deferred control flow edge for IBuiltinFunctionDefinition-based functions.
+/// Replaces per-function BranchDefs/LoopDefs with a unified structure.
+/// Populated by OnNodeCreated, resolved by NodeBuilder.ResolveCrossBlockEdges.
+/// </summary>
+public struct DeferredControlFlowEdge
+{
+    /// <summary>Source statement ID (the control flow node)</summary>
+    public string SourceStatementId { get; set; }
+
+    /// <summary>Output arms: each defines a pin name and target block name</summary>
+    public List<(string PinName, string TargetBlockName)> Arms { get; set; }
+
+    /// <summary>For LoopBodyEnd-style loopback: the block to return to. Null for non-loopback edges.</summary>
+    public string? LoopbackTargetBlock { get; set; }
 }

@@ -123,6 +123,13 @@ public class Program
         Console.WriteLine("└──────────────────────────────────────────┘\n");
 
         RunTest(converter, GetSingleStatementScript(), helpers, "Test J");
+
+        // ── Test K: Forward → Reverse → Execute round-trip ──
+        Console.WriteLine("\n┌──────────────────────────────────────────┐");
+        Console.WriteLine("│ Test K: Forward → Reverse → Execute      │");
+        Console.WriteLine("└──────────────────────────────────────────┘\n");
+
+        RunExecutionTest(converter, reverseConverter, parser, sp, GetRawNestedScript(), helpers, "Test K");
     }
 
     private static void RunTest(BlockScriptToBlueprintConverter converter,
@@ -223,6 +230,113 @@ public class Program
     }
 
     // ──────────────────────────────────────────────
+    // Test K: Forward → Reverse → Execute round-trip
+    // ──────────────────────────────────────────────
+    private static void RunExecutionTest(
+        BlockScriptToBlueprintConverter forwardConverter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        IBlockScriptParser parser,
+        System.IServiceProvider sp,
+        string sourceCode, List<HelperFunction> helpers, string label)
+    {
+        try
+        {
+            // Step 1: Forward convert (Script → Blueprint)
+            var blueprint = forwardConverter.Convert(sourceCode, helpers);
+            Console.WriteLine($"  [{label}] Forward: {blueprint.Nodes.Count} nodes, {blueprint.Connections.Count} connections");
+
+            // Step 2: Reverse convert (Blueprint → Expanded Script)
+            var expandedScript = reverseConverter.Convert(blueprint);
+            Console.WriteLine($"  [{label}] Expanded script length: {expandedScript.Length} chars");
+
+            // Step 3: Parse the expanded script
+            var parseResult = parser.Parse(expandedScript);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"[{label}] FAILED: Parse error: {parseResult.ErrorMessage}");
+                return;
+            }
+
+            // Attach helper functions with execution bodies
+            parseResult.Script.HelperFunctions = GetExecutionHelpers();
+
+            // Step 4: Execute
+            var executor = sp.GetRequiredService<IBlockScriptExecutor>();
+            var result = executor.ExecuteAsync(parseResult.Script).GetAwaiter().GetResult();
+
+            // Step 5: Verify output
+            // Expected: guessNum=5, targetNum=7, loopMax=3
+            // Loop iterates while currentLoop <= 3 → 4 iterations (0,1,2,3)
+            // guessNum < targetNum → always "猜小了"
+            var expected = new List<string>
+            {
+                "开始执行工作流",
+                "0", "猜小了",
+                "1", "猜小了",
+                "2", "猜小了",
+                "3", "猜小了",
+                "示例工作流结束"
+            };
+
+            Console.WriteLine($"\n  Execution output ({result.Output.Count} lines):");
+            foreach (var line in result.Output)
+                Console.WriteLine($"    {line}");
+
+            bool match = result.IsSuccess && result.Output.Count == expected.Count;
+            if (match)
+            {
+                for (int i = 0; i < expected.Count; i++)
+                {
+                    if (result.Output[i] != expected[i])
+                    {
+                        match = false;
+                        Console.WriteLine($"  Mismatch at line {i}: expected '{expected[i]}', got '{result.Output[i]}'");
+                    }
+                }
+            }
+            else if (result.Output.Count != expected.Count)
+            {
+                Console.WriteLine($"  Output count differs: expected {expected.Count}, got {result.Output.Count}");
+            }
+
+            Console.WriteLine($"\n[{label}] {(match ? "PASS - Execution output correct!" : (result.IsSuccess ? "DIFF - See differences above" : $"FAILED - {result.ErrorMessage}"))}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{label}] FAILED: {ex.Message}");
+            Console.WriteLine($"  {ex.StackTrace}");
+        }
+    }
+
+    /// <summary>
+    /// Helper functions with actual execution bodies (for execution test).
+    /// </summary>
+    private static List<HelperFunction> GetExecutionHelpers() =>
+    [
+        new()
+        {
+            Name = "HelperFuncCompare",
+            Parameters =
+            [
+                new() { Name = "op", Type = "string" },
+                new() { Name = "left", Type = "int" },
+                new() { Name = "right", Type = "int" }
+            ],
+            ReturnType = "bool",
+            Code = "return op switch { \"BLE\" => left <= right, \"BEQ\" => left == right, \"BLT\" => left < right, \"BGT\" => left > right, \"BGE\" => left >= right, \"BNE\" => left != right, _ => false };"
+        },
+        new()
+        {
+            Name = "HelperFuncAdd",
+            Parameters =
+            [
+                new() { Name = "a", Type = "int" },
+                new() { Name = "b", Type = "int" }
+            ],
+            ReturnType = "int",
+            Code = "return a + b;"
+        }
+    ];    // ──────────────────────────────────────────────
     // Test A: Pre-expanded format (already has PubVar assignments)
     // ──────────────────────────────────────────────
     private static string GetPreExpandedScript() => @"#ConstBlock

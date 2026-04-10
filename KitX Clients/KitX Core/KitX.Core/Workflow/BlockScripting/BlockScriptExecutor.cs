@@ -84,6 +84,9 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             _output.Clear();  // Clear the executor's output list
             _scriptState = null;
 
+            // Reset run-level state (e.g. Flip counter) for fresh execution from Entry
+            _globals?.ResetRunState();
+
             // Initialize global scope with ConstBlock and PubVarBlock
             _scopeManager.InitializeGlobalScope(script);
 

@@ -18,6 +18,12 @@ namespace KitX.Core.Workflow.BlockScripting;
 /// </summary>
 internal class BlockStatementExtractor
 {
+    private readonly BuiltinFunctionRegistry? _functionRegistry;
+
+    public BlockStatementExtractor(BuiltinFunctionRegistry? functionRegistry = null)
+    {
+        _functionRegistry = functionRegistry;
+    }
     /// <summary>
     /// Creates a BlockDefinition from a recognized block and its validation result
     /// </summary>
@@ -218,6 +224,20 @@ internal class BlockStatementExtractor
                     {
                         block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.LoopBodyEnd, exprStmt.GetLineNumber(), exprText));
                     }
+                    // Try BuiltinFunctionRegistry for new/future functions (e.g. Flip)
+                    else if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
+                    {
+                        var stmt = funcDef.ExtractStatement(invoke, exprStmt.GetLineNumber(), exprText);
+                        if (stmt != null)
+                            block.Statements.Add(stmt);
+                        else
+                            block.Statements.Add(new ExpressionStatement
+                            {
+                                LineNumber = exprStmt.GetLineNumber(),
+                                SourceCode = exprText,
+                                Expression = exprText
+                            });
+                    }
                     else
                     {
                         block.Statements.Add(new ExpressionStatement
@@ -247,6 +267,20 @@ internal class BlockStatementExtractor
                         else if (methodName == LoopBodyEnd)
                         {
                             block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.LoopBodyEnd, exprStmt.GetLineNumber(), exprText));
+                        }
+                        // Try BuiltinFunctionRegistry for new/future functions (e.g. Flip)
+                        else if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
+                        {
+                            var stmt = funcDef.ExtractStatement(assignInvoke, exprStmt.GetLineNumber(), exprText);
+                            if (stmt != null)
+                                block.Statements.Add(stmt);
+                            else
+                                block.Statements.Add(new ExpressionStatement
+                                {
+                                    LineNumber = exprStmt.GetLineNumber(),
+                                    SourceCode = exprText,
+                                    Expression = exprText
+                                });
                         }
                         else
                         {

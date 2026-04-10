@@ -71,9 +71,10 @@ internal class BlueprintAnalyzer
             // ConstNode references don't need PubVar
             if (sourceNode.NodeType == BlueprintNodeType.Const) continue;
 
-            // GetNode, CallNode, CallHelperNode outputs need PubVar if consumed downstream
+            // GetNode, BuiltinFunctionNode(Get), CallNode, CallHelperNode outputs need PubVar if consumed downstream
             if (sourceNode.NodeType is BlueprintNodeType.Get or BlueprintNodeType.Call
-                or BlueprintNodeType.CallHelper)
+                or BlueprintNodeType.CallHelper
+                || (sourceNode is BuiltinFunctionNode bfn && bfn.FunctionName == "Get"))
             {
                 var sourcePin = sourceNode.GetPinById(conn.SourcePinId);
                 if (sourcePin == null) continue;

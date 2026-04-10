@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 using Serilog;
 
 namespace KitX.Core.Workflow.Blueprint;
@@ -14,6 +15,7 @@ public class NodeRegistry : INodeRegistry
 {
     private readonly Dictionary<BlueprintNodeType, Type> _typeMap;
     private readonly Dictionary<BlueprintNodeType, NodeDescriptor> _descriptorCache;
+    private readonly BuiltinFunctionRegistry? _functionRegistry;
 
     public NodeRegistry()
     {
@@ -32,6 +34,7 @@ public class NodeRegistry : INodeRegistry
             [BlueprintNodeType.Print] = typeof(PrintNode),
             [BlueprintNodeType.Pause] = typeof(PauseNode),
             [BlueprintNodeType.Variable] = typeof(VariableNode),
+            [BlueprintNodeType.BuiltinFunction] = typeof(BuiltinFunctionNode),
         };
 
         // Pre-cache descriptors from each node type
@@ -43,6 +46,14 @@ public class NodeRegistry : INodeRegistry
         }
 
         Log.Information("NodeRegistry initialized with {Count} node types", _typeMap.Count);
+    }
+
+    /// <summary>
+    /// Creates NodeRegistry with a BuiltinFunctionRegistry for dynamic node creation.
+    /// </summary>
+    public NodeRegistry(BuiltinFunctionRegistry functionRegistry) : this()
+    {
+        _functionRegistry = functionRegistry;
     }
 
     /// <inheritdoc/>
@@ -65,4 +76,38 @@ public class NodeRegistry : INodeRegistry
 
     /// <inheritdoc/>
     public IReadOnlySet<BlueprintNodeType> RegisteredTypes => _typeMap.Keys.ToHashSet();
+
+    /// <inheritdoc/>
+    public BlueprintNode CreateBuiltinFunctionNode(string functionName)
+    {
+        if (_functionRegistry == null)
+            throw new InvalidOperationException("BuiltinFunctionRegistry not configured. " +
+                "Use NodeRegistry(BuiltinFunctionRegistry) constructor.");
+
+        var def = _functionRegistry.Get(functionName)
+            ?? throw new ArgumentException($"Unknown builtin function: {functionName}");
+
+        var node = new BuiltinFunctionNode
+        {
+            NodeType = BlueprintNodeType.BuiltinFunction,
+            FunctionName = functionName,
+            Name = def.DisplayName
+        };
+
+        // Build descriptor from the function definition
+        var descriptor = new NodeDescriptor(
+            def.NodeWidth, def.NodeHeight,
+            def.InputPins, def.OutputPins,
+            def.DisplayName
+        );
+        node.SetDescriptor(descriptor);
+
+        // Initialize pins from descriptor
+        foreach (var pd in descriptor.InputPins)
+            node.InputPins.Add(new BlueprintPin { Name = pd.Name, Direction = PinDirection.Input, Type = pd.Type });
+        foreach (var pd in descriptor.OutputPins)
+            node.OutputPins.Add(new BlueprintPin { Name = pd.Name, Direction = PinDirection.Output, Type = pd.Type });
+
+        return node;
+    }
 }
