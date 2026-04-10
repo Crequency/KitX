@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -59,6 +60,12 @@ public class PluginsServer : IPluginServer
     /// Gets the list of plugin connections
     /// </summary>
     public IReadOnlyList<IPluginConnection> Connections => _connections.AsReadOnly();
+
+    /// <summary>
+    /// IPluginServer.Connections — returns connected plugins as IPluginConnector list
+    /// </summary>
+    IReadOnlyList<IPluginConnector> IPluginServer.Connections =>
+        _connections.Cast<IPluginConnector>().ToList().AsReadOnly();
 
     /// <summary>
     /// Event raised when a plugin connects
