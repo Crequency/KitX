@@ -16,6 +16,7 @@ public class PrintFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => false;
     public bool IsNonExtractable => true;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Print;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Print;
     public double NodeWidth => 100;
     public double NodeHeight => 50;
 

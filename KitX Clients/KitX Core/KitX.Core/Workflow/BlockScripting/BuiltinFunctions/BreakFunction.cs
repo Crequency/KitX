@@ -14,8 +14,10 @@ public class BreakFunction : IBuiltinFunctionDefinition
     public string FunctionName => "Break";
     public string DisplayName => "Break";
     public bool IsFlowControl => true;
+    public bool IsBlockTerminator => true;
     public bool IsNonExtractable => true;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Break;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Break;
     public double NodeWidth => 100;
     public double NodeHeight => 40;
 

@@ -17,6 +17,7 @@ public class LoopBodyEndFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => true;
     public bool IsNonExtractable => false;
     public bool IsBlockTerminator => true;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.LoopBodyEnd;
     public double NodeWidth => 80;
     public double NodeHeight => 60;
 

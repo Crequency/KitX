@@ -111,9 +111,7 @@ public class NodeBuilder
     private BlueprintNode? ProcessStatement(FormattedStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
-        // Registry path: handle NEW control flow terminators with FunctionName set
-        // (e.g. Flip). Standard functions (Branch/Loop/Break) go through FormatFlowControl
-        // which doesn't set FunctionName, so they use the switch cases below.
+        // Registry path: handle all registered block terminators (Branch/Loop/LoopBodyEnd/Break/Flip)
         if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName))
         {
             var funcDef = _functionRegistry.Get(stmt.FunctionName);
@@ -126,7 +124,10 @@ public class NodeBuilder
                     return null;
                 }
 
-                var node = _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
+                // Use LegacyNodeType when available for backward compatibility
+                BlueprintNode node = funcDef.LegacyNodeType is { } legacyType
+                    ? _registry.Create(legacyType)
+                    : _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
                 node = funcDef.ConfigureNode(node, stmt);
                 ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
                 funcDef.OnNodeCreated(node, stmt, context);
@@ -134,7 +135,7 @@ public class NodeBuilder
             }
         }
 
-        // Standard function handling (FormatFlowControl sets Kind but not FunctionName)
+        // Non-terminator statement handling
         switch (stmt.Kind)
         {
             case FormattedStatementKind.Assignment:
@@ -142,39 +143,31 @@ public class NodeBuilder
                 return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
 
             case FormattedStatementKind.Print:
-                return ChainNewNode(_registry.Create(BlueprintNodeType.Print), stmt, context, ref prevNode, ref prevStmtId);
-
+            case FormattedStatementKind.Pause:
             case FormattedStatementKind.Set:
                 {
-                    var node = (SetNode)_registry.Create(BlueprintNodeType.Set);
-                    node.VarName = stmt.SetVarName ?? "";
-                    return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+                    // Use registry to determine the legacy node type and configure it
+                    if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName)
+                        && _functionRegistry.Get(stmt.FunctionName) is { } funcDef
+                        && funcDef.LegacyNodeType is { } legacyType)
+                    {
+                        var node = _registry.Create(legacyType);
+                        node = funcDef.ConfigureNode(node, stmt);
+                        return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+                    }
+                    // Fallback without registry (should not happen in production)
+                    var fallbackType = stmt.Kind switch
+                    {
+                        FormattedStatementKind.Print => BlueprintNodeType.Print,
+                        FormattedStatementKind.Pause => BlueprintNodeType.Pause,
+                        FormattedStatementKind.Set => BlueprintNodeType.Set,
+                        _ => BlueprintNodeType.Call
+                    };
+                    var fallbackNode = _registry.Create(fallbackType);
+                    if (fallbackType == BlueprintNodeType.Set && fallbackNode is SetNode sn)
+                        sn.VarName = stmt.SetVarName ?? "";
+                    return ChainNewNode(fallbackNode, stmt, context, ref prevNode, ref prevStmtId);
                 }
-
-            case FormattedStatementKind.Pause:
-                return ChainNewNode(_registry.Create(BlueprintNodeType.Pause), stmt, context, ref prevNode, ref prevStmtId);
-
-            case FormattedStatementKind.Branch:
-                {
-                    var node = ChainNewNode(_registry.Create(BlueprintNodeType.Branch), stmt, context, ref prevNode, ref prevStmtId);
-                    context.BranchDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName));
-                    return node;
-                }
-
-            case FormattedStatementKind.Loop:
-                {
-                    var node = ChainNewNode(_registry.Create(BlueprintNodeType.Loop), stmt, context, ref prevNode, ref prevStmtId);
-                    context.LoopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, blockName));
-                    context.LoopNodesByParent[blockName] = node!;
-                    return node;
-                }
-
-            case FormattedStatementKind.LoopBodyEnd:
-                _loopBodyEndDefs.Add((stmt.StatementId, stmt.LoopBodyEndReturnTo ?? "", blockName, prevStmtId));
-                return null;
-
-            case FormattedStatementKind.Break:
-                return ChainNewNode(_registry.Create(BlueprintNodeType.Break), stmt, context, ref prevNode, ref prevStmtId);
 
             default:
                 return null;
@@ -237,18 +230,13 @@ public class NodeBuilder
 
         // --- Create new node ---
         BlueprintNode mainNode;
-        if (stmt.FunctionName == Get)
+        if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
         {
-            // Get assignment → create GetNode
-            var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
-            var getNode = (GetNode)_registry.Create(BlueprintNodeType.Get);
-            getNode.VarName = varName;
-            mainNode = getNode;
-        }
-        else if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
-        {
-            // BuiltinFunctionRegistry function → create BuiltinFunctionNode
-            mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
+            // Registered function (including Get) → create appropriate node type
+            if (funcDef.LegacyNodeType is { } legacyType)
+                mainNode = _registry.Create(legacyType);
+            else
+                mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
             mainNode = funcDef.ConfigureNode(mainNode, stmt);
         }
         else
@@ -320,70 +308,6 @@ public class NodeBuilder
 
     private void ResolveCrossBlockEdges(PipelineContext context)
     {
-        // Branch: True → trueBlock first, False → falseBlock first
-        foreach (var (stmtId, trueBlock, falseBlock) in context.BranchDefs)
-        {
-            if (!string.IsNullOrEmpty(trueBlock) &&
-                context.BlockFirstNodes.TryGetValue(trueBlock, out var trueFirst))
-            {
-                var targetStmtId = FindStmtIdForNode(trueFirst, context);
-                context.ExecEdges.Add(new PendingExecEdge
-                {
-                    SourceStatementId = stmtId,
-                    TargetStatementId = targetStmtId,
-                    SourcePinName = True,
-                    TargetPinName = Exec,
-                    IsSpecialRouting = true
-                });
-            }
-
-            if (!string.IsNullOrEmpty(falseBlock) &&
-                context.BlockFirstNodes.TryGetValue(falseBlock, out var falseFirst))
-            {
-                var targetStmtId = FindStmtIdForNode(falseFirst, context);
-                context.ExecEdges.Add(new PendingExecEdge
-                {
-                    SourceStatementId = stmtId,
-                    TargetStatementId = targetStmtId,
-                    SourcePinName = False,
-                    TargetPinName = Exec,
-                    IsSpecialRouting = true
-                });
-            }
-        }
-
-        // Loop: LoopBody → body first, LoopEnd → end first
-        foreach (var (stmtId, loopBody, loopEnd, _) in context.LoopDefs)
-        {
-            if (!string.IsNullOrEmpty(loopBody) &&
-                context.BlockFirstNodes.TryGetValue(loopBody, out var bodyFirst))
-            {
-                var targetStmtId = FindStmtIdForNode(bodyFirst, context);
-                context.ExecEdges.Add(new PendingExecEdge
-                {
-                    SourceStatementId = stmtId,
-                    TargetStatementId = targetStmtId,
-                    SourcePinName = LoopBody,
-                    TargetPinName = Exec,
-                    IsSpecialRouting = true
-                });
-            }
-
-            if (!string.IsNullOrEmpty(loopEnd) &&
-                context.BlockFirstNodes.TryGetValue(loopEnd, out var endFirst))
-            {
-                var targetStmtId = FindStmtIdForNode(endFirst, context);
-                context.ExecEdges.Add(new PendingExecEdge
-                {
-                    SourceStatementId = stmtId,
-                    TargetStatementId = targetStmtId,
-                    SourcePinName = LoopEnd,
-                    TargetPinName = Exec,
-                    IsSpecialRouting = true
-                });
-            }
-        }
-
         // LoopBodyEnd: prev node → Loop.Exec (of parent block)
         foreach (var (_, returnToBlock, _, prevStmtId) in _loopBodyEndDefs)
         {

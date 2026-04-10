@@ -14,8 +14,9 @@ public class GetFunction : IBuiltinFunctionDefinition
     public string FunctionName => "Get";
     public string DisplayName => "Get";
     public bool IsFlowControl => false;
-    public bool IsNonExtractable => true;
+    public bool IsNonExtractable => false;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Get;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Assignment;
     public double NodeWidth => 120;
     public double NodeHeight => 60;
 
@@ -74,9 +75,38 @@ public class GetFunction : IBuiltinFunctionDefinition
 
     public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt)
     {
-        if (node is BuiltinFunctionNode bfn)
-            bfn.Properties["VarName"] = stmt.GetVarName ?? "";
+        var varName = stmt.GetVarName ?? (stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "");
+        if (node is GetNode gn)
+            gn.VarName = varName;
+        else if (node is BuiltinFunctionNode bfn)
+            bfn.Properties["VarName"] = varName;
         return node;
+    }
+
+    public (string?, string?, string?) ExtractStatementFields(
+        InvocationExpressionSyntax invoke, List<string> expandedArgs,
+        string? assignedVar, PipelineContext context)
+    {
+        string? getVarName = null;
+        if (expandedArgs.Count > 0)
+        {
+            var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
+            getVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? expandedArgs[0];
+        }
+
+        string? pubVarTarget;
+        if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
+        {
+            pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
+            if (!context.PubVarNames.Contains(pubVarTarget))
+                context.PubVarNames.Add(pubVarTarget);
+        }
+        else
+        {
+            pubVarTarget = assignedVar;
+        }
+
+        return (null, getVarName, pubVarTarget);
     }
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)

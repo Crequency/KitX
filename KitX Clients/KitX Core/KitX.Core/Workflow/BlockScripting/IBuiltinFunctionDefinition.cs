@@ -31,6 +31,32 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     bool IsNonExtractable { get; }
 
+    // ─── 语句类型映射 ─────────────────────────────────
+
+    /// <summary>
+    /// 对应的 FormattedStatementKind。用于 ScriptFormatter 确定语句类型，
+    /// 以及 NodeBuilder 选择节点创建策略。
+    /// </summary>
+    FormattedStatementKind StatementKind { get; }
+
+    // ─── 语句字段提取（可选，默认无操作）──────────────
+
+    /// <summary>
+    /// 从调用表达式中提取语句特定的字段（如 Set 的变量名、Get 的变量名和 PubVar）。
+    /// ScriptFormatter.FormatInvocation 在处理已注册函数时调用此方法获取 Kind 之外的特殊字段。
+    /// 默认实现不提取任何特殊字段。
+    /// </summary>
+    /// <param name="invoke">原始 Roslyn 调用表达式</param>
+    /// <param name="expandedArgs">已展开的参数列表（可被修改，如 Set 移除第一个参数）</param>
+    /// <param name="assignedVar">语句左侧的赋值变量名（可能为 null）</param>
+    /// <param name="context">管线上下文（可用于 PubVar 计数器等状态）</param>
+    (string? setVarName, string? getVarName, string? pubVarTarget) ExtractStatementFields(
+        InvocationExpressionSyntax invoke,
+        List<string> expandedArgs,
+        string? assignedVar,
+        PipelineContext context)
+        => (null, null, null);
+
     // ─── 节点布局 ───────────────────────────────────
 
     /// <summary>蓝图节点宽度</summary>

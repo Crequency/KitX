@@ -20,6 +20,7 @@ public class LoopFunction : IBuiltinFunctionDefinition
     public bool IsNonExtractable => false;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Loop;
     public bool IsBlockTerminator => true;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Loop;
     public double NodeWidth => 120;
     public double NodeHeight => 80;
 

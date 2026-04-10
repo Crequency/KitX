@@ -212,20 +212,8 @@ internal class BlockStatementExtractor
                 {
                     var methodName = ExprUtils.GetMethodName(invoke);
 
-                    if (methodName == Branch)
-                    {
-                        block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.Branch, exprStmt.GetLineNumber(), exprText));
-                    }
-                    else if (methodName == Loop)
-                    {
-                        block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.Loop, exprStmt.GetLineNumber(), exprText));
-                    }
-                    else if (methodName == LoopBodyEnd)
-                    {
-                        block.Statements.Add(CreateFlowControlStatement(invoke, FlowControlType.LoopBodyEnd, exprStmt.GetLineNumber(), exprText));
-                    }
-                    // Try BuiltinFunctionRegistry for new/future functions (e.g. Flip)
-                    else if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
+                    // Try BuiltinFunctionRegistry for all registered functions
+                    if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
                     {
                         var stmt = funcDef.ExtractStatement(invoke, exprStmt.GetLineNumber(), exprText);
                         if (stmt != null)
@@ -256,20 +244,8 @@ internal class BlockStatementExtractor
                         var methodName = ExprUtils.GetMethodName(assignInvoke);
                         Log.Debug("[BlockStatementExtractor]   assignment.Right is InvocationExpressionSyntax, methodName = {MethodName}", methodName);
 
-                        if (methodName == Branch)
-                        {
-                            block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.Branch, exprStmt.GetLineNumber(), exprText));
-                        }
-                        else if (methodName == Loop)
-                        {
-                            block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.Loop, exprStmt.GetLineNumber(), exprText));
-                        }
-                        else if (methodName == LoopBodyEnd)
-                        {
-                            block.Statements.Add(CreateFlowControlStatement(assignInvoke, FlowControlType.LoopBodyEnd, exprStmt.GetLineNumber(), exprText));
-                        }
-                        // Try BuiltinFunctionRegistry for new/future functions (e.g. Flip)
-                        else if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
+                        // Try BuiltinFunctionRegistry for all registered functions
+                        if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
                         {
                             var stmt = funcDef.ExtractStatement(assignInvoke, exprStmt.GetLineNumber(), exprText);
                             if (stmt != null)

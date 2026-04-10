@@ -16,6 +16,7 @@ public class SetFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => false;
     public bool IsNonExtractable => true;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Set;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Set;
     public double NodeWidth => 120;
     public double NodeHeight => 60;
 
@@ -62,9 +63,26 @@ public class SetFunction : IBuiltinFunctionDefinition
 
     public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt)
     {
-        if (node is BuiltinFunctionNode bfn)
-            bfn.Properties["VarName"] = stmt.SetVarName ?? "";
+        var varName = stmt.SetVarName ?? "";
+        if (node is SetNode sn)
+            sn.VarName = varName;
+        else if (node is BuiltinFunctionNode bfn)
+            bfn.Properties["VarName"] = varName;
         return node;
+    }
+
+    public (string?, string?, string?) ExtractStatementFields(
+        InvocationExpressionSyntax invoke, List<string> expandedArgs,
+        string? assignedVar, PipelineContext context)
+    {
+        string? setVarName = null;
+        if (expandedArgs.Count > 0)
+        {
+            var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
+            setVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? expandedArgs[0];
+            expandedArgs.RemoveAt(0);
+        }
+        return (setVarName, null, null);
     }
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)

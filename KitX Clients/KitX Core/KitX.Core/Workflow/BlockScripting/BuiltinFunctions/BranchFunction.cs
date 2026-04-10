@@ -19,6 +19,7 @@ public class BranchFunction : IBuiltinFunctionDefinition
     public bool IsNonExtractable => false;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Branch;
     public bool IsBlockTerminator => true;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Branch;
     public double NodeWidth => 120;
     public double NodeHeight => 80;
 

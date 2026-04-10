@@ -122,6 +122,7 @@ public class ScriptFormatter
                     {
                         BlockName = blockName,
                         Kind = FormattedStatementKind.Branch,
+                        FunctionName = Branch,
                         ConditionPubVar = condPubVar,
                         ConditionExpression = flowCtrl.ConditionExpression,
                         TrueBlockName = flowCtrl.TrueBlockName,
@@ -141,6 +142,7 @@ public class ScriptFormatter
                     {
                         BlockName = blockName,
                         Kind = FormattedStatementKind.Loop,
+                        FunctionName = Loop,
                         ConditionPubVar = condPubVar,
                         ConditionExpression = flowCtrl.ConditionExpression,
                         TrueBlockName = flowCtrl.TrueBlockName,
@@ -168,6 +170,7 @@ public class ScriptFormatter
                 {
                     BlockName = blockName,
                     Kind = FormattedStatementKind.LoopBodyEnd,
+                    FunctionName = LoopBodyEnd,
                     LoopBodyEndReturnTo = flowCtrl.LoopBodyEndReturnTo,
                     OriginalExpression = flowCtrl.SourceCode,
                     SourceLine = flowCtrl.LineNumber
@@ -179,6 +182,7 @@ public class ScriptFormatter
                 {
                     BlockName = blockName,
                     Kind = FormattedStatementKind.Break,
+                    FunctionName = Break,
                     OriginalExpression = flowCtrl.SourceCode,
                     SourceLine = flowCtrl.LineNumber
                 });
@@ -215,9 +219,8 @@ public class ScriptFormatter
             if (string.IsNullOrEmpty(funcName)) return result;
 
             // Skip flow control functions (handled by FlowControlStatement)
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (ExprUtils.FlowControlFunctions.Contains(funcName)) return result;
-#pragma warning restore CS0618
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.IsFlowControl)
+                return result;
 
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
             result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar, fullFuncName));
@@ -249,57 +252,28 @@ public class ScriptFormatter
 
         switch (funcName)
         {
-            case Print:
-                kind = FormattedStatementKind.Print;
-                break;
-            case Pause:
-                kind = FormattedStatementKind.Pause;
-                break;
-            case Set:
-                kind = FormattedStatementKind.Set;
-                if (currentArgExprs.Count > 0)
-                {
-                    var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
-                    var varNameLiteral = ExprUtils.GetStringLiteralValue(firstArgExpr);
-                    setVarName = varNameLiteral ?? currentArgExprs[0];
-                    currentArgExprs.RemoveAt(0);
-                }
-                break;
-            case Get:
-                kind = FormattedStatementKind.Assignment;
-                if (currentArgExprs.Count > 0)
-                {
-                    var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
-                    getVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? currentArgExprs[0];
-                }
-                if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
-                {
-                    pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
-                    if (!context.PubVarNames.Contains(pubVarTarget))
-                        context.PubVarNames.Add(pubVarTarget);
-                }
-                else
-                {
-                    pubVarTarget = assignedVar;
-                }
-                break;
             default:
-                // Check registry for new/future functions not handled above
+                // All registered functions (Set/Get/Print/Pause/etc.) go through registry
                 if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } funcDef)
                 {
-                    result.AddRange(funcDef.FormatInvocation(invoke, blockName, context, assignedVar));
-                    return result;
-                }
-
-                // Helper or regular function call
-                if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
-                {
-                    kind = FormattedStatementKind.Assignment;
-                    pubVarTarget = context.PubVarNames.Contains(assignedVar) ? assignedVar : null;
+                    kind = funcDef.StatementKind;
+                    var (sn, gn, pv) = funcDef.ExtractStatementFields(invoke, currentArgExprs, assignedVar, context);
+                    setVarName = sn;
+                    getVarName = gn;
+                    pubVarTarget = pv;
                 }
                 else
                 {
-                    kind = FormattedStatementKind.Expression;
+                    // Helper or regular function call
+                    if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
+                    {
+                        kind = FormattedStatementKind.Assignment;
+                        pubVarTarget = context.PubVarNames.Contains(assignedVar) ? assignedVar : null;
+                    }
+                    else
+                    {
+                        kind = FormattedStatementKind.Expression;
+                    }
                 }
                 break;
         }
@@ -371,45 +345,26 @@ public class ScriptFormatter
             var funcName = ExprUtils.GetMethodName(invoke);
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
 
-            // Built-in functions (Get/Set/Print/Pause) stay inline
-#pragma warning disable CS0618
-            if (ExprUtils.NonExtractableFunctions.Contains(funcName))
-                return (new(), invoke.ToString());
-
-            // Flow control functions → should not appear as arguments
-            if (ExprUtils.FlowControlFunctions.Contains(funcName))
-#pragma warning restore CS0618
-                return (new(), invoke.ToString());
-
-            // Get(varName) → extract as a proper Get statement with GetVarName set.
-            // This is critical for PubVar reuse detection in NodeBuilder:
-            // cloned Get statements (from Loop condition duplication) must have
-            // GetVarName set so the reuse check (PubVarTarget + GetVarName) can
-            // match them to the original Get node instead of creating duplicates.
-            if (funcName == Get)
+            // Check registry for function classification
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef)
             {
-                var varName = invoke.ArgumentList.Arguments.Count > 0
-                    ? ExprUtils.GetStringLiteralValue(invoke.ArgumentList.Arguments[0].Expression)
-                      ?? invoke.ArgumentList.Arguments[0].Expression.ToString().Trim('"')
-                    : "";
+                // Non-extractable functions (Set/Print/Pause) stay inline
+                if (inlineDef.IsNonExtractable)
+                    return (new(), invoke.ToString());
 
-                var getPubVar = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
-                if (!context.PubVarNames.Contains(getPubVar))
-                    context.PubVarNames.Add(getPubVar);
+                // Flow control functions → should not appear as arguments
+                if (inlineDef.IsFlowControl)
+                    return (new(), invoke.ToString());
+            }
 
-                return (new List<FormattedStatement>
-                {
-                    new()
-                    {
-                        BlockName = blockName,
-                        Kind = FormattedStatementKind.Assignment,
-                        FunctionName = Get,
-                        PubVarTarget = getPubVar,
-                        GetVarName = varName,
-                        Arguments = new List<string> { $"\"{varName}\"" },
-                        OriginalExpression = $"{getPubVar} = Get(\"{varName}\")",
-                    }
-                }, getPubVar);
+            // Check registry for functions that need extraction (e.g., Get)
+            // Registered functions use their FormatInvocation to create proper statements.
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } regFuncDef)
+            {
+                var formatted = regFuncDef.FormatInvocation(invoke, blockName, context, null);
+                var lastStmt = formatted.LastOrDefault();
+                if (lastStmt?.PubVarTarget != null)
+                    return (formatted, lastStmt.PubVarTarget);
             }
 
             // This is a helper/regular function call that needs extraction

@@ -16,39 +16,6 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// </summary>
 public static class ExprUtils
 {
-    /// <summary>
-    /// All known built-in function names. Prefer <see cref="BuiltinFunctionRegistry.AllFunctionNames"/> for new code.
-    /// </summary>
-    [Obsolete("Use BuiltinFunctionRegistry.AllFunctionNames instead. This set only covers legacy hardcoded functions.")]
-    public static readonly HashSet<string> BuiltinFunctions = new()
-    {
-        BlockScriptWellKnown.Functions.Get, BlockScriptWellKnown.Functions.Set,
-        BlockScriptWellKnown.Functions.Print, BlockScriptWellKnown.Functions.Pause,
-        BlockScriptWellKnown.Functions.Branch, BlockScriptWellKnown.Functions.Loop,
-        BlockScriptWellKnown.Functions.LoopBodyEnd, BlockScriptWellKnown.Functions.Break
-    };
-
-    /// <summary>
-    /// Functions that should not be extracted during argument expansion.
-    /// Prefer <see cref="BuiltinFunctionRegistry.NonExtractableNames"/> for new code.
-    /// </summary>
-    [Obsolete("Use BuiltinFunctionRegistry.NonExtractableNames instead. This set only covers legacy hardcoded functions.")]
-    public static readonly HashSet<string> NonExtractableFunctions = new()
-    {
-        BlockScriptWellKnown.Functions.Set, BlockScriptWellKnown.Functions.Print,
-        BlockScriptWellKnown.Functions.Pause
-    };
-
-    /// <summary>
-    /// Flow control function names. Prefer <see cref="BuiltinFunctionRegistry.FlowControlNames"/> for new code.
-    /// </summary>
-    [Obsolete("Use BuiltinFunctionRegistry.FlowControlNames instead. This set only covers legacy hardcoded functions.")]
-    public static readonly HashSet<string> FlowControlFunctions = new()
-    {
-        BlockScriptWellKnown.Functions.Branch, BlockScriptWellKnown.Functions.Loop,
-        BlockScriptWellKnown.Functions.LoopBodyEnd, BlockScriptWellKnown.Functions.Break
-    };
-
     /// <summary>Parses an expression string using Roslyn. Returns null on failure.</summary>
     public static ExpressionSyntax? ParseExpression(string expression)
     {
@@ -160,35 +127,6 @@ public static class ExprUtils
     }
 
     /// <summary>
-    /// Finds all nested invocation arguments in an invocation (non-builtin only).
-    /// Returns them in depth-first order (deepest first).
-    /// </summary>
-    public static List<InvocationExpressionSyntax> FindNestedInvocations(InvocationExpressionSyntax invoke)
-    {
-        var result = new List<InvocationExpressionSyntax>();
-        foreach (var arg in invoke.ArgumentList.Arguments)
-            CollectNested(arg.Expression, result);
-        return result;
-    }
-
-    private static void CollectNested(ExpressionSyntax expr, List<InvocationExpressionSyntax> result)
-    {
-        if (expr is InvocationExpressionSyntax invoke)
-        {
-            var funcName = GetMethodName(invoke);
-            // Recurse into arguments first (depth-first)
-            foreach (var arg in invoke.ArgumentList.Arguments)
-                CollectNested(arg.Expression, result);
-            // Only extract non-builtin, non-flow-control functions
-#pragma warning disable CS0618
-            if (!NonExtractableFunctions.Contains(funcName) && !FlowControlFunctions.Contains(funcName))
-#pragma warning restore CS0618
-                result.Add(invoke);
-        }
-        else if (expr is ParenthesizedExpressionSyntax paren)
-            CollectNested(paren.Expression, result);
-    }
-
     /// <summary>Computes a fingerprint string for a call expression for reuse detection.</summary>
     public static string ComputeFingerprint(string funcName, List<string> args)
         => $"{funcName}({string.Join(",", args.Select(a => a.Trim().Replace(" ", "")))})";

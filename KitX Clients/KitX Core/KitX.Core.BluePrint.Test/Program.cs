@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.BlockScripting;
 
 namespace KitX.Core.BluePrint.Test;
 
@@ -52,7 +53,8 @@ public class Program
             }
         };
 
-        var converter = new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService);
+        var funcRegistry = sp.GetRequiredService<BuiltinFunctionRegistry>();
+        var converter = new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService, funcRegistry);
 
         // ── Test A: Pre-expanded format (already in test script) ──
         Console.WriteLine("┌──────────────────────────────────────────┐");

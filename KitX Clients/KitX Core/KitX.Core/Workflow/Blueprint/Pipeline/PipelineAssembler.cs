@@ -248,37 +248,17 @@ public class PipelineAssembler
         // Build scopesByName for ownership assignment
         var scopesByName = bp.BlockScopes.ToDictionary(s => s.Name, s => s);
 
-        // Assign ownership from Branch definitions
-        foreach (var (stmtId, trueBlock, falseBlock) in ctx.BranchDefs)
+        // Assign ownership from DeferredEdges (Branch/Loop/Flip etc.)
+        foreach (var deferred in ctx.DeferredEdges)
         {
-            if (!ctx.NodeByStatementId.TryGetValue(stmtId, out var branchNode)) continue;
+            if (!ctx.NodeByStatementId.TryGetValue(deferred.SourceStatementId, out var ownerNode)) continue;
 
-            if (trueBlock != null && scopesByName.TryGetValue(trueBlock, out var trueScope))
+            foreach (var (pinName, targetBlockName) in deferred.Arms)
             {
-                trueScope.OwnerNodeId = branchNode.Id;
-                trueScope.OwnerArmName = True;
-            }
-            if (falseBlock != null && scopesByName.TryGetValue(falseBlock, out var falseScope))
-            {
-                falseScope.OwnerNodeId = branchNode.Id;
-                falseScope.OwnerArmName = False;
-            }
-        }
-
-        // Assign ownership from Loop definitions
-        foreach (var (stmtId, loopBody, loopEnd, _) in ctx.LoopDefs)
-        {
-            if (!ctx.NodeByStatementId.TryGetValue(stmtId, out var loopNode)) continue;
-
-            if (loopBody != null && scopesByName.TryGetValue(loopBody, out var bodyScope))
-            {
-                bodyScope.OwnerNodeId = loopNode.Id;
-                bodyScope.OwnerArmName = LoopBody;
-            }
-            if (loopEnd != null && scopesByName.TryGetValue(loopEnd, out var endScope))
-            {
-                endScope.OwnerNodeId = loopNode.Id;
-                endScope.OwnerArmName = LoopEnd;
+                if (targetBlockName == null) continue;
+                if (!scopesByName.TryGetValue(targetBlockName, out var scope)) continue;
+                scope.OwnerNodeId = ownerNode.Id;
+                scope.OwnerArmName = pinName;
             }
         }
 

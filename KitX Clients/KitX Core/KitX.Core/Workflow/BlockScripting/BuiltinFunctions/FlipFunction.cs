@@ -20,6 +20,7 @@ public class FlipFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => true;
     public bool IsNonExtractable => true;
     public bool IsBlockTerminator => true;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Branch;
     public double NodeWidth => 120;
     public double NodeHeight => 80;
 

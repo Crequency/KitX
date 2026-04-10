@@ -16,6 +16,7 @@ public class PauseFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => false;
     public bool IsNonExtractable => true;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Pause;
+    public FormattedStatementKind StatementKind => FormattedStatementKind.Pause;
     public double NodeWidth => 100;
     public double NodeHeight => 50;
 
