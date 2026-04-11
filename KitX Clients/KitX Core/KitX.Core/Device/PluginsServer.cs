@@ -54,7 +54,9 @@ public class PluginsServer : IPluginServer
     /// <summary>
     /// Event raised when server port changes
     /// </summary>
+#pragma warning disable CS0067
     public event EventHandler<int>? PortChanged;
+#pragma warning restore CS0067
 
     /// <summary>
     /// Gets the list of plugin connections
@@ -458,6 +460,11 @@ public class PluginConnection : IPluginConnection, IPluginConnector
     public string? ConnectionId { get; private set; }
 
     /// <summary>
+    /// IPluginConnector.ConnectionId — non-nullable explicit implementation
+    /// </summary>
+    string IPluginConnector.ConnectionId => ConnectionId!;
+
+    /// <summary>
     /// Gets or sets the plugin info
     /// </summary>
     public PluginInfo? PluginInfo { get; set; }
@@ -485,7 +492,9 @@ public class PluginConnection : IPluginConnection, IPluginConnector
     /// <summary>
     /// Event raised when plugin reports status (IPluginConnector implementation)
     /// </summary>
+#pragma warning disable CS0067
     public event EventHandler<PluginStatusReportEventArgs>? StatusReport;
+#pragma warning restore CS0067
 
     /// <summary>
     /// Constructor

@@ -267,10 +267,10 @@ public class PluginsManager : IPluginService
 
                     loaderInfo = new LoaderInfo
                     {
-                        LoaderName = loaderStruct.TryGetProperty("LoaderName", out var name) ? name.GetString() : "Unknown",
-                        LoaderVersion = loaderStruct.TryGetProperty("LoaderVersion", out var version) ? version.GetString() : "1.0.0",
-                        LoaderLanguage = loaderStruct.TryGetProperty("LoaderLanguage", out var lang) ? lang.GetString() : "Unknown",
-                        LoaderFramework = loaderStruct.TryGetProperty("LoaderFramework", out var fw) ? fw.GetString() : "Unknown",
+                        LoaderName = loaderStruct.TryGetProperty("LoaderName", out var name) ? name.GetString() ?? "Unknown" : "Unknown",
+                        LoaderVersion = loaderStruct.TryGetProperty("LoaderVersion", out var version) ? version.GetString() ?? "1.0.0" : "1.0.0",
+                        LoaderLanguage = loaderStruct.TryGetProperty("LoaderLanguage", out var lang) ? lang.GetString() ?? "Unknown" : "Unknown",
+                        LoaderFramework = loaderStruct.TryGetProperty("LoaderFramework", out var fw) ? fw.GetString() ?? "Unknown" : "Unknown",
                         SelfLoad = loaderStruct.TryGetProperty("SelfLoad", out var selfLoad) && selfLoad.GetBoolean(),
                         Tags = new Dictionary<string, string>()
                     };
@@ -335,13 +335,13 @@ public class PluginsManager : IPluginService
                     }
 
                     // Parse other fields
-                    pluginInfo.AuthorName = pluginStruct.TryGetProperty("AuthorName", out var author) ? author.GetString() : "Unknown";
-                    pluginInfo.AuthorLink = pluginStruct.TryGetProperty("AuthorLink", out var authorLink) ? authorLink.GetString() : "";
-                    pluginInfo.PublisherName = pluginStruct.TryGetProperty("PublisherName", out var publisher) ? publisher.GetString() : "Unknown";
-                    pluginInfo.PublisherLink = pluginStruct.TryGetProperty("PublisherLink", out var publisherLink) ? publisherLink.GetString() : "";
-                    pluginInfo.IconInBase64 = pluginStruct.TryGetProperty("IconInBase64", out var icon) ? icon.GetString() : "";
+                    pluginInfo.AuthorName = pluginStruct.TryGetProperty("AuthorName", out var author) ? author.GetString() ?? "Unknown" : "Unknown";
+                    pluginInfo.AuthorLink = pluginStruct.TryGetProperty("AuthorLink", out var authorLink) ? authorLink.GetString() ?? "" : "";
+                    pluginInfo.PublisherName = pluginStruct.TryGetProperty("PublisherName", out var publisher) ? publisher.GetString() ?? "Unknown" : "Unknown";
+                    pluginInfo.PublisherLink = pluginStruct.TryGetProperty("PublisherLink", out var publisherLink) ? publisherLink.GetString() ?? "" : "";
+                    pluginInfo.IconInBase64 = pluginStruct.TryGetProperty("IconInBase64", out var icon) ? icon.GetString() ?? "" : "";
                     pluginInfo.IsMarketVersion = pluginStruct.TryGetProperty("IsMarketVersion", out var marketVer) && marketVer.GetBoolean();
-                    pluginInfo.RootStartupFileName = pluginStruct.TryGetProperty("RootStartupFileName", out var rootFile) ? rootFile.GetString() : "";
+                    pluginInfo.RootStartupFileName = pluginStruct.TryGetProperty("RootStartupFileName", out var rootFile) ? rootFile.GetString() ?? "" : "";
 
                     if (pluginStruct.TryGetProperty("PublishDate", out var publishDate))
                     {

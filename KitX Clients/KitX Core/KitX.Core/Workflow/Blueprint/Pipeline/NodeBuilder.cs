@@ -241,7 +241,7 @@ public class NodeBuilder
         }
         else
         {
-            var isHelper = _helperNames.Contains(stmt.FunctionName);
+            var isHelper = _helperNames.Contains(stmt.FunctionName ?? string.Empty);
             if (isHelper)
             {
                 var helperNode = (CallHelperNode)_registry.Create(BlueprintNodeType.CallHelper);

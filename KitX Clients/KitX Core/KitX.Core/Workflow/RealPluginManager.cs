@@ -93,6 +93,8 @@ public class RealPluginManager : IPluginManager
         {
             Log.Information($"[RealPluginManager] OnPluginMessageReceived called with message: {e.Message?.Substring(0, Math.Min(200, e.Message?.Length ?? 0))}...");
 
+            if (e.Message is null) return;
+
             var kwc = JsonSerializer.Deserialize<Request>(e.Message, _serializerOptions);
             if (kwc?.Content is null)
             {

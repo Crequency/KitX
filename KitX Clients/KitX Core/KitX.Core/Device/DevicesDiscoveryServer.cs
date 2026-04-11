@@ -85,7 +85,9 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
     /// <summary>
     /// Event raised when a device goes offline
     /// </summary>
+#pragma warning disable CS0067
     public event EventHandler<DeviceOfflineEventArgs>? DeviceOffline;
+#pragma warning restore CS0067
 
     /// <summary>
     /// Private constructor

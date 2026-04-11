@@ -56,7 +56,9 @@ public class DevicesServer : IDeviceServer
     /// <summary>
     /// Event raised when port changes
     /// </summary>
+#pragma warning disable CS0067
     public event EventHandler<int>? PortChanged;
+#pragma warning restore CS0067
 
     /// <summary>
     /// Gets or sets the port
@@ -381,6 +383,15 @@ public class DevicesServer : IDeviceServer
 
             // For now, auto-accept the key exchange (in real implementation, this would show a UI)
             // TODO: Integrate with UI for verification code input
+            if (request.DeviceKey is null)
+            {
+                _isExchangingDeviceKey = false;
+                _exchangeDeviceKeyCode = null;
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Device key is null");
+                return;
+            }
+
             var deviceKeyDecrypted = securityService.AesDecrypt(request.DeviceKey, _exchangeDeviceKeyCode);
             var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
 

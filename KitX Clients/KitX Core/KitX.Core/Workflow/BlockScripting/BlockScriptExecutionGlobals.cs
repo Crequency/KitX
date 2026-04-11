@@ -165,7 +165,7 @@ public class BlockScriptExecutionGlobals
     /// 调用插件函数。所有分发策略（类型化调用、fire-and-forget vs 同步等待）
     /// 由 RealPluginManager.CallAuto() 内部自动完成，调用方无需关心。
     /// </summary>
-    public object? PluginCall(string pluginName, string methodName, params object?[] args)
+    public object? PluginCall(string pluginName, string methodName, params object[] args)
     {
         if (_pluginManager == null)
         {
@@ -178,7 +178,7 @@ public class BlockScriptExecutionGlobals
         {
             PluginName = pluginName,
             MethodName = methodName,
-            Parameters = args ?? Array.Empty<object?>()
+            Parameters = args ?? Array.Empty<object>()
         };
 
         try
