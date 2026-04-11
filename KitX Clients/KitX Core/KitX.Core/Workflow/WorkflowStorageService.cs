@@ -52,7 +52,7 @@ public class WorkflowStorageService : IWorkflowStorageService
             UseBlockMode = true,
             BlockScriptSource = GetDefaultBlockScriptTemplate(),
             MainProgram = string.Empty,
-            HelperFunctions = [],
+            HelperFunctions = GetDefaultHelperFunctions(),
             VariableConstants = [],
             BlueprintData = null,
         };
@@ -218,10 +218,109 @@ public class WorkflowStorageService : IWorkflowStorageService
     }
 
     /// <summary>
-    /// Returns a default BlockScript template for new workflows
+    /// Returns a default BlockScript template for new workflows.
+    /// Includes a complete guessing game example demonstrating
+    /// ConstBlock, PubVarBlock, MainBlock, Loop, Branch, and custom blocks.
     /// </summary>
     private static string GetDefaultBlockScriptTemplate()
     {
-        return "#ConstBlock\n\n#PubVarBlock\n\n#MainBlock\nPrint(\"Hello, KitX Workflow!\");\n";
+        return @"#ConstBlock
+int guessNum = 5;
+int loopMax = 3;
+int targetNum = 7;
+int currentLoop;
+
+#PubVarBlock
+bool vaaa0001;
+int vaaa0002;
+
+#MainBlock
+Print(""Start Workflow"");
+Set(""currentLoop"", 0);
+NextBlock = ""LoopCond"";
+
+#Block LoopCond
+vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);
+NextBlock = Loop(vaaa0001, ""LoopBody"", ""EndLogic"");
+
+#Block LoopBody
+vaaa0002 = Get(""currentLoop"");
+Print(vaaa0002);
+Set(""currentLoop"", HelperFuncAdd(Get(""currentLoop""), 1));
+NextBlock = Branch(
+    HelperFuncCompare(""BEQ"", guessNum, targetNum),
+    ""SuccessLogic"",
+    ""CheckLogic""
+);
+
+#Block CheckLogic
+NextBlock = Branch(
+    HelperFuncCompare(""BLT"", guessNum, targetNum),
+    ""LessThanLogic"",
+    ""GreaterThanLogic""
+);
+
+#Block LessThanLogic
+Print(""Too small"");
+NextBlock = ToLoopCond(""LoopCond"");
+
+#Block GreaterThanLogic
+Print(""Too big"");
+NextBlock = ToLoopCond(""LoopCond"");
+
+#Block SuccessLogic
+Print(""Correct!"");
+
+#Block EndLogic
+Print(""Workflow ended"");
+";
+    }
+
+    /// <summary>
+    /// Returns default helper functions for new BlockScript workflows.
+    /// HelperFuncCompare: compares two numbers with operator string.
+    /// HelperFuncAdd: adds two integers.
+    /// </summary>
+    private static List<HelperFunction> GetDefaultHelperFunctions()
+    {
+        return
+        [
+            new HelperFunction
+            {
+                Name = "HelperFuncCompare",
+                ReturnType = "bool",
+                Parameters =
+                [
+                    new HelperFunctionParameter { Name = "op", Type = "string" },
+                    new HelperFunctionParameter { Name = "value1", Type = "object?" },
+                    new HelperFunctionParameter { Name = "value2", Type = "object?" }
+                ],
+                Code = @"var v1 = Convert.ToDouble(value1);
+var v2 = Convert.ToDouble(value2);
+return op switch
+{
+    ""BEQ"" => v1 == v2,
+    ""BNE"" => v1 != v2,
+    ""BLT"" => v1 < v2,
+    ""BGT"" => v1 > v2,
+    ""BLE"" => v1 <= v2,
+    ""BGE"" => v1 >= v2,
+    _ => false
+};"
+            },
+            new HelperFunction
+            {
+                Name = "HelperFuncAdd",
+                ReturnType = "int",
+                Parameters =
+                [
+                    new HelperFunctionParameter { Name = "value1", Type = "object?" },
+                    new HelperFunctionParameter { Name = "value2", Type = "object?" }
+                ],
+                Code = @"var v1 = Convert.ToInt32(value1);
+var v2 = Convert.ToInt32(value2);
+return v1 + v2;"
+            }
+        ];
     }
 }

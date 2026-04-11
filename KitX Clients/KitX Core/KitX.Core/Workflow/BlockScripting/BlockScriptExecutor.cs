@@ -365,13 +365,13 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                             result.AddError($"Block '{flow.FalseBlockName}' referenced in Loop at line {flow.LineNumber} does not exist");
                         }
                     }
-                    else if (flow.ControlType == FlowControlType.LoopBodyEnd)
+                    else if (flow.ControlType == FlowControlType.ToLoopCond)
                     {
-                        // LoopBodyEnd should reference a block that contains a Loop
-                        if (!string.IsNullOrEmpty(flow.LoopBodyEndReturnTo) &&
-                            !allBlockNames.Contains(flow.LoopBodyEndReturnTo))
+                        // ToLoopCond should reference a block that contains a Loop
+                        if (!string.IsNullOrEmpty(flow.ToLoopCondReturnTo) &&
+                            !allBlockNames.Contains(flow.ToLoopCondReturnTo))
                         {
-                            result.AddError($"Block '{flow.LoopBodyEndReturnTo}' referenced in LoopBodyEnd at line {flow.LineNumber} does not exist");
+                            result.AddError($"Block '{flow.ToLoopCondReturnTo}' referenced in ToLoopCond at line {flow.LineNumber} does not exist");
                         }
                     }
                 }
@@ -834,7 +834,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                 return BlockExecutionResult.Return(null);
 
             default:
-                // Branch, Loop, LoopBodyEnd, etc.
+                // Branch, Loop, ToLoopCond, etc.
                 // Execute the full statement (e.g., "NextBlock = Loop(...)" or "NextBlock = Branch(...)")
                 // The built-in function will set _globals.NextBlock
                 await EvaluateExpressionAsync(statement.SourceCode, cancellationToken);

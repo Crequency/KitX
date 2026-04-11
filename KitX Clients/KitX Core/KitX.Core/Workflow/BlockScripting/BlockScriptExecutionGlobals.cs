@@ -153,11 +153,11 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
-    /// LoopBodyEnd - marks the end of a loop body and returns to the loop condition block
+    /// ToLoopCond - marks the end of a loop body and returns to the loop condition block
     /// </summary>
-    public string? LoopBodyEnd(string parentBlockName)
+    public string? ToLoopCond(string parentBlockName)
     {
-        NextBlock = $"{parentBlockName}_Loop";
+        NextBlock = parentBlockName;
         return NextBlock;
     }
 

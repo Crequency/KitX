@@ -101,12 +101,11 @@ internal class BlockStatementExtractor
     }
 
     /// <summary>
-    /// Creates LoopBlocks for blocks containing Loop statements.
-    /// LoopBlock is used as a "re-entry point" for loop condition re-evaluation.
+    /// Sets ToLoopCondReturnTo metadata for Loop statements in the block.
+    /// New design: Loop statements stay in their parent block, no hidden sub-blocks created.
     /// </summary>
     public void CreateLoopBlocksForBlock(BlockDefinition block, BlockScript script)
     {
-        // Find all Loop statements in this block
         var loopStatements = block.Statements
             .OfType<FlowControlStatement>()
             .Where(fs => fs.ControlType == FlowControlType.Loop)
@@ -114,50 +113,12 @@ internal class BlockStatementExtractor
 
         if (loopStatements.Count == 0) return;
 
-        // Create a LoopBlock for the FIRST Loop statement
-        var firstLoop = loopStatements[0];
-        var loopBlockName = $"{block.Name}_Loop";
-
-        // Create the LoopBlock
-        var loopBlock = new BlockDefinition
-        {
-            Type = BlockType.LoopBlock,
-            Name = loopBlockName,
-            ParentBlockName = block.Name,
-            LineNumber = firstLoop.LineNumber
-        };
-
-        loopBlock.NextBlockName = firstLoop.FalseBlockName;
-
-        // Add a copy of the Loop statement to the LoopBlock
-        var loopBlockStatement = new FlowControlStatement
-        {
-            LineNumber = firstLoop.LineNumber,
-            SourceCode = firstLoop.SourceCode,
-            ControlType = FlowControlType.Loop,
-            ConditionExpression = firstLoop.ConditionExpression,
-            TrueBlockName = firstLoop.TrueBlockName,
-            FalseBlockName = firstLoop.FalseBlockName,
-            LoopBodyEndReturnTo = block.Name
-        };
-        loopBlock.Statements.Add(loopBlockStatement);
-
-        script.NamedBlocks[loopBlockName] = loopBlock;
-        script.AllBlocks.Add(loopBlock);
-        script.LoopBlocks[block.Name] = loopBlock;
-
-        block.NextBlockName = loopBlockName;
-
-        // Remove Loop statements from parent block since they act as terminators
         foreach (var loopStmt in loopStatements)
-        {
-            block.Statements.Remove(loopStmt);
-        }
+            loopStmt.ToLoopCondReturnTo = block.Name;
 
-        Log.Debug("[BlockStatementExtractor] Created LoopBlock '{LoopBlockName}' for parent '{ParentName}', " +
-            "parent NextBlock -> '{LoopBlockName}', Loop jumps to {TrueBlock}/{FalseBlock}",
-            loopBlockName, block.Name, loopBlockName,
-            firstLoop.TrueBlockName, firstLoop.FalseBlockName);
+        Log.Debug("[BlockStatementExtractor] Block '{BlockName}' contains {Count} Loop statement(s), " +
+            "ToLoopCondReturnTo set to '{BlockName}'",
+            block.Name, loopStatements.Count, block.Name);
     }
 
     /// <summary>
@@ -343,9 +304,9 @@ internal class BlockStatementExtractor
                     statement.ConditionExpression, statement.TrueBlockName, statement.FalseBlockName);
                 break;
 
-            case FlowControlType.LoopBodyEnd:
+            case FlowControlType.ToLoopCond:
                 if (args.Count >= 1)
-                    statement.LoopBodyEndReturnTo = GetStringLiteral(args[0].Expression);
+                    statement.ToLoopCondReturnTo = GetStringLiteral(args[0].Expression);
                 break;
         }
 

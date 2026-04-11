@@ -38,6 +38,12 @@ internal class ReverseConversionContext
     /// Set by ProcessLoopSubGraphs, read by ProcessBranchSubGraphs.
     /// </summary>
     public string? CurrentLoopbackTargetId { get; set; }
+
+    /// <summary>
+    /// Maps loop node ID to the block name that contains the Loop statement.
+    /// Used during topology-based reverse walk to generate correct ToLoopCond arguments.
+    /// </summary>
+    public Dictionary<string, string> LoopOwnerBlockNames { get; set; } = new();
 }
 
 /// <summary>

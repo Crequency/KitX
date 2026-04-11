@@ -105,6 +105,7 @@ public class BlockScriptParser : IBlockScriptParser
                 script.AllBlocks.Add(blockDef);
 
                 // Create LoopBlocks for blocks containing Loop statements
+                // NOTE: In new design, CreateLoopBlocksForBlock only sets metadata (no hidden blocks)
                 if (blockDef.Type == BlockType.MainBlock || blockDef.Type == BlockType.NamedBlock)
                 {
                     _extractor.CreateLoopBlocksForBlock(blockDef, script);

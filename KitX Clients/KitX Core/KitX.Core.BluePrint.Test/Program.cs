@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
@@ -262,9 +263,21 @@ public class Program
             // Attach helper functions with execution bodies
             parseResult.Script.HelperFunctions = GetExecutionHelpers();
 
-            // Step 4: Execute
+            // Step 4: Execute with timeout
             var executor = sp.GetRequiredService<IBlockScriptExecutor>();
-            var result = executor.ExecuteAsync(parseResult.Script).GetAwaiter().GetResult();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            BlockScriptExecutionResult result;
+
+            try
+            {
+                result = executor.ExecuteAsync(parseResult.Script, cancellationToken: cts.Token)
+                    .GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine($"[{label}] TIMEOUT: Execution exceeded 5-second limit (likely infinite loop)");
+                return;
+            }
 
             // Step 5: Verify output
             // Expected: guessNum=5, targetNum=7, loopMax=3
@@ -354,6 +367,9 @@ int vaaa0002;
 #MainBlock
 Print(""开始执行工作流"");
 Set(""currentLoop"", 0);
+NextBlock = ""LoopCond"";
+
+#Block LoopCond
 vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);
 NextBlock = Loop(vaaa0001, ""LoopBody"", ""EndLogic"");
 
@@ -376,13 +392,11 @@ NextBlock = Branch(
 
 #Block LessThanLogic
 Print(""猜小了"");
-vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);
-NextBlock = LoopBodyEnd(""MainBlock"");
+NextBlock = ToLoopCond(""LoopCond"");
 
 #Block GreaterThanLogic
 Print(""猜大了"");
-vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);
-NextBlock = LoopBodyEnd(""MainBlock"");
+NextBlock = ToLoopCond(""LoopCond"");
 
 #Block SuccessLogic
 Print(""猜对啦！"");
@@ -402,6 +416,9 @@ int currentLoop;
 #MainBlock
 Print(""开始执行工作流"");
 Set(""currentLoop"", 0);
+NextBlock = ""LoopCond"";
+
+#Block LoopCond
 NextBlock = Loop(HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax), ""LoopBody"", ""EndLogic"");
 
 #Block LoopBody
@@ -422,11 +439,11 @@ NextBlock = Branch(
 
 #Block LessThanLogic
 Print(""猜小了"");
-NextBlock = LoopBodyEnd(""MainBlock"");
+NextBlock = ToLoopCond(""LoopCond"");
 
 #Block GreaterThanLogic
 Print(""猜大了"");
-NextBlock = LoopBodyEnd(""MainBlock"");
+NextBlock = ToLoopCond(""LoopCond"");
 
 #Block SuccessLogic
 Print(""猜对啦！"");
@@ -664,7 +681,7 @@ Break();
 
 #Block ContinueBlock
 Set(""i"", HelperFuncAdd(Get(""i""), 1));
-NextBlock = LoopBodyEnd(""MainBlock"");
+NextBlock = ToLoopCond(""MainBlock"");
 
 #Block AfterLoop
 Print(""Loop finished with break"");";
@@ -686,11 +703,11 @@ NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""inner""), innerMax), ""InnerBo
 
 #Block InnerBody
 Set(""inner"", HelperFuncAdd(Get(""inner""), 1));
-NextBlock = LoopBodyEnd(""OuterBody"");
+NextBlock = ToLoopCond(""OuterBody"");
 
 #Block OuterEnd
 Set(""outer"", HelperFuncAdd(Get(""outer""), 1));
-NextBlock = LoopBodyEnd(""MainBlock"");
+NextBlock = ToLoopCond(""MainBlock"");
 
 #Block Done
 Print(""Nested loops done"");";

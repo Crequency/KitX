@@ -178,77 +178,28 @@ public class PipelineAssembler
     {
         var mainBlockName = ctx.FormattedScript.MainBlockName;
 
-        // Identify which blocks are Branch/Loop targets (have owners)
-        var ownedBlockNames = new HashSet<string>();
-        foreach (var (_, trueBlock, falseBlock) in ctx.BranchDefs)
-        {
-            if (trueBlock != null) ownedBlockNames.Add(trueBlock);
-            if (falseBlock != null) ownedBlockNames.Add(falseBlock);
-        }
-        foreach (var (_, loopBody, loopEnd, _) in ctx.LoopDefs)
-        {
-            if (loopBody != null) ownedBlockNames.Add(loopBody);
-            if (loopEnd != null) ownedBlockNames.Add(loopEnd);
-        }
-
-        // Build temporary scopes for all formatted blocks
-        var tempScopes = new Dictionary<string, (BlueprintBlockScope scope, List<string> nodeIds, string? nextBlock)>();
+        // Build a BlockScope for each formatted block — no merging.
+        // Each #Block in BlockScript is an explicit semantic boundary chosen by the user;
+        // preserving them ensures BP↔BS round-trip fidelity and avoids semantic errors
+        // (e.g. ToLoopCond returning to a block that re-initializes variables).
+        var assignedNodeIds = new HashSet<string>();
         foreach (var block in ctx.FormattedScript.Blocks)
         {
-            var scope = new BlueprintBlockScope
+            var nodeIds = new List<string>();
+            if (ctx.BlockNodeIds.TryGetValue(block.Name, out var ids))
+                nodeIds = ids.Where(id => assignedNodeIds.Add(id)).ToList();
+
+            bp.BlockScopes.Add(new BlueprintBlockScope
             {
                 Name = block.Name,
                 IsMainBlock = block.Name == mainBlockName,
                 NextBlockName = block.NextBlockName,
-            };
-
-            var nodeIds = new List<string>();
-            if (ctx.BlockNodeIds.TryGetValue(block.Name, out var ids))
-                nodeIds = new List<string>(ids);
-
-            tempScopes[block.Name] = (scope, nodeIds, block.NextBlockName);
+                NodeIds = nodeIds,
+            });
         }
 
-        // Merge sequential (non-owned) blocks into their parent chain
-        // A block is "sequential" if it's not the main block and not owned by a Branch/Loop
-        var merged = new HashSet<string>();
-        foreach (var kvp in tempScopes.ToList())
-        {
-            var (scope, nodeIds, nextBlock) = kvp.Value;
-            if (scope.IsMainBlock || ownedBlockNames.Contains(scope.Name))
-                continue;
-
-            // Find the root ancestor: follow NextBlockName chain upward to find the named/owned block
-            var ancestorName = FindAncestor(tempScopes, kvp.Key, ownedBlockNames, mainBlockName);
-            if (ancestorName != null && ancestorName != kvp.Key)
-            {
-                // Merge this scope's nodes into the ancestor
-                var (ancestorScope, ancestorNodeIds, _) = tempScopes[ancestorName];
-                ancestorNodeIds.AddRange(nodeIds);
-                merged.Add(kvp.Key);
-            }
-        }
-
-        // Remove merged scopes and add remaining to Blueprint.
-        // Deduplicate: each node belongs to its FIRST occurrence block only.
-        // This prevents shared data nodes (e.g., loop condition Compare nodes
-        // duplicated into LoopBodyEnd blocks) from appearing in multiple scopes.
-        var assignedNodeIds = new HashSet<string>();
-        foreach (var kvp in tempScopes)
-        {
-            if (merged.Contains(kvp.Key)) continue;
-
-            var (scope, nodeIds, _) = kvp.Value;
-            // Filter out nodes already assigned to an earlier block
-            var uniqueNodeIds = nodeIds.Where(id => assignedNodeIds.Add(id)).ToList();
-            scope.NodeIds = uniqueNodeIds;
-            bp.BlockScopes.Add(scope);
-        }
-
-        // Build scopesByName for ownership assignment
+        // Assign ownership from DeferredEdges (Branch/Loop/ToLoopCond etc.)
         var scopesByName = bp.BlockScopes.ToDictionary(s => s.Name, s => s);
-
-        // Assign ownership from DeferredEdges (Branch/Loop/Flip etc.)
         foreach (var deferred in ctx.DeferredEdges)
         {
             if (!ctx.NodeByStatementId.TryGetValue(deferred.SourceStatementId, out var ownerNode)) continue;
@@ -262,33 +213,8 @@ public class PipelineAssembler
             }
         }
 
-        Log.Debug("[PipelineAssembler] Built {ScopeCount} block scopes (merged {MergedCount} intermediate)",
-            bp.BlockScopes.Count, merged.Count);
+        Log.Debug("[PipelineAssembler] Built {ScopeCount} block scopes",
+            bp.BlockScopes.Count);
     }
 
-    /// <summary>
-    /// Walks the NextBlockName chain backward from a block to find its named/owned ancestor.
-    /// Returns null if the block is orphaned.
-    /// </summary>
-    private string? FindAncestor(
-        Dictionary<string, (BlueprintBlockScope scope, List<string> nodeIds, string? nextBlock)> tempScopes,
-        string blockName,
-        HashSet<string> ownedBlockNames,
-        string mainBlockName)
-    {
-        // Follow the chain: find which block has NextBlockName pointing to our block
-        foreach (var kvp in tempScopes)
-        {
-            var (_, _, nextBlock) = kvp.Value;
-            if (nextBlock == blockName)
-            {
-                // The parent is this block
-                if (kvp.Key == mainBlockName || ownedBlockNames.Contains(kvp.Key))
-                    return kvp.Key;
-                // Recurse to find the grandparent
-                return FindAncestor(tempScopes, kvp.Key, ownedBlockNames, mainBlockName);
-            }
-        }
-        return null;
-    }
 }

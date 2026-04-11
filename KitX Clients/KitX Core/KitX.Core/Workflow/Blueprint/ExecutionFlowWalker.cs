@@ -56,7 +56,7 @@ internal class ExecutionFlowWalker
     /// <summary>
     /// Generates statements from stored BlockScopes (BlockScopes-based path).
     /// Processes each scope, generates statements for its nodes, resolves control flow,
-    /// and inserts LoopBodyEnd statements.
+    /// and inserts ToLoopCond statements.
     /// </summary>
     public void WalkFromBlockScopes(Contract.Workflow.Blueprint blueprint, ReverseConversionContext ctx)
     {
@@ -110,7 +110,11 @@ internal class ExecutionFlowWalker
         foreach (var flow in ctx.ControlFlowMap.Values)
             flow.RegenerateSourceCode();
 
-        DetectAndInsertLoopBodyEnds(blueprint, ctx);
+        // Detect loopback edges: if an exec connection goes from a scope's last node
+        // to a scope containing a Loop node (and no ToLoopCond was generated),
+        // insert a ToLoopCond statement. This is a fallback for when ToLoopCond
+        // nodes are absent (e.g. Canvas round-trip losing BuiltinFunctionNode metadata).
+        DetectAndInsertLoopbackToLoopConds(blueprint, ctx);
     }
 
     // ─── Node Walking ────────────────────────────────────────────────────
@@ -123,7 +127,8 @@ internal class ExecutionFlowWalker
 
         if (loopbackTargetId != null && node.Id == loopbackTargetId)
         {
-            currentBlock.Statements.Add(CreateLoopBodyEndStatement());
+            var ownerName = ctx.LoopOwnerBlockNames.TryGetValue(loopbackTargetId, out var n) ? n : null;
+            currentBlock.Statements.Add(CreateToLoopCondStatement(ownerName));
             return;
         }
 
@@ -135,9 +140,16 @@ internal class ExecutionFlowWalker
             {
                 ctx.ControlFlowMap[node.Id] = flow;
                 if (flow.ControlType == FlowControlType.Loop)
+                {
                     ctx.LoopNodes[node.Id] = node;
+                    ctx.LoopOwnerBlockNames[node.Id] = currentBlock.Name;
+                }
             }
         }
+
+        // If this node generated a ToLoopCond statement, don't follow exec chain
+        if (stmt is FlowControlStatement { ControlType: FlowControlType.ToLoopCond })
+            return;
 
         if (IsBranchNode(node) || IsLoopNode(node))
         {
@@ -149,7 +161,10 @@ internal class ExecutionFlowWalker
         if (execOut == null)
         {
             if (loopbackTargetId != null)
-                currentBlock.Statements.Add(CreateLoopBodyEndStatement());
+            {
+                var ownerName2 = ctx.LoopOwnerBlockNames.TryGetValue(loopbackTargetId, out var n2) ? n2 : null;
+                currentBlock.Statements.Add(CreateToLoopCondStatement(ownerName2));
+            }
             return;
         }
 
@@ -157,7 +172,10 @@ internal class ExecutionFlowWalker
         if (execConn == null)
         {
             if (loopbackTargetId != null)
-                currentBlock.Statements.Add(CreateLoopBodyEndStatement());
+            {
+                var ownerName3 = ctx.LoopOwnerBlockNames.TryGetValue(loopbackTargetId, out var n3) ? n3 : null;
+                currentBlock.Statements.Add(CreateToLoopCondStatement(ownerName3));
+            }
             return;
         }
 
@@ -166,7 +184,8 @@ internal class ExecutionFlowWalker
 
         if (loopbackTargetId != null && nextNode.Id == loopbackTargetId)
         {
-            currentBlock.Statements.Add(CreateLoopBodyEndStatement());
+            var ownerName4 = ctx.LoopOwnerBlockNames.TryGetValue(loopbackTargetId, out var n4) ? n4 : null;
+            currentBlock.Statements.Add(CreateToLoopCondStatement(ownerName4));
             return;
         }
 
@@ -175,13 +194,13 @@ internal class ExecutionFlowWalker
 
     // ─── Statement Generation ────────────────────────────────────────────
 
-    private static FlowControlStatement CreateLoopBodyEndStatement(string? returnTo = null)
+    private static FlowControlStatement CreateToLoopCondStatement(string? returnTo = null)
     {
         var stmt = new FlowControlStatement
         {
-            ControlType = FlowControlType.LoopBodyEnd,
+            ControlType = FlowControlType.ToLoopCond,
             LineNumber = 1,
-            LoopBodyEndReturnTo = returnTo
+            ToLoopCondReturnTo = returnTo
         };
         stmt.RegenerateSourceCode();
         return stmt;
@@ -438,37 +457,7 @@ internal class ExecutionFlowWalker
         ctx.BlockNameAssignments[loopNode.Id] = (loopBodyBlockName, loopEndBlockName);
     }
 
-    // ─── BlockScope LoopBodyEnd Helpers ───────────────────────────────────
-
-    private void DetectAndInsertLoopBodyEnds(Contract.Workflow.Blueprint bp, ReverseConversionContext ctx)
-    {
-        foreach (var scope in bp.BlockScopes)
-        {
-            if (scope.NodeIds.Count == 0) continue;
-            if (scope.NodeIds.Any(id => ctx.NodeById.TryGetValue(id, out var n) && IsLoopNode(n)))
-                continue;
-
-            var lastNodeId = scope.NodeIds[scope.NodeIds.Count - 1];
-            if (!ctx.NodeById.TryGetValue(lastNodeId, out var lastNode)) continue;
-
-            var (loopNode, _) = FollowExecChainToLoop(lastNode, ctx);
-            if (loopNode == null) continue;
-
-            var loopScopeName = FindScopeContainingNode(loopNode.Id, bp);
-            if (loopScopeName == scope.Name) continue;
-
-            var returnToBlock = loopScopeName;
-            if (returnToBlock == null) continue;
-
-            BlockDefinition? blockDef = scope.IsMainBlock
-                ? ctx.Script.MainBlock
-                : ctx.Script.NamedBlocks.GetValueOrDefault(scope.Name);
-            if (blockDef == null) continue;
-
-            GenerateConditionStatements(loopNode, blockDef, ctx);
-            blockDef.Statements.Add(CreateLoopBodyEndStatement(returnToBlock));
-        }
-    }
+    // ─── BlockScope ToLoopCond Helpers ───────────────────────────────────
 
     private static (BlueprintNode? loopNode, List<BlueprintNode> path) FollowExecChainToLoop(
         BlueprintNode startNode, ReverseConversionContext ctx)
@@ -497,42 +486,6 @@ internal class ExecutionFlowWalker
         }
 
         return (null, path);
-    }
-
-    private void GenerateConditionStatements(BlueprintNode loopNode, BlockDefinition blockDef,
-        ReverseConversionContext ctx)
-    {
-        var condPin = loopNode.InputPins.FirstOrDefault(p => p.Name == Condition);
-        if (condPin == null) return;
-
-        var condConn = ctx.DataConnections.FirstOrDefault(c => c.TargetPinId == condPin.Id);
-        if (condConn == null) return;
-
-        var generated = new HashSet<string>();
-        GenerateDataChainStatements(condConn.SourceNodeId, blockDef, ctx, generated);
-    }
-
-    private void GenerateDataChainStatements(string sourceNodeId,
-        BlockDefinition blockDef, ReverseConversionContext ctx, HashSet<string> generated)
-    {
-        if (generated.Contains(sourceNodeId)) return;
-        if (!ctx.NodeById.TryGetValue(sourceNodeId, out var sourceNode)) return;
-
-        foreach (var inputPin in sourceNode.InputPins)
-        {
-            if (inputPin.Name == Exec) continue;
-            var upConn = ctx.DataConnections.FirstOrDefault(c => c.TargetPinId == inputPin.Id);
-            if (upConn != null)
-                GenerateDataChainStatements(upConn.SourceNodeId, blockDef, ctx, generated);
-        }
-
-        if (sourceNode.NodeType == BlueprintNodeType.Const) return;
-
-        generated.Add(sourceNodeId);
-
-        var stmt = GenerateStatement(sourceNode, ctx);
-        if (stmt != null)
-            blockDef.Statements.Add(stmt);
     }
 
     private static string? FindScopeContainingNode(string nodeId, Contract.Workflow.Blueprint bp)
@@ -566,4 +519,103 @@ internal class ExecutionFlowWalker
 
     private static bool IsGetNode(BlueprintNode node) =>
         IsNodeType(node, BlueprintNodeType.Get);
+
+    // ─── Loopback Edge Detection (BlockScopes fallback) ──────────────────
+
+    /// <summary>
+    /// Detects exec connections that form loopback edges (from one scope's tail
+    /// to a scope containing a Loop node) and inserts ToLoopCond statements
+    /// when none was generated. This is a fallback for when ToLoopCond nodes
+    /// are absent or lost during Canvas round-trips.
+    /// </summary>
+    private static void DetectAndInsertLoopbackToLoopConds(
+        Contract.Workflow.Blueprint blueprint, ReverseConversionContext ctx)
+    {
+        // Build: LoopNodeId → ScopeName (which scope contains each Loop node)
+        var loopNodeToScope = new Dictionary<string, string>();
+        foreach (var scope in blueprint.BlockScopes)
+        {
+            foreach (var nodeId in scope.NodeIds)
+            {
+                if (ctx.LoopNodes.ContainsKey(nodeId))
+                    loopNodeToScope[nodeId] = scope.Name;
+            }
+        }
+
+        if (loopNodeToScope.Count == 0) return;
+
+        // Build: ScopeName → set of first node IDs
+        var scopeFirstNodes = new Dictionary<string, HashSet<string>>();
+        foreach (var scope in blueprint.BlockScopes)
+        {
+            if (scope.NodeIds.Count == 0) continue;
+            scopeFirstNodes[scope.Name] = [scope.NodeIds[0]];
+        }
+
+        // Build: ScopeName → scope's block definition
+        var scopeToBlock = new Dictionary<string, BlockDefinition>();
+        if (ctx.Script.MainBlock != null)
+            scopeToBlock[BlockScriptWellKnown.Blocks.MainBlock] = ctx.Script.MainBlock;
+        foreach (var kvp in ctx.Script.NamedBlocks)
+            scopeToBlock[kvp.Key] = kvp.Value;
+
+        // For each scope, check if its last node has an exec connection
+        // leading to a node inside a Loop-containing scope.
+        // Also check if the scope already ends with a ToLoopCond statement.
+        foreach (var scope in blueprint.BlockScopes)
+        {
+            if (scope.NodeIds.Count == 0) continue;
+            if (!scopeToBlock.TryGetValue(scope.Name, out var block)) continue;
+
+            // Skip scopes that already end with ToLoopCond
+            if (block.Statements.LastOrDefault() is FlowControlStatement { ControlType: FlowControlType.ToLoopCond })
+                continue;
+
+            // Find the last node in this scope that has an exec output connection
+            string? lastNodeId = null;
+            for (int i = scope.NodeIds.Count - 1; i >= 0; i--)
+            {
+                var nodeId = scope.NodeIds[i];
+                if (!ctx.NodeById.TryGetValue(nodeId, out var node)) continue;
+                var execOut = node.OutputPins.FirstOrDefault(p => p.Name == Exec);
+                if (execOut == null) continue;
+                var execConn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == execOut.Id);
+                if (execConn != null)
+                {
+                    lastNodeId = nodeId;
+                    break;
+                }
+            }
+
+            if (lastNodeId == null) continue;
+            if (!ctx.NodeById.TryGetValue(lastNodeId, out var lastNode)) continue;
+
+            var lastExecOut = lastNode.OutputPins.First(p => p.Name == Exec);
+            var lastExecConn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == lastExecOut.Id);
+            if (lastExecConn == null) continue;
+
+            var targetNode = blueprint.GetNodeById(lastExecConn.TargetNodeId);
+            if (targetNode == null) continue;
+
+            // Check: does the target node belong to a scope that contains a Loop?
+            var targetScopeName = FindScopeContainingNode(targetNode.Id, blueprint);
+            if (targetScopeName == null) continue;
+
+            // Check: does that scope contain a Loop node?
+            var targetScope = blueprint.BlockScopes.FirstOrDefault(s => s.Name == targetScopeName);
+            if (targetScope == null) continue;
+
+            bool targetScopeContainsLoop = targetScope.NodeIds
+                .Any(nid => ctx.LoopNodes.ContainsKey(nid));
+            if (!targetScopeContainsLoop) continue;
+
+            // Skip if the target scope is the same as the source scope
+            if (targetScopeName == scope.Name) continue;
+
+            // Found a loopback edge! Insert ToLoopCond pointing to the Loop's scope.
+            block.Statements.Add(CreateToLoopCondStatement(targetScopeName));
+            Log.Debug("[ExecutionFlowWalker] Inserted fallback ToLoopCond(\"{Target}\") in scope \"{Scope}\"",
+                targetScopeName, scope.Name);
+        }
+    }
 }

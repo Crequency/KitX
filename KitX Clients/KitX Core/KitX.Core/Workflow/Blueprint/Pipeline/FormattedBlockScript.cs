@@ -78,12 +78,12 @@ public class FormattedStatement
     public string? ConditionPubVar { get; set; }
     public string? TrueBlockName { get; set; }
     public string? FalseBlockName { get; set; }
-    public string? LoopBodyEndReturnTo { get; set; }
+    public string? ToLoopCondReturnTo { get; set; }
 
     // --- Metadata ---
     /// <summary>
     /// True if this statement was inserted by the ScriptFormatter as a Loop condition duplication
-    /// before a LoopBodyEnd statement.
+    /// before a ToLoopCond statement.
     /// </summary>
     public bool IsLoopConditionDuplication { get; set; }
 
@@ -135,8 +135,8 @@ public enum FormattedStatementKind
     /// <summary>Loop(condition, loopBody, afterLoop)</summary>
     Loop,
 
-    /// <summary>LoopBodyEnd("parentBlock")</summary>
-    LoopBodyEnd,
+    /// <summary>ToLoopCond("parentBlock")</summary>
+    ToLoopCond,
 
     /// <summary>Break()</summary>
     Break,

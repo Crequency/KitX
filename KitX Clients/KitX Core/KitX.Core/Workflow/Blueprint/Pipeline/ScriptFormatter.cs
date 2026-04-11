@@ -14,7 +14,7 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// <summary>
 /// Phase 2: Takes a parsed BlockScript AST and produces a FormattedBlockScript
 /// where all nested function calls have been expanded into PubVar assignments.
-/// Also duplicates Loop condition evaluations before LoopBodyEnd statements.
+/// Also duplicates Loop condition evaluations before ToLoopCond statements.
 /// </summary>
 public class ScriptFormatter
 {
@@ -56,18 +56,6 @@ public class ScriptFormatter
                 result.Blocks.Add(FormatBlock(kvp.Value, context));
             }
         }
-
-        // Format LoopBlocks
-        foreach (var kvp in script.LoopBlocks)
-        {
-            if (!result.Blocks.Any(b => b.Name == kvp.Value.Name))
-            {
-                result.Blocks.Add(FormatBlock(kvp.Value, context));
-            }
-        }
-
-        // Insert Loop condition duplications before LoopBodyEnd
-        InsertLoopConditionDuplications(result, context);
 
         Log.Debug("[ScriptFormatter] Done: {BlockCount} blocks, {StmtCount} statements",
             result.Blocks.Count, result.Blocks.Sum(b => b.Statements.Count));
@@ -152,7 +140,7 @@ public class ScriptFormatter
                     };
                     result.Add(loopStmt);
 
-                    // Store condition for duplication before LoopBodyEnd
+                    // Store condition for duplication before ToLoopCond
                     if (!string.IsNullOrEmpty(condPubVar))
                     {
                         context.LoopConditions[blockName] = new ConditionInfo
@@ -165,13 +153,13 @@ public class ScriptFormatter
                 }
                 break;
 
-            case FlowControlType.LoopBodyEnd:
+            case FlowControlType.ToLoopCond:
                 result.Add(new FormattedStatement
                 {
                     BlockName = blockName,
-                    Kind = FormattedStatementKind.LoopBodyEnd,
-                    FunctionName = LoopBodyEnd,
-                    LoopBodyEndReturnTo = flowCtrl.LoopBodyEndReturnTo,
+                    Kind = FormattedStatementKind.ToLoopCond,
+                    FunctionName = ToLoopCond,
+                    ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
                     OriginalExpression = flowCtrl.SourceCode,
                     SourceLine = flowCtrl.LineNumber
                 });
@@ -469,70 +457,4 @@ public class ScriptFormatter
 
         return (result, null);
     }
-
-    // ──────────────────────────────────────────────
-    // Loop condition duplication before LoopBodyEnd
-    // ──────────────────────────────────────────────
-
-    private void InsertLoopConditionDuplications(FormattedBlockScript script, PipelineContext context)
-    {
-        foreach (var block in script.Blocks)
-        {
-            var insertions = new List<(int index, List<FormattedStatement> stmts)>();
-
-            for (int i = 0; i < block.Statements.Count; i++)
-            {
-                var stmt = block.Statements[i];
-                if (stmt.Kind == FormattedStatementKind.LoopBodyEnd
-                    && !string.IsNullOrEmpty(stmt.LoopBodyEndReturnTo))
-                {
-                    // Try both the original block name and the Loop sub-block name
-                    // (parser moves Loop stmts into {ParentBlock}_Loop sub-blocks)
-                    var lookupKeys = new[] { stmt.LoopBodyEndReturnTo, $"{stmt.LoopBodyEndReturnTo}_Loop" };
-                    ConditionInfo? condInfo = null;
-                    foreach (var key in lookupKeys)
-                    {
-                        if (context.LoopConditions.TryGetValue(key, out var ci) && ci.ExpansionStatements.Count > 0)
-                        {
-                            condInfo = ci;
-                            break;
-                        }
-                    }
-
-                    if (condInfo != null)
-                    {
-                        var dupStmts = condInfo.ExpansionStatements.Select(CloneStatement).ToList();
-                        dupStmts.ForEach(s => s.IsLoopConditionDuplication = true);
-                        insertions.Add((i, dupStmts));
-                    }
-                }
-            }
-
-            // Apply in reverse order to preserve indices
-            foreach (var (index, stmts) in insertions.OrderByDescending(x => x.index))
-                block.Statements.InsertRange(index, stmts);
-        }
-    }
-
-    private FormattedStatement CloneStatement(FormattedStatement source) => new()
-    {
-        StatementId = Guid.NewGuid().ToString(),
-        BlockName = source.BlockName,
-        OriginalExpression = source.OriginalExpression,
-        Kind = source.Kind,
-        PubVarTarget = source.PubVarTarget,
-        FunctionName = source.FunctionName,
-        FullFunctionName = source.FullFunctionName,
-        Arguments = new List<string>(source.Arguments),
-        ConditionExpression = source.ConditionExpression,
-        ConditionPubVar = source.ConditionPubVar,
-        TrueBlockName = source.TrueBlockName,
-        FalseBlockName = source.FalseBlockName,
-        LoopBodyEndReturnTo = source.LoopBodyEndReturnTo,
-        Fingerprint = source.Fingerprint,
-        SetVarName = source.SetVarName,
-        GetVarName = source.GetVarName,
-        IsLoopConditionDuplication = source.IsLoopConditionDuplication,
-        SourceLine = source.SourceLine
-    };
 }

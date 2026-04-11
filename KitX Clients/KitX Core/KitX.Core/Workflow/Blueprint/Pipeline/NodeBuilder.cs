@@ -22,7 +22,7 @@ public class NodeBuilder
     private readonly BuiltinFunctionRegistry? _functionRegistry;
 
     // Deferred cross-block edge definitions (resolved after all blocks processed)
-    private readonly List<(string stmtId, string returnToBlock, string blockName, string? prevStmtId)> _loopBodyEndDefs = new();
+    private readonly List<(string stmtId, string returnToBlock, string blockName, string? prevStmtId)> _loopBodyEndDefs = [];
     private readonly Dictionary<string, string> _blockLastStmtId = new();
 
     public NodeBuilder(INodeRegistry registry, List<HelperFunction> helpers, BuiltinFunctionRegistry? functionRegistry = null)
@@ -81,13 +81,13 @@ public class NodeBuilder
             if (firstNode == null && node != null)
                 firstNode = node;
 
-            // Record node ID in block membership (skip nulls like LoopBodyEnd)
+            // Record node ID in block membership (skip nulls like ToLoopCond)
             if (node != null)
                 context.BlockNodeIds[block.Name].Add(node.Id);
 
             endsWithFlowCtrl = stmt.Kind is FormattedStatementKind.Branch
                 or FormattedStatementKind.Loop
-                or FormattedStatementKind.LoopBodyEnd
+                or FormattedStatementKind.ToLoopCond
                 or FormattedStatementKind.Break
                 || IsRegistryFlowControlTerminator(stmt);
         }
@@ -111,19 +111,12 @@ public class NodeBuilder
     private BlueprintNode? ProcessStatement(FormattedStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
-        // Registry path: handle all registered block terminators (Branch/Loop/LoopBodyEnd/Break/Flip)
+        // Registry path: handle all registered block terminators (Branch/Loop/ToLoopCond/Break/Flip)
         if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName))
         {
             var funcDef = _functionRegistry.Get(stmt.FunctionName);
             if (funcDef != null && funcDef.IsBlockTerminator)
             {
-                // LoopBodyEnd: no node created, record for deferred resolution
-                if (funcDef.IsFlowControl && stmt.Kind == FormattedStatementKind.LoopBodyEnd)
-                {
-                    _loopBodyEndDefs.Add((stmt.StatementId, stmt.LoopBodyEndReturnTo ?? "", blockName, prevStmtId));
-                    return null;
-                }
-
                 // Use LegacyNodeType when available for backward compatibility
                 BlueprintNode node = funcDef.LegacyNodeType is { } legacyType
                     ? _registry.Create(legacyType)
@@ -308,22 +301,6 @@ public class NodeBuilder
 
     private void ResolveCrossBlockEdges(PipelineContext context)
     {
-        // LoopBodyEnd: prev node → Loop.Exec (of parent block)
-        foreach (var (_, returnToBlock, _, prevStmtId) in _loopBodyEndDefs)
-        {
-            if (!context.LoopNodesByParent.TryGetValue(returnToBlock, out var loopNode)) continue;
-            var loopStmtId = FindStmtIdForNode(loopNode, context);
-            if (prevStmtId == null || loopStmtId == null) continue;
-
-            context.ExecEdges.Add(new PendingExecEdge
-            {
-                SourceStatementId = prevStmtId,
-                TargetStatementId = loopStmtId,
-                SourcePinName = Exec,
-                TargetPinName = Exec
-            });
-        }
-
         // Sequential fall-through for blocks without flow control endings
         foreach (var (blockName, nextBlockName) in context.BlockNextBlock)
         {
@@ -364,7 +341,7 @@ public class NodeBuilder
                 });
             }
 
-            // Loopback edge (LoopBodyEnd-style)
+            // Loopback edge (ToLoopCond-style)
             if (!string.IsNullOrEmpty(deferred.LoopbackTargetBlock))
             {
                 // Find the LoopNode in the target block's parent for loopback

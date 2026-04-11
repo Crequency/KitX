@@ -38,7 +38,7 @@ public static class BlockScriptWellKnown
     {
         public const string Branch = "Branch";
         public const string Loop = "Loop";
-        public const string LoopBodyEnd = "LoopBodyEnd";
+        public const string ToLoopCond = "ToLoopCond";
         public const string Break = "Break";
         public const string Print = "Print";
         public const string Pause = "Pause";

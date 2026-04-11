@@ -82,7 +82,7 @@ public class LoopFunction : IBuiltinFunctionDefinition
         // Also record into LoopDefs for condition duplication support
         context.LoopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, stmt.BlockName));
 
-        // Store for LoopBodyEnd loopback resolution
+        // Store for ToLoopCond loopback resolution
         context.LoopNodesByParent[stmt.BlockName] = node;
     }
 

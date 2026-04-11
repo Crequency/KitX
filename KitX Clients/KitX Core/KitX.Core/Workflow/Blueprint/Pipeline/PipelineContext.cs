@@ -56,7 +56,7 @@ public class PipelineContext
     public Dictionary<string, PubVarAssignment> PubVarAssignments { get; set; } = new();
 
     /// <summary>
-    /// parentBlockName → LoopNode (for LoopBodyEnd resolution)
+    /// parentBlockName → LoopNode (for ToLoopCond resolution)
     /// </summary>
     public Dictionary<string, BlueprintNode> LoopNodesByParent { get; set; } = new();
 
@@ -98,7 +98,7 @@ public class SubAssignment
 }
 
 /// <summary>
-/// Information about a Loop's condition for duplication before LoopBodyEnd.
+/// Information about a Loop's condition for duplication before ToLoopCond.
 /// </summary>
 public class ConditionInfo
 {
@@ -163,6 +163,6 @@ public struct DeferredControlFlowEdge
     /// <summary>Output arms: each defines a pin name and target block name</summary>
     public List<(string PinName, string TargetBlockName)> Arms { get; set; }
 
-    /// <summary>For LoopBodyEnd-style loopback: the block to return to. Null for non-loopback edges.</summary>
+    /// <summary>For ToLoopCond-style loopback: the block to return to. Null for non-loopback edges.</summary>
     public string? LoopbackTargetBlock { get; set; }
 }

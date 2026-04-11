@@ -8,7 +8,7 @@ namespace KitX.Core.Workflow.Blueprint.ReversePipeline;
 
 /// <summary>
 /// Phase 3 of reverse conversion: duplicates Loop condition evaluation statements
-/// before each LoopBodyEnd in loop body blocks.
+/// before each ToLoopCond in loop body blocks.
 /// </summary>
 internal class ConditionDuplicator
 {
@@ -30,14 +30,14 @@ internal class ConditionDuplicator
             var condStmts = FindConditionStatements(loopNode, ctx);
             if (condStmts.Count == 0) continue;
 
-            // Insert duplicates before each LoopBodyEnd in the loop body block
+            // Insert duplicates before each ToLoopCond in the loop body block
             var insertions = new List<(int index, List<BlockStatement> stmts)>();
 
             for (int i = 0; i < loopBodyBlock.Statements.Count; i++)
             {
                 var stmt = loopBodyBlock.Statements[i];
                 if (stmt is FlowControlStatement flowStmt
-                    && flowStmt.ControlType == FlowControlType.LoopBodyEnd)
+                    && flowStmt.ControlType == FlowControlType.ToLoopCond)
                 {
                     var dupStmts = condStmts.Select(CloneStatement).ToList();
                     insertions.Add((i, dupStmts.Cast<BlockStatement>().ToList()));
