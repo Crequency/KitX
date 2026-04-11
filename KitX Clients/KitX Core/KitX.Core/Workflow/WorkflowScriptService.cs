@@ -990,7 +990,10 @@ public class WorkflowCase : IWorkflowCase
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = "Untitled Workflow";
     public string Description { get; set; } = string.Empty;
-    public string IconPath { get; set; } = string.Empty;
+    public string Author { get; set; } = string.Empty;
     public bool IsRunning { get; set; }
     public string? ScriptPath { get; set; }
+    public DateTime CreatedTime { get; set; } = DateTime.UtcNow;
+    public DateTime LastModifiedTime { get; set; } = DateTime.UtcNow;
+    public string TriggerType { get; set; } = "Manual";
 }

@@ -109,4 +109,24 @@ public static class EventNames
     /// Plugin unregistered event
     /// </summary>
     public const string PluginUnregistered = "PluginUnregistered";
+
+    /// <summary>
+    /// Workflow created event
+    /// </summary>
+    public const string WorkflowCreated = "WorkflowCreated";
+
+    /// <summary>
+    /// Workflow deleted event
+    /// </summary>
+    public const string WorkflowDeleted = "WorkflowDeleted";
+
+    /// <summary>
+    /// Workflow renamed event
+    /// </summary>
+    public const string WorkflowRenamed = "WorkflowRenamed";
+
+    /// <summary>
+    /// Workflow data saved event
+    /// </summary>
+    public const string WorkflowDataSaved = "WorkflowDataSaved";
 }

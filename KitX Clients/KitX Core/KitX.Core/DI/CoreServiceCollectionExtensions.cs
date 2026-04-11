@@ -250,6 +250,14 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IBlueprintService...");
         services.AddSingleton<IBlueprintService, BlueprintService>();
 
+        // Workflow Storage Service
+        Log.Information("Registering IWorkflowStorageService...");
+        services.AddSingleton<IWorkflowStorageService>(provider =>
+        {
+            var service = WorkflowStorageService.Instance;
+            return service;
+        });
+
         Log.Information("AddCoreServices completed.");
         return services;
     }
