@@ -56,13 +56,17 @@ internal class ExecutionFlowWalker
     /// <summary>
     /// Generates statements from stored BlockScopes (BlockScopes-based path).
     /// Processes each scope, generates statements for its nodes, resolves control flow,
-    /// and inserts ToLoopCond statements.
+    /// and inserts ToLoopCond statements. Nodes not reachable from Entry via execution
+    /// edges are excluded.
     /// </summary>
     public void WalkFromBlockScopes(Contract.Workflow.Blueprint blueprint, ReverseConversionContext ctx)
     {
         // Build scopesByName lookup
         foreach (var scope in blueprint.BlockScopes)
             ctx.ScopesByName[scope.Name] = scope;
+
+        // Reachability filter: only include nodes reachable from Entry via exec edges
+        var reachableNodeIds = FindReachableNodeIds(blueprint, ctx);
 
         // Generate statements from stored block membership
         foreach (var scope in blueprint.BlockScopes)
@@ -81,6 +85,9 @@ internal class ExecutionFlowWalker
 
             foreach (var nodeId in scope.NodeIds)
             {
+                // Skip nodes not reachable from Entry via execution edges
+                if (!reachableNodeIds.Contains(nodeId)) continue;
+
                 if (!ctx.NodeById.TryGetValue(nodeId, out var node)) continue;
                 var stmt = GenerateStatement(node, ctx);
                 if (stmt != null)
@@ -115,6 +122,42 @@ internal class ExecutionFlowWalker
         // insert a ToLoopCond statement. This is a fallback for when ToLoopCond
         // nodes are absent (e.g. Canvas round-trip losing BuiltinFunctionNode metadata).
         DetectAndInsertLoopbackToLoopConds(blueprint, ctx);
+    }
+
+    // ─── Reachability Analysis ──────────────────────────────────────────
+
+    /// <summary>
+    /// Performs BFS from the Entry node following only execution output pins
+    /// to determine which nodes are reachable from Entry. Nodes not in the
+    /// returned set should be excluded from BS output.
+    /// </summary>
+    private static HashSet<string> FindReachableNodeIds(
+        Contract.Workflow.Blueprint blueprint, ReverseConversionContext ctx)
+    {
+        var reachable = new HashSet<string>();
+        var entry = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
+        if (entry == null) return reachable;
+
+        var queue = new Queue<BlueprintNode>();
+        queue.Enqueue(entry);
+        reachable.Add(entry.Id);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var pin in current.OutputPins)
+            {
+                if (pin.Type != PinType.Execution) continue;
+                var conn = ctx.ExecConnections.FirstOrDefault(c => c.SourcePinId == pin.Id);
+                if (conn == null) continue;
+                var target = blueprint.GetNodeById(conn.TargetNodeId);
+                if (target == null || reachable.Contains(target.Id)) continue;
+                reachable.Add(target.Id);
+                queue.Enqueue(target);
+            }
+        }
+
+        return reachable;
     }
 
     // ─── Node Walking ────────────────────────────────────────────────────
