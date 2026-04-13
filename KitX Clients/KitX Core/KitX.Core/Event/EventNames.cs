@@ -129,4 +129,19 @@ public static class EventNames
     /// Workflow data saved event
     /// </summary>
     public const string WorkflowDataSaved = "WorkflowDataSaved";
+
+    /// <summary>
+    /// Trigger fired event
+    /// </summary>
+    public const string TriggerFired = "TriggerFired";
+
+    /// <summary>
+    /// Workflow triggered event (a workflow was started by a trigger)
+    /// </summary>
+    public const string WorkflowTriggered = "WorkflowTriggered";
+
+    /// <summary>
+    /// Workflow execution result event (success or failure)
+    /// </summary>
+    public const string WorkflowExecutionResult = "WorkflowExecutionResult";
 }

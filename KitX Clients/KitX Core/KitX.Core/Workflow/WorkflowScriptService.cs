@@ -87,7 +87,7 @@ public class WorkflowScriptService : IWorkflowService
     }
 
     /// <summary>
-    /// Runs a workflow
+    /// Runs a workflow by loading its data from storage and executing the BlockScript source.
     /// </summary>
     /// <param name="workflowId">The workflow ID</param>
     /// <returns>True if run was successful</returns>
@@ -97,38 +97,78 @@ public class WorkflowScriptService : IWorkflowService
 
         try
         {
-            var workflow = _workflows.FirstOrDefault(w => w.Id == workflowId);
+            // Load workflow data from storage (not from the stale in-memory list)
+            var storageService = WorkflowStorageService.Instance;
+            var data = await storageService.LoadWorkflowDataAsync(workflowId);
 
-            if (workflow == null)
+            if (data == null)
             {
-                Log.Warning($"Workflow not found: {workflowId}");
-                return await System.Threading.Tasks.Task.FromResult(false);
+                Log.Warning("[{Location}] Workflow data not found in storage for ID: {WorkflowId}. " +
+                    "Expected file path: {Path}", location, workflowId,
+                    storageService.GetWorkflowFilePath(workflowId));
+                return false;
             }
 
-            if (workflow.IsRunning)
+            Log.Information("[{Location}] Loaded workflow '{Name}' (ID: {Id}), " +
+                "UseBlockMode: {UseBlockMode}, BlockScriptSource length: {BsLen}, " +
+                "MainProgram length: {MpLen}, Helpers: {HelperCount}",
+                location, data.Name, workflowId, data.UseBlockMode,
+                data.BlockScriptSource?.Length ?? 0,
+                data.MainProgram?.Length ?? 0,
+                data.HelperFunctions?.Count ?? 0);
+
+            // Determine the source code to execute
+            string sourceCode;
+            List<HelperFunction>? helpers = data.HelperFunctions;
+
+            if (data.UseBlockMode && !string.IsNullOrWhiteSpace(data.BlockScriptSource))
             {
-                Log.Warning($"Workflow is already running: {workflow.Name}");
-                return await System.Threading.Tasks.Task.FromResult(false);
+                sourceCode = data.BlockScriptSource;
+            }
+            else if (!string.IsNullOrWhiteSpace(data.MainProgram))
+            {
+                sourceCode = data.MainProgram;
+            }
+            else
+            {
+                Log.Warning("[{Location}] Workflow '{Name}' (ID: {Id}) has no executable source code",
+                    location, data.Name, workflowId);
+                return false;
             }
 
-            workflow.IsRunning = true;
+            // Execute the BlockScript
+            Log.Information("[{Location}] Executing workflow '{Name}' ({SourceLength} chars)...",
+                location, data.Name, sourceCode.Length);
 
-            // TODO: Implement actual workflow execution logic
-            // This would involve parsing the workflow script and executing it
+            var result = await ExecuteBlockScriptAsync(sourceCode, helpers ?? [], CancellationToken.None);
 
-            Log.Information($"Started workflow: {workflow.Name}");
+            if (result.IsSuccess)
+            {
+                var output = result.Output != null && result.Output.Count > 0
+                    ? string.Join("\n", result.Output)
+                    : "(no output)";
+                Log.Information("[{Location}] Workflow '{Name}' executed successfully. " +
+                    "Blocks: {Blocks}, Time: {Time}ms\nOutput:\n{Output}",
+                    location, data.Name, result.ExecutedBlockCount, result.ExecutionTimeMs, output);
+            }
+            else
+            {
+                Log.Error("[{Location}] Workflow '{Name}' execution failed: {Error}",
+                    location, data.Name, result.ErrorMessage);
+            }
 
-            return await System.Threading.Tasks.Task.FromResult(true);
+            return result.IsSuccess;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"In {location}: Error running workflow {workflowId}: {ex.Message}");
-            return await System.Threading.Tasks.Task.FromResult(false);
+            Log.Error(ex, "[{Location}] Error running workflow {WorkflowId}: {Message}",
+                location, workflowId, ex.Message);
+            return false;
         }
     }
 
     /// <summary>
-    /// Stops a workflow
+    /// Stops a running workflow by cancelling its execution.
     /// </summary>
     /// <param name="workflowId">The workflow ID</param>
     /// <returns>True if stop was successful</returns>
@@ -138,32 +178,28 @@ public class WorkflowScriptService : IWorkflowService
 
         try
         {
-            var workflow = _workflows.FirstOrDefault(w => w.Id == workflowId);
+            var storageService = WorkflowStorageService.Instance;
+            var data = await storageService.LoadWorkflowDataAsync(workflowId);
 
-            if (workflow == null)
+            if (data == null)
             {
-                Log.Warning($"Workflow not found: {workflowId}");
-                return await System.Threading.Tasks.Task.FromResult(false);
+                Log.Warning("[{Location}] Workflow data not found in storage for ID: {WorkflowId}",
+                    location, workflowId);
+                return false;
             }
 
-            if (!workflow.IsRunning)
-            {
-                Log.Warning($"Workflow is not running: {workflow.Name}");
-                return await System.Threading.Tasks.Task.FromResult(false);
-            }
+            // TODO: Implement actual cancellation via CancellationTokenSource tracking
+            Log.Information("[{Location}] Stop requested for workflow '{Name}' (ID: {WorkflowId}) — " +
+                "cancellation not yet implemented, workflow will complete current execution",
+                location, data.Name, workflowId);
 
-            workflow.IsRunning = false;
-
-            // TODO: Implement actual workflow stopping logic
-
-            Log.Information($"Stopped workflow: {workflow.Name}");
-
-            return await System.Threading.Tasks.Task.FromResult(true);
+            return true;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"In {location}: Error stopping workflow {workflowId}: {ex.Message}");
-            return await System.Threading.Tasks.Task.FromResult(false);
+            Log.Error(ex, "[{Location}] Error stopping workflow {WorkflowId}: {Message}",
+                location, workflowId, ex.Message);
+            return false;
         }
     }
 
@@ -992,8 +1028,12 @@ public class WorkflowCase : IWorkflowCase
     public string Description { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
     public bool IsRunning { get; set; }
+    public bool IsError { get; set; }
+    public string? ErrorMessage { get; set; }
     public string? ScriptPath { get; set; }
     public DateTime CreatedTime { get; set; } = DateTime.UtcNow;
     public DateTime LastModifiedTime { get; set; } = DateTime.UtcNow;
     public string TriggerType { get; set; } = "Manual";
+
+    public TriggerConfig? TriggerConfig { get; set; }
 }

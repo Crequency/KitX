@@ -23,6 +23,7 @@ public class NodeRegistry : INodeRegistry
         _typeMap = new Dictionary<BlueprintNodeType, Type>
         {
             [BlueprintNodeType.Entry] = typeof(EntryNode),
+            [BlueprintNodeType.PluginTrigger] = typeof(PluginTriggerNode),
             [BlueprintNodeType.Branch] = typeof(BranchNode),
             [BlueprintNodeType.Loop] = typeof(LoopNode),
             [BlueprintNodeType.Break] = typeof(BreakNode),

@@ -157,6 +157,11 @@ public class WorkflowStorageService : IWorkflowStorageService
                         ? File.GetCreationTimeUtc(file)
                         : kcs.CreatedTime;
 
+                    // Prefer TriggerConfig (structured) over legacy TriggerType (string)
+                    var triggerConfig = kcs.TriggerConfig;
+                    var triggerType = triggerConfig?.TriggerType
+                        ?? (string.IsNullOrEmpty(kcs.TriggerType) ? "Manual" : kcs.TriggerType);
+
                     results.Add(new WorkflowCase
                     {
                         Id = id,
@@ -167,7 +172,8 @@ public class WorkflowStorageService : IWorkflowStorageService
                         ScriptPath = file,
                         CreatedTime = createdTime,
                         LastModifiedTime = kcs.LastModifiedTime == default ? File.GetLastWriteTimeUtc(file) : kcs.LastModifiedTime,
-                        TriggerType = string.IsNullOrEmpty(kcs.TriggerType) ? "Manual" : kcs.TriggerType,
+                        TriggerType = triggerType,
+                        TriggerConfig = triggerConfig,
                     });
                 }
                 catch (Exception ex)
@@ -202,11 +208,93 @@ public class WorkflowStorageService : IWorkflowStorageService
         try
         {
             var json = await File.ReadAllTextAsync(filePath);
-            return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
+
+            // First pass: try full deserialization (including BlueprintData)
+            try
+            {
+                return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
+            }
+            catch (NotSupportedException ex) when (ex.Message.Contains("type discriminator"))
+            {
+                // BlueprintData has nodes without $type discriminators — retry without BP data
+                Log.Warning(ex,
+                    "[WorkflowStorageService] BlueprintData deserialization failed for {FilePath}. " +
+                    "Retrying without BlueprintData (legacy format or missing type discriminators)",
+                    filePath);
+                return LoadKcsFileResilient(json, filePath);
+            }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[WorkflowStorageService] Error loading KCS file: {FilePath}", filePath);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Fallback loader: manually extracts non-BlueprintData fields from JSON.
+    /// Used when full deserialization fails due to polymorphic BlueprintNode issues.
+    /// </summary>
+    private static KcsFileFormat? LoadKcsFileResilient(string json, string filePath)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var result = new KcsFileFormat
+            {
+                // Intentionally skip BlueprintData — it's the field causing the failure
+                BlueprintData = null,
+            };
+
+            if (root.TryGetProperty(nameof(KcsFileFormat.Id), out var id))
+                result.Id = id.GetString() ?? string.Empty;
+            if (root.TryGetProperty(nameof(KcsFileFormat.Name), out var name))
+                result.Name = name.GetString() ?? string.Empty;
+            if (root.TryGetProperty(nameof(KcsFileFormat.Description), out var desc))
+                result.Description = desc.GetString() ?? string.Empty;
+            if (root.TryGetProperty(nameof(KcsFileFormat.Author), out var author))
+                result.Author = author.GetString() ?? string.Empty;
+            if (root.TryGetProperty(nameof(KcsFileFormat.TriggerType), out var triggerType))
+                result.TriggerType = triggerType.GetString() ?? "Manual";
+            if (root.TryGetProperty(nameof(KcsFileFormat.UseBlockMode), out var useBlockMode))
+                result.UseBlockMode = useBlockMode.GetBoolean();
+            if (root.TryGetProperty(nameof(KcsFileFormat.BlockScriptSource), out var bsSource))
+                result.BlockScriptSource = bsSource.GetString();
+            if (root.TryGetProperty(nameof(KcsFileFormat.MainProgram), out var mainProg))
+                result.MainProgram = mainProg.GetString() ?? string.Empty;
+
+            // Deserialize complex sub-objects
+            if (root.TryGetProperty(nameof(KcsFileFormat.HelperFunctions), out var helpers))
+                result.HelperFunctions = JsonSerializer.Deserialize<List<HelperFunction>>(
+                    helpers.GetRawText(), _jsonOptions) ?? [];
+
+            if (root.TryGetProperty(nameof(KcsFileFormat.VariableConstants), out var vars))
+                result.VariableConstants = JsonSerializer.Deserialize<Dictionary<string, object?>>(
+                    vars.GetRawText(), _jsonOptions) ?? [];
+
+            if (root.TryGetProperty(nameof(KcsFileFormat.TriggerConfig), out var triggerConfig))
+                result.TriggerConfig = JsonSerializer.Deserialize<TriggerConfig>(
+                    triggerConfig.GetRawText(), _jsonOptions);
+
+            if (root.TryGetProperty(nameof(KcsFileFormat.CreatedTime), out var createdTime))
+                result.CreatedTime = createdTime.GetDateTime();
+
+            if (root.TryGetProperty(nameof(KcsFileFormat.LastModifiedTime), out var modTime))
+                result.LastModifiedTime = modTime.GetDateTime();
+
+            Log.Information(
+                "[WorkflowStorageService] Resilient load succeeded for {FilePath} " +
+                "(BlueprintData skipped, BlockScriptSource={BsLen} chars)",
+                filePath, result.BlockScriptSource?.Length ?? 0);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex,
+                "[WorkflowStorageService] Resilient load also failed for {FilePath}", filePath);
             return null;
         }
     }

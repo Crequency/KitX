@@ -91,21 +91,21 @@ public class RealPluginManager : IPluginManager
     {
         try
         {
-            Log.Information($"[RealPluginManager] OnPluginMessageReceived called with message: {e.Message?.Substring(0, Math.Min(200, e.Message?.Length ?? 0))}...");
-
             if (e.Message is null) return;
 
             var kwc = JsonSerializer.Deserialize<Request>(e.Message, _serializerOptions);
-            if (kwc?.Content is null)
-            {
-                Log.Information($"[RealPluginManager] kwc or kwc.Content is null");
-                return;
-            }
-
-            Log.Information($"[RealPluginManager] kwc.Content: {kwc.Content.Substring(0, Math.Min(100, kwc.Content.Length))}...");
+            if (kwc?.Content is null) return;
 
             var command = JsonSerializer.Deserialize<Command>(kwc.Content, _serializerOptions);
             if (command.Request is null) return; // Command is a struct, check if Request is empty
+
+            // 最早跳过 TriggerFired，由 TriggerManager 处理，不产生多余日志
+            if (command.Request == CommandRequestInfo.TriggerFired)
+                return;
+
+            // 仅对非 TriggerFired 消息记录日志
+            Log.Information($"[RealPluginManager] OnPluginMessageReceived called with message: {e.Message.Substring(0, Math.Min(200, e.Message.Length))}...");
+            Log.Information($"[RealPluginManager] kwc.Content: {kwc.Content.Substring(0, Math.Min(100, kwc.Content.Length))}...");
 
             // 检查是否是响应消息
             if (command.Tags != null && command.Tags.TryGetValue("RequestId", out var requestId))

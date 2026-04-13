@@ -37,10 +37,11 @@ internal class ExecutionFlowWalker
     /// </summary>
     public void WalkExecutionFlow(ReverseConversionContext ctx)
     {
-        var entryNode = ctx.Blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
+        var entryNode = ctx.Blueprint.Nodes.FirstOrDefault(n =>
+            n.NodeType == BlueprintNodeType.Entry || n.NodeType == BlueprintNodeType.PluginTrigger);
         if (entryNode == null)
         {
-            Log.Warning("[ExecutionFlowWalker] No Entry node found");
+            Log.Warning("[ExecutionFlowWalker] No Entry or PluginTrigger node found");
             return;
         }
 
@@ -135,7 +136,8 @@ internal class ExecutionFlowWalker
         Contract.Workflow.Blueprint blueprint, ReverseConversionContext ctx)
     {
         var reachable = new HashSet<string>();
-        var entry = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
+        var entry = blueprint.Nodes.FirstOrDefault(n =>
+            n.NodeType == BlueprintNodeType.Entry || n.NodeType == BlueprintNodeType.PluginTrigger);
         if (entry == null) return reachable;
 
         var queue = new Queue<BlueprintNode>();
@@ -258,6 +260,7 @@ internal class ExecutionFlowWalker
         switch (node.NodeType)
         {
             case BlueprintNodeType.Entry:
+            case BlueprintNodeType.PluginTrigger:
                 return null;
             case BlueprintNodeType.Break:
                 return new FlowControlStatement

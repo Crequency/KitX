@@ -258,6 +258,14 @@ public static class CoreServiceCollectionExtensions
             return service;
         });
 
+        // Trigger Manager
+        Log.Information("Registering TriggerManager...");
+        services.AddSingleton<TriggerManager>(provider =>
+        {
+            var service = TriggerManager.Instance;
+            return service;
+        });
+
         Log.Information("AddCoreServices completed.");
         return services;
     }
