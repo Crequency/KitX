@@ -156,6 +156,14 @@ public class Program
             Console.WriteLine("└──────────────────────────────────────────┘\n");
             RunExecutionTest(converter, reverseConverter, parser, sp, GetRawNestedScript(), helpers, "Test K");
         }
+
+        if (ShouldRunTest("L"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test L: Assembly Compilation             │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunAssemblyCompilationTest(reverseConverter, parser, sp);
+        }
     }
 
     private static void ParseArgs(string[] args)
@@ -363,6 +371,106 @@ public class Program
         {
             Console.WriteLine($"[{label}] FAILED: {ex.Message}");
             Console.WriteLine($"  {ex.StackTrace}");
+        }
+    }
+
+    // Test L: Assembly Compilation
+    // ──────────────────────────────────────────────
+    private static void RunAssemblyCompilationTest(
+        IBlueprintToBlockScriptConverter reverseConverter,
+        IBlockScriptParser parser,
+        System.IServiceProvider sp)
+    {
+        try
+        {
+            var sourceCode = @"#ConstBlock
+int count = 0;
+int max = 3;
+
+#MainBlock
+Set(""count"", 0);
+NextBlock = ""LoopBlock"";
+
+#Block LoopBlock
+NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""count""), max), ""PrintBlock"", ""EndBlock"");
+
+#Block PrintBlock
+Print(Get(""count""));
+Set(""count"", HelperFuncAdd(Get(""count""), 1));
+NextBlock = ToLoopCond(""LoopBlock"");
+
+#Block EndBlock
+Print(""Done"");
+";
+
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine("[Test L] FAILED: Parse error: " + parseResult.ErrorMessage);
+                return;
+            }
+
+            parseResult.Script.HelperFunctions = GetExecutionHelpers();
+
+            // Test 1: Direct ScriptAssemblyCompiler test
+            var compiler = new ScriptAssemblyCompiler();
+            Console.WriteLine("[Test L] Compiling...");
+            var compiled = compiler.CompileScript(parseResult.Script);
+            Console.WriteLine($"[Test L] Assembly compilation: {(compiled != null ? "SUCCESS" : "FAILED (null)")}");
+
+            if (compiled != null)
+            {
+                // Test 2: Execute via compiled assembly
+                var output = new List<string>();
+                var globals = new BlockScriptExecutionGlobals(
+                    new BlockScopeManager(), output);
+                globals.ResetRunState();
+
+                Console.WriteLine("[Test L] About to call Run()...");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                try
+                {
+                    compiled.Run(globals, cts.Token);
+                    Console.WriteLine($"[Test L] Assembly execution: SUCCESS");
+                    Console.WriteLine($"[Test L] ExecutedBlockCount: {globals.ExecutedBlockCount}");
+                    Console.WriteLine($"[Test L] Output: [{string.Join(", ", output)}]");
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("[Test L] Assembly execution: TIMEOUT (infinite loop?)");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Test L] Assembly execution: EXCEPTION - {ex.GetType().Name}: {ex.Message}");
+                    if (ex.InnerException != null)
+                        Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                }
+            }
+
+            // Test 3: Compare via IBlockScriptExecutor (should use assembly path)
+            var executor = sp.GetRequiredService<IBlockScriptExecutor>();
+            using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var result = executor.ExecuteAsync(parseResult.Script, cancellationToken: cts2.Token)
+                .GetAwaiter().GetResult();
+            Console.WriteLine($"[Test L] IBlockScriptExecutor: IsSuccess={result.IsSuccess}, BlockCount={result.ExecutedBlockCount}");
+            Console.WriteLine($"[Test L] Executor output ({result.Output.Count} lines): [{string.Join(", ", result.Output)}]");
+
+            // Verify output matches expected: 0, 1, 2, Done
+            var expected = new List<string> { "0", "1", "2", "Done" };
+            bool match = result.IsSuccess && result.Output.Count == expected.Count;
+            if (match)
+            {
+                for (int i = 0; i < expected.Count; i++)
+                {
+                    if (result.Output[i] != expected[i]) { match = false; break; }
+                }
+            }
+
+            Console.WriteLine($"[Test L] {(match ? "PASS - Output correct!" : (result.IsSuccess ? "DIFF" : "FAILED"))}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test L] FAILED: {ex.Message}\n  {ex.StackTrace}");
         }
     }
 

@@ -256,7 +256,10 @@ public class ScriptFormatter
                     if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
                     {
                         kind = FormattedStatementKind.Assignment;
-                        pubVarTarget = context.PubVarNames.Contains(assignedVar) ? assignedVar : null;
+                        pubVarTarget = assignedVar;
+                        // Ensure the assigned variable is tracked as a PubVar
+                        if (!context.PubVarNames.Contains(assignedVar))
+                            context.PubVarNames.Add(assignedVar);
                     }
                     else
                     {

@@ -45,6 +45,9 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     private Dictionary<string, string>? _blockCodeCache;
     private HashSet<string>? _predeclaredVariables;
 
+    // Full-script assembly compilation
+    private readonly ScriptAssemblyCompiler _assemblyCompiler = new();
+
     /// <summary>
     /// Creates a new block script executor
     /// </summary>
@@ -91,6 +94,46 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
         try
         {
+            // ── Fast path: Full-script assembly compilation ──
+            // Try to compile the entire script into a .NET assembly and run it directly.
+            // This eliminates all per-block CSharpScript overhead (ContinueWithAsync).
+            // On failure, falls back to the existing CSharpScript execution path.
+            try
+            {
+                var compiled = _assemblyCompiler.CompileScript(script);
+                if (compiled != null)
+                {
+                    Log.Debug("[BlockScriptExecutor] Using assembly-compiled execution path");
+                    _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
+                    _globals.ResetRunState();
+                    _scopeManager.InitializeGlobalScope(script);
+
+                    // Import parameters
+                    if (parameters != null)
+                    {
+                        foreach (var p in parameters)
+                            _globals.Set(p.Key, p.Value);
+                    }
+
+                    compiled.Run(_globals, cancellationToken);
+
+                    _stopwatch.Stop();
+                    return new BlockScriptExecutionResult
+                    {
+                        IsSuccess = true,
+                        ExecutedBlockCount = _globals.ExecutedBlockCount,
+                        ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
+                        Output = _output
+                    };
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[BlockScriptExecutor] Assembly compilation failed, falling back to CSharpScript");
+            }
+
+            // ── Fallback path: CSharpScript execution (per-block) ──
             // Store script reference for use in EvaluateExpressionAsync
             _currentScript = script;
 

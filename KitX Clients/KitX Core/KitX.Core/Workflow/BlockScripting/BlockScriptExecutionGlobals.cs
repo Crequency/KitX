@@ -25,6 +25,12 @@ public class BlockScriptExecutionGlobals
     public string? NextBlock { get; set; } = null;
 
     /// <summary>
+    /// Number of blocks executed so far in the current run.
+    /// Incremented at the start of each block's switch case in the compiled assembly path.
+    /// </summary>
+    public int ExecutedBlockCount { get; set; }
+
+    /// <summary>
     /// Creates script globals
     /// </summary>
     public BlockScriptExecutionGlobals(BlockScopeManager scopeManager, List<string> output)
@@ -53,6 +59,20 @@ public class BlockScriptExecutionGlobals
         if (_variables.TryGetValue(name, out var value))
             return value!;
         return _scopeManager.ResolveVariable(name)!;
+    }
+
+    /// <summary>
+    /// Gets a variable value typed as <typeparamref name="T"/>.
+    /// Used by the compiled assembly path to avoid <c>dynamic</c> binding overhead.
+    /// Performs standard unboxing/conversion, no <c>Microsoft.CSharp.RuntimeBinder</c> needed.
+    /// </summary>
+    public T? Get<T>(string name)
+    {
+        if (name == "NextBlock")
+            return (T?)(object?)NextBlock;
+        if (_variables.TryGetValue(name, out var value))
+            return (T?)value;
+        return (T?)_scopeManager.ResolveVariable(name);
     }
 
     /// <summary>
@@ -140,7 +160,11 @@ public class BlockScriptExecutionGlobals
     /// <summary>
     /// Resets run-level state (called when execution starts from Entry node)
     /// </summary>
-    public void ResetRunState() => _flipCounter = 0;
+    public void ResetRunState()
+    {
+        _flipCounter = 0;
+        ExecutedBlockCount = 0;
+    }
 
     /// <summary>
     /// Flip — alternating control flow. Routes to outputA on odd calls, outputB on even calls.
