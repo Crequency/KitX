@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Text.Json;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -55,6 +56,21 @@ internal class ScriptAssemblyCompiler
     /// </summary>
     private readonly Dictionary<string, CompiledScriptEntry> _cache = new();
 
+    /// <summary>
+    /// JSON serializer options for meta.json persistence.
+    /// </summary>
+    private static readonly JsonSerializerOptions _metaJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+    };
+
+    /// <summary>
+    /// Root directory for persisted compiled script assemblies.
+    /// Each workflow gets a subdirectory: Data/CompiledScripts/{workflow-id}/
+    /// </summary>
+    private static readonly string CompiledScriptsRoot = Path.Combine("./Data/", "CompiledScripts");
+
     // ──────────────────────────────────────────────
     // Public API
     // ──────────────────────────────────────────────
@@ -63,17 +79,44 @@ internal class ScriptAssemblyCompiler
     /// Compiles a <see cref="BlockScript"/> into an <see cref="ICompiledBlockScript"/>.
     /// Returns <c>null</c> if compilation fails (caller should fall back to CSharpScript).
     /// </summary>
-    public ICompiledBlockScript? CompileScript(BlockScript script)
+    public ICompiledBlockScript? CompileScript(BlockScript script) =>
+        CompileScript(script, workflowId: null);
+
+    /// <summary>
+    /// Compiles a <see cref="BlockScript"/> into an <see cref="ICompiledBlockScript"/>,
+    /// with optional disk persistence for cross-session reuse.
+    /// </summary>
+    /// <param name="script">The block script to compile.</param>
+    /// <param name="workflowId">
+    /// Optional workflow ID for disk persistence. When provided, the compiled assembly
+    /// is saved to <c>Data/CompiledScripts/{workflowId}/{hash}.dll</c> and reused on
+    /// subsequent calls instead of recompiling.
+    /// </param>
+    /// <returns>Compiled script instance, or <c>null</c> on failure.</returns>
+    public ICompiledBlockScript? CompileScript(BlockScript script, string? workflowId)
     {
         var hash = ComputeScriptHash(script);
 
-        // Check cache
+        // Step 1: Check in-memory cache
         if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
         {
-            Log.Debug("[ScriptAssemblyCompiler] Cache hit for script hash '{Hash}'", hash);
+            Log.Debug("[ScriptAssemblyCompiler] Memory cache hit for hash '{Hash}'", hash);
             return entry.Instance;
         }
 
+        // Step 2: Try loading from disk (if workflowId provided)
+        if (workflowId != null)
+        {
+            var diskInstance = TryLoadFromDisk(workflowId, hash);
+            if (diskInstance != null)
+            {
+                Log.Debug("[ScriptAssemblyCompiler] Disk cache hit for hash '{Hash}' (workflow: {WfId})",
+                    hash, workflowId);
+                return diskInstance;
+            }
+        }
+
+        // Step 3: Roslyn compilation (existing flow)
         try
         {
             // Phase 1: Format script + infer PubVar types
@@ -90,8 +133,8 @@ internal class ScriptAssemblyCompiler
             // Phase 4: Load into collectible ALContext and instantiate
             var alc = new CollectibleAssemblyLoadContext(hash);
             var loadedAssembly = alc.LoadFromStream(assembly);
-            var scriptType = loadedAssembly.GetType(
-                $"KitX.Core.Workflow.BlockScripting.Generated.CompiledScript_{hash}");
+            var typeName = $"KitX.Core.Workflow.BlockScripting.Generated.CompiledScript_{hash}";
+            var scriptType = loadedAssembly.GetType(typeName);
             if (scriptType == null)
             {
                 Log.Warning("[ScriptAssemblyCompiler] Compiled type not found in assembly");
@@ -101,8 +144,14 @@ internal class ScriptAssemblyCompiler
 
             var instance = (ICompiledBlockScript)Activator.CreateInstance(scriptType)!;
 
-            // Cache
+            // Cache in memory
             _cache[hash] = new CompiledScriptEntry(instance, alc);
+
+            // Step 5: Persist to disk (if workflowId provided)
+            if (workflowId != null)
+            {
+                SaveToDisk(workflowId, hash, assembly, typeName);
+            }
 
             Log.Debug("[ScriptAssemblyCompiler] Successfully compiled and cached script hash '{Hash}'", hash);
             return instance;
@@ -122,6 +171,188 @@ internal class ScriptAssemblyCompiler
         foreach (var entry in _cache.Values)
             entry.Unload();
         _cache.Clear();
+    }
+
+    // ──────────────────────────────────────────────
+    // Disk persistence
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Attempts to load a compiled script assembly from disk.
+    /// Validates KitX version match before loading; stale assemblies are deleted.
+    /// </summary>
+    /// <returns>Loaded instance, or <c>null</c> if not found / stale / corrupt.</returns>
+    private ICompiledBlockScript? TryLoadFromDisk(string workflowId, string hash)
+    {
+        var dir = Path.Combine(CompiledScriptsRoot, workflowId);
+        var dllPath = Path.Combine(dir, $"{hash}.dll");
+        var metaPath = Path.Combine(dir, $"{hash}.meta.json");
+
+        if (!File.Exists(dllPath) || !File.Exists(metaPath))
+            return null;
+
+        try
+        {
+            var metaJson = File.ReadAllText(metaPath);
+            var meta = JsonSerializer.Deserialize<CompiledScriptMeta>(metaJson, _metaJsonOptions);
+            if (meta == null)
+            {
+                Log.Debug("[ScriptAssemblyCompiler] Corrupt meta.json for hash '{Hash}', deleting", hash);
+                DeleteFromDisk(workflowId, hash);
+                return null;
+            }
+
+            // Version validation: mismatch means API surface may have changed
+            var currentVersion = GetCurrentKitXVersion();
+            if (meta.KitXVersion != currentVersion)
+            {
+                Log.Debug("[ScriptAssemblyCompiler] KitX version mismatch for hash '{Hash}': " +
+                    "disk={DiskVer}, current={CurrentVer}. Deleting and recompiling.",
+                    hash, meta.KitXVersion, currentVersion);
+                DeleteFromDisk(workflowId, hash);
+                return null;
+            }
+
+            // Type name validation
+            if (string.IsNullOrEmpty(meta.TypeName))
+            {
+                Log.Debug("[ScriptAssemblyCompiler] Missing TypeName in meta for hash '{Hash}', deleting", hash);
+                DeleteFromDisk(workflowId, hash);
+                return null;
+            }
+
+            // Load assembly from disk
+            var dllBytes = File.ReadAllBytes(dllPath);
+            var alc = new CollectibleAssemblyLoadContext(hash);
+            var loadedAssembly = alc.LoadFromStream(new MemoryStream(dllBytes));
+
+            var scriptType = loadedAssembly.GetType(meta.TypeName);
+            if (scriptType == null)
+            {
+                Log.Debug("[ScriptAssemblyCompiler] Type '{TypeName}' not found in disk assembly for hash '{Hash}', deleting",
+                    meta.TypeName, hash);
+                alc.Unload();
+                DeleteFromDisk(workflowId, hash);
+                return null;
+            }
+
+            var instance = (ICompiledBlockScript)Activator.CreateInstance(scriptType)!;
+            _cache[hash] = new CompiledScriptEntry(instance, alc);
+
+            return instance;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[ScriptAssemblyCompiler] Error loading from disk for hash '{Hash}', deleting", hash);
+            DeleteFromDisk(workflowId, hash);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Persists a compiled assembly and its metadata to disk.
+    /// </summary>
+    private void SaveToDisk(string workflowId, string hash, MemoryStream assemblyBytes, string typeName)
+    {
+        try
+        {
+            var dir = Path.Combine(CompiledScriptsRoot, workflowId);
+            Directory.CreateDirectory(dir);
+
+            var dllPath = Path.Combine(dir, $"{hash}.dll");
+            var metaPath = Path.Combine(dir, $"{hash}.meta.json");
+
+            // Write assembly bytes
+            File.WriteAllBytes(dllPath, assemblyBytes.ToArray());
+
+            // Write metadata
+            var meta = new CompiledScriptMeta
+            {
+                ScriptHash = hash,
+                CompileTimeUtc = DateTime.UtcNow,
+                KitXVersion = GetCurrentKitXVersion(),
+                TypeName = typeName
+            };
+            var metaJson = JsonSerializer.Serialize(meta, _metaJsonOptions);
+            File.WriteAllText(metaPath, metaJson);
+
+            Log.Debug("[ScriptAssemblyCompiler] Persisted compiled script hash '{Hash}' to disk (workflow: {WfId})",
+                hash, workflowId);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[ScriptAssemblyCompiler] Failed to persist compiled script to disk for hash '{Hash}'", hash);
+        }
+    }
+
+    /// <summary>
+    /// Deletes persisted assembly files from disk.
+    /// </summary>
+    private static void DeleteFromDisk(string workflowId, string hash)
+    {
+        try
+        {
+            var dir = Path.Combine(CompiledScriptsRoot, workflowId);
+            var dllPath = Path.Combine(dir, $"{hash}.dll");
+            var metaPath = Path.Combine(dir, $"{hash}.meta.json");
+
+            if (File.Exists(dllPath)) File.Delete(dllPath);
+            if (File.Exists(metaPath)) File.Delete(metaPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "[ScriptAssemblyCompiler] Error deleting disk cache for hash '{Hash}'", hash);
+        }
+    }
+
+    /// <summary>
+    /// Preloads all persisted compiled scripts for a given workflow from disk
+    /// into the in-memory cache. Called at startup or when a workflow is first accessed.
+    /// </summary>
+    /// <param name="workflowId">Workflow ID to preload scripts for.</param>
+    /// <returns>Number of scripts successfully loaded into cache.</returns>
+    public int PreloadFromDisk(string workflowId)
+    {
+        var dir = Path.Combine(CompiledScriptsRoot, workflowId);
+        if (!Directory.Exists(dir))
+            return 0;
+
+        var count = 0;
+        foreach (var metaPath in Directory.GetFiles(dir, "*.meta.json"))
+        {
+            try
+            {
+                var metaJson = File.ReadAllText(metaPath);
+                var meta = JsonSerializer.Deserialize<CompiledScriptMeta>(metaJson, _metaJsonOptions);
+                if (meta == null || string.IsNullOrEmpty(meta.ScriptHash))
+                    continue;
+
+                // Skip if already in memory cache
+                if (_cache.ContainsKey(meta.ScriptHash))
+                    continue;
+
+                if (TryLoadFromDisk(workflowId, meta.ScriptHash) != null)
+                    count++;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[ScriptAssemblyCompiler] Error preloading from {Path}", metaPath);
+            }
+        }
+
+        if (count > 0)
+            Log.Debug("[ScriptAssemblyCompiler] Preloaded {Count} compiled scripts for workflow {WfId}",
+                count, workflowId);
+
+        return count;
+    }
+
+    /// <summary>
+    /// Gets the current KitX assembly version string for disk cache invalidation.
+    /// </summary>
+    private static string GetCurrentKitXVersion()
+    {
+        return typeof(ScriptAssemblyCompiler).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
     }
 
     // ──────────────────────────────────────────────
@@ -1091,7 +1322,7 @@ internal class ScriptAssemblyCompiler
             typeof(BlockScriptExecutionGlobals).Assembly,
             typeof(KitX.Core.Contract.Workflow.BlockScript).Assembly,
             typeof(ICompiledBlockScript).Assembly,
-            typeof(Kscript.CSharp.Parser.Models.PluginCallInfo).Assembly,
+            typeof(KitX.Core.Contract.Workflow.PluginCallInfo).Assembly,
             typeof(Microsoft.CSharp.RuntimeBinder.Binder).Assembly,
             typeof(object).Assembly,
             typeof(System.Collections.Generic.List<>).Assembly,

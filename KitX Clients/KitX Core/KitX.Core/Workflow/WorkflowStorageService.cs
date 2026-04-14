@@ -197,6 +197,36 @@ public class WorkflowStorageService : IWorkflowStorageService
         return Path.Combine(_storageDirectory, $"{workflowId}.kcs");
     }
 
+    /// <inheritdoc/>
+    public async Task<int> PreloadCompiledScriptsAsync()
+    {
+        EnsureDirectoryExists();
+
+        var workflows = await DiscoverWorkflowsAsync();
+        var totalLoaded = 0;
+
+        var scriptService = WorkflowScriptService.Instance;
+
+        foreach (var workflow in workflows)
+        {
+            try
+            {
+                var count = scriptService.PreloadCompiledScripts(workflow.Id);
+                totalLoaded += count;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "[WorkflowStorageService] Error preloading compiled scripts for workflow {Id}", workflow.Id);
+            }
+        }
+
+        if (totalLoaded > 0)
+            Log.Information("[WorkflowStorageService] Preloaded {Count} compiled scripts for {WfCount} workflows",
+                totalLoaded, workflows.Count);
+
+        return totalLoaded;
+    }
+
     private void EnsureDirectoryExists()
     {
         if (!Directory.Exists(_storageDirectory))

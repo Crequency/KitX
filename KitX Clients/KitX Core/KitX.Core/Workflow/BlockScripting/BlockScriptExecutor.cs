@@ -5,13 +5,12 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Kscript.CSharp.Parser.Core;
+using KitX.Core.Contract.Workflow;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
-using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow;
 using Serilog;
 
@@ -39,6 +38,9 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     private List<string> _output = new();
     private BlockScriptExecutionGlobals? _globals;
     private IPluginManager? _pluginManager;
+
+    // Workflow ID for disk persistence of compiled assemblies
+    private string? _workflowId;
 
     // Block-level precompilation
     private readonly BlockCompiler _blockCompiler = new();
@@ -81,6 +83,48 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     }
 
     /// <summary>
+    /// Sets the workflow ID for disk persistence of compiled assemblies.
+    /// When set, compiled assemblies are saved to and loaded from disk
+    /// to enable cross-session reuse.
+    /// </summary>
+    public void SetWorkflowId(string? workflowId)
+    {
+        _workflowId = workflowId;
+    }
+
+    /// <summary>
+    /// Compiles a BlockScript and persists it to disk (without executing).
+    /// Used for pre-compilation at workflow save time.
+    /// </summary>
+    /// <param name="script">The block script to compile.</param>
+    /// <param name="workflowId">Workflow ID for disk persistence.</param>
+    /// <returns>True if compilation and persistence succeeded.</returns>
+    public bool CompileForPersistence(BlockScript script, string workflowId)
+    {
+        try
+        {
+            var compiled = _assemblyCompiler.CompileScript(script, workflowId);
+            return compiled != null;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[BlockScriptExecutor] CompileForPersistence failed for workflow {WfId}", workflowId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Preloads all persisted compiled scripts for a workflow from disk
+    /// into the in-memory cache.
+    /// </summary>
+    /// <param name="workflowId">Workflow ID to preload scripts for.</param>
+    /// <returns>Number of scripts successfully loaded.</returns>
+    public int PreloadFromDisk(string workflowId)
+    {
+        return _assemblyCompiler.PreloadFromDisk(workflowId);
+    }
+
+    /// <summary>
     /// Executes a block script
     /// </summary>
     public async Task<BlockScriptExecutionResult> ExecuteAsync(
@@ -100,7 +144,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             // On failure, falls back to the existing CSharpScript execution path.
             try
             {
-                var compiled = _assemblyCompiler.CompileScript(script);
+                var compiled = _assemblyCompiler.CompileScript(script, _workflowId);
                 if (compiled != null)
                 {
                     Log.Debug("[BlockScriptExecutor] Using assembly-compiled execution path");

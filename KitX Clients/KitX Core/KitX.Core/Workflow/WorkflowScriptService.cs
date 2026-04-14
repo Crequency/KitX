@@ -140,6 +140,9 @@ public class WorkflowScriptService : IWorkflowService
             Log.Information("[{Location}] Executing workflow '{Name}' ({SourceLength} chars)...",
                 location, data.Name, sourceCode.Length);
 
+            // Set workflow ID for disk persistence of compiled assemblies
+            BlockScriptExecutor.SetWorkflowId(workflowId);
+
             var result = await ExecuteBlockScriptAsync(sourceCode, helpers ?? [], CancellationToken.None);
 
             if (result.IsSuccess)
@@ -907,6 +910,77 @@ public class WorkflowScriptService : IWorkflowService
 
         // 4. Execute
         return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, constantOverrides, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> CompileAndPersistWorkflowAsync(string workflowId)
+    {
+        const string location = $"{nameof(WorkflowScriptService)}.{nameof(CompileAndPersistWorkflowAsync)}";
+
+        try
+        {
+            var storageService = WorkflowStorageService.Instance;
+            var data = await storageService.LoadWorkflowDataAsync(workflowId);
+
+            if (data == null)
+            {
+                Log.Warning("[{Location}] Workflow data not found for ID: {WorkflowId}", location, workflowId);
+                return false;
+            }
+
+            if (!data.UseBlockMode || string.IsNullOrWhiteSpace(data.BlockScriptSource))
+            {
+                Log.Warning("[{Location}] Workflow '{Name}' has no BlockScript source to compile",
+                    location, data.Name);
+                return false;
+            }
+
+            // Parse the BlockScript
+            var parseResult = BlockScriptParser.Parse(data.BlockScriptSource);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Log.Warning("[{Location}] Failed to parse BlockScript for workflow '{Name}': {Error}",
+                    location, data.Name, parseResult.ErrorMessage);
+                return false;
+            }
+
+            // Attach helper functions
+            if (data.HelperFunctions != null)
+                parseResult.Script.HelperFunctions = data.HelperFunctions;
+
+            // Compile with workflowId for disk persistence
+            BlockScriptExecutor.SetWorkflowId(workflowId);
+            var compiled = BlockScriptExecutor.CompileForPersistence(parseResult.Script, workflowId);
+
+            if (compiled)
+            {
+                Log.Information("[{Location}] Compiled and persisted workflow '{Name}' (ID: {WorkflowId})",
+                    location, data.Name, workflowId);
+            }
+            else
+            {
+                Log.Warning("[{Location}] Compilation failed for workflow '{Name}' (ID: {WorkflowId})",
+                    location, data.Name, workflowId);
+            }
+
+            return compiled;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[{Location}] Error compiling workflow {WorkflowId}", location, workflowId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Preloads all persisted compiled scripts for a workflow from disk.
+    /// Called at startup or when a workflow is first accessed.
+    /// </summary>
+    /// <param name="workflowId">Workflow ID to preload scripts for.</param>
+    /// <returns>Number of scripts loaded from disk.</returns>
+    public int PreloadCompiledScripts(string workflowId)
+    {
+        return BlockScriptExecutor.PreloadFromDisk(workflowId);
     }
 
     #endregion

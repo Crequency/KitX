@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using Kscript.CSharp.Parser.Core;
-using Kscript.CSharp.Parser.Models;
+using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow;
 using Serilog;
 

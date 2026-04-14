@@ -4,8 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Kscript.CSharp.Parser.Core;
-using Kscript.CSharp.Parser.Models;
+using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Device;
 using KitX.Shared.CSharp.Plugin;
@@ -13,12 +12,17 @@ using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
 
+using KcsPluginCallInfo = Kscript.CSharp.Parser.Models.PluginCallInfo;
+using KcsIPluginManager = Kscript.CSharp.Parser.Core.IPluginManager;
+
 namespace KitX.Core.Workflow;
 
 /// <summary>
-/// 真实的插件管理器实现，通过 WebSocket 与插件通信
+/// 真实的插件管理器实现，通过 WebSocket 与插件通信。
+/// Implements both Contract.IPluginManager (primary, for BlockScripting) and
+/// KCS IPluginManager (legacy, for KCS pipeline compatibility).
 /// </summary>
-public class RealPluginManager : IPluginManager
+public class RealPluginManager : IPluginManager, KcsIPluginManager
 {
     private readonly PluginsServer _pluginsServer;
     private readonly JsonSerializerOptions _serializerOptions = new()
@@ -132,7 +136,7 @@ public class RealPluginManager : IPluginManager
     }
 
     /// <summary>
-    /// 调用插件方法（无返回值）
+    /// 调用插件方法（无返回值） — Contract.IPluginManager
     /// </summary>
     /// <remarks>
     /// 使用 fire-and-forget 模式，不等待插件响应。
@@ -145,7 +149,7 @@ public class RealPluginManager : IPluginManager
     }
 
     /// <summary>
-    /// 调用插件方法（有返回值）
+    /// 调用插件方法（有返回值） — Contract.IPluginManager
     /// </summary>
     public T Call<T>(PluginCallInfo callInfo)
     {
@@ -153,6 +157,20 @@ public class RealPluginManager : IPluginManager
         var result = CallAsync(callInfo).GetAwaiter().GetResult();
         return ParseResult<T>(result);
     }
+
+    // ── KCS IPluginManager explicit implementation (legacy compatibility) ──
+
+    void KcsIPluginManager.Call(KcsPluginCallInfo callInfo)
+        => Call(ConvertFromKcs(callInfo));
+
+    T KcsIPluginManager.Call<T>(KcsPluginCallInfo callInfo)
+        => Call<T>(ConvertFromKcs(callInfo));
+
+    bool KcsIPluginManager.IsPluginExists(string pluginName) => IsPluginExists(pluginName);
+    bool KcsIPluginManager.IsMethodExists(string pluginName, string methodName) => IsMethodExists(pluginName, methodName);
+
+    private static PluginCallInfo ConvertFromKcs(KcsPluginCallInfo kcs)
+        => new(kcs.PluginName, kcs.MethodName, kcs.Parameters, kcs.ParameterTypes, kcs.ParameterNames);
 
     /// <summary>
     /// 自动调用插件方法：根据函数声明的返回类型自动选择调用策略。
