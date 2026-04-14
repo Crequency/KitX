@@ -1,18 +1,18 @@
 using System.Collections.Generic;
 using KitX.Core.Contract.Workflow;
 
-namespace KitX.Core.Workflow.Blueprint.ReversePipeline;
+namespace KitX.Core.Workflow.Blueprint;
 
 /// <summary>
-/// Accumulated state for the reverse conversion (Blueprint → BlockScript).
-/// Shared across all reverse pipeline phases.
+/// Accumulated state for Blueprint → BlockScript conversion.
+/// Shared across all CFG pipeline phases.
 /// </summary>
-internal class ReverseConversionContext
+internal class ConversionContext
 {
     public required Contract.Workflow.Blueprint Blueprint { get; set; }
     public required BlockScript Script { get; set; }
 
-    // Phase 1: Analysis
+    // Phase 1: Connection analysis
     public Dictionary<string, BlueprintNode> NodeById { get; set; } = new();
     public List<BlueprintConnection> ExecConnections { get; set; } = new();
     public List<BlueprintConnection> DataConnections { get; set; } = new();
@@ -23,7 +23,7 @@ internal class ReverseConversionContext
     public int PubVarCounter { get; set; } = 1;
     public int BlockCounter { get; set; } = 0;
 
-    // Phase 2: Execution walk
+    // Phase 2: CFG block construction
     public Dictionary<string, FlowControlStatement> ControlFlowMap { get; set; } = new();
     public List<BlueprintNode> PendingControlFlowNodes { get; set; } = new();
     public Dictionary<string, BlueprintNode> LoopNodes { get; set; } = new();
@@ -35,13 +35,11 @@ internal class ReverseConversionContext
 
     /// <summary>
     /// Current loopback target ID when walking inside a loop body.
-    /// Set by ProcessLoopSubGraphs, read by ProcessBranchSubGraphs.
     /// </summary>
     public string? CurrentLoopbackTargetId { get; set; }
 
     /// <summary>
     /// Maps loop node ID to the block name that contains the Loop statement.
-    /// Used during topology-based reverse walk to generate correct ToLoopCond arguments.
     /// </summary>
     public Dictionary<string, string> LoopOwnerBlockNames { get; set; } = new();
 }

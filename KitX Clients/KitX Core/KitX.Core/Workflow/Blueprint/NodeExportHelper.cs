@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
-using KitX.Core.Workflow.Blueprint.ReversePipeline;
+using KitX.Core.Workflow.Blueprint.Pipeline;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 
@@ -18,13 +18,13 @@ internal class NodeExportHelper : INodeExportHelper
     public Contract.Workflow.Blueprint Blueprint { get; private set; } = null!;
 
     /// <summary>Sets the current blueprint and context for resolution</summary>
-    public void SetContext(Contract.Workflow.Blueprint blueprint, ReverseConversionContext? ctx)
+    public void SetContext(Contract.Workflow.Blueprint blueprint, ConversionContext? ctx)
     {
         Blueprint = blueprint;
         _currentCtx = ctx;
     }
 
-    private ReverseConversionContext? _currentCtx;
+    private ConversionContext? _currentCtx;
 
     /// <inheritdoc/>
     public string GetInputValue(BlueprintNode node, string pinName)
@@ -57,7 +57,7 @@ internal class NodeExportHelper : INodeExportHelper
     /// <summary>
     /// Resolves an input pin's value using the pre-built InputDataMap (for topology path).
     /// </summary>
-    public string ResolveInputValue(BlueprintNode node, string pinName, ReverseConversionContext ctx)
+    public string ResolveInputValue(BlueprintNode node, string pinName, ConversionContext ctx)
     {
         var pin = node.InputPins.FirstOrDefault(p => p.Name == pinName);
         if (pin == null) return string.Empty;
@@ -77,7 +77,7 @@ internal class NodeExportHelper : INodeExportHelper
     /// <summary>
     /// Finds the PubVar name assigned to a node's output pin.
     /// </summary>
-    public static string? FindOutputPubVar(BlueprintNode node, string pinName, ReverseConversionContext ctx)
+    public static string? FindOutputPubVar(BlueprintNode node, string pinName, ConversionContext ctx)
     {
         var pin = node.OutputPins.FirstOrDefault(p => p.Name == pinName);
         if (pin == null) return null;
@@ -87,12 +87,15 @@ internal class NodeExportHelper : INodeExportHelper
 
     /// <summary>
     /// Formats a literal value for BlockScript output — wraps strings in quotes,
-    /// passes through numbers, booleans, and already-quoted values.
+    /// passes through numbers, booleans, char literals, and already-quoted values.
+    /// Uses Roslyn to validate character literals rather than string-pattern heuristics.
     /// </summary>
-    public static string FormatLiteralValue(string value, ReverseConversionContext? ctx = null)
+    public static string FormatLiteralValue(string value, ConversionContext? ctx = null)
     {
-        if (string.IsNullOrEmpty(value)) return value;
+        if (value == null) return string.Empty;
+        if (value.Length == 0) return "\"\"";  // empty string literal
         if (value.StartsWith("\"")) return value;
+        if (ExprUtils.IsCharacterLiteral(value)) return value;  // char literal — pass through
         if (ctx != null && ctx.AllPubVars.Contains(value)) return value;
         if (int.TryParse(value, out _) || double.TryParse(value, out _)) return value;
         if (value == "true" || value == "false") return value;

@@ -6,15 +6,27 @@ using Microsoft.Extensions.DependencyInjection;
 using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.BlockScripting;
 
 namespace KitX.Core.BluePrint.Test;
 
 public class Program
 {
+    // Test selection: --test A,D,K or --test all (default: all)
+    private static HashSet<string> _selectedTests = new(StringComparer.OrdinalIgnoreCase) { "ALL" };
+    private static bool _dumpCfg = false;
+
     public static void Main(string[] args)
     {
+        ParseArgs(args);
+
         Console.WriteLine("=== KitX BlockScript → Blueprint Pipeline Test ===\n");
+
+        if (_selectedTests.Contains("ALL"))
+            Console.WriteLine("Running all tests.\n");
+        else
+            Console.WriteLine($"Running tests: {string.Join(", ", _selectedTests)}\n");
 
         // DI Container
         var services = new ServiceCollection();
@@ -57,83 +69,114 @@ public class Program
         var funcRegistry = sp.GetRequiredService<BuiltinFunctionRegistry>();
         var converter = new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService, funcRegistry);
 
-        // ── Test A: Pre-expanded format (already in test script) ──
-        Console.WriteLine("┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test A: Pre-expanded BlockScript         │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
+        if (ShouldRunTest("A"))
+        {
+            Console.WriteLine("┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test A: Pre-expanded BlockScript         │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunTest(converter, GetPreExpandedScript(), helpers, "Test A");
+        }
 
-        RunTest(converter, GetPreExpandedScript(), helpers, "Test A");
+        if (ShouldRunTest("B"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test B: Raw nested BlockScript           │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunTest(converter, GetRawNestedScript(), helpers, "Test B");
+        }
 
-        // ── Test B: Raw nested format ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test B: Raw nested BlockScript           │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
+        if (ShouldRunTest("C"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test C: Blueprint → Expanded Script      │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunReverseTest(converter, reverseConverter, GetRawNestedScript(), helpers, "Test C");
+        }
 
-        RunTest(converter, GetRawNestedScript(), helpers, "Test B");
+        if (ShouldRunTest("D"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test D: Round-trip consistency           │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunRoundTripTest(converter, reverseConverter, GetRawNestedScript(), helpers, "Test D");
+        }
 
-        // ── Test C: Reverse conversion (Blueprint → Expanded Script) ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test C: Blueprint → Expanded Script      │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
+        if (ShouldRunTest("E"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test E: Manual Blueprint → Script        │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunManualBlueprintTest(reverseConverter, "Test E");
+        }
 
-        RunReverseTest(converter, reverseConverter, GetRawNestedScript(), helpers, "Test C");
+        if (ShouldRunTest("F"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test F: Pure sequential flow             │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunTest(converter, GetSequentialScript(), helpers, "Test F");
+        }
 
-        // ── Test D: Round-trip consistency test ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test D: Round-trip consistency           │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
+        if (ShouldRunTest("G"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test G: No ConstBlock                    │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunTest(converter, GetNoConstScript(), helpers, "Test G");
+        }
 
-        RunRoundTripTest(converter, reverseConverter, GetRawNestedScript(), helpers, "Test D");
+        if (ShouldRunTest("H"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test H: Break inside Loop                │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunRoundTripTest(converter, reverseConverter, GetBreakScript(), helpers, "Test H");
+        }
 
-        // ── Test E: Manual Blueprint construction test ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test E: Manual Blueprint → Script        │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
+        if (ShouldRunTest("I"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test I: Nested Loop                      │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunRoundTripTest(converter, reverseConverter, GetNestedLoopScript(), helpers, "Test I");
+        }
 
-        RunManualBlueprintTest(reverseConverter, "Test E");
+        if (ShouldRunTest("J"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test J: Single statement (minimal)       │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunTest(converter, GetSingleStatementScript(), helpers, "Test J");
+        }
 
-        // ── Test F: Pure sequential flow (no Branch/Loop) ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test F: Pure sequential flow             │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
-
-        RunTest(converter, GetSequentialScript(), helpers, "Test F");
-
-        // ── Test G: No ConstBlock ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test G: No ConstBlock                    │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
-
-        RunTest(converter, GetNoConstScript(), helpers, "Test G");
-
-        // ── Test H: Break inside Loop ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test H: Break inside Loop                │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
-
-        RunRoundTripTest(converter, reverseConverter, GetBreakScript(), helpers, "Test H");
-
-        // ── Test I: Nested Loop ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test I: Nested Loop                      │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
-
-        RunRoundTripTest(converter, reverseConverter, GetNestedLoopScript(), helpers, "Test I");
-
-        // ── Test J: Single statement ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test J: Single statement (minimal)       │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
-
-        RunTest(converter, GetSingleStatementScript(), helpers, "Test J");
-
-        // ── Test K: Forward → Reverse → Execute round-trip ──
-        Console.WriteLine("\n┌──────────────────────────────────────────┐");
-        Console.WriteLine("│ Test K: Forward → Reverse → Execute      │");
-        Console.WriteLine("└──────────────────────────────────────────┘\n");
-
-        RunExecutionTest(converter, reverseConverter, parser, sp, GetRawNestedScript(), helpers, "Test K");
+        if (ShouldRunTest("K"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test K: Forward → Reverse → Execute      │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunExecutionTest(converter, reverseConverter, parser, sp, GetRawNestedScript(), helpers, "Test K");
+        }
     }
+
+    private static void ParseArgs(string[] args)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            if ((args[i] == "--test" || args[i] == "-t") && i + 1 < args.Length)
+            {
+                _selectedTests = new HashSet<string>(
+                    args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                    StringComparer.OrdinalIgnoreCase);
+            }
+            else if (args[i] == "--cfg" || args[i] == "-c")
+            {
+                _dumpCfg = true;
+            }
+        }
+    }
+
+    private static bool ShouldRunTest(string testId) =>
+        _selectedTests.Contains("ALL") || _selectedTests.Contains(testId);
 
     private static void RunTest(BlockScriptToBlueprintConverter converter,
         string sourceCode, List<HelperFunction> helpers, string label)
@@ -468,6 +511,14 @@ Print(""示例工作流结束"");";
             // Step 2: Reverse convert
             var expandedScript = reverseConverter.Convert(blueprint);
 
+            // Dump CFG if requested
+            if (_dumpCfg && reverseConverter is BlueprintToBlockScriptConverter cfgConv && cfgConv.LastCFG != null)
+            {
+                Console.WriteLine($"\n  ── CFG Dump ({label}) ──");
+                Console.WriteLine(cfgConv.LastCFG.Dump());
+                Console.WriteLine($"  ── End CFG Dump ({label}) ──");
+            }
+
             Console.WriteLine($"\n  ── Expanded Script ({label}) ──");
             Console.WriteLine(expandedScript);
             Console.WriteLine($"  ── End Expanded Script ({label}) ──\n");
@@ -497,11 +548,27 @@ Print(""示例工作流结束"");";
             // Blueprint → Expanded Script
             var script1 = reverseConverter.Convert(bp1);
 
+            // Dump CFG for round 1 if requested
+            if (_dumpCfg && reverseConverter is BlueprintToBlockScriptConverter cfgConv1 && cfgConv1.LastCFG != null)
+            {
+                Console.WriteLine($"\n  ── CFG Dump (Round 1) ──");
+                Console.WriteLine(cfgConv1.LastCFG.Dump());
+                Console.WriteLine($"  ── End CFG Dump (Round 1) ──");
+            }
+
             // Expanded Script → Blueprint (second round)
             var bp2 = forwardConverter.Convert(script1, helpers);
 
             // Blueprint → Expanded Script (second round)
             var script2 = reverseConverter.Convert(bp2);
+
+            // Dump CFG for round 2 if requested
+            if (_dumpCfg && reverseConverter is BlueprintToBlockScriptConverter cfgConv2 && cfgConv2.LastCFG != null)
+            {
+                Console.WriteLine($"\n  ── CFG Dump (Round 2) ──");
+                Console.WriteLine(cfgConv2.LastCFG.Dump());
+                Console.WriteLine($"  ── End CFG Dump (Round 2) ──");
+            }
 
             // Compare
             Console.WriteLine($"  Round 1 nodes: {bp1.Nodes.Count}, connections: {bp1.Connections.Count}");

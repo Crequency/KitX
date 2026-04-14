@@ -102,6 +102,13 @@ public class DataEdgeBuilder
             return;
         }
 
+        // Character literal → DefaultValue (pass through as-is, e.g. '\0')
+        if (ExprUtils.IsCharacterLiteral(trimmed))
+        {
+            SetDefaultValue(targetNode, targetPinName, trimmed);
+            return;
+        }
+
         // Numeric literal → DefaultValue
         if (int.TryParse(trimmed, out _) || double.TryParse(trimmed, out _))
         {

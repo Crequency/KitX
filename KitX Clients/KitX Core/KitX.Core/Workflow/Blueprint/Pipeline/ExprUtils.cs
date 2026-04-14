@@ -159,4 +159,42 @@ public static class ExprUtils
     /// <summary>Gets the value of any literal expression (string, int, double, bool, null).</summary>
     public static object? GetLiteralValue(LiteralExpressionSyntax literal)
         => literal.Token.Value;
+
+    /// <summary>
+    /// Classifies a literal expression into a type tag used by the pipeline.
+    /// Uses Roslyn's SyntaxKind for reliable classification — no string-pattern guessing.
+    /// Returns: "string", "char", "number", "bool", or "unknown".
+    /// </summary>
+    public static string ClassifyLiteral(LiteralExpressionSyntax literal)
+    {
+        var kind = literal.Token.Kind();
+        if (kind == SyntaxKind.StringLiteralToken)
+            return "string";
+        if (kind == SyntaxKind.CharacterLiteralToken)
+            return "char";
+        if (kind == SyntaxKind.NumericLiteralToken)
+            return "number";
+        if (kind is SyntaxKind.TrueLiteralExpression or SyntaxKind.FalseLiteralExpression
+            || kind is SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword)
+            return "bool";
+        if (kind == SyntaxKind.NullKeyword)
+            return "null";
+        return "unknown";
+    }
+
+    /// <summary>
+    /// Determines whether a value string represents a C# character literal (e.g. '\0', 'a', '\n').
+    /// Uses Roslyn parsing for reliable detection — avoids string-pattern heuristics.
+    /// Returns true only when the expression parses as a CharacterLiteralExpression.
+    /// </summary>
+    public static bool IsCharacterLiteral(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return false;
+        // Fast pre-check: C# char literals always start and end with single quote
+        if (value.Length < 3 || value[0] != '\'' || value[^1] != '\'') return false;
+        // Validate with Roslyn
+        var expr = ParseExpression(value);
+        return expr is LiteralExpressionSyntax lit
+               && lit.Token.IsKind(SyntaxKind.CharacterLiteralToken);
+    }
 }

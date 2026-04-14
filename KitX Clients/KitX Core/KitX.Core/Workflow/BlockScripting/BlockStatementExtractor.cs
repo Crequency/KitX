@@ -232,13 +232,24 @@ internal class BlockStatementExtractor
                     }
                     else
                     {
-                        Log.Debug("[BlockStatementExtractor]   assignment.Right is NOT InvocationExpressionSyntax, type = {Type}", assignment.Right.GetType().Name);
-                        block.Statements.Add(new ExpressionStatement
+                        // Check for NextBlock = "BlockName" (plain string assignment to NextBlock)
+                        if (assignment.Left is IdentifierNameSyntax { Identifier.Text: "NextBlock" }
+                            && assignment.Right is LiteralExpressionSyntax nextBlockLiteral
+                            && nextBlockLiteral.Token.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StringLiteralToken))
                         {
-                            LineNumber = exprStmt.GetLineNumber(),
-                            SourceCode = exprText,
-                            Expression = exprText
-                        });
+                            block.NextBlockName = nextBlockLiteral.Token.ValueText;
+                            Log.Debug("[BlockStatementExtractor]   Set NextBlockName = {NextBlockName}", block.NextBlockName);
+                        }
+                        else
+                        {
+                            Log.Debug("[BlockStatementExtractor]   assignment.Right is NOT InvocationExpressionSyntax, type = {Type}", assignment.Right.GetType().Name);
+                            block.Statements.Add(new ExpressionStatement
+                            {
+                                LineNumber = exprStmt.GetLineNumber(),
+                                SourceCode = exprText,
+                                Expression = exprText
+                            });
+                        }
                     }
                 }
                 else

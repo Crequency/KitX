@@ -1,25 +1,25 @@
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
-using KitX.Core.Workflow.Blueprint.ReversePipeline;
+using KitX.Core.Workflow.Blueprint.CFG;
 using Serilog;
 
 namespace KitX.Core.Workflow.Blueprint;
 
 /// <summary>
 /// Converts Blueprint back to a fully-expanded BlockScript source code.
-/// Thin orchestrator that delegates to pipeline phases:
-///   Phase 1: BlueprintAnalyzer — data index construction
-///   Phase 2: ExecutionFlowWalker — walk execution flow (BlockScopes or topology path)
-///   Phase 3: ConditionDuplicator — loop condition duplication (topology path only)
-///   Phase 4: BlockScriptAssembler — source code assembly
+/// Thin orchestrator that delegates to CFG pipeline phases:
+///   CFGBuilderFromBlueprint → CFGConditionDuplicator → ScriptGenerator → ScriptSerializer
 /// </summary>
 public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 {
-    private readonly BlueprintAnalyzer _analyzer = new();
-    private readonly ConditionDuplicator _conditionDuplicator = new();
-    private readonly BlockScriptAssembler _assembler = new();
     private readonly NodeExportHelper _exportHelper = new();
+
+    // CFG pipeline components
+    private readonly CFGBuilderFromBlueprint _cfgBuilder;
+    private readonly CFGConditionDuplicator _cfgConditionDuplicator = new();
+    private readonly ScriptGenerator _scriptGenerator = new();
+    private readonly ScriptSerializer _scriptSerializer = new();
 
     public BlueprintToBlockScriptConverter(IEnumerable<INodeExportStrategy> strategies)
     {
@@ -41,11 +41,11 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             }
         }
 
-        Walker = new ExecutionFlowWalker(strategyMap, builtinMap, _exportHelper);
+        _cfgBuilder = new CFGBuilderFromBlueprint(strategyMap, builtinMap, _exportHelper);
     }
 
-    /// <summary>Execution flow walker — accessible for testing</summary>
-    internal ExecutionFlowWalker Walker { get; }
+    /// <summary>Last CFG built, for diagnostics</summary>
+    internal ControlFlowGraph? LastCFG { get; private set; }
 
     // ──────────────────────────────────────────────
     // Public API
@@ -61,49 +61,37 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
     /// <inheritdoc/>
     public BlockScript ConvertToBlockScript(Contract.Workflow.Blueprint blueprint)
     {
-        if (blueprint.BlockScopes.Count > 0)
-            return ConvertWithBlockScopes(blueprint);
-        return ConvertWithTopology(blueprint);
-    }
-
-    // ──────────────────────────────────────────────
-    // Conversion paths
-    // ──────────────────────────────────────────────
-
-    private BlockScript ConvertWithBlockScopes(Contract.Workflow.Blueprint blueprint)
-    {
         Blueprint = blueprint;
-        var ctx = new ReverseConversionContext { Blueprint = blueprint, Script = new BlockScript() };
+
+        // Set up context for NodeExportHelper and CFG builder (needed for statement generation)
+        var ctx = new ConversionContext { Blueprint = blueprint, Script = new BlockScript() };
         _exportHelper.SetContext(blueprint, ctx);
+        _cfgBuilder.SetContext(blueprint, ctx);
 
-        // Phase 1
-        _analyzer.Analyze(ctx);
+        // Phase 1: Build CFG from Blueprint (unified algorithm)
+        var cfg = _cfgBuilder.Build(blueprint);
+        LastCFG = cfg;
 
-        // Phase 2: Generate statements from stored block membership
-        Walker.WalkFromBlockScopes(blueprint, ctx);
+        Log.Debug("[BlueprintToScript] CFG: {BlockCount} blocks, {EdgeCount} edges",
+            cfg.Blocks.Count, cfg.Blocks.Sum(b => b.Successors.Count));
 
-        // Phase 4
-        _assembler.Assemble(ctx);
-        return ctx.Script;
-    }
+        // Phase 2: Duplicate loop conditions
+        _cfgConditionDuplicator.Duplicate(cfg);
 
-    private BlockScript ConvertWithTopology(Contract.Workflow.Blueprint blueprint)
-    {
-        Blueprint = blueprint;
-        var ctx = new ReverseConversionContext { Blueprint = blueprint, Script = new BlockScript() };
-        _exportHelper.SetContext(blueprint, ctx);
+        // Phase 3: Generate BlockScript from CFG
+        var script = _scriptGenerator.Generate(cfg);
 
-        // Phase 1
-        _analyzer.Analyze(ctx);
+        // Phase 4: Serialize to source code
+        script.SourceCode = _scriptSerializer.Serialize(script);
 
-        // Phase 2: Walk execution flow
-        Walker.WalkExecutionFlow(ctx);
+        // Transfer helper functions from Blueprint to BlockScript
+        // (they were stored in Blueprint during BS→BP forward conversion but were
+        //  previously lost in the BP→BS reverse conversion, causing UnknownMethodName)
+        script.HelperFunctions = blueprint.HelperFunctions ?? [];
 
-        // Phase 3: Duplicate loop conditions
-        _conditionDuplicator.Duplicate(ctx);
+        Log.Debug("[BlueprintToScript] Done. Source code length: {Len}, HelperFunctions: {Count}",
+            script.SourceCode?.Length ?? 0, script.HelperFunctions?.Count ?? 0);
 
-        // Phase 4: Assemble source code
-        _assembler.Assemble(ctx);
-        return ctx.Script;
+        return script;
     }
 }

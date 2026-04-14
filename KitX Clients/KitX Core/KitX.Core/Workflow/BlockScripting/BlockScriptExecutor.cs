@@ -22,6 +22,16 @@ namespace KitX.Core.Workflow.BlockScripting;
 /// </summary>
 public class BlockScriptExecutor : IBlockScriptExecutor
 {
+    /// <summary>
+    /// Shared ScriptOptions with Microsoft.CSharp reference for dynamic support
+    /// and core imports for CSharpScript evaluation.
+    /// </summary>
+    private static readonly ScriptOptions ScriptOptions = ScriptOptions.Default
+        .WithReferences(
+            typeof(BlockScriptExecutionGlobals).Assembly,
+            typeof(Microsoft.CSharp.RuntimeBinder.Binder).Assembly)
+        .WithImports("System", "KitX.Core.Workflow.BlockScripting", "KitX.Core.Workflow");
+
     private readonly BlockScopeManager _scopeManager;
     private readonly Stopwatch _stopwatch = new();
     private ScriptState? _scriptState;
@@ -29,6 +39,11 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     private List<string> _output = new();
     private BlockScriptExecutionGlobals? _globals;
     private IPluginManager? _pluginManager;
+
+    // Block-level precompilation
+    private readonly BlockCompiler _blockCompiler = new();
+    private Dictionary<string, string>? _blockCodeCache;
+    private HashSet<string>? _predeclaredVariables;
 
     /// <summary>
     /// Creates a new block script executor
@@ -83,6 +98,14 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             _scopeManager.ClearLocalScopes();
             _output.Clear();  // Clear the executor's output list
             _scriptState = null;
+
+            // Clear block compilation cache for new execution
+            _blockCodeCache = new Dictionary<string, string>();
+
+            // Collect predeclared variable names (declared in initialization script)
+            // These variables are already declared as dynamic/var in the init script,
+            // so blocks should only emit assignments, not re-declarations
+            _predeclaredVariables = CollectPredeclaredVariables(script);
 
             // Reset run-level state (e.g. Flip counter) for fresh execution from Entry
             _globals?.ResetRunState();
@@ -385,10 +408,126 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     }
 
     /// <summary>
-    /// Executes a single block and returns execution result for state machine
-    /// New design: NextBlock is set by Loop/Branch expressions, checked after each statement
+    /// Executes a single block and returns execution result for state machine.
+    /// Uses block-level precompilation for MainBlock/NamedBlock (one ContinueWithAsync per block),
+    /// and statement-by-statement execution for ConstBlock/PubVarBlock (special DefaultValue handling).
     /// </summary>
     private async Task<BlockExecutionResult> ExecuteBlockAsync(
+        BlockDefinition block,
+        CancellationToken cancellationToken)
+    {
+        // ConstBlock and PubVarBlock: keep statement-by-statement execution
+        // (they only run once and have special DefaultValue handling)
+        if (block.Type == BlockType.ConstBlock || block.Type == BlockType.PubVarBlock)
+            return await ExecuteBlockAsyncStatementByStatement(block, cancellationToken);
+
+        // MainBlock/NamedBlock/LoopBlock: use block-level precompilation
+        return await ExecuteBlockAsyncPrecompiled(block, cancellationToken);
+    }
+
+    /// <summary>
+    /// Executes a block using precompiled code (single ContinueWithAsync call for the entire block).
+    /// This is the fast path that eliminates per-statement compilation overhead.
+    /// </summary>
+    private async Task<BlockExecutionResult> ExecuteBlockAsyncPrecompiled(
+        BlockDefinition block,
+        CancellationToken cancellationToken)
+    {
+        _globals?.ResetNextBlock();
+
+        var blockCode = GetOrCompileBlockCode(block);
+        if (string.IsNullOrWhiteSpace(blockCode))
+        {
+            // Empty block with no NextBlock — just continue
+            return BlockExecutionResult.ContinueTo(block.NextBlockName);
+        }
+
+        try
+        {
+            await EvaluateBlockCodeAsync(blockCode, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[BlockScriptExecutor] Precompiled block '{BlockName}' failed, falling back to statement-by-statement",
+                block.Name);
+            // Fallback to statement-by-statement execution on precompilation failure
+            _globals?.ResetNextBlock();
+            return await ExecuteBlockAsyncStatementByStatement(block, cancellationToken);
+        }
+
+        // NextBlock was set by block code (NextBlock=xxx, Branch, Loop, ToLoopCond, Flip)
+        if (!string.IsNullOrEmpty(_globals?.NextBlock))
+            return BlockExecutionResult.ContinueTo(_globals.NextBlock);
+
+        // Fallback: if no NextBlock was set, use BlockDefinition.NextBlockName
+        return BlockExecutionResult.ContinueTo(block.NextBlockName);
+    }
+
+    /// <summary>
+    /// Evaluates precompiled block code (multi-statement) via ContinueWithAsync.
+    /// Unlike EvaluateExpressionAsync, this does NOT wrap code or apply PreProcessPluginCalls
+    /// (those are already handled by BlockCompiler during compilation).
+    /// </summary>
+    private async Task<object?> EvaluateBlockCodeAsync(string blockCode, CancellationToken cancellationToken)
+    {
+        if (_scriptState == null)
+        {
+            // Should not happen — session is initialized before block execution
+            _globals ??= new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
+            _scriptState = await CSharpScript.RunAsync(
+                blockCode, ScriptOptions, globals: _globals, cancellationToken: cancellationToken);
+            return _scriptState.ReturnValue;
+        }
+
+        _scriptState = await _scriptState.ContinueWithAsync(
+            blockCode, ScriptOptions, cancellationToken: cancellationToken);
+        return _scriptState.ReturnValue;
+    }
+
+    /// <summary>
+    /// Gets compiled block code from cache, or compiles it on first access.
+    /// </summary>
+    private string? GetOrCompileBlockCode(BlockDefinition block)
+    {
+        if (_blockCodeCache == null)
+            _blockCodeCache = new Dictionary<string, string>();
+
+        if (!_blockCodeCache.TryGetValue(block.Name, out var code))
+        {
+            code = _blockCompiler.CompileBlock(block, _predeclaredVariables ?? new HashSet<string>()) ?? string.Empty;
+            _blockCodeCache[block.Name] = code;
+            Log.Debug("[BlockScriptExecutor] Compiled block '{BlockName}' ({StatementCount} statements) → {CodeLength} chars",
+                block.Name, block.Statements.Count, code.Length);
+        }
+        return code;
+    }
+
+    /// <summary>
+    /// Collects variable names declared in the initialization script (ConstBlock + PubVarBlock).
+    /// These variables are predeclared, so blocks should only emit assignments, not re-declarations.
+    /// </summary>
+    private static HashSet<string> CollectPredeclaredVariables(BlockScript script)
+    {
+        var variables = new HashSet<string>();
+        if (script.ConstBlock != null)
+        {
+            foreach (var v in script.ConstBlock.Variables)
+                variables.Add(v.Name);
+        }
+        if (script.PubVarBlock != null)
+        {
+            foreach (var v in script.PubVarBlock.Variables)
+                variables.Add(v.Name);
+        }
+        return variables;
+    }
+
+    /// <summary>
+    /// Executes a single block statement-by-statement (legacy path).
+    /// Used for ConstBlock/PubVarBlock (special DefaultValue handling)
+    /// and as fallback when precompilation fails.
+    /// </summary>
+    private async Task<BlockExecutionResult> ExecuteBlockAsyncStatementByStatement(
         BlockDefinition block,
         CancellationToken cancellationToken)
     {
@@ -538,13 +677,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                 // Variables and helpers declared in previous evaluations are preserved
                 _scriptState = await _scriptState.ContinueWithAsync(
                     fullCode,
-                    ScriptOptions.Default
-                        .WithReferences(typeof(BlockScriptExecutionGlobals).Assembly)
-                        .WithImports(
-                            "System",
-                            "KitX.Core.Workflow.BlockScripting",
-                            "KitX.Core.Workflow"
-                        ),
+                    ScriptOptions,
                     cancellationToken: cancellationToken);
                 result = _scriptState.ReturnValue;
             }
@@ -555,13 +688,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                 var globals = _globals;
                 _scriptState = await CSharpScript.RunAsync(
                     fullCode,
-                    ScriptOptions.Default
-                        .WithReferences(typeof(BlockScriptExecutionGlobals).Assembly)
-                        .WithImports(
-                            "System",
-                            "KitX.Core.Workflow.BlockScripting",
-                            "KitX.Core.Workflow"
-                        ),
+                    ScriptOptions,
                     globals: globals,
                     cancellationToken: cancellationToken);
                 result = _scriptState.ReturnValue;
@@ -639,7 +766,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     /// (e.g. TestPlugin.WPF.Core.HelloKitX()) into PluginCall("...", "...", args) calls.
     /// Operates at the AST level, preserving all expression structure and handling nesting.
     /// </summary>
-    private class PluginCallRewriter : CSharpSyntaxRewriter
+    internal class PluginCallRewriter : CSharpSyntaxRewriter
     {
         public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
         {
@@ -731,7 +858,18 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             {
                 if (variable.DefaultValue != null)
                 {
-                    initCode.AppendLine($"var {variable.Name} = {variable.DefaultValue};");
+                    // Prefer InitialValueExpression (preserves original C# source with
+                    // proper quoting/escaping) over DefaultValue (raw .NET object).
+                    // For string/char types, DefaultValue lacks quotes or escape sequences.
+                    var initExpr = !string.IsNullOrEmpty(variable.InitialValueExpression)
+                        ? variable.InitialValueExpression
+                        : variable.Type switch
+                        {
+                            "string" => $"\"{variable.DefaultValue}\"",
+                            "char" => $"'{variable.DefaultValue}'",
+                            _ => variable.DefaultValue.ToString()!
+                        };
+                    initCode.AppendLine($"var {variable.Name} = {initExpr};");
                 }
                 else
                 {
@@ -747,7 +885,17 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             {
                 if (variable.DefaultValue != null)
                 {
-                    initCode.AppendLine($"var {variable.Name} = {variable.DefaultValue};");
+                    // Prefer InitialValueExpression (preserves original C# source with
+                    // proper quoting/escaping) over DefaultValue (raw .NET object).
+                    var initExpr = !string.IsNullOrEmpty(variable.InitialValueExpression)
+                        ? variable.InitialValueExpression
+                        : variable.Type switch
+                        {
+                            "string" => $"\"{variable.DefaultValue}\"",
+                            "char" => $"'{variable.DefaultValue}'",
+                            _ => variable.DefaultValue.ToString()!
+                        };
+                    initCode.AppendLine($"var {variable.Name} = {initExpr};");
                 }
                 else
                 {
@@ -774,9 +922,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _scriptState = await CSharpScript.RunAsync(
                 "0",  // Simple expression to establish session
-                ScriptOptions.Default
-                    .WithReferences(typeof(BlockScriptExecutionGlobals).Assembly)
-                    .WithImports("System", "KitX.Core.Workflow.BlockScripting", "KitX.Core.Workflow"),
+                ScriptOptions,
                 globals: _globals,
                 cancellationToken: cancellationToken);
             return;
@@ -789,9 +935,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _scriptState = await CSharpScript.RunAsync(
                 initCode,
-                ScriptOptions.Default
-                    .WithReferences(typeof(BlockScriptExecutionGlobals).Assembly)
-                    .WithImports("System", "KitX.Core.Workflow.BlockScripting", "KitX.Core.Workflow"),
+                ScriptOptions,
                 globals: _globals,
                 cancellationToken: cancellationToken);
         }
@@ -802,9 +946,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _scriptState = await CSharpScript.RunAsync(
                 "0",
-                ScriptOptions.Default
-                    .WithReferences(typeof(BlockScriptExecutionGlobals).Assembly)
-                    .WithImports("System", "KitX.Core.Workflow.BlockScripting", "KitX.Core.Workflow"),
+                ScriptOptions,
                 globals: _globals,
                 cancellationToken: cancellationToken);
         }
