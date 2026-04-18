@@ -71,14 +71,6 @@ public interface IBuiltinFunctionDefinition
     /// <summary>输出引脚描述</summary>
     IReadOnlyList<PinDescriptor> OutputPins { get; }
 
-    // ─── 执行 ───────────────────────────────────────
-
-    /// <summary>
-    /// 返回完整的方法签名+方法体字符串，用于编译到 CSharpScript 执行上下文。
-    /// 返回 null 表示执行完全通过语句管线处理（如简单表达式函数）。
-    /// </summary>
-    string? GetExecutionMethodBody();
-
     // ─── 解析（BlockScript → AST）─────────────────
 
     /// <summary>

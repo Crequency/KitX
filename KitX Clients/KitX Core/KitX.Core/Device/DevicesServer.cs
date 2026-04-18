@@ -1,15 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Device;
+using KitX.Core.Contract.Plugin;
 using KitX.Core.Event;
 using KitX.Core.Security;
 using KitX.Shared.CSharp.Device;
+using KitX.Shared.CSharp.Security;
+using KitX.Shared.CSharp.WebCommand;
+using KitX.Shared.CSharp.WebCommand.Infos;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -47,6 +53,22 @@ public class DevicesServer : IDeviceServer
     /// Device key exchange verification code
     /// </summary>
     private string? _exchangeDeviceKeyCode;
+
+    /// <summary>
+    /// JSON serializer options for network protocol (compatible with legacy KitX)
+    /// </summary>
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = true,
+        IncludeFields = true,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    /// <summary>
+    /// Pending plugin invoke responses, keyed by RequestId, for correlating async responses
+    /// </summary>
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingPluginResponses = new();
 
     /// <summary>
     /// Gets the service status
@@ -139,6 +161,23 @@ public class DevicesServer : IDeviceServer
                                     break;
                                 case "Connect":
                                     await HandleConnectAsync(context);
+                                    break;
+                                default:
+                                    context.Response.StatusCode = 404;
+                                    await context.Response.WriteAsync("Not found");
+                                    break;
+                            }
+                        });
+
+                        // Plugin controller endpoints (旧架构 API 标准)
+                        // POST /Api/V1/Plugin/Invoke?token=xxx
+                        endpoints.MapPost("/Api/V1/Plugin/{action}", async context =>
+                        {
+                            var action = context.Request.RouteValues["action"]?.ToString();
+                            switch (action)
+                            {
+                                case "Invoke":
+                                    await HandlePluginInvokeAsync(context);
                                     break;
                                 default:
                                     context.Response.StatusCode = 404;
@@ -753,6 +792,232 @@ public class DevicesServer : IDeviceServer
             context.Response.StatusCode = 500;
             await context.Response.WriteAsync($"Error: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Handles Plugin/Invoke request — routes plugin command to local PluginsServer connection.
+    /// Protocol compatible with legacy PluginController.Invoke.
+    /// POST /Api/V1/Plugin/Invoke?token=xxx
+    /// </summary>
+    private async Task HandlePluginInvokeAsync(HttpContext context)
+    {
+        const string location = $"{nameof(DevicesServer)}.{nameof(HandlePluginInvokeAsync)}";
+
+        try
+        {
+            // 1. Validate token
+            var token = context.Request.Query["token"].ToString();
+            if (string.IsNullOrEmpty(token))
+            {
+                Log.Warning("[{Location}] Missing token in Plugin/Invoke request", location);
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Missing token parameter");
+                return;
+            }
+
+            if (!IsDeviceTokenExist(token))
+            {
+                Log.Warning("[{Location}] Invalid token in Plugin/Invoke request", location);
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("You should connect to this device first.");
+                return;
+            }
+
+            // 2. Read base64-wrapped request JSON from body
+            using var reader = new StreamReader(context.Request.Body);
+            var body = await reader.ReadToEndAsync();
+            if (string.IsNullOrEmpty(body))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Missing request body");
+                return;
+            }
+
+            string requestJson;
+            try
+            {
+                // Legacy format: body is a JSON string containing base64(data)
+                var wrapped = JsonSerializer.Deserialize<string>(body, SerializerOptions);
+                if (string.IsNullOrEmpty(wrapped))
+                {
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync("Invalid request body format");
+                    return;
+                }
+                requestJson = Encoding.UTF8.GetString(Convert.FromBase64String(wrapped));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[{Location}] Failed to decode request body", location);
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Invalid request body encoding");
+                return;
+            }
+
+            // 3. Deserialize Request
+            var request = JsonSerializer.Deserialize<Request>(requestJson, SerializerOptions);
+            if (request == null)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Invalid request format");
+                return;
+            }
+
+            // 4. Validate request.Target
+            var senderLocator = SearchDeviceByToken(token);
+            if (request.Target == null)
+            {
+                Log.Warning("[{Location}] Plugin/Invoke request has no target", location);
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Provide target field please.");
+                return;
+            }
+
+            if (!request.Target.IsSameDevice(senderLocator ?? new DeviceLocator()))
+            {
+                Log.Warning("[{Location}] Plugin/Invoke request target mismatch: {Target} vs {Sender}",
+                    location, request.Target, senderLocator);
+                context.Response.StatusCode = 403;
+                await context.Response.WriteAsync("Please send to actual target.");
+                return;
+            }
+
+            // 5. Handle content decryption if encrypted (simplified — full encryption handled by SecurityManager)
+            var content = request.Content;
+            if (request.EncryptionInfo?.IsEncrypted == true)
+            {
+                content = DecryptContent(request, token);
+            }
+
+            // 6. Deserialize Command
+            var command = JsonSerializer.Deserialize<Command>(content, SerializerOptions);
+            if (command.Equals(default(Command)))
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync("Invalid command format");
+                return;
+            }
+
+            // 7. Find local plugin connection by PluginConnectionId
+            var connector = PluginsServer.Instance.FindConnection(command.PluginConnectionId);
+            if (connector == null)
+            {
+                Log.Warning("[{Location}] Plugin connection not found: {ConnectionId}",
+                    location, command.PluginConnectionId);
+                context.Response.StatusCode = 404;
+                await context.Response.WriteAsync("Plugin connection not found");
+                return;
+            }
+
+            // 8. Generate RequestId and set up async response wait
+            var requestId = Guid.NewGuid().ToString();
+            command.Tags ??= new();
+            command.Tags["RequestId"] = requestId;
+
+            var tcs = new TaskCompletionSource<string>();
+
+            // Subscribe to plugin response
+            void OnResponse(object? sender, PluginResponseEventArgs e)
+            {
+                if (e.RequestId == requestId)
+                {
+                    PluginsServer.Instance.PluginResponse -= OnResponse;
+                    _pendingPluginResponses.TryRemove(requestId, out _);
+                    tcs.TrySetResult(e.Content);
+                }
+            }
+            PluginsServer.Instance.PluginResponse += OnResponse;
+            _pendingPluginResponses[requestId] = tcs;
+
+            // 9. Build the request to send to plugin (manual copy since Request is class not record)
+            var updatedRequest = new Request
+            {
+                Type = request.Type,
+                Version = request.Version,
+                Sender = request.Sender,
+                Target = request.Target,
+                EncryptionInfo = request.EncryptionInfo,
+                CompressionInfo = request.CompressionInfo,
+                Content = content
+            };
+            var pluginRequestJson = JsonSerializer.Serialize(updatedRequest, SerializerOptions);
+
+            // 10. Send to plugin via local PluginsServer
+            connector.Send(pluginRequestJson);
+
+            Log.Information("[{Location}] Forwarded plugin invoke to {PluginId}, RequestId: {RequestId}",
+                location, command.PluginConnectionId, requestId);
+
+            // 11. Wait for response with 30s timeout
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                var result = await tcs.Task.WaitAsync(cts.Token);
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(result);
+                Log.Information("[{Location}] Plugin invoke completed, RequestId: {RequestId}", location, requestId);
+            }
+            catch (TimeoutException)
+            {
+                Log.Warning("[{Location}] Plugin invoke timed out, RequestId: {RequestId}", location, requestId);
+                _pendingPluginResponses.TryRemove(requestId, out _);
+                PluginsServer.Instance.PluginResponse -= OnResponse;
+                context.Response.StatusCode = 504;
+                await context.Response.WriteAsync("Plugin invocation timed out");
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Warning("[{Location}] Plugin invoke cancelled, RequestId: {RequestId}", location, requestId);
+                _pendingPluginResponses.TryRemove(requestId, out _);
+                PluginsServer.Instance.PluginResponse -= OnResponse;
+                context.Response.StatusCode = 499;
+                await context.Response.WriteAsync("Plugin invocation cancelled");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[{Location}] Error handling Plugin/Invoke request", location);
+            context.Response.StatusCode = 500;
+            await context.Response.WriteAsync($"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Decrypts request content based on encryption method.
+    /// Simplified implementation — full RSA/AES decryption delegated to SecurityManager.
+    /// </summary>
+    private string DecryptContent(Request request, string token)
+    {
+        if (request.EncryptionInfo == null || !request.EncryptionInfo.IsEncrypted)
+            return request.Content;
+
+        var content = request.Content;
+
+        if (request.EncryptionInfo.EncryptionMethod == EncryptionMethods.RSA)
+        {
+            var device = SearchDeviceByToken(token);
+            if (device != null)
+            {
+                var key = SecurityManager.Instance.SearchDeviceKey(device);
+                if (key != null)
+                {
+                    try
+                    {
+                        var encryptedContent = JsonSerializer.Deserialize<EncryptedContent>(content, SerializerOptions);
+                        if (encryptedContent != null)
+                        {
+                            content = SecurityManager.Instance.RsaDecryptContent(key, encryptedContent) ?? content;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, "[DevicesServer] Failed to RSA-decrypt plugin invoke content");
+                    }
+                }
+            }
+        }
+
+        return content;
     }
 }
 

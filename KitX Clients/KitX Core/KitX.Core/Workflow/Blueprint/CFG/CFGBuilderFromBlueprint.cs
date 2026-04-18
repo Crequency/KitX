@@ -804,9 +804,24 @@ internal class CFGBuilderFromBlueprint
             {
                 if (node is not CallNode call) return null;
                 var callArgs = _exportHelper.GetInputArgs(call);
-                var funcRef = string.IsNullOrEmpty(call.PluginName)
-                    ? call.FunctionName : $"{call.PluginName}.{call.FunctionName}";
-                var sourceCode = $"{funcRef}({callArgs})";
+                string sourceCode;
+                if (!string.IsNullOrEmpty(call.TargetDevice))
+                {
+                    // 跨设备调用：PluginCallWithTarget("plugin", "method", "device", args...)
+                    var pluginNameLit = $"\"{call.PluginName}\"";
+                    var methodNameLit = $"\"{call.FunctionName}\"";
+                    var targetDeviceLit = $"\"{call.TargetDevice}\"";
+                    sourceCode = string.IsNullOrEmpty(callArgs)
+                        ? $"PluginCallWithTarget({pluginNameLit}, {methodNameLit}, {targetDeviceLit})"
+                        : $"PluginCallWithTarget({pluginNameLit}, {methodNameLit}, {targetDeviceLit}, {callArgs})";
+                }
+                else
+                {
+                    // 本地调用：PluginName.MethodName(args...)
+                    var funcRef = string.IsNullOrEmpty(call.PluginName)
+                        ? call.FunctionName : $"{call.PluginName}.{call.FunctionName}";
+                    sourceCode = $"{funcRef}({callArgs})";
+                }
                 var callStmt = new ExpressionStatement
                 {
                     Expression = sourceCode,

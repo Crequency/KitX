@@ -148,6 +148,10 @@ public static class CoreServiceCollectionExtensions
             return service;
         });
 
+        // Phase 5: Device HTTP Client (for cross-device plugin invocation)
+        Log.Information("Registering IDeviceHttpClient...");
+        services.AddSingleton<IDeviceHttpClient, DeviceHttpClient>();
+
         // Phase 5: Announcement Service
         Log.Information("Registering IAnnouncementService...");
         services.AddSingleton<IAnnouncementService>(provider =>

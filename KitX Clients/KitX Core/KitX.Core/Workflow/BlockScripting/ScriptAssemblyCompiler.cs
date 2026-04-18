@@ -41,7 +41,7 @@ internal class ScriptAssemblyCompiler
     private static readonly HashSet<string> GlobalsIdentifiers = new(StringComparer.Ordinal)
     {
         "Print", "Set", "Get", "Branch", "Loop", "ToLoopCond",
-        "Flip", "PluginCall", "Pause", "NextBlock"
+        "Flip", "PluginCall", "PluginCallWithTarget", "Pause", "NextBlock"
     };
 
     /// <summary>
@@ -967,6 +967,13 @@ internal class ScriptAssemblyCompiler
                         sourceType = helperReturnTypes.TryGetValue(stmt.FunctionName ?? "", out var rt)
                             ? rt : "object";
                     }
+                    else if (stmt.FunctionName == "PluginCallWithTarget")
+                    {
+                        // PluginCallWithTarget("plugin", "method", "device", args...)
+                        // Must check BEFORE FullFunctionName.Contains('.') since
+                        // "G.PluginCallWithTarget" also contains a dot.
+                        rawExpr = BuildPluginCallWithTargetExpression(stmt, pubVarTypes);
+                    }
                     else if (stmt.FullFunctionName != null && stmt.FullFunctionName.Contains('.'))
                     {
                         rawExpr = BuildPluginCallExpression(stmt, pubVarTypes);
@@ -1071,6 +1078,67 @@ internal class ScriptAssemblyCompiler
                                     MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                                         IdentifierName("G"), IdentifierName("Print")),
                                     ArgumentList(SeparatedList(new[] { Argument(argExpr) })))));
+                    }
+
+                    break;
+                }
+
+                case FormattedStatementKind.PluginCallWithTarget:
+                {
+                    // G.PluginCallWithTarget("pluginName", "methodName", targetDeviceExpr[, arg1, arg2, ...]);
+                    // Arguments[0]=pluginName, [1]=methodName, [2]=targetDevice, [3...]=call args
+                    // targetDeviceExpr may be a string literal or a variable (e.g. TryGetDevice(...) result)
+                    var args = new List<ArgumentSyntax>();
+
+                    // pluginName (arg 0)
+                    if (stmt.Arguments.Count > 0)
+                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes)));
+                    else
+                        args.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(""))));
+
+                    // methodName (arg 1)
+                    if (stmt.Arguments.Count > 1)
+                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[1], pubVarTypes)));
+                    else
+                        args.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(""))));
+
+                    // targetDevice (arg 2) — may be a variable reference or TryGetDevice(...) call
+                    if (stmt.Arguments.Count > 2)
+                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[2], pubVarTypes)));
+                    else
+                        args.Add(Argument(LiteralExpression(SyntaxKind.NullLiteralExpression)));
+
+                    // Extra call args (arg 3+)
+                    for (int i = 3; i < stmt.Arguments.Count; i++)
+                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[i], pubVarTypes)));
+
+                    caseStatements.Add(
+                        ExpressionStatement(
+                            InvocationExpression(
+                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                    IdentifierName("G"), IdentifierName("PluginCallWithTarget")),
+                                ArgumentList(SeparatedList(args)))));
+
+                    break;
+                }
+
+                case FormattedStatementKind.TryGetDevice:
+                {
+                    // var pubVar = G.TryGetDevice("pattern");
+                    if (stmt.Arguments.Count > 0 && !string.IsNullOrEmpty(stmt.PubVarTarget))
+                    {
+                        var patternExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
+                        caseStatements.Add(
+                            LocalDeclarationStatement(
+                                VariableDeclaration(IdentifierName("var"))
+                                    .AddVariables(
+                                        VariableDeclarator(Identifier(stmt.PubVarTarget))
+                                            .WithInitializer(
+                                                EqualsValueClause(
+                                                    InvocationExpression(
+                                                        MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                                            IdentifierName("G"), IdentifierName("TryGetDevice")),
+                                                        ArgumentList(SeparatedList(new[] { Argument(patternExpr) }))))))));
                     }
 
                     break;
@@ -1228,6 +1296,39 @@ internal class ScriptAssemblyCompiler
             MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                 IdentifierName("G"), IdentifierName("PluginCall")),
             ArgumentList(SeparatedList(pluginCallArgs)));
+    }
+
+    /// <summary>
+    /// Builds <c>G.PluginCallWithTarget("pluginName", "methodName", "targetDevice", args...)</c>
+    /// expression for cross-device plugin calls.
+    /// </summary>
+    private static InvocationExpressionSyntax BuildPluginCallWithTargetExpression(
+        FormattedStatement stmt, Dictionary<string, string> pubVarTypes)
+    {
+        // Arguments: [0]=pluginName, [1]=methodName, [2]=targetDevice, [3...]=call args
+        var pluginNameArg = stmt.Arguments.Count > 0
+            ? stmt.Arguments[0] : "\"\"";
+        var methodNameArg = stmt.Arguments.Count > 1
+            ? stmt.Arguments[1] : "\"\"";
+        var targetDeviceArg = stmt.Arguments.Count > 2
+            ? stmt.Arguments[2] : "\"\"";
+        var callArgs = stmt.Arguments.Count > 3
+            ? stmt.Arguments.Skip(3).ToList()
+            : new List<string>();
+
+        var args = new List<ArgumentSyntax>
+        {
+            Argument(ResolveArgumentExpression(pluginNameArg, pubVarTypes)),
+            Argument(ResolveArgumentExpression(methodNameArg, pubVarTypes)),
+            Argument(ResolveArgumentExpression(targetDeviceArg, pubVarTypes))
+        };
+        args.AddRange(callArgs.Select(a =>
+            Argument(ResolveArgumentExpression(a, pubVarTypes))));
+
+        return InvocationExpression(
+            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                IdentifierName("G"), IdentifierName("PluginCallWithTarget")),
+            ArgumentList(SeparatedList(args)));
     }
 
     /// <summary>

@@ -246,7 +246,17 @@ public class NodeBuilder
                 var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
 
                 // Parse plugin name from full dotted method name (e.g. "TestPlugin.WPF.Core.HelloKitX")
-                if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
+                // PluginCallWithTarget has G.PluginCallWithTarget as FullFunctionName, handle it first
+                if (stmt.FunctionName == "PluginCallWithTarget")
+                {
+                    // G.PluginCallWithTarget("plugin", "method", "device", ...)
+                    // Arguments[0]=pluginName, [1]=methodName, [2]=targetDevice
+                    var args = stmt.Arguments;
+                    callNode.PluginName = args?.Count > 0 ? StripQuotes(args[0]) : "";
+                    callNode.FunctionName = args?.Count > 1 ? StripQuotes(args[1]) : "";
+                    callNode.TargetDevice = args?.Count > 2 ? StripQuotes(args[2]) : null;
+                }
+                else if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
                 {
                     var lastDot = stmt.FullFunctionName.LastIndexOf('.');
                     callNode.PluginName = stmt.FullFunctionName.Substring(0, lastDot);
@@ -430,5 +440,15 @@ public class NodeBuilder
                 });
             }
         }
+    }
+
+    /// <summary>Strips surrounding double-quote characters from a string literal.</summary>
+    private static string StripQuotes(string s)
+    {
+        if (s == null) return "";
+        s = s.Trim();
+        if (s.Length >= 2 && s.StartsWith('"') && s.EndsWith('"'))
+            return s[1..^1];
+        return s;
     }
 }

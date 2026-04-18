@@ -1,0 +1,129 @@
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using KitX.Shared.CSharp.Device;
+using KitX.Shared.CSharp.WebCommand;
+using Serilog;
+
+namespace KitX.Core.Device;
+
+/// <summary>
+/// Interface for device HTTP client — sends requests to remote DevicesServer instances.
+/// Used for cross-device plugin invocation via the /Api/V1/Plugin/Invoke endpoint.
+/// </summary>
+public interface IDeviceHttpClient
+{
+    /// <summary>
+    /// Invokes a plugin method on a remote device via HTTP POST to /Api/V1/Plugin/Invoke.
+    /// </summary>
+    /// <param name="targetDevice">Target device info (contains IPv4 and DevicesServerPort)</param>
+    /// <param name="token">Valid session token for the target device</param>
+    /// <param name="request">The Request object to send</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>HTTP response from remote device, or null on network error</returns>
+    Task<HttpResponseMessage?> InvokePluginAsync(
+        DeviceInfo targetDevice,
+        string token,
+        Request request,
+        CancellationToken ct = default);
+}
+
+/// <summary>
+/// Device HTTP client implementation.
+/// Sends plugin invoke requests to remote DevicesServer over HTTP.
+/// Protocol compatible with legacy PluginControllerExtensions.RemoteInvoke.
+/// </summary>
+public class DeviceHttpClient : IDeviceHttpClient
+{
+    private static readonly HttpClient _httpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(35)
+    };
+
+    /// <summary>
+    /// JSON serializer options (compatible with legacy KitX network protocol)
+    /// </summary>
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = false,
+        IncludeFields = true,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    /// <summary>
+    /// Invokes a plugin method on a remote device.
+    /// </summary>
+    public async Task<HttpResponseMessage?> InvokePluginAsync(
+        DeviceInfo targetDevice,
+        string token,
+        Request request,
+        CancellationToken ct = default)
+    {
+        if (targetDevice?.Device == null)
+        {
+            Log.Warning("[DeviceHttpClient] InvokePluginAsync called with null targetDevice");
+            return null;
+        }
+
+        var ipv4 = targetDevice.Device.IPv4;
+        var port = targetDevice.DevicesServerPort;
+
+        if (string.IsNullOrEmpty(ipv4) || port <= 0)
+        {
+            Log.Warning("[DeviceHttpClient] Invalid device address: IPv4={IPv4}, Port={Port}",
+                ipv4, port);
+            return null;
+        }
+
+        try
+        {
+            // Step 1: Serialize Request to JSON
+            var requestJson = JsonSerializer.Serialize(request, SerializerOptions);
+
+            // Step 2: Wrap in base64 (legacy protocol format)
+            var requestJsonBytes = Encoding.UTF8.GetBytes(requestJson);
+            var requestJsonBase64 = Convert.ToBase64String(requestJsonBytes);
+            var wrappedJson = JsonSerializer.Serialize(requestJsonBase64);
+
+            // Step 3: Build URL
+            var url = $"http://{ipv4}:{port}/Api/V1/Plugin/Invoke?token={token}";
+
+            Log.Debug("[DeviceHttpClient] Sending plugin invoke to {Url}, Target={Target}, Function={Function}",
+                url, request.Target, request.Content);
+
+            // Step 4: Send HTTP POST
+            var response = await _httpClient.PostAsync(
+                url,
+                new StringContent(wrappedJson, Encoding.UTF8, "application/json"),
+                ct);
+
+            Log.Debug("[DeviceHttpClient] Received response from {Url}: Status={Status}",
+                url, response.StatusCode);
+
+            return response;
+        }
+        catch (HttpRequestException ex)
+        {
+            Log.Error(ex, "[DeviceHttpClient] HTTP error invoking plugin on device {Device}:{Port}",
+                ipv4, port);
+            return null;
+        }
+        catch (TaskCanceledException ex) when (ex.CancellationToken != ct)
+        {
+            Log.Error(ex, "[DeviceHttpClient] Timeout invoking plugin on device {Device}:{Port}",
+                ipv4, port);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DeviceHttpClient] Unexpected error invoking plugin on device {Device}:{Port}",
+                ipv4, port);
+            return null;
+        }
+    }
+}

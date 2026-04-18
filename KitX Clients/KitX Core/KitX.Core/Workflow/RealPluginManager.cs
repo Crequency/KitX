@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -7,6 +9,7 @@ using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Device;
+using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
@@ -25,6 +28,7 @@ namespace KitX.Core.Workflow;
 public class RealPluginManager : IPluginManager, KcsIPluginManager
 {
     private readonly PluginsServer _pluginsServer;
+    private readonly IDeviceHttpClient _deviceHttpClient;
     private readonly JsonSerializerOptions _serializerOptions = new()
     {
         WriteIndented = true,
@@ -40,7 +44,7 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     /// <summary>
     /// 无参构造函数（供 KScript.Parser 动态创建实例使用）
     /// </summary>
-    public RealPluginManager() : this(PluginsServer.Instance)
+    public RealPluginManager() : this(PluginsServer.Instance, new DeviceHttpClient())
     {
     }
 
@@ -49,8 +53,19 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     /// </summary>
     /// <param name="pluginsServer">插件服务器实例</param>
     public RealPluginManager(PluginsServer pluginsServer)
+        : this(pluginsServer, new DeviceHttpClient())
+    {
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="pluginsServer">插件服务器实例</param>
+    /// <param name="deviceHttpClient">HTTP 客户端，用于跨设备调用</param>
+    public RealPluginManager(PluginsServer pluginsServer, IDeviceHttpClient deviceHttpClient)
     {
         _pluginsServer = pluginsServer;
+        _deviceHttpClient = deviceHttpClient ?? new DeviceHttpClient();
 
         // 订阅插件消息接收事件以处理响应
         _pluginsServer.PluginMessageReceived += OnPluginMessageReceived;
@@ -145,6 +160,16 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     public void Call(PluginCallInfo callInfo)
     {
         Log.Information($"[RealPluginManager] Call() invoked (fire-and-forget): {callInfo.PluginName}.{callInfo.MethodName}");
+
+        // 如果指定了目标设备，通过 RemoteCallAsync 路由（fire-and-forget）
+        if (!string.IsNullOrEmpty(callInfo.TargetDevice))
+        {
+            Log.Information("[RealPluginManager] Call: TargetDevice={Device} set, routing via RemoteCallAsync (fire-and-forget)",
+                callInfo.TargetDevice);
+            _ = Task.Run(() => RemoteCallAsync(callInfo, callInfo.TargetDevice));
+            return;
+        }
+
         SendRequestWithoutWaitAsync(callInfo);
     }
 
@@ -154,6 +179,16 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     public T Call<T>(PluginCallInfo callInfo)
     {
         Log.Information($"[RealPluginManager] Call<{typeof(T).Name}>() invoked: {callInfo.PluginName}.{callInfo.MethodName}");
+
+        // 如果指定了目标设备，通过 RemoteCallAsync 路由
+        if (!string.IsNullOrEmpty(callInfo.TargetDevice))
+        {
+            Log.Information("[RealPluginManager] Call<{Type}>: TargetDevice={Device} set, routing via RemoteCallAsync",
+                typeof(T).Name, callInfo.TargetDevice);
+            var remoteResult = RemoteCallAsync(callInfo, callInfo.TargetDevice).GetAwaiter().GetResult();
+            return (T)remoteResult!;
+        }
+
         var result = CallAsync(callInfo).GetAwaiter().GetResult();
         return ParseResult<T>(result);
     }
@@ -509,5 +544,330 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     {
         return _pluginsServer.Connections
             .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
+    }
+
+    /// <summary>
+    /// 根据设备名称查找已连接设备的 token。
+    /// </summary>
+    private string? FindDeviceToken(DeviceInfo deviceInfo)
+    {
+        if (deviceInfo?.Device == null)
+            return null;
+
+        try
+        {
+            // Access DevicesServer's signed tokens dictionary directly
+            // DevicesServer._signedDeviceTokens is Dictionary<DeviceLocator, string>
+            // We need to find the token where the DeviceLocator matches deviceInfo.Device
+            var tokensField = typeof(DevicesServer)
+                .GetField("_signedDeviceTokens",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (tokensField == null)
+            {
+                Log.Warning("[RealPluginManager] Could not access _signedDeviceTokens field");
+                return null;
+            }
+
+            var tokens = tokensField.GetValue(DevicesServer.Instance) as System.Collections.IDictionary;
+            if (tokens == null)
+                return null;
+
+            foreach (System.Collections.DictionaryEntry entry in tokens)
+            {
+                if (entry.Key is KitX.Shared.CSharp.Device.DeviceLocator locator &&
+                    locator.IsSameDevice(deviceInfo.Device))
+                {
+                    return entry.Value as string;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[RealPluginManager] Error finding device token for {Device}", deviceInfo.Device?.DeviceName);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 根据设备名称查找 DeviceInfo。
+    /// </summary>
+    private DeviceInfo? FindDeviceInfoByName(string deviceName)
+    {
+        if (string.IsNullOrEmpty(deviceName))
+            return null;
+
+        try
+        {
+            // Use DevicesDiscoveryServer.DefaultDeviceInfo as reference for local device
+            // Try to find a matching device from the signed tokens
+            var tokensField = typeof(DevicesServer)
+                .GetField("_signedDeviceTokens",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (tokensField == null)
+                return null;
+
+            var tokens = tokensField.GetValue(DevicesServer.Instance) as System.Collections.IDictionary;
+            if (tokens == null)
+                return null;
+
+            foreach (System.Collections.DictionaryEntry entry in tokens)
+            {
+                if (entry.Key is KitX.Shared.CSharp.Device.DeviceLocator locator &&
+                    locator.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Found the locator by name — now we need DeviceInfo which has the full info
+                    // We can construct a basic DeviceInfo from the locator + DevicesDiscoveryServer data
+                    var defaultInfo = KitX.Core.Device.DevicesDiscoveryServer.Instance?.DefaultDeviceInfo;
+                    if (defaultInfo != null && defaultInfo.Device.IsSameDevice(locator))
+                    {
+                        return defaultInfo;
+                    }
+
+                    // Fallback: construct from locator alone (missing some fields)
+                    return new DeviceInfo
+                    {
+                        Device = locator,
+                        SendTime = DateTime.UtcNow
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[RealPluginManager] Error finding DeviceInfo for {DeviceName}", deviceName);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 向远端设备发送插件调用请求。
+    /// </summary>
+    /// <param name="callInfo">插件调用信息</param>
+    /// <param name="targetDeviceName">目标设备名称（DeviceLocator.DeviceName）</param>
+    /// <returns>调用结果（解析后的对象），失败返回 null</returns>
+    public object? RemoteCall(PluginCallInfo callInfo, string targetDeviceName)
+    {
+        const string location = $"{nameof(RealPluginManager)}.{nameof(RemoteCall)}";
+
+        if (string.IsNullOrEmpty(targetDeviceName))
+        {
+            Log.Warning("[{Location}] RemoteCall: targetDeviceName is empty, falling back to local", location);
+            return CallAuto(callInfo);
+        }
+
+        // 1. 查找目标 DeviceInfo
+        var deviceInfo = FindDeviceInfoByName(targetDeviceName);
+        if (deviceInfo == null)
+        {
+            Log.Error("[{Location}] RemoteCall: device not found or not connected: {DeviceName}", location, targetDeviceName);
+            throw new InvalidOperationException($"Device not found or not connected: {targetDeviceName}");
+        }
+
+        // 2. 查找 token
+        var token = FindDeviceToken(deviceInfo);
+        if (string.IsNullOrEmpty(token))
+        {
+            Log.Error("[{Location}] RemoteCall: no session token for device {DeviceName}. " +
+                "Device must be connected via DevicesServer first.", location, targetDeviceName);
+            throw new InvalidOperationException($"Device not connected (no token): {targetDeviceName}");
+        }
+
+        // 3. 构建 Command
+        var command = new Command
+        {
+            Request = CommandRequestInfo.ReceiveCommand,
+            FunctionName = callInfo.MethodName,
+            PluginConnectionId = callInfo.PluginName,  // 插件名称作为连接标识
+            Tags = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["RequestId"] = Guid.NewGuid().ToString()
+            }
+        };
+
+        // 4. 处理参数
+        if (callInfo.Parameters != null && callInfo.Parameters.Length > 0)
+        {
+            command.FunctionArgs = new System.Collections.Generic.List<Parameter>();
+            for (int i = 0; i < callInfo.Parameters.Length; i++)
+            {
+                var paramValue = callInfo.Parameters[i]?.ToString() ?? string.Empty;
+                var paramName = callInfo.ParameterNames?.Length > i ? callInfo.ParameterNames[i] : i.ToString();
+                var paramType = callInfo.ParameterTypes?.Length > i ? callInfo.ParameterTypes[i].Name.ToLower() : "string";
+                command.FunctionArgs.Add(new Parameter
+                {
+                    Name = paramName,
+                    Type = paramType,
+                    Value = paramValue,
+                    IsOptional = false
+                });
+            }
+            command.Body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command.FunctionArgs, _serializerOptions));
+            command.BodyLength = command.Body.Length;
+        }
+
+        // 5. 构建 Request
+        var request = new Request
+        {
+            Type = RequestTypes.Command,
+            Version = RequestVersions.V1,
+            Target = deviceInfo.Device,
+            Content = JsonSerializer.Serialize(command, _serializerOptions)
+        };
+
+        // 6. 通过 DeviceHttpClient 发送 HTTP POST
+        Log.Information("[{Location}] RemoteCall: invoking {Plugin}.{Method} on device {Device}",
+            location, callInfo.PluginName, callInfo.MethodName, targetDeviceName);
+
+        var response = _deviceHttpClient.InvokePluginAsync(deviceInfo, token, request).GetAwaiter().GetResult();
+        if (response == null)
+        {
+            Log.Error("[{Location}] RemoteCall: HTTP request failed for {Plugin}.{Method}",
+                location, callInfo.PluginName, callInfo.MethodName);
+            throw new InvalidOperationException($"Failed to send request to device: {targetDeviceName}");
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Log.Error("[{Location}] RemoteCall: HTTP {Status} from device {Device}: {Reason}",
+                location, response.StatusCode, targetDeviceName, response.ReasonPhrase);
+            throw new InvalidOperationException($"Remote invoke failed: HTTP {response.StatusCode}");
+        }
+
+        // 7. 读取响应内容
+        var resultContent = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        Log.Information("[{Location}] RemoteCall: received response from {Device}: {Content}",
+            location, targetDeviceName, resultContent.Length > 200
+                ? resultContent.Substring(0, 200) + "..."
+                : resultContent);
+
+        // 8. 解析返回值类型并转换
+        var returnType = GetFunctionReturnType(callInfo.PluginName, callInfo.MethodName);
+        if (returnType == null || returnType == typeof(void))
+            return null;
+
+        return ParseResult(returnType, resultContent);
+    }
+
+    /// <summary>
+    /// 向远端设备发送插件调用请求（异步版本）。
+    /// </summary>
+    public async Task<object?> RemoteCallAsync(PluginCallInfo callInfo, string targetDeviceName, CancellationToken ct = default)
+    {
+        const string location = $"{nameof(RealPluginManager)}.{nameof(RemoteCallAsync)}";
+
+        if (string.IsNullOrEmpty(targetDeviceName))
+        {
+            Log.Warning("[{Location}] RemoteCallAsync: targetDeviceName is empty, falling back to local", location);
+            return CallAuto(callInfo);
+        }
+
+        var deviceInfo = FindDeviceInfoByName(targetDeviceName);
+        if (deviceInfo == null)
+            throw new InvalidOperationException($"Device not found: {targetDeviceName}");
+
+        var token = FindDeviceToken(deviceInfo);
+        if (string.IsNullOrEmpty(token))
+            throw new InvalidOperationException($"Device not connected (no token): {targetDeviceName}");
+
+        var command = new Command
+        {
+            Request = CommandRequestInfo.ReceiveCommand,
+            FunctionName = callInfo.MethodName,
+            PluginConnectionId = callInfo.PluginName,
+            Tags = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["RequestId"] = Guid.NewGuid().ToString()
+            }
+        };
+
+        if (callInfo.Parameters != null && callInfo.Parameters.Length > 0)
+        {
+            command.FunctionArgs = new System.Collections.Generic.List<Parameter>();
+            for (int i = 0; i < callInfo.Parameters.Length; i++)
+            {
+                command.FunctionArgs.Add(new Parameter
+                {
+                    Name = callInfo.ParameterNames?.Length > i ? callInfo.ParameterNames[i] : i.ToString(),
+                    Type = callInfo.ParameterTypes?.Length > i ? callInfo.ParameterTypes[i].Name.ToLower() : "string",
+                    Value = callInfo.Parameters[i]?.ToString() ?? string.Empty,
+                    IsOptional = false
+                });
+            }
+            command.Body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command.FunctionArgs, _serializerOptions));
+            command.BodyLength = command.Body.Length;
+        }
+
+        var request = new Request
+        {
+            Type = RequestTypes.Command,
+            Version = RequestVersions.V1,
+            Target = deviceInfo.Device,
+            Content = JsonSerializer.Serialize(command, _serializerOptions)
+        };
+
+        Log.Information("[{Location}] RemoteCallAsync: {Plugin}.{Method} on {Device}",
+            location, callInfo.PluginName, callInfo.MethodName, targetDeviceName);
+
+        var response = await _deviceHttpClient.InvokePluginAsync(deviceInfo, token, request, ct);
+        if (response == null || !response.IsSuccessStatusCode)
+        {
+            var reason = response?.ReasonPhrase ?? "network error";
+            Log.Error("[{Location}] RemoteCallAsync failed: HTTP {Status} from {Device}",
+                location, response?.StatusCode, targetDeviceName);
+            throw new InvalidOperationException($"Remote invoke failed: HTTP {response?.StatusCode}");
+        }
+
+        var resultContent = await response.Content.ReadAsStringAsync(ct);
+        var returnType = GetFunctionReturnType(callInfo.PluginName, callInfo.MethodName);
+        if (returnType == null || returnType == typeof(void))
+            return null;
+
+        return ParseResult(returnType, resultContent);
+    }
+
+    /// <summary>
+    /// 解析插件调用返回值
+    /// </summary>
+    private object? ParseResult(Type returnType, string result)
+    {
+        if (string.IsNullOrEmpty(result) || returnType == typeof(void))
+            return null;
+
+        try
+        {
+            if (returnType == typeof(string))
+                return result;
+            if (returnType == typeof(int))
+                return int.Parse(result);
+            if (returnType == typeof(long))
+                return long.Parse(result);
+            if (returnType == typeof(float))
+                return float.Parse(result);
+            if (returnType == typeof(double))
+                return double.Parse(result);
+            if (returnType == typeof(bool))
+                return bool.Parse(result);
+            if (returnType == typeof(object))
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<object>(result, _serializerOptions) ?? result;
+                }
+                catch
+                {
+                    return result;
+                }
+            }
+            return JsonSerializer.Deserialize(result, returnType, _serializerOptions);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[RealPluginManager] Error parsing result as {Type}", returnType.Name);
+            return result;
+        }
     }
 }

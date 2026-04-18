@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Threading;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow;
 using Serilog;
@@ -8,48 +7,48 @@ using Serilog;
 namespace KitX.Core.Workflow.BlockScripting;
 
 /// <summary>
-/// Script globals for block script execution - provides access to built-in functions and collects output
+/// Script globals for block script execution — 仅保留核心手脚架。
+/// 各 builtin 函数的运行时方法已迁移到各自的 partial class 文件中。
 /// </summary>
-public class BlockScriptExecutionGlobals
+public partial class BlockScriptExecutionGlobals
 {
+    // ─── 核心字段 ───────────────────────────────────────────────
+
     private readonly BlockScopeManager _scopeManager;
     private readonly List<string> _output;
     private readonly Dictionary<string, object?> _variables = new();
     private readonly IPluginManager? _pluginManager;
 
+    // ─── 内置属性 ───────────────────────────────────────────────
+
     /// <summary>
     /// NextBlock 内置变量 - 设置后执行器会跳转到指定块
-    /// 每个块执行前会被重置为 null
     /// </summary>
-    public string? NextBlock { get; set; } = null;
+    public string? NextBlock { get; set; }
 
     /// <summary>
     /// Number of blocks executed so far in the current run.
-    /// Incremented at the start of each block's switch case in the compiled assembly path.
     /// </summary>
     public int ExecutedBlockCount { get; set; }
 
-    /// <summary>
-    /// Creates script globals
-    /// </summary>
+    // ─── 构造 ───────────────────────────────────────────────
+
     public BlockScriptExecutionGlobals(BlockScopeManager scopeManager, List<string> output)
     {
         _scopeManager = scopeManager;
         _output = output;
     }
 
-    /// <summary>
-    /// Creates script globals with plugin manager support
-    /// </summary>
     public BlockScriptExecutionGlobals(BlockScopeManager scopeManager, List<string> output,
         IPluginManager? pluginManager) : this(scopeManager, output)
     {
         _pluginManager = pluginManager;
     }
 
+    // ─── 变量访问 ───────────────────────────────────────────────
+
     /// <summary>
-    /// Gets a variable value - called by CSharpScript when accessing unknown properties
-    /// Returns dynamic to allow implicit conversion to target variable types
+    /// Gets a variable value dynamically (CSharpScript path).
     /// </summary>
     public dynamic Get(string name)
     {
@@ -61,9 +60,7 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
-    /// Gets a variable value typed as <typeparamref name="T"/>.
-    /// Used by the compiled assembly path to avoid <c>dynamic</c> binding overhead.
-    /// Performs standard unboxing/conversion, no <c>Microsoft.CSharp.RuntimeBinder</c> needed.
+    /// Gets a variable value typed as T (compiled assembly path).
     /// </summary>
     public T? Get<T>(string name)
     {
@@ -75,7 +72,7 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
-    /// Sets a variable value
+    /// Sets a variable value in local scope.
     /// </summary>
     public void Set(string name, object? value)
     {
@@ -89,7 +86,7 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
-    /// Sets a variable value in global scope
+    /// Sets a variable value in global scope.
     /// </summary>
     public void SetGlobalVariable(string name, object? value)
     {
@@ -103,7 +100,7 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
-    /// Resets NextBlock to null (called before each block execution)
+    /// Resets NextBlock to null (called before each block execution).
     /// </summary>
     public void ResetNextBlock()
     {
@@ -111,112 +108,18 @@ public class BlockScriptExecutionGlobals
     }
 
     /// <summary>
-    /// Gets all variables for debugging
+    /// Gets all variables for debugging.
     /// </summary>
     public Dictionary<string, object?> GetAllVariables() => new(_variables);
 
-    /// <summary>
-    /// Condition branch - sets NextBlock and returns the target block name
-    /// </summary>
-    public string? Branch(bool condition, string trueBlock, string falseBlock)
-    {
-        NextBlock = condition ? trueBlock : falseBlock;
-        return NextBlock;
-    }
+    // ─── 运行状态重置 ───────────────────────────────────────────────
 
     /// <summary>
-    /// Loop while condition is true (three-argument syntax)
-    /// </summary>
-    public string? Loop(bool condition, string trueBlock, string falseBlock)
-    {
-        NextBlock = condition ? trueBlock : falseBlock;
-        return NextBlock;
-    }
-
-    /// <summary>
-    /// Print a value
-    /// </summary>
-    public void Print(object? value)
-    {
-        var str = value?.ToString() ?? "null";
-        _output.Add(str);
-        WorkflowOutput.WriteLine(value);
-    }
-
-    /// <summary>
-    /// Pause execution
-    /// </summary>
-    public void Pause(int milliseconds)
-    {
-        Thread.Sleep(milliseconds);
-    }
-
-    /// <summary>
-    /// Flip counter — tracks odd/even execution state. Reset on each run from Entry.
-    /// </summary>
-    private int _flipCounter = 0;
-
-    /// <summary>
-    /// Resets run-level state (called when execution starts from Entry node)
+    /// Resets run-level state (called when execution starts from Entry node).
     /// </summary>
     public void ResetRunState()
     {
-        _flipCounter = 0;
+        ResetFlipCounter();
         ExecutedBlockCount = 0;
-    }
-
-    /// <summary>
-    /// Flip — alternating control flow. Routes to outputA on odd calls, outputB on even calls.
-    /// </summary>
-    public string? Flip(string outputA, string outputB)
-    {
-        _flipCounter++;
-        NextBlock = (_flipCounter % 2 == 1) ? outputA : outputB;
-        return NextBlock;
-    }
-
-    /// <summary>
-    /// ToLoopCond - marks the end of a loop body and returns to the loop condition block
-    /// </summary>
-    public string? ToLoopCond(string parentBlockName)
-    {
-        NextBlock = parentBlockName;
-        return NextBlock;
-    }
-
-    /// <summary>
-    /// 调用插件函数。所有分发策略（类型化调用、fire-and-forget vs 同步等待）
-    /// 由 RealPluginManager.CallAuto() 内部自动完成，调用方无需关心。
-    /// </summary>
-    public object? PluginCall(string pluginName, string methodName, params object[] args)
-    {
-        if (_pluginManager == null)
-        {
-            Log.Warning("[BlockScriptGlobals] PluginCall: no plugin manager available, " +
-                "cannot call {PluginName}.{MethodName}", pluginName, methodName);
-            return null;
-        }
-
-        var callInfo = new PluginCallInfo
-        {
-            PluginName = pluginName,
-            MethodName = methodName,
-            Parameters = args ?? Array.Empty<object>()
-        };
-
-        try
-        {
-            if (_pluginManager is RealPluginManager realManager)
-                return realManager.CallAuto(callInfo);
-
-            // Fallback for other IPluginManager implementations
-            return _pluginManager.Call<object?>(callInfo);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[BlockScriptGlobals] PluginCall failed: {PluginName}.{MethodName}",
-                pluginName, methodName);
-            return null;
-        }
     }
 }

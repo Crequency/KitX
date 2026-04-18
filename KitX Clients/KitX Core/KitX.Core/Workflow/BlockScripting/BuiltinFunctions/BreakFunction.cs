@@ -27,7 +27,6 @@ public class BreakFunction : IBuiltinFunctionDefinition
 
     public IReadOnlyList<PinDescriptor> OutputPins => [];
 
-    public string? GetExecutionMethodBody() => null;
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 

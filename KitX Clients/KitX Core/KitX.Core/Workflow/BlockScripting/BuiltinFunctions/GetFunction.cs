@@ -29,7 +29,6 @@ public class GetFunction : IBuiltinFunctionDefinition
         new("Value", PinType.Any, 40)
     ];
 
-    public string? GetExecutionMethodBody() => null;
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 

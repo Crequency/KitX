@@ -141,14 +141,14 @@ public class PluginsServer : IPluginServer
                 if (ConstantTable.PluginsServerPort <= 0)
                 {
                     currentPort = startPort + retryCount;
-                    // Use 127.0.0.1 instead of 0.0.0.0 to avoid permission issues
-                    _server = new WebSocketServer($"ws://127.0.0.1:{currentPort}");
+                    // Accept connections on all network interfaces (legacy protocol compatible)
+                    _server = new WebSocketServer($"ws://0.0.0.0:{currentPort}");
                 }
                 else
                 {
                     // Use configured port
                     currentPort = ConstantTable.PluginsServerPort;
-                    _server = new WebSocketServer($"ws://127.0.0.1:{currentPort}");
+                    _server = new WebSocketServer($"ws://0.0.0.0:{currentPort}");
                 }
 
                 _server!.Start(socket =>

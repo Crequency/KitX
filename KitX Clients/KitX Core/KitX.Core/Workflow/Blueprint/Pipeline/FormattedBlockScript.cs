@@ -146,4 +146,13 @@ public enum FormattedStatementKind
 
     /// <summary>Plain expression without assignment</summary>
     Expression,
+
+    /// <summary>PluginCallWithTarget(pluginName, methodName, targetDevice, args...) — cross-device plugin call</summary>
+    PluginCallWithTarget,
+
+    /// <summary>TryGetDevice(deviceSearchPattern) — returns DeviceInfo or null</summary>
+    TryGetDevice,
+
+    /// <summary>PluginCall(pluginName, methodName[, args...]) — local plugin call</summary>
+    PluginCall,
 }
