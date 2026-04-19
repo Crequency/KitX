@@ -15,7 +15,7 @@ namespace KitX.Core.Device;
 public class DeviceCase : IDeviceCase
 {
     private readonly IConfigService _configService;
-    private readonly ISecurityService _securityService;
+    private readonly IDeviceKeyService _securityService;
     private readonly DevicesServer _devicesServer;
 
     /// <summary>

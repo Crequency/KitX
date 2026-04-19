@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Plugin;
+using KitX.Core.Contract.Plugin.Events;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Loader;
 using KitX.Shared.CSharp.Plugin;
@@ -616,29 +617,4 @@ public class PluginsManager : IPluginService
             return await System.Threading.Tasks.Task.FromResult<object?>(null);
         }
     }
-}
-
-/// <summary>
-/// Plugin installation implementation
-/// </summary>
-public class PluginInstallation : IPluginInstallation
-{
-    /// <summary>
-    /// Gets the unique identifier for this plugin installation
-    /// </summary>
-    public Guid Id { get; set; }
-
-    public string? InstallPath { get; set; }
-    public PluginInfo? PluginInfo { get; set; }
-    public LoaderInfo? LoaderInfo { get; set; }
-
-    private List<DeviceLocator> _installedDevices = new();
-
-    public IList<DeviceLocator> InstalledDevices
-    {
-        get => _installedDevices;
-        set => _installedDevices = new List<DeviceLocator>(value);
-    }
-
-    public bool IsRunning { get; set; }
 }

@@ -1,16 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
 using KitX.Core.Contract.Configuration;
-using KitX.Shared.CSharp.Device;
 using Serilog;
 
 namespace KitX.Core.Configuration;
 
 /// <summary>
 /// Configuration manager for managing application configurations
+/// Coordinates ConfigLoader, ConfigSaver, and file watching
 /// </summary>
 public class ConfigManager : IConfigService, IDisposable
 {
@@ -34,6 +32,9 @@ public class ConfigManager : IConfigService, IDisposable
     /// Exception counts to prevent infinite loops when saving files
     /// </summary>
     private readonly Dictionary<string, int> _exceptCounts = new();
+
+    private readonly IConfigLoader _loader;
+    private readonly IConfigSaver _saver;
 
     /// <summary>
     /// Whether hot-reload is enabled
@@ -80,7 +81,11 @@ public class ConfigManager : IConfigService, IDisposable
     /// <summary>
     /// Private constructor
     /// </summary>
-    private ConfigManager() { }
+    private ConfigManager()
+    {
+        _loader = new ConfigLoader();
+        _saver = new ConfigSaver();
+    }
 
     /// <summary>
     /// Sets the configuration file location
@@ -109,11 +114,14 @@ public class ConfigManager : IConfigService, IDisposable
             SetLocation("./Config/");
         }
 
-        LoadConfigFile<AppConfig>("AppConfig.json");
-        LoadConfigFile<PluginsConfig>("PluginsConfig.json");
-        LoadConfigFile<SecurityConfig>("SecurityConfig.json");
+        AppConfig = _loader.Load<AppConfig>(_configLocation, "AppConfig.json");
+        PluginsConfig = _loader.Load<PluginsConfig>(_configLocation, "PluginsConfig.json");
+        SecurityConfig = _loader.LoadSecurityConfig(_configLocation);
 
-        // Register file watchers for hot-reload if enabled
+        _configs["AppConfig"] = AppConfig;
+        _configs["PluginsConfig"] = PluginsConfig;
+        _configs["SecurityConfig"] = SecurityConfig;
+
         if (HotReloadEnabled)
         {
             RegisterFileWatcher<AppConfig>("AppConfig.json");
@@ -125,16 +133,13 @@ public class ConfigManager : IConfigService, IDisposable
     /// <summary>
     /// Registers a file watcher for a config file to enable hot-reload
     /// </summary>
-    private void RegisterFileWatcher<T>(string fileName) where T : class
+    private void RegisterFileWatcher<T>(string fileName) where T : class, new()
     {
         var watcherName = $"ConfigFileWatcher_{typeof(T).Name}";
         var path = Path.Combine(_configLocation!, fileName);
 
         if (_fileWatchers.ContainsKey(watcherName))
-        {
-            // Already registered
             return;
-        }
 
         var directory = Path.GetDirectoryName(path);
         var filter = Path.GetFileName(path);
@@ -151,7 +156,6 @@ public class ConfigManager : IConfigService, IDisposable
 
         watcher.Changed += (sender, args) =>
         {
-            // Use ExceptCount to prevent infinite loops
             if (_exceptCounts.TryGetValue(watcherName, out var count) && count > 0)
             {
                 _exceptCounts[watcherName] = count - 1;
@@ -164,7 +168,6 @@ public class ConfigManager : IConfigService, IDisposable
 
             try
             {
-                // Reload the config file directly - read from file and update the stored config
                 ReloadConfigFile<T>(fileName);
                 OnConfigChanged(typeof(T).Name, "FileChanged", null, null);
             }
@@ -181,9 +184,9 @@ public class ConfigManager : IConfigService, IDisposable
     }
 
     /// <summary>
-    /// Reloads a single config file from disk (used by file watcher)
+    /// Reloads a single config file from disk
     /// </summary>
-    private void ReloadConfigFile<T>(string fileName) where T : class
+    private void ReloadConfigFile<T>(string fileName) where T : class, new()
     {
         var path = Path.Combine(_configLocation!, fileName);
 
@@ -193,25 +196,14 @@ public class ConfigManager : IConfigService, IDisposable
             return;
         }
 
-        var json = File.ReadAllText(path);
-        object? config = null;
-
-        // Special handling for SecurityConfig to deserialize correctly
-        if (typeof(T) == typeof(SecurityConfig))
-        {
-            config = DeserializeSecurityConfig(json);
-        }
-        else
-        {
-            // Use ConfigBase for polymorphic deserialization
-            config = JsonSerializer.Deserialize<T>(json, ConfigSerializationOptions.Options);
-        }
+        object? config = typeof(T) == typeof(SecurityConfig)
+            ? _loader.LoadSecurityConfig(_configLocation)
+            : _loader.Load<T>(_configLocation, fileName);
 
         if (config != null)
         {
             _configs[typeof(T).Name] = config;
             ApplyConfig(config);
-
             Log.Information("Reloaded config file {FileName}", fileName);
         }
     }
@@ -222,13 +214,9 @@ public class ConfigManager : IConfigService, IDisposable
     public void IncreaseExceptCount(string watcherName, int count = 1)
     {
         if (_exceptCounts.TryGetValue(watcherName, out var current))
-        {
             _exceptCounts[watcherName] = current + count;
-        }
         else
-        {
             _exceptCounts[watcherName] = count;
-        }
     }
 
     /// <summary>
@@ -237,9 +225,7 @@ public class ConfigManager : IConfigService, IDisposable
     public void DecreaseExceptCount(string watcherName, int count = 1)
     {
         if (_exceptCounts.TryGetValue(watcherName, out var current))
-        {
             _exceptCounts[watcherName] = Math.Max(0, current - count);
-        }
     }
 
     /// <summary>
@@ -247,82 +233,17 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void SaveAll()
     {
-        SaveConfigFile((AppConfig)AppConfig, "AppConfig.json");
-        SaveConfigFile((PluginsConfig)PluginsConfig, "PluginsConfig.json");
-        SaveConfigFile((SecurityConfig)SecurityConfig, "SecurityConfig.json");
-    }
+        var watcherName = "ConfigFileWatcher_AppConfig";
+        IncreaseExceptCount(watcherName, 2);
+        _saver.Save(AppConfig, _configLocation!, "AppConfig.json");
 
-    /// <summary>
-    /// Deserializes security config from JSON with proper structure
-    /// </summary>
-    private SecurityConfig DeserializeSecurityConfig(string json)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
+        watcherName = "ConfigFileWatcher_PluginsConfig";
+        IncreaseExceptCount(watcherName, 2);
+        _saver.Save(PluginsConfig, _configLocation!, "PluginsConfig.json");
 
-            var config = new SecurityConfig();
-
-            // Parse metadata fields
-            if (root.TryGetProperty("ConfigFileLocation", out var configFileLocation))
-            {
-                config.ConfigFileLocation = configFileLocation.GetString();
-            }
-            if (root.TryGetProperty("ConfigFileWatcherName", out var configFileWatcherName))
-            {
-                config.ConfigFileWatcherName = configFileWatcherName.GetString();
-            }
-            if (root.TryGetProperty("ConfigGeneratedTime", out var configGeneratedTime))
-            {
-                if (DateTime.TryParse(configGeneratedTime.GetString(), out var generatedTime))
-                    config.ConfigGeneratedTime = generatedTime;
-            }
-
-            if (root.TryGetProperty("DeviceKeys", out var deviceKeysElement))
-            {
-                var deviceKeys = new List<DeviceKeyImpl>();
-
-                foreach (var keyElement in deviceKeysElement.EnumerateArray())
-                {
-                    var impl = new DeviceKeyImpl();
-
-                    // Parse Device object
-                    if (keyElement.TryGetProperty("Device", out var deviceElement))
-                    {
-                        impl.Device = new DeviceLocator
-                        {
-                            DeviceName = deviceElement.TryGetProperty("DeviceName", out var dn) ? dn.GetString() ?? "" : "",
-                            IPv4 = deviceElement.TryGetProperty("IPv4", out var ipv4) ? ipv4.GetString() ?? "" : "",
-                            IPv6 = deviceElement.TryGetProperty("IPv6", out var ipv6) ? ipv6.GetString() ?? "" : "",
-                            MacAddress = deviceElement.TryGetProperty("MacAddress", out var mac) ? mac.GetString() ?? "" : ""
-                        };
-                    }
-
-                    // Parse RSA keys
-                    impl.RsaPublicKeyPem = keyElement.TryGetProperty("RsaPublicKeyPem", out var pubKey) ? pubKey.GetString() : null;
-                    impl.RsaPrivateKeyPem = keyElement.TryGetProperty("RsaPrivateKeyPem", out var privKey) ? privKey.GetString() : null;
-
-                    // Parse AddedAt
-                    if (keyElement.TryGetProperty("AddedAt", out var addedAtElement))
-                    {
-                        if (DateTime.TryParse(addedAtElement.GetString(), out var addedAt))
-                            impl.AddedAt = addedAt;
-                    }
-
-                    deviceKeys.Add(impl);
-                }
-
-                config.DeviceKeys = deviceKeys;
-            }
-
-            return config;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error deserializing SecurityConfig: {Message}", ex.Message);
-            return new SecurityConfig();
-        }
+        watcherName = "ConfigFileWatcher_SecurityConfig";
+        IncreaseExceptCount(watcherName, 2);
+        _saver.Save(SecurityConfig, _configLocation!, "SecurityConfig.json");
     }
 
     /// <summary>
@@ -331,51 +252,6 @@ public class ConfigManager : IConfigService, IDisposable
     public void Reload()
     {
         Load();
-    }
-
-    private void LoadConfigFile<T>(string fileName) where T : class, new()
-    {
-        try
-        {
-            var path = Path.Combine(_configLocation!, fileName);
-
-            if (File.Exists(path))
-            {
-                var json = File.ReadAllText(path);
-                object? config = null;
-
-                // Special handling for SecurityConfig to deserialize correctly
-                if (typeof(T) == typeof(SecurityConfig))
-                {
-                    config = DeserializeSecurityConfig(json);
-                }
-                else
-                {
-                    // Use ConfigBase for polymorphic deserialization
-                    config = JsonSerializer.Deserialize<T>(json, ConfigSerializationOptions.Options);
-                }
-
-                if (config != null)
-                {
-                    _configs[typeof(T).Name] = config;
-                    ApplyConfig(config);
-                }
-            }
-            else
-            {
-                // Create default config
-                var config = new T();
-                _configs[typeof(T).Name] = config;
-
-                // Save default config
-                SaveConfigFile(config, fileName);
-                ApplyConfig(config);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, $"Error loading config file {fileName}: {ex.Message}");
-        }
     }
 
     /// <summary>
@@ -392,43 +268,8 @@ public class ConfigManager : IConfigService, IDisposable
     }
 
     /// <summary>
-    /// Saves config file
-    /// </summary>
-    private void SaveConfigFile<T>(T config, string fileName) where T : class
-    {
-        try
-        {
-            var path = Path.Combine(_configLocation!, fileName);
-
-            // Increase ExceptCount to prevent file change event from triggering reload
-            var watcherName = $"ConfigFileWatcher_{typeof(T).Name}";
-            IncreaseExceptCount(watcherName, 2);
-
-            // Update metadata fields before serialization
-            if (config is IConfigWithMetadata metadata)
-            {
-                metadata.ConfigFileLocation = path;
-                metadata.ConfigFileWatcherName = watcherName;
-                metadata.ConfigGeneratedTime = DateTime.Now;
-            }
-
-            // Serialize the config object directly
-            var jsonContent = JsonSerializer.Serialize(config, ConfigSerializationOptions.Options);
-            File.WriteAllText(path, jsonContent);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, $"Error saving config file {fileName}: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// Raises the config changed event
     /// </summary>
-    /// <param name="configType">The configuration type</param>
-    /// <param name="propertyName">The property name that changed</param>
-    /// <param name="oldValue">The old value</param>
-    /// <param name="newValue">The new value</param>
     protected void OnConfigChanged(string configType, string propertyName, object? oldValue = null, object? newValue = null)
     {
         ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
@@ -445,7 +286,6 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void Dispose()
     {
-        // Dispose all file watchers
         foreach (var watcher in _fileWatchers.Values)
         {
             watcher.EnableRaisingEvents = false;

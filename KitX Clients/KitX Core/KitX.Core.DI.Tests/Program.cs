@@ -54,9 +54,13 @@ public class Program
         Console.WriteLine("Testing service resolution:\n");
 
         TestService<KitX.Core.Contract.Configuration.IConfigService>(serviceProvider, "IConfigService");
-        TestService<KitX.Core.Contract.Security.ISecurityService>(serviceProvider, "ISecurityService");
+        TestService<KitX.Core.Contract.Security.IDeviceKeyService>(serviceProvider, "IDeviceKeyService");
+        TestService<KitX.Core.Contract.Security.IEncryptionService>(serviceProvider, "IEncryptionService");
         TestService<KitX.Core.Contract.Plugin.IPluginService>(serviceProvider, "IPluginService");
-        TestService<KitX.Core.Contract.Workflow.IWorkflowService>(serviceProvider, "IWorkflowService");
+        TestService<KitX.Core.Contract.Workflow.IWorkflowManagementService>(serviceProvider, "IWorkflowManagementService");
+        TestService<KitX.Core.Contract.Workflow.IScriptExecutionService>(serviceProvider, "IScriptExecutionService");
+        TestService<KitX.Core.Contract.Workflow.IWorkflowPluginService>(serviceProvider, "IWorkflowPluginService");
+        TestService<KitX.Core.Contract.Workflow.IBlockScriptService>(serviceProvider, "IBlockScriptService");
         TestService<KitX.Core.Contract.Activity.IActivityService>(serviceProvider, "IActivityService");
         TestService<KitX.Core.Contract.Statistics.IStatisticsService>(serviceProvider, "IStatisticsService");
         TestService<KitX.Core.Contract.Tasks.ITasksService>(serviceProvider, "ITasksService");

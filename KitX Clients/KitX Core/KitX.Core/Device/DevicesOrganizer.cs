@@ -321,24 +321,3 @@ public class DevicesOrganizer : IDevicesOrganizer
         }
     }
 }
-
-/// <summary>
-/// Devices organizer interface
-/// </summary>
-public interface IDevicesOrganizer
-{
-    /// <summary>
-    /// Updates the source and adds device cards
-    /// </summary>
-    void UpdateSourceAndAddCards(DeviceInfo deviceInfo);
-
-    /// <summary>
-    /// Event raised when a device is discovered
-    /// </summary>
-    event EventHandler<DeviceDiscoveredEventArgs>? DeviceDiscovered;
-
-    /// <summary>
-    /// Event raised when a device goes offline
-    /// </summary>
-    event EventHandler<DeviceOfflineEventArgs>? DeviceOffline;
-}

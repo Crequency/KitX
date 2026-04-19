@@ -1,0 +1,215 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using KitX.Core.Contract.Workflow;
+using KitX.Core.Device;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Shared.CSharp.Plugin;
+using Serilog;
+
+namespace KitX.Core.Workflow;
+
+/// <summary>
+/// BlockScript parsing and execution service.
+/// Implements IBlockScriptService.
+/// </summary>
+internal class BlockScriptServiceImpl : IBlockScriptService
+{
+    private readonly WorkflowRuntimeState _state;
+
+    /// <summary>
+    /// Initializes a new instance of BlockScriptServiceImpl.
+    /// </summary>
+    /// <param name="state">Shared runtime state.</param>
+    internal BlockScriptServiceImpl(WorkflowRuntimeState state)
+    {
+        _state = state;
+    }
+
+    /// <summary>
+    /// Gets the BlockScript parser, creating it if necessary.
+    /// </summary>
+    private BlockScriptParser BlockScriptParser =>
+        _state.BlockScriptParser ??= new BlockScriptParser(
+            BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
+
+    /// <summary>
+    /// Gets the BlockScript executor, creating it if necessary.
+    /// The executor is initialized with the plugin manager if the parser is initialized.
+    /// </summary>
+    private BlockScriptExecutor BlockScriptExecutor
+    {
+        get
+        {
+            if (_state.BlockScriptExecutor == null)
+            {
+                _state.BlockScriptExecutor = new BlockScriptExecutor();
+                if (_state.IsParserInitialized)
+                {
+                    var realPluginManager = new RealPluginManager(PluginsServer.Instance);
+                    _state.BlockScriptExecutor.SetPluginManager(realPluginManager);
+                }
+            }
+            return _state.BlockScriptExecutor;
+        }
+    }
+
+    /// <inheritdoc />
+    public BlockScriptParseResult ParseBlockScript(string sourceCode)
+    {
+        return BlockScriptParser.Parse(sourceCode);
+    }
+
+    /// <inheritdoc />
+    public Task<BlockScriptParseResult> ParseBlockScriptAsync(string sourceCode)
+    {
+        return BlockScriptParser.ParseAsync(sourceCode);
+    }
+
+    /// <inheritdoc />
+    public BlockScriptValidationResult ValidateBlockScript(string sourceCode)
+    {
+        return BlockScriptParser.Validate(sourceCode);
+    }
+
+    /// <inheritdoc />
+    public List<VariableConstant> ParseConstantsFromBlockScript(string sourceCode)
+    {
+        var result = new List<VariableConstant>();
+
+        if (string.IsNullOrWhiteSpace(sourceCode))
+            return result;
+
+        try
+        {
+            var parseResult = BlockScriptParser.Parse(sourceCode);
+
+            if (!parseResult.IsSuccess || parseResult.Script?.ConstBlock == null)
+                return result;
+
+            foreach (var variable in parseResult.Script.ConstBlock.Variables)
+            {
+                if (variable.DefaultValue != null)
+                {
+                    result.Add(new VariableConstant
+                    {
+                        Name = variable.Name,
+                        DefaultValue = variable.DefaultValue,
+                        UserValue = variable.DefaultValue,
+                        Type = variable.Type
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[BlockScriptServiceImpl] Error parsing constants from BlockScript");
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        BlockScript script,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        return BlockScriptExecutor.ExecuteAsync(script, parameters, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteBlockScriptCoreAsync(sourceCode, null, parameters, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        List<HelperFunction> helperFunctions,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteBlockScriptCoreAsync(sourceCode, helperFunctions, null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
+        string sourceCode,
+        List<HelperFunction> helperFunctions,
+        Dictionary<string, object?>? constantOverrides,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteBlockScriptCoreAsync(sourceCode, helperFunctions, constantOverrides, cancellationToken);
+    }
+
+    /// <summary>
+    /// Core block script execution logic: parse → validate → execute.
+    /// </summary>
+    private async Task<BlockScriptExecutionResult> ExecuteBlockScriptCoreAsync(
+        string sourceCode,
+        List<HelperFunction>? helperFunctions,
+        Dictionary<string, object?>? constantOverrides,
+        CancellationToken cancellationToken)
+    {
+        // 1. Parse
+        var parseResult = BlockScriptParser.Parse(sourceCode);
+
+        if (!parseResult.IsSuccess || parseResult.Script == null)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = parseResult.ErrorMessage ?? "Failed to parse block script"
+            };
+        }
+
+        // 2. Validate
+        var validationResult = BlockScriptExecutor.Validate(parseResult.Script);
+        if (!validationResult.IsValid)
+        {
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = string.Join("; ", validationResult.Errors)
+            };
+        }
+
+        // 3. Attach helper functions if provided
+        if (helperFunctions != null)
+            parseResult.Script.HelperFunctions = helperFunctions;
+
+        // 3.5. Apply constant overrides from user edits
+        if (constantOverrides != null && parseResult.Script.ConstBlock != null)
+        {
+            foreach (var variable in parseResult.Script.ConstBlock.Variables)
+            {
+                if (constantOverrides.TryGetValue(variable.Name, out var userValue))
+                {
+                    variable.DefaultValue = userValue;
+                }
+            }
+        }
+
+        // 4. Execute
+        return await BlockScriptExecutor.ExecuteAsync(parseResult.Script, constantOverrides, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> CompileAndPersistAsync(BlockScript script, string workflowId)
+    {
+        BlockScriptExecutor.SetWorkflowId(workflowId);
+        var compiled = BlockScriptExecutor.CompileForPersistence(script, workflowId);
+        return Task.FromResult(compiled);
+    }
+
+    /// <inheritdoc />
+    public int PreloadCompiledScripts(string workflowId)
+    {
+        return BlockScriptExecutor.PreloadFromDisk(workflowId);
+    }
+}

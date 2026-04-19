@@ -48,105 +48,58 @@ public static class CoreServiceCollectionExtensions
 
         // Configuration Services
         Log.Information("Registering IConfigService...");
-        services.AddSingleton<IConfigService, ConfigManager>(provider =>
-        {
-            var service = ConfigManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IConfigService>(ConfigManager.Instance);
 
         // Security Services
-        Log.Information("Registering ISecurityService...");
-        services.AddSingleton<ISecurityService, SecurityManager>(provider =>
-        {
-            var service = SecurityManager.Instance;
-            return service;
-        });
+        Log.Information("Registering IDeviceKeyService and IEncryptionService...");
+        services.AddSingleton<IDeviceKeyService>(SecurityManager.Instance);
+        services.AddSingleton<IEncryptionService>(SecurityManager.Instance);
 
         // Plugin Services
         Log.Information("Registering IPluginService...");
-        services.AddSingleton<IPluginService, PluginsManager>(provider =>
-        {
-            var service = PluginsManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IPluginService>(PluginsManager.Instance);
 
         // Workflow Services
-        Log.Information("Registering IWorkflowService...");
-        services.AddSingleton<IWorkflowService, WorkflowScriptService>(provider =>
-        {
-            var service = WorkflowScriptService.Instance;
-            return service;
-        });
+        Log.Information("Registering workflow services...");
+        // Individual service implementations (WorkflowScriptService facade used for backward compatibility)
+        services.AddSingleton<IBlockScriptService>(sp => WorkflowScriptService.BlockScriptServiceInstance);
+        services.AddSingleton<IWorkflowPluginService>(sp => WorkflowScriptService.PluginServiceInstance);
+        services.AddSingleton<IScriptExecutionService>(sp => WorkflowScriptService.ScriptExecutionServiceInstance);
+        services.AddSingleton<IWorkflowManagementService>(sp => WorkflowScriptService.ManagementServiceInstance);
 
         // Activity Services
         Log.Information("Registering IActivityService...");
-        services.AddSingleton<IActivityService, ActivityManager>(provider =>
-        {
-            var service = ActivityManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IActivityService>(ActivityManager.Instance);
 
         // Statistics Services
         Log.Information("Registering IStatisticsService...");
-        services.AddSingleton<IStatisticsService, StatisticsManager>(provider =>
-        {
-            var service = StatisticsManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IStatisticsService>(StatisticsManager.Instance);
 
         // Task Services
         Log.Information("Registering ITasksService...");
-        services.AddSingleton<ITasksService, TasksManager>(provider =>
-        {
-            var service = TasksManager.Instance;
-            return service;
-        });
+        services.AddSingleton<ITasksService>(TasksManager.Instance);
 
         // File Watcher Services
         Log.Information("Registering IFileWatcherService...");
-        services.AddSingleton<IFileWatcherService, FileWatcherManager>(provider =>
-        {
-            var service = FileWatcherManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IFileWatcherService>(FileWatcherManager.Instance);
 
         // Hotkey Services
         Log.Information("Registering IKeyHookService...");
-        services.AddSingleton<IKeyHookService, KeyHookManager>(provider =>
-        {
-            var service = KeyHookManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IKeyHookService>(KeyHookManager.Instance);
 
         // Event Services
         Log.Information("Registering IEventService...");
-        services.AddSingleton<IEventService, EventService>(provider =>
-        {
-            var service = EventService.Instance;
-            return service;
-        });
+        services.AddSingleton<IEventService>(EventService.Instance);
 
         // Phase 5: Device and Network Services
         Log.Information("Registering IDeviceDiscoveryService...");
-        services.AddSingleton<IDeviceDiscoveryService, DevicesDiscoveryServer>(provider =>
-        {
-            var service = DevicesDiscoveryServer.Instance;
-            return service;
-        });
+        services.AddSingleton<IDeviceDiscoveryService>(DevicesDiscoveryServer.Instance);
 
         Log.Information("Registering IDeviceServer...");
-        services.AddSingleton<IDeviceServer, DevicesServer>(provider =>
-        {
-            var service = DevicesServer.Instance;
-            return service;
-        });
+        services.AddSingleton<IDeviceServer>(DevicesServer.Instance);
 
         Log.Information("Registering IPluginServer...");
-        services.AddSingleton<IPluginServer, PluginsServer>(provider =>
-        {
-            var service = PluginsServer.Instance;
-            return service;
-        });
+        services.AddSingleton<IPluginServer>(PluginsServer.Instance);
 
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");
@@ -256,19 +209,11 @@ public static class CoreServiceCollectionExtensions
 
         // Workflow Storage Service
         Log.Information("Registering IWorkflowStorageService...");
-        services.AddSingleton<IWorkflowStorageService>(provider =>
-        {
-            var service = WorkflowStorageService.Instance;
-            return service;
-        });
+        services.AddSingleton<IWorkflowStorageService>(WorkflowStorageService.Instance);
 
         // Trigger Manager
         Log.Information("Registering TriggerManager...");
-        services.AddSingleton<TriggerManager>(provider =>
-        {
-            var service = TriggerManager.Instance;
-            return service;
-        });
+        services.AddSingleton<TriggerManager>(TriggerManager.Instance);
 
         Log.Information("AddCoreServices completed.");
         return services;

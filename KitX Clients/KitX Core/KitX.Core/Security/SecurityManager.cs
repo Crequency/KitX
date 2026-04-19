@@ -15,7 +15,7 @@ namespace KitX.Core.Security;
 /// <summary>
 /// Security manager for encryption and device key management
 /// </summary>
-public class SecurityManager : ISecurityService
+public class SecurityManager : IDeviceKeyService, IEncryptionService
 {
     private static SecurityManager? _instance;
 
@@ -348,16 +348,6 @@ public class SecurityManager : ISecurityService
             Log.Error(ex, $"Error decrypting string: {ex.Message}");
             throw;
         }
-    }
-
-    /// <summary>
-    /// Computes the SHA1 hash of a string
-    /// </summary>
-    /// <param name="content">The content</param>
-    /// <returns>The hash string</returns>
-    public string ComputeHash(string content)
-    {
-        return GetSHA1(content);
     }
 
     /// <summary>
