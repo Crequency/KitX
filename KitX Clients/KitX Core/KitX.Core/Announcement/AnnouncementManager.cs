@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Announcement;
 
@@ -19,12 +20,27 @@ namespace KitX.Core.Announcement;
 /// </summary>
 public class AnnouncementManager : IAnnouncementService
 {
-    private static AnnouncementManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static AnnouncementManager Instance
+    {
+        get
+        {
+            if (DI.ServiceHost.IsInitialized)
+                return (AnnouncementManager)DI.ServiceHost.GetRequiredService<IAnnouncementService>();
+            Log.Error("[AnnouncementManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new AnnouncementManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static AnnouncementManager Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly HashSet<string> _acceptedAnnouncementIds = new();
     private readonly JsonSerializerOptions _serializerOptions = new()
@@ -38,7 +54,9 @@ public class AnnouncementManager : IAnnouncementService
     /// <summary>
     /// Gets the announcement configuration
     /// </summary>
-    public IAnnouncementConfig AnnouncementConfig => ConfigManager.Instance.TypedAnnouncementConfig;
+    public IAnnouncementConfig AnnouncementConfig =>
+        (_configService as ConfigManager)?.TypedAnnouncementConfig
+        ?? throw new InvalidOperationException("IConfigService not injected or not ConfigManager");
 
     /// <summary>
     /// Event raised when new announcements are available
@@ -52,9 +70,9 @@ public class AnnouncementManager : IAnnouncementService
     public event EventHandler<AnnouncementErrorEventArgs>? AnnouncementError;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new announcement manager
     /// </summary>
-    private AnnouncementManager()
+    public AnnouncementManager()
     {
         LoadAcceptedIds();
     }
@@ -89,9 +107,8 @@ public class AnnouncementManager : IAnnouncementService
             }
             else
             {
-                // Fallback to legacy config if DI not available
-                apiServer = ConfigManager.Instance.AppConfig.Web.ApiServer;
-                apiPath = ConfigManager.Instance.AppConfig.Web.ApiPath;
+                // Cannot proceed without config service
+                return Array.Empty<IAnnouncement>();
             }
 
             var linkBase = $"https://{apiServer}{apiPath}";
@@ -209,93 +226,20 @@ public class AnnouncementManager : IAnnouncementService
         // TODO: Save to config file
     }
 
+    /// <summary>
+    /// Checks for new announcements (legacy static method — only works when DI is not available).
+    /// Prefer using CheckNewAnnouncementsAsync() with proper DI.
+    /// </summary>
+    [Obsolete("Use instance method CheckNewAnnouncementsAsync with DI instead")]
     public static async System.Threading.Tasks.Task CheckNewAnnouncements()
     {
         const string location = $"{nameof(AnnouncementManager)}.{nameof(CheckNewAnnouncements)}";
 
-        // Use the singleton instance which now has IConfigService injected
-        var instance = Instance;
-
-        string apiServer;
-        string apiPath;
-        string appLanguage;
-
-        if (instance._configService != null)
-        {
-            apiServer = instance._configService.AppConfig.Web?.ApiServer ?? ConfigManager.Instance.AppConfig.Web.ApiServer;
-            apiPath = instance._configService.AppConfig.Web?.ApiPath ?? ConfigManager.Instance.AppConfig.Web.ApiPath;
-            appLanguage = instance._configService.AppConfig.App?.AppLanguage ?? ConfigManager.Instance.AppConfig.App.AppLanguage;
-        }
-        else
-        {
-            // Fallback to legacy config
-            apiServer = ConfigManager.Instance.AppConfig.Web.ApiServer;
-            apiPath = ConfigManager.Instance.AppConfig.Web.ApiPath;
-            appLanguage = ConfigManager.Instance.AppConfig.App.AppLanguage;
-        }
-
-        var linkBase = new StringBuilder().Append("https://").Append(apiServer).Append(apiPath).ToString();
-
-        var link = new StringBuilder().Append(linkBase).Append(ConstantTable.ApiGetAnnouncements).ToString();
-
-        try
-        {
-            using var client = new HttpClient();
-
-            client.DefaultRequestHeaders.Accept.Clear();
-
-            var msg = await client.GetStringAsync(link);
-
-            var list = JsonSerializer.Deserialize<List<string>>(msg);
-
-            // Get accepted announcement IDs from config
-            var accepted = ConfigManager.Instance.AnnouncementConfig.Accepted;
-
-            if (list is null)
-                return;
-
-            var unreads = (from item in list where !accepted.Contains(item) select DateTime.Parse(item)).ToList();
-
-            var src = new Dictionary<string, string>();
-
-            foreach (var item in unreads)
-            {
-                var apiLink = new StringBuilder()
-                    .Append($"{linkBase}{ConstantTable.ApiGetAnnouncement}")
-                    .Append('?')
-                    .Append($"lang={appLanguage}")
-                    .Append('&')
-                    .Append($"date={item:yyyy-MM-dd HH-mm}")
-                    .ToString();
-
-                var md = JsonSerializer.Deserialize<string>(await client.GetStringAsync(apiLink));
-
-                if (md is not null)
-                    src.Add(item.ToString("yyyy-MM-dd HH:mm"), md);
-            }
-
-            if (unreads.Count > 0)
-            {
-                // Trigger event instead of directly showing UI
-                // UI layer should subscribe to this event
-                Instance.NewAnnouncementsAvailable?.Invoke(Instance, new NewAnnouncementsEventArgs
-                {
-                    AnnouncementsDict = src
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, $"In {location}: {ex.Message}");
-
-            // Trigger error event instead of showing MessageBox
-            // UI layer should subscribe to this event
-            Instance.AnnouncementError?.Invoke(Instance, new AnnouncementErrorEventArgs
-            {
-                ErrorMessage = ex.Message,
-                StackTrace = ex.StackTrace ?? string.Empty
-            });
-        }
+        // This static method cannot work without the Instance.
+        // Kept for source compatibility only — will throw.
+        Log.Warning("[AnnouncementManager] Static CheckNewAnnouncements called — this is deprecated and will be removed.");
+        throw new NotSupportedException(
+            "AnnouncementManager.CheckNewAnnouncements is obsolete. Use DI-injected instance.");
     }
 
     /// <summary>

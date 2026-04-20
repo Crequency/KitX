@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Csharpell.Core;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;

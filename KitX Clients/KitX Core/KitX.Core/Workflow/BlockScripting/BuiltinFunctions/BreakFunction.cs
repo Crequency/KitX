@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions;
@@ -17,7 +18,7 @@ public class BreakFunction : IBuiltinFunctionDefinition
     public bool IsBlockTerminator => true;
     public bool IsNonExtractable => true;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Break;
-    public FormattedStatementKind StatementKind => FormattedStatementKind.Break;
+    public CFGStatementKind StatementKind => CFGStatementKind.Break;
     public double NodeWidth => 100;
     public double NodeHeight => 40;
 
@@ -37,7 +38,7 @@ public class BreakFunction : IBuiltinFunctionDefinition
         return [new FormattedStatement
         {
             BlockName = blockName,
-            Kind = FormattedStatementKind.Break,
+            Kind = CFGStatementKind.Break,
             FunctionName = FunctionName,
             OriginalExpression = invoke.ToString(),
             SourceLine = 0,

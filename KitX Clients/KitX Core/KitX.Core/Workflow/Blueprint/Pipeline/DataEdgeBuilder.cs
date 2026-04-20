@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.Blueprint.CFG;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using Serilog;
@@ -40,28 +41,28 @@ public class DataEdgeBuilder
     {
         switch (stmt.Kind)
         {
-            case FormattedStatementKind.Assignment:
-            case FormattedStatementKind.Expression:
+            case CFGStatementKind.Assignment:
+            case CFGStatementKind.Expression:
                 ProcessCallArguments(stmt, context);
                 break;
 
-            case FormattedStatementKind.Print:
+            case CFGStatementKind.Print:
                 ProcessSingleValueInput(stmt, stmt.Arguments, Value, context);
                 break;
 
-            case FormattedStatementKind.Set:
+            case CFGStatementKind.Set:
                 ProcessSetValue(stmt, context);
                 break;
 
-            case FormattedStatementKind.Pause:
+            case CFGStatementKind.Pause:
                 ProcessSingleValueInput(stmt, stmt.Arguments, "Milliseconds", context);
                 break;
 
-            case FormattedStatementKind.Branch:
+            case CFGStatementKind.Branch:
                 ProcessConditionInput(stmt, context);
                 break;
 
-            case FormattedStatementKind.Loop:
+            case CFGStatementKind.Loop:
                 ProcessConditionInput(stmt, context);
                 break;
         }

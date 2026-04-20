@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
@@ -17,7 +18,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
-        public FormattedStatementKind StatementKind => FormattedStatementKind.ToLoopCond;
+        public CFGStatementKind StatementKind => CFGStatementKind.ToLoopCond;
         public double NodeWidth => 80;
         public double NodeHeight => 60;
 

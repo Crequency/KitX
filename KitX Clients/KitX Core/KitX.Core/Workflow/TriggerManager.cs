@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Device;
 using KitX.Core.Device;
@@ -9,6 +10,7 @@ using KitX.Core.Device.Events;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
+using KitX.Core.DI;
 
 namespace KitX.Core.Workflow;
 
@@ -18,9 +20,27 @@ namespace KitX.Core.Workflow;
 /// </summary>
 public class TriggerManager
 {
-    private static TriggerManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static TriggerManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return ServiceHost.GetRequiredService<TriggerManager>();
+            Log.Error("[TriggerManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new TriggerManager();
+        }
+    }
 
-    internal static TriggerManager Instance => _instance ??= new();
+    /// <summary>
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
+    /// </summary>
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly PluginsServer _pluginsServer;
     private readonly JsonSerializerOptions _serializerOptions = new()
@@ -40,7 +60,10 @@ public class TriggerManager
     /// </summary>
     private readonly Dictionary<string, TriggerConfig> _workflowTriggers = new();
 
-    private TriggerManager()
+    /// <summary>
+    /// Creates a new trigger manager
+    /// </summary>
+    public TriggerManager()
     {
         _pluginsServer = PluginsServer.Instance;
         _pluginsServer.PluginMessageReceived += OnPluginMessageReceived;
@@ -75,6 +98,43 @@ public class TriggerManager
         {
             RebuildSubscriptionIndex();
             Log.Information("[TriggerManager] Unregistered trigger for workflow {WorkflowId}", workflowId);
+        }
+    }
+
+    /// <summary>
+    /// Initialize trigger subscriptions from persisted workflow configurations.
+    /// Should be called once after DI initialization is complete, before plugins connect.
+    /// This ensures that TriggerFired events from plugins can be routed to the correct workflows
+    /// even if they arrive before the user opens the workflow page.
+    /// </summary>
+    public async void InitializeFromPersistedWorkflows()
+    {
+        try
+        {
+            if (!ServiceHost.IsInitialized)
+            {
+                Log.Error("[TriggerManager] Cannot initialize from persisted workflows: ServiceHost not initialized");
+                return;
+            }
+
+            var storageService = ServiceHost.GetRequiredService<IWorkflowStorageService>();
+            var workflows = await storageService.DiscoverWorkflowsAsync();
+
+            foreach (var workflow in workflows)
+            {
+                if (workflow.TriggerConfig != null
+                    && !string.IsNullOrEmpty(workflow.TriggerConfig.PluginName))
+                {
+                    RegisterWorkflowTrigger(workflow.Id, workflow.TriggerConfig);
+                }
+            }
+
+            Log.Information("[TriggerManager] Initialized {Count} trigger subscriptions from persisted workflows",
+                _triggerSubscriptions.Count);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[TriggerManager] Failed to initialize from persisted workflows");
         }
     }
 
@@ -144,7 +204,7 @@ public class TriggerManager
                 Log.Information("[TriggerManager] Triggering workflow: {WorkflowId}", workflowId);
                 _ = System.Threading.Tasks.Task.Run(async () =>
                 {
-                    bool success = await WorkflowScriptService.Instance.RunWorkflowAsync(workflowId);
+                    bool success = await ServiceHost.GetRequiredService<IWorkflowManagementService>().RunWorkflowAsync(workflowId);
                     KitX.Core.Event.EventService.Instance.Publish(
                         KitX.Core.Event.EventNames.WorkflowExecutionResult,
                         new KitX.Core.Contract.Event.WorkflowExecutionResultEventArgs(

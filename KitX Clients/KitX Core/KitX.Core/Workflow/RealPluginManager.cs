@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Http;
@@ -12,11 +12,13 @@ using KitX.Core.Contract.Device;
 using KitX.Core.Device;
 using KitX.Core.Contract.Plugin.Events;
 using KitX.Core.Device.Events;
+using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
+using Microsoft.Extensions.DependencyInjection;
 
 using KcsPluginCallInfo = Kscript.CSharp.Parser.Models.PluginCallInfo;
 using KcsIPluginManager = Kscript.CSharp.Parser.Core.IPluginManager;
@@ -74,7 +76,12 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
         _pluginsServer.PluginMessageReceived += OnPluginMessageReceived;
 
         // 订阅插件响应事件（当插件返回带RequestId的响应时触发）
-        _pluginsServer.PluginResponse += OnPluginResponse;
+        // IMPORTANT: Subscribe to EventService.PluginResponse instead of PluginsServer.PluginResponse,
+        // because PluginsServer forwards PluginConnection.PluginResponse to EventService, not to PluginsServer.PluginResponse
+        if (EventService.Instance != null)
+        {
+            EventService.Instance.Subscribe<PluginResponseEventArgs>(EventNames.PluginResponse, (sender, args) => OnPluginResponse(this, args));
+        }
     }
 
     /// <summary>
@@ -545,8 +552,20 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     /// </summary>
     private IPluginConnection? FindPluginConnection(string pluginName)
     {
-        return _pluginsServer.Connections
+        Log.Information($"[RealPluginManager] FindPluginConnection: _pluginsServer HashCode={_pluginsServer.GetHashCode()}, Connections Count={_pluginsServer.Connections.Count}");
+        Log.Information($"[RealPluginManager] FindPluginConnection: PluginsServer.Instance HashCode={PluginsServer.Instance.GetHashCode()}");
+        if (_pluginsServer.GetHashCode() != PluginsServer.Instance.GetHashCode())
+        {
+            Log.Warning($"[RealPluginManager] WARNING: _pluginsServer ({_pluginsServer.GetHashCode()}) != PluginsServer.Instance ({PluginsServer.Instance.GetHashCode()})!");
+        }
+        foreach (var c in _pluginsServer.Connections)
+        {
+            Log.Information($"[RealPluginManager] FindPluginConnection: connection PluginInfo.Name={c.PluginInfo?.Name}");
+        }
+        var result = _pluginsServer.Connections
             .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
+        Log.Information($"[RealPluginManager] FindPluginConnection result: {result?.GetHashCode()}");
+        return result;
     }
 
     /// <summary>

@@ -1,10 +1,9 @@
 namespace KitX.Core.Workflow.Blueprint.CFG;
 
 /// <summary>
-/// Kinds of statements in the CFG. Mirrors <see cref="Pipeline.FormattedStatementKind"/>
-/// but with stronger semantics — every statement in the CFG is classified.
+/// Kinds of statements in the CFG. Unified statement kind replacing the former Pipeline.FormattedStatementKind.
 /// </summary>
-internal enum CFGStatementKind
+public enum CFGStatementKind
 {
     /// <summary>Unknown or unclassified</summary>
     Unknown,
@@ -41,6 +40,15 @@ internal enum CFGStatementKind
 
     /// <summary>Plain expression without assignment</summary>
     Expression,
+
+    /// <summary>PluginCallWithTarget(pluginName, methodName, targetDevice, args...) — cross-device plugin call</summary>
+    PluginCallWithTarget,
+
+    /// <summary>TryGetDevice(deviceSearchPattern) — returns DeviceInfo or null</summary>
+    TryGetDevice,
+
+    /// <summary>PluginCall(pluginName, methodName[, args...]) — local plugin call</summary>
+    PluginCall,
 }
 
 /// <summary>

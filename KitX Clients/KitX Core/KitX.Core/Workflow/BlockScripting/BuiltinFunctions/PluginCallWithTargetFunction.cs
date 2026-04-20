@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Device;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 using KitX.Shared.CSharp.Device;
 using Serilog;
@@ -21,9 +22,9 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string FunctionName => "PluginCallWithTarget";
         public string DisplayName => "PluginCallWithTarget";
         public bool IsFlowControl => false;
-        public bool IsNonExtractable => true;
+        public bool IsNonExtractable => false;
         public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Call;
-        public FormattedStatementKind StatementKind => FormattedStatementKind.PluginCallWithTarget;
+        public CFGStatementKind StatementKind => CFGStatementKind.PluginCallWithTarget;
         public double NodeWidth => 140;
         public double NodeHeight => 80;
 
@@ -52,9 +53,9 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             return [new FormattedStatement
             {
                 BlockName = blockName,
-                Kind = FormattedStatementKind.PluginCallWithTarget,
+                Kind = CFGStatementKind.PluginCallWithTarget,
                 FunctionName = FunctionName,
-                PubVarTarget = null,
+                PubVarTarget = assignedVar,  // Set PubVarTarget so formatter creates PubVar assignment like other extractable functions
                 Arguments = args,
                 OriginalExpression = invoke.ToString(),
                 SourceLine = 0,
@@ -65,12 +66,84 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         {
             if (node is CallNode call)
             {
-                var args = stmt.Arguments;
-                if (args?.Count > 0) call.PluginName = StripQuotes(args[0]);
-                if (args?.Count > 1) call.FunctionName = StripQuotes(args[1]);
-                if (args?.Count > 2) call.TargetDevice = StripQuotes(args[2]);
+                // Use stmt.Arguments directly — it contains the properly expanded argument strings
+                // from the ScriptFormatter's ExpandArguments step. First 3 args are
+                // plugin name, method name, target device; remaining are extra args.
+                var allArgs = stmt.Arguments;
+                if (allArgs != null && allArgs.Count >= 3)
+                {
+                    call.PluginName = StripQuotes(allArgs[0]);
+                    call.FunctionName = StripQuotes(allArgs[1]);
+                    call.TargetDevice = StripQuotes(allArgs[2]);
+                    if (allArgs.Count > 3)
+                        call.ExtraArguments = allArgs.Skip(3).ToList();
+                }
             }
             return node;
+        }
+
+        /// <summary>
+        /// Parses PluginCallWithTarget argument string to extract the first 3 string literal arguments.
+        /// Handles nested parentheses and quoted strings.
+        /// </summary>
+        private static List<string> ParsePluginCallArguments(string argsContent)
+        {
+            var result = new List<string>();
+            int i = 0;
+            int argCount = 0;
+
+            while (i < argsContent.Length && argCount < 3)
+            {
+                // Skip whitespace
+                while (i < argsContent.Length && char.IsWhiteSpace(argsContent[i])) i++;
+                if (i >= argsContent.Length) break;
+
+                char c = argsContent[i];
+                if (c == '"')
+                {
+                    // String literal
+                    int start = i;
+                    i++;
+                    while (i < argsContent.Length)
+                    {
+                        if (argsContent[i] == '\\' && i + 1 < argsContent.Length)
+                            i += 2; // Skip escaped char
+                        else if (argsContent[i] == '"')
+                        {
+                            i++;
+                            break;
+                        }
+                        else
+                            i++;
+                    }
+                    result.Add(argsContent[(start + 1)..(i - 1)]);  // Extract content between quotes (exclude both '"')
+                    argCount++;
+                }
+                else if (c == '(')
+                {
+                    // Nested call - skip to matching ')'
+                    int depth = 1;
+                    i++;
+                    while (i < argsContent.Length && depth > 0)
+                    {
+                        if (argsContent[i] == '(') depth++;
+                        else if (argsContent[i] == ')') depth--;
+                        i++;
+                    }
+                }
+                else
+                {
+                    // Identifier or other - skip to comma or end
+                    while (i < argsContent.Length && argsContent[i] != ',') i++;
+                    // Don't count as an argument (not a string literal)
+                }
+
+                // Skip to next comma
+                while (i < argsContent.Length && argsContent[i] != ',') i++;
+                if (i < argsContent.Length && argsContent[i] == ',') i++;
+            }
+
+            return result;
         }
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
@@ -83,15 +156,23 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
                 ? $"\"{call.TargetDevice}\""
                 : "null";
 
-            var extraArgPins = call.InputPins
-                .Where(p => p.Direction == PinDirection.Input && p.Name != "Exec")
-                .Skip(3)
-                .ToList();
-
-            var extraArgs = new List<string>();
-            foreach (var pin in extraArgPins)
+            // Use ExtraArguments if available (set by ConfigureNode), otherwise fall back to InputPins
+            List<string> extraArgs;
+            if (call.ExtraArguments.Count > 0)
             {
-                extraArgs.Add(helper.GetInputValue(call, pin.Name));
+                extraArgs = call.ExtraArguments;
+            }
+            else
+            {
+                extraArgs = new List<string>();
+                var extraArgPins = call.InputPins
+                    .Where(p => p.Direction == PinDirection.Input && p.Name != "Exec")
+                    .Skip(3)
+                    .ToList();
+                foreach (var pin in extraArgPins)
+                {
+                    extraArgs.Add(helper.GetInputValue(call, pin.Name));
+                }
             }
 
             string expression;

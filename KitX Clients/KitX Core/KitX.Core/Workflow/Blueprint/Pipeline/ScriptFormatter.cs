@@ -5,6 +5,7 @@ using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint.CFG;
 using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
@@ -109,7 +110,7 @@ public class ScriptFormatter
                     result.Add(new FormattedStatement
                     {
                         BlockName = blockName,
-                        Kind = FormattedStatementKind.Branch,
+                        Kind = CFGStatementKind.Branch,
                         FunctionName = Branch,
                         ConditionPubVar = condPubVar,
                         ConditionExpression = flowCtrl.ConditionExpression,
@@ -129,7 +130,7 @@ public class ScriptFormatter
                     var loopStmt = new FormattedStatement
                     {
                         BlockName = blockName,
-                        Kind = FormattedStatementKind.Loop,
+                        Kind = CFGStatementKind.Loop,
                         FunctionName = Loop,
                         ConditionPubVar = condPubVar,
                         ConditionExpression = flowCtrl.ConditionExpression,
@@ -157,7 +158,7 @@ public class ScriptFormatter
                 result.Add(new FormattedStatement
                 {
                     BlockName = blockName,
-                    Kind = FormattedStatementKind.ToLoopCond,
+                    Kind = CFGStatementKind.ToLoopCond,
                     FunctionName = ToLoopCond,
                     ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
                     OriginalExpression = flowCtrl.SourceCode,
@@ -169,7 +170,7 @@ public class ScriptFormatter
                 result.Add(new FormattedStatement
                 {
                     BlockName = blockName,
-                    Kind = FormattedStatementKind.Break,
+                    Kind = CFGStatementKind.Break,
                     FunctionName = Break,
                     OriginalExpression = flowCtrl.SourceCode,
                     SourceLine = flowCtrl.LineNumber
@@ -233,7 +234,7 @@ public class ScriptFormatter
         result.AddRange(expansionStmts);
 
         // Determine statement kind and extract info
-        FormattedStatementKind kind;
+        CFGStatementKind kind;
         string? pubVarTarget = null;
         string? setVarName = null;
         string? getVarName = null;
@@ -249,13 +250,21 @@ public class ScriptFormatter
                     setVarName = sn;
                     getVarName = gn;
                     pubVarTarget = pv;
+                    // If ExtractStatementFields didn't set PubVarTarget but we have an assignment context
+                    // and the function produces a value (non-void return), preserve the assignment
+                    if (pubVarTarget == null && !string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
+                    {
+                        pubVarTarget = assignedVar;
+                        if (!context.PubVarNames.Contains(assignedVar))
+                            context.PubVarNames.Add(assignedVar);
+                    }
                 }
                 else
                 {
                     // Helper or regular function call
                     if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
                     {
-                        kind = FormattedStatementKind.Assignment;
+                        kind = CFGStatementKind.Assignment;
                         pubVarTarget = assignedVar;
                         // Ensure the assigned variable is tracked as a PubVar
                         if (!context.PubVarNames.Contains(assignedVar))
@@ -263,13 +272,13 @@ public class ScriptFormatter
                     }
                     else
                     {
-                        kind = FormattedStatementKind.Expression;
+                        kind = CFGStatementKind.Expression;
                     }
                 }
                 break;
         }
 
-        var fingerprint = kind is FormattedStatementKind.Assignment or FormattedStatementKind.Expression
+        var fingerprint = kind is CFGStatementKind.Assignment or CFGStatementKind.Expression
             ? ExprUtils.ComputeFingerprint(funcName, currentArgExprs)
             : null;
 
@@ -379,7 +388,7 @@ public class ScriptFormatter
             allStmts.Add(new FormattedStatement
             {
                 BlockName = blockName,
-                Kind = FormattedStatementKind.Assignment,
+                Kind = CFGStatementKind.Assignment,
                 PubVarTarget = pubVarName,
                 FunctionName = funcName,
                 FullFunctionName = fullFuncName,

@@ -111,6 +111,16 @@ public static class EventNames
     public const string PluginUnregistered = "PluginUnregistered";
 
     /// <summary>
+    /// Plugin message received event
+    /// </summary>
+    public const string PluginMessageReceived = "PluginMessageReceived";
+
+    /// <summary>
+    /// Plugin response event (has RequestId)
+    /// </summary>
+    public const string PluginResponse = "PluginResponse";
+
+    /// <summary>
     /// Workflow created event
     /// </summary>
     public const string WorkflowCreated = "WorkflowCreated";

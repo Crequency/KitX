@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using KitX.Core.DI;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -31,17 +32,31 @@ namespace KitX.Core.Device;
 /// Device server for HTTP API
 /// Phase 5: Simplified implementation using direct WebHostBuilder
 /// </summary>
-public class DevicesServer : IDeviceServer
+public class DevicesServer : ServerBase, IDeviceServer
 {
-    private static DevicesServer? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static DevicesServer Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (DevicesServer)ServiceHost.GetRequiredService<IDeviceServer>();
+            Log.Error("[DevicesServer] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new DevicesServer();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static DevicesServer Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly Dictionary<DeviceLocator, string> _signedDeviceTokens = new();
-    private ServerStatus _status = ServerStatus.Pending;
     private IWebHost? _host;
     private int? _configuredPort;
 
@@ -72,16 +87,16 @@ public class DevicesServer : IDeviceServer
     private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingPluginResponses = new();
 
     /// <summary>
-    /// Gets the service status
-    /// </summary>
-    public ServerStatus Status => _status;
-
-    /// <summary>
     /// Event raised when port changes
     /// </summary>
 #pragma warning disable CS0067
     public event EventHandler<int>? PortChanged;
 #pragma warning restore CS0067
+
+    /// <summary>
+    /// Creates a new device server
+    /// </summary>
+    public DevicesServer() { }
 
     /// <summary>
     /// Gets or sets the port
@@ -103,10 +118,8 @@ public class DevicesServer : IDeviceServer
     /// <returns>The server instance</returns>
     public IDeviceServer Run()
     {
-        if (_status != ServerStatus.Pending)
+        if (!TryStart())
             return this;
-
-        _status = ServerStatus.Starting;
 
         var port = _configuredPort ?? 8888;
 
@@ -215,12 +228,11 @@ public class DevicesServer : IDeviceServer
                         Log.Information($"DevicesServer started on port {Port}");
                     }
 
-                    _status = ServerStatus.Running;
+                    SetRunning();
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, $"Failed to start DevicesServer: {ex.Message}");
-                    _status = ServerStatus.Errored;
+                    SetErrored(ex, nameof(DevicesServer));
                 }
             })
             {
@@ -231,21 +243,20 @@ public class DevicesServer : IDeviceServer
 
             // Wait for server to start
             var timeout = 0;
-            while (_status == ServerStatus.Starting && timeout < 50) // 5 seconds timeout
+            while (IsStarting && timeout < 50) // 5 seconds timeout
             {
                 Thread.Sleep(100);
                 timeout++;
             }
 
-            if (_status != ServerStatus.Running)
+            if (!IsRunning)
             {
                 Log.Warning("DevicesServer start timed out or failed");
             }
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"Error starting DevicesServer: {ex.Message}");
-            _status = ServerStatus.Errored;
+            SetErrored(ex, nameof(DevicesServer));
         }
 
         return this;
@@ -256,10 +267,8 @@ public class DevicesServer : IDeviceServer
     /// </summary>
     public void Stop()
     {
-        if (_status != ServerStatus.Running)
+        if (!TryStop())
             return;
-
-        _status = ServerStatus.Stopping;
 
         try
         {
@@ -271,12 +280,11 @@ public class DevicesServer : IDeviceServer
             }
 
             Log.Information("DevicesServer stopped");
-            _status = ServerStatus.Pending;
+            SetPending();
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"Error stopping DevicesServer: {ex.Message}");
-            _status = ServerStatus.Errored;
+            SetErrored(ex, nameof(DevicesServer));
         }
     }
 

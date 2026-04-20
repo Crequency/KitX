@@ -6,9 +6,11 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Device;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 using KitX.Shared.CSharp.Device;
 using Serilog;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
 {
@@ -25,7 +27,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
         public BlueprintNodeType? LegacyNodeType => null;
-        public FormattedStatementKind StatementKind => FormattedStatementKind.TryGetDevice;
+        public CFGStatementKind StatementKind => CFGStatementKind.TryGetDevice;
         public double NodeWidth => 120;
         public double NodeHeight => 60;
 
@@ -64,7 +66,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             return [new FormattedStatement
             {
                 BlockName = blockName,
-                Kind = FormattedStatementKind.TryGetDevice,
+                Kind = CFGStatementKind.TryGetDevice,
                 FunctionName = FunctionName,
                 PubVarTarget = pubVarTarget,
                 Arguments = args,

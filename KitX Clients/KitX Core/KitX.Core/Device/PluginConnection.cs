@@ -55,9 +55,7 @@ public class PluginConnection : IPluginConnection, IPluginConnector
     /// <summary>
     /// Event raised when plugin reports status (IPluginConnector implementation)
     /// </summary>
-#pragma warning disable CS0067
     public event EventHandler<PluginStatusReportEventArgs>? StatusReport;
-#pragma warning restore CS0067
 
     /// <summary>
     /// Constructor
@@ -78,6 +76,11 @@ public class PluginConnection : IPluginConnection, IPluginConnector
         _connection.OnOpen = () =>
         {
             _status = ServerStatus.Running;
+            StatusReport?.Invoke(this, new PluginStatusReportEventArgs
+            {
+                ConnectionId = ConnectionId!,
+                Status = ServerStatus.Running.ToString()
+            });
         };
 
         _connection.OnMessage = message =>
@@ -114,12 +117,22 @@ public class PluginConnection : IPluginConnection, IPluginConnector
         _connection.OnClose = () =>
         {
             _status = ServerStatus.Pending;
+            StatusReport?.Invoke(this, new PluginStatusReportEventArgs
+            {
+                ConnectionId = ConnectionId!,
+                Status = ServerStatus.Pending.ToString()
+            });
             Closed?.Invoke(this, EventArgs.Empty);
         };
 
         _connection.OnError = ex =>
         {
             _status = ServerStatus.Errored;
+            StatusReport?.Invoke(this, new PluginStatusReportEventArgs
+            {
+                ConnectionId = ConnectionId!,
+                Status = ServerStatus.Errored.ToString()
+            });
             Serilog.Log.Error(ex, $"PluginConnection error for {ConnectionId}, triggering Closed event");
 
             // Also trigger Closed event when error occurs (e.g., remote host disconnected abruptly)

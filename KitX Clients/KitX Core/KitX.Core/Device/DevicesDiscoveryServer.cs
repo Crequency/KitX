@@ -1,5 +1,5 @@
 using KitX.Core.Configuration;
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -13,20 +13,36 @@ using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Shared.CSharp.Device;
 using Serilog;
+using KitX.Core.DI;
 
 namespace KitX.Core.Device;
 
 /// <summary>
 /// Device discovery server for UDP broadcast
 /// </summary>
-public class DevicesDiscoveryServer : IDeviceDiscoveryService
+public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
 {
-    private static DevicesDiscoveryServer? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static DevicesDiscoveryServer Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (DevicesDiscoveryServer)ServiceHost.GetRequiredService<IDeviceDiscoveryService>();
+            Log.Error("[DevicesDiscoveryServer] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new DevicesDiscoveryServer();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static DevicesDiscoveryServer Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly IConfigService _configService;
     private UdpClient? _udpSender;
@@ -34,14 +50,8 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
     private System.Timers.Timer? _udpSendTimer;
     private readonly List<int> _supportedNetworkInterfacesIndexes = new();
     private bool _disposed;
-    private ServerStatus _status = ServerStatus.Pending;
     private int _deviceInfoUpdatedTimes = 0;
     private int _lastTimeToOSVersionUpdated = 0;
-
-    /// <summary>
-    /// Gets the service status
-    /// </summary>
-    public ServerStatus Status => _status;
 
     /// <summary>
     /// Gets or sets the port
@@ -90,9 +100,9 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
 #pragma warning restore CS0067
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new device discovery server
     /// </summary>
-    private DevicesDiscoveryServer()
+    public DevicesDiscoveryServer()
     {
         _configService = ConfigManager.Instance; // Will be injected via DI in production
         DefaultDeviceInfo = NetworkHelper.GetDeviceInfo();
@@ -107,10 +117,8 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
     /// <returns>The service instance</returns>
     public IDeviceDiscoveryService Run()
     {
-        if (_status != ServerStatus.Pending)
+        if (!TryStart())
             return this;
-
-        _status = ServerStatus.Starting;
 
         Initialize();
 
@@ -148,7 +156,7 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
         CTask.Run(MultiDevicesBroadCastSend);
         CTask.Run(MultiDevicesBroadCastReceive);
 
-        _status = ServerStatus.Running;
+        SetRunning();
 
         return this;
     }
@@ -158,16 +166,15 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
     /// </summary>
     public void Stop()
     {
-        if (_status != ServerStatus.Running)
+        if (!TryStop())
             return;
 
-        _status = ServerStatus.Stopping;
         CloseDevicesDiscoveryServerRequest = true;
 
         CTask.Run(async () =>
         {
             await CTask.Delay(1000); // Wait for threads to finish
-            _status = ServerStatus.Pending;
+            SetPending();
         });
     }
 
@@ -383,12 +390,12 @@ public class DevicesDiscoveryServer : IDeviceDiscoveryService
                     }
                 }
 
-                _status = ServerStatus.Pending;
+                SetPending();
             }
             catch (Exception e)
             {
                 Log.Error(e, $"In {location}: {e.Message}");
-                _status = ServerStatus.Errored;
+                SetErrored(e, nameof(DevicesDiscoveryServer));
             }
 
             await CTask.Run(() => Stop());

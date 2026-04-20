@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using KitX.Core.Contract.Event;
 using Serilog;
+using KitX.Core.DI;
 
 namespace KitX.Core.Event;
 
@@ -11,12 +12,27 @@ namespace KitX.Core.Event;
 /// </summary>
 public class EventService : IEventService
 {
-    private static EventService? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static EventService Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (EventService)ServiceHost.GetRequiredService<IEventService>();
+            Log.Error("[EventService] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new EventService();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static EventService Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly Dictionary<string, List<EventHandler<EventArgs>>> _eventHandlers = new();
 
@@ -41,9 +57,9 @@ public class EventService : IEventService
     private const int MaxPublishDepth = 10;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new event service
     /// </summary>
-    private EventService() { }
+    public EventService() { }
 
     /// <summary>
     /// Subscribes to an event

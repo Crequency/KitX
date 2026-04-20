@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint.CFG;
 using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
@@ -85,10 +86,10 @@ public class NodeBuilder
             if (node != null)
                 context.BlockNodeIds[block.Name].Add(node.Id);
 
-            endsWithFlowCtrl = stmt.Kind is FormattedStatementKind.Branch
-                or FormattedStatementKind.Loop
-                or FormattedStatementKind.ToLoopCond
-                or FormattedStatementKind.Break
+            endsWithFlowCtrl = stmt.Kind is CFGStatementKind.Branch
+                or CFGStatementKind.Loop
+                or CFGStatementKind.ToLoopCond
+                or CFGStatementKind.Break
                 || IsRegistryFlowControlTerminator(stmt);
         }
 
@@ -131,13 +132,15 @@ public class NodeBuilder
         // Non-terminator statement handling
         switch (stmt.Kind)
         {
-            case FormattedStatementKind.Assignment:
-            case FormattedStatementKind.Expression:
+            case CFGStatementKind.Assignment:
+            case CFGStatementKind.Expression:
                 return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
 
-            case FormattedStatementKind.Print:
-            case FormattedStatementKind.Pause:
-            case FormattedStatementKind.Set:
+            case CFGStatementKind.Print:
+            case CFGStatementKind.Pause:
+            case CFGStatementKind.Set:
+            case CFGStatementKind.PluginCall:
+            case CFGStatementKind.PluginCallWithTarget:
                 {
                     // Use registry to determine the legacy node type and configure it
                     if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName)
@@ -151,9 +154,11 @@ public class NodeBuilder
                     // Fallback without registry (should not happen in production)
                     var fallbackType = stmt.Kind switch
                     {
-                        FormattedStatementKind.Print => BlueprintNodeType.Print,
-                        FormattedStatementKind.Pause => BlueprintNodeType.Pause,
-                        FormattedStatementKind.Set => BlueprintNodeType.Set,
+                        CFGStatementKind.Print => BlueprintNodeType.Print,
+                        CFGStatementKind.Pause => BlueprintNodeType.Pause,
+                        CFGStatementKind.Set => BlueprintNodeType.Set,
+                        CFGStatementKind.PluginCall => BlueprintNodeType.Call,
+                        CFGStatementKind.PluginCallWithTarget => BlueprintNodeType.Call,
                         _ => BlueprintNodeType.Call
                     };
                     var fallbackNode = _registry.Create(fallbackType);

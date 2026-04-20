@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
@@ -16,7 +17,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
         public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Print;
-        public FormattedStatementKind StatementKind => FormattedStatementKind.Print;
+        public CFGStatementKind StatementKind => CFGStatementKind.Print;
         public double NodeWidth => 100;
         public double NodeHeight => 50;
 
@@ -39,7 +40,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             return [new FormattedStatement
             {
                 BlockName = blockName,
-                Kind = FormattedStatementKind.Print,
+                Kind = CFGStatementKind.Print,
                 FunctionName = FunctionName,
                 Arguments = args,
                 OriginalExpression = invoke.ToString(),

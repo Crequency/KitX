@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using KitX.Core.Contract.Hotkey;
 using SharpHook;
 using SharpHook.Data;
+using KitX.Core.DI;
+using Serilog;
 
 namespace KitX.Core.Hotkey;
 
@@ -13,12 +15,27 @@ namespace KitX.Core.Hotkey;
 /// </summary>
 public class KeyHookManager : IKeyHookService
 {
-    private static KeyHookManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static KeyHookManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (KeyHookManager)ServiceHost.GetRequiredService<IKeyHookService>();
+            Log.Error("[KeyHookManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new KeyHookManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static KeyHookManager Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private const int KeysLimitation = 5;
 
@@ -31,9 +48,9 @@ public class KeyHookManager : IKeyHookService
     private TaskPoolGlobalHook? _hook;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new key hook manager
     /// </summary>
-    private KeyHookManager() { }
+    public KeyHookManager() { }
 
     /// <summary>
     /// Starts the key hook

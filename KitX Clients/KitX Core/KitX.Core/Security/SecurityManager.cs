@@ -9,6 +9,7 @@ using KitX.Core.Device;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Security;
 using Serilog;
+using KitX.Core.DI;
 
 namespace KitX.Core.Security;
 
@@ -17,12 +18,27 @@ namespace KitX.Core.Security;
 /// </summary>
 public class SecurityManager : IDeviceKeyService, IEncryptionService
 {
-    private static SecurityManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static SecurityManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (SecurityManager)ServiceHost.GetRequiredService<IDeviceKeyService>();
+            Log.Error("[SecurityManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new SecurityManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static SecurityManager Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private RSA? _rsaInstance;
 
@@ -31,12 +47,17 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     /// <summary>
     /// Reference to ConfigManager instance
     /// </summary>
-    private ConfigManager? _configManager;
+    private readonly ConfigManager _configManager;
+
+    /// <summary>
+    /// Reference to DevicesDiscoveryServer instance
+    /// </summary>
+    private readonly DevicesDiscoveryServer? _devicesDiscoveryServer;
 
     /// <summary>
     /// Gets typed SecurityConfig for direct property access
     /// </summary>
-    private SecurityConfig? TypedSecurityConfig => _configManager?.TypedSecurityConfig;
+    private SecurityConfig? TypedSecurityConfig => _configManager.TypedSecurityConfig;
 
     /// <summary>
     /// Gets the local device key
@@ -48,10 +69,21 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new security manager
     /// </summary>
-    private SecurityManager()
+    public SecurityManager() : this(ConfigManager.Instance, null)
     {
+    }
+
+    /// <summary>
+    /// Creates a new security manager with dependencies
+    /// </summary>
+    /// <param name="configManager">Configuration manager</param>
+    /// <param name="devicesDiscoveryServer">Devices discovery server (optional for backward compatibility)</param>
+    public SecurityManager(ConfigManager configManager, DevicesDiscoveryServer? devicesDiscoveryServer)
+    {
+        _configManager = configManager ?? ConfigManager.Instance;
+        _devicesDiscoveryServer = devicesDiscoveryServer;
         Initialize();
     }
 
@@ -60,14 +92,11 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     /// </summary>
     private void Initialize()
     {
-        // Get ConfigManager instance
-        _configManager = ConfigManager.Instance;
-
         // Create RSA instance
         _rsaInstance = RSA.Create(2048);
 
         // Get current device info from DevicesDiscoveryServer (same as legacy architecture)
-        var defaultDeviceInfo = DevicesDiscoveryServer.Instance?.DefaultDeviceInfo;
+        var defaultDeviceInfo = _devicesDiscoveryServer?.DefaultDeviceInfo;
         var currentDevice = defaultDeviceInfo?.Device ?? new DeviceLocator
         {
             DeviceName = Environment.MachineName,

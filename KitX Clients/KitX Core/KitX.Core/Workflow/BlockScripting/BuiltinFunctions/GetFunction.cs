@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions;
@@ -16,7 +17,7 @@ public class GetFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => false;
     public bool IsNonExtractable => false;
     public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Get;
-    public FormattedStatementKind StatementKind => FormattedStatementKind.Assignment;
+    public CFGStatementKind StatementKind => CFGStatementKind.Assignment;
     public double NodeWidth => 120;
     public double NodeHeight => 60;
 
@@ -62,7 +63,7 @@ public class GetFunction : IBuiltinFunctionDefinition
         return [new FormattedStatement
         {
             BlockName = blockName,
-            Kind = FormattedStatementKind.Assignment,
+            Kind = CFGStatementKind.Assignment,
             FunctionName = FunctionName,
             PubVarTarget = pubVarTarget,
             GetVarName = getVarName,

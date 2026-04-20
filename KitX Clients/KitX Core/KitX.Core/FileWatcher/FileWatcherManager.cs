@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using KitX.Core.Contract.FileWatcher;
+using KitX.Core.DI;
+using Serilog;
 
 namespace KitX.Core.FileWatcher;
 
@@ -10,19 +12,34 @@ namespace KitX.Core.FileWatcher;
 /// </summary>
 public class FileWatcherManager : IFileWatcherService
 {
-    private static FileWatcherManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static FileWatcherManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (FileWatcherManager)ServiceHost.GetRequiredService<IFileWatcherService>();
+            Log.Error("[FileWatcherManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new FileWatcherManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static FileWatcherManager Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly Dictionary<string, FileWatcher> _watchers = new();
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new file watcher manager
     /// </summary>
-    private FileWatcherManager() { }
+    public FileWatcherManager() { }
 
     /// <summary>
     /// Registers a file watcher

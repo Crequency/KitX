@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KitX.Core.Workflow.Blueprint.CFG;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 
@@ -46,7 +47,7 @@ public class FormattedStatement
     /// <summary>
     /// What kind of statement this is.
     /// </summary>
-    public FormattedStatementKind Kind { get; set; }
+    public CFGStatementKind Kind { get; set; }
 
     // --- For Assignment / Get ---
     /// <summary>
@@ -104,55 +105,4 @@ public class FormattedStatement
     /// Computed fingerprint for reuse detection. Same expression → same fingerprint → reuse nodes.
     /// </summary>
     public string? Fingerprint { get; set; }
-}
-
-/// <summary>
-/// Kinds of formatted statements.
-/// </summary>
-public enum FormattedStatementKind
-{
-    /// <summary>Unknown or unclassified</summary>
-    Unknown,
-
-    /// <summary>Print(expr)</summary>
-    Print,
-
-    /// <summary>Pause(ms)</summary>
-    Pause,
-
-    /// <summary>Set("varName", expr)</summary>
-    Set,
-
-    /// <summary>Get("varName") — standalone or as part of a PubVar assignment</summary>
-    Get,
-
-    /// <summary>pubVar = FunctionCall(args...)</summary>
-    Assignment,
-
-    /// <summary>Branch(condition, trueBlock, falseBlock)</summary>
-    Branch,
-
-    /// <summary>Loop(condition, loopBody, afterLoop)</summary>
-    Loop,
-
-    /// <summary>ToLoopCond("parentBlock")</summary>
-    ToLoopCond,
-
-    /// <summary>Break()</summary>
-    Break,
-
-    /// <summary>NextBlock = ... (handled internally, no node created)</summary>
-    NextBlockAssignment,
-
-    /// <summary>Plain expression without assignment</summary>
-    Expression,
-
-    /// <summary>PluginCallWithTarget(pluginName, methodName, targetDevice, args...) — cross-device plugin call</summary>
-    PluginCallWithTarget,
-
-    /// <summary>TryGetDevice(deviceSearchPattern) — returns DeviceInfo or null</summary>
-    TryGetDevice,
-
-    /// <summary>PluginCall(pluginName, methodName[, args...]) — local plugin call</summary>
-    PluginCall,
 }

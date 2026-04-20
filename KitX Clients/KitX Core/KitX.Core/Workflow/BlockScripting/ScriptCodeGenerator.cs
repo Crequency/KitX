@@ -8,6 +8,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 using Serilog;
 
@@ -49,6 +51,10 @@ internal static class ScriptCodeGenerator
         foreach (var name in context.PubVarNames)
             pubVarTypes[name] = "object";
 
+        // Add ConstBlock variables (accessible as identifiers in expressions)
+        foreach (var kvp in context.ConstNodes)
+            pubVarTypes[kvp.Key] = kvp.Value.ConstType ?? "object";
+
         // First pass: SOURCE types
         foreach (var block in formattedScript.Blocks)
         {
@@ -73,7 +79,7 @@ internal static class ScriptCodeGenerator
             foreach (var stmt in block.Statements)
             {
                 // Branch/Loop condition demands bool
-                if ((stmt.Kind == FormattedStatementKind.Branch || stmt.Kind == FormattedStatementKind.Loop)
+                if ((stmt.Kind == CFGStatementKind.Branch || stmt.Kind == CFGStatementKind.Loop)
                     && !string.IsNullOrEmpty(stmt.ConditionPubVar)
                     && pubVarTypes.ContainsKey(stmt.ConditionPubVar))
                 {
@@ -82,7 +88,7 @@ internal static class ScriptCodeGenerator
                 }
 
                 // Helper function arguments demand specific types
-                if ((stmt.Kind == FormattedStatementKind.Assignment || stmt.Kind == FormattedStatementKind.Expression)
+                if ((stmt.Kind == CFGStatementKind.Assignment || stmt.Kind == CFGStatementKind.Expression)
                     && stmt.FunctionName != null
                     && helperMap.TryGetValue(stmt.FunctionName, out var consumerHelper))
                 {
@@ -510,8 +516,8 @@ internal static class ScriptCodeGenerator
         {
             switch (stmt.Kind)
             {
-                case FormattedStatementKind.Assignment:
-                case FormattedStatementKind.Expression:
+                case CFGStatementKind.Assignment:
+                case CFGStatementKind.Expression:
                 {
                     ExpressionSyntax rawExpr;
                     string sourceType = "object";
@@ -563,7 +569,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.Branch:
+                case CFGStatementKind.Branch:
                 {
                     var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
                         ? ResolveArgumentExpression(stmt.ConditionPubVar, pubVarTypes)
@@ -590,7 +596,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.Loop:
+                case CFGStatementKind.Loop:
                 {
                     var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
                         ? ResolveArgumentExpression(stmt.ConditionPubVar, pubVarTypes)
@@ -617,7 +623,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.Print:
+                case CFGStatementKind.Print:
                 {
                     if (stmt.Arguments.Count > 0)
                     {
@@ -633,7 +639,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.PluginCallWithTarget:
+                case CFGStatementKind.PluginCallWithTarget:
                 {
                     var args = new List<ArgumentSyntax>();
 
@@ -665,7 +671,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.TryGetDevice:
+                case CFGStatementKind.TryGetDevice:
                 {
                     if (stmt.Arguments.Count > 0 && !string.IsNullOrEmpty(stmt.PubVarTarget))
                     {
@@ -686,7 +692,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.Set:
+                case CFGStatementKind.Set:
                 {
                     var varName = stmt.SetVarName ?? "";
                     if (stmt.Arguments.Count > 0)
@@ -707,7 +713,7 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.ToLoopCond:
+                case CFGStatementKind.ToLoopCond:
                 {
                     caseStatements.Add(
                         ExpressionStatement(
@@ -728,13 +734,13 @@ internal static class ScriptCodeGenerator
                     break;
                 }
 
-                case FormattedStatementKind.Break:
+                case CFGStatementKind.Break:
                 {
                     caseStatements.Add(ReturnStatement());
                     break;
                 }
 
-                case FormattedStatementKind.Pause:
+                case CFGStatementKind.Pause:
                 {
                     if (stmt.Arguments.Count > 0)
                     {

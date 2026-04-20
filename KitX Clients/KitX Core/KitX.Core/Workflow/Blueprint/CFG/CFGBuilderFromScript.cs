@@ -120,7 +120,7 @@ internal class CFGBuilderFromScript
         {
             Id = fmtStmt.StatementId,
             BlockName = fmtStmt.BlockName,
-            Kind = ConvertKind(fmtStmt.Kind),
+            Kind = fmtStmt.Kind,
             OriginalExpression = fmtStmt.OriginalExpression,
             SourceLine = fmtStmt.SourceLine,
             PubVarTarget = fmtStmt.PubVarTarget,
@@ -139,22 +139,6 @@ internal class CFGBuilderFromScript
         };
     }
 
-    private static CFGStatementKind ConvertKind(Pipeline.FormattedStatementKind kind) => kind switch
-    {
-        Pipeline.FormattedStatementKind.Print => CFGStatementKind.Print,
-        Pipeline.FormattedStatementKind.Pause => CFGStatementKind.Pause,
-        Pipeline.FormattedStatementKind.Set => CFGStatementKind.Set,
-        Pipeline.FormattedStatementKind.Get => CFGStatementKind.Get,
-        Pipeline.FormattedStatementKind.Assignment => CFGStatementKind.Assignment,
-        Pipeline.FormattedStatementKind.Branch => CFGStatementKind.Branch,
-        Pipeline.FormattedStatementKind.Loop => CFGStatementKind.Loop,
-        Pipeline.FormattedStatementKind.ToLoopCond => CFGStatementKind.ToLoopCond,
-        Pipeline.FormattedStatementKind.Break => CFGStatementKind.Break,
-        Pipeline.FormattedStatementKind.NextBlockAssignment => CFGStatementKind.NextBlockAssignment,
-        Pipeline.FormattedStatementKind.Expression => CFGStatementKind.Expression,
-        _ => CFGStatementKind.Unknown,
-    };
-
     // ─── Block Type Classification ──────────────────────────────────────
 
     private static CFGBlockType ClassifyBlockType(Pipeline.FormattedBlock fmtBlock)
@@ -169,8 +153,8 @@ internal class CFGBuilderFromScript
         var lastStmt = fmtBlock.Statements[^1];
         return lastStmt.Kind switch
         {
-            Pipeline.FormattedStatementKind.Branch => CFGBlockType.BranchHeader,
-            Pipeline.FormattedStatementKind.Loop => CFGBlockType.LoopHeader,
+            CFGStatementKind.Branch => CFGBlockType.BranchHeader,
+            CFGStatementKind.Loop => CFGBlockType.LoopHeader,
             _ => CFGBlockType.Basic
         };
     }
@@ -196,7 +180,7 @@ internal class CFGBuilderFromScript
         {
             switch (stmt.Kind)
             {
-                case Pipeline.FormattedStatementKind.Branch:
+                case CFGStatementKind.Branch:
                     if (!string.IsNullOrEmpty(stmt.TrueBlockName))
                         cfgBlock.Successors.Add(new CFGEdge
                         {
@@ -215,7 +199,7 @@ internal class CFGBuilderFromScript
                         });
                     break;
 
-                case Pipeline.FormattedStatementKind.Loop:
+                case CFGStatementKind.Loop:
                     if (!string.IsNullOrEmpty(stmt.TrueBlockName))
                         cfgBlock.Successors.Add(new CFGEdge
                         {
@@ -234,7 +218,7 @@ internal class CFGBuilderFromScript
                         });
                     break;
 
-                case Pipeline.FormattedStatementKind.ToLoopCond:
+                case CFGStatementKind.ToLoopCond:
                     if (!string.IsNullOrEmpty(stmt.ToLoopCondReturnTo))
                         cfgBlock.Successors.Add(new CFGEdge
                         {
@@ -245,7 +229,7 @@ internal class CFGBuilderFromScript
                         });
                     break;
 
-                case Pipeline.FormattedStatementKind.Break:
+                case CFGStatementKind.Break:
                     // Break edges are resolved later during BP→BS conversion
                     cfgBlock.Successors.Add(new CFGEdge
                     {

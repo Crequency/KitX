@@ -12,6 +12,7 @@ using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Loader;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
+using KitX.Core.DI;
 
 namespace KitX.Core.Plugin;
 
@@ -20,12 +21,27 @@ namespace KitX.Core.Plugin;
 /// </summary>
 public class PluginsManager : IPluginService
 {
-    private static PluginsManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static PluginsManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (PluginsManager)ServiceHost.GetRequiredService<IPluginService>();
+            Log.Error("[PluginsManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new PluginsManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static PluginsManager Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private readonly List<PluginInstallation> _plugins = new();
 
@@ -35,9 +51,9 @@ public class PluginsManager : IPluginService
     public event EventHandler<PluginStatusChangedEventArgs>? PluginStatusChanged;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new plugins manager
     /// </summary>
-    private PluginsManager()
+    public PluginsManager()
     {
         // Load installed plugins on startup
         LoadInstalledPlugins();
@@ -574,6 +590,47 @@ public class PluginsManager : IPluginService
         {
             Log.Error(ex, $"In {location}: Error stopping plugin {pluginId}: {ex.Message}");
             return await System.Threading.Tasks.Task.FromResult(false);
+        }
+    }
+
+    /// <summary>
+    /// Called by PluginsServer when a plugin's connection status changes (Running/Pending/Errored).
+    /// Updates internal state and fires PluginStatusChanged event so the Dashboard UI refreshes.
+    /// Unlike UpdatePluginRunningState, this method handles all ServerStatus-to-PluginStatus mappings
+    /// including the Error state.
+    /// </summary>
+    /// <param name="pluginName">The plugin name</param>
+    /// <param name="newStatus">The new status from the connection layer</param>
+    public void OnPluginStatusChanged(string pluginName, PluginStatus newStatus)
+    {
+        try
+        {
+            var plugin = _plugins.FirstOrDefault(p => p.PluginInfo?.Name == pluginName);
+            if (plugin == null)
+            {
+                Log.Debug("[PluginsManager] OnPluginStatusChanged: plugin '{PluginName}' not found in installed list, ignoring", pluginName);
+                return;
+            }
+
+            var oldStatus = plugin.IsRunning ? PluginStatus.Running : PluginStatus.Installed;
+
+            // Update IsRunning based on connection status
+            plugin.IsRunning = newStatus == PluginStatus.Running;
+
+            Log.Information("[PluginsManager] Plugin '{PluginName}' status changed: {OldStatus} -> {NewStatus}",
+                pluginName, oldStatus, newStatus);
+
+            PluginStatusChanged?.Invoke(this, new PluginStatusChangedEventArgs
+            {
+                PluginId = plugin.Id,
+                PluginName = pluginName,
+                OldStatus = oldStatus,
+                NewStatus = newStatus
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[PluginsManager] Error in OnPluginStatusChanged for plugin '{PluginName}'", pluginName);
         }
     }
 

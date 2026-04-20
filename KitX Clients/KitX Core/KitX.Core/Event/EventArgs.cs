@@ -39,6 +39,7 @@ public class DeviceInfoEventArgs : EventArgs
 /// <summary>
 /// Event args for plugin events
 /// </summary>
+[Obsolete("Use KitX.Core.Contract.Plugin.Events.PluginRegisteredEventArgs or PluginUnregisteredEventArgs instead.")]
 public class PluginEventArgs : EventArgs
 {
     /// <summary>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.DI;
 using Serilog;
 
 namespace KitX.Core.Workflow;
@@ -14,16 +15,38 @@ namespace KitX.Core.Workflow;
 /// </summary>
 public class WorkflowStorageService : IWorkflowStorageService
 {
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static WorkflowStorageService Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (WorkflowStorageService)ServiceHost.GetRequiredService<IWorkflowStorageService>();
+            Log.Error("[WorkflowStorageService] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new WorkflowStorageService();
+        }
+    }
+
+    /// <summary>
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
+    /// </summary>
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true
     };
 
-    private static readonly Lazy<WorkflowStorageService> _instance = new(() => new());
-    public static WorkflowStorageService Instance => _instance.Value;
-
     private readonly string _storageDirectory;
 
+    /// <summary>
+    /// Creates a new workflow storage service
+    /// </summary>
     public WorkflowStorageService()
     {
         _storageDirectory = Path.Combine("./Data/", "Workflows");

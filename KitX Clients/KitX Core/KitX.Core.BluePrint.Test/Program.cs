@@ -164,6 +164,14 @@ public class Program
             Console.WriteLine("└──────────────────────────────────────────┘\n");
             RunAssemblyCompilationTest(reverseConverter, parser, sp);
         }
+
+        if (ShouldRunTest("M"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test M: Cross-Device Plugin Call          │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunCrossDevicePluginCallTest(converter, reverseConverter, parser, sp);
+        }
     }
 
     private static void ParseArgs(string[] args)
@@ -892,4 +900,210 @@ Print(""Nested loops done"");";
     // ──────────────────────────────────────────────
     private static string GetSingleStatementScript() => @"#MainBlock
 Print(""Hello, World!"");";
+
+    // ──────────────────────────────────────────────
+    // Test M: Cross-Device Plugin Call
+    // ──────────────────────────────────────────────
+    private static void RunCrossDevicePluginCallTest(
+        BlockScriptToBlueprintConverter forwardConverter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        IBlockScriptParser parser,
+        System.IServiceProvider sp)
+    {
+        var sourceCode = GetCrossDeviceScript();
+        bool allPassed = true;
+
+        // ── Phase 1: Forward Conversion ──
+        Console.WriteLine("[Test M] Phase 1: Forward Conversion (Script → Blueprint)");
+        try
+        {
+            var blueprint = forwardConverter.Convert(sourceCode, new List<HelperFunction>());
+
+            // ── Debug: Dump formatted script ──
+            if (forwardConverter.LastContext?.FormattedScript != null)
+            {
+                Console.WriteLine("  ── Formatted Script (Test M debug) ──");
+                var formatted = forwardConverter.LastContext.FormattedScript;
+                foreach (var block in formatted.Blocks)
+                {
+                    Console.WriteLine($"  #Block {block.Name}");
+                    foreach (var stmt in block.Statements)
+                    {
+                        var args = stmt.Arguments != null ? string.Join(", ", stmt.Arguments) : "";
+                        Console.WriteLine($"    [{stmt.Kind}] {stmt.OriginalExpression}");
+                        Console.WriteLine($"      PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName} Args=[{args}]");
+                    }
+                }
+                Console.WriteLine("  ── End Formatted Script ──\n");
+            }
+
+            // Find the CallNode with TargetDevice
+            var callNodes = blueprint.Nodes.OfType<CallNode>().ToList();
+            Console.WriteLine($"  Found {callNodes.Count} CallNode(s)");
+            Console.WriteLine($"  All nodes: {blueprint.Nodes.Count}, types: {string.Join(", ", blueprint.Nodes.Select(n => n.NodeType.ToString()).Distinct())}");
+
+            var crossDeviceCall = callNodes.FirstOrDefault(n =>
+                !string.IsNullOrEmpty(n.TargetDevice));
+            Console.WriteLine($"  Cross-device CallNode: {crossDeviceCall?.Name}");
+            Console.WriteLine($"  TargetDevice: {crossDeviceCall?.TargetDevice}");
+            Console.WriteLine($"  PluginName: {crossDeviceCall?.PluginName}");
+            Console.WriteLine($"  FunctionName: {crossDeviceCall?.FunctionName}");
+
+            bool phase1pass =
+                crossDeviceCall != null &&
+                crossDeviceCall.TargetDevice == "DeviceB" &&
+                crossDeviceCall.PluginName == "WeatherPlugin" &&
+                crossDeviceCall.FunctionName == "GetTemperature";
+
+            Console.WriteLine($"[Test M] Phase 1: {(phase1pass ? "PASS" : "FAIL")}");
+            if (!phase1pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test M] Phase 1 FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Phase 2: Reverse Conversion ──
+        Console.WriteLine("\n[Test M] Phase 2: Reverse Conversion (Blueprint → Script)");
+        try
+        {
+            var blueprint = forwardConverter.Convert(sourceCode, new List<HelperFunction>());
+            var expandedScript = reverseConverter.Convert(blueprint);
+
+            Console.WriteLine($"  Expanded script length: {expandedScript.Length} chars");
+            Console.WriteLine($"  ── Expanded Script ──");
+            Console.WriteLine(expandedScript);
+            Console.WriteLine($"  ── End ──");
+
+            bool containsPluginCallWithTarget =
+                expandedScript.Contains("PluginCallWithTarget");
+            bool containsTargetDevice =
+                expandedScript.Contains("DeviceB");
+
+            Console.WriteLine($"  Contains PluginCallWithTarget: {containsPluginCallWithTarget}");
+            Console.WriteLine($"  Contains TargetDevice 'DeviceB': {containsTargetDevice}");
+
+            bool phase2pass = containsPluginCallWithTarget && containsTargetDevice;
+            Console.WriteLine($"[Test M] Phase 2: {(phase2pass ? "PASS" : "FAIL")}");
+            if (!phase2pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test M] Phase 2 FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Phase 3: Assembly Compilation + Execution with Mock ──
+        Console.WriteLine("\n[Test M] Phase 3: Assembly Compilation + Mock Execution");
+        try
+        {
+            var blueprint = forwardConverter.Convert(sourceCode, new List<HelperFunction>());
+            var expandedScript = reverseConverter.Convert(blueprint);
+
+            var parseResult = parser.Parse(expandedScript);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"[Test M] Phase 3 FAILED: Parse error: {parseResult.ErrorMessage}");
+                allPassed = false;
+            }
+            else
+            {
+                parseResult.Script.HelperFunctions = GetExecutionHelpers();
+
+                // Compile to assembly
+                var compiler = new ScriptAssemblyCompiler();
+                var compiled = compiler.CompileScript(parseResult.Script);
+                Console.WriteLine($"  Assembly compilation: {(compiled != null ? "SUCCESS" : "FAILED (null)")}");
+
+                if (compiled == null)
+                {
+                    allPassed = false;
+                }
+                else
+                {
+                    // Create mock plugin manager
+                    var mockManager = new MockCrossDevicePluginManager();
+
+                    // Execute via assembly - pass mockManager to globals constructor
+                    var output = new List<string>();
+                    var globals = new BlockScriptExecutionGlobals(
+                        new BlockScopeManager(), output, mockManager);
+                    globals.ResetRunState();
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    compiled.Run(globals, cts.Token);
+
+                    Console.WriteLine($"  Assembly execution completed");
+                    Console.WriteLine($"  Output ({output.Count} lines): [{string.Join(", ", output)}]");
+                    Console.WriteLine($"  Recorded calls: {mockManager.RecordedCalls.Count}");
+
+                    foreach (var call in mockManager.RecordedCalls)
+                    {
+                        Console.WriteLine($"    {call.PluginName}.{call.MethodName}@{call.TargetDevice}");
+                        Console.WriteLine($"      Parameters: [{string.Join(", ", call.Parameters.Select(p => p?.ToString() ?? "null"))}]");
+                    }
+
+                    bool phase3pass =
+                        mockManager.RecordedCalls.Count > 0 &&
+                        mockManager.RecordedCalls.Any(c =>
+                            c.TargetDevice == "DeviceB" &&
+                            c.PluginName == "WeatherPlugin" &&
+                            c.MethodName == "GetTemperature" &&
+                            c.Parameters.Length == 1 &&
+                            (int)c.Parameters[0]! == 42);
+
+                    Console.WriteLine($"[Test M] Phase 3: {(phase3pass ? "PASS" : "FAIL")}");
+                    if (!phase3pass) allPassed = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test M] Phase 3 FAILED: {ex.Message}");
+            Console.WriteLine($"  {ex.StackTrace}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[Test M] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
+    }
+
+    // ──────────────────────────────────────────────
+    // Cross-Device BlockScript Source
+    // ──────────────────────────────────────────────
+    private static string GetCrossDeviceScript() => @"#ConstBlock
+int cityId = 42;
+
+#PubVarBlock
+int tempResult;
+string textResult;
+
+#MainBlock
+Print(""Starting cross-device call"");
+tempResult = PluginCallWithTarget(""WeatherPlugin"", ""GetTemperature"", ""DeviceB"", cityId);
+Print(tempResult);
+Print(""Cross-device call done"");";
+
+    // ──────────────────────────────────────────────
+    // MockCrossDevicePluginManager for Test M
+    // ──────────────────────────────────────────────
+    internal class MockCrossDevicePluginManager : IPluginManager
+    {
+        public List<PluginCallInfo> RecordedCalls { get; } = new();
+
+        public T Call<T>(PluginCallInfo callInfo)
+        {
+            RecordedCalls.Add(callInfo);
+            Console.WriteLine($"[Mock] PluginCall: {callInfo.PluginName}.{callInfo.MethodName}@{callInfo.TargetDevice}");
+            // Return typed mock results
+            if (typeof(T) == typeof(int)) return (T)(object)42;
+            if (typeof(T) == typeof(string)) return (T)(object)$"MockResult_{callInfo.MethodName}";
+            if (typeof(T) == typeof(double)) return (T)(object)25.5;
+            return default!;
+        }
+
+        public void Call(PluginCallInfo callInfo) => RecordedCalls.Add(callInfo);
+        public bool IsPluginExists(string name) => true;
+        public bool IsMethodExists(string plugin, string method) => true;
+    }
 }

@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using KitX.Core.Contract.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace KitX.Core.Configuration;
@@ -15,9 +16,21 @@ public class ConfigManager : IConfigService, IDisposable
     private static ConfigManager? _instance;
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Gets the singleton instance.
+    /// Uses static instance to maintain singleton behavior.
     /// </summary>
-    public static ConfigManager Instance => _instance ??= new();
+    public static ConfigManager Instance => _instance ??= new ConfigManager();
+
+    /// <summary>
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
+    /// ConfigManager uses its own _instance field for pre-DI initialization.
+    /// </summary>
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp)
+    {
+        // ConfigManager uses _instance field for singleton, not _serviceProvider.
+        // ServiceHost is now the single source of truth for DI resolution.
+    }
 
     private string? _configLocation;
 
@@ -79,10 +92,11 @@ public class ConfigManager : IConfigService, IDisposable
     public SecurityConfig TypedSecurityConfig => (SecurityConfig)SecurityConfig;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new configuration manager
     /// </summary>
-    private ConfigManager()
+    public ConfigManager()
     {
+        Log.Debug($"[ConfigManager] Constructor called, Instance hash: {GetHashCode()}");
         _loader = new ConfigLoader();
         _saver = new ConfigSaver();
     }
@@ -94,6 +108,7 @@ public class ConfigManager : IConfigService, IDisposable
     /// <returns>The config manager instance</returns>
     public ConfigManager SetLocation(string location)
     {
+        Log.Debug($"[ConfigManager] SetLocation called on instance {GetHashCode()} with location: {location}");
         _configLocation = Path.GetFullPath(location);
 
         if (!Directory.Exists(_configLocation))
@@ -101,6 +116,7 @@ public class ConfigManager : IConfigService, IDisposable
             Directory.CreateDirectory(_configLocation);
         }
 
+        Log.Debug($"[ConfigManager] _configLocation set to: {_configLocation} on instance {GetHashCode()}");
         return this;
     }
 
@@ -109,8 +125,11 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void Load()
     {
+        Log.Debug($"[ConfigManager] Load() called on instance {GetHashCode()}, _configLocation currently: {_configLocation}");
+
         if (string.IsNullOrEmpty(_configLocation))
         {
+            Log.Debug($"[ConfigManager] _configLocation is null/empty, setting default location");
             SetLocation("./Config/");
         }
 
@@ -128,6 +147,8 @@ public class ConfigManager : IConfigService, IDisposable
             RegisterFileWatcher<PluginsConfig>("PluginsConfig.json");
             RegisterFileWatcher<SecurityConfig>("SecurityConfig.json");
         }
+
+        Log.Debug($"[ConfigManager] Load() completed on instance {GetHashCode()}");
     }
 
     /// <summary>
@@ -233,6 +254,16 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void SaveAll()
     {
+        Log.Debug($"[ConfigManager] SaveAll() called on instance {GetHashCode()}, _configLocation: {_configLocation}");
+
+        if (string.IsNullOrEmpty(_configLocation))
+        {
+            Log.Error($"[ConfigManager] SaveAll() called with null _configLocation on instance {GetHashCode()}!");
+            // Fallback: set location before saving
+            SetLocation("./Config/");
+            Log.Debug($"[ConfigManager] Emergency SetLocation called, _configLocation now: {_configLocation}");
+        }
+
         var watcherName = "ConfigFileWatcher_AppConfig";
         IncreaseExceptCount(watcherName, 2);
         _saver.Save(AppConfig, _configLocation!, "AppConfig.json");

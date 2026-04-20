@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Device;
+using KitX.Core.DI;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
 
@@ -16,12 +17,19 @@ namespace KitX.Core.Workflow;
 public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutionService,
     IWorkflowPluginService, IBlockScriptService
 {
-    private static WorkflowScriptService? _instance;
+    /// <summary>
+    /// Gets the singleton facade instance.
+    /// WorkflowScriptService is a facade that delegates to its static service graph,
+    /// so it's not resolved from DI (IBlockScriptService is registered as BlockScriptServiceImpl).
+    /// Use ServiceHost.GetRequiredService&lt;IWorkflowManagementService&gt;() etc. for individual interfaces.
+    /// </summary>
+    public static WorkflowScriptService Instance { get; } = new();
 
     /// <summary>
-    /// Gets the singleton instance.
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static WorkflowScriptService Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     /// <summary>
     /// Shared runtime state across all workflow services.
@@ -31,40 +39,60 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
     /// <summary>
     /// Service graph — built once at singleton instantiation.
     /// </summary>
-    private static readonly IBlockScriptService BlockScriptService;
+    private static IBlockScriptService? _blockScriptService;
+    private static IWorkflowManagementService? _managementService;
     private static readonly IWorkflowPluginService PluginService;
     private static readonly IScriptExecutionService ScriptExecutionService;
-    private static readonly IWorkflowManagementService ManagementService;
 
     /// <summary>
     /// Static constructor initializes the service graph in dependency order.
+    /// Note: BlockScriptService is NOT initialized here to avoid accessing it before
+    /// PreResolvedRealPluginManager is set. BlockScriptService is fully lazy-initialized
+    /// via its property getter.
     /// </summary>
     static WorkflowScriptService()
     {
-        // 1. BlockScriptService (no cross-service dependencies)
-        BlockScriptService = new BlockScriptServiceImpl(SharedState);
-
-        // 2. PluginService (depends only on SharedState)
+        // 1. PluginService (depends only on SharedState)
         PluginService = new WorkflowPluginService(SharedState);
 
-        // 3. ScriptExecutionService (depends on PluginService)
+        // 2. ScriptExecutionService (depends on PluginService)
         ScriptExecutionService = new ScriptExecutionService(SharedState, PluginService);
 
-        // 4. ManagementService (depends on BlockScriptService)
-        ManagementService = new WorkflowManagementService(SharedState, BlockScriptService);
+        // 3. ManagementService - will be initialized lazily when first accessed
+        // BlockScriptService is also lazy-initialized, so ManagementService should not
+        // be created here to avoid using a partially initialized BlockScriptService
+    }
 
-        // Pre-initialize RealPluginManager at startup
-        try
+    /// <summary>
+    /// Gets the BlockScriptService, creating it lazily once RealPluginManager is available.
+    /// This ensures the BlockScriptService always has a valid RealPluginManager.
+    /// </summary>
+    private static IBlockScriptService BlockScriptService
+    {
+        get
         {
-            var pluginsServer = PluginsServer.Instance;
-            var realPluginManager = new RealPluginManager(pluginsServer);
-            Kscript.CSharp.Parser.Parser.SetPluginManager(realPluginManager);
-            SharedState.IsParserInitialized = true;
-            Log.Information("[WorkflowScriptService] Real plugin manager pre-initialized at startup");
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[WorkflowScriptService] Failed to pre-initialize RealPluginManager, will retry on first script execution");
+            if (_blockScriptService == null)
+            {
+                RealPluginManager? rpm = null;
+                try
+                {
+                    rpm = ServiceHost.GetRequiredService<RealPluginManager>();
+                    if (rpm != null)
+                    {
+                        Kscript.CSharp.Parser.Parser.SetPluginManager(rpm);
+                        SharedState.IsParserInitialized = true;
+                        Log.Information("[WorkflowScriptService] Real plugin manager obtained. HashCode: {HashCode}", rpm.GetHashCode());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[WorkflowScriptService] Failed to get RealPluginManager");
+                }
+
+                _blockScriptService = new BlockScriptServiceImpl(SharedState, rpm);
+                Log.Information("[WorkflowScriptService] BlockScriptService created with RealPluginManager. HashCode: {HashCode}", rpm?.GetHashCode());
+            }
+            return _blockScriptService;
         }
     }
 
@@ -87,6 +115,12 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
     /// Exposes IScriptExecutionService for DI registration.
     /// </summary>
     internal static IScriptExecutionService ScriptExecutionServiceInstance => ScriptExecutionService;
+
+    /// <summary>
+    /// Gets the ManagementService, creating it lazily once BlockScriptService is available.
+    /// </summary>
+    private static IWorkflowManagementService ManagementService =>
+        _managementService ??= new WorkflowManagementService(SharedState, BlockScriptService);
 
     /// <summary>
     /// Exposes IWorkflowManagementService for DI registration.

@@ -9,6 +9,8 @@ using KitX.Core.Contract.Activity;
 using KitX.Core.Event;
 using LiteDB;
 using KitX.Core.Tasks;
+using KitX.Core.DI;
+using Serilog;
 
 namespace KitX.Core.Activity;
 
@@ -18,13 +20,29 @@ namespace KitX.Core.Activity;
 /// </summary>
 public class ActivityManager : IActivityService
 {
-    private static ActivityManager? _instance;
-    private static readonly object _activityRecordLock = new();
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static ActivityManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (ActivityManager)ServiceHost.GetRequiredService<IActivityService>();
+            Log.Error("[ActivityManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new ActivityManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static ActivityManager Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
+
+    private static readonly object _activityRecordLock = new();
 
     private static LiteDatabase? _activitiesDatabase;
 
@@ -50,9 +68,9 @@ public class ActivityManager : IActivityService
     public event EventHandler? ActivitiesUpdated;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new activity manager
     /// </summary>
-    private ActivityManager() { }
+    public ActivityManager() { }
 
     /// <summary>
     /// Reads activities from the database (static method for backward compatibility)

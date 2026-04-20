@@ -1,4 +1,4 @@
-using KitX.Core.Configuration;
+﻿using KitX.Core.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,6 +10,7 @@ using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using Serilog;
 using Timer = System.Timers.Timer;
+using KitX.Core.DI;
 
 namespace KitX.Core.Device;
 
@@ -19,12 +20,33 @@ namespace KitX.Core.Device;
 /// </summary>
 public class DevicesOrganizer : IDevicesOrganizer
 {
-    private static DevicesOrganizer? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static DevicesOrganizer Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return ServiceHost.GetRequiredService<DevicesOrganizer>();
+            Log.Error("[DevicesOrganizer] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new DevicesOrganizer();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static DevicesOrganizer Instance => _instance ??= new();
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
+
+    /// <summary>
+    /// Runs the devices organizer (ensures initialization via singleton access)
+    /// </summary>
+    /// <returns>The singleton instance</returns>
+    public static DevicesOrganizer Run() => Instance;
 
     private readonly IConfigService _configService;
     private readonly IEventService _eventService;
@@ -44,19 +66,14 @@ public class DevicesOrganizer : IDevicesOrganizer
     /// </summary>
     public event EventHandler<DeviceOfflineEventArgs>? DeviceOffline;
 
-    private DevicesOrganizer()
+    /// <summary>
+    /// Creates a new devices organizer
+    /// </summary>
+    public DevicesOrganizer()
     {
         _configService = ConfigManager.Instance;
         _eventService = EventService.Instance;
         Initialize();
-    }
-
-    /// <summary>
-    /// Runs the devices organizer
-    /// </summary>
-    public static void Run()
-    {
-        _instance = Instance;
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 
 namespace KitX.Core.Workflow.BlockScripting;
@@ -34,10 +35,10 @@ public interface IBuiltinFunctionDefinition
     // ─── 语句类型映射 ─────────────────────────────────
 
     /// <summary>
-    /// 对应的 FormattedStatementKind。用于 ScriptFormatter 确定语句类型，
+    /// 对应的 CFGStatementKind。用于 ScriptFormatter 确定语句类型，
     /// 以及 NodeBuilder 选择节点创建策略。
     /// </summary>
-    FormattedStatementKind StatementKind { get; }
+    CFGStatementKind StatementKind { get; }
 
     // ─── 语句字段提取（可选，默认无操作）──────────────
 

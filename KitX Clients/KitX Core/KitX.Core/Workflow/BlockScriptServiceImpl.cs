@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +7,7 @@ using KitX.Core.Device;
 using KitX.Core.Workflow.BlockScripting;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Workflow;
 
@@ -17,14 +18,40 @@ namespace KitX.Core.Workflow;
 internal class BlockScriptServiceImpl : IBlockScriptService
 {
     private readonly WorkflowRuntimeState _state;
+    private RealPluginManager? _realPluginManager;
 
     /// <summary>
     /// Initializes a new instance of BlockScriptServiceImpl.
     /// </summary>
     /// <param name="state">Shared runtime state.</param>
-    internal BlockScriptServiceImpl(WorkflowRuntimeState state)
+    /// <param name="realPluginManager">RealPluginManager instance from DI container (optional).</param>
+    internal BlockScriptServiceImpl(WorkflowRuntimeState state, RealPluginManager? realPluginManager = null)
     {
         _state = state;
+        _realPluginManager = realPluginManager;
+        TrySetPluginManager();
+    }
+
+    /// <summary>
+    /// Sets the RealPluginManager after initialization.
+    /// This is needed when RealPluginManager is resolved after BlockScriptServiceImpl is created.
+    /// </summary>
+    internal void SetRealPluginManager(RealPluginManager? realPluginManager)
+    {
+        _realPluginManager = realPluginManager;
+        TrySetPluginManager();
+    }
+
+    /// <summary>
+    /// Try to set the plugin manager on the BlockScriptExecutor if conditions are met.
+    /// </summary>
+    private void TrySetPluginManager()
+    {
+        if (_state.BlockScriptExecutor != null && _state.IsParserInitialized && _realPluginManager != null)
+        {
+            Log.Information("[BlockScriptServiceImpl] Setting RealPluginManager. HashCode: {HashCode}", _realPluginManager.GetHashCode());
+            _state.BlockScriptExecutor.SetPluginManager(_realPluginManager);
+        }
     }
 
     /// <summary>
@@ -44,12 +71,10 @@ internal class BlockScriptServiceImpl : IBlockScriptService
         {
             if (_state.BlockScriptExecutor == null)
             {
+                Log.Information("[BlockScriptServiceImpl] Creating new BlockScriptExecutor, IsParserInitialized = {_IsParserInitialized}",
+                    _state.IsParserInitialized);
                 _state.BlockScriptExecutor = new BlockScriptExecutor();
-                if (_state.IsParserInitialized)
-                {
-                    var realPluginManager = new RealPluginManager(PluginsServer.Instance);
-                    _state.BlockScriptExecutor.SetPluginManager(realPluginManager);
-                }
+                TrySetPluginManager();
             }
             return _state.BlockScriptExecutor;
         }

@@ -4,6 +4,7 @@ using System.IO;
 using KitX.Core.Contract.Statistics;
 using Serilog;
 using STimer = System.Timers.Timer;
+using KitX.Core.DI;
 
 namespace KitX.Core.Statistics;
 
@@ -12,28 +13,43 @@ namespace KitX.Core.Statistics;
 /// </summary>
 public class StatisticsManager : IStatisticsService
 {
-    private static StatisticsManager? _instance;
+    /// <summary>
+    /// Gets the singleton instance (resolves from ServiceHost when available).
+    /// Internal code should use constructor injection instead.
+    /// </summary>
+    public static StatisticsManager Instance
+    {
+        get
+        {
+            if (ServiceHost.IsInitialized)
+                return (StatisticsManager)ServiceHost.GetRequiredService<IStatisticsService>();
+            Log.Error("[StatisticsManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
+                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
+            return new StatisticsManager();
+        }
+    }
 
     /// <summary>
-    /// Gets the singleton instance
+    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
     /// </summary>
-    internal static StatisticsManager Instance => _instance ??= new();
-
-    /// <summary>
-    /// Gets use statistics (static property for backward compatibility)
-    /// </summary>
-    public static Dictionary<string, double>? UseStatistics => Instance._useStatistics;
+    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
+    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
 
     private Dictionary<string, double>? _useStatistics = [];
+
+    /// <summary>
+    /// Gets the raw usage statistics dictionary (for backward compatibility)
+    /// </summary>
+    public static Dictionary<string, double>? UseStatistics => Instance._useStatistics;
 
     private STimer? _timer;
 
     private bool _isRunning;
 
     /// <summary>
-    /// Private constructor
+    /// Creates a new statistics manager
     /// </summary>
-    private StatisticsManager() { }
+    public StatisticsManager() { }
 
     /// <summary>
     /// Starts statistics collection

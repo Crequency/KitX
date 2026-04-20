@@ -811,9 +811,12 @@ internal class CFGBuilderFromBlueprint
                     var pluginNameLit = $"\"{call.PluginName}\"";
                     var methodNameLit = $"\"{call.FunctionName}\"";
                     var targetDeviceLit = $"\"{call.TargetDevice}\"";
-                    sourceCode = string.IsNullOrEmpty(callArgs)
-                        ? $"PluginCallWithTarget({pluginNameLit}, {methodNameLit}, {targetDeviceLit})"
-                        : $"PluginCallWithTarget({pluginNameLit}, {methodNameLit}, {targetDeviceLit}, {callArgs})";
+                    // Include ExtraArguments (stored by ConfigureNode from PluginCallWithTarget's extra params)
+                    var extraArgs = call.ExtraArguments.Count > 0
+                        ? ", " + string.Join(", ", call.ExtraArguments.Select(
+                            arg => NodeExportHelper.FormatLiteralValue(arg, _currentCtx)))
+                        : "";
+                    sourceCode = $"PluginCallWithTarget({pluginNameLit}, {methodNameLit}, {targetDeviceLit}{extraArgs})";
                 }
                 else
                 {

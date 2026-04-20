@@ -30,7 +30,7 @@ using Serilog;
 namespace KitX.Core.DI;
 
 /// <summary>
-/// Extension methods for configuring KitX Core services in the DI container
+/// Extension methods for configuring KitX Core services in the dependency injection container
 /// </summary>
 public static class CoreServiceCollectionExtensions
 {
@@ -48,89 +48,99 @@ public static class CoreServiceCollectionExtensions
 
         // Configuration Services
         Log.Information("Registering IConfigService...");
-        services.AddSingleton<IConfigService>(ConfigManager.Instance);
+        services.AddSingleton<IConfigService>(sp => ConfigManager.Instance);
 
         // Security Services
         Log.Information("Registering IDeviceKeyService and IEncryptionService...");
-        services.AddSingleton<IDeviceKeyService>(SecurityManager.Instance);
-        services.AddSingleton<IEncryptionService>(SecurityManager.Instance);
+        services.AddSingleton<IDeviceKeyService, SecurityManager>();
+        services.AddSingleton<IEncryptionService, SecurityManager>();
 
         // Plugin Services
         Log.Information("Registering IPluginService...");
-        services.AddSingleton<IPluginService>(PluginsManager.Instance);
+        services.AddSingleton<IPluginService, PluginsManager>();
 
         // Workflow Services
         Log.Information("Registering workflow services...");
         // Individual service implementations (WorkflowScriptService facade used for backward compatibility)
-        services.AddSingleton<IBlockScriptService>(sp => WorkflowScriptService.BlockScriptServiceInstance);
+        // IBlockScriptService is created via factory to inject RealPluginManager from DI
+        services.AddSingleton<IBlockScriptService>(provider =>
+        {
+            var state = WorkflowScriptService.RuntimeState;
+            var rpm = provider.GetRequiredService<RealPluginManager>();
+            var service = new BlockScriptServiceImpl(state, rpm);
+            Log.Information("[DI] IBlockScriptService created with RealPluginManager. HashCode: {HashCode}", rpm.GetHashCode());
+            return service;
+        });
         services.AddSingleton<IWorkflowPluginService>(sp => WorkflowScriptService.PluginServiceInstance);
         services.AddSingleton<IScriptExecutionService>(sp => WorkflowScriptService.ScriptExecutionServiceInstance);
         services.AddSingleton<IWorkflowManagementService>(sp => WorkflowScriptService.ManagementServiceInstance);
 
         // Activity Services
         Log.Information("Registering IActivityService...");
-        services.AddSingleton<IActivityService>(ActivityManager.Instance);
+        services.AddSingleton<IActivityService, ActivityManager>();
 
         // Statistics Services
         Log.Information("Registering IStatisticsService...");
-        services.AddSingleton<IStatisticsService>(StatisticsManager.Instance);
+        services.AddSingleton<IStatisticsService, StatisticsManager>();
 
         // Task Services
         Log.Information("Registering ITasksService...");
-        services.AddSingleton<ITasksService>(TasksManager.Instance);
+        services.AddSingleton<ITasksService, TasksManager>();
 
         // File Watcher Services
         Log.Information("Registering IFileWatcherService...");
-        services.AddSingleton<IFileWatcherService>(FileWatcherManager.Instance);
+        services.AddSingleton<IFileWatcherService, FileWatcherManager>();
 
         // Hotkey Services
         Log.Information("Registering IKeyHookService...");
-        services.AddSingleton<IKeyHookService>(KeyHookManager.Instance);
+        services.AddSingleton<IKeyHookService, KeyHookManager>();
 
         // Event Services
         Log.Information("Registering IEventService...");
-        services.AddSingleton<IEventService>(EventService.Instance);
+        services.AddSingleton<IEventService, EventService>();
 
         // Phase 5: Device and Network Services
         Log.Information("Registering IDeviceDiscoveryService...");
-        services.AddSingleton<IDeviceDiscoveryService>(DevicesDiscoveryServer.Instance);
+        services.AddSingleton<IDeviceDiscoveryService, DevicesDiscoveryServer>();
 
         Log.Information("Registering IDeviceServer...");
-        services.AddSingleton<IDeviceServer>(DevicesServer.Instance);
+        services.AddSingleton<IDeviceServer, DevicesServer>();
+
+        Log.Information("Registering IDevicesOrganizer...");
+        services.AddSingleton<DevicesOrganizer>();
 
         Log.Information("Registering IPluginServer...");
-        services.AddSingleton<IPluginServer>(PluginsServer.Instance);
+        services.AddSingleton<IPluginServer, PluginsServer>();
 
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");
         services.AddSingleton<IDeviceHttpClient, DeviceHttpClient>();
 
+        // RealPluginManager must be registered as singleton so that PluginsServer and WorkflowScriptService
+        // use the same instance. This ensures plugin connection events are properly received.
+        Log.Information("Registering RealPluginManager...");
+        services.AddSingleton<RealPluginManager>(provider =>
+        {
+            var pluginsServer = provider.GetRequiredService<IPluginServer>() as PluginsServer;
+            if (pluginsServer == null)
+                throw new InvalidOperationException("IPluginServer must be registered as PluginsServer");
+            return new RealPluginManager(pluginsServer, provider.GetRequiredService<IDeviceHttpClient>());
+        });
+
+        // Pre-resolve RealPluginManager to ensure it's initialized before PluginsServer.Run() is called.
+        // This is done in InitializeCoreServices() after the ServiceProvider is built.
+
         // Phase 5: Announcement Service
         Log.Information("Registering IAnnouncementService...");
-        services.AddSingleton<IAnnouncementService>(provider =>
-        {
-            var configService = provider.GetService<IConfigService>();
-            var service = configService != null
-                ? new AnnouncementManager(configService)
-                : AnnouncementManager.Instance;
-            return service;
-        });
+        services.AddSingleton<IAnnouncementService, AnnouncementManager>();
 
         // KCS File Services
         Log.Information("Registering IKcsFileService...");
-        services.AddSingleton<IKcsFileService, KcsFileService>(provider =>
-        {
-            var service = new KcsFileService();
-            return service;
-        });
+        services.AddSingleton<IKcsFileService, KcsFileService>();
 
         // Main Program Analyzer
         Log.Information("Registering IMainProgramAnalyzer...");
-        services.AddSingleton<IMainProgramAnalyzer, MainProgramAnalyzer>(provider =>
-        {
-            var service = new MainProgramAnalyzer();
-            return service;
-        });
+        services.AddSingleton<IMainProgramAnalyzer, MainProgramAnalyzer>();
 
         // Block Script Services
         Log.Information("Registering IBlockScriptParser...");
@@ -145,26 +155,22 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<IBlockScriptExecutor, KitX.Core.Workflow.BlockScripting.BlockScriptExecutor>(provider =>
         {
             var service = new KitX.Core.Workflow.BlockScripting.BlockScriptExecutor();
-            // Wire up plugin manager if PluginsServer is available
+            // Resolve RealPluginManager from DI to ensure same instance
             try
             {
-                var pluginManager = new KitX.Core.Workflow.RealPluginManager(
-                    KitX.Core.Device.PluginsServer.Instance);
+                var pluginManager = provider.GetRequiredService<RealPluginManager>();
                 service.SetPluginManager(pluginManager);
+                Log.Information("[DI] IBlockScriptExecutor: RealPluginManager HashCode = {HashCode}", pluginManager.GetHashCode());
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Could not initialize BlockScriptExecutor with plugin manager");
+                Log.Error(ex, "[DI] Could not initialize BlockScriptExecutor with RealPluginManager from DI container");
             }
             return service;
         });
 
         Log.Information("Registering IBlockScopeManager...");
-        services.AddSingleton<IBlockScopeManager, KitX.Core.Workflow.BlockScripting.BlockScopeManager>(provider =>
-        {
-            var service = new KitX.Core.Workflow.BlockScripting.BlockScopeManager();
-            return service;
-        });
+        services.AddSingleton<IBlockScopeManager, KitX.Core.Workflow.BlockScripting.BlockScopeManager>();
 
         // Blueprint Sub-services (must be registered before IBlueprintService)
         Log.Information("Registering Blueprint sub-services...");
@@ -209,13 +215,65 @@ public static class CoreServiceCollectionExtensions
 
         // Workflow Storage Service
         Log.Information("Registering IWorkflowStorageService...");
-        services.AddSingleton<IWorkflowStorageService>(WorkflowStorageService.Instance);
+        services.AddSingleton<IWorkflowStorageService, WorkflowStorageService>();
 
         // Trigger Manager
         Log.Information("Registering TriggerManager...");
-        services.AddSingleton<TriggerManager>(TriggerManager.Instance);
+        services.AddSingleton<TriggerManager>();
+
+        // IMPORTANT: Do NOT call BuildServiceProvider() here.
+        // The caller (App.InitializeServiceProvider) is responsible for building the single
+        // IServiceProvider and passing it to ServiceHost.Initialize() and InitializeCoreServices().
 
         Log.Information("AddCoreServices completed.");
         return services;
+    }
+
+    /// <summary>
+    /// Initializes core services after the ServiceProvider has been built.
+    /// All .Instance properties now resolve from ServiceHost directly — this method
+    /// only pre-resolves singletons and initializes TriggerManager subscriptions.
+    /// Must be called exactly once after BuildServiceProvider().
+    /// </summary>
+    /// <param name="provider">The single IServiceProvider instance</param>
+    [Obsolete("All .Instance properties now resolve from ServiceHost directly. Only pre-resolves RealPluginManager and initializes TriggerManager.")]
+    public static void InitializeCoreServices(IServiceProvider provider)
+    {
+        Log.Information("InitializeCoreServices called (ServiceHost is the single source of truth).");
+
+        // All SetServiceProvider() calls are now no-ops.
+        // Keeping them for backward compatibility but they do nothing.
+#pragma warning disable CS0618 // Suppress Obsolete warnings for SetServiceProvider calls
+        ConfigManager.SetServiceProvider(provider);
+        SecurityManager.SetServiceProvider(provider);
+        EventService.SetServiceProvider(provider);
+        PluginsManager.SetServiceProvider(provider);
+        ActivityManager.SetServiceProvider(provider);
+        StatisticsManager.SetServiceProvider(provider);
+        TasksManager.SetServiceProvider(provider);
+        FileWatcherManager.SetServiceProvider(provider);
+        KeyHookManager.SetServiceProvider(provider);
+        DevicesServer.SetServiceProvider(provider);
+        DevicesDiscoveryServer.SetServiceProvider(provider);
+        PluginsServer.SetServiceProvider(provider);
+        AnnouncementManager.SetServiceProvider(provider);
+        DevicesOrganizer.SetServiceProvider(provider);
+        TriggerManager.SetServiceProvider(provider);
+        WorkflowStorageService.SetServiceProvider(provider);
+        WorkflowScriptService.SetServiceProvider(provider);
+#pragma warning restore CS0618
+
+        // Pre-resolve RealPluginManager to ensure it's initialized before PluginsServer.Run() is called.
+        Log.Information("Pre-resolving RealPluginManager to ensure single instance...");
+        var rpm = provider.GetRequiredService<RealPluginManager>();
+        Log.Information("RealPluginManager pre-resolved. HashCode: {HashCode}", rpm.GetHashCode());
+
+        // Initialize TriggerManager from persisted workflow configurations
+        // so that trigger subscriptions are registered before plugins connect.
+        Log.Information("Initializing TriggerManager from persisted workflows...");
+        var triggerManager = provider.GetRequiredService<TriggerManager>();
+        triggerManager.InitializeFromPersistedWorkflows();
+
+        Log.Information("InitializeCoreServices completed.");
     }
 }

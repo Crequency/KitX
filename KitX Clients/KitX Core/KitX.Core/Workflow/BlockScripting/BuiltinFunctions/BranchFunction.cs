@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
@@ -19,7 +20,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public bool IsNonExtractable => false;
         public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Branch;
         public bool IsBlockTerminator => true;
-        public FormattedStatementKind StatementKind => FormattedStatementKind.Branch;
+        public CFGStatementKind StatementKind => CFGStatementKind.Branch;
         public double NodeWidth => 120;
         public double NodeHeight => 80;
 
