@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using KitX.Core.Contract.Security;
 using KitX.Core.Configuration;
 using KitX.Core.Device;
@@ -316,11 +317,12 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Encrypts a string
+    /// Encrypts a string. Uses RSA-only for short content (< 90 chars, backward compatible),
+    /// and RSA+AES hybrid encryption for long content.
     /// </summary>
     /// <param name="content">The content to encrypt</param>
     /// <param name="targetDeviceMacAddress">The target device MAC address</param>
-    /// <returns>The encrypted string</returns>
+    /// <returns>The encrypted string (Base64). First byte is a flag: 0=RSA-only, 1=Hybrid.</returns>
     public async Task<string> EncryptStringAsync(string content, string targetDeviceMacAddress)
     {
         if (_rsaInstance == null)
@@ -328,17 +330,47 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             throw new InvalidOperationException("RSA instance not initialized");
         }
 
-        if (content.Length >= 90)
-        {
-            // TODO: Implement data splitting for longer content
-            Log.Warning("Data length is too long for RSA encryption");
-        }
-
         try
         {
-            var dataBytes = Encoding.UTF8.GetBytes(content);
-            var encrypted = _rsaInstance.Encrypt(dataBytes, RSAEncryptionPadding.OaepSHA256);
-            return Convert.ToBase64String(encrypted);
+            if (content.Length < 90)
+            {
+                // RSA-only encryption (backward compatible)
+                var dataBytes = Encoding.UTF8.GetBytes(content);
+                var encrypted = _rsaInstance.Encrypt(dataBytes, RSAEncryptionPadding.OaepSHA256);
+                var encryptedBytes = Convert.FromBase64String(Convert.ToBase64String(encrypted));
+                // Prepend flag byte 0 (RSA-only)
+                var result = new byte[1 + encryptedBytes.Length];
+                result[0] = 0;
+                Buffer.BlockCopy(encryptedBytes, 0, result, 1, encryptedBytes.Length);
+                return Convert.ToBase64String(result);
+            }
+            else
+            {
+                // Hybrid encryption: RSA + AES
+                // Find target device key by MAC address
+                var deviceKeys = GetDeviceKeys();
+                var targetKey = deviceKeys.FirstOrDefault(k => IsSameDevice(k.MacAddress, targetDeviceMacAddress))
+                    ?? throw new InvalidOperationException($"No device key found for target MAC: {targetDeviceMacAddress}");
+
+                var deviceKey = new DeviceKey
+                {
+                    Device = new DeviceLocator
+                    {
+                        MacAddress = targetDeviceMacAddress,
+                        DeviceName = targetKey.Device.DeviceName
+                    },
+                    RsaPublicKeyPem = targetKey.RsaPublicKeyPem,
+                };
+
+                var encryptedContent = RsaEncryptContent(deviceKey, content);
+                var json = System.Text.Json.JsonSerializer.Serialize(encryptedContent);
+                var jsonBytes = Encoding.UTF8.GetBytes(json);
+                // Prepend flag byte 1 (Hybrid)
+                var result = new byte[1 + jsonBytes.Length];
+                result[0] = 1;
+                Buffer.BlockCopy(jsonBytes, 0, result, 1, jsonBytes.Length);
+                return Convert.ToBase64String(result);
+            }
         }
         catch (Exception ex)
         {
@@ -348,9 +380,10 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Decrypts a string
+    /// Decrypts a string. Reads the first byte flag to determine encryption mode:
+    /// 0=RSA-only, 1=RSA+AES hybrid.
     /// </summary>
-    /// <param name="encryptedContent">The encrypted content</param>
+    /// <param name="encryptedContent">The encrypted content (Base64)</param>
     /// <param name="sourceDeviceMacAddress">The source device MAC address</param>
     /// <returns>The decrypted string</returns>
     public async Task<string> DecryptStringAsync(string encryptedContent, string sourceDeviceMacAddress)
@@ -360,17 +393,43 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             throw new InvalidOperationException("RSA instance not initialized");
         }
 
-        if (encryptedContent.Length >= 90)
-        {
-            // TODO: Implement data splitting for longer content
-            Log.Warning("Data length is too long for RSA decryption");
-        }
-
         try
         {
-            var encryptedDataBytes = Convert.FromBase64String(encryptedContent);
-            var decrypted = _rsaInstance.Decrypt(encryptedDataBytes, RSAEncryptionPadding.OaepSHA256);
-            return Encoding.UTF8.GetString(decrypted);
+            var encryptedBytes = Convert.FromBase64String(encryptedContent);
+
+            if (encryptedBytes.Length == 0)
+                throw new InvalidOperationException("Encrypted content is empty");
+
+            // Read the first byte as the encryption mode flag
+            var mode = encryptedBytes[0];
+
+            if (mode == 0)
+            {
+                // RSA-only decryption
+                var rsaEncryptedBytes = new byte[encryptedBytes.Length - 1];
+                Buffer.BlockCopy(encryptedBytes, 1, rsaEncryptedBytes, 0, rsaEncryptedBytes.Length);
+                var decrypted = _rsaInstance.Decrypt(rsaEncryptedBytes, RSAEncryptionPadding.OaepSHA256);
+                return Encoding.UTF8.GetString(decrypted);
+            }
+            else if (mode == 1)
+            {
+                // Hybrid decryption: RSA + AES
+                var jsonBytes = new byte[encryptedBytes.Length - 1];
+                Buffer.BlockCopy(encryptedBytes, 1, jsonBytes, 0, jsonBytes.Length);
+                var json = Encoding.UTF8.GetString(jsonBytes);
+                var encryptedContentObj = System.Text.Json.JsonSerializer.Deserialize<EncryptedContent>(json)
+                    ?? throw new InvalidOperationException("Failed to deserialize encrypted content");
+
+                // Use local device key (with private key) to decrypt
+                if (_localDeviceKey == null)
+                    throw new InvalidOperationException("Local device key not initialized");
+
+                return RsaDecryptContent(_localDeviceKey, encryptedContentObj);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unknown encryption mode flag: {mode}");
+            }
         }
         catch (Exception ex)
         {

@@ -91,6 +91,12 @@ public static class EventNames
     public const string OnAcceptingDeviceKey = "OnAcceptingDeviceKey";
 
     /// <summary>
+    /// Receive exchange device key request event.
+    /// Published when a key exchange request is received, requiring user confirmation.
+    /// </summary>
+    public const string OnReceiveExchangeDeviceKey = "OnReceiveExchangeDeviceKey";
+
+    /// <summary>
     /// Plugin connected event
     /// </summary>
     public const string PluginConnected = "PluginConnected";

@@ -71,6 +71,41 @@ public class DevicesServer : ServerBase, IDeviceServer
     private string? _exchangeDeviceKeyCode;
 
     /// <summary>
+    /// TaskCompletionSource for awaiting user confirmation on key exchange
+    /// </summary>
+    private TaskCompletionSource<bool>? _exchangeKeyTcs;
+
+    /// <summary>
+    /// Pending exchange key request, stored for later processing after user confirms
+    /// </summary>
+    private ExchangeKeyRequest? _pendingExchangeRequest;
+
+    /// <summary>
+    /// Number of key exchange attempts in the current rate-limit window
+    /// </summary>
+    private int _exchangeAttempts;
+
+    /// <summary>
+    /// Start time of the current rate-limit window
+    /// </summary>
+    private DateTime _exchangeAttemptWindowStart = DateTime.MinValue;
+
+    /// <summary>
+    /// Maximum number of key exchange attempts allowed per rate-limit window
+    /// </summary>
+    private const int MaxExchangeAttemptsPerWindow = 5;
+
+    /// <summary>
+    /// Duration of the rate-limit window
+    /// </summary>
+    private static readonly TimeSpan ExchangeRateLimitWindow = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Timeout for user confirmation of key exchange
+    /// </summary>
+    private static readonly TimeSpan ExchangeKeyConfirmationTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
     /// JSON serializer options for network protocol (compatible with legacy KitX)
     /// </summary>
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -390,11 +425,28 @@ public class DevicesServer : ServerBase, IDeviceServer
     /// <summary>
     /// Handles ExchangeKey request (旧架构 API)
     /// POST /Api/V1/Device/ExchangeKey?verifyCodeSHA1=xxx&address=xxx
+    /// Requires user confirmation before accepting the key exchange.
     /// </summary>
     private async System.Threading.Tasks.Task HandleExchangeKeyAsync(HttpContext context)
     {
         try
         {
+            // Rate limiting check
+            var now = DateTime.UtcNow;
+            if (now - _exchangeAttemptWindowStart > ExchangeRateLimitWindow)
+            {
+                _exchangeAttempts = 0;
+                _exchangeAttemptWindowStart = now;
+            }
+            if (++_exchangeAttempts > MaxExchangeAttemptsPerWindow)
+            {
+                Log.Warning("[DevicesServer] Key exchange rate limit exceeded: {Attempts} attempts in window",
+                    _exchangeAttempts);
+                context.Response.StatusCode = 429;
+                await context.Response.WriteAsync("Too many key exchange requests. Please try again later.");
+                return;
+            }
+
             if (_isExchangingDeviceKey)
             {
                 context.Response.StatusCode = 400;
@@ -422,24 +474,67 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            // Generate verification code
-            _exchangeDeviceKeyCode = Guid.NewGuid().ToString("N")[..8];
-            _isExchangingDeviceKey = true;
-
-            // Publish event for UI to handle
-            EventService.Instance.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
-
-            // For now, auto-accept the key exchange (in real implementation, this would show a UI)
-            // TODO: Integrate with UI for verification code input
             if (request.DeviceKey is null)
             {
-                _isExchangingDeviceKey = false;
-                _exchangeDeviceKeyCode = null;
                 context.Response.StatusCode = 400;
                 await context.Response.WriteAsync("Device key is null");
                 return;
             }
 
+            // Generate verification code
+            _exchangeDeviceKeyCode = Guid.NewGuid().ToString("N")[..8];
+            _isExchangingDeviceKey = true;
+            _pendingExchangeRequest = request;
+
+            // Create TaskCompletionSource for user confirmation
+            _exchangeKeyTcs = new TaskCompletionSource<bool>();
+
+            // Publish event for UI to handle — requires user confirmation
+            EventService.Instance.Publish(EventNames.OnReceiveExchangeDeviceKey,
+                new ExchangeDeviceKeyEventArgs
+                {
+                    VerificationCode = _exchangeDeviceKeyCode,
+                    RequestingDeviceAddress = request.Address ?? string.Empty,
+                    EncryptedDeviceKey = request.DeviceKey
+                });
+
+            Log.Information("[DevicesServer] Key exchange request received, waiting for user confirmation. " +
+                "Verification code: {Code}", _exchangeDeviceKeyCode);
+
+            // Wait for user confirmation with timeout
+            using var cts = new CancellationTokenSource(ExchangeKeyConfirmationTimeout);
+            try
+            {
+                var accepted = await _exchangeKeyTcs.Task.WaitAsync(cts.Token);
+
+                if (!accepted)
+                {
+                    Log.Information("[DevicesServer] Key exchange rejected by user");
+                    _isExchangingDeviceKey = false;
+                    _exchangeDeviceKeyCode = null;
+                    _pendingExchangeRequest = null;
+                    context.Response.StatusCode = 403;
+                    await context.Response.WriteAsync("Key exchange rejected by user");
+                    return;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Log.Warning("[DevicesServer] Key exchange confirmation timed out after {Timeout}s",
+                    ExchangeKeyConfirmationTimeout.TotalSeconds);
+                _isExchangingDeviceKey = false;
+                _exchangeDeviceKeyCode = null;
+                _pendingExchangeRequest = null;
+                context.Response.StatusCode = 408;
+                await context.Response.WriteAsync("Key exchange confirmation timed out");
+                return;
+            }
+            finally
+            {
+                _exchangeKeyTcs = null;
+            }
+
+            // User confirmed — proceed with key exchange
             var deviceKeyDecrypted = securityService.AesDecrypt(request.DeviceKey, _exchangeDeviceKeyCode);
             var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
 
@@ -447,6 +542,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 _isExchangingDeviceKey = false;
                 _exchangeDeviceKeyCode = null;
+                _pendingExchangeRequest = null;
                 context.Response.StatusCode = 400;
                 await context.Response.WriteAsync("Failed to decrypt device key");
                 return;
@@ -465,6 +561,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 _isExchangingDeviceKey = false;
                 _exchangeDeviceKeyCode = null;
+                _pendingExchangeRequest = null;
                 context.Response.StatusCode = 500;
                 await context.Response.WriteAsync("Failed to get local key");
                 return;
@@ -475,6 +572,7 @@ public class DevicesServer : ServerBase, IDeviceServer
 
             _isExchangingDeviceKey = false;
             _exchangeDeviceKeyCode = null;
+            _pendingExchangeRequest = null;
 
             // Publish accept event
             EventService.Instance.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
@@ -487,6 +585,9 @@ public class DevicesServer : ServerBase, IDeviceServer
             Log.Error(ex, "Error in HandleExchangeKeyAsync");
             _isExchangingDeviceKey = false;
             _exchangeDeviceKeyCode = null;
+            _pendingExchangeRequest = null;
+            _exchangeKeyTcs?.TrySetCanceled();
+            _exchangeKeyTcs = null;
             context.Response.StatusCode = 500;
             await context.Response.WriteAsync($"Error: {ex.Message}");
         }
@@ -559,11 +660,51 @@ public class DevicesServer : ServerBase, IDeviceServer
 
         EventService.Instance.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
 
+        // Cancel any pending user confirmation
+        _exchangeKeyTcs?.TrySetCanceled();
+        _exchangeKeyTcs = null;
+
         _isExchangingDeviceKey = false;
         _exchangeDeviceKeyCode = null;
+        _pendingExchangeRequest = null;
 
         context.Response.StatusCode = 200;
         await context.Response.WriteAsync("OK");
+    }
+
+    /// <summary>
+    /// Accepts a pending key exchange request. Called by UI layer after user confirms.
+    /// The verification code must match the one displayed to the user.
+    /// </summary>
+    /// <param name="verificationCode">The verification code displayed to the user</param>
+    /// <returns>True if the exchange was accepted successfully, false if no pending exchange or code mismatch</returns>
+    public bool AcceptExchangeKey(string verificationCode)
+    {
+        if (!_isExchangingDeviceKey || _exchangeKeyTcs == null)
+            return false;
+
+        // Verify the code matches to prevent unauthorized acceptance
+        if (!string.Equals(verificationCode, _exchangeDeviceKeyCode, StringComparison.Ordinal))
+        {
+            Log.Warning("[DevicesServer] Key exchange acceptance failed: verification code mismatch");
+            return false;
+        }
+
+        Log.Information("[DevicesServer] Key exchange accepted by user");
+        _exchangeKeyTcs.TrySetResult(true);
+        return true;
+    }
+
+    /// <summary>
+    /// Rejects a pending key exchange request. Called by UI layer when user declines.
+    /// </summary>
+    public void RejectExchangeKey()
+    {
+        if (_exchangeKeyTcs == null)
+            return;
+
+        Log.Information("[DevicesServer] Key exchange rejected by user");
+        _exchangeKeyTcs.TrySetResult(false);
     }
 
     /// <summary>
@@ -629,8 +770,8 @@ public class DevicesServer : ServerBase, IDeviceServer
             // Sign in device
             var token = SignInDevice(device);
 
-            // Encrypt token with local private key
-            var encryptedToken = securityService.EncryptStringAsync(token, "").Result;
+            // Encrypt token with the requesting device's public key
+            var encryptedToken = await securityService.EncryptStringAsync(token, device.MacAddress);
 
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(encryptedToken);
