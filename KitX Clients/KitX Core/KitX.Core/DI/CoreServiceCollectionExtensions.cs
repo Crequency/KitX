@@ -127,8 +127,7 @@ public static class CoreServiceCollectionExtensions
             return new RealPluginManager(pluginsServer, provider.GetRequiredService<IDeviceHttpClient>());
         });
 
-        // Pre-resolve RealPluginManager to ensure it's initialized before PluginsServer.Run() is called.
-        // This is done in InitializeCoreServices() after the ServiceProvider is built.
+        // RealPluginManager is pre-resolved by the caller after BuildServiceProvider().
 
         // Phase 5: Announcement Service
         Log.Information("Registering IAnnouncementService...");
@@ -222,58 +221,11 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<TriggerManager>();
 
         // IMPORTANT: Do NOT call BuildServiceProvider() here.
-        // The caller (App.InitializeServiceProvider) is responsible for building the single
-        // IServiceProvider and passing it to ServiceHost.Initialize() and InitializeCoreServices().
+        // The caller is responsible for building the single IServiceProvider and passing it
+        // to ServiceHost.Initialize().
 
         Log.Information("AddCoreServices completed.");
         return services;
     }
 
-    /// <summary>
-    /// Initializes core services after the ServiceProvider has been built.
-    /// All .Instance properties now resolve from ServiceHost directly — this method
-    /// only pre-resolves singletons and initializes TriggerManager subscriptions.
-    /// Must be called exactly once after BuildServiceProvider().
-    /// </summary>
-    /// <param name="provider">The single IServiceProvider instance</param>
-    [Obsolete("All .Instance properties now resolve from ServiceHost directly. Only pre-resolves RealPluginManager and initializes TriggerManager.")]
-    public static void InitializeCoreServices(IServiceProvider provider)
-    {
-        Log.Information("InitializeCoreServices called (ServiceHost is the single source of truth).");
-
-        // All SetServiceProvider() calls are now no-ops.
-        // Keeping them for backward compatibility but they do nothing.
-#pragma warning disable CS0618 // Suppress Obsolete warnings for SetServiceProvider calls
-        ConfigManager.SetServiceProvider(provider);
-        SecurityManager.SetServiceProvider(provider);
-        EventService.SetServiceProvider(provider);
-        PluginsManager.SetServiceProvider(provider);
-        ActivityManager.SetServiceProvider(provider);
-        StatisticsManager.SetServiceProvider(provider);
-        TasksManager.SetServiceProvider(provider);
-        FileWatcherManager.SetServiceProvider(provider);
-        KeyHookManager.SetServiceProvider(provider);
-        DevicesServer.SetServiceProvider(provider);
-        DevicesDiscoveryServer.SetServiceProvider(provider);
-        PluginsServer.SetServiceProvider(provider);
-        AnnouncementManager.SetServiceProvider(provider);
-        DevicesOrganizer.SetServiceProvider(provider);
-        TriggerManager.SetServiceProvider(provider);
-        WorkflowStorageService.SetServiceProvider(provider);
-        WorkflowScriptService.SetServiceProvider(provider);
-#pragma warning restore CS0618
-
-        // Pre-resolve RealPluginManager to ensure it's initialized before PluginsServer.Run() is called.
-        Log.Information("Pre-resolving RealPluginManager to ensure single instance...");
-        var rpm = provider.GetRequiredService<RealPluginManager>();
-        Log.Information("RealPluginManager pre-resolved. HashCode: {HashCode}", rpm.GetHashCode());
-
-        // Initialize TriggerManager from persisted workflow configurations
-        // so that trigger subscriptions are registered before plugins connect.
-        Log.Information("Initializing TriggerManager from persisted workflows...");
-        var triggerManager = provider.GetRequiredService<TriggerManager>();
-        triggerManager.InitializeFromPersistedWorkflows();
-
-        Log.Information("InitializeCoreServices completed.");
-    }
 }

@@ -28,12 +28,6 @@ public class EventService : IEventService
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private readonly Dictionary<string, List<EventHandler<EventArgs>>> _eventHandlers = new();
 
     /// <summary>

@@ -31,12 +31,6 @@ public class KeyHookManager : IKeyHookService
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private const int KeysLimitation = 5;
 
     private readonly Queue<KeyCode> _keyPressed = new();

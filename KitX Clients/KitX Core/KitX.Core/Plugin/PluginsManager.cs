@@ -29,28 +29,6 @@ namespace KitX.Core.Plugin;
 /// </summary>
 public class PluginsManager : IPluginService
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static PluginsManager Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (PluginsManager)ServiceHost.GetRequiredService<IPluginService>();
-            Log.Error("[PluginsManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new PluginsManager();
-        }
-    }
-
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private readonly List<PluginInstallation> _plugins = new();
 
     /// <summary>

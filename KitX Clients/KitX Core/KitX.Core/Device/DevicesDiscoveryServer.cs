@@ -38,12 +38,6 @@ public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private readonly IConfigService _configService;
     private UdpClient? _udpSender;
     private UdpClient? _udpReceiver;

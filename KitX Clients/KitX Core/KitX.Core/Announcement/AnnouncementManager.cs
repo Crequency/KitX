@@ -1,16 +1,16 @@
-﻿using KitX.Core.Configuration;
+using KitX.Core.Configuration;
 using KitX.Core.Contract.Announcement;
 using KitX.Core.Contract.Configuration;
 using Microsoft.AspNetCore.Components;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Announcement;
 
@@ -36,12 +36,6 @@ public class AnnouncementManager : IAnnouncementService
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private readonly HashSet<string> _acceptedAnnouncementIds = new();
     private readonly JsonSerializerOptions _serializerOptions = new()
     {
@@ -50,6 +44,8 @@ public class AnnouncementManager : IAnnouncementService
     };
 
     private readonly IConfigService? _configService;
+
+    private static readonly string AcceptedAnnouncementsFileName = "accepted_announcements.json";
 
     /// <summary>
     /// Gets the announcement configuration
@@ -153,7 +149,7 @@ public class AnnouncementManager : IAnnouncementService
                         PublishDate = item,
                         Content = markdown,
                         Title = $"Announcement - {item:yyyy-MM-dd}",
-                        Version = "1.0" // TODO: Get from API if available
+                        Version = "1.0" // TODO: (Low Priority) Get version from API response when API supports it
                     });
                 }
             }
@@ -208,22 +204,67 @@ public class AnnouncementManager : IAnnouncementService
     }
 
     /// <summary>
-    /// Loads accepted announcement IDs from storage
-    /// TODO: Implement persistence (file or database)
+    /// Loads accepted announcement IDs from persistent storage
     /// </summary>
     private void LoadAcceptedIds()
     {
-        // TODO: Load from config file
-        // For now, initialize as empty
+        try
+        {
+            var path = Path.GetFullPath(Path.Combine(ConstantTable.DataPath, AcceptedAnnouncementsFileName));
+
+            if (File.Exists(path))
+            {
+                var json = File.ReadAllText(path);
+                var ids = JsonSerializer.Deserialize<HashSet<string>>(json, _serializerOptions);
+
+                if (ids != null)
+                {
+                    _acceptedAnnouncementIds.Clear();
+                    foreach (var id in ids)
+                    {
+                        _acceptedAnnouncementIds.Add(id);
+                    }
+
+                    Log.Debug("[AnnouncementManager] Loaded {Count} accepted announcement IDs from {Path}",
+                        _acceptedAnnouncementIds.Count, path);
+                }
+            }
+            else
+            {
+                Log.Debug("[AnnouncementManager] No accepted announcements file found at {Path}, starting fresh", path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[AnnouncementManager] Failed to load accepted announcement IDs");
+        }
     }
 
     /// <summary>
-    /// Saves accepted announcement IDs to storage
-    /// TODO: Implement persistence (file or database)
+    /// Saves accepted announcement IDs to persistent storage
     /// </summary>
     private void SaveAcceptedIds()
     {
-        // TODO: Save to config file
+        try
+        {
+            var path = Path.GetFullPath(Path.Combine(ConstantTable.DataPath, AcceptedAnnouncementsFileName));
+            var directory = Path.GetDirectoryName(path);
+
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var json = JsonSerializer.Serialize(_acceptedAnnouncementIds, _serializerOptions);
+            File.WriteAllText(path, json);
+
+            Log.Debug("[AnnouncementManager] Saved {Count} accepted announcement IDs to {Path}",
+                _acceptedAnnouncementIds.Count, path);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[AnnouncementManager] Failed to save accepted announcement IDs");
+        }
     }
 
     /// <summary>

@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using KitX.Core.Contract.Tasks;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
-using KitX.Core.DI;
 
 namespace KitX.Core.Tasks;
 
@@ -13,28 +12,6 @@ namespace KitX.Core.Tasks;
 /// </summary>
 public class TasksManager : ITasksService
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static TasksManager Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (TasksManager)ServiceHost.GetRequiredService<ITasksService>();
-            Log.Error("[TasksManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new TasksManager();
-        }
-    }
-
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     /// <summary>
     /// Creates a new tasks manager
     /// </summary>

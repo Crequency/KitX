@@ -26,12 +26,6 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
     public static WorkflowScriptService Instance { get; } = new();
 
     /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
-    /// <summary>
     /// Shared runtime state across all workflow services.
     /// </summary>
     private static readonly WorkflowRuntimeState SharedState = new();

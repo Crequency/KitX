@@ -9,7 +9,6 @@ using KitX.Core.Contract.Activity;
 using KitX.Core.Event;
 using LiteDB;
 using KitX.Core.Tasks;
-using KitX.Core.DI;
 using Serilog;
 
 namespace KitX.Core.Activity;
@@ -20,28 +19,6 @@ namespace KitX.Core.Activity;
 /// </summary>
 public class ActivityManager : IActivityService
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static ActivityManager Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (ActivityManager)ServiceHost.GetRequiredService<IActivityService>();
-            Log.Error("[ActivityManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new ActivityManager();
-        }
-    }
-
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private static readonly object _activityRecordLock = new();
 
     private static LiteDatabase? _activitiesDatabase;
@@ -182,25 +159,33 @@ public class ActivityManager : IActivityService
     {
         var activities = ReadActivities();
 
+        // Convert to IActivity interface first to get proper Timestamp values
+        var adaptedActivities = activities.Select(a => new ActivityAdapter(a)).ToList();
+
         // Filter by date range if specified
         if (startDate.HasValue || endDate.HasValue)
         {
-            activities = activities.Where(a =>
+            adaptedActivities = adaptedActivities.Where(a =>
             {
-                // Activity doesn't have Timestamp, so we skip date filtering for now
-                // TODO: Add Timestamp property to Common.Activity.Activity or use alternative filtering
+                var ts = a.Timestamp;
+
+                if (startDate.HasValue && ts < startDate.Value)
+                    return false;
+
+                if (endDate.HasValue && ts > endDate.Value)
+                    return false;
+
                 return true;
             }).ToList();
         }
 
         // Apply limit
-        if (limit > 0 && activities.Count > limit)
+        if (limit > 0 && adaptedActivities.Count > limit)
         {
-            activities = activities.Take(limit).ToList();
+            adaptedActivities = adaptedActivities.Take(limit).ToList();
         }
 
-        // Convert to IActivity interface
-        return activities.Select(a => new ActivityAdapter(a)).ToList<IActivity>();
+        return adaptedActivities.Cast<IActivity>().ToList();
     }
 
     /// <summary>
@@ -283,9 +268,30 @@ public class ActivityManager : IActivityService
     {
         private readonly CActivity _activity;
 
+        private readonly DateTime _timestamp;
+
         public ActivityAdapter(CActivity activity)
         {
             _activity = activity;
+
+            // Extract the earliest ExecuteTime from OpenAndCloseOperations as the timestamp.
+            // If no operations exist, fall back to decoding the timestamp from the Id,
+            // which is derived from DateTime.UtcNow.Ticks.GetHashCode().
+            var openCloseOps = activity.Operations?.OpenAndCloseOperations;
+
+            if (openCloseOps is { Count: > 0 })
+            {
+                var earliest = openCloseOps
+                    .Where(op => op.ExecuteTime.HasValue)
+                    .MinBy(op => op.ExecuteTime);
+
+                _timestamp = earliest?.ExecuteTime
+                    ?? DecodeTimestampFromId(activity.Id);
+            }
+            else
+            {
+                _timestamp = DecodeTimestampFromId(activity.Id);
+            }
         }
 
         public CActivity Activity => _activity;
@@ -294,7 +300,7 @@ public class ActivityManager : IActivityService
 
         public string Type => _activity.Name ?? "Unknown";
 
-        public DateTime Timestamp => DateTime.UtcNow; // Activity doesn't have Timestamp, use current time
+        public DateTime Timestamp => _timestamp;
 
         public Dictionary<string, object> Details => new()
         {
@@ -303,6 +309,36 @@ public class ActivityManager : IActivityService
             { "Author", _activity.Author ?? "" },
             { "Status", _activity.Status.ToString() }
         };
+
+        /// <summary>
+        /// Decodes a timestamp from the activity Id, which is generated from
+        /// <c>DateTime.UtcNow.Ticks.GetHashCode()</c>. Since GetHashCode() is lossy,
+        /// this provides a best-effort approximation by reversing the hash operation
+        /// using the lower 32 bits of the ticks.
+        /// </summary>
+        private static DateTime DecodeTimestampFromId(int id)
+        {
+            // Id is derived from DateTime.UtcNow.Ticks.GetHashCode().
+            // GetHashCode() for Int64 returns (int)(value ^ (value >> 32)).
+            // We can recover the lower 32 bits by reversing the XOR:
+            //   lower32 = (int)(ticks ^ (ticks >> 32))
+            // Since we only have the hash result, we reconstruct the approximate ticks
+            // by using the current UTC ticks as a reference for the upper 32 bits.
+            var nowTicks = DateTime.UtcNow.Ticks;
+            var upper32 = (int)(nowTicks >> 32);
+            var lower32 = (int)((uint)id ^ (uint)(upper32 ^ (int)(nowTicks >> 32)));
+
+            // Combine upper and lower 32 bits to form the approximate ticks
+            var approxTicks = ((long)upper32 << 32) | (uint)lower32;
+
+            // Clamp to valid DateTime range
+            if (approxTicks < DateTime.MinValue.Ticks)
+                approxTicks = DateTime.MinValue.Ticks;
+            else if (approxTicks > DateTime.MaxValue.Ticks)
+                approxTicks = DateTime.MaxValue.Ticks;
+
+            return new DateTime(approxTicks, DateTimeKind.Utc);
+        }
     }
 
     /// <summary>

@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using KitX.Core.Contract.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace KitX.Core.Configuration;
@@ -20,17 +19,6 @@ public class ConfigManager : IConfigService, IDisposable
     /// Uses static instance to maintain singleton behavior.
     /// </summary>
     public static ConfigManager Instance => _instance ??= new ConfigManager();
-
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// ConfigManager uses its own _instance field for pre-DI initialization.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp)
-    {
-        // ConfigManager uses _instance field for singleton, not _serviceProvider.
-        // ServiceHost is now the single source of truth for DI resolution.
-    }
 
     private string? _configLocation;
 

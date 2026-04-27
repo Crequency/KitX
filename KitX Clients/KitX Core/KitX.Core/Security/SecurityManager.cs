@@ -35,12 +35,6 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private RSA? _rsaInstance;
 
     private DeviceKey? _localDeviceKey;

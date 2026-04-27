@@ -37,12 +37,6 @@ public class DevicesOrganizer : IDevicesOrganizer
     }
 
     /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
-    /// <summary>
     /// Runs the devices organizer (ensures initialization via singleton access)
     /// </summary>
     /// <returns>The singleton instance</returns>

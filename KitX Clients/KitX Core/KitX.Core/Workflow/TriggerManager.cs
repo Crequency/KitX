@@ -36,12 +36,6 @@ public class TriggerManager
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private readonly PluginsServer _pluginsServer;
     private readonly JsonSerializerOptions _serializerOptions = new()
     {

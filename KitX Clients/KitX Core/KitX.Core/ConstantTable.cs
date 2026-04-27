@@ -1,71 +1,71 @@
-﻿using System;
+using System;
 using Common.BasicHelper.Utils.Extensions;
 
 namespace KitX.Core;
 
 public static class ConstantTable
 {
-    internal const string AppName = "KitX";
+    public const string AppName = "KitX";
 
-    internal const string AppFullName = "KitX Dashboard";
+    public const string AppFullName = "KitX Dashboard";
 
-    internal const string DataPath = "./Data/";
+    public const string DataPath = "./Data/";
 
-    internal const string LanguageFilePath = "./Languages/";
+    public const string LanguageFilePath = "./Languages/";
 
-    internal const string AssetsPath = "./Assets/";
+    public const string AssetsPath = "./Assets/";
 
-    internal const string UpdateSavePath = "./Update/";
+    public const string UpdateSavePath = "./Update/";
 
-    internal const string IconBase64FileName = "KitX.Base64.txt";
+    public const string IconBase64FileName = "KitX.Base64.txt";
 
     private const string activitiesDataBaseFilePath = $"{DataPath}Activities.db";
 
     private const string thirdPartyLicenseFilePath = $"{AssetsPath}ThirdPartyLicense.md";
 
-    internal static string ActivitiesDataBaseFilePath => activitiesDataBaseFilePath.GetFullPath();
+    public static string ActivitiesDataBaseFilePath => activitiesDataBaseFilePath.GetFullPath();
 
-    internal static string ThirdPartyLicenseFilePath => thirdPartyLicenseFilePath.GetFullPath();
+    public static string ThirdPartyLicenseFilePath => thirdPartyLicenseFilePath.GetFullPath();
 
-    internal static bool IsExchangingDeviceKey = false;
+    public static bool IsExchangingDeviceKey = false;
 
-    internal static string? ExchangeDeviceKeyCode;
+    public static string? ExchangeDeviceKeyCode;
 
     /// <summary>
-    /// Devices Server Port - public for cross-assembly access
+    /// Devices Server Port
     /// </summary>
     public static int DevicesServerPort = -1;
 
     /// <summary>
-    /// Plugins Server Port - public for cross-assembly access
+    /// Plugins Server Port
     /// </summary>
     public static int PluginsServerPort = -1;
 
-    internal static bool Running = true;
+    public static bool Running = true;
 
-    internal static bool Exiting = false;
+    public static bool Exiting = false;
 
-    internal static bool Restarting = false;
+    public static bool Restarting = false;
 
-    internal static bool EnsureExiting = false;
+    public static bool EnsureExiting = false;
 
-    internal static bool IsMainMachine = false;
+    public static bool IsMainMachine = false;
 
-    internal static string? MainMachineAddress;
+    public static string? MainMachineAddress;
 
-    internal static int MainMachinePort = -1;
+    public static int MainMachinePort = -1;
 
-    internal static bool SkipNetworkSystemOnStartup = false;
+    public static bool SkipNetworkSystemOnStartup = false;
 
-    internal static DateTime ServerBuildTime = new();
+    public static DateTime ServerBuildTime = new();
 
-    internal const string ApiGetAnnouncements = "get-announcements.php";
+    public const string ApiGetAnnouncements = "get-announcements.php";
 
-    internal const string ApiGetAnnouncement = "get-announcement.php";
+    public const string ApiGetAnnouncement = "get-announcement.php";
 
-    internal static string KitXIconBase64 = string.Empty;
+    public static string KitXIconBase64 = string.Empty;
 
-    internal static bool IsSingleProcessStartMode = true;
+    public static bool IsSingleProcessStartMode = true;
 
-    internal static bool EnabledConfigFileHotReload = true;
+    public static bool EnabledConfigFileHotReload = true;
 }

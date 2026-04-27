@@ -50,12 +50,6 @@ public class DevicesServer : ServerBase, IDeviceServer
         }
     }
 
-    /// <summary>
-    /// Kept for backward compatibility — ServiceHost is now the single source of truth.
-    /// </summary>
-    [Obsolete("ServiceHost is now the single source of truth. This method is a no-op.")]
-    internal static void SetServiceProvider(IServiceProvider? sp) { /* no-op */ }
-
     private readonly Dictionary<DeviceLocator, string> _signedDeviceTokens = new();
     private IWebHost? _host;
     private int? _configuredPort;
