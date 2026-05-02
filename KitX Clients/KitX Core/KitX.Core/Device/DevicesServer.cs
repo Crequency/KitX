@@ -9,8 +9,10 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Device;
+using KitX.Core.Contract.Event;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
+using KitX.Core.Contract.Security;
 using KitX.Core.Event;
 using KitX.Core.Security;
 using KitX.Shared.CSharp.Device;
@@ -34,21 +36,11 @@ namespace KitX.Core.Device;
 /// </summary>
 public class DevicesServer : ServerBase, IDeviceServer
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static DevicesServer Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (DevicesServer)ServiceHost.GetRequiredService<IDeviceServer>();
-            Log.Error("[DevicesServer] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new DevicesServer();
-        }
-    }
+    private readonly IEncryptionService _encryptionService;
+    private readonly IDeviceKeyService _deviceKeyService;
+    private readonly IEventService _eventService;
+    private readonly IPluginServer _pluginServer;
+    private readonly IDeviceDiscoveryService _deviceDiscoveryService;
 
     private readonly Dictionary<DeviceLocator, string> _signedDeviceTokens = new();
     private IWebHost? _host;
@@ -123,9 +115,26 @@ public class DevicesServer : ServerBase, IDeviceServer
 #pragma warning restore CS0067
 
     /// <summary>
-    /// Creates a new device server
+    /// Creates a new device server with all dependencies injected.
     /// </summary>
-    public DevicesServer() { }
+    /// <param name="encryptionService">Encryption service for cryptographic operations</param>
+    /// <param name="deviceKeyService">Device key management service</param>
+    /// <param name="eventService">Event service for publishing events</param>
+    /// <param name="pluginServer">Plugin server for managing plugin connections</param>
+    /// <param name="deviceDiscoveryService">Device discovery service</param>
+    public DevicesServer(
+        IEncryptionService encryptionService,
+        IDeviceKeyService deviceKeyService,
+        IEventService eventService,
+        IPluginServer pluginServer,
+        IDeviceDiscoveryService deviceDiscoveryService)
+    {
+        _encryptionService = encryptionService ?? throw new ArgumentNullException(nameof(encryptionService));
+        _deviceKeyService = deviceKeyService ?? throw new ArgumentNullException(nameof(deviceKeyService));
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
+        _pluginServer = pluginServer ?? throw new ArgumentNullException(nameof(pluginServer));
+        _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
+    }
 
     /// <summary>
     /// Gets or sets the port
@@ -252,7 +261,7 @@ public class DevicesServer : ServerBase, IDeviceServer
                         ConstantTable.DevicesServerPort = Port ?? 0;
 
                         // Publish port changed event via EventService only (removed direct PortChanged event to avoid potential recursion)
-                        EventService.Instance.Publish(EventNames.DevicesServerPortChanged, new PortChangedEventArgs { Port = Port ?? 0 });
+                        _eventService?.Publish(EventNames.DevicesServerPortChanged, new PortChangedEventArgs { Port = Port ?? 0 });
 
                         Log.Information($"DevicesServer started on port {Port}");
                     }
@@ -355,6 +364,21 @@ public class DevicesServer : ServerBase, IDeviceServer
     public bool IsDeviceSignedIn(DeviceLocator locator) => _signedDeviceTokens.ContainsKey(locator);
 
     /// <summary>
+    /// Gets the signed device token for a device locator
+    /// </summary>
+    /// <param name="locator">The device locator</param>
+    /// <returns>The token or null if not found</returns>
+    public string? GetDeviceToken(DeviceLocator locator) =>
+        _signedDeviceTokens.TryGetValue(locator, out var token) ? token : null;
+
+    /// <summary>
+    /// Gets all signed-in device locators
+    /// </summary>
+    /// <returns>Read-only list of signed-in device locators</returns>
+    public IReadOnlyList<DeviceLocator> GetSignedInDevices() =>
+        _signedDeviceTokens.Keys.ToList().AsReadOnly();
+
+    /// <summary>
     /// Adds a device token
     /// </summary>
     /// <param name="locator">The device locator</param>
@@ -397,7 +421,7 @@ public class DevicesServer : ServerBase, IDeviceServer
 
         if (IsDeviceTokenExist(token))
         {
-            var deviceInfo = DevicesDiscoveryServer.Instance?.DefaultDeviceInfo;
+            var deviceInfo = _deviceDiscoveryService.DefaultDeviceInfo;
             if (deviceInfo != null)
             {
                 context.Response.ContentType = "application/json";
@@ -448,8 +472,17 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            var securityService = SecurityManager.Instance;
-            if (securityService.LocalDeviceKey == null)
+            var securityService = _encryptionService;
+            var deviceKeyService = _deviceKeyService;
+            if (securityService == null)
+            {
+                context.Response.StatusCode = 500;
+                await context.Response.WriteAsync("Encryption service not available");
+                return;
+            }
+
+            // LocalDeviceKey is on IDeviceKeyService, check via GetPrivateDeviceKey
+            if (deviceKeyService.GetPrivateDeviceKey() == null)
             {
                 context.Response.StatusCode = 400;
                 await context.Response.WriteAsync("Remote device didn't set up device key.");
@@ -484,7 +517,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             _exchangeKeyTcs = new TaskCompletionSource<bool>();
 
             // Publish event for UI to handle — requires user confirmation
-            EventService.Instance.Publish(EventNames.OnReceiveExchangeDeviceKey,
+            _eventService.Publish(EventNames.OnReceiveExchangeDeviceKey,
                 new ExchangeDeviceKeyEventArgs
                 {
                     VerificationCode = _exchangeDeviceKeyCode,
@@ -543,14 +576,14 @@ public class DevicesServer : ServerBase, IDeviceServer
             }
 
             // Add device key
-            securityService.AddDeviceKey(
+            deviceKeyService.AddDeviceKey(
                 deviceKeyInstance.Device.MacAddress,
                 deviceKeyInstance.Device.DeviceName,
                 deviceKeyInstance.RsaPublicKeyPem ?? ""
             );
 
             // Send back local key
-            var currentKey = securityService.GetPrivateDeviceKey();
+            var currentKey = deviceKeyService.GetPrivateDeviceKey();
             if (currentKey == null)
             {
                 _isExchangingDeviceKey = false;
@@ -569,7 +602,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             _pendingExchangeRequest = null;
 
             // Publish accept event
-            EventService.Instance.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
+            _eventService.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
 
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(JsonSerializer.Serialize(currentKeyEncrypted));
@@ -605,7 +638,8 @@ public class DevicesServer : ServerBase, IDeviceServer
             using var reader = new StreamReader(context.Request.Body);
             var encryptedKey = await reader.ReadToEndAsync();
 
-            var securityService = SecurityManager.Instance;
+            var securityService = _encryptionService;
+            var deviceKeyService = _deviceKeyService;
             var deviceKeyDecrypted = securityService.AesDecrypt(encryptedKey, _exchangeDeviceKeyCode);
             var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
 
@@ -617,7 +651,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             }
 
             // Add device key
-            securityService.AddDeviceKey(
+            deviceKeyService.AddDeviceKey(
                 deviceKeyInstance.Device.MacAddress,
                 deviceKeyInstance.Device.DeviceName,
                 deviceKeyInstance.RsaPublicKeyPem ?? ""
@@ -626,7 +660,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             _exchangeDeviceKeyCode = null;
 
             // Publish accept event
-            EventService.Instance.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
+            _eventService.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
 
             context.Response.StatusCode = 200;
             await context.Response.WriteAsync("OK");
@@ -652,7 +686,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             return;
         }
 
-        EventService.Instance.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
+        _eventService.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
 
         // Cancel any pending user confirmation
         _exchangeKeyTcs?.TrySetCanceled();
@@ -734,8 +768,9 @@ public class DevicesServer : ServerBase, IDeviceServer
             }
 
             // Search for device key
-            var securityService = SecurityManager.Instance;
-            var key = securityService.SearchDeviceKey(device);
+            var securityService = _encryptionService;
+            var deviceKeyService = _deviceKeyService;
+            var key = deviceKeyService.SearchDeviceKey(device);
 
             if (key == null)
             {
@@ -883,7 +918,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             }
 
             // 7. Find local plugin connection by PluginConnectionId
-            var connector = PluginsServer.Instance.FindConnection(command.PluginConnectionId);
+            var connector = _pluginServer.FindConnection(command.PluginConnectionId);
             if (connector == null)
             {
                 Log.Warning("[{Location}] Plugin connection not found: {ConnectionId}",
@@ -905,12 +940,12 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 if (e.RequestId == requestId)
                 {
-                    PluginsServer.Instance.PluginResponse -= OnResponse;
+                    _pluginServer.PluginResponse -= OnResponse;
                     _pendingPluginResponses.TryRemove(requestId, out _);
                     tcs.TrySetResult(e.Content);
                 }
             }
-            PluginsServer.Instance.PluginResponse += OnResponse;
+            _pluginServer.PluginResponse += OnResponse;
             _pendingPluginResponses[requestId] = tcs;
 
             // 9. Build the request to send to plugin (manual copy since Request is class not record)
@@ -945,7 +980,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 Log.Warning("[{Location}] Plugin invoke timed out, RequestId: {RequestId}", location, requestId);
                 _pendingPluginResponses.TryRemove(requestId, out _);
-                PluginsServer.Instance.PluginResponse -= OnResponse;
+                _pluginServer.PluginResponse -= OnResponse;
                 context.Response.StatusCode = 504;
                 await context.Response.WriteAsync("Plugin invocation timed out");
             }
@@ -953,7 +988,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 Log.Warning("[{Location}] Plugin invoke cancelled, RequestId: {RequestId}", location, requestId);
                 _pendingPluginResponses.TryRemove(requestId, out _);
-                PluginsServer.Instance.PluginResponse -= OnResponse;
+                _pluginServer.PluginResponse -= OnResponse;
                 context.Response.StatusCode = 499;
                 await context.Response.WriteAsync("Plugin invocation cancelled");
             }
@@ -982,7 +1017,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             var device = SearchDeviceByToken(token);
             if (device != null)
             {
-                var key = SecurityManager.Instance.SearchDeviceKey(device);
+                var key = _deviceKeyService.SearchDeviceKey(device);
                 if (key != null)
                 {
                     try
@@ -990,7 +1025,7 @@ public class DevicesServer : ServerBase, IDeviceServer
                         var encryptedContent = JsonSerializer.Deserialize<EncryptedContent>(content, SerializerOptions);
                         if (encryptedContent != null)
                         {
-                            content = SecurityManager.Instance.RsaDecryptContent(key, encryptedContent) ?? content;
+                            content = _encryptionService.RsaDecryptContent(key, encryptedContent) ?? content;
                         }
                     }
                     catch (Exception ex)
@@ -1003,4 +1038,5 @@ public class DevicesServer : ServerBase, IDeviceServer
 
         return content;
     }
+
 }

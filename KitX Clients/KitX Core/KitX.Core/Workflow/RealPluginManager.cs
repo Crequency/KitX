@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Http;
@@ -9,10 +9,11 @@ using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Device;
+using KitX.Core.Contract.Event;
 using KitX.Core.Device;
 using KitX.Core.Contract.Plugin.Events;
-using KitX.Core.Device.Events;
 using KitX.Core.Event;
+using KitX.Core.DI;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
@@ -22,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using KcsPluginCallInfo = Kscript.CSharp.Parser.Models.PluginCallInfo;
 using KcsIPluginManager = Kscript.CSharp.Parser.Core.IPluginManager;
+using PluginMessageReceivedEventArgs = KitX.Core.Contract.Plugin.Events.PluginMessageReceivedEventArgs;
 
 namespace KitX.Core.Workflow;
 
@@ -32,8 +34,11 @@ namespace KitX.Core.Workflow;
 /// </summary>
 public class RealPluginManager : IPluginManager, KcsIPluginManager
 {
-    private readonly PluginsServer _pluginsServer;
+    private readonly IPluginServer _pluginServer;
+    private readonly IDeviceServer _deviceServer;
     private readonly IDeviceHttpClient _deviceHttpClient;
+    private readonly IEventService _eventService;
+    private readonly IDeviceDiscoveryService _deviceDiscoveryService;
     private readonly JsonSerializerOptions _serializerOptions = new()
     {
         WriteIndented = true,
@@ -47,41 +52,65 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingResponses = new();
 
     /// <summary>
-    /// 无参构造函数（供 KScript.Parser 动态创建实例使用）
+    /// 构造函数（仅需 IPluginServer，其他依赖从 ServiceHost 解析）
     /// </summary>
-    public RealPluginManager() : this(PluginsServer.Instance, new DeviceHttpClient())
+    /// <param name="pluginServer">插件服务器实例</param>
+    public RealPluginManager(IPluginServer pluginServer)
+        : this(pluginServer,
+              ServiceHost.IsInitialized ? ServiceHost.GetRequiredService<IEventService>() : new KitX.Core.Event.EventService(),
+              ServiceHost.IsInitialized ? ServiceHost.GetRequiredService<IDeviceDiscoveryService>() : null!,
+              ServiceHost.IsInitialized ? ServiceHost.GetRequiredService<IDeviceServer>() : null!,
+              new DeviceHttpClient())
     {
     }
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="pluginsServer">插件服务器实例</param>
-    public RealPluginManager(PluginsServer pluginsServer)
-        : this(pluginsServer, new DeviceHttpClient())
+    /// <param name="pluginServer">插件服务器实例</param>
+    /// <param name="eventService">事件服务实例</param>
+    /// <param name="deviceDiscoveryService">设备发现服务实例</param>
+    public RealPluginManager(IPluginServer pluginServer, IEventService eventService, IDeviceDiscoveryService deviceDiscoveryService)
+        : this(pluginServer, eventService, deviceDiscoveryService, null!, new DeviceHttpClient())
     {
     }
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="pluginsServer">插件服务器实例</param>
+    /// <param name="pluginServer">插件服务器实例</param>
+    /// <param name="eventService">事件服务实例</param>
+    /// <param name="deviceDiscoveryService">设备发现服务实例</param>
     /// <param name="deviceHttpClient">HTTP 客户端，用于跨设备调用</param>
-    public RealPluginManager(PluginsServer pluginsServer, IDeviceHttpClient deviceHttpClient)
+    public RealPluginManager(IPluginServer pluginServer, IEventService eventService, IDeviceDiscoveryService deviceDiscoveryService, IDeviceHttpClient deviceHttpClient)
+        : this(pluginServer, eventService, deviceDiscoveryService, null!, deviceHttpClient)
     {
-        _pluginsServer = pluginsServer;
+    }
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="pluginServer">插件服务器实例</param>
+    /// <param name="eventService">事件服务实例</param>
+    /// <param name="deviceDiscoveryService">设备发现服务实例</param>
+    /// <param name="deviceServer">设备服务器实例</param>
+    /// <param name="deviceHttpClient">HTTP 客户端，用于跨设备调用</param>
+    public RealPluginManager(IPluginServer pluginServer, IEventService eventService, IDeviceDiscoveryService deviceDiscoveryService, IDeviceServer deviceServer, IDeviceHttpClient deviceHttpClient)
+    {
+        _pluginServer = pluginServer ?? throw new ArgumentNullException(nameof(pluginServer));
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
+        _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
+        _deviceServer = deviceServer;
         _deviceHttpClient = deviceHttpClient ?? new DeviceHttpClient();
 
+        Log.Information("[RealPluginManager] Constructor. This HashCode: {ThisHashCode}, PluginServer HashCode: {PluginServerHashCode}",
+            GetHashCode(), _pluginServer.GetHashCode());
+
         // 订阅插件消息接收事件以处理响应
-        _pluginsServer.PluginMessageReceived += OnPluginMessageReceived;
+        _pluginServer.PluginMessageReceived += OnPluginMessageReceived;
 
         // 订阅插件响应事件（当插件返回带RequestId的响应时触发）
-        // IMPORTANT: Subscribe to EventService.PluginResponse instead of PluginsServer.PluginResponse,
-        // because PluginsServer forwards PluginConnection.PluginResponse to EventService, not to PluginsServer.PluginResponse
-        if (EventService.Instance != null)
-        {
-            EventService.Instance.Subscribe<PluginResponseEventArgs>(EventNames.PluginResponse, (sender, args) => OnPluginResponse(this, args));
-        }
+        _eventService.Subscribe<PluginResponseEventArgs>(EventNames.PluginResponse, (sender, args) => OnPluginResponse(this, args));
     }
 
     /// <summary>
@@ -220,7 +249,7 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     /// <summary>
     /// 自动调用插件方法：根据函数声明的返回类型自动选择调用策略。
     /// - void 返回类型 → fire-and-forget (Call)，不等待响应
-    /// - 非 void 返回类型 → 类型化同步等待 (Call&lt;T&gt;)，返回具体类型的结果
+    /// - 非 void 返回类型 → 类型化同步等待 (Call<T>)，返回具体类型的结果
     /// 调用方无需关心分发逻辑，所有判断由 Manager 内部完成。
     /// </summary>
     /// <param name="callInfo">插件调用信息</param>
@@ -260,8 +289,8 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
         if (connection is null)
         {
             Log.Error($"[RealPluginManager] Plugin connection not found: {callInfo.PluginName}");
-            Log.Information($"[RealPluginManager] Available connections: {_pluginsServer.Connections.Count}");
-            foreach (var conn in _pluginsServer.Connections)
+            Log.Information($"[RealPluginManager] Available connections: {_pluginServer.Connections.Count}");
+            foreach (var conn in _pluginServer.Connections)
             {
                 Log.Information($"[RealPluginManager] Connection: {conn.ConnectionId}, Plugin: {conn.PluginInfo?.Name}");
             }
@@ -527,7 +556,7 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
         Log.Information($"[RealPluginManager] IsPluginExists({pluginName}): {exists}");
         if (!exists)
         {
-            foreach (var conn in _pluginsServer.Connections)
+            foreach (var conn in _pluginServer.Connections)
             {
                 Log.Information($"[RealPluginManager] Available connection: {conn.ConnectionId}, Plugin: {conn.PluginInfo?.Name}");
             }
@@ -552,17 +581,12 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
     /// </summary>
     private IPluginConnection? FindPluginConnection(string pluginName)
     {
-        Log.Information($"[RealPluginManager] FindPluginConnection: _pluginsServer HashCode={_pluginsServer.GetHashCode()}, Connections Count={_pluginsServer.Connections.Count}");
-        Log.Information($"[RealPluginManager] FindPluginConnection: PluginsServer.Instance HashCode={PluginsServer.Instance.GetHashCode()}");
-        if (_pluginsServer.GetHashCode() != PluginsServer.Instance.GetHashCode())
-        {
-            Log.Warning($"[RealPluginManager] WARNING: _pluginsServer ({_pluginsServer.GetHashCode()}) != PluginsServer.Instance ({PluginsServer.Instance.GetHashCode()})!");
-        }
-        foreach (var c in _pluginsServer.Connections)
+        Log.Information($"[RealPluginManager] FindPluginConnection: _pluginServer HashCode={_pluginServer.GetHashCode()}, Connections Count={_pluginServer.Connections.Count}");
+        foreach (var c in _pluginServer.Connections)
         {
             Log.Information($"[RealPluginManager] FindPluginConnection: connection PluginInfo.Name={c.PluginInfo?.Name}");
         }
-        var result = _pluginsServer.Connections
+        var result = _pluginServer.Connections
             .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
         Log.Information($"[RealPluginManager] FindPluginConnection result: {result?.GetHashCode()}");
         return result;
@@ -578,31 +602,14 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
 
         try
         {
-            // Access DevicesServer's signed tokens dictionary directly
-            // DevicesServer._signedDeviceTokens is Dictionary<DeviceLocator, string>
-            // We need to find the token where the DeviceLocator matches deviceInfo.Device
-            var tokensField = typeof(DevicesServer)
-                .GetField("_signedDeviceTokens",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            if (tokensField == null)
+            // Use IDeviceServer.GetDeviceToken() to get the token
+            if (_deviceServer != null)
             {
-                Log.Warning("[RealPluginManager] Could not access _signedDeviceTokens field");
-                return null;
+                return _deviceServer.GetDeviceToken(deviceInfo.Device);
             }
 
-            var tokens = tokensField.GetValue(DevicesServer.Instance) as System.Collections.IDictionary;
-            if (tokens == null)
-                return null;
-
-            foreach (System.Collections.DictionaryEntry entry in tokens)
-            {
-                if (entry.Key is KitX.Shared.CSharp.Device.DeviceLocator locator &&
-                    locator.IsSameDevice(deviceInfo.Device))
-                {
-                    return entry.Value as string;
-                }
-            }
+            Log.Warning("[RealPluginManager] DeviceServer is not available");
+            return null;
         }
         catch (Exception ex)
         {
@@ -622,38 +629,29 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
 
         try
         {
-            // Use DevicesDiscoveryServer.DefaultDeviceInfo as reference for local device
-            // Try to find a matching device from the signed tokens
-            var tokensField = typeof(DevicesServer)
-                .GetField("_signedDeviceTokens",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            if (tokensField == null)
-                return null;
-
-            var tokens = tokensField.GetValue(DevicesServer.Instance) as System.Collections.IDictionary;
-            if (tokens == null)
-                return null;
-
-            foreach (System.Collections.DictionaryEntry entry in tokens)
+            // Use IDeviceServer.GetSignedInDevices() to find matching device
+            if (_deviceServer != null)
             {
-                if (entry.Key is KitX.Shared.CSharp.Device.DeviceLocator locator &&
-                    locator.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase))
+                var signedInDevices = _deviceServer.GetSignedInDevices();
+                foreach (var locator in signedInDevices)
                 {
-                    // Found the locator by name — now we need DeviceInfo which has the full info
-                    // We can construct a basic DeviceInfo from the locator + DevicesDiscoveryServer data
-                    var defaultInfo = KitX.Core.Device.DevicesDiscoveryServer.Instance?.DefaultDeviceInfo;
-                    if (defaultInfo != null && defaultInfo.Device.IsSameDevice(locator))
+                    if (locator.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase))
                     {
-                        return defaultInfo;
-                    }
+                        // Found the locator by name — now we need DeviceInfo which has the full info
+                        // We can construct a basic DeviceInfo from the locator + DevicesDiscoveryServer data
+                        var defaultInfo = _deviceDiscoveryService.DefaultDeviceInfo;
+                        if (defaultInfo != null && defaultInfo.Device.IsSameDevice(locator))
+                        {
+                            return defaultInfo;
+                        }
 
-                    // Fallback: construct from locator alone (missing some fields)
-                    return new DeviceInfo
-                    {
-                        Device = locator,
-                        SendTime = DateTime.UtcNow
-                    };
+                        // Fallback: construct from locator alone (missing some fields)
+                        return new DeviceInfo
+                        {
+                            Device = locator,
+                            SendTime = DateTime.UtcNow
+                        };
+                    }
                 }
             }
         }

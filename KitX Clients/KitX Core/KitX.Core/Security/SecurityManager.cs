@@ -4,7 +4,9 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Security;
+using KitX.Core.Contract.Device;
 using KitX.Core.Configuration;
 using KitX.Core.Device;
 using KitX.Shared.CSharp.Device;
@@ -19,40 +21,24 @@ namespace KitX.Core.Security;
 /// </summary>
 public class SecurityManager : IDeviceKeyService, IEncryptionService
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static SecurityManager Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (SecurityManager)ServiceHost.GetRequiredService<IDeviceKeyService>();
-            Log.Error("[SecurityManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new SecurityManager();
-        }
-    }
-
     private RSA? _rsaInstance;
 
     private DeviceKey? _localDeviceKey;
 
     /// <summary>
-    /// Reference to ConfigManager instance
+    /// Reference to IConfigService instance
     /// </summary>
-    private readonly ConfigManager _configManager;
+    private readonly IConfigService _configService;
 
     /// <summary>
     /// Reference to DevicesDiscoveryServer instance
     /// </summary>
-    private readonly DevicesDiscoveryServer? _devicesDiscoveryServer;
+    private readonly IDeviceDiscoveryService? _devicesDiscoveryService;
 
     /// <summary>
     /// Gets typed SecurityConfig for direct property access
     /// </summary>
-    private SecurityConfig? TypedSecurityConfig => _configManager.TypedSecurityConfig;
+    private SecurityConfig? TypedSecurityConfig => _configService.SecurityConfig as SecurityConfig;
 
     /// <summary>
     /// Gets the local device key
@@ -64,21 +50,14 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Creates a new security manager
-    /// </summary>
-    public SecurityManager() : this(ConfigManager.Instance, null)
-    {
-    }
-
-    /// <summary>
     /// Creates a new security manager with dependencies
     /// </summary>
-    /// <param name="configManager">Configuration manager</param>
-    /// <param name="devicesDiscoveryServer">Devices discovery server (optional for backward compatibility)</param>
-    public SecurityManager(ConfigManager configManager, DevicesDiscoveryServer? devicesDiscoveryServer)
+    /// <param name="configService">Configuration service</param>
+    /// <param name="deviceDiscoveryService">Device discovery service (optional for backward compatibility)</param>
+    public SecurityManager(IConfigService configService, IDeviceDiscoveryService? deviceDiscoveryService)
     {
-        _configManager = configManager ?? ConfigManager.Instance;
-        _devicesDiscoveryServer = devicesDiscoveryServer;
+        _configService = configService;
+        _devicesDiscoveryService = deviceDiscoveryService;
         Initialize();
     }
 
@@ -90,8 +69,8 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
         // Create RSA instance
         _rsaInstance = RSA.Create(2048);
 
-        // Get current device info from DevicesDiscoveryServer (same as legacy architecture)
-        var defaultDeviceInfo = _devicesDiscoveryServer?.DefaultDeviceInfo;
+        // Get current device info from DeviceDiscoveryService (same as legacy architecture)
+        var defaultDeviceInfo = _devicesDiscoveryService?.DefaultDeviceInfo;
         var currentDevice = defaultDeviceInfo?.Device ?? new DeviceLocator
         {
             DeviceName = Environment.MachineName,
@@ -102,7 +81,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             currentDevice.DeviceName, currentDevice.MacAddress);
 
         // Get typed SecurityConfig
-        var typedSecurityConfig = _configManager.SecurityConfig as SecurityConfig;
+        var typedSecurityConfig = TypedSecurityConfig;
 
         // Try to find existing device key in SecurityConfig
         var existingKey = typedSecurityConfig?.DeviceKeys
@@ -176,10 +155,10 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             AddedAt = DateTime.Now
         };
 
-        _configManager?.TypedSecurityConfig?.DeviceKeys.Add(deviceKeyImpl);
-        _configManager?.SaveAll();
+        _configService.SecurityConfig.DeviceKeys.Add(deviceKeyImpl);
+        _configService.SaveAll();
 
-        Log.Information($"Generated and saved new local device key. Keys count: {_configManager?.TypedSecurityConfig?.DeviceKeys.Count}");
+        Log.Information($"Generated and saved new local device key. Keys count: {_configService.SecurityConfig.DeviceKeys.Count}");
     }
 
     /// <summary>
@@ -188,7 +167,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     /// <returns>List of device keys</returns>
     public IReadOnlyList<Contract.Configuration.IDeviceKey> GetDeviceKeys()
     {
-        var keys = _configManager?.TypedSecurityConfig?.DeviceKeys;
+        var keys = _configService.SecurityConfig.DeviceKeys;
         if (keys == null)
             return new List<Contract.Configuration.IDeviceKey>();
 
@@ -218,8 +197,8 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
                 AddedAt = DateTime.Now
             };
 
-            _configManager?.TypedSecurityConfig?.DeviceKeys.Add(deviceKey);
-            _configManager?.SaveAll();
+            _configService.SecurityConfig.DeviceKeys.Add(deviceKey);
+            _configService.SaveAll();
 
             Log.Information($"Added device key for {deviceName} ({macAddress})");
 
@@ -241,7 +220,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     {
         try
         {
-            var typedSecurityConfig = _configManager?.SecurityConfig as SecurityConfig;
+            var typedSecurityConfig = TypedSecurityConfig;
             var keysToRemove = typedSecurityConfig?.DeviceKeys
                 .Where(x => IsSameDevice(x.Device.MacAddress, macAddress))
                 .ToList();
@@ -250,9 +229,9 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             {
                 foreach (var key in keysToRemove)
                 {
-                    _configManager?.TypedSecurityConfig?.DeviceKeys.Remove(key);
+                    _configService.SecurityConfig.DeviceKeys.Remove(key);
                 }
-                _configManager?.SaveAll();
+                _configService.SaveAll();
             }
 
             Log.Information($"Removed device key for {macAddress}");
@@ -457,14 +436,16 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     /// <returns>The device key if found, otherwise null</returns>
     public DeviceKey? SearchDeviceKey(DeviceLocator locator)
     {
-        var existing = _configManager?.TypedSecurityConfig?.DeviceKeys
+        var existing = _configService.SecurityConfig.DeviceKeys
             .FirstOrDefault(x => x.Device.IsSameDevice(locator));
         if (existing == null) return null;
+        // Cast to DeviceKeyImpl to access RsaPrivateKeyPem property
+        var deviceKeyImpl = existing as Configuration.DeviceKeyImpl;
         return new DeviceKey
         {
             Device = existing.Device,
             RsaPublicKeyPem = existing.RsaPublicKeyPem,
-            RsaPrivateKeyPem = existing.RsaPrivateKeyPem
+            RsaPrivateKeyPem = deviceKeyImpl?.RsaPrivateKeyPem
         };
     }
 

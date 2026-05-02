@@ -18,6 +18,7 @@ public class ConfigManager : IConfigService, IDisposable
     /// Gets the singleton instance.
     /// Uses static instance to maintain singleton behavior.
     /// </summary>
+    [Obsolete("Use DI container via ServiceHost.GetRequiredService<T>() instead.", error: false)]
     public static ConfigManager Instance => _instance ??= new ConfigManager();
 
     private string? _configLocation;

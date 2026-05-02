@@ -20,30 +20,9 @@ namespace KitX.Core.Device;
 /// </summary>
 public class DevicesOrganizer : IDevicesOrganizer
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static DevicesOrganizer Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return ServiceHost.GetRequiredService<DevicesOrganizer>();
-            Log.Error("[DevicesOrganizer] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new DevicesOrganizer();
-        }
-    }
-
-    /// <summary>
-    /// Runs the devices organizer (ensures initialization via singleton access)
-    /// </summary>
-    /// <returns>The singleton instance</returns>
-    public static DevicesOrganizer Run() => Instance;
-
     private readonly IConfigService _configService;
     private readonly IEventService _eventService;
+    private readonly IDeviceDiscoveryService _deviceDiscoveryService;
     private readonly object _receivedDeviceInfo4WatchLock = new();
     private readonly Queue<DeviceInfo> _deviceInfosQueue = new();
     private readonly object _addDeviceCardLock = new();
@@ -61,12 +40,13 @@ public class DevicesOrganizer : IDevicesOrganizer
     public event EventHandler<DeviceOfflineEventArgs>? DeviceOffline;
 
     /// <summary>
-    /// Creates a new devices organizer
+    /// Creates a new devices organizer with dependency injection
     /// </summary>
-    public DevicesOrganizer()
+    public DevicesOrganizer(IConfigService configService, IEventService eventService, IDeviceDiscoveryService deviceDiscoveryService)
     {
-        _configService = ConfigManager.Instance;
-        _eventService = EventService.Instance;
+        _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
+        _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
         Initialize();
     }
 
@@ -88,7 +68,7 @@ public class DevicesOrganizer : IDevicesOrganizer
     private void InitEvents()
     {
         // Subscribe to device discovery events from DevicesDiscoveryServer
-        DevicesDiscoveryServer.Instance.DeviceDiscovered += (_, args) =>
+        _deviceDiscoveryService.DeviceDiscovered += (_, args) =>
         {
             if (args.DeviceInfo is null) return;
 

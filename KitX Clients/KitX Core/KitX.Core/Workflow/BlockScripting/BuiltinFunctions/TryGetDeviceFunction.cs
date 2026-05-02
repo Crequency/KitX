@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Contract.Device;
 using KitX.Core.Device;
 using KitX.Core.Workflow.Blueprint;
 using KitX.Core.Workflow.Blueprint.CFG;
@@ -120,7 +121,7 @@ namespace KitX.Core.Workflow.BlockScripting
     {
         /// <summary>
         /// 根据设备名称查找已连接设备的 DeviceInfo。
-        /// 内部使用 DevicesServer._signedDeviceTokens 查找匹配的 DeviceLocator。
+        /// 使用 IDeviceServer.GetSignedInDevices() 查找匹配的 DeviceLocator。
         /// </summary>
         public object? TryGetDevice(string deviceName)
         {
@@ -132,45 +133,28 @@ namespace KitX.Core.Workflow.BlockScripting
 
             try
             {
-                var tokensField = typeof(DevicesServer)
-                    .GetField("_signedDeviceTokens",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-
-                if (tokensField == null)
+                if (!DI.ServiceHost.IsInitialized)
                 {
-                    Log.Warning("[BlockScriptGlobals] TryGetDevice: _signedDeviceTokens field not found");
+                    Log.Warning("[BlockScriptGlobals] TryGetDevice: ServiceHost not initialized");
                     return null;
                 }
 
-                var tokens = tokensField.GetValue(DevicesServer.Instance) as System.Collections.IDictionary;
-                if (tokens == null)
-                {
-                    Log.Warning("[BlockScriptGlobals] TryGetDevice: _signedDeviceTokens is null");
-                    return null;
-                }
+                var deviceServer = DI.ServiceHost.GetRequiredService<IDeviceServer>();
+                var discoveryService = DI.ServiceHost.GetRequiredService<IDeviceDiscoveryService>();
 
-                foreach (System.Collections.DictionaryEntry entry in tokens)
+                var signedInDevices = deviceServer.GetSignedInDevices();
+                
+                foreach (var locator in signedInDevices)
                 {
-                    if (entry.Key is DeviceLocator locator &&
-                        locator.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase))
+                    if (locator.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase))
                     {
                         Log.Information("[BlockScriptGlobals] TryGetDevice: found device {DeviceName} (IPv4={IPv4})",
                             locator.DeviceName, locator.IPv4);
 
-                        var discoveryInstance = typeof(DevicesDiscoveryServer)
-                            .GetProperty("Instance",
-                                BindingFlags.NonPublic | BindingFlags.Static)?
-                            .GetValue(null);
-
-                        if (discoveryInstance != null)
+                        var defaultInfo = discoveryService.DefaultDeviceInfo;
+                        if (defaultInfo != null && defaultInfo.Device.IsSameDevice(locator))
                         {
-                            var defaultInfoProperty = discoveryInstance.GetType()
-                                .GetProperty("DefaultDeviceInfo");
-                            if (defaultInfoProperty?.GetValue(discoveryInstance) is DeviceInfo info &&
-                                info.Device.IsSameDevice(locator))
-                            {
-                                return info;
-                            }
+                            return defaultInfo;
                         }
 
                         return new DeviceInfo

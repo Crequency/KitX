@@ -12,22 +12,6 @@ namespace KitX.Core.Event;
 /// </summary>
 public class EventService : IEventService
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static EventService Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (EventService)ServiceHost.GetRequiredService<IEventService>();
-            Log.Error("[EventService] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new EventService();
-        }
-    }
-
     private readonly Dictionary<string, List<EventHandler<EventArgs>>> _eventHandlers = new();
 
     /// <summary>

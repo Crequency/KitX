@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Contract.Plugin;
 using KitX.Core.Device;
+using KitX.Core.DI;
 using KitX.Shared.CSharp.Plugin;
 using Microsoft.CodeAnalysis.CSharp;
 using Serilog;
@@ -33,8 +35,10 @@ internal class WorkflowPluginService : IWorkflowPluginService
 
         try
         {
-            var pluginsServer = PluginsServer.Instance;
-            var realPluginManager = new RealPluginManager(pluginsServer);
+            var pluginServer = ServiceHost.IsInitialized
+                ? ServiceHost.GetRequiredService<IPluginServer>()
+                : new KitX.Core.Device.PluginsServer(new KitX.Core.Event.EventService());
+            var realPluginManager = new RealPluginManager(pluginServer);
 
             Kscript.CSharp.Parser.Parser.SetPluginManager(realPluginManager);
 

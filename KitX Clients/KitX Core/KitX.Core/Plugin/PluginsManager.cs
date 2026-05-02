@@ -724,7 +724,7 @@ public class PluginsManager : IPluginService
                     var startTime = DateTime.UtcNow;
                     while (DateTime.UtcNow - startTime < DefaultStartTimeout)
                     {
-                        var connection = pluginsServer.Connections
+                        var connection = ((Contract.Plugin.IPluginServer)pluginsServer).Connections
                             .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
                         if (connection != null)
                         {
@@ -1368,8 +1368,8 @@ public class PluginsManager : IPluginService
     {
         try
         {
-            return pluginsServer.Connections
-                .FirstOrDefault(c => c.PluginInfo?.Name == pluginName) as IPluginConnection;
+            return ((Contract.Plugin.IPluginServer)pluginsServer).Connections
+                .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
         }
         catch (Exception ex)
         {
@@ -1387,7 +1387,7 @@ public class PluginsManager : IPluginService
         var startTime = DateTime.UtcNow;
         while (DateTime.UtcNow - startTime < timeout)
         {
-            var connection = pluginsServer.Connections
+            var connection = ((Contract.Plugin.IPluginServer)pluginsServer).Connections
                 .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
 
             if (connection == null)

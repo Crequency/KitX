@@ -11,9 +11,12 @@ using System.Threading.Tasks;
 using CTask = System.Threading.Tasks.Task;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
+using KitX.Core.Contract.Event;
+using KitX.Core.Contract.Plugin;
 using KitX.Shared.CSharp.Device;
 using Serilog;
 using KitX.Core.DI;
+using KitX.Core.Event;
 
 namespace KitX.Core.Device;
 
@@ -22,23 +25,9 @@ namespace KitX.Core.Device;
 /// </summary>
 public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static DevicesDiscoveryServer Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return (DevicesDiscoveryServer)ServiceHost.GetRequiredService<IDeviceDiscoveryService>();
-            Log.Error("[DevicesDiscoveryServer] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new DevicesDiscoveryServer();
-        }
-    }
-
     private readonly IConfigService _configService;
+    private readonly IEventService _eventService;
+    private readonly IPluginServer _pluginServer;
     private UdpClient? _udpSender;
     private UdpClient? _udpReceiver;
     private System.Timers.Timer? _udpSendTimer;
@@ -94,11 +83,16 @@ public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
 #pragma warning restore CS0067
 
     /// <summary>
-    /// Creates a new device discovery server
+    /// Creates a new device discovery server with dependency injection
     /// </summary>
-    public DevicesDiscoveryServer()
+    /// <param name="configService">The configuration service</param>
+    /// <param name="eventService">The event service for publishing events</param>
+    /// <param name="pluginServer">The plugin server for querying connection info</param>
+    public DevicesDiscoveryServer(IConfigService configService, IEventService eventService, IPluginServer pluginServer)
     {
-        _configService = ConfigManager.Instance; // Will be injected via DI in production
+        _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
+        _pluginServer = pluginServer ?? throw new ArgumentNullException(nameof(pluginServer));
         DefaultDeviceInfo = NetworkHelper.GetDeviceInfo();
 
         // Note: DevicesOrganizer.Run() should be called after services are fully initialized
@@ -246,7 +240,7 @@ public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
         DefaultDeviceInfo.Device.ResetIPv4(NetworkHelper.GetInterNetworkIPv4())
             .ResetIPv6(NetworkHelper.GetInterNetworkIPv6());
         DefaultDeviceInfo.PluginsServerPort = ConstantTable.PluginsServerPort;
-        DefaultDeviceInfo.PluginsCount = PluginsServer.Instance?.Connections?.Count ?? 0;
+        DefaultDeviceInfo.PluginsCount = _pluginServer.Connections?.Count ?? 0;
         DefaultDeviceInfo.DevicesServerPort = ConstantTable.DevicesServerPort;
         DefaultDeviceInfo.DevicesServerBuildTime = ConstantTable.ServerBuildTime;
 

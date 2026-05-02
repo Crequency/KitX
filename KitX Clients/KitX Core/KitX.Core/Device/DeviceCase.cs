@@ -17,23 +17,32 @@ public class DeviceCase : IDeviceCase
 {
     private readonly IConfigService _configService;
     private readonly IDeviceKeyService _securityService;
-    private readonly DevicesServer _devicesServer;
+    private readonly IDeviceServer _devicesServer;
+    private readonly IDeviceDiscoveryService _deviceDiscoveryService;
 
     /// <summary>
-    /// Creates a new device case
+    /// Creates a new device case with dependency injection
     /// </summary>
-    public DeviceCase() : this(new DeviceInfo()) { }
+    public DeviceCase(IConfigService configService, IDeviceKeyService securityService, IDeviceServer devicesServer, IDeviceDiscoveryService deviceDiscoveryService)
+        : this(new DeviceInfo(), configService, securityService, devicesServer, deviceDiscoveryService)
+    {
+    }
 
     /// <summary>
-    /// Creates a new device case with device info
+    /// Creates a new device case with device info and dependency injection
     /// </summary>
     /// <param name="deviceInfo">Device information</param>
-    public DeviceCase(DeviceInfo deviceInfo)
+    /// <param name="configService">Configuration service</param>
+    /// <param name="securityService">Security service</param>
+    /// <param name="devicesServer">Devices server</param>
+    /// <param name="deviceDiscoveryService">Device discovery service</param>
+    public DeviceCase(DeviceInfo deviceInfo, IConfigService configService, IDeviceKeyService securityService, IDeviceServer devicesServer, IDeviceDiscoveryService deviceDiscoveryService)
     {
         DeviceInfo = deviceInfo;
-        _configService = ConfigManager.Instance;
-        _securityService = SecurityManager.Instance;
-        _devicesServer = DevicesServer.Instance;
+        _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _securityService = securityService ?? throw new ArgumentNullException(nameof(securityService));
+        _devicesServer = devicesServer ?? throw new ArgumentNullException(nameof(devicesServer));
+        _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
     }
 
     /// <inheritdoc/>
@@ -59,7 +68,7 @@ public class DeviceCase : IDeviceCase
     /// <summary>
     /// Gets a value indicating whether this is the current device
     /// </summary>
-    public bool IsCurrentDevice => DeviceInfo.IsCurrentDevice(DevicesDiscoveryServer.Instance.DefaultDeviceInfo);
+    public bool IsCurrentDevice => DeviceInfo.IsCurrentDevice(_deviceDiscoveryService.DefaultDeviceInfo);
 
     /// <summary>
     /// Connection token for authenticated communication

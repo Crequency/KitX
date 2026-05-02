@@ -3,6 +3,7 @@ using System.Text.Json;
 using Fleck;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
+using KitX.Core.Contract.Device;
 using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using Serilog;
@@ -12,10 +13,10 @@ namespace KitX.Core.Device;
 /// <summary>
 /// Plugin connection implementation
 /// </summary>
-public class PluginConnection : IPluginConnection, IPluginConnector
+public class PluginConnection : KitX.Core.Contract.Plugin.IPluginConnection
 {
     private readonly IWebSocketConnection _connection;
-    private ServerStatus _status = ServerStatus.Pending;
+    private KitX.Core.Contract.Device.ServerStatus _statusBackingField = KitX.Core.Contract.Device.ServerStatus.Pending;
 
     /// <summary>
     /// Gets the connection ID
@@ -23,19 +24,14 @@ public class PluginConnection : IPluginConnection, IPluginConnector
     public string? ConnectionId { get; private set; }
 
     /// <summary>
-    /// IPluginConnector.ConnectionId — non-nullable explicit implementation
-    /// </summary>
-    string IPluginConnector.ConnectionId => ConnectionId!;
-
-    /// <summary>
     /// Gets or sets the plugin info
     /// </summary>
-    public PluginInfo? PluginInfo { get; set; }
+    public KitX.Shared.CSharp.Plugin.PluginInfo? PluginInfo { get; set; }
 
     /// <summary>
     /// Gets the connection status
     /// </summary>
-    public ServerStatus Status => _status;
+    public KitX.Core.Contract.Device.ServerStatus Status => _statusBackingField;
 
     /// <summary>
     /// Event raised when a message is received
@@ -50,12 +46,12 @@ public class PluginConnection : IPluginConnection, IPluginConnector
     /// <summary>
     /// Event raised when a plugin response is received (IPluginConnector implementation)
     /// </summary>
-    public event EventHandler<PluginResponseEventArgs>? PluginResponse;
+    public event EventHandler<KitX.Core.Contract.Plugin.Events.PluginResponseEventArgs>? PluginResponse;
 
     /// <summary>
     /// Event raised when plugin reports status (IPluginConnector implementation)
     /// </summary>
-    public event EventHandler<PluginStatusReportEventArgs>? StatusReport;
+    public event EventHandler<KitX.Core.Contract.Plugin.Events.PluginStatusReportEventArgs>? StatusReport;
 
     /// <summary>
     /// Constructor
@@ -75,11 +71,11 @@ public class PluginConnection : IPluginConnection, IPluginConnector
     {
         _connection.OnOpen = () =>
         {
-            _status = ServerStatus.Running;
+            _statusBackingField = KitX.Core.Contract.Device.ServerStatus.Running;
             StatusReport?.Invoke(this, new PluginStatusReportEventArgs
             {
                 ConnectionId = ConnectionId!,
-                Status = ServerStatus.Running.ToString()
+                Status = KitX.Core.Contract.Device.ServerStatus.Running.ToString()
             });
         };
 
@@ -96,7 +92,7 @@ public class PluginConnection : IPluginConnection, IPluginConnector
                         command.Tags.TryGetValue("RequestId", out var requestId))
                     {
                         // This is a plugin response - trigger PluginResponse event
-                        PluginResponse?.Invoke(this, new PluginResponseEventArgs
+                        PluginResponse?.Invoke(this, new KitX.Core.Contract.Plugin.Events.PluginResponseEventArgs
                         {
                             RequestId = requestId,
                             Content = kwc.Content
@@ -116,22 +112,22 @@ public class PluginConnection : IPluginConnection, IPluginConnector
 
         _connection.OnClose = () =>
         {
-            _status = ServerStatus.Pending;
-            StatusReport?.Invoke(this, new PluginStatusReportEventArgs
+            _statusBackingField = KitX.Core.Contract.Device.ServerStatus.Pending;
+            StatusReport?.Invoke(this, new KitX.Core.Contract.Plugin.Events.PluginStatusReportEventArgs
             {
                 ConnectionId = ConnectionId!,
-                Status = ServerStatus.Pending.ToString()
+                Status = KitX.Core.Contract.Device.ServerStatus.Pending.ToString()
             });
             Closed?.Invoke(this, EventArgs.Empty);
         };
 
         _connection.OnError = ex =>
         {
-            _status = ServerStatus.Errored;
-            StatusReport?.Invoke(this, new PluginStatusReportEventArgs
+            _statusBackingField = KitX.Core.Contract.Device.ServerStatus.Errored;
+            StatusReport?.Invoke(this, new KitX.Core.Contract.Plugin.Events.PluginStatusReportEventArgs
             {
                 ConnectionId = ConnectionId!,
-                Status = ServerStatus.Errored.ToString()
+                Status = KitX.Core.Contract.Device.ServerStatus.Errored.ToString()
             });
             Serilog.Log.Error(ex, $"PluginConnection error for {ConnectionId}, triggering Closed event");
 

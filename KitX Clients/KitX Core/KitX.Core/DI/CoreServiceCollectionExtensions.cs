@@ -121,10 +121,11 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering RealPluginManager...");
         services.AddSingleton<RealPluginManager>(provider =>
         {
-            var pluginsServer = provider.GetRequiredService<IPluginServer>() as PluginsServer;
-            if (pluginsServer == null)
-                throw new InvalidOperationException("IPluginServer must be registered as PluginsServer");
-            return new RealPluginManager(pluginsServer, provider.GetRequiredService<IDeviceHttpClient>());
+            var pluginServer = provider.GetRequiredService<IPluginServer>();
+            var eventService = provider.GetRequiredService<IEventService>();
+            var deviceDiscoveryService = provider.GetRequiredService<IDeviceDiscoveryService>();
+            var deviceServer = provider.GetRequiredService<IDeviceServer>();
+            return new RealPluginManager(pluginServer, eventService, deviceDiscoveryService, deviceServer, provider.GetRequiredService<IDeviceHttpClient>());
         });
 
         // RealPluginManager is pre-resolved by the caller after BuildServiceProvider().

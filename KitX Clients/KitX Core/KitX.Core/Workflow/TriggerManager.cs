@@ -5,12 +5,16 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Device;
+using KitX.Core.Contract.Event;
+using KitX.Core.Contract.Plugin;
+using KitX.Core.Contract.Plugin.Events;
 using KitX.Core.Device;
-using KitX.Core.Device.Events;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
 using KitX.Core.DI;
+
+using PluginMessageReceivedEventArgs = KitX.Core.Contract.Plugin.Events.PluginMessageReceivedEventArgs;
 
 namespace KitX.Core.Workflow;
 
@@ -20,23 +24,7 @@ namespace KitX.Core.Workflow;
 /// </summary>
 public class TriggerManager
 {
-    /// <summary>
-    /// Gets the singleton instance (resolves from ServiceHost when available).
-    /// Internal code should use constructor injection instead.
-    /// </summary>
-    public static TriggerManager Instance
-    {
-        get
-        {
-            if (ServiceHost.IsInitialized)
-                return ServiceHost.GetRequiredService<TriggerManager>();
-            Log.Error("[TriggerManager] Instance: ServiceHost not initialized! Returning orphan instance — " +
-                "this indicates a DI initialization order bug. Use ServiceHost/constructor injection instead.");
-            return new TriggerManager();
-        }
-    }
-
-    private readonly PluginsServer _pluginsServer;
+    private readonly IPluginServer _pluginServer;
     private readonly JsonSerializerOptions _serializerOptions = new()
     {
         WriteIndented = true,
@@ -59,8 +47,10 @@ public class TriggerManager
     /// </summary>
     public TriggerManager()
     {
-        _pluginsServer = PluginsServer.Instance;
-        _pluginsServer.PluginMessageReceived += OnPluginMessageReceived;
+        _pluginServer = ServiceHost.IsInitialized
+            ? ServiceHost.GetRequiredService<IPluginServer>()
+            : new KitX.Core.Device.PluginsServer(new KitX.Core.Event.EventService());
+        _pluginServer.PluginMessageReceived += OnPluginMessageReceived;
         Log.Information("[TriggerManager] Initialized and subscribed to PluginMessageReceived");
     }
 
@@ -173,7 +163,7 @@ public class TriggerManager
 
             // 查找发送此消息的插件名称
             var connectionId = e.ConnectionId;
-            var connection = _pluginsServer.Connections
+            var connection = _pluginServer.Connections
                 .FirstOrDefault(c => c.ConnectionId == connectionId);
             var pluginName = connection?.PluginInfo?.Name ?? "Unknown";
 
@@ -199,7 +189,7 @@ public class TriggerManager
                 _ = System.Threading.Tasks.Task.Run(async () =>
                 {
                     bool success = await ServiceHost.GetRequiredService<IWorkflowManagementService>().RunWorkflowAsync(workflowId);
-                    KitX.Core.Event.EventService.Instance.Publish(
+                    ServiceHost.GetRequiredService<IEventService>().Publish(
                         KitX.Core.Event.EventNames.WorkflowExecutionResult,
                         new KitX.Core.Contract.Event.WorkflowExecutionResultEventArgs(
                             workflowId, success,
