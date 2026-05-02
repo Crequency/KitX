@@ -257,15 +257,44 @@ public class PluginsManager : IPluginService
             try
             {
                 var decoder = new FileFormats.CSharp.ExtensionsPackage.Decoder(kxpFilePath);
+
+                // Read structs from KXP binary header (preferred path)
+                var (loaderStructHeader, pluginStructHeader) = decoder.GetLoaderAndPluginInfo();
+
                 decoder.Decode(pluginDir);
                 Log.Information($"Decoded KXP file to: {pluginDir}");
+
+                // Parse LoaderStruct from header, fall back to extracted file
+                LoaderInfo? loaderInfo = ParseLoaderStructFromJson(loaderStructHeader);
+                if (loaderInfo is null)
+                {
+                    var loaderStructPath = Path.Combine(pluginDir, "LoaderStruct.json");
+                    if (File.Exists(loaderStructPath))
+                    {
+                        var loaderStructJson = await File.ReadAllTextAsync(loaderStructPath);
+                        loaderInfo = ParseLoaderStructFromJson(loaderStructJson);
+                    }
+                }
+
+                // Parse PluginStruct from header, fall back to extracted file
+                PluginInfo? pluginInfo = ParsePluginStructFromJson(pluginStructHeader);
+                if (pluginInfo is null)
+                {
+                    var pluginStructPath = Path.Combine(pluginDir, "PluginStruct.json");
+                    if (File.Exists(pluginStructPath))
+                    {
+                        var pluginStructJson = await File.ReadAllTextAsync(pluginStructPath);
+                        pluginInfo = ParsePluginStructFromJson(pluginStructJson);
+                    }
+                }
+
+                return await FinalizeImport(pluginDir, kxpFilePath, loaderInfo, pluginInfo);
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to decode KXP file, trying as direct files...");
 
                 // If KXP decode fails, assume it's a directory with files already extracted
-                // Just copy the source directory contents
                 var sourceDir = Path.GetDirectoryName(kxpFilePath);
                 if (sourceDir != null && Directory.Exists(sourceDir))
                 {
@@ -278,140 +307,100 @@ public class PluginsManager : IPluginService
                         }
                     }
                 }
+
+                return await FinalizeImport(pluginDir, kxpFilePath, null, null);
             }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"In {location}: Error importing plugin {kxpFilePath}: {ex.Message}");
+            return false;
+        }
+    }
 
-            // Look for LoaderStruct.json and PluginStruct.json in the extracted files
-            var loaderStructPath = Path.Combine(pluginDir, "LoaderStruct.json");
-            var pluginStructPath = Path.Combine(pluginDir, "PluginStruct.json");
+    private static LoaderInfo? ParseLoaderStructFromJson(string loaderStructJson)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<LoaderInfo>(loaderStructJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to parse LoaderStruct JSON");
+            return null;
+        }
+    }
 
-            PluginInfo? pluginInfo = null;
-            LoaderInfo? loaderInfo = null;
+    private static PluginInfo? ParsePluginStructFromJson(string pluginStructJson)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<PluginInfo>(pluginStructJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true, IncludeFields = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to parse PluginStruct JSON");
+            return null;
+        }
+    }
 
-            // Parse LoaderStruct.json if exists
-            if (File.Exists(loaderStructPath))
+    private async Task<bool> FinalizeImport(
+        string pluginDir, string kxpFilePath,
+        LoaderInfo? loaderInfo, PluginInfo? pluginInfo)
+    {
+        const string location = $"{nameof(PluginsManager)}.{nameof(FinalizeImport)}";
+
+        try
+        {
+            var pluginFileName = Path.GetFileNameWithoutExtension(kxpFilePath);
+
+            if (pluginInfo == null)
             {
-                try
+                // If no plugin info from KXP, look for LoaderStruct/PluginStruct files
+                var loaderStructPath = Path.Combine(pluginDir, "LoaderStruct.json");
+                var pluginStructPath = Path.Combine(pluginDir, "PluginStruct.json");
+
+                if (File.Exists(loaderStructPath))
                 {
-                    var loaderStructJson = await File.ReadAllTextAsync(loaderStructPath);
-                    var loaderStruct = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(loaderStructJson);
-
-                    loaderInfo = new LoaderInfo
-                    {
-                        LoaderName = loaderStruct.TryGetProperty("LoaderName", out var name) ? name.GetString() ?? "Unknown" : "Unknown",
-                        LoaderVersion = loaderStruct.TryGetProperty("LoaderVersion", out var version) ? version.GetString() ?? "1.0.0" : "1.0.0",
-                        LoaderLanguage = loaderStruct.TryGetProperty("LoaderLanguage", out var lang) ? lang.GetString() ?? "Unknown" : "Unknown",
-                        LoaderFramework = loaderStruct.TryGetProperty("LoaderFramework", out var fw) ? fw.GetString() ?? "Unknown" : "Unknown",
-                        SelfLoad = loaderStruct.TryGetProperty("SelfLoad", out var selfLoad) && selfLoad.GetBoolean(),
-                        Tags = new Dictionary<string, string>()
-                    };
-
-                    // Copy loader struct to LoaderInfo.json (different format)
-                    var loaderInfoJson = System.Text.Json.JsonSerializer.Serialize(loaderInfo, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(Path.Combine(pluginDir, "LoaderInfo.json"), loaderInfoJson);
-
-                    Log.Information($"Parsed LoaderStruct: {loaderInfo.LoaderName} v{loaderInfo.LoaderVersion}");
+                    var json = await File.ReadAllTextAsync(loaderStructPath);
+                    loaderInfo ??= ParseLoaderStructFromJson(json);
                 }
-                catch (Exception ex)
+
+                if (File.Exists(pluginStructPath))
                 {
-                    Log.Warning(ex, "Failed to parse LoaderStruct.json");
+                    var json = await File.ReadAllTextAsync(pluginStructPath);
+                    pluginInfo = ParsePluginStructFromJson(json);
                 }
-            }
 
-            // Parse PluginStruct.json if exists (or look for embedded plugin info)
-            if (File.Exists(pluginStructPath))
-            {
-                try
+                if (pluginInfo == null)
                 {
-                    var pluginStructJson = await File.ReadAllTextAsync(pluginStructPath);
-                    var pluginStruct = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(pluginStructJson);
-
                     pluginInfo = new PluginInfo
                     {
-                        Name = pluginStruct.TryGetProperty("Name", out var name) ? name.GetString() ?? "Unknown" : "Unknown",
-                        Version = pluginStruct.TryGetProperty("Version", out var ver) ? ver.GetString() ?? "1.0.0" : "1.0.0",
-                        DisplayName = new Dictionary<string, string>(),
-                        SimpleDescription = new Dictionary<string, string>(),
-                        ComplexDescription = new Dictionary<string, string>(),
+                        Name = pluginFileName,
+                        Version = "1.0.0",
+                        PublisherName = "Unknown",
+                        AuthorName = "Unknown",
+                        DisplayName = new Dictionary<string, string> { { "en-us", pluginFileName } },
+                        SimpleDescription = new Dictionary<string, string> { { "en-us", "Imported plugin" } },
+                        ComplexDescription = new Dictionary<string, string> { { "en-us", "Imported plugin" } },
                         TotalDescriptionInMarkdown = new Dictionary<string, string>(),
                         Tags = new Dictionary<string, string>(),
                         Functions = new List<Function>()
                     };
-
-                    // Parse DisplayName
-                    if (pluginStruct.TryGetProperty("DisplayName", out var displayName))
-                    {
-                        foreach (var prop in displayName.EnumerateObject())
-                        {
-                            pluginInfo.DisplayName[prop.Name] = prop.Value.GetString() ?? "";
-                        }
-                    }
-
-                    // Parse SimpleDescription
-                    if (pluginStruct.TryGetProperty("SimpleDescription", out var simpleDesc))
-                    {
-                        foreach (var prop in simpleDesc.EnumerateObject())
-                        {
-                            pluginInfo.SimpleDescription[prop.Name] = prop.Value.GetString() ?? "";
-                        }
-                    }
-
-                    // Parse ComplexDescription
-                    if (pluginStruct.TryGetProperty("ComplexDescription", out var complexDesc))
-                    {
-                        foreach (var prop in complexDesc.EnumerateObject())
-                        {
-                            pluginInfo.ComplexDescription[prop.Name] = prop.Value.GetString() ?? "";
-                        }
-                    }
-
-                    // Parse other fields
-                    pluginInfo.AuthorName = pluginStruct.TryGetProperty("AuthorName", out var author) ? author.GetString() ?? "Unknown" : "Unknown";
-                    pluginInfo.AuthorLink = pluginStruct.TryGetProperty("AuthorLink", out var authorLink) ? authorLink.GetString() ?? "" : "";
-                    pluginInfo.PublisherName = pluginStruct.TryGetProperty("PublisherName", out var publisher) ? publisher.GetString() ?? "Unknown" : "Unknown";
-                    pluginInfo.PublisherLink = pluginStruct.TryGetProperty("PublisherLink", out var publisherLink) ? publisherLink.GetString() ?? "" : "";
-                    pluginInfo.IconInBase64 = pluginStruct.TryGetProperty("IconInBase64", out var icon) ? icon.GetString() ?? "" : "";
-                    pluginInfo.IsMarketVersion = pluginStruct.TryGetProperty("IsMarketVersion", out var marketVer) && marketVer.GetBoolean();
-                    pluginInfo.RootStartupFileName = pluginStruct.TryGetProperty("RootStartupFileName", out var rootFile) ? rootFile.GetString() ?? "" : "";
-
-                    if (pluginStruct.TryGetProperty("PublishDate", out var publishDate))
-                    {
-                        if (DateTime.TryParse(publishDate.GetString(), out var pd))
-                            pluginInfo.PublishDate = pd;
-                    }
-
-                    if (pluginStruct.TryGetProperty("LastUpdateDate", out var lastUpdate))
-                    {
-                        if (DateTime.TryParse(lastUpdate.GetString(), out var lud))
-                            pluginInfo.LastUpdateDate = lud;
-                    }
-
-                    Log.Information($"Parsed PluginStruct: {pluginInfo.Name} v{pluginInfo.Version}");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Failed to parse PluginStruct.json");
                 }
             }
 
-            // If no plugin info from KXP, create basic info from filename
-            if (pluginInfo == null)
+            // Write LoaderInfo.json
+            if (loaderInfo != null)
             {
-                pluginInfo = new PluginInfo
-                {
-                    Name = pluginFileName,
-                    Version = "1.0.0",
-                    PublisherName = "Unknown",
-                    AuthorName = "Unknown",
-                    DisplayName = new Dictionary<string, string> { { "en-us", pluginFileName } },
-                    SimpleDescription = new Dictionary<string, string> { { "en-us", "Imported plugin" } },
-                    ComplexDescription = new Dictionary<string, string> { { "en-us", "Imported plugin" } },
-                    TotalDescriptionInMarkdown = new Dictionary<string, string>(),
-                    Tags = new Dictionary<string, string>(),
-                    Functions = new List<Function>()
-                };
+                var loaderInfoJson = System.Text.Json.JsonSerializer.Serialize(loaderInfo,
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(Path.Combine(pluginDir, "LoaderInfo.json"), loaderInfoJson);
             }
 
-            // Validate RootStartupFileName is specified and exists
+            // Validate RootStartupFileName
             if (string.IsNullOrEmpty(pluginInfo.RootStartupFileName))
             {
                 Log.Error($"Plugin import failed: RootStartupFileName is not specified in plugin {pluginInfo.Name}. Please ensure the plugin package includes this field.");
@@ -422,13 +411,13 @@ public class PluginsManager : IPluginService
             if (!File.Exists(pluginFilePath))
             {
                 Log.Error($"Plugin import failed: RootStartupFileName '{pluginInfo.RootStartupFileName}' points to a non-existent file in plugin {pluginInfo.Name}. File not found at: {pluginFilePath}");
-                // Clean up the created directory
                 try { Directory.Delete(pluginDir, true); } catch { }
                 return false;
             }
 
-            // Create PluginInfo.json
-            var pluginInfoJson = System.Text.Json.JsonSerializer.Serialize(pluginInfo, new JsonSerializerOptions { WriteIndented = true });
+            // Write PluginInfo.json
+            var pluginInfoJson = System.Text.Json.JsonSerializer.Serialize(pluginInfo,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(Path.Combine(pluginDir, "PluginInfo.json"), pluginInfoJson);
 
             // Create installation record
@@ -445,7 +434,6 @@ public class PluginsManager : IPluginService
 
             Log.Information($"Imported plugin: {pluginInfo.Name} (v{pluginInfo.Version}) to {pluginDir}");
 
-            // Raise plugin status changed event
             PluginStatusChanged?.Invoke(this, new PluginStatusChangedEventArgs
             {
                 PluginId = installation.Id,
@@ -458,7 +446,7 @@ public class PluginsManager : IPluginService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, $"In {location}: Error importing plugin {kxpFilePath}: {ex.Message}");
+            Log.Error(ex, $"In {location}: {ex.Message}");
             return false;
         }
     }
