@@ -58,7 +58,6 @@ public class Program
         TestService<KitX.Core.Contract.Security.IEncryptionService>(serviceProvider, "IEncryptionService");
         TestService<KitX.Core.Contract.Plugin.IPluginService>(serviceProvider, "IPluginService");
         TestService<KitX.Core.Contract.Workflow.IWorkflowManagementService>(serviceProvider, "IWorkflowManagementService");
-        TestService<KitX.Core.Contract.Workflow.IScriptExecutionService>(serviceProvider, "IScriptExecutionService");
         TestService<KitX.Core.Contract.Workflow.IWorkflowPluginService>(serviceProvider, "IWorkflowPluginService");
         TestService<KitX.Core.Contract.Workflow.IBlockScriptService>(serviceProvider, "IBlockScriptService");
         TestService<KitX.Core.Contract.Activity.IActivityService>(serviceProvider, "IActivityService");

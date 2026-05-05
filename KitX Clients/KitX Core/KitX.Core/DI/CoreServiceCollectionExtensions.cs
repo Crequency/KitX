@@ -72,7 +72,6 @@ public static class CoreServiceCollectionExtensions
             return service;
         });
         services.AddSingleton<IWorkflowPluginService>(sp => WorkflowScriptService.PluginServiceInstance);
-        services.AddSingleton<IScriptExecutionService>(sp => WorkflowScriptService.ScriptExecutionServiceInstance);
         services.AddSingleton<IWorkflowManagementService>(sp => WorkflowScriptService.ManagementServiceInstance);
 
         // Activity Services
@@ -137,10 +136,6 @@ public static class CoreServiceCollectionExtensions
         // KCS File Services
         Log.Information("Registering IKcsFileService...");
         services.AddSingleton<IKcsFileService, KcsFileService>();
-
-        // Main Program Analyzer
-        Log.Information("Registering IMainProgramAnalyzer...");
-        services.AddSingleton<IMainProgramAnalyzer, MainProgramAnalyzer>();
 
         // Block Script Services
         Log.Information("Registering IBlockScriptParser...");

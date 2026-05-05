@@ -14,7 +14,7 @@ namespace KitX.Core.Workflow;
 /// Facade service that delegates to specialized workflow services.
 /// Exposes all four workflow interfaces for backward compatibility.
 /// </summary>
-public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutionService,
+public class WorkflowScriptService : IWorkflowManagementService,
     IWorkflowPluginService, IBlockScriptService
 {
     /// <summary>
@@ -36,7 +36,6 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
     private static IBlockScriptService? _blockScriptService;
     private static IWorkflowManagementService? _managementService;
     private static readonly IWorkflowPluginService PluginService;
-    private static readonly IScriptExecutionService ScriptExecutionService;
 
     /// <summary>
     /// Static constructor initializes the service graph in dependency order.
@@ -49,10 +48,7 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
         // 1. PluginService (depends only on SharedState)
         PluginService = new WorkflowPluginService(SharedState);
 
-        // 2. ScriptExecutionService (depends on PluginService)
-        ScriptExecutionService = new ScriptExecutionService(SharedState, PluginService);
-
-        // 3. ManagementService - will be initialized lazily when first accessed
+        // 2. ManagementService - will be initialized lazily when first accessed
         // BlockScriptService is also lazy-initialized, so ManagementService should not
         // be created here to avoid using a partially initialized BlockScriptService
     }
@@ -73,7 +69,6 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
                     rpm = ServiceHost.GetRequiredService<RealPluginManager>();
                     if (rpm != null)
                     {
-                        Kscript.CSharp.Parser.Parser.SetPluginManager(rpm);
                         SharedState.IsParserInitialized = true;
                         Log.Information("[WorkflowScriptService] Real plugin manager obtained. HashCode: {HashCode}", rpm.GetHashCode());
                     }
@@ -106,11 +101,6 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
     internal static IWorkflowPluginService PluginServiceInstance => PluginService;
 
     /// <summary>
-    /// Exposes IScriptExecutionService for DI registration.
-    /// </summary>
-    internal static IScriptExecutionService ScriptExecutionServiceInstance => ScriptExecutionService;
-
-    /// <summary>
     /// Gets the ManagementService, creating it lazily once BlockScriptService is available.
     /// </summary>
     private static IWorkflowManagementService ManagementService =>
@@ -140,27 +130,6 @@ public class WorkflowScriptService : IWorkflowManagementService, IScriptExecutio
 
     public Task<bool> CompileAndPersistWorkflowAsync(string workflowId) =>
         ManagementService.CompileAndPersistWorkflowAsync(workflowId);
-
-    // --- IScriptExecutionService ---
-
-    public Task<object?> ExecuteScriptAsync(string script, Dictionary<string, object>? parameters = null) =>
-        ScriptExecutionService.ExecuteScriptAsync(script, parameters);
-
-    public Task<string?> ExecuteCodesAsync(
-        string code,
-        List<PluginInfo>? requiredPlugins = null,
-        bool includeTimestamp = true,
-        CancellationToken cancellationToken = default) =>
-        ScriptExecutionService.ExecuteCodesAsync(code, requiredPlugins, includeTimestamp, cancellationToken);
-
-    public Task<string?> ExecuteKcsCodesAsync(
-        string mainCode,
-        List<HelperFunction> helperFunctions,
-        List<VariableConstant> constants,
-        List<PluginInfo>? requiredPlugins = null,
-        bool includeTimestamp = true,
-        CancellationToken cancellationToken = default) =>
-        ScriptExecutionService.ExecuteKcsCodesAsync(mainCode, helperFunctions, constants, requiredPlugins, includeTimestamp, cancellationToken);
 
     // --- IWorkflowPluginService ---
 

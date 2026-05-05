@@ -26,7 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\KitX Standard\KitX Core Contracts\KitX.Core.Contract\KitX.Core.Contract.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX File Formats\KitX.FileFormats.CSharp\KitX.FileFormats.CSharp.csproj" />
-    <ProjectReference Include="..\..\..\KitX Standard\KitX Script\Kscript.CSharp.Parser\Kscript.CSharp.Parser.csproj" />
+    <ProjectReference Include="..\..\..\KitX Standard\KitX Script\Kscript.CSharp.Parser\Kscript.CSharp.Parser.csproj" Condition="false" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj" />
   </ItemGroup>

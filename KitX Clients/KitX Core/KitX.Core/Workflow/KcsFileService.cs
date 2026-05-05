@@ -59,47 +59,6 @@ public class KcsFileService : IKcsFileService
 }
 
 /// <summary>
-/// 主程序代码分析器实现 - 使用 CSharpSyntaxWalker 检查禁止的语法
-/// </summary>
-public class MainProgramAnalyzer : IMainProgramAnalyzer
-{
-    /// <summary>
-    /// 分析代码
-    /// </summary>
-    public MainProgramAnalysisResult Analyze(string code)
-    {
-        var result = new MainProgramAnalysisResult { IsValid = true };
-
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return result;
-        }
-
-        try
-        {
-            // 解析代码为语法树
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var root = syntaxTree.GetRoot();
-
-            // 使用 StrictScriptValidator 进行语法检查
-            var validator = new StrictScriptValidator();
-            validator.Visit(root);
-
-            result.IsValid = validator.IsValid;
-            result.ForbiddenReason = validator.ForbiddenReason;
-        }
-        catch (Exception ex)
-        {
-            result.IsValid = false;
-            result.ForbiddenReason = $"Code parsing error: {ex.Message}";
-            Log.Warning(ex, "[MainProgramAnalyzer] Error analyzing code");
-        }
-
-        return result;
-    }
-}
-
-/// <summary>
 /// 严格的脚本验证器 - 使用 CSharpSyntaxWalker 检查允许的语法
 /// </summary>
 internal class StrictScriptValidator : CSharpSyntaxWalker

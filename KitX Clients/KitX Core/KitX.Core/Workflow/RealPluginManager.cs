@@ -21,10 +21,6 @@ using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
 using Microsoft.Extensions.DependencyInjection;
 
-using KcsPluginCallInfo = Kscript.CSharp.Parser.Models.PluginCallInfo;
-using KcsIPluginManager = Kscript.CSharp.Parser.Core.IPluginManager;
-using PluginMessageReceivedEventArgs = KitX.Core.Contract.Plugin.Events.PluginMessageReceivedEventArgs;
-
 namespace KitX.Core.Workflow;
 
 /// <summary>
@@ -32,7 +28,7 @@ namespace KitX.Core.Workflow;
 /// Implements both Contract.IPluginManager (primary, for BlockScripting) and
 /// KCS IPluginManager (legacy, for KCS pipeline compatibility).
 /// </summary>
-public class RealPluginManager : IPluginManager, KcsIPluginManager
+public class RealPluginManager : IPluginManager
 {
     private readonly IPluginServer _pluginServer;
     private readonly IDeviceServer _deviceServer;
@@ -231,21 +227,6 @@ public class RealPluginManager : IPluginManager, KcsIPluginManager
         var result = CallAsync(callInfo).GetAwaiter().GetResult();
         return ParseResult<T>(result);
     }
-
-    // ── KCS IPluginManager explicit implementation (legacy compatibility) ──
-
-    void KcsIPluginManager.Call(KcsPluginCallInfo callInfo)
-        => Call(ConvertFromKcs(callInfo));
-
-    T KcsIPluginManager.Call<T>(KcsPluginCallInfo callInfo)
-        => Call<T>(ConvertFromKcs(callInfo));
-
-    bool KcsIPluginManager.IsPluginExists(string pluginName) => IsPluginExists(pluginName);
-    bool KcsIPluginManager.IsMethodExists(string pluginName, string methodName) => IsMethodExists(pluginName, methodName);
-
-    private static PluginCallInfo ConvertFromKcs(KcsPluginCallInfo kcs)
-        => new(kcs.PluginName, kcs.MethodName, kcs.Parameters, kcs.ParameterTypes, kcs.ParameterNames);
-
     /// <summary>
     /// 自动调用插件方法：根据函数声明的返回类型自动选择调用策略。
     /// - void 返回类型 → fire-and-forget (Call)，不等待响应

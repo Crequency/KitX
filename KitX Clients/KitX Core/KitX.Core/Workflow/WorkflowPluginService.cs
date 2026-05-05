@@ -40,15 +40,12 @@ internal class WorkflowPluginService : IWorkflowPluginService
                 : new KitX.Core.Device.PluginsServer(new KitX.Core.Event.EventService());
             var realPluginManager = new RealPluginManager(pluginServer);
 
-            Kscript.CSharp.Parser.Parser.SetPluginManager(realPluginManager);
-
             _state.IsParserInitialized = true;
             Log.Information("[WorkflowPluginService] Real plugin manager initialized");
         }
         catch (Exception ex)
         {
-            Log.Error($"[WorkflowPluginService] Failed to initialize real plugin manager: {ex.Message}, falling back to mock");
-            Kscript.CSharp.Parser.Parser.SetPluginManager(new Kscript.CSharp.Parser.Core.MockPluginManager());
+            Log.Error($"[WorkflowPluginService] Failed to initialize real plugin manager: {ex.Message}");
             _state.IsParserInitialized = true;
         }
     }

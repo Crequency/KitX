@@ -83,13 +83,9 @@ internal class WorkflowManagementService : IWorkflowManagementService
             string sourceCode;
             List<HelperFunction>? helpers = data.HelperFunctions;
 
-            if (data.UseBlockMode && !string.IsNullOrWhiteSpace(data.BlockScriptSource))
+            if (!string.IsNullOrWhiteSpace(data.BlockScriptSource))
             {
                 sourceCode = data.BlockScriptSource;
-            }
-            else if (!string.IsNullOrWhiteSpace(data.MainProgram))
-            {
-                sourceCode = data.MainProgram;
             }
             else
             {
