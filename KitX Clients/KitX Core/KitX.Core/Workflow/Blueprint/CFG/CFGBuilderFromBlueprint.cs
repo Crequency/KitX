@@ -933,7 +933,7 @@ internal class CFGBuilderFromBlueprint
     {
         var cfgStmt = new CFGStatement
         {
-            Id = node.Id,  // Use node ID as statement ID for node mapping
+            StatementId = node.Id,  // Use node ID as statement ID for node mapping
             OriginalExpression = blockStmt.SourceCode,
             SourceLine = blockStmt.LineNumber,
         };
@@ -1015,7 +1015,7 @@ internal class CFGBuilderFromBlueprint
                     continue;
 
                 // Find the Blueprint node corresponding to this statement
-                if (!nodeById.TryGetValue(stmt.Id, out var node))
+                if (!nodeById.TryGetValue(stmt.StatementId, out var node))
                     continue;
 
                 if (stmt.Kind == CFGStatementKind.Branch)
@@ -1120,7 +1120,7 @@ internal class CFGBuilderFromBlueprint
         {
             foreach (var stmt in block.Statements)
             {
-                if (stmt.Id == nodeId)
+                if (stmt.StatementId == nodeId)
                     return stmt;
             }
         }
@@ -1131,7 +1131,7 @@ internal class CFGBuilderFromBlueprint
     {
         foreach (var block in cfg.Blocks)
         {
-            if (block.Statements.Any(s => s.Id == nodeId))
+            if (block.Statements.Any(s => s.StatementId == nodeId))
                 return block.Name;
         }
         return null;
@@ -1150,7 +1150,7 @@ internal class CFGBuilderFromBlueprint
         // Fallback: find which CFG block contains a statement with this node ID
         foreach (var block in cfg.Blocks)
         {
-            if (block.Statements.Any(s => s.Id == targetNodeId))
+            if (block.Statements.Any(s => s.StatementId == targetNodeId))
                 return block.Name;
         }
 

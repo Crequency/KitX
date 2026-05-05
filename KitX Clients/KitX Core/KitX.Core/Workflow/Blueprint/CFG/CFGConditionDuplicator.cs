@@ -75,7 +75,7 @@ internal class CFGConditionDuplicator
     /// </summary>
     private static CFGStatement CloneStatement(CFGStatement source) => new()
     {
-        Id = source.Id,  // Same ID — these are duplicates of the same logical statement
+        StatementId = source.StatementId,  // Same ID — these are duplicates of the same logical statement
         BlockName = source.BlockName,
         Kind = source.Kind,
         OriginalExpression = source.OriginalExpression,

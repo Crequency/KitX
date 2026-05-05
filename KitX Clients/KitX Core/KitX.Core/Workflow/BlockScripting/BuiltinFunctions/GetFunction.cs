@@ -33,7 +33,7 @@ public class GetFunction : IBuiltinFunctionDefinition
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-    public List<FormattedStatement> FormatInvocation(
+    public List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string blockName,
         PipelineContext context, string? assignedVar)
     {
@@ -60,7 +60,7 @@ public class GetFunction : IBuiltinFunctionDefinition
             pubVarTarget = assignedVar;
         }
 
-        return [new FormattedStatement
+        return [new CFGStatement
         {
             BlockName = blockName,
             Kind = CFGStatementKind.Assignment,
@@ -73,7 +73,7 @@ public class GetFunction : IBuiltinFunctionDefinition
         }];
     }
 
-    public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt)
+    public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
     {
         var varName = stmt.GetVarName ?? (stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "");
         if (node is GetNode gn)

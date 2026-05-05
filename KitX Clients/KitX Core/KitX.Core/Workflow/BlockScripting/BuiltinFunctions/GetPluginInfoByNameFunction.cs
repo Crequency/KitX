@@ -35,12 +35,12 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
 
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-        public List<FormattedStatement> FormatInvocation(
+        public List<CFGStatement> FormatInvocation(
             InvocationExpressionSyntax invoke, string blockName,
             PipelineContext context, string? assignedVar)
         {
             var args = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
-            return [new FormattedStatement
+            return [new CFGStatement
             {
                 BlockName = blockName,
                 Kind = CFGStatementKind.Expression,
@@ -51,7 +51,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             }];
         }
 
-        public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt)
+        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
         {
             if (node is BuiltinFunctionNode bfn && stmt.Arguments?.Count > 0)
                 bfn.Properties["PluginName"] = StripQuotes(stmt.Arguments[0]);

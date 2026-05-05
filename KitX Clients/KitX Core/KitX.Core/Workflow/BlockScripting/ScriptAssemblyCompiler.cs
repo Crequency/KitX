@@ -1,3 +1,4 @@
+using KitX.Core.Workflow.Blueprint.CFG;
 using System;
 using System.Collections.Generic;
 using KitX.Core.Contract.Workflow;
@@ -164,7 +165,7 @@ internal class ScriptAssemblyCompiler
     /// <summary>
     /// Formats the script using <see cref="ScriptFormatter"/> and infers PubVar types.
     /// </summary>
-    private (FormattedBlockScript formatted, Dictionary<string, string> pubVarTypes) FormatAndInferTypes(
+    private (ControlFlowGraph formatted, Dictionary<string, string> pubVarTypes) FormatAndInferTypes(
         BlockScript script)
     {
         var context = new PipelineContext { Script = script };

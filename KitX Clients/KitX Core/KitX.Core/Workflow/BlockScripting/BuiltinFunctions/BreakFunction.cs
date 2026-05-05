@@ -31,11 +31,11 @@ public class BreakFunction : IBuiltinFunctionDefinition
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-    public List<FormattedStatement> FormatInvocation(
+    public List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string blockName,
         PipelineContext context, string? assignedVar)
     {
-        return [new FormattedStatement
+        return [new CFGStatement
         {
             BlockName = blockName,
             Kind = CFGStatementKind.Break,
@@ -45,7 +45,7 @@ public class BreakFunction : IBuiltinFunctionDefinition
         }];
     }
 
-    public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt) => node;
+    public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
     {

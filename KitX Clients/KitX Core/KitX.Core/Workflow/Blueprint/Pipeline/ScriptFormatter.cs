@@ -13,7 +13,7 @@ using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
 /// <summary>
-/// Phase 2: Takes a parsed BlockScript AST and produces a FormattedBlockScript
+/// Phase 2: Takes a parsed BlockScript AST and produces a ControlFlowGraph
 /// where all nested function calls have been expanded into PubVar assignments.
 /// Also duplicates Loop condition evaluations before ToLoopCond statements.
 /// </summary>
@@ -28,9 +28,9 @@ public class ScriptFormatter
         _functionRegistry = functionRegistry;
     }
 
-    public FormattedBlockScript Format(BlockScript script, PipelineContext context)
+    public ControlFlowGraph Format(BlockScript script, PipelineContext context)
     {
-        var result = new FormattedBlockScript();
+        var result = new ControlFlowGraph();
 
         // Initialize counter: find max existing PubVar counter to avoid conflicts
         context.NextPubVarCounter = 1;
@@ -68,9 +68,9 @@ public class ScriptFormatter
     // Block-level formatting
     // ──────────────────────────────────────────────
 
-    private FormattedBlock FormatBlock(BlockDefinition blockDef, PipelineContext context)
+    private CFGBlock FormatBlock(BlockDefinition blockDef, PipelineContext context)
     {
-        var result = new FormattedBlock { Name = blockDef.Name, NextBlockName = blockDef.NextBlockName };
+        var result = new CFGBlock { Name = blockDef.Name, NextBlockName = blockDef.NextBlockName };
         foreach (var stmt in blockDef.Statements)
         {
             var formatted = FormatStatement(stmt, blockDef.Name, context);
@@ -80,7 +80,7 @@ public class ScriptFormatter
     }
 
     /// <summary>Returns a list of FormattedStatements (may be multiple when expansion occurs).</summary>
-    private List<FormattedStatement> FormatStatement(BlockStatement stmt, string blockName, PipelineContext context)
+    private List<CFGStatement> FormatStatement(BlockStatement stmt, string blockName, PipelineContext context)
     {
         switch (stmt)
         {
@@ -97,9 +97,9 @@ public class ScriptFormatter
     // Flow control formatting
     // ──────────────────────────────────────────────
 
-    private List<FormattedStatement> FormatFlowControl(FlowControlStatement flowCtrl, string blockName, PipelineContext context)
+    private List<CFGStatement> FormatFlowControl(FlowControlStatement flowCtrl, string blockName, PipelineContext context)
     {
-        var result = new List<FormattedStatement>();
+        var result = new List<CFGStatement>();
 
         switch (flowCtrl.ControlType)
         {
@@ -107,7 +107,7 @@ public class ScriptFormatter
                 {
                     var (condStmts, condPubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
                     result.AddRange(condStmts);
-                    result.Add(new FormattedStatement
+                    result.Add(new CFGStatement
                     {
                         BlockName = blockName,
                         Kind = CFGStatementKind.Branch,
@@ -127,7 +127,7 @@ public class ScriptFormatter
                     var (condStmts, condPubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
                     result.AddRange(condStmts);
 
-                    var loopStmt = new FormattedStatement
+                    var loopStmt = new CFGStatement
                     {
                         BlockName = blockName,
                         Kind = CFGStatementKind.Loop,
@@ -155,7 +155,7 @@ public class ScriptFormatter
                 break;
 
             case FlowControlType.ToLoopCond:
-                result.Add(new FormattedStatement
+                result.Add(new CFGStatement
                 {
                     BlockName = blockName,
                     Kind = CFGStatementKind.ToLoopCond,
@@ -167,7 +167,7 @@ public class ScriptFormatter
                 break;
 
             case FlowControlType.Break:
-                result.Add(new FormattedStatement
+                result.Add(new CFGStatement
                 {
                     BlockName = blockName,
                     Kind = CFGStatementKind.Break,
@@ -184,9 +184,9 @@ public class ScriptFormatter
     // Expression statement formatting
     // ──────────────────────────────────────────────
 
-    private List<FormattedStatement> FormatExpressionStatement(ExpressionStatement exprStmt, string blockName, PipelineContext context)
+    private List<CFGStatement> FormatExpressionStatement(ExpressionStatement exprStmt, string blockName, PipelineContext context)
     {
-        var result = new List<FormattedStatement>();
+        var result = new List<CFGStatement>();
         var expression = exprStmt.Expression;
 
         // Try to parse the expression
@@ -223,11 +223,11 @@ public class ScriptFormatter
     /// <summary>
     /// Formats a function invocation, expanding nested calls in arguments.
     /// </summary>
-    private List<FormattedStatement> FormatInvocation(
+    private List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string funcName, string blockName,
         PipelineContext context, string? assignedVar, string? fullFuncName = null)
     {
-        var result = new List<FormattedStatement>();
+        var result = new List<CFGStatement>();
 
         // Expand nested calls in arguments first
         var (expansionStmts, currentArgExprs) = ExpandArguments(invoke, blockName, context);
@@ -282,7 +282,7 @@ public class ScriptFormatter
             ? ExprUtils.ComputeFingerprint(funcName, currentArgExprs)
             : null;
 
-        result.Add(new FormattedStatement
+        result.Add(new CFGStatement
         {
             BlockName = blockName,
             Kind = kind,
@@ -308,10 +308,10 @@ public class ScriptFormatter
     /// Expands nested function calls in arguments.
     /// Returns (expansionStatements, currentArgStrings).
     /// </summary>
-    private (List<FormattedStatement> stmts, List<string> argExprs) ExpandArguments(
+    private (List<CFGStatement> stmts, List<string> argExprs) ExpandArguments(
         InvocationExpressionSyntax invoke, string blockName, PipelineContext context)
     {
-        var stmts = new List<FormattedStatement>();
+        var stmts = new List<CFGStatement>();
         var argExprs = new List<string>();
 
         foreach (var arg in invoke.ArgumentList.Arguments)
@@ -328,7 +328,7 @@ public class ScriptFormatter
     /// Recursively expands nested calls within a single expression.
     /// Returns (expansionStatements, finalExpressionString).
     /// </summary>
-    private (List<FormattedStatement> stmts, string finalExpr) ExpandExpression(
+    private (List<CFGStatement> stmts, string finalExpr) ExpandExpression(
         ExpressionSyntax expr, string blockName, PipelineContext context)
     {
         // Literal → return as-is
@@ -369,7 +369,7 @@ public class ScriptFormatter
 
             // This is a helper/regular function call that needs extraction
             // First, recursively expand ITS arguments
-            var allStmts = new List<FormattedStatement>();
+            var allStmts = new List<CFGStatement>();
             var currentArgs = new List<string>();
             foreach (var arg in invoke.ArgumentList.Arguments)
             {
@@ -385,7 +385,7 @@ public class ScriptFormatter
 
             var fingerprint = ExprUtils.ComputeFingerprint(funcName, currentArgs);
 
-            allStmts.Add(new FormattedStatement
+            allStmts.Add(new CFGStatement
             {
                 BlockName = blockName,
                 Kind = CFGStatementKind.Assignment,
@@ -412,10 +412,10 @@ public class ScriptFormatter
     // Condition expansion (for Branch/Loop)
     // ──────────────────────────────────────────────
 
-    private (List<FormattedStatement> stmts, string? pubVar) ExpandCondition(
+    private (List<CFGStatement> stmts, string? pubVar) ExpandCondition(
         string conditionExpression, string blockName, PipelineContext context)
     {
-        var result = new List<FormattedStatement>();
+        var result = new List<CFGStatement>();
         if (string.IsNullOrWhiteSpace(conditionExpression))
             return (result, null);
 

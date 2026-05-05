@@ -12,7 +12,7 @@ using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
 /// <summary>
-/// Phase 3: Creates all Blueprint nodes and exec flow edges from FormattedBlockScript.
+/// Phase 3: Creates all Blueprint nodes and exec flow edges from ControlFlowGraph.
 /// Implements PubVar reuse detection during node creation (§6.5).
 /// </summary>
 public class NodeBuilder
@@ -34,7 +34,7 @@ public class NodeBuilder
         _functionRegistry = functionRegistry;
     }
 
-    public void Build(FormattedBlockScript script, PipelineContext context)
+    public void Build(ControlFlowGraph script, PipelineContext context)
     {
         // Create EntryNode
         var entry = (EntryNode)_registry.Create(BlueprintNodeType.Entry);
@@ -59,7 +59,7 @@ public class NodeBuilder
     // Block processing
     // ──────────────────────────────────────────────
 
-    private void ProcessBlock(FormattedBlock block, PipelineContext context)
+    private void ProcessBlock(CFGBlock block, PipelineContext context)
     {
         string? prevStmtId = null;
         BlueprintNode? prevNode = null;
@@ -109,7 +109,7 @@ public class NodeBuilder
     // Statement dispatch
     // ──────────────────────────────────────────────
 
-    private BlueprintNode? ProcessStatement(FormattedStatement stmt, string blockName,
+    private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         // Registry path: handle all registered block terminators (Branch/Loop/ToLoopCond/Break/Flip)
@@ -139,7 +139,6 @@ public class NodeBuilder
             case CFGStatementKind.Print:
             case CFGStatementKind.Pause:
             case CFGStatementKind.Set:
-            case CFGStatementKind.PluginCall:
             case CFGStatementKind.PluginCallWithTarget:
                 {
                     // Use registry to determine the legacy node type and configure it
@@ -157,7 +156,6 @@ public class NodeBuilder
                         CFGStatementKind.Print => BlueprintNodeType.Print,
                         CFGStatementKind.Pause => BlueprintNodeType.Pause,
                         CFGStatementKind.Set => BlueprintNodeType.Set,
-                        CFGStatementKind.PluginCall => BlueprintNodeType.Call,
                         CFGStatementKind.PluginCallWithTarget => BlueprintNodeType.Call,
                         _ => BlueprintNodeType.Call
                     };
@@ -173,10 +171,10 @@ public class NodeBuilder
     }
 
     /// <summary>
-    /// Checks if a FormattedStatement corresponds to a registry-based control flow terminator.
+    /// Checks if a CFGStatement corresponds to a registry-based control flow terminator.
     /// Used by ProcessBlock to set endsWithFlowCtrl flag.
     /// </summary>
-    private bool IsRegistryFlowControlTerminator(FormattedStatement stmt)
+    private bool IsRegistryFlowControlTerminator(CFGStatement stmt)
     {
         if (_functionRegistry == null || string.IsNullOrEmpty(stmt.FunctionName)) return false;
         var def = _functionRegistry.Get(stmt.FunctionName);
@@ -187,7 +185,7 @@ public class NodeBuilder
     // Call / Assignment node creation (with PubVar reuse)
     // ──────────────────────────────────────────────
 
-    private BlueprintNode? ProcessCallOrAssignment(FormattedStatement stmt,
+    private BlueprintNode? ProcessCallOrAssignment(CFGStatement stmt,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         // --- PubVar reuse check (§6.5) ---
@@ -383,7 +381,7 @@ public class NodeBuilder
     // ──────────────────────────────────────────────
 
     /// <summary>Creates a node, registers it, and chains it into the exec flow.</summary>
-    private BlueprintNode ChainNewNode(BlueprintNode node, FormattedStatement stmt,
+    private BlueprintNode ChainNewNode(BlueprintNode node, CFGStatement stmt,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         context.AllNodes.Add(node);

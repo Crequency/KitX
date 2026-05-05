@@ -4,7 +4,7 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// Type of a control flow edge between blocks. Making edge semantics
 /// explicit eliminates the need for heuristic-based control flow resolution.
 /// </summary>
-internal enum CFGEdgeType
+public enum CFGEdgeType
 {
     /// <summary>
     /// Sequential fall-through (NextBlock assignment).
@@ -53,7 +53,7 @@ internal enum CFGEdgeType
 /// A typed edge in the Control Flow Graph, capturing the semantics
 /// of the transition between two blocks.
 /// </summary>
-internal class CFGEdge
+public class CFGEdge
 {
     /// <summary>
     /// The block this edge originates from.

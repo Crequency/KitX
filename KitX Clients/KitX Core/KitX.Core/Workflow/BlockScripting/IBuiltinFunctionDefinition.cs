@@ -80,25 +80,25 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText);
 
-    // ─── 格式化（AST → FormattedStatement）─────────
+    // ─── 格式化（AST → CFGStatement）─────────
 
     /// <summary>
-    /// 将函数调用格式化为展开后的 FormattedStatement 列表。
+    /// 将函数调用格式化为展开后的 CFGStatement 列表。
     /// 嵌套参数应在此时被展开为 PubVar 赋值。
     /// </summary>
-    List<FormattedStatement> FormatInvocation(
+    List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke,
         string blockName,
         PipelineContext context,
         string? assignedVar);
 
-    // ─── 节点构建（FormattedStatement → BlueprintNode）──
+    // ─── 节点构建（CFGStatement → BlueprintNode）──
 
     /// <summary>
     /// 对新创建的 BuiltinFunctionNode 进行额外配置（如设置 Properties 字典）。
     /// 返回配置后的节点。
     /// </summary>
-    BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt);
+    BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt);
 
     // ─── 导出（Blueprint → BlockScript）────────────
 
@@ -130,5 +130,5 @@ public interface IBuiltinFunctionDefinition
     /// 仅在 IsFlowControl == true 且 IsBlockTerminator == true 时被调用。
     /// 默认无操作。
     /// </summary>
-    void OnNodeCreated(BlueprintNode node, FormattedStatement stmt, PipelineContext context) { }
+    void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context) { }
 }

@@ -49,7 +49,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             return stmt;
         }
 
-        public List<FormattedStatement> FormatInvocation(
+        public List<CFGStatement> FormatInvocation(
             InvocationExpressionSyntax invoke, string blockName,
             PipelineContext context, string? assignedVar)
         {
@@ -57,7 +57,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             var trueBlock = args.Count >= 1 ? GetStringLiteral(args[0].Expression) : "";
             var falseBlock = args.Count >= 2 ? GetStringLiteral(args[1].Expression) : "";
 
-            return [new FormattedStatement
+            return [new CFGStatement
             {
                 BlockName = blockName,
                 Kind = CFGStatementKind.Branch, // Reuse Branch kind for pipeline routing
@@ -69,9 +69,9 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             }];
         }
 
-        public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt) => node;
+        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
-        public void OnNodeCreated(BlueprintNode node, FormattedStatement stmt, PipelineContext context)
+        public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)
         {
             var arms = new List<(string PinName, string TargetBlockName)>();
             if (!string.IsNullOrEmpty(stmt.TrueBlockName))

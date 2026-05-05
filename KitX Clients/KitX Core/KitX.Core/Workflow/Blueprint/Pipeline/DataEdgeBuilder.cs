@@ -10,7 +10,7 @@ using Serilog;
 namespace KitX.Core.Workflow.Blueprint.Pipeline;
 
 /// <summary>
-/// Phase 4+5: Creates data edges from FormattedBlockScript argument analysis.
+/// Phase 4+5: Creates data edges from ControlFlowGraph argument analysis.
 /// Handles PubVar references, ConstBlock connections, DefaultValues, and data edge dedup.
 /// </summary>
 public class DataEdgeBuilder
@@ -37,7 +37,7 @@ public class DataEdgeBuilder
     // Statement processing
     // ──────────────────────────────────────────────
 
-    private void ProcessStatement(FormattedStatement stmt, PipelineContext context)
+    private void ProcessStatement(CFGStatement stmt, PipelineContext context)
     {
         switch (stmt.Kind)
         {
@@ -72,7 +72,7 @@ public class DataEdgeBuilder
     // Call/Assignment argument processing
     // ──────────────────────────────────────────────
 
-    private void ProcessCallArguments(FormattedStatement stmt, PipelineContext context)
+    private void ProcessCallArguments(CFGStatement stmt, PipelineContext context)
     {
         if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
         if (stmt.Arguments == null) return;
@@ -91,7 +91,7 @@ public class DataEdgeBuilder
     /// Processes a single argument expression and creates a data edge or sets DefaultValue.
     /// </summary>
     private void ProcessArgument(string arg, BlueprintNode targetNode, string targetPinName,
-        FormattedStatement parentStmt, int argIndex, PipelineContext context)
+        CFGStatement parentStmt, int argIndex, PipelineContext context)
     {
         var trimmed = arg.Trim();
 
@@ -155,7 +155,7 @@ public class DataEdgeBuilder
     // Special node argument processing
     // ──────────────────────────────────────────────
 
-    private void ProcessSingleValueInput(FormattedStatement stmt, List<string>? args,
+    private void ProcessSingleValueInput(CFGStatement stmt, List<string>? args,
         string pinName, PipelineContext context)
     {
         if (args == null || args.Count == 0) return;
@@ -164,7 +164,7 @@ public class DataEdgeBuilder
         ProcessArgument(args[0], targetNode, pinName, stmt, 0, context);
     }
 
-    private void ProcessSetValue(FormattedStatement stmt, PipelineContext context)
+    private void ProcessSetValue(CFGStatement stmt, PipelineContext context)
     {
         if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
         if (stmt.Arguments == null || stmt.Arguments.Count == 0) return;
@@ -176,7 +176,7 @@ public class DataEdgeBuilder
         }
     }
 
-    private void ProcessConditionInput(FormattedStatement stmt, PipelineContext context)
+    private void ProcessConditionInput(CFGStatement stmt, PipelineContext context)
     {
         if (string.IsNullOrEmpty(stmt.ConditionPubVar)) return;
         if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;

@@ -1,4 +1,5 @@
 using System;
+using KitX.Core.Workflow.Blueprint.CFG;
 using System.Collections.Generic;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
@@ -22,7 +23,7 @@ public class PipelineContext
     public List<string> PubVarNames { get; set; } = new();
 
     // --- Phase 2 output ---
-    public FormattedBlockScript FormattedScript { get; set; } = new();
+    public ControlFlowGraph FormattedScript { get; set; } = new();
 
     // --- Phase 3 output ---
     public List<BlueprintNode> AllNodes { get; set; } = new();
@@ -121,7 +122,7 @@ public class ConditionInfo
     /// The formatted statements that evaluate the condition (may be multiple if nested).
     /// The last one assigns to ConditionPubVar.
     /// </summary>
-    public List<FormattedStatement> ExpansionStatements { get; set; } = new();
+    public List<CFGStatement> ExpansionStatements { get; set; } = new();
 }
 
 /// <summary>

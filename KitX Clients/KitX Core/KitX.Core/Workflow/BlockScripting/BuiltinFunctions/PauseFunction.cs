@@ -33,12 +33,12 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
 
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-        public List<FormattedStatement> FormatInvocation(
+        public List<CFGStatement> FormatInvocation(
             InvocationExpressionSyntax invoke, string blockName,
             PipelineContext context, string? assignedVar)
         {
             var args = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
-            return [new FormattedStatement
+            return [new CFGStatement
             {
                 BlockName = blockName,
                 Kind = CFGStatementKind.Pause,
@@ -49,7 +49,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             }];
         }
 
-        public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt) => node;
+        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {

@@ -11,10 +11,10 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// <summary>
 /// Builds a <see cref="ControlFlowGraph"/> from a <see cref="BlockScript"/> AST.
 /// This is the canonical transformation for the BS→BP pipeline, replacing the
-/// ad-hoc <see cref="Pipeline.FormattedBlockScript"/> intermediate.
+/// ad-hoc <see cref="Pipeline.ControlFlowGraph"/> intermediate.
 ///
 /// Strategy: uses the existing <see cref="Pipeline.ScriptFormatter"/> for expression
-/// expansion, then converts the <see cref="Pipeline.FormattedBlockScript"/> to a
+/// expansion, then converts the <see cref="Pipeline.ControlFlowGraph"/> to a
 /// <see cref="ControlFlowGraph"/> with typed edges.
 /// </summary>
 internal class CFGBuilderFromScript
@@ -39,7 +39,7 @@ internal class CFGBuilderFromScript
         var formatter = new Pipeline.ScriptFormatter(_helperFunctions, _functionRegistry);
         var formatted = formatter.Format(script, context);
 
-        // Phase 2: Convert FormattedBlockScript to ControlFlowGraph
+        // Phase 2: Convert ControlFlowGraph to ControlFlowGraph
         var cfg = new ControlFlowGraph
         {
             HelperFunctions = _helperFunctions ?? [],
@@ -114,11 +114,11 @@ internal class CFGBuilderFromScript
 
     // ─── Statement Conversion ──────────────────────────────────────────
 
-    private static CFGStatement ConvertStatement(Pipeline.FormattedStatement fmtStmt)
+    private static CFGStatement ConvertStatement(CFGStatement fmtStmt)
     {
         return new CFGStatement
         {
-            Id = fmtStmt.StatementId,
+            StatementId = fmtStmt.StatementId,
             BlockName = fmtStmt.BlockName,
             Kind = fmtStmt.Kind,
             OriginalExpression = fmtStmt.OriginalExpression,
@@ -141,7 +141,7 @@ internal class CFGBuilderFromScript
 
     // ─── Block Type Classification ──────────────────────────────────────
 
-    private static CFGBlockType ClassifyBlockType(Pipeline.FormattedBlock fmtBlock)
+    private static CFGBlockType ClassifyBlockType(CFGBlock fmtBlock)
     {
         if (fmtBlock.Name == MainBlock)
             return CFGBlockType.Entry;
@@ -161,7 +161,7 @@ internal class CFGBuilderFromScript
 
     // ─── Edge Building ─────────────────────────────────────────────────
 
-    private static void BuildEdgesFromBlock(CFGBlock cfgBlock, Pipeline.FormattedBlock fmtBlock)
+    private static void BuildEdgesFromBlock(CFGBlock cfgBlock, CFGBlock fmtBlock)
     {
         // Sequential fall-through edge (NextBlock)
         if (!string.IsNullOrEmpty(fmtBlock.NextBlockName) && !cfgBlock.EndsWithControlFlow)

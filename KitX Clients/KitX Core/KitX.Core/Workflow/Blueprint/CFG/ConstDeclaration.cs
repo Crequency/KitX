@@ -6,7 +6,7 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// value (<see cref="DefaultValue"/>) to ensure correct round-tripping
 /// of string/char literals.
 /// </summary>
-internal class ConstDeclaration
+public class ConstDeclaration
 {
     /// <summary>Variable name (e.g. "bfCode", "memorySize").</summary>
     public string Name { get; set; } = string.Empty;

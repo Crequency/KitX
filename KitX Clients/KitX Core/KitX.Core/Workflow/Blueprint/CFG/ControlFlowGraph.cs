@@ -8,8 +8,13 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// both BS→BP and BP→BS conversion. Both directions produce/consume
 /// a CFG, ensuring round-trip fidelity by structural equivalence.
 /// </summary>
-internal class ControlFlowGraph
+public class ControlFlowGraph
 {
+    /// <summary>
+    /// Main block name (always first in Blocks list). Computed from EntryBlock.
+    /// </summary>
+    public string MainBlockName { get; set; } = "MainBlock";
+
     /// <summary>
     /// All blocks in the CFG, ordered: MainBlock first, then named blocks
     /// in definition order.

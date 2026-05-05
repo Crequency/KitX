@@ -33,7 +33,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
 
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-        public List<FormattedStatement> FormatInvocation(
+        public List<CFGStatement> FormatInvocation(
             InvocationExpressionSyntax invoke, string blockName,
             PipelineContext context, string? assignedVar)
         {
@@ -48,7 +48,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
                 currentArgExprs.RemoveAt(0);
             }
 
-            return [new FormattedStatement
+            return [new CFGStatement
             {
                 BlockName = blockName,
                 Kind = CFGStatementKind.Set,
@@ -60,7 +60,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             }];
         }
 
-        public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt)
+        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
         {
             var varName = stmt.SetVarName ?? "";
             if (node is SetNode sn)

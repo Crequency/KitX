@@ -3,7 +3,7 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// <summary>
 /// Type of a CFG block, indicating its structural role in the control flow.
 /// </summary>
-internal enum CFGBlockType
+public enum CFGBlockType
 {
     /// <summary>MainBlock — the entry point of the script.</summary>
     Entry,
@@ -29,7 +29,7 @@ internal enum CFGBlockType
 /// statements with a single entry point and a single exit point (or
 /// control flow divergence at the end).
 /// </summary>
-internal class CFGBlock
+public class CFGBlock
 {
     /// <summary>
     /// Block name — stable across round-trips. For MainBlock, this is "#MainBlock".

@@ -43,7 +43,7 @@ internal static class ScriptCodeGenerator
     /// ConvertTo&lt;T&gt; is needed when SOURCE is <c>object</c> but DEMANDED is a specific type.
     /// </summary>
     internal static Dictionary<string, string> InferPubVarTypes(
-        FormattedBlockScript formattedScript,
+        ControlFlowGraph formattedScript,
         List<HelperFunction>? helperFunctions,
         PipelineContext context)
     {
@@ -134,7 +134,7 @@ internal static class ScriptCodeGenerator
     /// </summary>
     internal static CompilationUnitSyntax GenerateCompilationUnit(
         BlockScript script,
-        FormattedBlockScript formattedScript,
+        ControlFlowGraph formattedScript,
         Dictionary<string, string> pubVarTypes,
         string hash)
     {
@@ -278,7 +278,7 @@ internal static class ScriptCodeGenerator
     /// </summary>
     internal static MethodDeclarationSyntax GenerateRunMethod(
         BlockScript script,
-        FormattedBlockScript formattedScript,
+        ControlFlowGraph formattedScript,
         Dictionary<string, string> pubVarTypes)
     {
         var statements = new List<StatementSyntax>();
@@ -471,7 +471,7 @@ internal static class ScriptCodeGenerator
     /// Generates <see cref="SwitchSectionSyntax"/> for each formatted block.
     /// </summary>
     internal static List<SwitchSectionSyntax> GenerateSwitchSections(
-        FormattedBlockScript formattedScript,
+        ControlFlowGraph formattedScript,
         Dictionary<string, string> pubVarTypes,
         List<HelperFunction>? helperFunctions)
     {
@@ -493,10 +493,10 @@ internal static class ScriptCodeGenerator
     }
 
     /// <summary>
-    /// Generates a single switch case from a <see cref="FormattedBlock"/>.
+    /// Generates a single switch case from a <see cref="CFGBlock"/>.
     /// </summary>
     internal static SwitchSectionSyntax GenerateFormattedBlockCase(
-        FormattedBlock block,
+        CFGBlock block,
         Dictionary<string, string> pubVarTypes,
         List<HelperFunction>? helperFunctions,
         Dictionary<string, string> helperReturnTypes)
@@ -579,103 +579,31 @@ internal static class ScriptCodeGenerator
 
                 case CFGStatementKind.Branch:
                 {
-                    var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
-                        ? ResolveArgumentExpression(stmt.ConditionPubVar, pubVarTypes)
-                        : ParseExpression(stmt.ConditionExpression ?? "false");
-
-                    caseStatements.Add(ExpressionStatement(
-                        AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
-                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                IdentifierName("G"), IdentifierName("NextBlock")),
-                            InvocationExpression(
-                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    IdentifierName("G"), IdentifierName("Branch")),
-                                ArgumentList(SeparatedList(new[]
-                                {
-                                    Argument(condExpr),
-                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                                        Literal(stmt.TrueBlockName ?? ""))),
-                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                                        Literal(stmt.FalseBlockName ?? "")))
-                                }))))));
-
-                    hasNextBlockAssignment = true;
-                    caseStatements.Add(BreakStatement());
+                    GenerateFlowControl("Branch", stmt, caseStatements, pubVarTypes,
+                        ref hasNextBlockAssignment,
+                        conditionPubVar: stmt.ConditionPubVar,
+                        trueBlockName: stmt.TrueBlockName, falseBlockName: stmt.FalseBlockName);
                     break;
                 }
 
                 case CFGStatementKind.Loop:
                 {
-                    var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
-                        ? ResolveArgumentExpression(stmt.ConditionPubVar, pubVarTypes)
-                        : ParseExpression(stmt.ConditionExpression ?? "false");
-
-                    caseStatements.Add(ExpressionStatement(
-                        AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
-                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                IdentifierName("G"), IdentifierName("NextBlock")),
-                            InvocationExpression(
-                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    IdentifierName("G"), IdentifierName("Loop")),
-                                ArgumentList(SeparatedList(new[]
-                                {
-                                    Argument(condExpr),
-                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                                        Literal(stmt.TrueBlockName ?? ""))),
-                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                                        Literal(stmt.FalseBlockName ?? "")))
-                                }))))));
-
-                    hasNextBlockAssignment = true;
-                    caseStatements.Add(BreakStatement());
+                    GenerateFlowControl("Loop", stmt, caseStatements, pubVarTypes,
+                        ref hasNextBlockAssignment,
+                        conditionPubVar: stmt.ConditionPubVar,
+                        trueBlockName: stmt.TrueBlockName, falseBlockName: stmt.FalseBlockName);
                     break;
                 }
 
                 case CFGStatementKind.Print:
                 {
-                    if (stmt.Arguments.Count > 0)
-                    {
-                        var argExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
-                        caseStatements.Add(
-                            ExpressionStatement(
-                                InvocationExpression(
-                                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                        IdentifierName("G"), IdentifierName("Print")),
-                                    ArgumentList(SeparatedList(new[] { Argument(argExpr) })))));
-                    }
-
+                    GenerateSimpleMethodCall("Print", stmt, caseStatements, pubVarTypes);
                     break;
                 }
 
-                case CFGStatementKind.PluginCallWithTarget:
+                case CFGStatementKind.Pause:
                 {
-                    var args = new List<ArgumentSyntax>();
-
-                    if (stmt.Arguments.Count > 0)
-                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes)));
-                    else
-                        args.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(""))));
-
-                    if (stmt.Arguments.Count > 1)
-                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[1], pubVarTypes)));
-                    else
-                        args.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(""))));
-
-                    if (stmt.Arguments.Count > 2)
-                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[2], pubVarTypes)));
-                    else
-                        args.Add(Argument(LiteralExpression(SyntaxKind.NullLiteralExpression)));
-
-                    for (int i = 3; i < stmt.Arguments.Count; i++)
-                        args.Add(Argument(ResolveArgumentExpression(stmt.Arguments[i], pubVarTypes)));
-
-                    caseStatements.Add(
-                        ExpressionStatement(
-                            InvocationExpression(
-                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    IdentifierName("G"), IdentifierName("PluginCallWithTarget")),
-                                ArgumentList(SeparatedList(args)))));
-
+                    GenerateSimpleMethodCall("Pause", stmt, caseStatements, pubVarTypes);
                     break;
                 }
 
@@ -723,44 +651,33 @@ internal static class ScriptCodeGenerator
 
                 case CFGStatementKind.ToLoopCond:
                 {
-                    caseStatements.Add(
-                        ExpressionStatement(
-                            AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
-                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    IdentifierName("G"), IdentifierName("NextBlock")),
-                                InvocationExpression(
-                                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                        IdentifierName("G"), IdentifierName("ToLoopCond")),
-                                    ArgumentList(SeparatedList(new[]
-                                    {
-                                        Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                                            Literal(stmt.ToLoopCondReturnTo ?? "")))
-                                    }))))));
+                    GenerateFlowControl("ToLoopCond", stmt, caseStatements, pubVarTypes,
+                        ref hasNextBlockAssignment,
+                        returnToBlock: stmt.ToLoopCondReturnTo);
+                    break;
+                }
 
-                    hasNextBlockAssignment = true;
-                    caseStatements.Add(BreakStatement());
+                case CFGStatementKind.PluginCallWithTarget:
+                {
+                    var callExpr = BuildPluginCallWithTargetExpression(stmt, pubVarTypes);
+                    if (stmt.PubVarTarget != null)
+                    {
+                        var typeName = pubVarTypes.GetValueOrDefault(stmt.PubVarTarget, "object");
+                        caseStatements.Add(LocalDeclarationStatement(
+                            VariableDeclaration(ParseTypeName(typeName))
+                                .AddVariables(VariableDeclarator(Identifier(stmt.PubVarTarget))
+                                    .WithInitializer(EqualsValueClause(callExpr)))));
+                    }
+                    else
+                    {
+                        caseStatements.Add(ExpressionStatement(callExpr));
+                    }
                     break;
                 }
 
                 case CFGStatementKind.Break:
                 {
                     caseStatements.Add(ReturnStatement());
-                    break;
-                }
-
-                case CFGStatementKind.Pause:
-                {
-                    if (stmt.Arguments.Count > 0)
-                    {
-                        var msExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
-                        caseStatements.Add(
-                            ExpressionStatement(
-                                InvocationExpression(
-                                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                        IdentifierName("G"), IdentifierName("Pause")),
-                                    ArgumentList(SeparatedList(new[] { Argument(msExpr) })))));
-                    }
-
                     break;
                 }
 
@@ -824,7 +741,7 @@ internal static class ScriptCodeGenerator
     /// Builds <c>G.PluginCall("pluginName", "methodName", args...)</c> expression.
     /// </summary>
     internal static InvocationExpressionSyntax BuildPluginCallExpression(
-        FormattedStatement stmt, Dictionary<string, string> pubVarTypes)
+        CFGStatement stmt, Dictionary<string, string> pubVarTypes)
     {
         var lastDot = (stmt.FullFunctionName ?? "").LastIndexOf('.');
         var pluginName = lastDot >= 0 ? stmt.FullFunctionName![..lastDot] : stmt.FullFunctionName ?? "";
@@ -848,7 +765,7 @@ internal static class ScriptCodeGenerator
     /// Builds <c>G.PluginCallWithTarget("pluginName", "methodName", "targetDevice", args...)</c> expression.
     /// </summary>
     internal static InvocationExpressionSyntax BuildPluginCallWithTargetExpression(
-        FormattedStatement stmt, Dictionary<string, string> pubVarTypes)
+        CFGStatement stmt, Dictionary<string, string> pubVarTypes)
     {
         var pluginNameArg = stmt.Arguments.Count > 0 ? stmt.Arguments[0] : "\"\"";
         var methodNameArg = stmt.Arguments.Count > 1 ? stmt.Arguments[1] : "\"\"";
@@ -894,5 +811,63 @@ internal static class ScriptCodeGenerator
     {
         if (name == null || helperFunctions == null) return false;
         return helperFunctions.Any(h => h.Name == name);
+    }
+
+    /// <summary>
+    /// Generates a simple G.Method(arg) call for single-argument globals methods like Print/Pause.
+    /// </summary>
+    private static void GenerateSimpleMethodCall(string methodName, CFGStatement stmt,
+        List<StatementSyntax> caseStatements, Dictionary<string, string> pubVarTypes)
+    {
+        if (stmt.Arguments.Count == 0) return;
+        var argExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
+        caseStatements.Add(ExpressionStatement(
+            InvocationExpression(
+                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName("G"), IdentifierName(methodName)),
+                ArgumentList(SeparatedList(new[] { Argument(argExpr) })))));
+    }
+
+    /// <summary>
+    /// Generates flow control statements (G.NextBlock = G.Branch/G.Loop/G.ToLoopCond(...)).
+    /// For Branch/Loop: 3 arguments (condition, trueBlock, falseBlock).
+    /// For ToLoopCond: 1 argument (returnToBlock).
+    /// </summary>
+    private static void GenerateFlowControl(string methodName, CFGStatement stmt,
+        List<StatementSyntax> caseStatements, Dictionary<string, string> pubVarTypes,
+        ref bool hasNextBlockAssignment, string? conditionPubVar = null,
+        string? trueBlockName = null, string? falseBlockName = null,
+        string? returnToBlock = null)
+    {
+        var resolved = new List<ArgumentSyntax>();
+
+        if (methodName == "ToLoopCond")
+        {
+            resolved.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
+                Literal(returnToBlock ?? ""))));
+        }
+        else
+        {
+            var condExpr = !string.IsNullOrEmpty(conditionPubVar)
+                ? ResolveArgumentExpression(conditionPubVar, pubVarTypes)
+                : ParseExpression(stmt.ConditionExpression ?? "false");
+            resolved.Add(Argument(condExpr));
+            resolved.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
+                Literal(trueBlockName ?? ""))));
+            resolved.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
+                Literal(falseBlockName ?? ""))));
+        }
+
+        caseStatements.Add(ExpressionStatement(
+            AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName("G"), IdentifierName("NextBlock")),
+                InvocationExpression(
+                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("G"), IdentifierName(methodName)),
+                    ArgumentList(SeparatedList(resolved))))));
+
+        hasNextBlockAssignment = true;
+        caseStatements.Add(BreakStatement());
     }
 }

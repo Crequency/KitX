@@ -49,16 +49,16 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             return stmt;
         }
 
-        public List<FormattedStatement> FormatInvocation(
+        public List<CFGStatement> FormatInvocation(
             InvocationExpressionSyntax invoke, string blockName,
             PipelineContext context, string? assignedVar)
         {
             return [];
         }
 
-        public BlueprintNode ConfigureNode(BlueprintNode node, FormattedStatement stmt) => node;
+        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
-        public void OnNodeCreated(BlueprintNode node, FormattedStatement stmt, PipelineContext context)
+        public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)
         {
             if (!string.IsNullOrEmpty(stmt.TrueBlockName) || !string.IsNullOrEmpty(stmt.FalseBlockName))
             {

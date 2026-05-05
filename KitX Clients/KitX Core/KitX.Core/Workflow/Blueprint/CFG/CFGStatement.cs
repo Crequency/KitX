@@ -46,24 +46,20 @@ public enum CFGStatementKind
 
     /// <summary>TryGetDevice(deviceSearchPattern) — returns DeviceInfo or null</summary>
     TryGetDevice,
-
-    /// <summary>PluginCall(pluginName, methodName[, args...]) — local plugin call</summary>
-    PluginCall,
 }
 
-/// <summary>
-/// A single statement within a CFG block. All expressions are flat —
+/// <summary> within a CFG block. All expressions are flat —
 /// nested calls have been expanded into sequential PubVar assignments.
 /// Carries all information needed to produce a Blueprint node or a
 /// BlockScript statement.
 /// </summary>
-internal class CFGStatement
+public class CFGStatement
 {
     /// <summary>
     /// Unique identifier for this statement. Used to link CFG statements
     /// to Blueprint nodes during conversion.
     /// </summary>
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string StatementId { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>
     /// The block this statement belongs to.
