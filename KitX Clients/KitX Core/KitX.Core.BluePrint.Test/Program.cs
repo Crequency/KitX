@@ -172,6 +172,30 @@ public class Program
             Console.WriteLine("└──────────────────────────────────────────┘\n");
             RunCrossDevicePluginCallTest(converter, reverseConverter, parser, sp);
         }
+
+        if (ShouldRunTest("N"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test N: JsonGetField Pipeline            │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunJsonGetFieldTest(converter, reverseConverter, parser, sp);
+        }
+
+        if (ShouldRunTest("O"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test O: Built-in Func Format/NodeBuild   │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunBuiltinFuncTest(converter, reverseConverter, helpers);
+        }
+
+        if (ShouldRunTest("P"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test P: Built-in Assembly Compilation    │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunBuiltinAssemblyTest(parser, sp);
+        }
     }
 
     private static void ParseArgs(string[] args)
@@ -1105,5 +1129,435 @@ Print(""Cross-device call done"");";
         public void Call(PluginCallInfo callInfo) => RecordedCalls.Add(callInfo);
         public bool IsPluginExists(string name) => true;
         public bool IsMethodExists(string plugin, string method) => true;
+    }
+
+    // ──────────────────────────────────────────────
+    // Test N: JsonGetField Pipeline
+    // ──────────────────────────────────────────────
+    private static void RunJsonGetFieldTest(
+        BlockScriptToBlueprintConverter forwardConverter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        IBlockScriptParser parser,
+        System.IServiceProvider sp)
+    {
+        bool allPassed = true;
+
+        // ── Phase 1: Forward Conversion ──
+        Console.WriteLine("[Test N] Phase 1: Forward (Script → Blueprint)");
+        try
+        {
+            var sourceCode = GetJsonGetFieldScript();
+            var blueprint = forwardConverter.Convert(sourceCode, new List<HelperFunction>());
+
+            Console.WriteLine($"  Nodes: {blueprint.Nodes.Count}, Connections: {blueprint.Connections.Count}");
+            Console.WriteLine($"  Node types: {string.Join(", ", blueprint.Nodes.Select(n => n.NodeType).Distinct())}");
+
+            // Find BuiltinFunctionNodes for JsonGetField
+            var bfnNodes = blueprint.Nodes.OfType<BuiltinFunctionNode>()
+                .Where(n => n.FunctionName == "JsonGetField").ToList();
+            Console.WriteLine($"  JsonGetField nodes: {bfnNodes.Count}");
+            foreach (var bfn in bfnNodes)
+            {
+                Console.WriteLine($"    {bfn.Name}: FieldPath={bfn.Properties.GetValueOrDefault("FieldPath", "?")}");
+            }
+
+            bool phase1pass = bfnNodes.Count >= 2;
+            Console.WriteLine($"[Test N] Phase 1: {(phase1pass ? "PASS" : "FAIL")}");
+            if (!phase1pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test N] Phase 1 FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Phase 2: Reverse Conversion ──
+        Console.WriteLine("\n[Test N] Phase 2: Reverse (Blueprint → Script)");
+        try
+        {
+            var sourceCode = GetJsonGetFieldScript();
+            var blueprint = forwardConverter.Convert(sourceCode, new List<HelperFunction>());
+            var expandedScript = reverseConverter.Convert(blueprint);
+
+            Console.WriteLine($"  Expanded script ({expandedScript.Length} chars):");
+            Console.WriteLine(expandedScript);
+
+            bool containsJsonGetField = expandedScript.Contains("JsonGetField");
+            Console.WriteLine($"  Contains JsonGetField: {containsJsonGetField}");
+
+            bool phase2pass = containsJsonGetField;
+            Console.WriteLine($"[Test N] Phase 2: {(phase2pass ? "PASS" : "FAIL")}");
+            if (!phase2pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test N] Phase 2 FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Phase 3: Assembly Compilation ──
+        Console.WriteLine("\n[Test N] Phase 3: Assembly Compilation");
+        try
+        {
+            var sourceCode = GetJsonGetFieldScript();
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"[Test N] Phase 3 FAILED: Parse error: {parseResult.ErrorMessage}");
+                allPassed = false;
+            }
+            else
+            {
+                var compiler = new ScriptAssemblyCompiler();
+                var compiled = compiler.CompileScript(parseResult.Script);
+                Console.WriteLine($"  Assembly compilation: {(compiled != null ? "SUCCESS" : "FAILED (null)")}");
+
+                if (compiled != null)
+                {
+                    var output = new List<string>();
+                    var globals = new BlockScriptExecutionGlobals(
+                        new BlockScopeManager(), output);
+                    globals.ResetRunState();
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    try
+                    {
+                        compiled.Run(globals, cts.Token);
+                        Console.WriteLine($"  Execution: SUCCESS");
+                        Console.WriteLine($"  Output ({output.Count} lines): [{string.Join(", ", output)}]");
+
+                        // Expected: "url_value", "name_value", "top_level", "nested_value"
+                        bool outputOk = output.Count >= 3;
+                        Console.WriteLine($"[Test N] Phase 3: {(outputOk ? "PASS" : "FAIL - wrong output count")}");
+                        if (!outputOk) allPassed = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Test N] Phase 3 FAILED (run): {ex.GetType().Name}: {ex.Message}");
+                        if (ex.InnerException != null)
+                            Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                        allPassed = false;
+                    }
+                }
+                else
+                {
+                    allPassed = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test N] Phase 3 FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[Test N] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
+    }
+
+    // ──────────────────────────────────────────────
+    // Test N source: JsonGetField usage
+    // ──────────────────────────────────────────────
+    private static string GetJsonGetFieldScript() => @"#ConstBlock
+string jsonData = ""{\""url\"":\""https://example.com/plugin.kxp\"",\""name\"":\""WeatherPlugin\"",\""nested\"":{\""inner\"":\""value\"",\""items\"":[0,1,2]}}"";
+string fieldUrl = ""url"";
+string fieldName = ""name"";
+string fieldNested = ""nested.inner"";
+
+#PubVarBlock
+string urlValue;
+string nameValue;
+string topLevel;
+string nestedValue;
+
+#MainBlock
+Print(""Testing JsonGetField"");
+urlValue = JsonGetField(jsonData, fieldUrl);
+nameValue = JsonGetField(jsonData, fieldName);
+topLevel = JsonGetField(jsonData, ""url"");
+nestedValue = JsonGetField(jsonData, fieldNested);
+Print(urlValue);
+Print(nameValue);
+Print(topLevel);
+Print(nestedValue);
+Print(""JsonGetField test done"");";
+
+    // ──────────────────────────────────────────────
+    // Test O: Built-in Function Format/NodeBuild
+    // ──────────────────────────────────────────────
+    private static void RunBuiltinFuncTest(
+        BlockScriptToBlueprintConverter forwardConverter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        List<HelperFunction> helpers)
+    {
+        bool allPassed = true;
+
+        // ── Sub-test O1: ListPluginNames/ListWorkflows (zero-arg functions) ──
+        Console.WriteLine("[Test O1] Zero-arg built-in functions (ListPluginNames, ListWorkflows)");
+        try
+        {
+            var sourceCode = GetZeroArgBuiltinScript();
+            var blueprint = forwardConverter.Convert(sourceCode, helpers);
+
+            Console.WriteLine($"  Nodes: {blueprint.Nodes.Count}");
+            var bfnNodes = blueprint.Nodes.OfType<BuiltinFunctionNode>().ToList();
+            Console.WriteLine($"  BuiltinFunctionNodes: {bfnNodes.Count}");
+            foreach (var bfn in bfnNodes)
+                Console.WriteLine($"    {bfn.FunctionName} ({bfn.Name})");
+
+            bool o1pass = bfnNodes.Any(n => n.FunctionName == "ListPluginNames") &&
+                          bfnNodes.Any(n => n.FunctionName == "ListWorkflows");
+            Console.WriteLine($"[Test O1] {(o1pass ? "PASS" : "FAIL")}");
+            if (!o1pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test O1] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Sub-test O2: InstallPlugin/StartPlugin (single-arg true) ──
+        Console.WriteLine("\n[Test O2] Single-arg built-in functions (InstallPlugin, StartPlugin, StopPlugin)");
+        try
+        {
+            var sourceCode = GetSingleArgBuiltinScript();
+            var blueprint = forwardConverter.Convert(sourceCode, helpers);
+
+            Console.WriteLine($"  Nodes: {blueprint.Nodes.Count}");
+            var bfnNodes = blueprint.Nodes.OfType<BuiltinFunctionNode>().ToList();
+            Console.WriteLine($"  BuiltinFunctionNodes: {bfnNodes.Count}");
+
+            bool o2pass = bfnNodes.Any(n => n.FunctionName == "InstallPlugin") &&
+                          bfnNodes.Any(n => n.FunctionName == "StartPlugin") &&
+                          bfnNodes.Any(n => n.FunctionName == "StopPlugin");
+            Console.WriteLine($"[Test O2] {(o2pass ? "PASS" : "FAIL")}");
+            if (!o2pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test O2] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Sub-test O3: Read/Write file + CreateWorkflow (multi-arg) ──
+        Console.WriteLine("\n[Test O3] Multi-arg functions (ReadTextFile, WriteTextFile, CreateWorkflow)");
+        try
+        {
+            var sourceCode = GetMultiArgBuiltinScript();
+            var blueprint = forwardConverter.Convert(sourceCode, helpers);
+
+            Console.WriteLine($"  Nodes: {blueprint.Nodes.Count}");
+            var bfnNodes = blueprint.Nodes.OfType<BuiltinFunctionNode>().ToList();
+            Console.WriteLine($"  BuiltinFunctionNodes: {bfnNodes.Count}");
+
+            bool o3pass = bfnNodes.Any(n => n.FunctionName == "ReadTextFile") &&
+                          bfnNodes.Any(n => n.FunctionName == "WriteTextFile") &&
+                          bfnNodes.Any(n => n.FunctionName == "CreateWorkflow");
+            Console.WriteLine($"[Test O3] {(o3pass ? "PASS" : "FAIL")}");
+            if (!o3pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test O3] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // ── Sub-test O4: Round-trip for multi-arg script ──
+        Console.WriteLine("\n[Test O4] Round-trip (multi-arg)");
+        try
+        {
+            var sourceCode = GetMultiArgBuiltinScript();
+            var bp1 = forwardConverter.Convert(sourceCode, helpers);
+            var script1 = reverseConverter.Convert(bp1);
+
+            Console.WriteLine($"  Round 1 expanded script ({script1.Length} chars)");
+
+            // Check that function names survive the round-trip
+            bool containsRead = script1.Contains("ReadTextFile");
+            bool containsWrite = script1.Contains("WriteTextFile");
+            bool containsCreate = script1.Contains("CreateWorkflow");
+            Console.WriteLine($"  Contains ReadTextFile: {containsRead}, WriteTextFile: {containsWrite}, CreateWorkflow: {containsCreate}");
+
+            bool o4pass = containsRead && containsWrite && containsCreate;
+            Console.WriteLine($"[Test O4] {(o4pass ? "PASS" : "FAIL")}");
+            if (!o4pass) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test O4] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[Test O] {(allPassed ? "PASS - All sub-tests passed!" : "FAIL - See above for details")}");
+    }
+
+    // ──────────────────────────────────────────────
+    // Test O source scripts
+    // ──────────────────────────────────────────────
+    private static string GetZeroArgBuiltinScript() => @"#ConstBlock
+string result = """";
+
+#MainBlock
+Print(""Testing zero-arg builtins"");
+result = ListPluginNames();
+Print(result);
+result = ListWorkflows();
+Print(result);
+Print(""Zero-arg test done"");";
+
+    private static string GetSingleArgBuiltinScript() => @"#ConstBlock
+string pluginPath = ""/path/to/plugin.kxp"";
+string pluginName = ""TestPlugin"";
+bool installOk;
+bool startOk;
+bool stopOk;
+
+#MainBlock
+Print(""Testing single-arg builtins"");
+installOk = InstallPlugin(pluginPath);
+Print(installOk);
+startOk = StartPlugin(pluginName);
+Print(startOk);
+stopOk = StopPlugin(pluginName);
+Print(stopOk);
+Print(""Single-arg test done"");";
+
+    private static string GetMultiArgBuiltinScript() => @"#ConstBlock
+string fileName = ""/tmp/test.txt"";
+string fileContent = ""Hello from AI assistant!"";
+string wfName = ""AI_Test"";
+string wfSource = ""#MainBlock\nPrint(\""test\"");"";
+
+#PubVarBlock
+string content;
+string workflowId;
+
+#MainBlock
+Print(""Testing multi-arg builtins"");
+content = ReadTextFile(fileName);
+Print(content);
+WriteTextFile(fileName, fileContent);
+workflowId = CreateWorkflow(wfName, wfSource);
+Print(workflowId);
+Print(""Multi-arg test done"");";
+
+    // ──────────────────────────────────────────────
+    // Test P: Built-in Assembly Compilation
+    // ──────────────────────────────────────────────
+    private static void RunBuiltinAssemblyTest(
+        IBlockScriptParser parser,
+        System.IServiceProvider sp)
+    {
+        bool allPassed = true;
+
+        Console.WriteLine("[Test P1] Simple built-in assembly compilation + execution");
+        try
+        {
+            var sourceCode = @"#ConstBlock
+int valueA = 10;
+int valueB = 20;
+string filePath = ""/tmp/test_output.txt"";
+
+#PubVarBlock
+string output;
+
+#MainBlock
+Print(""Testing builtins via assembly"");
+WriteTextFile(filePath, ""Hello from builtin test"");
+Print(""File write attempted"");
+output = ReadTextFile(filePath);
+Print(output);
+Print(""Builtin assembly test done"");";
+
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"  Parse FAILED: {parseResult.ErrorMessage}");
+                allPassed = false;
+            }
+            else
+            {
+                var compiler = new ScriptAssemblyCompiler();
+                ICompiledBlockScript? compiled = null;
+                try
+                {
+                    compiled = compiler.CompileScript(parseResult.Script);
+                }
+                catch (Exception cex)
+                {
+                    Console.WriteLine($"  Compilation EXCEPTION: {cex.GetType().Name}: {cex.Message}");
+                    if (cex.InnerException != null)
+                        Console.WriteLine($"    Inner: {cex.InnerException.GetType().Name}: {cex.InnerException.Message}");
+                }
+                Console.WriteLine($"  Compilation: {(compiled != null ? "SUCCESS" : "FAILED")}");
+
+                if (compiled != null)
+                {
+                    var output = new List<string>();
+                    var scopeManager = new BlockScopeManager();
+                    var globals = new BlockScriptExecutionGlobals(scopeManager, output);
+                    globals.ResetRunState();
+                    scopeManager.InitializeGlobalScope(parseResult.Script);
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    try
+                    {
+                        compiled.Run(globals, cts.Token);
+                        Console.WriteLine($"  Execution: OK, output ({output.Count}): [{string.Join(", ", output)}]");
+
+                        bool outputOk = output.Any(o => o.Contains("Hello from builtin test"));
+                        Console.WriteLine($"[Test P1] {(outputOk ? "PASS" : "FAIL - wrong output")}");
+                        if (!outputOk) allPassed = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"  Execution FAILED: {ex.GetType().Name}: {ex.Message}");
+                        if (ex.InnerException != null)
+                            Console.WriteLine($"    Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                        allPassed = false;
+                    }
+                }
+                else
+                {
+                    allPassed = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test P1] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        Console.WriteLine("\n[Test P2] All built-ins present in registry");
+        try
+        {
+            var funcRegistry = sp.GetRequiredService<BuiltinFunctionRegistry>();
+            var expected = new[] {
+                "ListPluginNames", "GetPluginInfoByName", "InstallPlugin",
+                "StartPlugin", "StopPlugin", "ListWorkflows", "RunWorkflow",
+                "StopWorkflow", "CreateWorkflow", "JsonGetField",
+                "ReadTextFile", "WriteTextFile"
+            };
+
+            bool allFound = true;
+            Console.WriteLine($"  Registered functions: {funcRegistry.AllFunctionNames.Count}");
+            foreach (var name in expected)
+            {
+                var def = funcRegistry.Get(name);
+                bool found = def != null;
+                Console.WriteLine($"    {name}: {(found ? "FOUND" : "MISSING")}");
+                if (!found) allFound = false;
+            }
+
+            Console.WriteLine($"[Test P2] {(allFound ? "PASS" : "FAIL")}");
+            if (!allFound) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test P2] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[Test P] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
     }
 }

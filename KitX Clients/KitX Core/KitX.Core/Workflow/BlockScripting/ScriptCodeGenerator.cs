@@ -26,6 +26,9 @@ namespace KitX.Core.Workflow.BlockScripting;
 /// </summary>
 internal static class ScriptCodeGenerator
 {
+    private static readonly BuiltinFunctionRegistry FunctionRegistry =
+        BuiltinFunctionRegistry.Discover(typeof(ScriptCodeGenerator).Assembly);
+
     // ──────────────────────────────────────────────
     // Type inference
     // ──────────────────────────────────────────────
@@ -542,6 +545,11 @@ internal static class ScriptCodeGenerator
                     else if (stmt.FullFunctionName != null && stmt.FullFunctionName.Contains('.'))
                     {
                         rawExpr = BuildPluginCallExpression(stmt, pubVarTypes);
+                    }
+                    else if (FunctionRegistry.AllFunctionNames.Contains(stmt.FunctionName ?? ""))
+                    {
+                        rawExpr = ParseExpression(
+                            $"G.{stmt.FunctionName}({string.Join(", ", stmt.Arguments)})");
                     }
                     else
                     {

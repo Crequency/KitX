@@ -1,7 +1,3 @@
 {
-  "$type": "SecurityConfig",
-  "DeviceKeys": [],
-  "ConfigFileLocation": "G:\\Dev\\KitX\\Config\\SecurityConfig.json",
-  "ConfigFileWatcherName": null,
-  "ConfigGeneratedTime": "2024-09-15T15:03:50.5276407+03:00"
+  "DeviceKeys": []
 }

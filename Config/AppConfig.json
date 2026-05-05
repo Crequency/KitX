@@ -1,5 +1,4 @@
 {
-  "$type": "AppConfig",
   "App": {
     "IconFileName": "KitX-Icon-1920x-margin-2x.png",
     "CoverIconFileName": "KitX-Icon-Background.png",
@@ -136,8 +135,5 @@
   },
   "Loaders": {
     "InstallPath": "./Loaders/"
-  },
-  "ConfigFileLocation": "G:\\Dev\\KitX\\Config\\AppConfig.json",
-  "ConfigFileWatcherName": null,
-  "ConfigGeneratedTime": "2024-09-15T15:03:50.4380847+03:00"
+  }
 }
