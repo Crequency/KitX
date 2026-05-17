@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint.CFG;
 using KitX.Core.Workflow.Blueprint.Pipeline;
 using Serilog;
 
@@ -71,15 +72,14 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             context.ConstNodes.Count, context.PubVarNames.Count);
 
         // ── Phase 2: Script formatting (expand nested calls + loop condition duplication) ──
-        var formatter = new ScriptFormatter(helpers, _functionRegistry);
-        context.FormattedScript = formatter.Format(script, context);
+        var cfg = CFGPipeline.BS2CFG(script, helpers, _functionRegistry, context);
+        context.FormattedScript = cfg;
         Log.Debug("[Converter] Phase 2: {BlockCount} blocks, {StmtCount} statements",
-            context.FormattedScript.Blocks.Count,
-            context.FormattedScript.Blocks.Sum(b => b.Statements.Count));
+            cfg.Blocks.Count,
+            cfg.Blocks.Sum(b => b.Statements.Count));
 
-        // ── Phase 3: Node creation + exec edges + PubVar reuse ──
-        var nodeBuilder = new NodeBuilder(_nodeRegistry, helpers, _functionRegistry);
-        nodeBuilder.Build(context.FormattedScript, context);
+        // ── Phase 3: CFG → BP via pipeline ──
+        CFGPipeline.CFG2BP(context.FormattedScript, context, _nodeRegistry, helpers, _functionRegistry);
         Log.Debug("[Converter] Phase 3: {NodeCount} nodes, {ExecEdgeCount} exec edges",
             context.AllNodes.Count, context.ExecEdges.Count);
 

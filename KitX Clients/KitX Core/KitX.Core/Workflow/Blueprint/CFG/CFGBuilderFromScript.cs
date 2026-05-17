@@ -13,7 +13,7 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// This is the canonical transformation for the BS→BP pipeline, replacing the
 /// ad-hoc <see cref="Pipeline.ControlFlowGraph"/> intermediate.
 ///
-/// Strategy: uses the existing <see cref="Pipeline.ScriptFormatter"/> for expression
+/// Strategy: uses the existing <see cref="Pipeline.BS2CFGConverter"/> for expression
 /// expansion, then converts the <see cref="Pipeline.ControlFlowGraph"/> to a
 /// <see cref="ControlFlowGraph"/> with typed edges.
 /// </summary>
@@ -30,13 +30,13 @@ internal class CFGBuilderFromScript
 
     /// <summary>
     /// Builds a ControlFlowGraph from a parsed BlockScript.
-    /// The ScriptFormatter handles expression expansion; this method adds
+    /// The BS2CFGConverter handles expression expansion; this method adds
     /// CFG structure (blocks, edges, block types) and type classification.
     /// </summary>
     public ControlFlowGraph Build(BlockScript script, Pipeline.PipelineContext context)
     {
-        // Phase 1: Use ScriptFormatter for expression expansion
-        var formatter = new Pipeline.ScriptFormatter(_helperFunctions, _functionRegistry);
+        // Phase 1: Use BS2CFGConverter for expression expansion
+        var formatter = new Pipeline.BS2CFGConverter(_helperFunctions, _functionRegistry);
         var formatted = formatter.Format(script, context);
 
         // Phase 2: Convert ControlFlowGraph to ControlFlowGraph

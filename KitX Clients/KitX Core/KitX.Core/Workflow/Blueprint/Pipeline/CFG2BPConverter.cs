@@ -15,7 +15,7 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// Phase 3: Creates all Blueprint nodes and exec flow edges from ControlFlowGraph.
 /// Implements PubVar reuse detection during node creation (§6.5).
 /// </summary>
-public class NodeBuilder
+public class CFG2BPConverter
 {
     private readonly INodeRegistry _registry;
     private readonly List<HelperFunction> _helpers;
@@ -26,7 +26,7 @@ public class NodeBuilder
     private readonly List<(string stmtId, string returnToBlock, string blockName, string? prevStmtId)> _loopBodyEndDefs = [];
     private readonly Dictionary<string, string> _blockLastStmtId = new();
 
-    public NodeBuilder(INodeRegistry registry, List<HelperFunction> helpers, BuiltinFunctionRegistry? functionRegistry = null)
+    public CFG2BPConverter(INodeRegistry registry, List<HelperFunction> helpers, BuiltinFunctionRegistry? functionRegistry = null)
     {
         _registry = registry;
         _helpers = helpers;
@@ -58,7 +58,7 @@ public class NodeBuilder
                 script.DebugContext.StatementToNodeId[kvp.Key] = kvp.Value.Id;
         }
 
-        Log.Debug("[NodeBuilder] Done: {NodeCount} nodes, {ExecEdgeCount} exec edges",
+        Log.Debug("[CFG2BPConverter] Done: {NodeCount} nodes, {ExecEdgeCount} exec edges",
             context.AllNodes.Count, context.ExecEdges.Count);
     }
 
@@ -227,7 +227,7 @@ public class NodeBuilder
             prevNode = existing.SourceNode;
             prevStmtId = stmt.StatementId;
 
-            Log.Debug("[NodeBuilder] Reused node: {Key}", stmt.Fingerprint ?? stmt.PubVarTarget);
+            Log.Debug("[CFG2BPConverter] Reused node: {Key}", stmt.Fingerprint ?? stmt.PubVarTarget);
             return existing.SourceNode;
         }
 

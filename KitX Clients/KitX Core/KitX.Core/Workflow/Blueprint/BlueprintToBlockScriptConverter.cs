@@ -8,68 +8,59 @@ namespace KitX.Core.Workflow.Blueprint;
 
 /// <summary>
 /// Converts Blueprint back to a fully-expanded BlockScript source code.
-/// Thin orchestrator that delegates to CFG pipeline phases:
-///   CFGBuilderFromBlueprint → CFGConditionDuplicator → ScriptGenerator → ScriptSerializer
+/// Thin orchestrator that delegates to CFGPipeline phases.
 /// </summary>
 public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 {
     private readonly NodeExportHelper _exportHelper = new();
+    private readonly Dictionary<BlueprintNodeType, INodeExportStrategy> _strategyMap;
+    private readonly Dictionary<string, INodeExportStrategy> _builtinMap;
 
     // CFG pipeline components
-    private readonly CFGBuilderFromBlueprint _cfgBuilder;
+    private readonly BP2CFGConverter _cfgBuilder;
     private readonly CFGConditionDuplicator _cfgConditionDuplicator = new();
-    private readonly ScriptGenerator _scriptGenerator = new();
-    private readonly ScriptSerializer _scriptSerializer = new();
+    private readonly CFG2BSConverter _cfg2bs = new();
+    private readonly BlockScriptSerializer _serializer = new();
 
     public BlueprintToBlockScriptConverter(IEnumerable<INodeExportStrategy> strategies)
     {
-        var strategyMap = new Dictionary<BlueprintNodeType, INodeExportStrategy>();
-        var builtinMap = new Dictionary<string, INodeExportStrategy>();
+        _strategyMap = new Dictionary<BlueprintNodeType, INodeExportStrategy>();
+        _builtinMap = new Dictionary<string, INodeExportStrategy>();
 
         foreach (var s in strategies)
         {
             if (s is BuiltinFunctionExportStrategyAdapter adapter)
             {
-                builtinMap[adapter.FunctionName] = s;
-                // Standard functions also register by their legacy NodeType for reverse conversion
+                _builtinMap[adapter.FunctionName] = s;
                 if (adapter.LegacyNodeType != null)
-                    strategyMap[adapter.LegacyNodeType.Value] = s;
+                    _strategyMap[adapter.LegacyNodeType.Value] = s;
             }
             else
             {
-                strategyMap[s.NodeType] = s;
+                _strategyMap[s.NodeType] = s;
             }
         }
 
-        _cfgBuilder = new CFGBuilderFromBlueprint(strategyMap, builtinMap, _exportHelper);
+        _cfgBuilder = new BP2CFGConverter(_strategyMap, _builtinMap, _exportHelper);
     }
 
-    /// <summary>Last CFG built, for diagnostics</summary>
     internal ControlFlowGraph? LastCFG { get; private set; }
 
-    // ──────────────────────────────────────────────
-    // Public API
-    // ──────────────────────────────────────────────
-
-    /// <inheritdoc/>
     public Contract.Workflow.Blueprint Blueprint { get; private set; } = null!;
 
-    /// <inheritdoc/>
     public string Convert(Contract.Workflow.Blueprint blueprint)
         => ConvertToBlockScript(blueprint).SourceCode;
 
-    /// <inheritdoc/>
     public BlockScript ConvertToBlockScript(Contract.Workflow.Blueprint blueprint)
     {
         Blueprint = blueprint;
 
-        // Set up context for NodeExportHelper and CFG builder (needed for statement generation)
         var ctx = new ConversionContext { Blueprint = blueprint, Script = new BlockScript() };
         _exportHelper.SetContext(blueprint, ctx);
         _cfgBuilder.SetContext(blueprint, ctx);
 
-        // Phase 1: Build CFG from Blueprint (unified algorithm)
-        var cfg = _cfgBuilder.Build(blueprint);
+        // Phase 1: BP → CFG via pipeline
+        var cfg = CFGPipeline.BP2CFG(blueprint, _strategyMap, _builtinMap, _exportHelper, prebuiltBuilder: _cfgBuilder);
         LastCFG = cfg;
 
         Log.Debug("[BlueprintToScript] CFG: {BlockCount} blocks, {EdgeCount} edges",
@@ -78,16 +69,14 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         // Phase 2: Duplicate loop conditions
         _cfgConditionDuplicator.Duplicate(cfg);
 
-        // Phase 3: Generate BlockScript from CFG
-        var script = _scriptGenerator.Generate(cfg);
+        // Phase 3: CFG → BS via pipeline
+        var script = CFGPipeline.CFG2BS(cfg);
 
         // Phase 4: Serialize to source code
-        script.SourceCode = _scriptSerializer.Serialize(script);
+        script.SourceCode = _serializer.Serialize(script);
 
-        // Transfer helper functions from Blueprint to BlockScript
         script.HelperFunctions = blueprint.HelperFunctions ?? [];
 
-        // Preserve debug mapping for the execution pipeline
         if (cfg.DebugContext != null)
             script.DebugNodeMapping = new Dictionary<string, string>(cfg.DebugContext.StatementToNodeId);
 

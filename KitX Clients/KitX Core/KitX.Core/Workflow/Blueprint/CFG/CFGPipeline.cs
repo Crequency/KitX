@@ -32,53 +32,58 @@ internal static class CFGPipeline
 {
     /// <summary>
     /// BS → CFG: parse source code, expand syntax sugar, allocate IDs.
-    /// Equivalent to ScriptFormatter.Format().
+    /// Equivalent to BS2CFGConverter.Format().
     /// </summary>
     internal static ControlFlowGraph BS2CFG(
         BlockScript script,
         List<HelperFunction> helpers,
-        BuiltinFunctionRegistry functionRegistry)
+        BuiltinFunctionRegistry? functionRegistry,
+        PipelineContext? context = null)
     {
-        var context = new PipelineContext { Script = script };
-        var formatter = new ScriptFormatter(helpers, functionRegistry);
-        var cfg = formatter.Format(script, context);
+        var ctx = context ?? new PipelineContext { Script = script };
+        var formatter = new BS2CFGConverter(helpers, functionRegistry);
+        var cfg = formatter.Format(script, ctx);
         cfg.DebugContext = new BlueprintDebugContext();
         return cfg;
     }
 
     /// <summary>
     /// BP → CFG: build from Blueprint nodes, StatementId = node.Id.
-    /// Equivalent to CFGBuilderFromBlueprint.Build().
+    /// Equivalent to BP2CFGConverter.Build().
     /// </summary>
     internal static ControlFlowGraph BP2CFG(
         Contract.Workflow.Blueprint blueprint,
         Dictionary<BlueprintNodeType, INodeExportStrategy> strategyMap,
         Dictionary<string, INodeExportStrategy> builtinMap,
-        NodeExportHelper exportHelper)
+        NodeExportHelper exportHelper,
+        BP2CFGConverter? prebuiltBuilder = null)
     {
-        var builder = new CFGBuilderFromBlueprint(strategyMap, builtinMap, exportHelper);
-        builder.SetContext(blueprint, new ConversionContext
+        var builder = prebuiltBuilder ?? new BP2CFGConverter(strategyMap, builtinMap, exportHelper);
+        if (prebuiltBuilder == null)
         {
-            Blueprint = blueprint,
-            Script = new BlockScript()
-        });
+            builder.SetContext(blueprint, new ConversionContext
+            {
+                Blueprint = blueprint,
+                Script = new BlockScript()
+            });
+        }
         return builder.Build(blueprint);
     }
 
     /// <summary>
     /// CFG → BS: serialize to BlockScript, preserving StatementId.
-    /// Equivalent to ScriptGenerator.Generate().
+    /// Equivalent to CFG2BSConverter.Generate().
     /// </summary>
     internal static BlockScript CFG2BS(ControlFlowGraph cfg)
     {
-        var generator = new ScriptGenerator();
+        var generator = new CFG2BSConverter();
         var script = generator.Generate(cfg);
         return script;
     }
 
     /// <summary>
     /// CFG → BP: build visual Blueprint nodes.
-    /// Equivalent to NodeBuilder.Build().
+    /// Equivalent to CFG2BPConverter.Build().
     /// </summary>
     internal static void CFG2BP(
         ControlFlowGraph cfg,
@@ -87,7 +92,7 @@ internal static class CFGPipeline
         List<HelperFunction> helpers,
         BuiltinFunctionRegistry? functionRegistry = null)
     {
-        var nodeBuilder = new NodeBuilder(registry, helpers, functionRegistry);
-        nodeBuilder.Build(cfg, context);
+        var builder = new CFG2BPConverter(registry, helpers, functionRegistry);
+        builder.Build(cfg, context);
     }
 }

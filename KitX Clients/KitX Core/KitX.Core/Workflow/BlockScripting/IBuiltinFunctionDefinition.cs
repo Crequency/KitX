@@ -23,11 +23,11 @@ public interface IBuiltinFunctionDefinition
 
     // ─── 分类 ───────────────────────────────────────
 
-    /// <summary>是否为控制流函数（如 Branch/Loop）。影响 ScriptFormatter 的展开策略和 NodeBuilder 的跨块边解析。</summary>
+    /// <summary>是否为控制流函数（如 Branch/Loop）。影响 BS2CFGConverter 的展开策略和 CFG2BPConverter 的跨块边解析。</summary>
     bool IsFlowControl { get; }
 
     /// <summary>
-    /// ScriptFormatter 是否应将其保持内联（不展开嵌套调用）。
+    /// BS2CFGConverter 是否应将其保持内联（不展开嵌套调用）。
     /// 如 Set、Print、Pause 等直接执行副作用的函数应标记为 true。
     /// </summary>
     bool IsNonExtractable { get; }
@@ -35,8 +35,8 @@ public interface IBuiltinFunctionDefinition
     // ─── 语句类型映射 ─────────────────────────────────
 
     /// <summary>
-    /// 对应的 CFGStatementKind。用于 ScriptFormatter 确定语句类型，
-    /// 以及 NodeBuilder 选择节点创建策略。
+    /// 对应的 CFGStatementKind。用于 BS2CFGConverter 确定语句类型，
+    /// 以及 CFG2BPConverter 选择节点创建策略。
     /// </summary>
     CFGStatementKind StatementKind { get; }
 
@@ -44,7 +44,7 @@ public interface IBuiltinFunctionDefinition
 
     /// <summary>
     /// 从调用表达式中提取语句特定的字段（如 Set 的变量名、Get 的变量名和 PubVar）。
-    /// ScriptFormatter.FormatInvocation 在处理已注册函数时调用此方法获取 Kind 之外的特殊字段。
+    /// BS2CFGConverter.FormatInvocation 在处理已注册函数时调用此方法获取 Kind 之外的特殊字段。
     /// 默认实现不提取任何特殊字段。
     /// </summary>
     /// <param name="invoke">原始 Roslyn 调用表达式</param>
@@ -121,7 +121,7 @@ public interface IBuiltinFunctionDefinition
 
     /// <summary>
     /// 是否终止当前块（如 Branch/Loop/Flip 执行后不应继续顺序执行）。
-    /// 默认 false。设为 true 会使 NodeBuilder 标记 blockEndsWithFlowCtrl。
+    /// 默认 false。设为 true 会使 CFG2BPConverter 标记 blockEndsWithFlowCtrl。
     /// </summary>
     bool IsBlockTerminator => false;
 

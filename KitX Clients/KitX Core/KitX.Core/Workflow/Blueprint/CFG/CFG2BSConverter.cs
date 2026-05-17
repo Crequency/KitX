@@ -14,7 +14,7 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// Replaces the former ad-hoc logic with a single, principled transformation from CFG to BlockScript.
 /// with a single, principled transformation from CFG to BlockScript.
 /// </summary>
-internal class ScriptGenerator
+internal class CFG2BSConverter
 {
     /// <summary>
     /// Generates a BlockScript from a ControlFlowGraph.

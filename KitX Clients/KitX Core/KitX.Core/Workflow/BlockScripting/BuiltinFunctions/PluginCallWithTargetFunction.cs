@@ -67,7 +67,7 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             if (node is CallNode call)
             {
                 // Use stmt.Arguments directly — it contains the properly expanded argument strings
-                // from the ScriptFormatter's ExpandArguments step. First 3 args are
+                // from the BS2CFGConverter's ExpandArguments step. First 3 args are
                 // plugin name, method name, target device; remaining are extra args.
                 var allArgs = stmt.Arguments;
                 if (allArgs != null && allArgs.Count >= 3)

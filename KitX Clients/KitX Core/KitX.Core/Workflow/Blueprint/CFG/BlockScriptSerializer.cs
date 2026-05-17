@@ -15,7 +15,7 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// <see cref="BlockDefinition.NextBlockName"/> using
 /// <see cref="EndsWithControlFlow"/>, not from ad-hoc patches.
 /// </summary>
-internal class ScriptSerializer
+internal class BlockScriptSerializer
 {
     /// <summary>
     /// Serializes a BlockScript to source code.

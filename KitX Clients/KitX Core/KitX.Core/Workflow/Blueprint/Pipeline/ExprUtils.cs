@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -85,17 +84,6 @@ public static class ExprUtils
         return string.Empty;
     }
 
-    /// <summary>Checks if a token is a simple variable reference.</summary>
-    public static bool IsVariableReference(string token)
-    {
-        if (string.IsNullOrWhiteSpace(token)) return false;
-        if (bool.TryParse(token, out _)) return false;
-        if (int.TryParse(token, out _) || double.TryParse(token, out _)) return false;
-        if (token.StartsWith("\"")) return false;
-        if (token.Contains("(")) return false;
-        return Regex.IsMatch(token, @"^[a-zA-Z_]\w*$");
-    }
-
     /// <summary>
     /// Generates a PubVar name from a linear counter, cycling from vaaa0001 to vzzz9999.
     /// Format: 'v' + 3 lowercase letters + 4 digits. Total capacity: 26^3 * 10000 = 175,760,000.
@@ -139,48 +127,9 @@ public static class ExprUtils
         return null;
     }
 
-    /// <summary>Gets the integer value of a literal, or null.</summary>
-    public static int? GetIntLiteralValue(ExpressionSyntax expr)
-    {
-        if (expr is LiteralExpressionSyntax lit && lit.Token.IsKind(SyntaxKind.NumericLiteralToken)
-            && lit.Token.Value is int val)
-            return val;
-        return null;
-    }
-
-    /// <summary>Checks if an expression is a string literal.</summary>
-    public static bool IsStringLiteral(ExpressionSyntax expr)
-        => expr is LiteralExpressionSyntax lit && lit.Token.IsKind(SyntaxKind.StringLiteralToken);
-
-    /// <summary>Checks if an expression is a numeric literal.</summary>
-    public static bool IsNumericLiteral(ExpressionSyntax expr)
-        => expr is LiteralExpressionSyntax lit && lit.Token.IsKind(SyntaxKind.NumericLiteralToken);
-
     /// <summary>Gets the value of any literal expression (string, int, double, bool, null).</summary>
     public static object? GetLiteralValue(LiteralExpressionSyntax literal)
         => literal.Token.Value;
-
-    /// <summary>
-    /// Classifies a literal expression into a type tag used by the pipeline.
-    /// Uses Roslyn's SyntaxKind for reliable classification — no string-pattern guessing.
-    /// Returns: "string", "char", "number", "bool", or "unknown".
-    /// </summary>
-    public static string ClassifyLiteral(LiteralExpressionSyntax literal)
-    {
-        var kind = literal.Token.Kind();
-        if (kind == SyntaxKind.StringLiteralToken)
-            return "string";
-        if (kind == SyntaxKind.CharacterLiteralToken)
-            return "char";
-        if (kind == SyntaxKind.NumericLiteralToken)
-            return "number";
-        if (kind is SyntaxKind.TrueLiteralExpression or SyntaxKind.FalseLiteralExpression
-            || kind is SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword)
-            return "bool";
-        if (kind == SyntaxKind.NullKeyword)
-            return "null";
-        return "unknown";
-    }
 
     /// <summary>
     /// Determines whether a value string represents a C# character literal (e.g. '\0', 'a', '\n').

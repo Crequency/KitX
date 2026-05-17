@@ -460,8 +460,8 @@ Print(""Done"");
 
             parseResult.Script.HelperFunctions = GetExecutionHelpers();
 
-            // Test 1: Direct ScriptAssemblyCompiler test
-            var compiler = new ScriptAssemblyCompiler();
+            // Test 1: Direct CSCompiler test
+            var compiler = new CSCompiler();
             Console.WriteLine("[Test L] Compiling...");
             var compiled = compiler.CompileScript(parseResult.Script);
             Console.WriteLine($"[Test L] Assembly compilation: {(compiled != null ? "SUCCESS" : "FAILED (null)")}");
@@ -604,7 +604,7 @@ Print(""猜对啦！"");
 Print(""示例工作流结束"");";
 
     // ──────────────────────────────────────────────
-    // Test B: Raw nested format (ScriptFormatter must expand)
+    // Test B: Raw nested format (BS2CFGConverter must expand)
     // ──────────────────────────────────────────────
     private static string GetRawNestedScript() => @"#ConstBlock
 int guessNum = 5;
@@ -1052,7 +1052,7 @@ Print(""Hello, World!"");";
                 parseResult.Script.HelperFunctions = GetExecutionHelpers();
 
                 // Compile to assembly
-                var compiler = new ScriptAssemblyCompiler();
+                var compiler = new CSCompiler();
                 var compiled = compiler.CompileScript(parseResult.Script);
                 Console.WriteLine($"  Assembly compilation: {(compiled != null ? "SUCCESS" : "FAILED (null)")}");
 
@@ -1224,7 +1224,7 @@ Print(""Cross-device call done"");";
             }
             else
             {
-                var compiler = new ScriptAssemblyCompiler();
+                var compiler = new CSCompiler();
                 var compiled = compiler.CompileScript(parseResult.Script);
                 Console.WriteLine($"  Assembly compilation: {(compiled != null ? "SUCCESS" : "FAILED (null)")}");
 
@@ -1492,7 +1492,7 @@ Print(""Builtin assembly test done"");";
             }
             else
             {
-                var compiler = new ScriptAssemblyCompiler();
+                var compiler = new CSCompiler();
                 ICompiledBlockScript? compiled = null;
                 try
                 {
@@ -1738,7 +1738,7 @@ Print(""Done"");";
             {
                 parseResult.Script.HelperFunctions = GetExecutionHelpers();
 
-                var compiler = new ScriptAssemblyCompiler();
+                var compiler = new CSCompiler();
                 var compiled = compiler.CompileScript(parseResult.Script);
                 Console.WriteLine($"  Compilation: {(compiled != null ? "SUCCESS" : "FAILED")}");
 

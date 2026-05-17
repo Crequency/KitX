@@ -1,4 +1,4 @@
-using KitX.Core.Workflow.Blueprint.CFG;
+﻿using KitX.Core.Workflow.Blueprint.CFG;
 using System;
 using System.Collections.Generic;
 using KitX.Core.Contract.Workflow;
@@ -13,30 +13,21 @@ namespace KitX.Core.Workflow.BlockScripting;
 /// implementing <see cref="ICompiledBlockScript"/> with a <c>Run</c> method.
 ///
 /// <para>This class acts as a coordinator, delegating to specialized components:
-/// <see cref="ScriptCodeGenerator"/> for Roslyn syntax generation,
+/// <see cref="CFG2CSGenerator"/> for Roslyn syntax generation,
 /// <see cref="ScriptCompilationBackend"/> for compilation, and
 /// <see cref="ScriptPersistenceManager"/> for disk caching.</para>
 ///
 /// <para>Compilation results are cached by script hash. Loaded assemblies use
 /// <see cref="CollectibleAssemblyLoadContext"/> for unloadability.</para>
 /// </summary>
-internal class ScriptAssemblyCompiler
+internal class CSCompiler
 {
     /// <summary>
-    /// Well-known identifiers that must be prefixed with <c>G.</c> in the compiled assembly.
-    /// </summary>
-    private static readonly HashSet<string> GlobalsIdentifiers = new(StringComparer.Ordinal)
-    {
-        "Print", "Set", "Get", "Branch", "Loop", "ToLoopCond",
-        "Flip", "PluginCall", "PluginCallWithTarget", "Pause", "NextBlock"
-    };
-
-    /// <summary>
-    /// Auto-discovered builtin function registry used by the <see cref="ScriptFormatter"/>
+    /// Auto-discovered builtin function registry used by the <see cref="BS2CFGConverter"/>
     /// to correctly classify and expand function calls during the formatting phase.
     /// </summary>
     private static readonly BuiltinFunctionRegistry FunctionRegistry =
-        BuiltinFunctionRegistry.Discover(typeof(ScriptAssemblyCompiler).Assembly);
+        BuiltinFunctionRegistry.Discover(typeof(CSCompiler).Assembly);
 
     /// <summary>
     /// Cached compiled script entries, keyed by computed script hash.
@@ -51,11 +42,11 @@ internal class ScriptAssemblyCompiler
     /// <summary>
     /// Initializes a new compiler instance with its persistence manager.
     /// </summary>
-    public ScriptAssemblyCompiler()
+    public CSCompiler()
     {
         _persistence = new ScriptPersistenceManager(
             registerCacheEntry: (hash, entry) => _cache[hash] = entry,
-            getKitXVersion: () => typeof(ScriptAssemblyCompiler).Assembly.GetName().Version?.ToString() ?? "0.0.0.0",
+            getKitXVersion: () => typeof(CSCompiler).Assembly.GetName().Version?.ToString() ?? "0.0.0.0",
             tryGetCacheEntry: hash => _cache.TryGetValue(hash, out var entry) ? entry : null);
     }
 
@@ -81,7 +72,7 @@ internal class ScriptAssemblyCompiler
         // Step 1: Check in-memory cache
         if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
         {
-            Log.Debug("[ScriptAssemblyCompiler] Memory cache hit for hash '{Hash}'", hash);
+            Log.Debug("[CSCompiler] Memory cache hit for hash '{Hash}'", hash);
             return entry.Instance;
         }
 
@@ -91,7 +82,7 @@ internal class ScriptAssemblyCompiler
             var diskInstance = _persistence.TryLoadFromDisk(workflowId, hash);
             if (diskInstance != null)
             {
-                Log.Debug("[ScriptAssemblyCompiler] Disk cache hit for hash '{Hash}' (workflow: {WfId})",
+                Log.Debug("[CSCompiler] Disk cache hit for hash '{Hash}' (workflow: {WfId})",
                     hash, workflowId);
                 return diskInstance;
             }
@@ -104,7 +95,7 @@ internal class ScriptAssemblyCompiler
             var (formattedScript, pubVarTypes) = FormatAndInferTypes(script);
 
             // Phase 2: Generate CompilationUnitSyntax
-            var compilationUnit = ScriptCodeGenerator.GenerateCompilationUnit(
+            var compilationUnit = CFG2CSGenerator.GenerateCompilationUnit(
                 script, formattedScript, pubVarTypes, hash);
 
             // Phase 3: Compile via CSharpCompilation
@@ -119,7 +110,7 @@ internal class ScriptAssemblyCompiler
             var scriptType = loadedAssembly.GetType(typeName);
             if (scriptType == null)
             {
-                Log.Warning("[ScriptAssemblyCompiler] Compiled type not found in assembly");
+                Log.Warning("[CSCompiler] Compiled type not found in assembly");
                 alc.Unload();
                 return null;
             }
@@ -133,12 +124,12 @@ internal class ScriptAssemblyCompiler
                 _persistence.SaveToDisk(workflowId, hash, assembly, typeName);
             }
 
-            Log.Debug("[ScriptAssemblyCompiler] Successfully compiled and cached script hash '{Hash}'", hash);
+            Log.Debug("[CSCompiler] Successfully compiled and cached script hash '{Hash}'", hash);
             return instance;
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[ScriptAssemblyCompiler] Compilation failed, returning null for fallback");
+            Log.Warning(ex, "[CSCompiler] Compilation failed, returning null for fallback");
             return null;
         }
     }
@@ -152,11 +143,11 @@ internal class ScriptAssemblyCompiler
         ControlFlowGraph cfg, BlockScript script, string? workflowId)
     {
         var baseHash = ScriptCompilationBackend.ComputeScriptHash(script);
-        var hash = ScriptCodeGenerator.IsDebugMode ? $"debug_{baseHash}" : baseHash;
+        var hash = CFG2CSGenerator.IsDebugMode ? $"debug_{baseHash}" : baseHash;
 
         if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
         {
-            Log.Debug("[ScriptAssemblyCompiler] Memory cache hit for hash '{Hash}'", hash);
+            Log.Debug("[CSCompiler] Memory cache hit for hash '{Hash}'", hash);
             return entry.Instance;
         }
 
@@ -165,14 +156,14 @@ internal class ScriptAssemblyCompiler
             var diskInstance = _persistence.TryLoadFromDisk(workflowId, hash);
             if (diskInstance != null)
             {
-                Log.Debug("[ScriptAssemblyCompiler] Disk cache hit for hash '{Hash}'", hash);
+                Log.Debug("[CSCompiler] Disk cache hit for hash '{Hash}'", hash);
                 return diskInstance;
             }
         }
 
         try
         {
-            Log.Debug("[ScriptAssemblyCompiler] Compiling from pre-built CFG: {BlockCount} blocks", cfg.Blocks.Count);
+            Log.Debug("[CSCompiler] Compiling from pre-built CFG: {BlockCount} blocks", cfg.Blocks.Count);
 
             var context = new PipelineContext { Script = script };
             if (script.PubVarBlock != null)
@@ -183,9 +174,9 @@ internal class ScriptAssemblyCompiler
                         context.PubVarNames.Add(variable.Name);
                 }
             }
-            var pubVarTypes = ScriptCodeGenerator.InferPubVarTypes(cfg, script.HelperFunctions, context);
+            var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(cfg, script.HelperFunctions, context);
 
-            var compilationUnit = ScriptCodeGenerator.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
+            var compilationUnit = CFG2CSGenerator.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
             var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash);
             if (assembly == null) return null;
 
@@ -201,12 +192,12 @@ internal class ScriptAssemblyCompiler
             if (workflowId != null)
                 _persistence.SaveToDisk(workflowId, hash, assembly, typeName);
 
-            Log.Debug("[ScriptAssemblyCompiler] CompileFromCFG success for hash '{Hash}'", hash);
+            Log.Debug("[CSCompiler] CompileFromCFG success for hash '{Hash}'", hash);
             return instance;
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[ScriptAssemblyCompiler] CompileFromCFG failed");
+            Log.Warning(ex, "[CSCompiler] CompileFromCFG failed");
             return null;
         }
     }
@@ -231,7 +222,7 @@ internal class ScriptAssemblyCompiler
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Formats the script using <see cref="ScriptFormatter"/> and infers PubVar types.
+    /// Formats the script using <see cref="BS2CFGConverter"/> and infers PubVar types.
     /// </summary>
     private (ControlFlowGraph formatted, Dictionary<string, string> pubVarTypes) FormatAndInferTypes(
         BlockScript script)
@@ -247,22 +238,21 @@ internal class ScriptAssemblyCompiler
             }
         }
 
-        var formatter = new ScriptFormatter(script.HelperFunctions ?? [], FunctionRegistry);
-        var formattedScript = formatter.Format(script, context);
+        var formattedScript = CFGPipeline.BS2CFG(script, script.HelperFunctions ?? [], FunctionRegistry, context);
 
-        Log.Debug("[ScriptAssemblyCompiler] Formatted script: {BlockCount} blocks, MainBlock={Main}",
+        Log.Debug("[CSCompiler] Formatted script: {BlockCount} blocks, MainBlock={Main}",
             formattedScript.Blocks.Count, formattedScript.MainBlockName);
         foreach (var block in formattedScript.Blocks)
         {
-            Log.Debug("[ScriptAssemblyCompiler]   Block '{Name}' → NextBlock={Next}, Statements={Count}",
+            Log.Debug("[CSCompiler]   Block '{Name}' → NextBlock={Next}, Statements={Count}",
                 block.Name, block.NextBlockName, block.Statements.Count);
             foreach (var stmt in block.Statements)
-                Log.Debug("[ScriptAssemblyCompiler]     Kind={Kind} PubVar={PubVar} Fn={Fn} Args=[{Args}] CondPubVar={Cond} SetVar={Set} GetVar={Get}",
+                Log.Debug("[CSCompiler]     Kind={Kind} PubVar={PubVar} Fn={Fn} Args=[{Args}] CondPubVar={Cond} SetVar={Set} GetVar={Get}",
                     stmt.Kind, stmt.PubVarTarget, stmt.FunctionName,
                     string.Join(", ", stmt.Arguments), stmt.ConditionPubVar, stmt.SetVarName, stmt.GetVarName);
         }
 
-        var pubVarTypes = ScriptCodeGenerator.InferPubVarTypes(formattedScript, script.HelperFunctions, context);
+        var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(formattedScript, script.HelperFunctions, context);
         return (formattedScript, pubVarTypes);
     }
 }

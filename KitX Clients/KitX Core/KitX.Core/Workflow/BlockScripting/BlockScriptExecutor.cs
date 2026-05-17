@@ -23,7 +23,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     private BlockScriptExecutionGlobals? _globals;
     private IPluginManager? _pluginManager;
     private string? _workflowId;
-    private readonly ScriptAssemblyCompiler _assemblyCompiler = new();
+    private readonly CSCompiler _assemblyCompiler = new();
     private IBlueprintDebugController? _debugger;
 
     /// <summary>
@@ -71,7 +71,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     public void SetDebugger(IBlueprintDebugController? debugger)
     {
         _debugger = debugger;
-        ScriptCodeGenerator.IsDebugMode = debugger != null;
+        CFG2CSGenerator.IsDebugMode = debugger != null;
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
         try
         {
-            ScriptCodeGenerator.IsDebugMode = _debugger != null;
+            CFG2CSGenerator.IsDebugMode = _debugger != null;
 
             // Full-script assembly compilation
             var compiled = _assemblyCompiler.CompileScript(script, _workflowId);
@@ -188,7 +188,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
         try
         {
-            ScriptCodeGenerator.IsDebugMode = _debugger != null;
+            CFG2CSGenerator.IsDebugMode = _debugger != null;
 
             var compiled = _assemblyCompiler.CompileFromCFG(cfg, script, _workflowId);
             if (compiled == null)

@@ -24,10 +24,10 @@ namespace KitX.Core.Workflow.BlockScripting;
 /// The generated class implements <see cref="ICompiledBlockScript"/> with a <c>Run</c> method
 /// that executes all blocks via a <c>while(true) + switch(G.NextBlock)</c> dispatcher.
 /// </summary>
-internal static class ScriptCodeGenerator
+internal static class CFG2CSGenerator
 {
     private static readonly BuiltinFunctionRegistry FunctionRegistry =
-        BuiltinFunctionRegistry.Discover(typeof(ScriptCodeGenerator).Assembly);
+        BuiltinFunctionRegistry.Discover(typeof(CFG2CSGenerator).Assembly);
 
     public static bool IsDebugMode { get; set; }
 
@@ -107,7 +107,7 @@ internal static class ScriptCodeGenerator
             }
         }
 
-        Log.Debug("[ScriptCodeGenerator] Type inference: {Count} PubVars typed: {Types}",
+        Log.Debug("[CFG2CSGenerator] Type inference: {Count} PubVars typed: {Types}",
             pubVarTypes.Count,
             string.Join(", ", pubVarTypes.Select(kv => $"{kv.Key}={kv.Value}")));
 
@@ -272,7 +272,7 @@ internal static class ScriptCodeGenerator
             return block.Statements.ToList();
         }
 
-        Log.Warning("[ScriptCodeGenerator] Failed to parse helper function body, using empty body");
+        Log.Warning("[CFG2CSGenerator] Failed to parse helper function body, using empty body");
         return new List<StatementSyntax> { ReturnStatement(LiteralExpression(SyntaxKind.NullLiteralExpression)) };
     }
 

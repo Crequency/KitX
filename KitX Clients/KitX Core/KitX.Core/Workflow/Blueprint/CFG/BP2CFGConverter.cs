@@ -20,13 +20,13 @@ namespace KitX.Core.Workflow.Blueprint.CFG;
 /// this single algorithm produces a CFG. When BlockScopes are available, they guide
 /// block membership; when absent, blocks are derived from topology alone.
 /// </summary>
-internal class CFGBuilderFromBlueprint
+internal class BP2CFGConverter
 {
     private readonly Dictionary<BlueprintNodeType, INodeExportStrategy> _strategies;
     private readonly Dictionary<string, INodeExportStrategy> _builtinFunctionStrategies;
     private readonly NodeExportHelper _exportHelper;
 
-    public CFGBuilderFromBlueprint(
+    public BP2CFGConverter(
         Dictionary<BlueprintNodeType, INodeExportStrategy> strategies,
         Dictionary<string, INodeExportStrategy> builtinFunctionStrategies,
         NodeExportHelper exportHelper)
@@ -126,7 +126,7 @@ internal class CFGBuilderFromBlueprint
             });
         }
 
-        Log.Debug("[CFGBuilderFromBlueprint] Built CFG: {BlockCount} blocks, {EdgeCount} edges",
+        Log.Debug("[BP2CFGConverter] Built CFG: {BlockCount} blocks, {EdgeCount} edges",
             cfg.Blocks.Count, cfg.Blocks.Sum(b => b.Successors.Count));
 
         // ── Step 9: Populate debug node mapping ──
@@ -863,7 +863,7 @@ internal class CFGBuilderFromBlueprint
 
         if (!_strategies.TryGetValue(node.NodeType, out var strategy))
         {
-            Log.Warning("[CFGBuilderFromBlueprint] Unhandled node type: {NodeType}", node.NodeType);
+            Log.Warning("[BP2CFGConverter] Unhandled node type: {NodeType}", node.NodeType);
             return null;
         }
 
@@ -954,38 +954,41 @@ internal class CFGBuilderFromBlueprint
                 else
                 {
                     cfgStmt.Kind = CFGStatementKind.Expression;
+                    // Fallback: parse FunctionName from SourceCode for nodes without strategy (CallHelper, Call, etc.)
+                    var fallbackParsed = ExprUtils.ParseStatement(expr.SourceCode);
+                    if (fallbackParsed?.rightExpr is InvocationExpressionSyntax fallbackInvoke)
+                        cfgStmt.FunctionName = ExprUtils.GetMethodName(fallbackInvoke);
                 }
 
-                // Arguments & PubVarTarget from SourceCode (generated from node data in same pass)
-                var parsed = ExprUtils.ParseStatement(expr.SourceCode);
-                if (parsed?.rightExpr is InvocationExpressionSyntax invoke)
+                // Arguments from node input pins (no text parsing)
+                cfgStmt.Arguments = new List<string>();
+                foreach (var pin in node.InputPins)
                 {
-                    cfgStmt.FunctionName ??= ExprUtils.GetMethodName(invoke);
-                    cfgStmt.Arguments = invoke.ArgumentList.Arguments
-                        .Select(a => a.Expression.ToString()).ToList();
-                    if (parsed.Value.assignedVar != null)
-                        cfgStmt.PubVarTarget = parsed.Value.assignedVar;
+                    if (pin.Name != "Exec")
+                        cfgStmt.Arguments.Add(_exportHelper.GetInputValue(node, pin.Name));
+                }
 
-                    // Extract GetVarName / SetVarName from string literal first argument
-                    if (cfgStmt.Arguments.Count > 0)
+                // SetVarName / GetVarName from node properties
+                if (node is SetNode sn && !string.IsNullOrEmpty(sn.VarName))
+                    cfgStmt.SetVarName = sn.VarName;
+                else if (node is GetNode gn && !string.IsNullOrEmpty(gn.VarName))
+                    cfgStmt.GetVarName = gn.VarName;
+                else if (node is BuiltinFunctionNode bfnProps)
+                {
+                    bfnProps.Properties.TryGetValue("VarName", out var vn);
+                    if (!string.IsNullOrEmpty(vn))
                     {
-                        var firstArg = invoke.ArgumentList.Arguments[0].Expression;
-                        var strVal = ExprUtils.GetStringLiteralValue(firstArg);
-                        if (!string.IsNullOrEmpty(strVal))
-                        {
-                            if (cfgStmt.FunctionName == "Set")
-                            {
-                                cfgStmt.SetVarName = strVal;
-                                // Remove var name from Arguments (matching FormatInvocation behaviour)
-                                cfgStmt.Arguments.RemoveAt(0);
-                            }
-                            else if (cfgStmt.FunctionName == "Get")
-                            {
-                                cfgStmt.GetVarName = strVal;
-                                cfgStmt.Arguments.RemoveAt(0);
-                            }
-                        }
+                        if (bfnProps.FunctionName == "Set") cfgStmt.SetVarName = vn;
+                        else if (bfnProps.FunctionName == "Get") cfgStmt.GetVarName = vn;
                     }
+                }
+
+                // PubVarTarget from consumed output lookup
+                if (_currentCtx != null)
+                {
+                    var outputPin = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+                    if (outputPin != null)
+                        cfgStmt.PubVarTarget = NodeExportHelper.FindOutputPubVar(node, outputPin.Name, _currentCtx);
                 }
                 break;
 

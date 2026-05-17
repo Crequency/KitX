@@ -32,7 +32,7 @@ public class PipelineContext
     public Dictionary<string, BlueprintNode> BlockFirstNodes { get; set; } = new();
     public List<PendingExecEdge> ExecEdges { get; set; } = new();
 
-    // --- Block scope tracking (populated by NodeBuilder, consumed by Assembler) ---
+    // --- Block scope tracking (populated by CFG2BPConverter, consumed by Assembler) ---
     public Dictionary<string, List<string>> BlockNodeIds { get; set; } = new();
     public Dictionary<string, string?> BlockNextBlock { get; set; } = new();
     public Dictionary<string, bool> BlockEndsWithFlowCtrl { get; set; } = new();
@@ -154,7 +154,7 @@ public class PendingDataEdge
 /// <summary>
 /// Generic deferred control flow edge for IBuiltinFunctionDefinition-based functions.
 /// Replaces per-function BranchDefs/LoopDefs with a unified structure.
-/// Populated by OnNodeCreated, resolved by NodeBuilder.ResolveCrossBlockEdges.
+/// Populated by OnNodeCreated, resolved by CFG2BPConverter.ResolveCrossBlockEdges.
 /// </summary>
 public struct DeferredControlFlowEdge
 {

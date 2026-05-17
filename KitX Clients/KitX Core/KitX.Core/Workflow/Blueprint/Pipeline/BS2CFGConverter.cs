@@ -17,12 +17,12 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// where all nested function calls have been expanded into PubVar assignments.
 /// Also duplicates Loop condition evaluations before ToLoopCond statements.
 /// </summary>
-public class ScriptFormatter
+public class BS2CFGConverter
 {
     private readonly List<HelperFunction> _helperFunctions;
     private readonly BuiltinFunctionRegistry? _functionRegistry;
 
-    public ScriptFormatter(List<HelperFunction> helperFunctions, BuiltinFunctionRegistry? functionRegistry = null)
+    public BS2CFGConverter(List<HelperFunction> helperFunctions, BuiltinFunctionRegistry? functionRegistry = null)
     {
         _helperFunctions = helperFunctions;
         _functionRegistry = functionRegistry;
@@ -58,7 +58,7 @@ public class ScriptFormatter
             }
         }
 
-        Log.Debug("[ScriptFormatter] Done: {BlockCount} blocks, {StmtCount} statements",
+        Log.Debug("[BS2CFGConverter] Done: {BlockCount} blocks, {StmtCount} statements",
             result.Blocks.Count, result.Blocks.Sum(b => b.Statements.Count));
 
         return result;
