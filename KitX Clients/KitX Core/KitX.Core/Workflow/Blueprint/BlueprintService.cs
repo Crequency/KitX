@@ -73,8 +73,25 @@ public class BlueprintService : IBlueprintService
         {
             Log.Information("Executing Blueprint");
             var blockScript = _toBlockScriptConverter.ConvertToBlockScript(blueprint);
-            var result = await _executor.ExecuteAsync(blockScript, null, CancellationToken.None);
-            return result;
+
+            // BP→CFG→CS direct path: use the pre-built CFG to avoid redundant BS→CFG conversion
+            // and preserve StatementId = node.Id for debug checkpoint highlighting.
+            if (_toBlockScriptConverter is BlueprintToBlockScriptConverter concrete
+                && concrete.LastCFG != null
+                && _executor is BlockScripting.BlockScriptExecutor bse)
+            {
+                Log.Debug("[BlueprintService] Using BP→CFG→CS direct path");
+                var result = await bse.ExecuteFromCFGAsync(blockScript, concrete.LastCFG, null, CancellationToken.None);
+
+                if (concrete.LastCFG.DebugContext != null)
+                    result.DebugNodeMapping = new Dictionary<string, string>(concrete.LastCFG.DebugContext.StatementToNodeId);
+
+                return result;
+            }
+
+            // Fallback: BS→CS path
+            var fallbackResult = await _executor.ExecuteAsync(blockScript, null, CancellationToken.None);
+            return fallbackResult;
         }
         catch (Exception ex)
         {
@@ -84,6 +101,22 @@ public class BlueprintService : IBlueprintService
                 IsSuccess = false,
                 ErrorMessage = ex.Message
             };
+        }
+    }
+
+    public Dictionary<string, string> GetDebugNodeMapping(Contract.Workflow.Blueprint blueprint)
+    {
+        try
+        {
+            var blockScript = _toBlockScriptConverter.ConvertToBlockScript(blueprint);
+            if (_toBlockScriptConverter is BlueprintToBlockScriptConverter concrete && concrete.LastCFG?.DebugContext != null)
+                return new Dictionary<string, string>(concrete.LastCFG.DebugContext.StatementToNodeId);
+            return new Dictionary<string, string>();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to build debug node mapping");
+            return new Dictionary<string, string>();
         }
     }
 }

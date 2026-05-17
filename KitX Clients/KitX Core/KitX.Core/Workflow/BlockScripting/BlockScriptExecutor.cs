@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Workflow;
+using KitX.Core.Workflow.Blueprint.CFG;
 using Serilog;
 
 namespace KitX.Core.Workflow.BlockScripting;
@@ -23,6 +24,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     private IPluginManager? _pluginManager;
     private string? _workflowId;
     private readonly ScriptAssemblyCompiler _assemblyCompiler = new();
+    private IBlueprintDebugController? _debugger;
 
     /// <summary>
     /// Creates a new block script executor
@@ -66,6 +68,12 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         _workflowId = workflowId;
     }
 
+    public void SetDebugger(IBlueprintDebugController? debugger)
+    {
+        _debugger = debugger;
+        ScriptCodeGenerator.IsDebugMode = debugger != null;
+    }
+
     /// <summary>
     /// Compiles a BlockScript and persists it to disk (without executing).
     /// Used for pre-compilation at workflow save time.
@@ -106,6 +114,8 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
         try
         {
+            ScriptCodeGenerator.IsDebugMode = _debugger != null;
+
             // Full-script assembly compilation
             var compiled = _assemblyCompiler.CompileScript(script, _workflowId);
             if (compiled == null)
@@ -122,6 +132,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
             Log.Debug("[BlockScriptExecutor] Using assembly-compiled execution path");
             _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
+            _globals.Debugger = _debugger;
             _globals.ResetRunState();
             _scopeManager.InitializeGlobalScope(script);
 
@@ -132,7 +143,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                     _globals.Set(p.Key, p.Value);
             }
 
-            compiled.Run(_globals, cancellationToken);
+            await compiled.RunAsync(_globals, cancellationToken);
 
             _stopwatch.Stop();
             return new BlockScriptExecutionResult
@@ -152,6 +163,78 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         {
             _stopwatch.Stop();
             Log.Error(ex, "[BlockScriptExecutor] Error executing block script");
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = $"Execution error: {ex.Message}",
+                ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
+                Output = _output
+            };
+        }
+    }
+
+    /// <summary>
+    /// Executes a BlockScript using a pre-built CFG (BP→CFG→CS direct path).
+    /// Skips the BS→CFG conversion, preserving StatementIds from the blueprint.
+    /// </summary>
+    internal async Task<BlockScriptExecutionResult> ExecuteFromCFGAsync(
+        BlockScript script,
+        ControlFlowGraph cfg,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        _stopwatch.Restart();
+        _output = new List<string>();
+
+        try
+        {
+            ScriptCodeGenerator.IsDebugMode = _debugger != null;
+
+            var compiled = _assemblyCompiler.CompileFromCFG(cfg, script, _workflowId);
+            if (compiled == null)
+            {
+                _stopwatch.Stop();
+                return new BlockScriptExecutionResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Script compilation failed",
+                    ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
+                    Output = _output
+                };
+            }
+
+            Log.Debug("[BlockScriptExecutor] Using BP→CFG→CS direct execution path");
+            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
+            _globals.Debugger = _debugger;
+            _globals.ResetRunState();
+            _scopeManager.InitializeGlobalScope(script);
+
+            if (parameters != null)
+            {
+                foreach (var p in parameters)
+                    _globals.Set(p.Key, p.Value);
+            }
+
+            await compiled.RunAsync(_globals, cancellationToken);
+
+            _stopwatch.Stop();
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = true,
+                ExecutedBlockCount = _globals.ExecutedBlockCount,
+                ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
+                Output = _output
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            _stopwatch.Stop();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _stopwatch.Stop();
+            Log.Error(ex, "[BlockScriptExecutor] Error executing from CFG");
             return new BlockScriptExecutionResult
             {
                 IsSuccess = false,

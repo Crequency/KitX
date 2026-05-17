@@ -106,11 +106,14 @@ internal class ScriptGenerator
 
     private static BlockStatement? ConvertStatement(CFGStatement cfgStmt)
     {
+        BlockStatement? result = null;
+
         switch (cfgStmt.Kind)
         {
             case CFGStatementKind.Branch:
                 return new FlowControlStatement
                 {
+                    StatementId = cfgStmt.StatementId,
                     ControlType = FlowControlType.Branch,
                     ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
                     TrueBlockName = cfgStmt.TrueBlockName ?? string.Empty,
@@ -118,10 +121,12 @@ internal class ScriptGenerator
                     SourceCode = cfgStmt.OriginalExpression,
                     LineNumber = cfgStmt.SourceLine
                 };
+                break;
 
             case CFGStatementKind.Loop:
                 return new FlowControlStatement
                 {
+                    StatementId = cfgStmt.StatementId,
                     ControlType = FlowControlType.Loop,
                     ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
                     TrueBlockName = cfgStmt.TrueBlockName ?? string.Empty,
@@ -129,23 +134,28 @@ internal class ScriptGenerator
                     SourceCode = cfgStmt.OriginalExpression,
                     LineNumber = cfgStmt.SourceLine
                 };
+                break;
 
             case CFGStatementKind.ToLoopCond:
                 return new FlowControlStatement
                 {
+                    StatementId = cfgStmt.StatementId,
                     ControlType = FlowControlType.ToLoopCond,
                     ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,
                     SourceCode = cfgStmt.OriginalExpression,
                     LineNumber = cfgStmt.SourceLine
                 };
+                break;
 
             case CFGStatementKind.Break:
                 return new FlowControlStatement
                 {
+                    StatementId = cfgStmt.StatementId,
                     ControlType = FlowControlType.Break,
                     SourceCode = cfgStmt.OriginalExpression,
                     LineNumber = cfgStmt.SourceLine
                 };
+                break;
 
             case CFGStatementKind.Print:
             case CFGStatementKind.Pause:
@@ -155,28 +165,31 @@ internal class ScriptGenerator
             case CFGStatementKind.Expression:
                 return new ExpressionStatement
                 {
+                    StatementId = cfgStmt.StatementId,
                     Expression = ExtractExpression(cfgStmt.OriginalExpression),
                     SourceCode = cfgStmt.OriginalExpression,
                     LineNumber = cfgStmt.SourceLine
                 };
+                break;
 
             case CFGStatementKind.NextBlockAssignment:
-                // NextBlock assignments are handled via block.NextBlockName, not as statements
                 return null;
 
             default:
-                // Unknown statement — emit as ExpressionStatement
                 if (!string.IsNullOrEmpty(cfgStmt.OriginalExpression))
                 {
                     return new ExpressionStatement
                     {
+                        StatementId = cfgStmt.StatementId,
                         Expression = ExtractExpression(cfgStmt.OriginalExpression),
                         SourceCode = cfgStmt.OriginalExpression,
                         LineNumber = cfgStmt.SourceLine
                     };
                 }
-                return null;
+                break;
         }
+
+        return result;
     }
 
     /// <summary>

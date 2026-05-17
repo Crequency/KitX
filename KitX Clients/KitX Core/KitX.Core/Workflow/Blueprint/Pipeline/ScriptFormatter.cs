@@ -117,7 +117,8 @@ public class ScriptFormatter
                         TrueBlockName = flowCtrl.TrueBlockName,
                         FalseBlockName = flowCtrl.FalseBlockName,
                         OriginalExpression = flowCtrl.SourceCode,
-                        SourceLine = flowCtrl.LineNumber
+                        SourceLine = flowCtrl.LineNumber,
+                        StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString()
                     });
                 }
                 break;
@@ -129,6 +130,7 @@ public class ScriptFormatter
 
                     var loopStmt = new CFGStatement
                     {
+                        StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
                         BlockName = blockName,
                         Kind = CFGStatementKind.Loop,
                         FunctionName = Loop,
@@ -157,6 +159,7 @@ public class ScriptFormatter
             case FlowControlType.ToLoopCond:
                 result.Add(new CFGStatement
                 {
+                    StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
                     BlockName = blockName,
                     Kind = CFGStatementKind.ToLoopCond,
                     FunctionName = ToLoopCond,
@@ -169,6 +172,7 @@ public class ScriptFormatter
             case FlowControlType.Break:
                 result.Add(new CFGStatement
                 {
+                    StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
                     BlockName = blockName,
                     Kind = CFGStatementKind.Break,
                     FunctionName = Break,
@@ -212,7 +216,8 @@ public class ScriptFormatter
                 return result;
 
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
-            result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar, fullFuncName));
+            result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar, fullFuncName,
+                statementId: exprStmt.StatementId));
             return result;
         }
 
@@ -225,7 +230,8 @@ public class ScriptFormatter
     /// </summary>
     private List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string funcName, string blockName,
-        PipelineContext context, string? assignedVar, string? fullFuncName = null)
+        PipelineContext context, string? assignedVar, string? fullFuncName = null,
+        string? statementId = null)
     {
         var result = new List<CFGStatement>();
 
@@ -284,6 +290,8 @@ public class ScriptFormatter
 
         result.Add(new CFGStatement
         {
+            StatementId = !string.IsNullOrEmpty(statementId) ? statementId
+                : Guid.NewGuid().ToString(),
             BlockName = blockName,
             Kind = kind,
             FunctionName = funcName,

@@ -85,12 +85,15 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         script.SourceCode = _scriptSerializer.Serialize(script);
 
         // Transfer helper functions from Blueprint to BlockScript
-        // (they were stored in Blueprint during BS→BP forward conversion but were
-        //  previously lost in the BP→BS reverse conversion, causing UnknownMethodName)
         script.HelperFunctions = blueprint.HelperFunctions ?? [];
 
-        Log.Debug("[BlueprintToScript] Done. Source code length: {Len}, HelperFunctions: {Count}",
-            script.SourceCode?.Length ?? 0, script.HelperFunctions?.Count ?? 0);
+        // Preserve debug mapping for the execution pipeline
+        if (cfg.DebugContext != null)
+            script.DebugNodeMapping = new Dictionary<string, string>(cfg.DebugContext.StatementToNodeId);
+
+        Log.Debug("[BlueprintToScript] Done. Source code length: {Len}, HelperFunctions: {Count}, DebugMapping: {Map}",
+            script.SourceCode?.Length ?? 0, script.HelperFunctions?.Count ?? 0,
+            script.DebugNodeMapping?.Count ?? 0);
 
         return script;
     }

@@ -46,6 +46,8 @@ public class ControlFlowGraph
     /// </summary>
     public int PubVarCounter { get; set; } = 1;
 
+    public BlueprintDebugContext? DebugContext { get; set; }
+
     /// <summary>
     /// Gets a block by name. Returns null if not found.
     /// </summary>

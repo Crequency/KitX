@@ -19,6 +19,8 @@ public partial class BlockScriptExecutionGlobals
     private readonly Dictionary<string, object?> _variables = new();
     private readonly IPluginManager? _pluginManager;
 
+    public IBlueprintDebugController? Debugger { get; set; }
+
     // ─── 内置属性 ───────────────────────────────────────────────
 
     /// <summary>
@@ -83,6 +85,7 @@ public partial class BlockScriptExecutionGlobals
         }
         _variables[name] = value;
         _scopeManager.SetVariable(name, value, global: false);
+        Debugger?.UpdateVariableSnapshot(GetAllVariables());
     }
 
     /// <summary>
@@ -97,6 +100,7 @@ public partial class BlockScriptExecutionGlobals
         }
         _variables[name] = value;
         _scopeManager.SetVariable(name, value, global: true);
+        Debugger?.UpdateVariableSnapshot(GetAllVariables());
     }
 
     /// <summary>

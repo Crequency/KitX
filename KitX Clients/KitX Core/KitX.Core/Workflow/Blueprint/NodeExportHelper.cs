@@ -54,6 +54,14 @@ internal class NodeExportHelper : INodeExportHelper
         return string.Join(", ", args);
     }
 
+    /// <inheritdoc/>
+    public string? GetOutputPubVar(BlueprintNode node, string pinName)
+        => _currentCtx != null ? FindOutputPubVar(node, pinName, _currentCtx) : null;
+
+    /// <inheritdoc/>
+    public bool IsOutputConsumed(BlueprintNode node, string pinName)
+        => _currentCtx?.ConsumedOutputs.Contains((node.Id, pinName)) == true;
+
     /// <summary>
     /// Resolves an input pin's value using the pre-built InputDataMap (for topology path).
     /// </summary>

@@ -29,6 +29,8 @@ internal static class ScriptCodeGenerator
     private static readonly BuiltinFunctionRegistry FunctionRegistry =
         BuiltinFunctionRegistry.Discover(typeof(ScriptCodeGenerator).Assembly);
 
+    public static bool IsDebugMode { get; set; }
+
     // ──────────────────────────────────────────────
     // Type inference
     // ──────────────────────────────────────────────
@@ -156,12 +158,17 @@ internal static class ScriptCodeGenerator
             ParseName("KitX.Core.Workflow.BlockScripting.Generated"))
             .AddMembers(classDecl);
 
+        var usings = new List<UsingDirectiveSyntax>
+        {
+            UsingDirective(ParseName("System")),
+            UsingDirective(ParseName("System.Threading")),
+            UsingDirective(ParseName("System.Threading.Tasks")),
+            UsingDirective(ParseName("KitX.Core.Contract.Workflow")),
+            UsingDirective(ParseName("KitX.Core.Workflow.BlockScripting"))
+        };
+
         return CompilationUnit()
-            .AddUsings(
-                UsingDirective(ParseName("System")),
-                UsingDirective(ParseName("System.Threading")),
-                UsingDirective(ParseName("KitX.Core.Contract.Workflow")),
-                UsingDirective(ParseName("KitX.Core.Workflow.BlockScripting")))
+            .AddUsings(usings.ToArray())
             .AddMembers(nsDecl)
             .NormalizeWhitespace();
     }
@@ -329,9 +336,11 @@ internal static class ScriptCodeGenerator
             Block(whileBody)));
 
         return MethodDeclaration(
-            PredefinedType(Token(SyntaxKind.VoidKeyword)),
-            Identifier("Run"))
-            .AddModifiers(Token(SyntaxKind.PublicKeyword))
+            ParseTypeName("System.Threading.Tasks.Task"),
+            Identifier("RunAsync"))
+            .AddModifiers(
+                Token(SyntaxKind.PublicKeyword),
+                Token(SyntaxKind.AsyncKeyword))
             .WithParameterList(ParameterList(SeparatedList(new[]
             {
                 Parameter(Identifier("G"))
@@ -448,17 +457,32 @@ internal static class ScriptCodeGenerator
     /// </summary>
     internal static ExpressionSyntax FormatLiteralExpression(string type, object value)
     {
+        if (value is string s && string.IsNullOrEmpty(s))
+        {
+            return type switch
+            {
+                "int" or "long" or "double" or "float" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)),
+                "bool" => LiteralExpression(SyntaxKind.FalseLiteralExpression),
+                "char" => LiteralExpression(SyntaxKind.CharacterLiteralExpression, Literal('\0')),
+                "string" => LiteralExpression(SyntaxKind.StringLiteralExpression, Literal("")),
+                _ => LiteralExpression(SyntaxKind.NullLiteralExpression)
+            };
+        }
+
         return type switch
         {
             "string" => LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(value.ToString()!)),
             "char" => LiteralExpression(SyntaxKind.CharacterLiteralExpression, Literal(char.Parse(value.ToString()!))),
-            "bool" => (bool)value
-                ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
-                : LiteralExpression(SyntaxKind.FalseLiteralExpression),
-            "int" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal((int)value)),
-            "long" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal((long)value)),
-            "double" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal((double)value)),
-            "float" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal((float)value)),
+            "bool" => value is bool b
+                ? (b ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
+                     : LiteralExpression(SyntaxKind.FalseLiteralExpression))
+                : (bool.Parse(value.ToString()!)
+                     ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
+                     : LiteralExpression(SyntaxKind.FalseLiteralExpression)),
+            "int" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(Convert.ToInt32(value))),
+            "long" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(Convert.ToInt64(value))),
+            "double" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(Convert.ToDouble(value))),
+            "float" => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(Convert.ToSingle(value))),
             _ => ParseExpression(value?.ToString() ?? "null")
         };
     }
@@ -513,10 +537,22 @@ internal static class ScriptCodeGenerator
                 MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                     IdentifierName("G"), IdentifierName("ExecutedBlockCount")))));
 
+        if (IsDebugMode)
+        {
+            caseStatements.Add(GenerateDebugCheckpoint(null, block.Name));
+        }
+
         var hasNextBlockAssignment = false;
+        var stmtIndex = 0;
 
         foreach (var stmt in block.Statements)
         {
+            if (IsDebugMode)
+            {
+                caseStatements.Add(GenerateDebugCheckpoint(stmt.StatementId, null));
+            }
+            stmtIndex++;
+
             switch (stmt.Kind)
             {
                 case CFGStatementKind.Assignment:
@@ -568,6 +604,18 @@ internal static class ScriptCodeGenerator
                             VariableDeclaration(ParseTypeName(typeName))
                                 .AddVariables(VariableDeclarator(Identifier(stmt.PubVarTarget))
                                     .WithInitializer(EqualsValueClause(initExpr)))));
+
+                        // Sync PubVar to globals so debugger sees the value
+                        caseStatements.Add(ExpressionStatement(
+                            InvocationExpression(
+                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                    IdentifierName("G"), IdentifierName("Set")),
+                                ArgumentList(SeparatedList(new[]
+                                {
+                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
+                                        Literal(stmt.PubVarTarget))),
+                                    Argument(IdentifierName(stmt.PubVarTarget))
+                                })))));
                     }
                     else
                     {
@@ -869,5 +917,31 @@ internal static class ScriptCodeGenerator
 
         hasNextBlockAssignment = true;
         caseStatements.Add(BreakStatement());
+    }
+
+    private static StatementSyntax GenerateDebugCheckpoint(
+        string? statementId, string? blockName)
+    {
+        var awaitExpr = AwaitExpression(
+            InvocationExpression(
+                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("G"), IdentifierName("Debugger")),
+                    IdentifierName("CheckpointAsync")),
+                ArgumentList(SeparatedList(new[]
+                {
+                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
+                        Literal(statementId ?? ""))),
+                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
+                        Literal(blockName ?? ""))),
+                    Argument(IdentifierName("ct"))
+                }))));
+
+        var nullCheck = BinaryExpression(SyntaxKind.NotEqualsExpression,
+            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                IdentifierName("G"), IdentifierName("Debugger")),
+            LiteralExpression(SyntaxKind.NullLiteralExpression));
+
+        return IfStatement(nullCheck, ExpressionStatement(awaitExpr));
     }
 }

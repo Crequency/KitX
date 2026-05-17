@@ -144,6 +144,74 @@ internal class ScriptAssemblyCompiler
     }
 
     /// <summary>
+    /// Compiles a <see cref="BlockScript"/> using a pre-built <see cref="ControlFlowGraph"/>
+    /// (e.g., from BP→CFG conversion). Skips the BS→CFG formatting step, preserving
+    /// the original <see cref="CFGStatement.StatementId"/> values for debug checkpoints.
+    /// </summary>
+    public ICompiledBlockScript? CompileFromCFG(
+        ControlFlowGraph cfg, BlockScript script, string? workflowId)
+    {
+        var baseHash = ScriptCompilationBackend.ComputeScriptHash(script);
+        var hash = ScriptCodeGenerator.IsDebugMode ? $"debug_{baseHash}" : baseHash;
+
+        if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
+        {
+            Log.Debug("[ScriptAssemblyCompiler] Memory cache hit for hash '{Hash}'", hash);
+            return entry.Instance;
+        }
+
+        if (workflowId != null)
+        {
+            var diskInstance = _persistence.TryLoadFromDisk(workflowId, hash);
+            if (diskInstance != null)
+            {
+                Log.Debug("[ScriptAssemblyCompiler] Disk cache hit for hash '{Hash}'", hash);
+                return diskInstance;
+            }
+        }
+
+        try
+        {
+            Log.Debug("[ScriptAssemblyCompiler] Compiling from pre-built CFG: {BlockCount} blocks", cfg.Blocks.Count);
+
+            var context = new PipelineContext { Script = script };
+            if (script.PubVarBlock != null)
+            {
+                foreach (var variable in script.PubVarBlock.Variables)
+                {
+                    if (!context.PubVarNames.Contains(variable.Name))
+                        context.PubVarNames.Add(variable.Name);
+                }
+            }
+            var pubVarTypes = ScriptCodeGenerator.InferPubVarTypes(cfg, script.HelperFunctions, context);
+
+            var compilationUnit = ScriptCodeGenerator.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
+            var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash);
+            if (assembly == null) return null;
+
+            var alc = new CollectibleAssemblyLoadContext(hash);
+            var loadedAssembly = alc.LoadFromStream(assembly);
+            var typeName = $"KitX.Core.Workflow.BlockScripting.Generated.CompiledScript_{hash}";
+            var scriptType = loadedAssembly.GetType(typeName);
+            if (scriptType == null) { alc.Unload(); return null; }
+
+            var instance = (ICompiledBlockScript)Activator.CreateInstance(scriptType)!;
+            _cache[hash] = new CompiledScriptEntry(instance, alc);
+
+            if (workflowId != null)
+                _persistence.SaveToDisk(workflowId, hash, assembly, typeName);
+
+            Log.Debug("[ScriptAssemblyCompiler] CompileFromCFG success for hash '{Hash}'", hash);
+            return instance;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[ScriptAssemblyCompiler] CompileFromCFG failed");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Clears the compilation cache and unloads all cached assemblies.
     /// </summary>
     public void ClearCache()

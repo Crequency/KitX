@@ -51,6 +51,13 @@ public class NodeBuilder
         // Resolve cross-block edges
         ResolveCrossBlockEdges(context);
 
+        // Populate debug context: StatementId → NodeId mapping
+        if (script.DebugContext != null)
+        {
+            foreach (var kvp in context.NodeByStatementId)
+                script.DebugContext.StatementToNodeId[kvp.Key] = kvp.Value.Id;
+        }
+
         Log.Debug("[NodeBuilder] Done: {NodeCount} nodes, {ExecEdgeCount} exec edges",
             context.AllNodes.Count, context.ExecEdges.Count);
     }

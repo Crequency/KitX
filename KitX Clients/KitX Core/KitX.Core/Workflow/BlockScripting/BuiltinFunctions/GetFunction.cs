@@ -111,6 +111,12 @@ public class GetFunction : IBuiltinFunctionDefinition
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
     {
+        if (!helper.IsOutputConsumed(node, "Value"))
+            return null;
+
+        var pubVar = helper.GetOutputPubVar(node, "Value");
+        if (pubVar == null) return null;
+
         var varName = node switch
         {
             GetNode gn => gn.VarName,
@@ -120,7 +126,7 @@ public class GetFunction : IBuiltinFunctionDefinition
         return new ExpressionStatement
         {
             Expression = $"Get(\"{varName}\")",
-            SourceCode = $"Get(\"{varName}\");",
+            SourceCode = $"{pubVar} = Get(\"{varName}\");",
             LineNumber = 1
         };
     }

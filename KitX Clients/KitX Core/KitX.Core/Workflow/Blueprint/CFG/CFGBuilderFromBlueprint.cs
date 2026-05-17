@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint.Pipeline;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
@@ -39,7 +42,10 @@ internal class CFGBuilderFromBlueprint
     /// </summary>
     public ControlFlowGraph Build(Contract.Workflow.Blueprint blueprint)
     {
-        var cfg = new ControlFlowGraph();
+        var cfg = new ControlFlowGraph
+        {
+            DebugContext = new BlueprintDebugContext()
+        };
 
         // ── Step 1: Index and classify all nodes and connections ──
         var nodeById = new Dictionary<string, BlueprintNode>();
@@ -122,6 +128,20 @@ internal class CFGBuilderFromBlueprint
 
         Log.Debug("[CFGBuilderFromBlueprint] Built CFG: {BlockCount} blocks, {EdgeCount} edges",
             cfg.Blocks.Count, cfg.Blocks.Sum(b => b.Successors.Count));
+
+        // ── Step 9: Populate debug node mapping ──
+        if (cfg.DebugContext != null && cfg.Blocks != null)
+        {
+            foreach (var block in cfg.Blocks)
+            {
+                if (block?.Statements == null) continue;
+                foreach (var stmt in block.Statements)
+                {
+                    if (stmt != null && !string.IsNullOrEmpty(stmt.StatementId))
+                        cfg.DebugContext.StatementToNodeId[stmt.StatementId] = stmt.StatementId;
+                }
+            }
+        }
 
         return cfg;
     }
@@ -782,24 +802,6 @@ internal class CFGBuilderFromBlueprint
             case BlueprintNodeType.Entry:
             case BlueprintNodeType.PluginTrigger:
                 return null;
-            case BlueprintNodeType.Break:
-                return new FlowControlStatement
-                {
-                    ControlType = FlowControlType.Break,
-                    SourceCode = "Break();",
-                    LineNumber = 1
-                };
-            case BlueprintNodeType.BuiltinFunction when IsBreakNode(node):
-                return new FlowControlStatement
-                {
-                    ControlType = FlowControlType.Break,
-                    SourceCode = "Break();",
-                    LineNumber = 1
-                };
-            case BlueprintNodeType.Get:
-                return GenerateGetStatement(node);
-            case BlueprintNodeType.BuiltinFunction when IsGetNode(node):
-                return GenerateGetStatement(node);
             case BlueprintNodeType.Call:
             {
                 if (node is not CallNode call) return null;
@@ -890,29 +892,6 @@ internal class CFGBuilderFromBlueprint
         }
     }
 
-    private BlockStatement? GenerateGetStatement(BlueprintNode node)
-    {
-        if (_currentCtx == null) return null;
-
-        // Only generate a Get statement if the Get node's output is consumed
-        if (!_currentCtx.ConsumedOutputs.Contains((node.Id, Value)))
-            return null;
-
-        var pubVar = NodeExportHelper.FindOutputPubVar(node, Value, _currentCtx);
-        if (pubVar == null) return null;
-
-        if (!_strategies.TryGetValue(BlueprintNodeType.Get, out var strategy))
-            return null;
-
-        var stmt = strategy.ToStatement(node, _exportHelper);
-        if (stmt is ExpressionStatement exprStmt)
-        {
-            exprStmt.SourceCode = $"{pubVar} = {exprStmt.Expression};";
-            return exprStmt;
-        }
-        return stmt;
-    }
-
     private ConversionContext? _currentCtx;
 
     /// <summary>
@@ -929,7 +908,7 @@ internal class CFGBuilderFromBlueprint
     // Statement Conversion Helpers
     // ════════════════════════════════════════════════════════════════════
 
-    private static CFGStatement ConvertBlockStatementToCfgStatement(BlockStatement blockStmt, BlueprintNode node)
+    private CFGStatement ConvertBlockStatementToCfgStatement(BlockStatement blockStmt, BlueprintNode node)
     {
         var cfgStmt = new CFGStatement
         {
@@ -956,14 +935,57 @@ internal class CFGBuilderFromBlueprint
                 break;
 
             case ExpressionStatement expr:
-                cfgStmt.Kind = CFGStatementKind.Expression;
                 cfgStmt.OriginalExpression = expr.SourceCode;
-                // Parse PubVar target from "pubVar = expr;" pattern
-                var sourceCode = expr.SourceCode;
-                var eqIdx = sourceCode.IndexOf(" = ");
-                if (eqIdx > 0 && sourceCode.StartsWith(expr.Expression.Split('.')[0]))
+
+                // Kind & FunctionName from strategy (built-in function metadata)
+                if (node is BuiltinFunctionNode bfn
+                    && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfStrat)
+                    && bfStrat is BuiltinFunctionExportStrategyAdapter bfAdapter)
                 {
-                    cfgStmt.PubVarTarget = sourceCode[..eqIdx];
+                    cfgStmt.Kind = bfAdapter.StatementKind;
+                    cfgStmt.FunctionName = bfAdapter.FunctionName;
+                }
+                else if (_strategies.TryGetValue(node.NodeType, out var strat)
+                    && strat is BuiltinFunctionExportStrategyAdapter adapter)
+                {
+                    cfgStmt.Kind = adapter.StatementKind;
+                    cfgStmt.FunctionName = adapter.FunctionName;
+                }
+                else
+                {
+                    cfgStmt.Kind = CFGStatementKind.Expression;
+                }
+
+                // Arguments & PubVarTarget from SourceCode (generated from node data in same pass)
+                var parsed = ExprUtils.ParseStatement(expr.SourceCode);
+                if (parsed?.rightExpr is InvocationExpressionSyntax invoke)
+                {
+                    cfgStmt.FunctionName ??= ExprUtils.GetMethodName(invoke);
+                    cfgStmt.Arguments = invoke.ArgumentList.Arguments
+                        .Select(a => a.Expression.ToString()).ToList();
+                    if (parsed.Value.assignedVar != null)
+                        cfgStmt.PubVarTarget = parsed.Value.assignedVar;
+
+                    // Extract GetVarName / SetVarName from string literal first argument
+                    if (cfgStmt.Arguments.Count > 0)
+                    {
+                        var firstArg = invoke.ArgumentList.Arguments[0].Expression;
+                        var strVal = ExprUtils.GetStringLiteralValue(firstArg);
+                        if (!string.IsNullOrEmpty(strVal))
+                        {
+                            if (cfgStmt.FunctionName == "Set")
+                            {
+                                cfgStmt.SetVarName = strVal;
+                                // Remove var name from Arguments (matching FormatInvocation behaviour)
+                                cfgStmt.Arguments.RemoveAt(0);
+                            }
+                            else if (cfgStmt.FunctionName == "Get")
+                            {
+                                cfgStmt.GetVarName = strVal;
+                                cfgStmt.Arguments.RemoveAt(0);
+                            }
+                        }
+                    }
                 }
                 break;
 
@@ -1172,8 +1194,4 @@ internal class CFGBuilderFromBlueprint
     private static bool IsBranchNode(BlueprintNode node) => IsNodeType(node, BlueprintNodeType.Branch);
 
     private static bool IsLoopNode(BlueprintNode node) => IsNodeType(node, BlueprintNodeType.Loop);
-
-    private static bool IsBreakNode(BlueprintNode node) => IsNodeType(node, BlueprintNodeType.Break);
-
-    private static bool IsGetNode(BlueprintNode node) => IsNodeType(node, BlueprintNodeType.Get);
 }

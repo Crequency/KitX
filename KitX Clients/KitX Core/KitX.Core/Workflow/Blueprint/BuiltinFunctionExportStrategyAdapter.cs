@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint.CFG;
 
 namespace KitX.Core.Workflow.Blueprint;
 
@@ -25,6 +26,9 @@ public class BuiltinFunctionExportStrategyAdapter : INodeExportStrategy
 
     /// <summary>代理底层定义的 LegacyNodeType，用于反向映射时识别具体的蓝图节点类型。</summary>
     public BlueprintNodeType? LegacyNodeType => _definition.LegacyNodeType;
+
+    /// <summary>代理底层定义的 StatementKind，用于 BP→CFG 时直接填充 CFGStatement 字段。</summary>
+    public CFGStatementKind StatementKind => _definition.StatementKind;
 
     /// <inheritdoc/>
     public bool IsControlFlow => _definition.IsFlowControl;

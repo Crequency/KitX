@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -195,6 +195,22 @@ public class Program
             Console.WriteLine("│ Test P: Built-in Assembly Compilation    │");
             Console.WriteLine("└──────────────────────────────────────────┘\n");
             RunBuiltinAssemblyTest(parser, sp);
+        }
+
+        if (ShouldRunTest("Q"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test Q: Debug Mode Execution             │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunDebugExecutionTest(parser, sp);
+        }
+
+        if (ShouldRunTest("R"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test R: Uninitialized ConstBlock Var     │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunUninitializedVarTest(parser, sp);
         }
     }
 
@@ -462,7 +478,7 @@ Print(""Done"");
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 try
                 {
-                    compiled.Run(globals, cts.Token);
+                    compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
                     Console.WriteLine($"[Test L] Assembly execution: SUCCESS");
                     Console.WriteLine($"[Test L] ExecutedBlockCount: {globals.ExecutedBlockCount}");
                     Console.WriteLine($"[Test L] Output: [{string.Join(", ", output)}]");
@@ -1056,7 +1072,7 @@ Print(""Hello, World!"");";
                     globals.ResetRunState();
 
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    compiled.Run(globals, cts.Token);
+                    compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
 
                     Console.WriteLine($"  Assembly execution completed");
                     Console.WriteLine($"  Output ({output.Count} lines): [{string.Join(", ", output)}]");
@@ -1222,7 +1238,7 @@ Print(""Cross-device call done"");";
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     try
                     {
-                        compiled.Run(globals, cts.Token);
+                        compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
                         Console.WriteLine($"  Execution: SUCCESS");
                         Console.WriteLine($"  Output ({output.Count} lines): [{string.Join(", ", output)}]");
 
@@ -1501,7 +1517,7 @@ Print(""Builtin assembly test done"");";
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     try
                     {
-                        compiled.Run(globals, cts.Token);
+                        compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
                         Console.WriteLine($"  Execution: OK, output ({output.Count}): [{string.Join(", ", output)}]");
 
                         bool outputOk = output.Any(o => o.Contains("Hello from builtin test"));
@@ -1559,5 +1575,202 @@ Print(""Builtin assembly test done"");";
         }
 
         Console.WriteLine($"\n[Test P] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
+    }
+
+    private static void RunDebugExecutionTest(
+        IBlockScriptParser parser,
+        System.IServiceProvider sp)
+    {
+        bool allPassed = true;
+
+        Console.WriteLine("[Test Q1] Debug mode compilation + execution");
+        try
+        {
+            var sourceCode = @"#ConstBlock
+int counter = 0;
+int max = 2;
+
+#MainBlock
+Set(""counter"", 0);
+NextBlock = ""LoopBlock"";
+
+#Block LoopBlock
+Print(Get(""counter""));
+Set(""counter"", HelperFuncAdd(Get(""counter""), 1));
+NextBlock = Branch(HelperFuncCompare(""BLT"", Get(""counter""), max), ""LoopBlock"", ""EndBlock"");
+
+#Block EndBlock
+Print(""Done"");";
+
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"  Parse FAILED: {parseResult.ErrorMessage}");
+                allPassed = false;
+            }
+            else
+            {
+                parseResult.Script.HelperFunctions = GetExecutionHelpers();
+
+                var debugger = new BlueprintDebugger();
+                var hitStatements = new List<string>();
+
+                debugger.NodeExecuting += (id) =>
+                {
+                    lock (hitStatements) { hitStatements.Add(id); }
+                };
+
+                var executor = sp.GetRequiredService<IBlockScriptExecutor>();
+                if (executor is BlockScriptExecutor bse)
+                {
+                    bse.SetDebugger(debugger);
+                }
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var result = executor.ExecuteAsync(parseResult.Script, cancellationToken: cts.Token)
+                    .GetAwaiter().GetResult();
+
+                Console.WriteLine($"  Execution: {(result.IsSuccess ? "SUCCESS" : "FAILED")}");
+                Console.WriteLine($"  Debug checkpoints hit: {hitStatements.Count}");
+                Console.WriteLine($"  Output: [{string.Join(", ", result.Output)}]");
+
+                bool q1pass = result.IsSuccess && hitStatements.Count > 0 &&
+                    result.Output.SequenceEqual(new[] { "0", "1", "Done" });
+                Console.WriteLine($"[Test Q1] {(q1pass ? "PASS" : "FAIL")}");
+                if (!q1pass) allPassed = false;
+
+                if (executor is BlockScriptExecutor bse2)
+                {
+                    bse2.SetDebugger(null);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test Q1] FAILED: {ex.Message}\n  {ex.StackTrace}");
+            allPassed = false;
+        }
+
+        Console.WriteLine("\n[Test Q2] Debug slow execution");
+        try
+        {
+            var sourceCode = @"#MainBlock
+Print(""a"");
+Print(""b"");
+Print(""c"");";
+
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                allPassed = false;
+            }
+            else
+            {
+                var debugger = new BlueprintDebugger();
+                debugger.SetSpeed(ExecutionSpeed.Slow);
+
+                var executor = sp.GetRequiredService<IBlockScriptExecutor>();
+                if (executor is BlockScriptExecutor bse)
+                {
+                    bse.SetDebugger(debugger);
+                }
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var result = executor.ExecuteAsync(parseResult.Script, cancellationToken: cts.Token)
+                    .GetAwaiter().GetResult();
+                sw.Stop();
+
+                Console.WriteLine($"  Execution: {(result.IsSuccess ? "SUCCESS" : "FAILED")}");
+                Console.WriteLine($"  Elapsed: {sw.ElapsedMilliseconds}ms (expected > 1000ms for 3 slow steps)");
+
+                bool q2pass = result.IsSuccess && sw.ElapsedMilliseconds > 1000;
+                Console.WriteLine($"[Test Q2] {(q2pass ? "PASS" : "FAIL")}");
+                if (!q2pass) allPassed = false;
+
+                if (executor is BlockScriptExecutor bse2)
+                {
+                    bse2.SetDebugger(null);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test Q2] FAILED: {ex.Message}\n  {ex.StackTrace}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[Test Q] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
+    }
+
+    private static void RunUninitializedVarTest(
+        IBlockScriptParser parser,
+        System.IServiceProvider sp)
+    {
+        bool allPassed = true;
+
+        Console.WriteLine("[Test R1] Compilation with uninitialized ConstBlock variable");
+        try
+        {
+            var sourceCode = @"#ConstBlock
+int counter;
+int max = 3;
+
+#MainBlock
+Set(""counter"", 0);
+NextBlock = ""Loop"";
+
+#Block Loop
+Print(Get(""counter""));
+Set(""counter"", HelperFuncAdd(Get(""counter""), 1));
+NextBlock = Branch(HelperFuncCompare(""BLT"", Get(""counter""), max), ""Loop"", ""End"");
+
+#Block End
+Print(""Done"");";
+
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"  Parse FAILED: {parseResult.ErrorMessage}");
+                allPassed = false;
+            }
+            else
+            {
+                parseResult.Script.HelperFunctions = GetExecutionHelpers();
+
+                var compiler = new ScriptAssemblyCompiler();
+                var compiled = compiler.CompileScript(parseResult.Script);
+                Console.WriteLine($"  Compilation: {(compiled != null ? "SUCCESS" : "FAILED")}");
+
+                if (compiled != null)
+                {
+                    var output = new List<string>();
+                    var scopeManager = new BlockScopeManager();
+                    var globals = new BlockScriptExecutionGlobals(scopeManager, output);
+                    globals.ResetRunState();
+                    scopeManager.InitializeGlobalScope(parseResult.Script);
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
+
+                    Console.WriteLine($"  Output ({output.Count}): [{string.Join(", ", output)}]");
+                    bool ok = output.SequenceEqual(new[] { "0", "1", "2", "Done" });
+                    Console.WriteLine($"[Test R1] {(ok ? "PASS" : "FAIL - wrong output")}");
+                    if (!ok) allPassed = false;
+                }
+                else
+                {
+                    Console.WriteLine("[Test R1] FAIL - compilation returned null");
+                    allPassed = false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test R1] FAILED: {ex.Message}\n  {ex.StackTrace}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[Test R] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
     }
 }
