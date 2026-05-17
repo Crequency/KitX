@@ -10,7 +10,6 @@ internal static class ConfigSerializationOptions
     internal static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
-        IncludeFields = true,
         PropertyNameCaseInsensitive = true
     };
 }

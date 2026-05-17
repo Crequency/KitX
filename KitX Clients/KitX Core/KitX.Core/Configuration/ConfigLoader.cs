@@ -16,23 +16,56 @@ public class ConfigLoader : IConfigLoader
     /// <inheritdoc/>
     public T Load<T>(string location, string fileName) where T : class, new()
     {
-        var path = Path.Combine(location, fileName);
+        var rawPath = Path.Combine(location, fileName);
+        var fullPath = Path.GetFullPath(rawPath);
 
-        if (!File.Exists(path))
+        // Diagnostic trail — always written, bypasses Serilog
+        var diagPath = Path.Combine(Path.GetDirectoryName(fullPath) ?? ".", "ConfigLoadTrail.log");
+        var fInfo = new FileInfo(fullPath);
+        File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> path={fullPath}, exists={(fInfo.Exists ? "True" : "False")}, size={(fInfo.Exists ? fInfo.Length.ToString() : "n/a")}, lastWrite={(fInfo.Exists ? fInfo.LastWriteTime.ToString("O") : "n/a")}\n");
+
+        if (!File.Exists(fullPath))
         {
-            Log.Warning("Config file {FileName} not found, creating default", fileName);
+            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> FILE NOT FOUND, returning default\n");
             return new T();
         }
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = File.ReadAllText(fullPath);
             var config = JsonSerializer.Deserialize<T>(json, ConfigSerializationOptions.Options);
-            return config ?? new T();
+            if (config == null)
+            {
+                File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> Deserialize returned NULL, returning default\n");
+                return new T();
+            }
+            if (typeof(T) == typeof(AppConfig))
+            {
+                var ac = (AppConfig)(object)config;
+
+                // Snapshot: parse JSON directly to see what the file really says
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                string jLogLevel = "?", jHomePane = "?", jHomeSelView = "?";
+                if (root.TryGetProperty("Log", out var jLog) && jLog.TryGetProperty("LogLevel", out var jLevel))
+                    jLogLevel = jLevel.GetInt32().ToString();
+                if (root.TryGetProperty("Pages", out var jPages) && jPages.TryGetProperty("Home", out var jHome))
+                {
+                    if (jHome.TryGetProperty("IsNavigationViewPaneOpened", out var jOpen))
+                        jHomePane = jOpen.GetBoolean() ? "open" : "closed";
+                    if (jHome.TryGetProperty("SelectedViewName", out var jSvn))
+                        jHomeSelView = jSvn.GetString() ?? "null";
+                }
+
+                File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<AppConfig> JSON: LogLevel={jLogLevel}, HomePane={jHomePane}, HomeSelView={jHomeSelView}\n");
+                File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<AppConfig> OBJ:  LogLevel={(int)ac.Log.LogLevel}, HomePane={(ac.Pages.Home.IsNavigationViewPaneOpened ? "open" : "closed")}, HomeSelView={ac.Pages.Home.SelectedViewName}\n");
+            }
+            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> SUCCESS, json={json.Length} bytes\n");
+            return config;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error loading config file {FileName}: {Message}", fileName, ex.Message);
+            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> EXCEPTION: {ex.GetType().Name}: {ex.Message}\nInner: {ex.InnerException?.GetType().Name}: {ex.InnerException?.Message}\nJSON preview: {(File.Exists(fullPath) ? File.ReadAllText(fullPath)[..Math.Min(500, (int)new FileInfo(fullPath).Length)] : "FILE NOT FOUND")}\n");
             return new T();
         }
     }

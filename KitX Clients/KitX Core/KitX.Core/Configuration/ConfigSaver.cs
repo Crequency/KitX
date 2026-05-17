@@ -28,9 +28,10 @@ public class ConfigSaver : IConfigSaver
             }
 
             var jsonContent = JsonSerializer.Serialize(config, ConfigSerializationOptions.Options);
-            File.WriteAllText(path, jsonContent);
+            var fullPath = Path.GetFullPath(path);
+            File.WriteAllText(fullPath, jsonContent);
 
-            Log.Debug("Saved config file {FileName}", fileName);
+            Log.Information("[ConfigSaver] Saved {FileName} → {FullPath} ({Bytes} bytes)", fileName, fullPath, jsonContent.Length);
         }
         catch (Exception ex)
         {

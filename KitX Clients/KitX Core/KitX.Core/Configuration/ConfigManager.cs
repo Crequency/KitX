@@ -39,6 +39,11 @@ public class ConfigManager : IConfigService, IDisposable
     private readonly IConfigSaver _saver;
 
     /// <summary>
+    /// Whether Load() has been called at least once. SaveAll() is deferred until after Load.
+    /// </summary>
+    private bool _loaded;
+
+    /// <summary>
     /// Whether hot-reload is enabled
     /// </summary>
     public bool HotReloadEnabled { get; set; } = true;
@@ -114,21 +119,29 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void Load()
     {
-        Log.Debug($"[ConfigManager] Load() called on instance {GetHashCode()}, _configLocation currently: {_configLocation}");
+        var diagPath = Path.Combine(Path.GetFullPath("./Config/"), "ConfigLoadTrail.log");
+        File.AppendAllText(diagPath, $"[{DateTime.Now:O}] ConfigManager.Load() START, _configLocation={_configLocation ?? "null"}\n");
 
+        // Step 1: Check if _configLocation is set
         if (string.IsNullOrEmpty(_configLocation))
         {
-            Log.Debug($"[ConfigManager] _configLocation is null/empty, setting default location");
+            Log.Information($"[ConfigManager] _configLocation is null/empty, setting default");
             SetLocation("./Config/");
         }
 
-        AppConfig = _loader.Load<AppConfig>(_configLocation, "AppConfig.json");
+        Log.Information($"[ConfigManager] Loading configs from: {_configLocation}");
+        AppConfig = _loader.Load<AppConfig>(_configLocation!, "AppConfig.json");
         PluginsConfig = _loader.Load<PluginsConfig>(_configLocation, "PluginsConfig.json");
         SecurityConfig = _loader.LoadSecurityConfig(_configLocation);
+
+        Log.Information($"[ConfigManager] Load complete — LogLevel={AppConfig.Log.LogLevel}, HomePane={(AppConfig.Pages.Home.IsNavigationViewPaneOpened ? "open" : "closed")}");
 
         _configs["AppConfig"] = AppConfig;
         _configs["PluginsConfig"] = PluginsConfig;
         _configs["SecurityConfig"] = SecurityConfig;
+
+        _loaded = true;
+        Log.Information("[ConfigManager] Load complete & SaveAll gate opened.");
 
         if (HotReloadEnabled)
         {
@@ -173,12 +186,14 @@ public class ConfigManager : IConfigService, IDisposable
                 return;
             }
 
-            Log.Information("FileWatcher {WatcherName}: File changed - {FileName}, {ChangeType}",
-                watcherName, args.Name, args.ChangeType);
+            Log.Information("[ConfigManager] FileWatcher {WatcherName}: Reloading config from disk", watcherName);
 
             try
             {
                 ReloadConfigFile<T>(fileName);
+                if (typeof(T) == typeof(AppConfig))
+                    Log.Information("[ConfigManager] FileWatcher: After reload, LogLevel={Level}", ((AppConfig)(object)_configs["AppConfig"]!).Log.LogLevel);
+                Log.Information("[ConfigManager] FileWatcher {WatcherName}: Reload complete", watcherName);
                 OnConfigChanged(typeof(T).Name, "FileChanged", null, null);
             }
             catch (Exception ex)
@@ -243,7 +258,16 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void SaveAll()
     {
-        Log.Debug($"[ConfigManager] SaveAll() called on instance {GetHashCode()}, _configLocation: {_configLocation}");
+        var diagPath = Path.Combine(Path.GetFullPath("./Config/"), "ConfigLoadTrail.log");
+
+        if (!_loaded)
+        {
+            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] ConfigManager.SaveAll() SKIPPED (not loaded yet), LogLevel={(int)AppConfig.Log.LogLevel}\n");
+            return;
+        }
+
+        File.AppendAllText(diagPath, $"[{DateTime.Now:O}] ConfigManager.SaveAll() START, LogLevel={(int)AppConfig.Log.LogLevel}\n");
+        File.AppendAllText(diagPath, $"  StackTrace:\n{Environment.StackTrace}\n");
 
         if (string.IsNullOrEmpty(_configLocation))
         {
