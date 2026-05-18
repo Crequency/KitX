@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Concurrent;
-using System.Linq;
-using System.Net.Http;
+﻿using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Device;
@@ -19,7 +14,6 @@ using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Workflow;
 

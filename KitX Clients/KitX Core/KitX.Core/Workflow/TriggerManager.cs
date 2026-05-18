@@ -1,14 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
+﻿using System.Text.Json;
 using KitX.Core.Contract.Workflow;
-using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Event;
 using KitX.Core.Contract.Plugin;
-using KitX.Core.Contract.Plugin.Events;
-using KitX.Core.Device;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;

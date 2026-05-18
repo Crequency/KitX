@@ -1,8 +1,4 @@
-using System.Threading;
-using System.Threading.Tasks;
-using KitX.Core.Contract.Workflow;
-
-namespace KitX.Core.Workflow.BlockScripting;
+﻿namespace KitX.Core.Workflow.BlockScripting;
 
 /// <summary>
 /// Represents a BlockScript compiled into a .NET assembly via Roslyn CSharpCompilation.

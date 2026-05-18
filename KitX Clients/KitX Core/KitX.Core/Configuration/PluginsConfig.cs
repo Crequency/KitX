@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Plugin;
-using KitX.Shared.CSharp.Plugin;
 
 namespace KitX.Core.Configuration;
 

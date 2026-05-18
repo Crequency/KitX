@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using KitX.Core.Contract.Workflow;
+﻿using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
-using KitX.Core.Device;
 using KitX.Core.DI;
 using KitX.Shared.CSharp.Plugin;
 using Microsoft.CodeAnalysis.CSharp;

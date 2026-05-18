@@ -1,10 +1,6 @@
-using System;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Fleck;
-using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
-using KitX.Core.Contract.Device;
-using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using Serilog;
 

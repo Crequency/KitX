@@ -1,6 +1,4 @@
-using System;
-using KitX.Shared.CSharp.Device;
-using KitX.Shared.CSharp.Plugin;
+﻿using KitX.Shared.CSharp.Plugin;
 
 namespace KitX.Core.Event;
 

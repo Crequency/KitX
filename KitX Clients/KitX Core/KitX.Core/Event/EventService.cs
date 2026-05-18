@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using KitX.Core.Contract.Event;
+﻿using KitX.Core.Contract.Event;
 using Serilog;
-using KitX.Core.DI;
 
 namespace KitX.Core.Event;
 

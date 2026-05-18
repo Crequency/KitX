@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using KitX.Core.Contract.Workflow;
-using KitX.Core.Device;
+﻿using KitX.Core.Contract.Workflow;
 using KitX.Core.DI;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;

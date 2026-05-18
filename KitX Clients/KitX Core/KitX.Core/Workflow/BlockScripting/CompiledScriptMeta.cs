@@ -1,6 +1,4 @@
-using System;
-
-namespace KitX.Core.Workflow.BlockScripting;
+﻿namespace KitX.Core.Workflow.BlockScripting;
 
 /// <summary>
 /// Metadata for a persisted compiled script assembly on disk.

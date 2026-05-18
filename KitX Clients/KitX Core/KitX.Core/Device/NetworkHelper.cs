@@ -1,10 +1,7 @@
-using System;
-using System.Linq;
-using System.Net;
+﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using KitX.Shared.CSharp.Device;
-using Common.BasicHelper.Core;
 using Serilog;
 
 namespace KitX.Core.Device;

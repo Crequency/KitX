@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using KitX.Core.Contract.Hotkey;
+﻿using KitX.Core.Contract.Hotkey;
 using SharpHook;
 using SharpHook.Data;
 using KitX.Core.DI;

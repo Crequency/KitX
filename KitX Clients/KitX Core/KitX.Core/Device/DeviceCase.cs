@@ -1,11 +1,7 @@
-using KitX.Core.Configuration;
-using System;
-using KitX.Core.Contract.Configuration;
+﻿using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Security;
-using KitX.Core.Security;
 using KitX.Shared.CSharp.Device;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Device;
 

@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Security;
 using KitX.Core.Contract.Device;
@@ -12,7 +8,6 @@ using KitX.Core.Device;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Security;
 using Serilog;
-using KitX.Core.DI;
 
 namespace KitX.Core.Security;
 

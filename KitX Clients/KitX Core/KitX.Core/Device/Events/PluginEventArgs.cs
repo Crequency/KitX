@@ -1,7 +1,4 @@
-using System;
-using KitX.Shared.CSharp.WebCommand;
-
-namespace KitX.Core.Device.Events;
+﻿namespace KitX.Core.Device.Events;
 
 /// <summary>
 /// Plugin connected event arguments

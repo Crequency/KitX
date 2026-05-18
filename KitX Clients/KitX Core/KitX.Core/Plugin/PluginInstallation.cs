@@ -1,6 +1,4 @@
-using System;
-using System.Collections.Generic;
-using KitX.Core.Contract.Configuration;
+﻿using KitX.Core.Contract.Configuration;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Loader;
 using KitX.Shared.CSharp.Plugin;

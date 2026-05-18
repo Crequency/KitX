@@ -1,5 +1,4 @@
-using System;
-using KitX.Shared.CSharp.Device;
+﻿using KitX.Shared.CSharp.Device;
 
 namespace KitX.Core.Device;
 

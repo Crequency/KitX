@@ -1,7 +1,6 @@
-using System.Collections.Generic;
-using KitX.Core.Contract.Workflow;
+﻿using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
-using KitX.Core.Workflow.Blueprint.CFG;
+using KitX.Core.Workflow.CFG;
 
 namespace KitX.Core.Workflow.Blueprint;
 

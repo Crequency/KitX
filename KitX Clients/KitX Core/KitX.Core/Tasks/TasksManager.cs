@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using KitX.Core.Contract.Tasks;
+﻿using KitX.Core.Contract.Tasks;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
 

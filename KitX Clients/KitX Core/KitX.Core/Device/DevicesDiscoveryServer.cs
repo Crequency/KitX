@@ -1,13 +1,7 @@
-using KitX.Core.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
+﻿using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using CTask = System.Threading.Tasks.Task;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
@@ -15,8 +9,6 @@ using KitX.Core.Contract.Event;
 using KitX.Core.Contract.Plugin;
 using KitX.Shared.CSharp.Device;
 using Serilog;
-using KitX.Core.DI;
-using KitX.Core.Event;
 
 namespace KitX.Core.Device;
 

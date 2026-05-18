@@ -1,5 +1,4 @@
-using System.Collections.Generic;
-using KitX.Core.Contract.Configuration;
+﻿using KitX.Core.Contract.Configuration;
 
 namespace KitX.Core.Configuration;
 

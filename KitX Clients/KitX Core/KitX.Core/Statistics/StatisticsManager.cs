@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using KitX.Core.Contract.Statistics;
+﻿using KitX.Core.Contract.Statistics;
 using Serilog;
 using STimer = System.Timers.Timer;
 using KitX.Core.DI;

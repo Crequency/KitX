@@ -1,9 +1,7 @@
-using System.Collections.Generic;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
-using KitX.Core.Workflow.Blueprint;
-using KitX.Core.Workflow.Blueprint.CFG;
-using KitX.Core.Workflow.Blueprint.Pipeline;
+using KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.CFG;
 
 namespace KitX.Core.Workflow.BlockScripting;
 

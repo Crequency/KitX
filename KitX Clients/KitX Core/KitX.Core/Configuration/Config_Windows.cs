@@ -1,5 +1,4 @@
-using Common.BasicHelper.Graphics.Screen;
-using KitX.Core.Contract.Configuration;
+﻿using KitX.Core.Contract.Configuration;
 
 namespace KitX.Core.Configuration;
 

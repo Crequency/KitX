@@ -1,16 +1,8 @@
-using KitX.Core.Configuration;
+﻿using KitX.Core.Configuration;
 using KitX.Core.Contract.Announcement;
 using KitX.Core.Contract.Configuration;
-using Microsoft.AspNetCore.Components;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace KitX.Core.Announcement;
 

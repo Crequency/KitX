@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.CodeAnalysis.Text;
+﻿using Microsoft.CodeAnalysis.Text;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 

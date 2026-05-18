@@ -1,8 +1,4 @@
-﻿using KitX.Core.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
+﻿using System.Text;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Event;
@@ -10,7 +6,6 @@ using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using Serilog;
 using Timer = System.Timers.Timer;
-using KitX.Core.DI;
 
 namespace KitX.Core.Device;
 

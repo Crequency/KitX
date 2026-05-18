@@ -1,5 +1,4 @@
-using System;
-using KitX.Core.Contract.Workflow;
+﻿using KitX.Core.Contract.Workflow;
 
 namespace KitX.Core.Workflow;
 

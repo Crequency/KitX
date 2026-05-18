@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
 using KitX.Core.Contract.Configuration;
 using KitX.Shared.CSharp.Device;
 using Serilog;

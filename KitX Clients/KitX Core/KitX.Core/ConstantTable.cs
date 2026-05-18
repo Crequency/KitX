@@ -1,5 +1,4 @@
-using System;
-using Common.BasicHelper.Utils.Extensions;
+﻿using Common.BasicHelper.Utils.Extensions;
 
 namespace KitX.Core;
 

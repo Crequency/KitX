@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using KitX.Core.Contract.Workflow;
-using KitX.Core.Device;
+﻿using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
-using KitX.Shared.CSharp.Plugin;
 using Serilog;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.Core.Workflow;
 
