@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
@@ -8,7 +9,9 @@ using KitX.Core.Workflow.Blueprint.Pipeline;
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions;
 
 /// <summary>
-/// Get 内置函数 — 读取变量值。
+/// Get builtin function — reads a variable value from global scope.
+/// BlockScript syntax: Get("varName")
+/// VarName is passed as the first input pin (String type), allowing connections.
 /// </summary>
 public class GetFunction : IBuiltinFunctionDefinition
 {
@@ -16,20 +19,19 @@ public class GetFunction : IBuiltinFunctionDefinition
     public string DisplayName => "Get";
     public bool IsFlowControl => false;
     public bool IsNonExtractable => false;
-    public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Get;
     public CFGStatementKind StatementKind => CFGStatementKind.Assignment;
-    public double NodeWidth => 120;
+    public double NodeWidth => 140;
     public double NodeHeight => 60;
 
     public IReadOnlyList<PinDescriptor> InputPins => [
-        new("Exec", PinType.Execution, 20)
+        new("Exec", PinType.Execution, 20),
+        new("VarName", PinType.String, 40)
     ];
 
     public IReadOnlyList<PinDescriptor> OutputPins => [
         new("Exec", PinType.Execution, 20),
         new("Value", PinType.Any, 40)
     ];
-
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
@@ -38,14 +40,6 @@ public class GetFunction : IBuiltinFunctionDefinition
         PipelineContext context, string? assignedVar)
     {
         var args = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
-
-        // Extract varName from first argument
-        string? getVarName = null;
-        if (invoke.ArgumentList.Arguments.Count > 0)
-        {
-            var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
-            getVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? args[0];
-        }
 
         // Auto-generate PubVar if not already assigned
         string? pubVarTarget;
@@ -66,7 +60,6 @@ public class GetFunction : IBuiltinFunctionDefinition
             Kind = CFGStatementKind.Assignment,
             FunctionName = FunctionName,
             PubVarTarget = pubVarTarget,
-            GetVarName = getVarName,
             Arguments = args,
             OriginalExpression = invoke.ToString(),
             SourceLine = 0,
@@ -75,11 +68,14 @@ public class GetFunction : IBuiltinFunctionDefinition
 
     public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
     {
-        var varName = stmt.GetVarName ?? (stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "");
-        if (node is GetNode gn)
-            gn.VarName = varName;
-        else if (node is BuiltinFunctionNode bfn)
-            bfn.Properties["VarName"] = varName;
+        // Set default value on VarName pin from first argument
+        if (stmt.Arguments?.Count > 0)
+        {
+            var varName = stmt.Arguments[0].Trim('"');
+            var pin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
+            if (pin != null)
+                pin.DefaultValue = varName;
+        }
         return node;
     }
 
@@ -87,13 +83,6 @@ public class GetFunction : IBuiltinFunctionDefinition
         InvocationExpressionSyntax invoke, List<string> expandedArgs,
         string? assignedVar, PipelineContext context)
     {
-        string? getVarName = null;
-        if (expandedArgs.Count > 0)
-        {
-            var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
-            getVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? expandedArgs[0];
-        }
-
         string? pubVarTarget;
         if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
         {
@@ -106,7 +95,7 @@ public class GetFunction : IBuiltinFunctionDefinition
             pubVarTarget = assignedVar;
         }
 
-        return (null, getVarName, pubVarTarget);
+        return (null, null, pubVarTarget);
     }
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
@@ -117,12 +106,10 @@ public class GetFunction : IBuiltinFunctionDefinition
         var pubVar = helper.GetOutputPubVar(node, "Value");
         if (pubVar == null) return null;
 
-        var varName = node switch
-        {
-            GetNode gn => gn.VarName,
-            BuiltinFunctionNode bfn => bfn.Properties.GetValueOrDefault("VarName", ""),
-            _ => ""
-        };
+        var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
+        var varName = varPin?.DefaultValue ?? "";
+        if (string.IsNullOrEmpty(varName)) return null;
+
         return new ExpressionStatement
         {
             Expression = $"Get(\"{varName}\")",

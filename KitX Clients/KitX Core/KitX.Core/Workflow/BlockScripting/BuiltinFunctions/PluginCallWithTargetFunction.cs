@@ -23,7 +23,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "PluginCallWithTarget";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
-        public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Call;
         public CFGStatementKind StatementKind => CFGStatementKind.PluginCallWithTarget;
         public double NodeWidth => 140;
         public double NodeHeight => 80;

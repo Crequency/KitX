@@ -104,92 +104,49 @@ internal class CFG2BSConverter
 
     // ─── Statement Conversion ──────────────────────────────────────────
 
+    private static readonly Dictionary<CFGStatementKind, FlowControlType?> KindToControlType = new()
+    {
+        [CFGStatementKind.Branch] = FlowControlType.Branch,
+        [CFGStatementKind.Loop] = FlowControlType.Loop,
+        [CFGStatementKind.ToLoopCond] = FlowControlType.ToLoopCond,
+        [CFGStatementKind.Break] = FlowControlType.Break,
+    };
+
     private static BlockStatement? ConvertStatement(CFGStatement cfgStmt)
     {
-        BlockStatement? result = null;
-
-        switch (cfgStmt.Kind)
+        // Control flow statements → FlowControlStatement
+        if (KindToControlType.TryGetValue(cfgStmt.Kind, out var controlType) && controlType != null)
         {
-            case CFGStatementKind.Branch:
-                return new FlowControlStatement
-                {
-                    StatementId = cfgStmt.StatementId,
-                    ControlType = FlowControlType.Branch,
-                    ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
-                    TrueBlockName = cfgStmt.TrueBlockName ?? string.Empty,
-                    FalseBlockName = cfgStmt.FalseBlockName ?? string.Empty,
-                    SourceCode = cfgStmt.OriginalExpression,
-                    LineNumber = cfgStmt.SourceLine
-                };
-                break;
-
-            case CFGStatementKind.Loop:
-                return new FlowControlStatement
-                {
-                    StatementId = cfgStmt.StatementId,
-                    ControlType = FlowControlType.Loop,
-                    ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
-                    TrueBlockName = cfgStmt.TrueBlockName ?? string.Empty,
-                    FalseBlockName = cfgStmt.FalseBlockName ?? string.Empty,
-                    SourceCode = cfgStmt.OriginalExpression,
-                    LineNumber = cfgStmt.SourceLine
-                };
-                break;
-
-            case CFGStatementKind.ToLoopCond:
-                return new FlowControlStatement
-                {
-                    StatementId = cfgStmt.StatementId,
-                    ControlType = FlowControlType.ToLoopCond,
-                    ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,
-                    SourceCode = cfgStmt.OriginalExpression,
-                    LineNumber = cfgStmt.SourceLine
-                };
-                break;
-
-            case CFGStatementKind.Break:
-                return new FlowControlStatement
-                {
-                    StatementId = cfgStmt.StatementId,
-                    ControlType = FlowControlType.Break,
-                    SourceCode = cfgStmt.OriginalExpression,
-                    LineNumber = cfgStmt.SourceLine
-                };
-                break;
-
-            case CFGStatementKind.Print:
-            case CFGStatementKind.Pause:
-            case CFGStatementKind.Set:
-            case CFGStatementKind.Get:
-            case CFGStatementKind.Assignment:
-            case CFGStatementKind.Expression:
-                return new ExpressionStatement
-                {
-                    StatementId = cfgStmt.StatementId,
-                    Expression = ExtractExpression(cfgStmt.OriginalExpression),
-                    SourceCode = cfgStmt.OriginalExpression,
-                    LineNumber = cfgStmt.SourceLine
-                };
-                break;
-
-            case CFGStatementKind.NextBlockAssignment:
-                return null;
-
-            default:
-                if (!string.IsNullOrEmpty(cfgStmt.OriginalExpression))
-                {
-                    return new ExpressionStatement
-                    {
-                        StatementId = cfgStmt.StatementId,
-                        Expression = ExtractExpression(cfgStmt.OriginalExpression),
-                        SourceCode = cfgStmt.OriginalExpression,
-                        LineNumber = cfgStmt.SourceLine
-                    };
-                }
-                break;
+            return new FlowControlStatement
+            {
+                StatementId = cfgStmt.StatementId,
+                ControlType = controlType.Value,
+                ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
+                TrueBlockName = cfgStmt.TrueBlockName ?? string.Empty,
+                FalseBlockName = cfgStmt.FalseBlockName ?? string.Empty,
+                ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,
+                SourceCode = cfgStmt.OriginalExpression,
+                LineNumber = cfgStmt.SourceLine
+            };
         }
 
-        return result;
+        // NextBlockAssignment → skip
+        if (cfgStmt.Kind == CFGStatementKind.NextBlockAssignment)
+            return null;
+
+        // Everything else → ExpressionStatement
+        if (!string.IsNullOrEmpty(cfgStmt.OriginalExpression))
+        {
+            return new ExpressionStatement
+            {
+                StatementId = cfgStmt.StatementId,
+                Expression = ExtractExpression(cfgStmt.OriginalExpression),
+                SourceCode = cfgStmt.OriginalExpression,
+                LineNumber = cfgStmt.SourceLine
+            };
+        }
+
+        return null;
     }
 
     /// <summary>

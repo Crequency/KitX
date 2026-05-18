@@ -16,7 +16,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "Create Workflow";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public BlueprintNodeType? LegacyNodeType => null;
         public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 180;
         public double NodeHeight => 80;

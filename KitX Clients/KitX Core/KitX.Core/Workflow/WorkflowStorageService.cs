@@ -261,9 +261,9 @@ public class WorkflowStorageService : IWorkflowStorageService
             {
                 return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
             }
-            catch (NotSupportedException ex) when (ex.Message.Contains("type discriminator"))
+            catch (JsonException ex) when (ex.Message.Contains("type discriminator"))
             {
-                // BlueprintData has nodes without $type discriminators — retry without BP data
+                // BlueprintData has nodes with unrecognized $type discriminators — retry without BP data
                 Log.Warning(ex,
                     "[WorkflowStorageService] BlueprintData deserialization failed for {FilePath}. " +
                     "Retrying without BlueprintData (legacy format or missing type discriminators)",

@@ -18,7 +18,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "List Plugin Names";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public BlueprintNodeType? LegacyNodeType => null;
         public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 140;
         public double NodeHeight => 60;

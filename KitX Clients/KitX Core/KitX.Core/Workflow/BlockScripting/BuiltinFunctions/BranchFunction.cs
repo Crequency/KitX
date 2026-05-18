@@ -18,7 +18,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "Branch";
         public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
-        public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Branch;
         public bool IsBlockTerminator => true;
         public CFGStatementKind StatementKind => CFGStatementKind.Branch;
         public double NodeWidth => 120;

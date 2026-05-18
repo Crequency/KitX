@@ -36,8 +36,7 @@ public class PipelineContext
     public Dictionary<string, List<string>> BlockNodeIds { get; set; } = new();
     public Dictionary<string, string?> BlockNextBlock { get; set; } = new();
     public Dictionary<string, bool> BlockEndsWithFlowCtrl { get; set; } = new();
-    public List<(string stmtId, string? trueBlock, string? falseBlock)> BranchDefs { get; set; } = new();
-    public List<(string stmtId, string? loopBody, string? loopEnd, string parentBlock)> LoopDefs { get; set; } = new();
+
 
     // --- Phase 4 output ---
     public List<PendingDataEdge> DataEdges { get; set; } = new();
@@ -153,7 +152,6 @@ public class PendingDataEdge
 
 /// <summary>
 /// Generic deferred control flow edge for IBuiltinFunctionDefinition-based functions.
-/// Replaces per-function BranchDefs/LoopDefs with a unified structure.
 /// Populated by OnNodeCreated, resolved by CFG2BPConverter.ResolveCrossBlockEdges.
 /// </summary>
 public struct DeferredControlFlowEdge

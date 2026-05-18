@@ -101,88 +101,81 @@ public class BS2CFGConverter
     {
         var result = new List<CFGStatement>();
 
-        switch (flowCtrl.ControlType)
+        // Determine the function name from the source code or control type
+        var functionName = GetFunctionNameFromFlowControl(flowCtrl);
+        var kind = _functionRegistry?.Get(functionName)?.StatementKind ?? MapControlTypeToKind(flowCtrl.ControlType);
+
+        // Expand condition for Branch/Loop
+        var hasCondition = !string.IsNullOrEmpty(flowCtrl.ConditionExpression);
+        string? condPubVar = null;
+
+        if (hasCondition)
         {
-            case FlowControlType.Branch:
-                {
-                    var (condStmts, condPubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
-                    result.AddRange(condStmts);
-                    result.Add(new CFGStatement
-                    {
-                        BlockName = blockName,
-                        Kind = CFGStatementKind.Branch,
-                        FunctionName = Branch,
-                        ConditionPubVar = condPubVar,
-                        ConditionExpression = flowCtrl.ConditionExpression,
-                        TrueBlockName = flowCtrl.TrueBlockName,
-                        FalseBlockName = flowCtrl.FalseBlockName,
-                        OriginalExpression = flowCtrl.SourceCode,
-                        SourceLine = flowCtrl.LineNumber,
-                        StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString()
-                    });
-                }
-                break;
-
-            case FlowControlType.Loop:
-                {
-                    var (condStmts, condPubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
-                    result.AddRange(condStmts);
-
-                    var loopStmt = new CFGStatement
-                    {
-                        StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
-                        BlockName = blockName,
-                        Kind = CFGStatementKind.Loop,
-                        FunctionName = Loop,
-                        ConditionPubVar = condPubVar,
-                        ConditionExpression = flowCtrl.ConditionExpression,
-                        TrueBlockName = flowCtrl.TrueBlockName,
-                        FalseBlockName = flowCtrl.FalseBlockName,
-                        OriginalExpression = flowCtrl.SourceCode,
-                        SourceLine = flowCtrl.LineNumber
-                    };
-                    result.Add(loopStmt);
-
-                    // Store condition for duplication before ToLoopCond
-                    if (!string.IsNullOrEmpty(condPubVar))
-                    {
-                        context.LoopConditions[blockName] = new ConditionInfo
-                        {
-                            ConditionPubVar = condPubVar,
-                            RawExpression = flowCtrl.ConditionExpression,
-                            ExpansionStatements = condStmts.ToList()
-                        };
-                    }
-                }
-                break;
-
-            case FlowControlType.ToLoopCond:
-                result.Add(new CFGStatement
-                {
-                    StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
-                    BlockName = blockName,
-                    Kind = CFGStatementKind.ToLoopCond,
-                    FunctionName = ToLoopCond,
-                    ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
-                    OriginalExpression = flowCtrl.SourceCode,
-                    SourceLine = flowCtrl.LineNumber
-                });
-                break;
-
-            case FlowControlType.Break:
-                result.Add(new CFGStatement
-                {
-                    StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
-                    BlockName = blockName,
-                    Kind = CFGStatementKind.Break,
-                    FunctionName = Break,
-                    OriginalExpression = flowCtrl.SourceCode,
-                    SourceLine = flowCtrl.LineNumber
-                });
-                break;
+            var (condStmts, pubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
+            result.AddRange(condStmts);
+            condPubVar = pubVar;
         }
+
+        var stmt = new CFGStatement
+        {
+            StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
+            BlockName = blockName,
+            Kind = kind,
+            FunctionName = functionName,
+            ConditionPubVar = condPubVar,
+            ConditionExpression = flowCtrl.ConditionExpression,
+            TrueBlockName = flowCtrl.TrueBlockName,
+            FalseBlockName = flowCtrl.FalseBlockName,
+            ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
+            OriginalExpression = flowCtrl.SourceCode,
+            SourceLine = flowCtrl.LineNumber
+        };
+        result.Add(stmt);
+
+        // Store loop condition for duplication before ToLoopCond
+        if (kind == CFGStatementKind.Loop && !string.IsNullOrEmpty(condPubVar))
+        {
+            context.LoopConditions[blockName] = new ConditionInfo
+            {
+                ConditionPubVar = condPubVar,
+                RawExpression = flowCtrl.ConditionExpression,
+                ExpansionStatements = result.Where(s => s != stmt).ToList()
+            };
+        }
+
         return result;
     }
+
+    private static string GetFunctionNameFromFlowControl(FlowControlStatement flowCtrl)
+    {
+        var src = flowCtrl.SourceCode;
+        // Parse function name from source like "NextBlock = Branch(...)", "Break()", etc.
+        var parsed = ExprUtils.ParseStatement(src);
+        if (parsed?.rightExpr is InvocationExpressionSyntax invoke)
+            return ExprUtils.GetMethodName(invoke);
+        if (parsed?.rightExpr is IdentifierNameSyntax id)
+            return id.Identifier.Text;
+        // Fallback: derive from ControlType
+        return MapControlTypeToFunctionName(flowCtrl.ControlType);
+    }
+
+    private static string MapControlTypeToFunctionName(FlowControlType type) => type switch
+    {
+        FlowControlType.Branch => Branch,
+        FlowControlType.Loop => Loop,
+        FlowControlType.ToLoopCond => ToLoopCond,
+        FlowControlType.Break => Break,
+        _ => string.Empty
+    };
+
+    private static CFGStatementKind MapControlTypeToKind(FlowControlType type) => type switch
+    {
+        FlowControlType.Branch => CFGStatementKind.Branch,
+        FlowControlType.Loop => CFGStatementKind.Loop,
+        FlowControlType.ToLoopCond => CFGStatementKind.ToLoopCond,
+        FlowControlType.Break => CFGStatementKind.Break,
+        _ => CFGStatementKind.Unknown
+    };
 
     // ──────────────────────────────────────────────
     // Expression statement formatting

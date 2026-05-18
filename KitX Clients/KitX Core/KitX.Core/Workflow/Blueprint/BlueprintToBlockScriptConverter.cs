@@ -32,8 +32,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
             if (s is BuiltinFunctionExportStrategyAdapter adapter)
             {
                 _builtinMap[adapter.FunctionName] = s;
-                if (adapter.LegacyNodeType != null)
-                    _strategyMap[adapter.LegacyNodeType.Value] = s;
             }
             else
             {

@@ -108,15 +108,6 @@ public interface IBuiltinFunctionDefinition
     /// <summary>返回控制流输出臂描述。非控制流函数返回空集合。</summary>
     IEnumerable<OutputArmDescriptor> GetOutputArms();
 
-    // ─── 向后兼容 ──────────────────────────────────────
-
-    /// <summary>
-    /// 对应的旧版 BlueprintNodeType。用于反向转换时将导出策略映射到正确的节点类型。
-    /// 标准函数（Print/Set/Get/Branch/Loop/Break/Pause）返回对应的枚举值；
-    /// 纯新增函数（如 Flip）返回 null。
-    /// </summary>
-    BlueprintNodeType? LegacyNodeType => null;
-
     // ─── 控制流（可选，默认实现为无操作）──────────────
 
     /// <summary>

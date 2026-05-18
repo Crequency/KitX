@@ -210,7 +210,7 @@ internal class BP2CFGConverter
             if (sourceNode == null) continue;
             if (sourceNode.NodeType == BlueprintNodeType.Const) continue;
 
-            if (sourceNode.NodeType is BlueprintNodeType.Get or BlueprintNodeType.Call
+            if (sourceNode.NodeType is BlueprintNodeType.Call
                 or BlueprintNodeType.CallHelper
                 || (sourceNode is BuiltinFunctionNode bfn && bfn.FunctionName == "Get"))
             {
@@ -371,11 +371,13 @@ internal class BP2CFGConverter
         }
 
         var stmt = GenerateStatement(node, nodeById, execConns, blueprint);
+        var isControlFlow = IsControlFlowNode(node);
+
         if (stmt != null)
         {
             currentBlock.Statements.Add(stmt);
 
-            if (stmt.Kind == CFGStatementKind.Branch || stmt.Kind == CFGStatementKind.Loop)
+            if (isControlFlow)
             {
                 pendingControlFlowNodes.Add(node);
                 if (stmt.Kind == CFGStatementKind.Loop)
@@ -390,7 +392,7 @@ internal class BP2CFGConverter
         if (stmt is { Kind: CFGStatementKind.ToLoopCond })
             return;
 
-        if (IsBranchNode(node) || IsLoopNode(node))
+        if (isControlFlow)
         {
             pendingControlFlowNodes.Add(node);
             return;
@@ -445,26 +447,37 @@ internal class BP2CFGConverter
                 if (processedNodes.Contains(node.Id)) continue;
                 processedNodes.Add(node.Id);
 
-                if (IsBranchNode(node))
-                    ProcessBranchSubGraph(node, cfg, nodeById, reachableNodeIds, execConns,
-                        blueprint, loopNodes, loopOwnerBlockNames, ref blockCounter);
-                else if (IsLoopNode(node))
-                    ProcessLoopSubGraph(node, cfg, nodeById, reachableNodeIds, execConns,
-                        blueprint, loopNodes, loopOwnerBlockNames, ref blockCounter);
+                ProcessControlFlowSubGraph(node, cfg, nodeById, reachableNodeIds, execConns,
+                    blueprint, loopNodes, loopOwnerBlockNames, ref blockCounter);
             }
         }
     }
 
-    private void ProcessBranchSubGraph(
-        BlueprintNode branchNode, ControlFlowGraph cfg,
+    private void ProcessControlFlowSubGraph(
+        BlueprintNode cfNode, ControlFlowGraph cfg,
         Dictionary<string, BlueprintNode> nodeById, HashSet<string> reachableNodeIds,
         List<BlueprintConnection> execConns, Contract.Workflow.Blueprint blueprint,
         Dictionary<string, BlueprintNode> loopNodes,
         Dictionary<string, string> loopOwnerBlockNames, ref int blockCounter)
     {
-        foreach (var pinName in new[] { True, False })
+        // Get output arms from the export strategy
+        IEnumerable<OutputArmDescriptor>? arms = null;
+
+        if (cfNode is BuiltinFunctionNode bfn
+            && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfStrat))
         {
-            var pin = branchNode.OutputPins.FirstOrDefault(p => p.Name == pinName);
+            arms = bfStrat.GetOutputArms(cfNode);
+        }
+        else if (_strategies.TryGetValue(cfNode.NodeType, out var strat))
+        {
+            arms = strat.GetOutputArms(cfNode);
+        }
+
+        if (arms == null) return;
+
+        foreach (var arm in arms)
+        {
+            var pin = cfNode.OutputPins.FirstOrDefault(p => p.Name == arm.PinName);
             if (pin == null) continue;
 
             var conn = execConns.FirstOrDefault(c => c.SourcePinId == pin.Id);
@@ -474,80 +487,36 @@ internal class BP2CFGConverter
             if (targetNode == null) continue;
 
             var blockName = $"Block_{blockCounter++}";
-            var block = new CFGBlock { Name = blockName, Type = CFGBlockType.Basic };
+            var block = new CFGBlock
+            {
+                Name = blockName,
+                Type = arm.IsLoopback ? CFGBlockType.LoopBody : CFGBlockType.Basic,
+                ParentLoopBlockName = arm.IsLoopback ? FindContainingBlockName(cfg, cfNode.Id) : null
+            };
             cfg.Blocks.Add(block);
+
+            if (arm.IsLoopback)
+                loopOwnerBlockNames[cfNode.Id] = blockName;
 
             WalkNode(targetNode, block, cfg, nodeById, reachableNodeIds, execConns,
                 blueprint, new HashSet<string>(), pendingControlFlowNodes: new(),
-                loopNodes, loopOwnerBlockNames, ref blockCounter, loopbackTargetId: null);
+                loopNodes, loopOwnerBlockNames, ref blockCounter,
+                loopbackTargetId: arm.IsLoopback ? cfNode.Id : null);
 
-            // Update the Branch statement in the parent block
-            var branchStmt = FindBranchStatement(cfg, branchNode.Id);
-            if (branchStmt != null)
+            // Update the CFG statement with the resolved target block name
+            var cfStmt = FindBranchStatement(cfg, cfNode.Id);
+            if (cfStmt != null)
             {
-                if (pinName == True) branchStmt.TrueBlockName = blockName;
-                else branchStmt.FalseBlockName = blockName;
-                branchStmt.OriginalExpression = RegenerateBranchSource(branchStmt);
-            }
-        }
-    }
+                // Map arm pin name to TrueBlockName/FalseBlockName
+                // First non-loopback arm → TrueBlockName, second → FalseBlockName
+                var normalArms = arms.Where(a => !a.IsLoopback).ToList();
+                var armIndex = normalArms.IndexOf(arm);
+                if (armIndex == 0)
+                    cfStmt.TrueBlockName = blockName;
+                else if (armIndex == 1)
+                    cfStmt.FalseBlockName = blockName;
 
-    private void ProcessLoopSubGraph(
-        BlueprintNode loopNode, ControlFlowGraph cfg,
-        Dictionary<string, BlueprintNode> nodeById, HashSet<string> reachableNodeIds,
-        List<BlueprintConnection> execConns, Contract.Workflow.Blueprint blueprint,
-        Dictionary<string, BlueprintNode> loopNodes,
-        Dictionary<string, string> loopOwnerBlockNames, ref int blockCounter)
-    {
-        // Loop body
-        var loopBodyPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == LoopBody);
-        if (loopBodyPin != null)
-        {
-            var conn = execConns.FirstOrDefault(c => c.SourcePinId == loopBodyPin.Id);
-            if (conn != null)
-            {
-                var targetNode = blueprint.GetNodeById(conn.TargetNodeId);
-                if (targetNode != null)
-                {
-                    var blockName = $"Block_{blockCounter++}";
-                    var block = new CFGBlock
-                    {
-                        Name = blockName,
-                        Type = CFGBlockType.LoopBody,
-                        ParentLoopBlockName = FindContainingBlockName(cfg, loopNode.Id)
-                    };
-                    cfg.Blocks.Add(block);
-                    loopOwnerBlockNames[loopNode.Id] = blockName;
-
-                    WalkNode(targetNode, block, cfg, nodeById, reachableNodeIds, execConns,
-                        blueprint, new HashSet<string>(), pendingControlFlowNodes: new(),
-                        loopNodes, loopOwnerBlockNames, ref blockCounter, loopbackTargetId: loopNode.Id);
-                }
-            }
-        }
-
-        // Loop exit
-        var loopEndPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == LoopEnd);
-        if (loopEndPin != null)
-        {
-            var conn = execConns.FirstOrDefault(c => c.SourcePinId == loopEndPin.Id);
-            if (conn != null)
-            {
-                var targetNode = blueprint.GetNodeById(conn.TargetNodeId);
-                if (targetNode != null)
-                {
-                    var blockName = $"Block_{blockCounter++}";
-                    var block = new CFGBlock
-                    {
-                        Name = blockName,
-                        Type = CFGBlockType.LoopExit
-                    };
-                    cfg.Blocks.Add(block);
-
-                    WalkNode(targetNode, block, cfg, nodeById, reachableNodeIds, execConns,
-                        blueprint, new HashSet<string>(), pendingControlFlowNodes: new(),
-                        loopNodes, loopOwnerBlockNames, ref blockCounter, loopbackTargetId: null);
-                }
+                cfStmt.OriginalExpression = RegenerateBranchSource(cfStmt);
             }
         }
     }
@@ -556,61 +525,63 @@ internal class BP2CFGConverter
     // Step 4: Build CFG Edges from Blueprint Topology
     // ════════════════════════════════════════════════════════════════════
 
-    private static void BuildEdgesFromTopology(
+    private void BuildEdgesFromTopology(
         ControlFlowGraph cfg, Contract.Workflow.Blueprint blueprint,
         Dictionary<string, BlueprintNode> nodeById, List<BlueprintConnection> execConns)
     {
         foreach (var block in cfg.Blocks)
         {
-            // Skip blocks that already have edges from WalkNode
             if (block.Successors.Count > 0) continue;
-
-            // Skip blocks that end with control flow (edges added from statements)
             if (block.EndsWithControlFlow) continue;
-
-            // For BlockScopes-based blocks, derive edges from the last node's exec connection
             if (block.Statements.Count == 0) continue;
 
             var lastStmt = block.Statements[^1];
-            if (lastStmt.Kind == CFGStatementKind.Branch)
+
+            // Use registry to determine edge types for control flow statements
+            if (!string.IsNullOrEmpty(lastStmt.FunctionName)
+                && _builtinFunctionStrategies.TryGetValue(lastStmt.FunctionName, out var builtinStrat)
+                && builtinStrat.IsControlFlow)
             {
-                if (!string.IsNullOrEmpty(lastStmt.TrueBlockName))
+                var arms = builtinStrat.GetOutputArms(null!);
+                foreach (var arm in arms)
+                {
+                    var targetBlock = arm.IsLoopback ? lastStmt.ToLoopCondReturnTo
+                        : (IsFirstNormalArm(arms, arm) ? lastStmt.TrueBlockName : lastStmt.FalseBlockName);
+
+                    if (string.IsNullOrEmpty(targetBlock)) continue;
+
                     block.Successors.Add(new CFGEdge
                     {
                         FromBlockName = block.Name,
-                        ToBlockName = lastStmt.TrueBlockName,
-                        Type = CFGEdgeType.BranchTrue,
-                        PinName = True
+                        ToBlockName = targetBlock,
+                        Type = GetEdgeType(arm),
+                        PinName = arm.PinName
                     });
-                if (!string.IsNullOrEmpty(lastStmt.FalseBlockName))
+                }
+                continue;
+            }
+
+            // Non-registry control flow handling (fallback)
+            if (lastStmt.Kind == CFGStatementKind.ToLoopCond)
+            {
+                if (!string.IsNullOrEmpty(lastStmt.ToLoopCondReturnTo))
                     block.Successors.Add(new CFGEdge
                     {
                         FromBlockName = block.Name,
-                        ToBlockName = lastStmt.FalseBlockName,
-                        Type = CFGEdgeType.BranchFalse,
-                        PinName = False
+                        ToBlockName = lastStmt.ToLoopCondReturnTo,
+                        Type = CFGEdgeType.LoopbackToCondition
                     });
                 continue;
             }
 
-            if (lastStmt.Kind == CFGStatementKind.Loop)
+            if (lastStmt.Kind == CFGStatementKind.Break)
             {
-                if (!string.IsNullOrEmpty(lastStmt.TrueBlockName))
-                    block.Successors.Add(new CFGEdge
-                    {
-                        FromBlockName = block.Name,
-                        ToBlockName = lastStmt.TrueBlockName,
-                        Type = CFGEdgeType.LoopBody,
-                        PinName = LoopBody
-                    });
-                if (!string.IsNullOrEmpty(lastStmt.FalseBlockName))
-                    block.Successors.Add(new CFGEdge
-                    {
-                        FromBlockName = block.Name,
-                        ToBlockName = lastStmt.FalseBlockName,
-                        Type = CFGEdgeType.LoopExit,
-                        PinName = LoopEnd
-                    });
+                block.Successors.Add(new CFGEdge
+                {
+                    FromBlockName = block.Name,
+                    ToBlockName = "__break__",
+                    Type = CFGEdgeType.Break
+                });
                 continue;
             }
 
@@ -928,6 +899,14 @@ internal class BP2CFGConverter
                     FlowControlType.Break => CFGStatementKind.Break,
                     _ => CFGStatementKind.Unknown
                 };
+                cfgStmt.FunctionName = flow.ControlType switch
+                {
+                    FlowControlType.Branch => "Branch",
+                    FlowControlType.Loop => "Loop",
+                    FlowControlType.ToLoopCond => "ToLoopCond",
+                    FlowControlType.Break => "Break",
+                    _ => null
+                };
                 cfgStmt.ConditionExpression = flow.ConditionExpression;
                 cfgStmt.TrueBlockName = flow.TrueBlockName;
                 cfgStmt.FalseBlockName = flow.FalseBlockName;
@@ -968,18 +947,20 @@ internal class BP2CFGConverter
                         cfgStmt.Arguments.Add(_exportHelper.GetInputValue(node, pin.Name));
                 }
 
-                // SetVarName / GetVarName from node properties
-                if (node is SetNode sn && !string.IsNullOrEmpty(sn.VarName))
-                    cfgStmt.SetVarName = sn.VarName;
-                else if (node is GetNode gn && !string.IsNullOrEmpty(gn.VarName))
-                    cfgStmt.GetVarName = gn.VarName;
-                else if (node is BuiltinFunctionNode bfnProps)
+                // SetVarName / GetVarName from node input pins for Set/Get
+                if (node is BuiltinFunctionNode bfnProps)
                 {
-                    bfnProps.Properties.TryGetValue("VarName", out var vn);
-                    if (!string.IsNullOrEmpty(vn))
+                    if (bfnProps.FunctionName == "Set")
                     {
-                        if (bfnProps.FunctionName == "Set") cfgStmt.SetVarName = vn;
-                        else if (bfnProps.FunctionName == "Get") cfgStmt.GetVarName = vn;
+                        var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
+                        if (varPin != null && !string.IsNullOrEmpty(varPin.DefaultValue))
+                            cfgStmt.SetVarName = varPin.DefaultValue;
+                    }
+                    else if (bfnProps.FunctionName == "Get")
+                    {
+                        var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
+                        if (varPin != null && !string.IsNullOrEmpty(varPin.DefaultValue))
+                            cfgStmt.GetVarName = varPin.DefaultValue;
                     }
                 }
 
@@ -1039,98 +1020,34 @@ internal class BP2CFGConverter
                 if (!string.IsNullOrEmpty(stmt.TrueBlockName) && !string.IsNullOrEmpty(stmt.FalseBlockName))
                     continue;
 
-                // Find the Blueprint node corresponding to this statement
                 if (!nodeById.TryGetValue(stmt.StatementId, out var node))
                     continue;
 
-                if (stmt.Kind == CFGStatementKind.Branch)
-                    ResolveBranchTargets(stmt, node, cfg, blueprint, execConns);
-                else if (stmt.Kind == CFGStatementKind.Loop)
-                    ResolveLoopTargets(stmt, node, cfg, blueprint, execConns);
+                ResolveControlFlowTargetsForNode(stmt, node, cfg, blueprint, execConns);
             }
         }
     }
 
-    private static void ResolveBranchTargets(
-        CFGStatement stmt, BlueprintNode branchNode,
+    private static void ResolveControlFlowTargetsForNode(
+        CFGStatement stmt, BlueprintNode cfNode,
         ControlFlowGraph cfg, Contract.Workflow.Blueprint blueprint,
         List<BlueprintConnection> execConns)
     {
-        // True branch
-        if (string.IsNullOrEmpty(stmt.TrueBlockName))
+        foreach (var pin in cfNode.OutputPins.Where(p => p.Type == PinType.Execution))
         {
-            var truePin = branchNode.OutputPins.FirstOrDefault(p => p.Name == True);
-            if (truePin != null)
-            {
-                var conn = execConns.FirstOrDefault(c => c.SourcePinId == truePin.Id);
-                if (conn != null)
-                {
-                    var targetBlock = FindBlockContainingNode(cfg, conn.TargetNodeId, blueprint);
-                    if (targetBlock != null)
-                        stmt.TrueBlockName = targetBlock;
-                }
-            }
+            var conn = execConns.FirstOrDefault(c => c.SourcePinId == pin.Id);
+            if (conn == null) continue;
+
+            var targetBlock = FindBlockContainingNode(cfg, conn.TargetNodeId, blueprint);
+            if (targetBlock == null) continue;
+
+            // Assign first unset target
+            if (string.IsNullOrEmpty(stmt.TrueBlockName))
+                stmt.TrueBlockName = targetBlock;
+            else if (string.IsNullOrEmpty(stmt.FalseBlockName))
+                stmt.FalseBlockName = targetBlock;
         }
 
-        // False branch
-        if (string.IsNullOrEmpty(stmt.FalseBlockName))
-        {
-            var falsePin = branchNode.OutputPins.FirstOrDefault(p => p.Name == False);
-            if (falsePin != null)
-            {
-                var conn = execConns.FirstOrDefault(c => c.SourcePinId == falsePin.Id);
-                if (conn != null)
-                {
-                    var targetBlock = FindBlockContainingNode(cfg, conn.TargetNodeId, blueprint);
-                    if (targetBlock != null)
-                        stmt.FalseBlockName = targetBlock;
-                }
-            }
-        }
-
-        // Regenerate source expression with resolved names
-        if (!string.IsNullOrEmpty(stmt.TrueBlockName) || !string.IsNullOrEmpty(stmt.FalseBlockName))
-            stmt.OriginalExpression = RegenerateBranchSource(stmt);
-    }
-
-    private static void ResolveLoopTargets(
-        CFGStatement stmt, BlueprintNode loopNode,
-        ControlFlowGraph cfg, Contract.Workflow.Blueprint blueprint,
-        List<BlueprintConnection> execConns)
-    {
-        // LoopBody (True) branch
-        if (string.IsNullOrEmpty(stmt.TrueBlockName))
-        {
-            var loopBodyPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == LoopBody);
-            if (loopBodyPin != null)
-            {
-                var conn = execConns.FirstOrDefault(c => c.SourcePinId == loopBodyPin.Id);
-                if (conn != null)
-                {
-                    var targetBlock = FindBlockContainingNode(cfg, conn.TargetNodeId, blueprint);
-                    if (targetBlock != null)
-                        stmt.TrueBlockName = targetBlock;
-                }
-            }
-        }
-
-        // LoopEnd (False) branch
-        if (string.IsNullOrEmpty(stmt.FalseBlockName))
-        {
-            var loopEndPin = loopNode.OutputPins.FirstOrDefault(p => p.Name == LoopEnd);
-            if (loopEndPin != null)
-            {
-                var conn = execConns.FirstOrDefault(c => c.SourcePinId == loopEndPin.Id);
-                if (conn != null)
-                {
-                    var targetBlock = FindBlockContainingNode(cfg, conn.TargetNodeId, blueprint);
-                    if (targetBlock != null)
-                        stmt.FalseBlockName = targetBlock;
-                }
-            }
-        }
-
-        // Regenerate source expression with resolved names
         if (!string.IsNullOrEmpty(stmt.TrueBlockName) || !string.IsNullOrEmpty(stmt.FalseBlockName))
             stmt.OriginalExpression = RegenerateBranchSource(stmt);
     }
@@ -1189,12 +1106,30 @@ internal class BP2CFGConverter
             : $"NextBlock = Branch({branchStmt.ConditionExpression}, \"{branchStmt.TrueBlockName}\", \"{branchStmt.FalseBlockName}\");";
     }
 
+    private static bool IsFirstNormalArm(IEnumerable<OutputArmDescriptor> arms, OutputArmDescriptor target)
+    {
+        var normalArms = arms.Where(a => !a.IsLoopback).ToList();
+        return normalArms.Count > 0 && normalArms[0].PinName == target.PinName;
+    }
+
+    private static CFGEdgeType GetEdgeType(OutputArmDescriptor arm)
+    {
+        if (arm.IsLoopback) return CFGEdgeType.LoopbackToCondition;
+        // For normal arms: first → BranchTrue/LoopBody, second → BranchFalse/LoopEnd
+        // This is a simplified heuristic; more sophisticated logic can be added if needed
+        return CFGEdgeType.BranchTrue;
+    }
+
     // ─── Node Type Helpers ────────────────────────────────────────────
 
-    private static bool IsNodeType(BlueprintNode node, BlueprintNodeType type) =>
-        node.NodeType == type || (node is BuiltinFunctionNode bfn && bfn.FunctionName == type.ToString());
+    private bool IsControlFlowNode(BlueprintNode node) =>
+        node is BuiltinFunctionNode bfn
+        && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var strat)
+        && strat.IsControlFlow;
 
-    private static bool IsBranchNode(BlueprintNode node) => IsNodeType(node, BlueprintNodeType.Branch);
+    private bool IsBranchNode(BlueprintNode node) =>
+        node is BuiltinFunctionNode bfn && bfn.FunctionName == "Branch";
 
-    private static bool IsLoopNode(BlueprintNode node) => IsNodeType(node, BlueprintNodeType.Loop);
+    private bool IsLoopNode(BlueprintNode node) =>
+        node is BuiltinFunctionNode bfn && bfn.FunctionName == "Loop";
 }

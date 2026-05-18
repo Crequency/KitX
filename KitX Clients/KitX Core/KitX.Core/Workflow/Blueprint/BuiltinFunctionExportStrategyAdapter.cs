@@ -24,9 +24,6 @@ public class BuiltinFunctionExportStrategyAdapter : INodeExportStrategy
     /// <inheritdoc/>
     public BlueprintNodeType NodeType => BlueprintNodeType.BuiltinFunction;
 
-    /// <summary>代理底层定义的 LegacyNodeType，用于反向映射时识别具体的蓝图节点类型。</summary>
-    public BlueprintNodeType? LegacyNodeType => _definition.LegacyNodeType;
-
     /// <summary>代理底层定义的 StatementKind，用于 BP→CFG 时直接填充 CFGStatement 字段。</summary>
     public CFGStatementKind StatementKind => _definition.StatementKind;
 

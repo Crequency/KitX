@@ -16,7 +16,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "Print";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Print;
         public CFGStatementKind StatementKind => CFGStatementKind.Print;
         public double NodeWidth => 100;
         public double NodeHeight => 50;

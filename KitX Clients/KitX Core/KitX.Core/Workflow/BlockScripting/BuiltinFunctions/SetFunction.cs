@@ -9,7 +9,9 @@ using KitX.Core.Workflow.Blueprint.Pipeline;
 namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
 {
     /// <summary>
-    /// Set 内置函数 — 设置变量值。
+    /// Set builtin function — writes a value to a global variable.
+    /// BlockScript syntax: Set("varName", value)
+    /// VarName is passed as the first input pin (String type), Value as the second.
     /// </summary>
     public class SetFunction : IBuiltinFunctionDefinition
     {
@@ -17,14 +19,14 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "Set";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Set;
         public CFGStatementKind StatementKind => CFGStatementKind.Set;
-        public double NodeWidth => 120;
+        public double NodeWidth => 160;
         public double NodeHeight => 60;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),
-            new("Value", PinType.Any, 40)
+            new("VarName", PinType.String, 35),
+            new("Value", PinType.Any, 50)
         ];
 
         public IReadOnlyList<PinDescriptor> OutputPins => [
@@ -39,21 +41,11 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         {
             var currentArgExprs = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
 
-            string? setVarName = null;
-            if (invoke.ArgumentList.Arguments.Count > 0)
-            {
-                var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
-                var varNameLiteral = ExprUtils.GetStringLiteralValue(firstArgExpr);
-                setVarName = varNameLiteral ?? currentArgExprs[0];
-                currentArgExprs.RemoveAt(0);
-            }
-
             return [new CFGStatement
             {
                 BlockName = blockName,
                 Kind = CFGStatementKind.Set,
                 FunctionName = FunctionName,
-                SetVarName = setVarName,
                 Arguments = currentArgExprs,
                 OriginalExpression = invoke.ToString(),
                 SourceLine = 0,
@@ -62,11 +54,14 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
         {
-            var varName = stmt.SetVarName ?? "";
-            if (node is SetNode sn)
-                sn.VarName = varName;
-            else if (node is BuiltinFunctionNode bfn)
-                bfn.Properties["VarName"] = varName;
+            // Set default value on VarName pin from first argument
+            if (stmt.Arguments?.Count > 0)
+            {
+                var varName = stmt.Arguments[0].Trim('"');
+                var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
+                if (varPin != null)
+                    varPin.DefaultValue = varName;
+            }
             return node;
         }
 
@@ -74,24 +69,14 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
             InvocationExpressionSyntax invoke, List<string> expandedArgs,
             string? assignedVar, PipelineContext context)
         {
-            string? setVarName = null;
-            if (expandedArgs.Count > 0)
-            {
-                var firstArgExpr = invoke.ArgumentList.Arguments[0].Expression;
-                setVarName = ExprUtils.GetStringLiteralValue(firstArgExpr) ?? expandedArgs[0];
-                expandedArgs.RemoveAt(0);
-            }
-            return (setVarName, null, null);
+            // Don't strip first arg — it stays as the VarName pin argument
+            return (null, null, null);
         }
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
-            var varName = node switch
-            {
-                SetNode sn => sn.VarName,
-                BuiltinFunctionNode bfn => bfn.Properties.GetValueOrDefault("VarName", ""),
-                _ => ""
-            };
+            var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
+            var varName = varPin?.DefaultValue ?? "";
             var value = helper.GetInputValue(node, "Value");
             return new ExpressionStatement
             {

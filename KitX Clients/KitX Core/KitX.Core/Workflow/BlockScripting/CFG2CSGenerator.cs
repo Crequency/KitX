@@ -563,7 +563,23 @@ internal static class CFG2CSGenerator
 
                     if (stmt.FunctionName == "Get")
                     {
-                        rawExpr = BuildGetInvocation(stmt.GetVarName ?? "");
+                        var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
+                        rawExpr = BuildGetInvocation(varName);
+                    }
+                    else if (stmt.FunctionName == "Set")
+                    {
+                        var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
+                        var valueExpr = stmt.Arguments?.Count > 1
+                            ? ResolveArgumentExpression(stmt.Arguments[1], pubVarTypes)
+                            : LiteralExpression(SyntaxKind.NullLiteralExpression);
+                        rawExpr = InvocationExpression(
+                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                IdentifierName("G"), IdentifierName("Set")),
+                            ArgumentList(SeparatedList(new[]
+                            {
+                                Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(varName))),
+                                Argument(valueExpr)
+                            })));
                     }
                     else if (IsHelperFunction(stmt.FunctionName, helperFunctions))
                     {
@@ -678,9 +694,24 @@ internal static class CFG2CSGenerator
 
                 case CFGStatementKind.Set:
                 {
-                    var varName = stmt.SetVarName ?? "";
-                    if (stmt.Arguments.Count > 0)
+                    var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
+                    if (stmt.Arguments.Count > 1)
                     {
+                        var valueExpr = ResolveArgumentExpression(stmt.Arguments[1], pubVarTypes);
+                        caseStatements.Add(
+                            ExpressionStatement(
+                                InvocationExpression(
+                                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                        IdentifierName("G"), IdentifierName("Set")),
+                                    ArgumentList(SeparatedList(new[]
+                                    {
+                                        Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(varName))),
+                                        Argument(valueExpr)
+                                    })))));
+                    }
+                    else if (stmt.Arguments.Count > 0)
+                    {
+                        // Single-arg case (legacy): use first arg as value, varName might be empty
                         var valueExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
                         caseStatements.Add(
                             ExpressionStatement(

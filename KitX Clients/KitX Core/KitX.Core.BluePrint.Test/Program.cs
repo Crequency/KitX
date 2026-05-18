@@ -106,7 +106,7 @@ public class Program
             Console.WriteLine("\n┌──────────────────────────────────────────┐");
             Console.WriteLine("│ Test E: Manual Blueprint → Script        │");
             Console.WriteLine("└──────────────────────────────────────────┘\n");
-            RunManualBlueprintTest(reverseConverter, "Test E");
+            RunManualBlueprintTest(reverseConverter, nodeRegistry, "Test E");
         }
 
         if (ShouldRunTest("F"))
@@ -773,7 +773,7 @@ Print(""示例工作流结束"");";
     // Test E: Manual Blueprint construction test
     // ──────────────────────────────────────────────
     private static void RunManualBlueprintTest(
-        IBlueprintToBlockScriptConverter reverseConverter, string label)
+        IBlueprintToBlockScriptConverter reverseConverter, INodeRegistry nodeRegistry, string label)
     {
         try
         {
@@ -784,19 +784,19 @@ Print(""示例工作流结束"");";
 
             // Entry → Print("Hello") → Branch(condition, "TrueBlock", "FalseBlock")
             var entry = new EntryNode();
-            var printHello = new PrintNode();
+            var printHello = nodeRegistry.CreateBuiltinFunctionNode("Print");
             printHello.InputPins.First(p => p.Name == "Value").DefaultValue = "\"Hello\"";
-            var branch = new BranchNode();
+            var branch = nodeRegistry.CreateBuiltinFunctionNode("Branch");
 
             // ConstNode for condition
             var constTrue = new ConstNode { ConstName = "myCondition", ConstType = "bool", ConstValue = "true" };
 
             // True branch: Print("Yes")
-            var printYes = new PrintNode();
+            var printYes = nodeRegistry.CreateBuiltinFunctionNode("Print");
             printYes.InputPins.First(p => p.Name == "Value").DefaultValue = "\"Yes\"";
 
             // False branch: Print("No")
-            var printNo = new PrintNode();
+            var printNo = nodeRegistry.CreateBuiltinFunctionNode("Print");
             printNo.InputPins.First(p => p.Name == "Value").DefaultValue = "\"No\"";
 
             bp.AddNode(entry);

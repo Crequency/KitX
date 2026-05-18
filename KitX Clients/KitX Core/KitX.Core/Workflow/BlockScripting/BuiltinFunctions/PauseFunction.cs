@@ -17,7 +17,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "Pause";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Pause;
         public CFGStatementKind StatementKind => CFGStatementKind.Pause;
         public double NodeWidth => 100;
         public double NodeHeight => 50;

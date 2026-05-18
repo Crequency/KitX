@@ -93,11 +93,7 @@ public class CFG2BPConverter
             if (node != null)
                 context.BlockNodeIds[block.Name].Add(node.Id);
 
-            endsWithFlowCtrl = stmt.Kind is CFGStatementKind.Branch
-                or CFGStatementKind.Loop
-                or CFGStatementKind.ToLoopCond
-                or CFGStatementKind.Break
-                || IsRegistryFlowControlTerminator(stmt);
+            endsWithFlowCtrl = IsRegistryFlowControlTerminator(stmt);
         }
 
         if (firstNode != null)
@@ -119,58 +115,37 @@ public class CFG2BPConverter
     private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
-        // Registry path: handle all registered block terminators (Branch/Loop/ToLoopCond/Break/Flip)
+        // Registry path: handle all registered builtin functions
         if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName))
         {
             var funcDef = _functionRegistry.Get(stmt.FunctionName);
-            if (funcDef != null && funcDef.IsBlockTerminator)
+            if (funcDef != null)
             {
-                // Use LegacyNodeType when available for backward compatibility
-                BlueprintNode node = funcDef.LegacyNodeType is { } legacyType
-                    ? _registry.Create(legacyType)
-                    : _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
-                node = funcDef.ConfigureNode(node, stmt);
-                ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
-                funcDef.OnNodeCreated(node, stmt, context);
-                return node;
+                if (funcDef.IsBlockTerminator)
+                {
+                    var node = _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
+                    node = funcDef.ConfigureNode(node, stmt);
+                    ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+                    funcDef.OnNodeCreated(node, stmt, context);
+                    return node;
+                }
+
+                // Non-terminator registered function
+                var nonTermNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
+                nonTermNode = funcDef.ConfigureNode(nonTermNode, stmt);
+                var result = ChainNewNode(nonTermNode, stmt, context, ref prevNode, ref prevStmtId);
+                RegisterPubVarAssignment(stmt, nonTermNode, context);
+                return result;
             }
         }
 
-        // Non-terminator statement handling
+        // Non-registry statement handling
         switch (stmt.Kind)
         {
             case CFGStatementKind.Assignment:
             case CFGStatementKind.Expression:
-                return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
-
-            case CFGStatementKind.Print:
-            case CFGStatementKind.Pause:
-            case CFGStatementKind.Set:
             case CFGStatementKind.PluginCallWithTarget:
-                {
-                    // Use registry to determine the legacy node type and configure it
-                    if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName)
-                        && _functionRegistry.Get(stmt.FunctionName) is { } funcDef
-                        && funcDef.LegacyNodeType is { } legacyType)
-                    {
-                        var node = _registry.Create(legacyType);
-                        node = funcDef.ConfigureNode(node, stmt);
-                        return ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
-                    }
-                    // Fallback without registry (should not happen in production)
-                    var fallbackType = stmt.Kind switch
-                    {
-                        CFGStatementKind.Print => BlueprintNodeType.Print,
-                        CFGStatementKind.Pause => BlueprintNodeType.Pause,
-                        CFGStatementKind.Set => BlueprintNodeType.Set,
-                        CFGStatementKind.PluginCallWithTarget => BlueprintNodeType.Call,
-                        _ => BlueprintNodeType.Call
-                    };
-                    var fallbackNode = _registry.Create(fallbackType);
-                    if (fallbackType == BlueprintNodeType.Set && fallbackNode is SetNode sn)
-                        sn.VarName = stmt.SetVarName ?? "";
-                    return ChainNewNode(fallbackNode, stmt, context, ref prevNode, ref prevStmtId);
-                }
+                return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
 
             default:
                 return null;
@@ -196,20 +171,18 @@ public class CFG2BPConverter
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         // --- PubVar reuse check (§6.5) ---
-        // For Get statements: only LOOP_COND_DUP reuses by PubVarTarget; others always create new
+        // For Get statements: reuse by PubVarTarget (each Get is unique based on its PubVar)
         // For non-Get statements: reuse by fingerprint
         PubVarAssignment? existing = null;
 
-        if (stmt.FunctionName == Get)
+        if (stmt.FunctionName == Get && stmt.Arguments?.Count > 0)
         {
-            // Get nodes: reuse when PubVarTarget matches and reads the same variable.
-            // This handles both LOOP_COND_DUP and round-trip re-parsed Get statements
-            // that assign to the same PubVar for the same variable.
-            if (!string.IsNullOrEmpty(stmt.PubVarTarget) && !string.IsNullOrEmpty(stmt.GetVarName))
+            if (!string.IsNullOrEmpty(stmt.PubVarTarget))
             {
                 existing = context.PubVarAssignments.Values
                     .FirstOrDefault(p => p.PubVarName == stmt.PubVarTarget
-                        && p.SourceNode is GetNode gn && gn.VarName == stmt.GetVarName);
+                        && p.SourceNode is BuiltinFunctionNode bfn && bfn.FunctionName == "Get"
+                        && bfn.InputPins.FirstOrDefault(pin => pin.Name == "VarName")?.DefaultValue == stmt.Arguments[0].Trim('"'));
             }
         }
         else if (!string.IsNullOrEmpty(stmt.Fingerprint)
@@ -235,11 +208,7 @@ public class CFG2BPConverter
         BlueprintNode mainNode;
         if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
         {
-            // Registered function (including Get) → create appropriate node type
-            if (funcDef.LegacyNodeType is { } legacyType)
-                mainNode = _registry.Create(legacyType);
-            else
-                mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
+            mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
             mainNode = funcDef.ConfigureNode(mainNode, stmt);
         }
         else
@@ -292,25 +261,7 @@ public class CFG2BPConverter
         prevStmtId = stmt.StatementId;
 
         // Register PubVar assignment for reuse
-        if (!string.IsNullOrEmpty(stmt.PubVarTarget))
-        {
-            var outputPinName = stmt.FunctionName == Get ? Value : Return;
-            var outputPin = mainNode.OutputPins.FirstOrDefault(p => p.Name == outputPinName)
-                ?? mainNode.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
-            if (outputPin != null)
-            {
-                // Get: key by PubVarTarget (each Get is unique, identified by its PubVar)
-                // Others: key by fingerprint (for reuse detection)
-                var key = stmt.FunctionName == Get ? stmt.PubVarTarget : (stmt.Fingerprint ?? stmt.PubVarTarget);
-                context.PubVarAssignments[key] = new PubVarAssignment
-                {
-                    PubVarName = stmt.PubVarTarget,
-                    SourceNode = mainNode,
-                    SourcePin = outputPin,
-                    StatementId = stmt.StatementId,
-                };
-            }
-        }
+        RegisterPubVarAssignment(stmt, mainNode, context);
 
         return mainNode;
     }
@@ -399,6 +350,27 @@ public class CFG2BPConverter
         prevNode = node;
         prevStmtId = stmt.StatementId;
         return node;
+    }
+
+    private void RegisterPubVarAssignment(CFGStatement stmt, BlueprintNode node, PipelineContext context)
+    {
+        if (string.IsNullOrEmpty(stmt.PubVarTarget)) return;
+
+        var outputPin = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+        if (outputPin == null) return;
+
+        // Get: key by PubVarTarget (each Get is unique based on what variable it reads)
+        // Others: key by fingerprint for reuse detection
+        var key = stmt.FunctionName == "Get"
+            ? stmt.PubVarTarget
+            : (stmt.Fingerprint ?? stmt.PubVarTarget);
+        context.PubVarAssignments[key] = new PubVarAssignment
+        {
+            PubVarName = stmt.PubVarTarget,
+            SourceNode = node,
+            SourcePin = outputPin,
+            StatementId = stmt.StatementId,
+        };
     }
 
     private void AddExecEdge(string? sourceStmtId, string targetStmtId, PipelineContext context)

@@ -19,7 +19,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "Loop";
         public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
-        public BlueprintNodeType? LegacyNodeType => BlueprintNodeType.Loop;
         public bool IsBlockTerminator => true;
         public CFGStatementKind StatementKind => CFGStatementKind.Loop;
         public double NodeWidth => 120;
@@ -76,7 +75,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
                 });
             }
 
-            context.LoopDefs.Add((stmt.StatementId, stmt.TrueBlockName, stmt.FalseBlockName, stmt.BlockName));
             context.LoopNodesByParent[stmt.BlockName] = node;
         }
 

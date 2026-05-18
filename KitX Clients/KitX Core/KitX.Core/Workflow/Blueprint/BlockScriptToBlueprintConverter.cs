@@ -84,7 +84,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             context.AllNodes.Count, context.ExecEdges.Count);
 
         // ── Phase 4+5: Data edges + deduplication ──
-        var dataEdgeBuilder = new DataEdgeBuilder();
+        var dataEdgeBuilder = new DataEdgeBuilder(_functionRegistry);
         dataEdgeBuilder.Build(context);
         Log.Debug("[Converter] Phase 4+5: {DataEdgeCount} data edges", context.DataEdges.Count);
 

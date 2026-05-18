@@ -277,52 +277,7 @@ internal class BlockStatementExtractor
         }
     }
 
-    private FlowControlStatement CreateFlowControlStatement(InvocationExpressionSyntax invoke, FlowControlType type, int baseLine, string? fullExpressionText = null)
-    {
-        var args = invoke.ArgumentList.Arguments;
-        var statement = new FlowControlStatement
-        {
-            LineNumber = baseLine,
-            SourceCode = fullExpressionText ?? invoke.ToFullString(),
-            ControlType = type
-        };
 
-        Log.Debug("[BlockStatementExtractor] CreateFlowControlStatement: type={Type}, SourceCode={SourceCode}",
-            type, statement.SourceCode);
-
-        switch (type)
-        {
-            case FlowControlType.Branch:
-            case FlowControlType.Loop:
-                if (args.Count >= 1)
-                {
-                    statement.ConditionExpression = args[0].Expression.ToString();
-                    Log.Debug("[BlockStatementExtractor]   args[0] (condition): {Expr}", args[0].Expression.ToString());
-                }
-                if (args.Count >= 2)
-                {
-                    statement.TrueBlockName = GetStringLiteral(args[1].Expression);
-                    Log.Debug("[BlockStatementExtractor]   args[1] (trueBlock): raw={Raw}, extracted={Extracted}",
-                        args[1].Expression.ToString(), statement.TrueBlockName);
-                }
-                if (args.Count >= 3)
-                {
-                    statement.FalseBlockName = GetStringLiteral(args[2].Expression);
-                    Log.Debug("[BlockStatementExtractor]   args[2] (falseBlock): raw={Raw}, extracted={Extracted}",
-                        args[2].Expression.ToString(), statement.FalseBlockName);
-                }
-                Log.Debug("[BlockStatementExtractor] Loop/Branch created: Condition={Condition}, TrueBlock={TrueBlock}, FalseBlock={FalseBlock}",
-                    statement.ConditionExpression, statement.TrueBlockName, statement.FalseBlockName);
-                break;
-
-            case FlowControlType.ToLoopCond:
-                if (args.Count >= 1)
-                    statement.ToLoopCondReturnTo = GetStringLiteral(args[0].Expression);
-                break;
-        }
-
-        return statement;
-    }
 
     private static string GetStringLiteral(ExpressionSyntax expr)
     {

@@ -27,7 +27,6 @@ namespace KitX.Core.Workflow.BlockScripting.BuiltinFunctions
         public string DisplayName => "TryGetDevice";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
-        public BlueprintNodeType? LegacyNodeType => null;
         public CFGStatementKind StatementKind => CFGStatementKind.TryGetDevice;
         public double NodeWidth => 120;
         public double NodeHeight => 60;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
 using Serilog;
@@ -10,6 +11,8 @@ namespace KitX.Core.Workflow.Blueprint;
 /// Unified registry for node type creation and metadata.
 /// Each node type is self-describing via GetDescriptor(), eliminating
 /// the need for external switch statements when adding new node types.
+/// All builtin function nodes are created via CreateBuiltinFunctionNode(),
+/// driven by IBuiltinFunctionDefinition.
 /// </summary>
 public class NodeRegistry : INodeRegistry
 {
@@ -19,26 +22,17 @@ public class NodeRegistry : INodeRegistry
 
     public NodeRegistry()
     {
-        // Map each BlueprintNodeType enum value to its concrete class
         _typeMap = new Dictionary<BlueprintNodeType, Type>
         {
             [BlueprintNodeType.Entry] = typeof(EntryNode),
             [BlueprintNodeType.PluginTrigger] = typeof(PluginTriggerNode),
-            [BlueprintNodeType.Branch] = typeof(BranchNode),
-            [BlueprintNodeType.Loop] = typeof(LoopNode),
-            [BlueprintNodeType.Break] = typeof(BreakNode),
             [BlueprintNodeType.Const] = typeof(ConstNode),
             [BlueprintNodeType.Call] = typeof(CallNode),
             [BlueprintNodeType.CallHelper] = typeof(CallHelperNode),
-            [BlueprintNodeType.Get] = typeof(GetNode),
-            [BlueprintNodeType.Set] = typeof(SetNode),
-            [BlueprintNodeType.Print] = typeof(PrintNode),
-            [BlueprintNodeType.Pause] = typeof(PauseNode),
             [BlueprintNodeType.Variable] = typeof(VariableNode),
             [BlueprintNodeType.BuiltinFunction] = typeof(BuiltinFunctionNode),
         };
 
-        // Pre-cache descriptors from each node type
         _descriptorCache = new Dictionary<BlueprintNodeType, NodeDescriptor>();
         foreach (var kvp in _typeMap)
         {
@@ -95,7 +89,6 @@ public class NodeRegistry : INodeRegistry
             Name = def.DisplayName
         };
 
-        // Build descriptor from the function definition
         var descriptor = new NodeDescriptor(
             def.NodeWidth, def.NodeHeight,
             def.InputPins, def.OutputPins,
@@ -103,7 +96,6 @@ public class NodeRegistry : INodeRegistry
         );
         node.SetDescriptor(descriptor);
 
-        // Initialize pins from descriptor
         foreach (var pd in descriptor.InputPins)
             node.InputPins.Add(new BlueprintPin { Name = pd.Name, Direction = PinDirection.Input, Type = pd.Type });
         foreach (var pd in descriptor.OutputPins)

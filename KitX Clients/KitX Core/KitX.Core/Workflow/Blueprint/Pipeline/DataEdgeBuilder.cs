@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
+using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.Blueprint.CFG;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
@@ -12,12 +13,19 @@ namespace KitX.Core.Workflow.Blueprint.Pipeline;
 /// <summary>
 /// Phase 4+5: Creates data edges from ControlFlowGraph argument analysis.
 /// Handles PubVar references, ConstBlock connections, DefaultValues, and data edge dedup.
+/// All argument-to-pin mapping is driven by IBuiltinFunctionDefinition.InputPins.
 /// </summary>
 public class DataEdgeBuilder
 {
+    private readonly BuiltinFunctionRegistry? _functionRegistry;
+
+    public DataEdgeBuilder(BuiltinFunctionRegistry? functionRegistry = null)
+    {
+        _functionRegistry = functionRegistry;
+    }
+
     public void Build(PipelineContext context)
     {
-        // Process all statements in all blocks
         foreach (var block in context.FormattedScript.Blocks)
         {
             foreach (var stmt in block.Statements)
@@ -26,7 +34,6 @@ public class DataEdgeBuilder
             }
         }
 
-        // Deduplicate data edges (Phase 5)
         DeduplicateDataEdges(context);
 
         Log.Debug("[DataEdgeBuilder] Done: {DataEdgeCount} data edges",
@@ -34,56 +41,55 @@ public class DataEdgeBuilder
     }
 
     // ──────────────────────────────────────────────
-    // Statement processing
+    // Statement processing — registry-driven
     // ──────────────────────────────────────────────
 
     private void ProcessStatement(CFGStatement stmt, PipelineContext context)
     {
-        switch (stmt.Kind)
-        {
-            case CFGStatementKind.Assignment:
-            case CFGStatementKind.Expression:
-                ProcessCallArguments(stmt, context);
-                break;
-
-            case CFGStatementKind.Print:
-                ProcessSingleValueInput(stmt, stmt.Arguments, Value, context);
-                break;
-
-            case CFGStatementKind.Set:
-                ProcessSetValue(stmt, context);
-                break;
-
-            case CFGStatementKind.Pause:
-                ProcessSingleValueInput(stmt, stmt.Arguments, "Milliseconds", context);
-                break;
-
-            case CFGStatementKind.Branch:
-                ProcessConditionInput(stmt, context);
-                break;
-
-            case CFGStatementKind.Loop:
-                ProcessConditionInput(stmt, context);
-                break;
-        }
-    }
-
-    // ──────────────────────────────────────────────
-    // Call/Assignment argument processing
-    // ──────────────────────────────────────────────
-
-    private void ProcessCallArguments(CFGStatement stmt, PipelineContext context)
-    {
         if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
-        if (stmt.Arguments == null) return;
 
-        for (int i = 0; i < stmt.Arguments.Count; i++)
+        // Use registry to determine pin mapping
+        var funcDef = _functionRegistry?.Get(stmt.FunctionName ?? string.Empty);
+
+        if (funcDef != null)
         {
-            var arg = stmt.Arguments[i];
-            var pinName = GetParamPinName(targetNode, i);
-            if (pinName == null) continue;
+            // Map arguments to input pins based on the function definition
+            var nonExecPins = funcDef.InputPins.Where(p => p.Type != PinType.Execution).ToList();
 
-            ProcessArgument(arg, targetNode, pinName, stmt, i, context);
+            if (stmt.Arguments != null)
+            {
+                for (int i = 0; i < stmt.Arguments.Count && i < nonExecPins.Count; i++)
+                {
+                    ProcessArgument(stmt.Arguments[i], targetNode, nonExecPins[i].Name, stmt, i, context);
+                }
+            }
+
+            // Connect ConditionPubVar to any Boolean-type input pin (Branch/Loop condition)
+            if (!string.IsNullOrEmpty(stmt.ConditionPubVar))
+            {
+                var condPin = funcDef.InputPins.FirstOrDefault(p => p.Type == PinType.Boolean);
+                if (condPin != null)
+                    ConnectPubVarSource(stmt.ConditionPubVar, targetNode, condPin.Name, context);
+            }
+        }
+        else
+        {
+            // Non-registry statements: generic argument processing
+            if (stmt.Arguments != null)
+            {
+                for (int i = 0; i < stmt.Arguments.Count; i++)
+                {
+                    var pinName = GetParamPinName(targetNode, i);
+                    if (pinName == null) continue;
+                    ProcessArgument(stmt.Arguments[i], targetNode, pinName, stmt, i, context);
+                }
+            }
+
+            // Handle condition for non-registry Branch/Loop
+            if (!string.IsNullOrEmpty(stmt.ConditionPubVar))
+            {
+                ConnectPubVarSource(stmt.ConditionPubVar, targetNode, Condition, context);
+            }
         }
     }
 
@@ -103,7 +109,7 @@ public class DataEdgeBuilder
             return;
         }
 
-        // Character literal → DefaultValue (pass through as-is, e.g. '\0')
+        // Character literal → DefaultValue
         if (ExprUtils.IsCharacterLiteral(trimmed))
         {
             SetDefaultValue(targetNode, targetPinName, trimmed);
@@ -138,51 +144,15 @@ public class DataEdgeBuilder
         }
 
         // VariableNode (no initial value) → set as DefaultValue fallback on target pin
-        // VariableNodes have no output ports, so we can't create a data edge.
-        // The variable reference is resolved at runtime.
         if (context.VariableNodes.ContainsKey(trimmed))
         {
             SetDefaultValue(targetNode, targetPinName, trimmed);
             return;
         }
 
-        // Unknown identifier → try as variable reference (set DefaultValue as fallback)
+        // Unknown identifier → try as variable reference
         Log.Warning("[DataEdgeBuilder] Unresolved argument: {Arg} in stmt {StmtId}", trimmed, parentStmt.StatementId);
         SetDefaultValue(targetNode, targetPinName, trimmed);
-    }
-
-    // ──────────────────────────────────────────────
-    // Special node argument processing
-    // ──────────────────────────────────────────────
-
-    private void ProcessSingleValueInput(CFGStatement stmt, List<string>? args,
-        string pinName, PipelineContext context)
-    {
-        if (args == null || args.Count == 0) return;
-        if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
-
-        ProcessArgument(args[0], targetNode, pinName, stmt, 0, context);
-    }
-
-    private void ProcessSetValue(CFGStatement stmt, PipelineContext context)
-    {
-        if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
-        if (stmt.Arguments == null || stmt.Arguments.Count == 0) return;
-
-        // Set's Value pin receives the second argument (first was extracted as SetVarName)
-        if (stmt.Arguments.Count > 0)
-        {
-            ProcessArgument(stmt.Arguments[0], targetNode, Value, stmt, 0, context);
-        }
-    }
-
-    private void ProcessConditionInput(CFGStatement stmt, PipelineContext context)
-    {
-        if (string.IsNullOrEmpty(stmt.ConditionPubVar)) return;
-        if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
-
-        // Condition PubVar → find the PubVarAssignment source and connect to Condition pin
-        ConnectPubVarSource(stmt.ConditionPubVar, targetNode, Condition, context);
     }
 
     // ──────────────────────────────────────────────
@@ -192,7 +162,6 @@ public class DataEdgeBuilder
     private void ConnectPubVarSource(string pubVarName, BlueprintNode targetNode,
         string targetPinName, PipelineContext context)
     {
-        // Find the PubVarAssignment that produces this PubVar
         foreach (var kvp in context.PubVarAssignments)
         {
             if (kvp.Value.PubVarName == pubVarName)
@@ -222,7 +191,6 @@ public class DataEdgeBuilder
 
         foreach (var edge in context.DataEdges)
         {
-            // Key by (source node, source pin, target node, target pin, pubvar)
             var key = $"{edge.SourceNodeId}|{edge.SourcePinName}|{edge.TargetNodeId}|{edge.TargetPinName}|{edge.PubVarName ?? ""}";
             if (!unique.ContainsKey(key))
                 unique[key] = edge;
@@ -250,11 +218,9 @@ public class DataEdgeBuilder
 
     private static string? GetParamPinName(BlueprintNode node, int argIndex)
     {
-        // Find parameter pins (skip Exec pin at index 0)
         var paramPins = node.InputPins.Where(p => p.Name != Exec).ToList();
         if (argIndex < paramPins.Count)
             return paramPins[argIndex].Name;
         return null;
     }
-
 }
