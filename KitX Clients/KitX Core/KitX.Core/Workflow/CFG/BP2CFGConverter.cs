@@ -908,6 +908,7 @@ internal class BP2CFGConverter
                 cfgStmt.TrueBlockName = flow.TrueBlockName;
                 cfgStmt.FalseBlockName = flow.FalseBlockName;
                 cfgStmt.ToLoopCondReturnTo = flow.ToLoopCondReturnTo;
+                cfgStmt.ConditionPubVar = flow.ConditionExpression?.Trim();
                 break;
 
             case ExpressionStatement expr:
@@ -968,6 +969,11 @@ internal class BP2CFGConverter
                     if (outputPin != null)
                         cfgStmt.PubVarTarget = NodeExportHelper.FindOutputPubVar(node, outputPin.Name, _currentCtx);
                 }
+
+                if (node is CallNode callNode)
+                    cfgStmt.FullFunctionName = string.IsNullOrEmpty(callNode.PluginName)
+                        ? callNode.FunctionName
+                        : $"{callNode.PluginName}.{callNode.FunctionName}";
                 break;
 
             default:
