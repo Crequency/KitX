@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.Blueprint;
-using KitX.Core.Workflow.Blueprint.CFG;
+using KitX.Core.Workflow.CFG;
 using KitX.Core.Workflow.BlockScripting;
 
 namespace KitX.Core.BluePrint.Test;

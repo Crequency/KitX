@@ -112,6 +112,13 @@ public class CFG2BPConverter
     private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
+        // PluginCallWithTarget must become an explicit CallNode carrying TargetDevice.
+        // Route it before the registry dispatch — otherwise the registry creates a
+        // BuiltinFunctionNode that ConfigureNode (which expects a CallNode) cannot convert,
+        // leaving TargetDevice unset and producing no CallNode for the test to find.
+        if (stmt.FunctionName == "PluginCallWithTarget")
+            return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
+
         // Registry path: handle all registered builtin functions
         if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName))
         {
@@ -203,7 +210,28 @@ public class CFG2BPConverter
 
         // --- Create new node ---
         BlueprintNode mainNode;
-        if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
+        if (stmt.FunctionName == "PluginCallWithTarget")
+        {
+            // PluginCallWithTarget must be an explicit CallNode carrying TargetDevice.
+            // Handle BEFORE the builtin registry dispatch — otherwise the registry shadows
+            // it (PluginCallWithTarget is a registered builtin) and TargetDevice is never set.
+            var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
+            var args = stmt.Arguments;
+            // G.PluginCallWithTarget("plugin", "method", "device", ...)
+            // Arguments[0]=pluginName, [1]=methodName, [2]=targetDevice
+            callNode.PluginName = args?.Count > 0 ? StripQuotes(args[0]) : "";
+            callNode.FunctionName = args?.Count > 1 ? StripQuotes(args[1]) : "";
+            callNode.TargetDevice = args?.Count > 2 ? StripQuotes(args[2]) : null;
+            // Preserve extra arguments (beyond plugin/method/device) for BS round-trip,
+            // mirroring PluginCallWithTargetFunction.ConfigureNode.
+            if (args != null && args.Count > 3)
+                callNode.ExtraArguments = args.Skip(3).ToList();
+            mainNode = callNode;
+
+            // Add parameter pins based on argument count
+            AddParamPins(mainNode, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
+        }
+        else if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
         {
             mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
             mainNode = funcDef.ConfigureNode(mainNode, stmt);
@@ -222,17 +250,7 @@ public class CFG2BPConverter
                 var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
 
                 // Parse plugin name from full dotted method name (e.g. "TestPlugin.WPF.Core.HelloKitX")
-                // PluginCallWithTarget has G.PluginCallWithTarget as FullFunctionName, handle it first
-                if (stmt.FunctionName == "PluginCallWithTarget")
-                {
-                    // G.PluginCallWithTarget("plugin", "method", "device", ...)
-                    // Arguments[0]=pluginName, [1]=methodName, [2]=targetDevice
-                    var args = stmt.Arguments;
-                    callNode.PluginName = args?.Count > 0 ? StripQuotes(args[0]) : "";
-                    callNode.FunctionName = args?.Count > 1 ? StripQuotes(args[1]) : "";
-                    callNode.TargetDevice = args?.Count > 2 ? StripQuotes(args[2]) : null;
-                }
-                else if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
+                if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
                 {
                     var lastDot = stmt.FullFunctionName.LastIndexOf('.');
                     callNode.PluginName = stmt.FullFunctionName.Substring(0, lastDot);

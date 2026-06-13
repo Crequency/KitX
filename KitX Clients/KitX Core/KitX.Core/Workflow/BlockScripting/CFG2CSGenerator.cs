@@ -734,11 +734,27 @@ internal static class CFG2CSGenerator
                     var callExpr = BuildPluginCallWithTargetExpression(stmt, pubVarTypes);
                     if (stmt.PubVarTarget != null)
                     {
+                        // G.PluginCallWithTarget returns object? — wrap in ConvertTo<T> when
+                        // assigning to a typed PubVar, mirroring the Assignment/Expression case.
                         var typeName = pubVarTypes.GetValueOrDefault(stmt.PubVarTarget, "object");
+                        ExpressionSyntax initExpr = typeName != "object"
+                            ? BuildConvertToInvocation(typeName, callExpr)
+                            : callExpr;
                         caseStatements.Add(LocalDeclarationStatement(
                             VariableDeclaration(ParseTypeName(typeName))
                                 .AddVariables(VariableDeclarator(Identifier(stmt.PubVarTarget))
-                                    .WithInitializer(EqualsValueClause(callExpr)))));
+                                    .WithInitializer(EqualsValueClause(initExpr)))));
+
+                        // Sync PubVar to globals so debugger sees the value
+                        caseStatements.Add(ExpressionStatement(
+                            InvocationExpression(
+                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                    IdentifierName("G"), IdentifierName("Set")),
+                                ArgumentList(SeparatedList(new[]
+                                {
+                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(stmt.PubVarTarget))),
+                                    Argument(IdentifierName(stmt.PubVarTarget))
+                                })))));
                     }
                     else
                     {
