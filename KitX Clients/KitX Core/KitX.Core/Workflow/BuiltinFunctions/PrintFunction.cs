@@ -30,6 +30,12 @@ namespace KitX.Core.Workflow.BuiltinFunctions
 
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
+    public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+    {
+        if (stmt.Arguments.Count == 0) return new();
+        return new() { ctx.GInvokeStatement(FunctionName, ctx.ResolveArgument(stmt.Arguments[0])) };
+    }
+
         public List<CFGStatement> FormatInvocation(
             InvocationExpressionSyntax invoke, string blockName,
             PipelineContext context, string? assignedVar)

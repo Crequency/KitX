@@ -61,11 +61,7 @@ internal static class CFG2CSGenerator
             {
                 if (stmt.PubVarTarget == null) continue;
 
-                if (stmt.FunctionName == "Get")
-                {
-                    pubVarTypes[stmt.PubVarTarget] = "object";
-                }
-                else if (helperMap.TryGetValue(stmt.FunctionName ?? "", out var helper))
+                if (helperMap.TryGetValue(stmt.FunctionName ?? "", out var helper))
                 {
                     pubVarTypes[stmt.PubVarTarget] = helper.ReturnType;
                 }
@@ -538,6 +534,7 @@ internal static class CFG2CSGenerator
 
         var hasNextBlockAssignment = false;
         var stmtIndex = 0;
+        var ctx = new CSEmitContext(pubVarTypes, helperReturnTypes);
 
         foreach (var stmt in block.Statements)
         {
@@ -547,6 +544,16 @@ internal static class CFG2CSGenerator
             }
             stmtIndex++;
 
+            // Route ALL registered builtin functions (value, simple, and flow-control) through
+            // their descriptor — eliminates per-function-name hardcoding below.
+            var def = stmt.FunctionName != null ? FunctionRegistry.Get(stmt.FunctionName) : null;
+            if (def != null)
+            {
+                caseStatements.AddRange(def.EmitStatements(stmt, ctx));
+                if (def.IsBlockTerminator) hasNextBlockAssignment = true;
+                continue;
+            }
+
             switch (stmt.Kind)
             {
                 case CFGStatementKind.Assignment:
@@ -555,27 +562,9 @@ internal static class CFG2CSGenerator
                     ExpressionSyntax rawExpr;
                     string sourceType = "object";
 
-                    if (stmt.FunctionName == "Get")
-                    {
-                        var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
-                        rawExpr = BuildGetInvocation(varName);
-                    }
-                    else if (stmt.FunctionName == "Set")
-                    {
-                        var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
-                        var valueExpr = stmt.Arguments?.Count > 1
-                            ? ResolveArgumentExpression(stmt.Arguments[1], pubVarTypes)
-                            : LiteralExpression(SyntaxKind.NullLiteralExpression);
-                        rawExpr = InvocationExpression(
-                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                IdentifierName("G"), IdentifierName("Set")),
-                            ArgumentList(SeparatedList(new[]
-                            {
-                                Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(varName))),
-                                Argument(valueExpr)
-                            })));
-                    }
-                    else if (IsHelperFunction(stmt.FunctionName, helperFunctions))
+                    // Registered builtins are dispatched above via their descriptor; here only
+                    // helper functions and unregistered calls (bare invocation fallback) remain.
+                    if (IsHelperFunction(stmt.FunctionName, helperFunctions))
                     {
                         var args = stmt.Arguments.Select(a =>
                             Argument(ResolveArgumentExpression(a, pubVarTypes))).ToList();
@@ -584,189 +573,15 @@ internal static class CFG2CSGenerator
                         sourceType = helperReturnTypes.TryGetValue(stmt.FunctionName ?? "", out var rt)
                             ? rt : "object";
                     }
-                    else if (stmt.FunctionName == "PluginCallWithTarget")
-                    {
-                        rawExpr = BuildPluginCallWithTargetExpression(stmt, pubVarTypes);
-                    }
-                    else if (stmt.FullFunctionName != null && stmt.FullFunctionName.Contains('.'))
-                    {
-                        rawExpr = BuildPluginCallExpression(stmt, pubVarTypes);
-                    }
-                    else if (FunctionRegistry.AllFunctionNames.Contains(stmt.FunctionName ?? ""))
-                    {
-                        rawExpr = ParseExpression(
-                            $"G.{stmt.FunctionName}({string.Join(", ", stmt.Arguments)})");
-                    }
                     else
                     {
                         rawExpr = ParseExpression(
                             $"{stmt.FunctionName}({string.Join(", ", stmt.Arguments)})");
                     }
 
-                    if (stmt.PubVarTarget != null)
-                    {
-                        var typeName = pubVarTypes.GetValueOrDefault(stmt.PubVarTarget, "object");
-                        ExpressionSyntax initExpr = (typeName != "object" && sourceType == "object")
-                            ? BuildConvertToInvocation(typeName, rawExpr)
-                            : rawExpr;
+                    caseStatements.AddRange(
+                        BuildValueAssignment(stmt.PubVarTarget, rawExpr, sourceType, pubVarTypes));
 
-                        caseStatements.Add(LocalDeclarationStatement(
-                            VariableDeclaration(ParseTypeName(typeName))
-                                .AddVariables(VariableDeclarator(Identifier(stmt.PubVarTarget))
-                                    .WithInitializer(EqualsValueClause(initExpr)))));
-
-                        // Sync PubVar to globals so debugger sees the value
-                        caseStatements.Add(ExpressionStatement(
-                            InvocationExpression(
-                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    IdentifierName("G"), IdentifierName("Set")),
-                                ArgumentList(SeparatedList(new[]
-                                {
-                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                                        Literal(stmt.PubVarTarget))),
-                                    Argument(IdentifierName(stmt.PubVarTarget))
-                                })))));
-                    }
-                    else
-                    {
-                        caseStatements.Add(ExpressionStatement(rawExpr));
-                    }
-
-                    break;
-                }
-
-                case CFGStatementKind.Branch:
-                {
-                    GenerateFlowControl("Branch", stmt, caseStatements, pubVarTypes,
-                        ref hasNextBlockAssignment,
-                        conditionPubVar: stmt.ConditionPubVar,
-                        trueBlockName: stmt.TrueBlockName, falseBlockName: stmt.FalseBlockName);
-                    break;
-                }
-
-                case CFGStatementKind.Loop:
-                {
-                    GenerateFlowControl("Loop", stmt, caseStatements, pubVarTypes,
-                        ref hasNextBlockAssignment,
-                        conditionPubVar: stmt.ConditionPubVar,
-                        trueBlockName: stmt.TrueBlockName, falseBlockName: stmt.FalseBlockName);
-                    break;
-                }
-
-                case CFGStatementKind.Print:
-                {
-                    GenerateSimpleMethodCall("Print", stmt, caseStatements, pubVarTypes);
-                    break;
-                }
-
-                case CFGStatementKind.Pause:
-                {
-                    GenerateSimpleMethodCall("Pause", stmt, caseStatements, pubVarTypes);
-                    break;
-                }
-
-                case CFGStatementKind.TryGetDevice:
-                {
-                    if (stmt.Arguments.Count > 0 && !string.IsNullOrEmpty(stmt.PubVarTarget))
-                    {
-                        var patternExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
-                        caseStatements.Add(
-                            LocalDeclarationStatement(
-                                VariableDeclaration(IdentifierName("var"))
-                                    .AddVariables(
-                                        VariableDeclarator(Identifier(stmt.PubVarTarget))
-                                            .WithInitializer(
-                                                EqualsValueClause(
-                                                    InvocationExpression(
-                                                        MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                                            IdentifierName("G"), IdentifierName("TryGetDevice")),
-                                                        ArgumentList(SeparatedList(new[] { Argument(patternExpr) }))))))));
-                    }
-
-                    break;
-                }
-
-                case CFGStatementKind.Set:
-                {
-                    var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
-                    if (stmt.Arguments.Count > 1)
-                    {
-                        var valueExpr = ResolveArgumentExpression(stmt.Arguments[1], pubVarTypes);
-                        caseStatements.Add(
-                            ExpressionStatement(
-                                InvocationExpression(
-                                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                        IdentifierName("G"), IdentifierName("Set")),
-                                    ArgumentList(SeparatedList(new[]
-                                    {
-                                        Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(varName))),
-                                        Argument(valueExpr)
-                                    })))));
-                    }
-                    else if (stmt.Arguments.Count > 0)
-                    {
-                        // Single-arg case (legacy): use first arg as value, varName might be empty
-                        var valueExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
-                        caseStatements.Add(
-                            ExpressionStatement(
-                                InvocationExpression(
-                                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                        IdentifierName("G"), IdentifierName("Set")),
-                                    ArgumentList(SeparatedList(new[]
-                                    {
-                                        Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(varName))),
-                                        Argument(valueExpr)
-                                    })))));
-                    }
-
-                    break;
-                }
-
-                case CFGStatementKind.ToLoopCond:
-                {
-                    GenerateFlowControl("ToLoopCond", stmt, caseStatements, pubVarTypes,
-                        ref hasNextBlockAssignment,
-                        returnToBlock: stmt.ToLoopCondReturnTo);
-                    break;
-                }
-
-                case CFGStatementKind.PluginCallWithTarget:
-                {
-                    var callExpr = BuildPluginCallWithTargetExpression(stmt, pubVarTypes);
-                    if (stmt.PubVarTarget != null)
-                    {
-                        // G.PluginCallWithTarget returns object? — wrap in ConvertTo<T> when
-                        // assigning to a typed PubVar, mirroring the Assignment/Expression case.
-                        var typeName = pubVarTypes.GetValueOrDefault(stmt.PubVarTarget, "object");
-                        ExpressionSyntax initExpr = typeName != "object"
-                            ? BuildConvertToInvocation(typeName, callExpr)
-                            : callExpr;
-                        caseStatements.Add(LocalDeclarationStatement(
-                            VariableDeclaration(ParseTypeName(typeName))
-                                .AddVariables(VariableDeclarator(Identifier(stmt.PubVarTarget))
-                                    .WithInitializer(EqualsValueClause(initExpr)))));
-
-                        // Sync PubVar to globals so debugger sees the value
-                        caseStatements.Add(ExpressionStatement(
-                            InvocationExpression(
-                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    IdentifierName("G"), IdentifierName("Set")),
-                                ArgumentList(SeparatedList(new[]
-                                {
-                                    Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(stmt.PubVarTarget))),
-                                    Argument(IdentifierName(stmt.PubVarTarget))
-                                })))));
-                    }
-                    else
-                    {
-                        caseStatements.Add(ExpressionStatement(callExpr));
-                    }
-                    break;
-                }
-
-                case CFGStatementKind.Break:
-                {
-                    caseStatements.Add(ReturnStatement());
                     break;
                 }
 
@@ -807,6 +622,74 @@ internal static class CFG2CSGenerator
             GenericName(Identifier("ConvertTo"),
                 TypeArgumentList(SeparatedList(new TypeSyntax[] { ParseTypeName(typeName) }))),
             ArgumentList(SeparatedList(new[] { Argument(argExpr) })));
+    }
+
+    /// <summary>
+    /// Builds the C# statements for a value-producing expression: either a typed local
+    /// declaration plus a <c>G.Set</c> sync (when assigned to a PubVar), or a bare
+    /// expression statement. This is the shared assignment wrapping used by all
+    /// value-producing builtin functions.
+    /// </summary>
+    internal static List<StatementSyntax> BuildValueAssignment(
+        string? pubVarTarget, ExpressionSyntax rawExpr, string sourceType,
+        Dictionary<string, string> pubVarTypes)
+    {
+        var result = new List<StatementSyntax>();
+
+        if (pubVarTarget != null)
+        {
+            var typeName = pubVarTypes.GetValueOrDefault(pubVarTarget, "object");
+            ExpressionSyntax initExpr = (typeName != "object" && sourceType == "object")
+                ? BuildConvertToInvocation(typeName, rawExpr)
+                : rawExpr;
+
+            result.Add(LocalDeclarationStatement(
+                VariableDeclaration(ParseTypeName(typeName))
+                    .AddVariables(VariableDeclarator(Identifier(pubVarTarget))
+                        .WithInitializer(EqualsValueClause(initExpr)))));
+
+            // Sync PubVar to globals so debugger sees the value
+            result.Add(ExpressionStatement(
+                InvocationExpression(
+                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("G"), IdentifierName("Set")),
+                    ArgumentList(SeparatedList(new[]
+                    {
+                        Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(pubVarTarget))),
+                        Argument(IdentifierName(pubVarTarget))
+                    })))));
+        }
+        else
+        {
+            result.Add(ExpressionStatement(rawExpr));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Builds a <c>G.member(args...)</c> invocation expression.
+    /// </summary>
+    internal static InvocationExpressionSyntax BuildGInvoke(string member, params ExpressionSyntax[] args)
+    {
+        return InvocationExpression(
+            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                IdentifierName("G"), IdentifierName(member)),
+            ArgumentList(SeparatedList(args.Select(a => Argument(a)))));
+    }
+
+    /// <summary>
+    /// Default emission for a registered builtin without a custom <c>EmitStatements</c>
+    /// override: emits <c>G.{Name}(args)</c> for registered builtins, or a bare
+    /// <c>{Name}(args)</c> for helper functions, then applies value assignment.
+    /// </summary>
+    internal static List<StatementSyntax> EmitDefaultStatements(CFGStatement stmt, CSEmitContext ctx)
+    {
+        var name = stmt.FunctionName ?? "";
+        var args = string.Join(", ", stmt.Arguments ?? new List<string>());
+        var isBuiltin = FunctionRegistry.AllFunctionNames.Contains(name);
+        var rawExpr = ParseExpression(isBuiltin ? $"G.{name}({args})" : $"{name}({args})");
+        return BuildValueAssignment(stmt.PubVarTarget, rawExpr, "object", ctx.PubVarTypes);
     }
 
     /// <summary>
@@ -900,64 +783,6 @@ internal static class CFG2CSGenerator
     {
         if (name == null || helperFunctions == null) return false;
         return helperFunctions.Any(h => h.Name == name);
-    }
-
-    /// <summary>
-    /// Generates a simple G.Method(arg) call for single-argument globals methods like Print/Pause.
-    /// </summary>
-    private static void GenerateSimpleMethodCall(string methodName, CFGStatement stmt,
-        List<StatementSyntax> caseStatements, Dictionary<string, string> pubVarTypes)
-    {
-        if (stmt.Arguments.Count == 0) return;
-        var argExpr = ResolveArgumentExpression(stmt.Arguments[0], pubVarTypes);
-        caseStatements.Add(ExpressionStatement(
-            InvocationExpression(
-                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                    IdentifierName("G"), IdentifierName(methodName)),
-                ArgumentList(SeparatedList(new[] { Argument(argExpr) })))));
-    }
-
-    /// <summary>
-    /// Generates flow control statements (G.NextBlock = G.Branch/G.Loop/G.ToLoopCond(...)).
-    /// For Branch/Loop: 3 arguments (condition, trueBlock, falseBlock).
-    /// For ToLoopCond: 1 argument (returnToBlock).
-    /// </summary>
-    private static void GenerateFlowControl(string methodName, CFGStatement stmt,
-        List<StatementSyntax> caseStatements, Dictionary<string, string> pubVarTypes,
-        ref bool hasNextBlockAssignment, string? conditionPubVar = null,
-        string? trueBlockName = null, string? falseBlockName = null,
-        string? returnToBlock = null)
-    {
-        var resolved = new List<ArgumentSyntax>();
-
-        if (methodName == "ToLoopCond")
-        {
-            resolved.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                Literal(returnToBlock ?? ""))));
-        }
-        else
-        {
-            var condExpr = !string.IsNullOrEmpty(conditionPubVar)
-                ? ResolveArgumentExpression(conditionPubVar, pubVarTypes)
-                : ParseExpression(stmt.ConditionExpression ?? "false");
-            resolved.Add(Argument(condExpr));
-            resolved.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                Literal(trueBlockName ?? ""))));
-            resolved.Add(Argument(LiteralExpression(SyntaxKind.StringLiteralExpression,
-                Literal(falseBlockName ?? ""))));
-        }
-
-        caseStatements.Add(ExpressionStatement(
-            AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
-                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                    IdentifierName("G"), IdentifierName("NextBlock")),
-                InvocationExpression(
-                    MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                        IdentifierName("G"), IdentifierName(methodName)),
-                    ArgumentList(SeparatedList(resolved))))));
-
-        hasNextBlockAssignment = true;
-        caseStatements.Add(BreakStatement());
     }
 
     private static StatementSyntax GenerateDebugCheckpoint(

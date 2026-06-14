@@ -71,6 +71,15 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             }
         }
 
+        public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+        {
+            var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
+                ? ctx.ResolveArgument(stmt.ConditionPubVar)
+                : ctx.Parse(stmt.ConditionExpression ?? "false");
+            return ctx.EmitNextBlockAssignment("Branch", condExpr,
+                ctx.Literal(stmt.TrueBlockName ?? ""), ctx.Literal(stmt.FalseBlockName ?? ""));
+        }
+
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
             var condition = helper.GetInputValue(node, "Condition");

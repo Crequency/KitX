@@ -98,6 +98,19 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt);
 
+    // ─── CS 生成（CFGStatement → C#）────────────
+
+    /// <summary>
+    /// 按 <see cref="CFGStatement"/> 生成 C# 语句（CFG→CS 阶段）。由 CFG2CSGenerator
+    /// 统一派发调用，使生成器无需针对具体函数名硬编码分支。
+    /// 默认实现走通用 <c>G.{FunctionName}(args)</c> 形式 + 赋值包裹；
+    /// 需要自定义代码生成的函数覆写此方法。
+    /// </summary>
+    /// <param name="stmt">当前 CFG 语句</param>
+    /// <param name="ctx">CS 生成上下文（类型映射 + 共享辅助）</param>
+    List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+        => ctx.EmitDefault(stmt);
+
     // ─── 导出（Blueprint → BlockScript）────────────
 
     /// <summary>将蓝图节点转换回 BlockScript 语句</summary>

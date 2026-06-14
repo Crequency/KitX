@@ -84,6 +84,17 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             });
         }
 
+        public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+        {
+            // NOTE: Flip currently shares the Branch control-flow form (StatementKind=Branch),
+            // so it emits G.Branch(...) — a known alias to revisit. Not exercised by tests.
+            var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
+                ? ctx.ResolveArgument(stmt.ConditionPubVar)
+                : ctx.Parse(stmt.ConditionExpression ?? "false");
+            return ctx.EmitNextBlockAssignment("Branch", condExpr,
+                ctx.Literal(stmt.TrueBlockName ?? ""), ctx.Literal(stmt.FalseBlockName ?? ""));
+        }
+
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
             return new ExpressionStatement

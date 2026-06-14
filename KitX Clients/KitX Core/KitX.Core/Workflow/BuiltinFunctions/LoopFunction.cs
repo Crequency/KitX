@@ -75,6 +75,15 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             context.LoopNodesByParent[stmt.BlockName] = node;
         }
 
+        public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+        {
+            var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
+                ? ctx.ResolveArgument(stmt.ConditionPubVar)
+                : ctx.Parse(stmt.ConditionExpression ?? "false");
+            return ctx.EmitNextBlockAssignment("Loop", condExpr,
+                ctx.Literal(stmt.TrueBlockName ?? ""), ctx.Literal(stmt.FalseBlockName ?? ""));
+        }
+
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
             var condition = helper.GetInputValue(node, "Condition");

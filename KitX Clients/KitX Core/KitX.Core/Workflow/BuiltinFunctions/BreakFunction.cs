@@ -29,6 +29,9 @@ public class BreakFunction : IBuiltinFunctionDefinition
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
+    public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+        => new() { ctx.Return() };
+
     public List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string blockName,
         PipelineContext context, string? assignedVar)

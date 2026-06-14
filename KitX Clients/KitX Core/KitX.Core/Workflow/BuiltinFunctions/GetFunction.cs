@@ -33,6 +33,12 @@ public class GetFunction : IBuiltinFunctionDefinition
 
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
+    public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+    {
+        var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
+        return ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildGetInvocation(varName));
+    }
+
     public List<CFGStatement> FormatInvocation(
         InvocationExpressionSyntax invoke, string blockName,
         PipelineContext context, string? assignedVar)

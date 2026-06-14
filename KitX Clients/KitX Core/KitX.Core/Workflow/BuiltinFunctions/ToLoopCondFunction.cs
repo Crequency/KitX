@@ -71,6 +71,9 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             }
         }
 
+        public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+            => ctx.EmitNextBlockAssignment("ToLoopCond", ctx.Literal(stmt.ToLoopCondReturnTo ?? ""));
+
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
             // Trace exec output connection to find the target block name
