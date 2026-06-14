@@ -1,9 +1,9 @@
 ﻿using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.Blueprint;
-using KitX.Core.Workflow.Pipeline;
 
-namespace KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.CFG;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Canonical CFG pipeline: five sub-path functions that compose into four main paths.

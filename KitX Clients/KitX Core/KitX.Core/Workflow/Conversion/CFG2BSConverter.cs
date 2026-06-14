@@ -1,7 +1,10 @@
 ﻿using KitX.Core.Contract.Workflow;
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 
-namespace KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Generates a <see cref="BlockScript"/> from a <see cref="ControlFlowGraph"/>.

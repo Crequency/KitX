@@ -9,6 +9,7 @@ using KitX.Core.Workflow.Blueprint;
 using KitX.Core.Workflow.CFG;
 using KitX.Core.Workflow.BlockScripting;
 
+using KitX.Core.Workflow.Conversion;
 namespace KitX.Core.BluePrint.Test;
 
 public class Program

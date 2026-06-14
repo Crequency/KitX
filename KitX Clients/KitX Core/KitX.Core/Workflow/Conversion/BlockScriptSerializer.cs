@@ -2,7 +2,10 @@
 using KitX.Core.Contract.Workflow;
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 
-namespace KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Serializes a <see cref="BlockScript"/> to source code string.

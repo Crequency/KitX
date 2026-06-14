@@ -1,10 +1,10 @@
 ﻿using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.CFG;
-using KitX.Core.Workflow.Pipeline;
 using Serilog;
 
-namespace KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Converts BlockScript to Blueprint via a clean 6-phase pipeline.

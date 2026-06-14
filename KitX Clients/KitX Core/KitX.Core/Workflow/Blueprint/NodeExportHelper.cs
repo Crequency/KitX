@@ -1,5 +1,5 @@
 ﻿using KitX.Core.Contract.Workflow;
-using KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Conversion;
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 
 namespace KitX.Core.Workflow.Blueprint;

@@ -6,7 +6,8 @@ using Serilog;
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 using KitX.Core.Workflow.CFG;
 
-namespace KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Phase 2: Takes a parsed BlockScript AST and produces a ControlFlowGraph

@@ -5,7 +5,8 @@ using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using Serilog;
 using KitX.Core.Workflow.CFG;
 
-namespace KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Phase 4+5: Creates data edges from ControlFlowGraph argument analysis.

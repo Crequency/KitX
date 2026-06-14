@@ -27,6 +27,7 @@ using KitX.Core.Workflow.Blueprint;
 using KitX.Core.Event;
 using Serilog;
 
+using KitX.Core.Workflow.Conversion;
 namespace KitX.Core.DI;
 
 /// <summary>

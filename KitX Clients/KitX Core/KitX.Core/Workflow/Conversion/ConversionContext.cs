@@ -1,6 +1,9 @@
 ﻿using KitX.Core.Contract.Workflow;
 
-namespace KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Accumulated state for Blueprint → BlockScript conversion.

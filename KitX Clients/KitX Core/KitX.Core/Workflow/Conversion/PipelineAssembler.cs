@@ -1,7 +1,10 @@
 ﻿using KitX.Core.Contract.Workflow;
 using Serilog;
 
-namespace KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Phase 6: Assembles the final Blueprint from all pipeline outputs.

@@ -5,7 +5,7 @@ using KitX.Core.Contract.Workflow;
 using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
-using KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Conversion;
 
 namespace KitX.Core.Workflow.BlockScripting;
 

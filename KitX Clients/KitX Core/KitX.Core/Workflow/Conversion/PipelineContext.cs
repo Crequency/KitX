@@ -2,7 +2,9 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Workflow.CFG;
 
-namespace KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Accumulated state flowing through all 6 conversion phases.

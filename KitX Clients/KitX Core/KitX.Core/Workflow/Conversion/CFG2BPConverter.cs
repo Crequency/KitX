@@ -6,7 +6,8 @@ using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 using KitX.Core.Workflow.CFG;
 
-namespace KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Phase 3: Creates all Blueprint nodes and exec flow edges from ControlFlowGraph.
@@ -148,7 +149,6 @@ public class CFG2BPConverter
         {
             case CFGStatementKind.Assignment:
             case CFGStatementKind.Expression:
-            case CFGStatementKind.PluginCallWithTarget:
                 return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
 
             default:

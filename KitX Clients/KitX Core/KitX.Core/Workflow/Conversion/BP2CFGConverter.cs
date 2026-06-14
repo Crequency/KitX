@@ -5,9 +5,10 @@ using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
-using KitX.Core.Workflow.Pipeline;
 
-namespace KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.BlockScripting;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Builds a <see cref="ControlFlowGraph"/> from a <see cref="Blueprint"/>.

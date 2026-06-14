@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Workflow;
 using Serilog;
-using KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Conversion;
 using KitX.Core.Workflow.CFG;
 using KitX.Core.Workflow.BlockScripting;
 

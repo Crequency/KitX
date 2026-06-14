@@ -2,7 +2,10 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.CFG;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Shared expression-parsing utilities used across pipeline phases.

@@ -5,10 +5,11 @@ using KitX.Core.Contract.Workflow;
 using Serilog;
 
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
-using KitX.Core.Workflow.Pipeline;
 using KitX.Core.Workflow.CFG;
 
-namespace KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.BlockScripting;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// Generates Roslyn <see cref="CompilationUnitSyntax"/> from a <see cref="BlockScript"/>.

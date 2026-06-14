@@ -3,7 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Device;
 using KitX.Shared.CSharp.Device;
 using Serilog;
-using KitX.Core.Workflow.Pipeline;
+using KitX.Core.Workflow.Conversion;
 using KitX.Core.Workflow.CFG;
 using KitX.Core.Workflow.BlockScripting;
 

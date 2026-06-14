@@ -2,7 +2,8 @@
 using KitX.Core.Workflow.BlockScripting;
 using KitX.Core.Workflow.CFG;
 
-namespace KitX.Core.Workflow.Blueprint;
+using KitX.Core.Workflow.Blueprint;
+namespace KitX.Core.Workflow.Conversion;
 
 /// <summary>
 /// 将 <see cref="IBuiltinFunctionDefinition"/> 适配为 <see cref="INodeExportStrategy"/>，
