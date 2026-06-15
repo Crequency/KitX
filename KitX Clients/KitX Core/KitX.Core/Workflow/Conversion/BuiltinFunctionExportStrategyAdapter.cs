@@ -27,6 +27,9 @@ public class BuiltinFunctionExportStrategyAdapter : INodeExportStrategy
     /// <summary>代理底层定义的 StatementKind，用于 BP→CFG 时直接填充 CFGStatement 字段。</summary>
     public CFGStatementKind StatementKind => _definition.StatementKind;
 
+    /// <summary>代理底层定义：BP→CFG 时是否为该节点的空 PubVar 数据连接自动合成 PubVar。</summary>
+    public bool AutoSynthesizePubVar => _definition.AutoSynthesizePubVar;
+
     /// <inheritdoc/>
     public bool IsControlFlow => _definition.IsFlowControl;
 

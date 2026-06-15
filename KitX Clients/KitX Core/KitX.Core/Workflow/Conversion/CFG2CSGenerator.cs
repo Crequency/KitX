@@ -573,6 +573,14 @@ internal static class CFG2CSGenerator
                         sourceType = helperReturnTypes.TryGetValue(stmt.FunctionName ?? "", out var rt)
                             ? rt : "object";
                     }
+                    else if (stmt.FullFunctionName != null && stmt.FullFunctionName.Contains('.'))
+                    {
+                        // Dotted plugin-method call (e.g. TestPlugin.WPF.Core.GetInput()) — has no
+                        // descriptor (it is a syntactic dotted name), so emit via
+                        // G.PluginCall(pluginName, methodName, args). Structural predicate
+                        // (qualified vs unqualified), not a function-name dispatch.
+                        rawExpr = BuildPluginCallExpression(stmt, pubVarTypes);
+                    }
                     else
                     {
                         rawExpr = ParseExpression(

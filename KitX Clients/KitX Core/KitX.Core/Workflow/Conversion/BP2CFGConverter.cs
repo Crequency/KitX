@@ -148,7 +148,7 @@ internal class BP2CFGConverter
     // Step 1: Connection Analysis
     // ════════════════════════════════════════════════════════════════════
 
-    private static void AnalyzeConnections(
+    private void AnalyzeConnections(
         Contract.Workflow.Blueprint blueprint,
         Dictionary<string, BlueprintNode> nodeById,
         List<BlueprintConnection> execConns,
@@ -208,9 +208,14 @@ internal class BP2CFGConverter
             if (sourceNode == null) continue;
             if (sourceNode.NodeType == BlueprintNodeType.Const) continue;
 
+            // Value sources needing an auto PubVar: plugin/helper calls, or a builtin whose
+            // descriptor declares AutoSynthesizePubVar (Get). Descriptor-driven — no name hardcoding.
             if (sourceNode.NodeType is BlueprintNodeType.Call
                 or BlueprintNodeType.CallHelper
-                || (sourceNode is BuiltinFunctionNode bfn && bfn.FunctionName == "Get"))
+                || (sourceNode is BuiltinFunctionNode bfn
+                    && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var strat)
+                    && strat is BuiltinFunctionExportStrategyAdapter pubVarAdapter
+                    && pubVarAdapter.AutoSynthesizePubVar))
             {
                 var sourcePin = sourceNode.GetPinById(conn.SourcePinId);
                 if (sourcePin == null) continue;
@@ -946,23 +951,6 @@ internal class BP2CFGConverter
                         cfgStmt.Arguments.Add(_exportHelper.GetInputValue(node, pin.Name));
                 }
 
-                // SetVarName / GetVarName from node input pins for Set/Get
-                if (node is BuiltinFunctionNode bfnProps)
-                {
-                    if (bfnProps.FunctionName == "Set")
-                    {
-                        var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
-                        if (varPin != null && !string.IsNullOrEmpty(varPin.DefaultValue))
-                            cfgStmt.SetVarName = varPin.DefaultValue;
-                    }
-                    else if (bfnProps.FunctionName == "Get")
-                    {
-                        var varPin = node.InputPins.FirstOrDefault(p => p.Name == "VarName");
-                        if (varPin != null && !string.IsNullOrEmpty(varPin.DefaultValue))
-                            cfgStmt.GetVarName = varPin.DefaultValue;
-                    }
-                }
-
                 // PubVarTarget from consumed output lookup
                 if (_currentCtx != null)
                 {
@@ -1130,10 +1118,4 @@ internal class BP2CFGConverter
         node is BuiltinFunctionNode bfn
         && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var strat)
         && strat.IsControlFlow;
-
-    private bool IsBranchNode(BlueprintNode node) =>
-        node is BuiltinFunctionNode bfn && bfn.FunctionName == "Branch";
-
-    private bool IsLoopNode(BlueprintNode node) =>
-        node is BuiltinFunctionNode bfn && bfn.FunctionName == "Loop";
 }

@@ -83,8 +83,6 @@ internal class CFGConditionDuplicator
         TrueBlockName = source.TrueBlockName,
         FalseBlockName = source.FalseBlockName,
         ToLoopCondReturnTo = source.ToLoopCondReturnTo,
-        SetVarName = source.SetVarName,
-        GetVarName = source.GetVarName,
         Fingerprint = source.Fingerprint,
         IsLoopConditionDuplication = true
     };

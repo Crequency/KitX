@@ -213,6 +213,14 @@ public class Program
             Console.WriteLine("└──────────────────────────────────────────┘\n");
             RunUninitializedVarTest(parser, sp);
         }
+
+        if (ShouldRunTest("S"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────┐");
+            Console.WriteLine("│ Test S: Qualified Plugin-Method Call CS  │");
+            Console.WriteLine("└──────────────────────────────────────────┘\n");
+            RunQualifiedPluginCallTest(parser);
+        }
     }
 
     private static void ParseArgs(string[] args)
@@ -256,7 +264,7 @@ public class Program
                         var dup = stmt.IsLoopConditionDuplication ? " [LOOP_COND_DUP]" : "";
                         Console.WriteLine($"    [{stmt.Kind}] {stmt.OriginalExpression}");
                         Console.WriteLine($"      PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName} Args=[{args}]");
-                        Console.WriteLine($"      SetVar={stmt.SetVarName} GetVar={stmt.GetVarName} Fingerprint={stmt.Fingerprint}{dup}");
+                        Console.WriteLine($"      Fingerprint={stmt.Fingerprint}{dup}");
                     }
                     Console.WriteLine();
                 }
@@ -1773,5 +1781,50 @@ Print(""Done"");";
         }
 
         Console.WriteLine($"\n[Test R] {(allPassed ? "PASS - All phases passed!" : "FAIL - See above for details")}");
+    }
+
+    // ──────────────────────────────────────────────
+    // Test S: Qualified Plugin-Method Call CS Generation
+    // Guards the Phase 1 regression where dotted plugin-method calls
+    // (e.g. TestPlugin.WPF.Core.GetInput()) lost their CS emission path
+    // and fell through to a bare-call fallback → CS0103.
+    // ──────────────────────────────────────────────
+    private static void RunQualifiedPluginCallTest(IBlockScriptParser parser)
+    {
+        Console.WriteLine("[Test S] Qualified plugin-method call → CS compilation (Phase 1 regression guard)");
+
+        var sourceCode = @"
+#PubVarBlock
+dynamic v;
+
+#MainBlock
+v = TestPlugin.WPF.Core.GetInput();
+TestPlugin.WPF.Core.HelloAnything(v);
+";
+
+        try
+        {
+            var parseResult = parser.Parse(sourceCode);
+            if (!parseResult.IsSuccess || parseResult.Script == null)
+            {
+                Console.WriteLine($"[Test S] FAIL: parse error: {parseResult.ErrorMessage}");
+                Console.WriteLine("\n[Test S] FAIL - See above for details");
+                return;
+            }
+            parseResult.Script.HelperFunctions = new List<HelperFunction>();
+
+            var compiler = new CSCompiler();
+            var compiled = compiler.CompileScript(parseResult.Script);
+
+            // Before the fix, the dotted calls emitted bare GetInput()/HelloAnything() → CS0103 → null.
+            // After the fix, they emit G.PluginCall("TestPlugin.WPF.Core", "GetInput", ...) and compile.
+            bool pass = compiled != null;
+            Console.WriteLine($"  Compiled assembly: {(compiled != null ? "non-null" : "null (CS0103 regression)")}");
+            Console.WriteLine($"[Test S] {(pass ? "PASS" : "FAIL - dotted plugin call did not compile")}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test S] FAILED: {ex.Message}\n  {ex.StackTrace}");
+        }
     }
 }

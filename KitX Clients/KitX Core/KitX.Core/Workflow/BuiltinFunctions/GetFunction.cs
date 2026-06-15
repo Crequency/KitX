@@ -18,6 +18,7 @@ public class GetFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => false;
     public bool IsNonExtractable => false;
     public CFGStatementKind StatementKind => CFGStatementKind.Assignment;
+    public bool AutoSynthesizePubVar => true;
     public double NodeWidth => 140;
     public double NodeHeight => 60;
 

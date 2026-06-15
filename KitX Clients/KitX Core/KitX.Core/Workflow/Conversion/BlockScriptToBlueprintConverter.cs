@@ -163,7 +163,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
                 var args = stmt.Arguments != null ? string.Join(", ", stmt.Arguments) : "";
                 sb.AppendLine($"  [{stmt.Kind}] {stmt.OriginalExpression}" +
                     $" | PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName}" +
-                    $" Args=[{args}] SetVar={stmt.SetVarName} GetVar={stmt.GetVarName}" +
+                    $" Args=[{args}]" +
                     $" CondPubVar={stmt.ConditionPubVar} True={stmt.TrueBlockName} False={stmt.FalseBlockName}" +
                     $" ToLoopCondReturnTo={stmt.ToLoopCondReturnTo}{dup}{fp}");
             }

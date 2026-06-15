@@ -245,9 +245,9 @@ internal class CSCompiler
             Log.Debug("[CSCompiler]   Block '{Name}' → NextBlock={Next}, Statements={Count}",
                 block.Name, block.NextBlockName, block.Statements.Count);
             foreach (var stmt in block.Statements)
-                Log.Debug("[CSCompiler]     Kind={Kind} PubVar={PubVar} Fn={Fn} Args=[{Args}] CondPubVar={Cond} SetVar={Set} GetVar={Get}",
+                Log.Debug("[CSCompiler]     Kind={Kind} PubVar={PubVar} Fn={Fn} Args=[{Args}] CondPubVar={Cond}",
                     stmt.Kind, stmt.PubVarTarget, stmt.FunctionName,
-                    string.Join(", ", stmt.Arguments), stmt.ConditionPubVar, stmt.SetVarName, stmt.GetVarName);
+                    string.Join(", ", stmt.Arguments), stmt.ConditionPubVar);
         }
 
         var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(formattedScript, script.HelperFunctions, context);

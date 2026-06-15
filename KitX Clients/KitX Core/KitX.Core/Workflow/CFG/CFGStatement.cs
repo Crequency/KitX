@@ -136,13 +136,6 @@ public class CFGStatement
     /// </summary>
     public string? ToLoopCondReturnTo { get; set; }
 
-    // --- For Set / Get ---
-    /// <summary>The variable name being set (for Set statements).</summary>
-    public string? SetVarName { get; set; }
-
-    /// <summary>The variable name being read (for Get statements).</summary>
-    public string? GetVarName { get; set; }
-
     // --- Metadata ---
     /// <summary>
     /// True if this statement was inserted as a Loop condition duplication

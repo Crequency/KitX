@@ -46,6 +46,13 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     BuiltinNodeKind NodeKind => BuiltinNodeKind.BuiltinFunction;
 
+    /// <summary>
+    /// 反向（BP→CFG）时，若该节点的非 Exec 输出数据连接未带 PubVar（编辑器手建蓝图场景），
+    /// 是否为其自动合成一个 PubVar。默认 false；Get 覆写为 true（其值读取需显式命名承载）。
+    /// 使 BP2CFGConverter 无需按函数名特判 Get。
+    /// </summary>
+    bool AutoSynthesizePubVar => false;
+
     // ─── 节点布局 ───────────────────────────────────
 
     /// <summary>蓝图节点宽度</summary>
