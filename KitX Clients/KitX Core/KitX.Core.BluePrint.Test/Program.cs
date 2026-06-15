@@ -5,11 +5,13 @@ using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
-using KitX.Core.Workflow.Blueprint;
-using KitX.Core.Workflow.CFG;
-using KitX.Core.Workflow.BlockScripting;
+using KitX.Workflow.Blueprint;
+using KitX.Workflow.CFG;
+using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Contract;
+using KitX.Workflow.Contract.Models;
+using KitX.Workflow.Conversion;
 
-using KitX.Core.Workflow.Conversion;
 namespace KitX.Core.BluePrint.Test;
 
 public class Program

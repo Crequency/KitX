@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using KitX.Core.Contract.Device;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.WebCommand;
 using Serilog;
@@ -8,30 +9,10 @@ using Serilog;
 namespace KitX.Core.Device;
 
 /// <summary>
-/// Interface for device HTTP client — sends requests to remote DevicesServer instances.
-/// Used for cross-device plugin invocation via the /Api/V1/Plugin/Invoke endpoint.
-/// </summary>
-public interface IDeviceHttpClient
-{
-    /// <summary>
-    /// Invokes a plugin method on a remote device via HTTP POST to /Api/V1/Plugin/Invoke.
-    /// </summary>
-    /// <param name="targetDevice">Target device info (contains IPv4 and DevicesServerPort)</param>
-    /// <param name="token">Valid session token for the target device</param>
-    /// <param name="request">The Request object to send</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>HTTP response from remote device, or null on network error</returns>
-    Task<HttpResponseMessage?> InvokePluginAsync(
-        DeviceInfo targetDevice,
-        string token,
-        Request request,
-        CancellationToken ct = default);
-}
-
-/// <summary>
 /// Device HTTP client implementation.
 /// Sends plugin invoke requests to remote DevicesServer over HTTP.
 /// Protocol compatible with legacy PluginControllerExtensions.RemoteInvoke.
+/// Implements the <see cref="IDeviceHttpClient"/> contract now defined in KitX.Core.Contract.
 /// </summary>
 public class DeviceHttpClient : IDeviceHttpClient
 {

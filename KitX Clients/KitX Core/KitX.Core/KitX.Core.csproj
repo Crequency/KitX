@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\..\KitX Standard\KitX Script\Kscript.CSharp.Parser\Kscript.CSharp.Parser.csproj" Condition="false" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj" />
+    <ProjectReference Include="..\..\KitX Workflow\KitX.Workflow\KitX.Workflow.csproj" />
   </ItemGroup>
 
   <ItemGroup>
