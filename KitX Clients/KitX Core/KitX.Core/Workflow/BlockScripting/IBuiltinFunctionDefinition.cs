@@ -38,6 +38,14 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     CFGStatementKind StatementKind { get; }
 
+    /// <summary>
+    /// 此内置函数在蓝图中物化为哪种节点类型。默认 <see cref="BuiltinNodeKind.BuiltinFunction"/>；
+    /// 需 <see cref="CallNode"/> 形态（携带 PluginName/TargetDevice 等）的函数（如
+    /// PluginCallWithTarget）覆写为 <see cref="BuiltinNodeKind.Call"/>。
+    /// 使 CFG2BPConverter 的节点创建走单一派发路径，无需按函数名特判。
+    /// </summary>
+    BuiltinNodeKind NodeKind => BuiltinNodeKind.BuiltinFunction;
+
     // ─── 节点布局 ───────────────────────────────────
 
     /// <summary>蓝图节点宽度</summary>
@@ -91,6 +99,15 @@ public interface IBuiltinFunctionDefinition
     // ─── 节点构建（CFGStatement → BlueprintNode）──
 
     /// <summary>
+    /// 节点复用键（CFG2BPConverter 去重检测）。默认 null —— 每个语句建独立节点
+    /// （对含副作用的调用更安全，避免重复副作用调用被折叠而破坏往返保真）。
+    /// 需按指纹去重的纯值产生函数覆写为 <see cref="CFGStatement.Fingerprint"/> 等。
+    /// 注册时若键为 null 则回落 PubVarTarget 仅为字典索引；DataEdgeBuilder 按 PubVarName
+    /// 字段连接数据边，不受键影响，故值产生函数仍可被正确连线。
+    /// </summary>
+    string? GetReuseKey(CFGStatement stmt) => null;
+
+    /// <summary>
     /// 对新创建的 BuiltinFunctionNode 进行额外配置（如设置 Properties 字典）。
     /// 返回配置后的节点。
     /// </summary>
@@ -131,4 +148,16 @@ public interface IBuiltinFunctionDefinition
     /// 默认无操作。
     /// </summary>
     void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context) { }
+}
+
+/// <summary>
+/// 内置函数在蓝图中物化的节点类型。见 <see cref="IBuiltinFunctionDefinition.NodeKind"/>。
+/// </summary>
+public enum BuiltinNodeKind
+{
+    /// <summary>常规内置函数节点（由 NodeRegistry.CreateBuiltinFunctionNode 按描述符建引脚）。</summary>
+    BuiltinFunction,
+
+    /// <summary>携带 PluginName/TargetDevice 的调用节点（bare CallNode + AddParamPins）。</summary>
+    Call,
 }

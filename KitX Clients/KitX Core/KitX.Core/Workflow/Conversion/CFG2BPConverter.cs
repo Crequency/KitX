@@ -3,7 +3,6 @@ using KitX.Core.Workflow.BlockScripting;
 using Serilog;
 
 using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
-using static KitX.Core.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 using KitX.Core.Workflow.CFG;
 
 using KitX.Core.Workflow.Blueprint;
@@ -113,47 +112,30 @@ public class CFG2BPConverter
     private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
         PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
-        // PluginCallWithTarget must become an explicit CallNode carrying TargetDevice.
-        // Route it before the registry dispatch — otherwise the registry creates a
-        // BuiltinFunctionNode that ConfigureNode (which expects a CallNode) cannot convert,
-        // leaving TargetDevice unset and producing no CallNode for the test to find.
-        if (stmt.FunctionName == "PluginCallWithTarget")
-            return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
+        var funcDef = !string.IsNullOrEmpty(stmt.FunctionName)
+            ? _functionRegistry?.Get(stmt.FunctionName)
+            : null;
 
-        // Registry path: handle all registered builtin functions
-        if (_functionRegistry != null && !string.IsNullOrEmpty(stmt.FunctionName))
+        // Control-flow terminators (Branch/Loop/Flip/ToLoopCond): node + deferred cross-block edges.
+        if (funcDef is { IsBlockTerminator: true })
         {
-            var funcDef = _functionRegistry.Get(stmt.FunctionName);
-            if (funcDef != null)
-            {
-                if (funcDef.IsBlockTerminator)
-                {
-                    var node = _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
-                    node = funcDef.ConfigureNode(node, stmt);
-                    ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
-                    funcDef.OnNodeCreated(node, stmt, context);
-                    return node;
-                }
-
-                // Non-terminator registered function
-                var nonTermNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName);
-                nonTermNode = funcDef.ConfigureNode(nonTermNode, stmt);
-                var result = ChainNewNode(nonTermNode, stmt, context, ref prevNode, ref prevStmtId);
-                RegisterPubVarAssignment(stmt, nonTermNode, context);
-                return result;
-            }
+            var node = CreateAndConfigureNode(stmt, funcDef);
+            ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
+            funcDef.OnNodeCreated(node, stmt, context);
+            return node;
         }
 
-        // Non-registry statement handling
-        switch (stmt.Kind)
+        // Calls / assignments: any registered non-terminator builtin (Get/Set/Print/...,
+        // including PluginCallWithTarget whose Kind is its own enum value) OR an unregistered
+        // helper/plugin call (Kind = Assignment/Expression). Routing by registration rather
+        // than Kind, because builtins like Print/Set carry their own Kind values.
+        if (funcDef != null
+            || stmt.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
         {
-            case CFGStatementKind.Assignment:
-            case CFGStatementKind.Expression:
-                return ProcessCallOrAssignment(stmt, context, ref prevNode, ref prevStmtId);
-
-            default:
-                return null;
+            return ProcessCallOrAssignment(stmt, funcDef, context, ref prevNode, ref prevStmtId);
         }
+
+        return null;
     }
 
     /// <summary>
@@ -172,113 +154,90 @@ public class CFG2BPConverter
     // ──────────────────────────────────────────────
 
     private BlueprintNode? ProcessCallOrAssignment(CFGStatement stmt,
-        PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
+        IBuiltinFunctionDefinition? funcDef, PipelineContext context,
+        ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         // --- PubVar reuse check (§6.5) ---
-        // For Get statements: reuse by PubVarTarget (each Get is unique based on its PubVar)
-        // For non-Get statements: reuse by fingerprint
-        PubVarAssignment? existing = null;
+        // Reuse key is descriptor-declared: null for most builtins (each stmt → own node,
+        // safe for side-effecting calls); Fingerprint for opt-ins (e.g. PluginCallWithTarget);
+        // Fingerprint fallback for unregistered helpers/plugin calls.
+        var reuseKey = funcDef == null ? stmt.Fingerprint : funcDef.GetReuseKey(stmt);
 
-        if (stmt.FunctionName == Get && stmt.Arguments?.Count > 0)
-        {
-            if (!string.IsNullOrEmpty(stmt.PubVarTarget))
-            {
-                existing = context.PubVarAssignments.Values
-                    .FirstOrDefault(p => p.PubVarName == stmt.PubVarTarget
-                        && p.SourceNode is BuiltinFunctionNode bfn && bfn.FunctionName == "Get"
-                        && bfn.InputPins.FirstOrDefault(pin => pin.Name == "VarName")?.DefaultValue == stmt.Arguments[0].Trim('"'));
-            }
-        }
-        else if (!string.IsNullOrEmpty(stmt.Fingerprint)
-            && context.PubVarAssignments.TryGetValue(stmt.Fingerprint, out var fpExisting))
-        {
-            existing = fpExisting;
-        }
-
-        if (existing != null)
+        if (!string.IsNullOrEmpty(reuseKey)
+            && context.PubVarAssignments.TryGetValue(reuseKey, out var existing))
         {
             context.NodeByStatementId[stmt.StatementId] = existing.SourceNode;
-
-            // Chain to the shared main node
             AddExecEdge(prevStmtId, stmt.StatementId, context);
             prevNode = existing.SourceNode;
             prevStmtId = stmt.StatementId;
-
-            Log.Debug("[CFG2BPConverter] Reused node: {Key}", stmt.Fingerprint ?? stmt.PubVarTarget);
+            Log.Debug("[CFG2BPConverter] Reused node: {Key}", reuseKey);
             return existing.SourceNode;
         }
 
-        // --- Create new node ---
-        BlueprintNode mainNode;
-        if (stmt.FunctionName == "PluginCallWithTarget")
-        {
-            // PluginCallWithTarget must be an explicit CallNode carrying TargetDevice.
-            // Handle BEFORE the builtin registry dispatch — otherwise the registry shadows
-            // it (PluginCallWithTarget is a registered builtin) and TargetDevice is never set.
-            var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
-            var args = stmt.Arguments;
-            // G.PluginCallWithTarget("plugin", "method", "device", ...)
-            // Arguments[0]=pluginName, [1]=methodName, [2]=targetDevice
-            callNode.PluginName = args?.Count > 0 ? StripQuotes(args[0]) : "";
-            callNode.FunctionName = args?.Count > 1 ? StripQuotes(args[1]) : "";
-            callNode.TargetDevice = args?.Count > 2 ? StripQuotes(args[2]) : null;
-            // Preserve extra arguments (beyond plugin/method/device) for BS round-trip,
-            // mirroring PluginCallWithTargetFunction.ConfigureNode.
-            if (args != null && args.Count > 3)
-                callNode.ExtraArguments = args.Skip(3).ToList();
-            mainNode = callNode;
-
-            // Add parameter pins based on argument count
-            AddParamPins(mainNode, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
-        }
-        else if (_functionRegistry != null && _functionRegistry.Get(stmt.FunctionName!) is { } funcDef)
-        {
-            mainNode = _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
-            mainNode = funcDef.ConfigureNode(mainNode, stmt);
-        }
-        else
-        {
-            var isHelper = _helperNames.Contains(stmt.FunctionName ?? string.Empty);
-            if (isHelper)
-            {
-                var helperNode = (CallHelperNode)_registry.Create(BlueprintNodeType.CallHelper);
-                helperNode.HelperFunctionName = stmt.FunctionName!;
-                mainNode = helperNode;
-            }
-            else
-            {
-                var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
-
-                // Parse plugin name from full dotted method name (e.g. "TestPlugin.WPF.Core.HelloKitX")
-                if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
-                {
-                    var lastDot = stmt.FullFunctionName.LastIndexOf('.');
-                    callNode.PluginName = stmt.FullFunctionName.Substring(0, lastDot);
-                    callNode.FunctionName = stmt.FullFunctionName.Substring(lastDot + 1);
-                }
-                else
-                {
-                    callNode.FunctionName = stmt.FunctionName!;
-                }
-
-                mainNode = callNode;
-            }
-
-            // Add parameter pins based on helper definition or argument count
-            AddParamPins(mainNode, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
-        }
+        // --- Create + configure (single descriptor-driven path) ---
+        var mainNode = CreateAndConfigureNode(stmt, funcDef);
 
         context.AllNodes.Add(mainNode);
         context.NodeByStatementId[stmt.StatementId] = mainNode;
-
         AddExecEdge(prevStmtId, stmt.StatementId, context);
         prevNode = mainNode;
         prevStmtId = stmt.StatementId;
 
-        // Register PubVar assignment for reuse
-        RegisterPubVarAssignment(stmt, mainNode, context);
-
+        RegisterPubVarAssignment(stmt, mainNode, funcDef, context);
         return mainNode;
+    }
+
+    /// <summary>
+    /// Single descriptor-driven node creation. Resolves the right node type from
+    /// <see cref="IBuiltinFunctionDefinition.NodeKind"/> (BuiltinFunction vs Call), applies
+    /// <see cref="IBuiltinFunctionDefinition.ConfigureNode"/>, and adds param pins for bare
+    /// Call/CallHelper nodes. Unregistered statements fall back to helper/plugin-call nodes.
+    /// </summary>
+    private BlueprintNode CreateAndConfigureNode(CFGStatement stmt, IBuiltinFunctionDefinition? funcDef)
+    {
+        BlueprintNode node;
+        if (funcDef != null)
+        {
+            node = funcDef.NodeKind == BuiltinNodeKind.Call
+                ? _registry.Create(BlueprintNodeType.Call)
+                : _registry.CreateBuiltinFunctionNode(stmt.FunctionName!);
+            node = funcDef.ConfigureNode(node, stmt);
+            // Bare CallNode has no descriptor pins → add param pins like helper/plugin calls.
+            if (funcDef.NodeKind == BuiltinNodeKind.Call)
+                AddParamPins(node, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
+        }
+        else
+        {
+            node = _helperNames.Contains(stmt.FunctionName ?? string.Empty)
+                ? CreateHelperNode(stmt)
+                : CreatePluginCallNode(stmt);
+            AddParamPins(node, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
+        }
+        return node;
+    }
+
+    private BlueprintNode CreateHelperNode(CFGStatement stmt)
+    {
+        var helperNode = (CallHelperNode)_registry.Create(BlueprintNodeType.CallHelper);
+        helperNode.HelperFunctionName = stmt.FunctionName!;
+        return helperNode;
+    }
+
+    private BlueprintNode CreatePluginCallNode(CFGStatement stmt)
+    {
+        var callNode = (CallNode)_registry.Create(BlueprintNodeType.Call);
+        // Parse plugin name from full dotted method name (e.g. "TestPlugin.WPF.Core.HelloKitX")
+        if (!string.IsNullOrEmpty(stmt.FullFunctionName) && stmt.FullFunctionName.Contains('.'))
+        {
+            var lastDot = stmt.FullFunctionName.LastIndexOf('.');
+            callNode.PluginName = stmt.FullFunctionName.Substring(0, lastDot);
+            callNode.FunctionName = stmt.FullFunctionName.Substring(lastDot + 1);
+        }
+        else
+        {
+            callNode.FunctionName = stmt.FunctionName!;
+        }
+        return callNode;
     }
 
     // ──────────────────────────────────────────────
@@ -367,18 +326,19 @@ public class CFG2BPConverter
         return node;
     }
 
-    private void RegisterPubVarAssignment(CFGStatement stmt, BlueprintNode node, PipelineContext context)
+    private void RegisterPubVarAssignment(CFGStatement stmt, BlueprintNode node,
+        IBuiltinFunctionDefinition? funcDef, PipelineContext context)
     {
         if (string.IsNullOrEmpty(stmt.PubVarTarget)) return;
 
         var outputPin = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
         if (outputPin == null) return;
 
-        // Get: key by PubVarTarget (each Get is unique based on what variable it reads)
-        // Others: key by fingerprint for reuse detection
-        var key = stmt.FunctionName == "Get"
-            ? stmt.PubVarTarget
-            : (stmt.Fingerprint ?? stmt.PubVarTarget);
+        // The key only matters for reuse lookup (ProcessCallOrAssignment). DataEdgeBuilder
+        // connects data edges by the PubVarName field below, so a null reuse key safely falls
+        // back to PubVarTarget as a non-null dict index without affecting data edges.
+        var reuseKey = funcDef == null ? stmt.Fingerprint : funcDef.GetReuseKey(stmt);
+        var key = reuseKey ?? stmt.PubVarTarget;
         context.PubVarAssignments[key] = new PubVarAssignment
         {
             PubVarName = stmt.PubVarTarget,
@@ -437,15 +397,5 @@ public class CFG2BPConverter
                 });
             }
         }
-    }
-
-    /// <summary>Strips surrounding double-quote characters from a string literal.</summary>
-    private static string StripQuotes(string s)
-    {
-        if (s == null) return "";
-        s = s.Trim();
-        if (s.Length >= 2 && s.StartsWith('"') && s.EndsWith('"'))
-            return s[1..^1];
-        return s;
     }
 }

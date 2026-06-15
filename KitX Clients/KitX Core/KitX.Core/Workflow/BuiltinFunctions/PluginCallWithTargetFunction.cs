@@ -19,6 +19,9 @@ namespace KitX.Core.Workflow.BuiltinFunctions
         public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
         public CFGStatementKind StatementKind => CFGStatementKind.PluginCallWithTarget;
+        public BuiltinNodeKind NodeKind => BuiltinNodeKind.Call;
+        // Preserve prior early-route behavior: identical cross-device calls dedup to one node.
+        public string? GetReuseKey(CFGStatement stmt) => stmt.Fingerprint;
         public double NodeWidth => 140;
         public double NodeHeight => 80;
 
