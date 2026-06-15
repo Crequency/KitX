@@ -206,7 +206,7 @@ public class BS2CFGConverter
                 return result;
 
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
-            result.AddRange(FormatInvocation(invoke, funcName, blockName, context, assignedVar, fullFuncName,
+            result.AddRange(LowerAndPostProcess(invoke, funcName, blockName, context, assignedVar, fullFuncName,
                 statementId: exprStmt.StatementId));
             return result;
         }
@@ -218,82 +218,79 @@ public class BS2CFGConverter
     /// <summary>
     /// Formats a function invocation, expanding nested calls in arguments.
     /// </summary>
-    private List<CFGStatement> FormatInvocation(
+    private List<CFGStatement> LowerAndPostProcess(
         InvocationExpressionSyntax invoke, string funcName, string blockName,
         PipelineContext context, string? assignedVar, string? fullFuncName = null,
         string? statementId = null)
     {
+        // "_" is the dummy LHS produced by ExprUtils.ParseStatement for standalone
+        // expression statements (`_ = WriteTextFile(...)`); treat it as no assignment.
+        if (assignedVar == "_") assignedVar = null;
+
         var result = new List<CFGStatement>();
 
         // Expand nested calls in arguments first
         var (expansionStmts, currentArgExprs) = ExpandArguments(invoke, blockName, context);
         result.AddRange(expansionStmts);
 
-        // Determine statement kind and extract info
-        CFGStatementKind kind;
-        string? pubVarTarget = null;
-        string? setVarName = null;
-        string? getVarName = null;
-
-        switch (funcName)
+        // Lower: registered builtins via their descriptor; helpers/unknown via fallback assembly.
+        List<CFGStatement> lowered;
+        if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } funcDef)
         {
-            default:
-                // All registered functions (Set/Get/Print/Pause/etc.) go through registry
-                if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } funcDef)
-                {
-                    kind = funcDef.StatementKind;
-                    var (sn, gn, pv) = funcDef.ExtractStatementFields(invoke, currentArgExprs, assignedVar, context);
-                    setVarName = sn;
-                    getVarName = gn;
-                    pubVarTarget = pv;
-                    // If ExtractStatementFields didn't set PubVarTarget but we have an assignment context
-                    // and the function produces a value (non-void return), preserve the assignment
-                    if (pubVarTarget == null && !string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
-                    {
-                        pubVarTarget = assignedVar;
-                        if (!context.PubVarNames.Contains(assignedVar))
-                            context.PubVarNames.Add(assignedVar);
-                    }
-                }
-                else
-                {
-                    // Helper or regular function call
-                    if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
-                    {
-                        kind = CFGStatementKind.Assignment;
-                        pubVarTarget = assignedVar;
-                        // Ensure the assigned variable is tracked as a PubVar
-                        if (!context.PubVarNames.Contains(assignedVar))
-                            context.PubVarNames.Add(assignedVar);
-                    }
-                    else
-                    {
-                        kind = CFGStatementKind.Expression;
-                    }
-                }
-                break;
+            lowered = funcDef.LowerToCFG(invoke, currentArgExprs, blockName, context, assignedVar);
         }
-
-        var fingerprint = kind is CFGStatementKind.Assignment or CFGStatementKind.Expression
-            ? ExprUtils.ComputeFingerprint(funcName, currentArgExprs)
-            : null;
-
-        result.Add(new CFGStatement
+        else
         {
-            StatementId = !string.IsNullOrEmpty(statementId) ? statementId
-                : Guid.NewGuid().ToString(),
-            BlockName = blockName,
-            Kind = kind,
-            FunctionName = funcName,
-            FullFunctionName = fullFuncName,
-            PubVarTarget = pubVarTarget,
-            SetVarName = setVarName,
-            GetVarName = getVarName,
-            Arguments = currentArgExprs,
-            OriginalExpression = invoke.ToString(),
-            SourceLine = 0,
-            Fingerprint = fingerprint
-        });
+            // Helper or regular function call
+            CFGStatementKind kind;
+            string? pubVarTarget = null;
+            if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
+            {
+                kind = CFGStatementKind.Assignment;
+                pubVarTarget = assignedVar;
+                if (!context.PubVarNames.Contains(assignedVar))
+                    context.PubVarNames.Add(assignedVar);
+            }
+            else
+            {
+                kind = CFGStatementKind.Expression;
+            }
+            lowered = [new CFGStatement
+            {
+                BlockName = blockName,
+                Kind = kind,
+                FunctionName = funcName,
+                FullFunctionName = fullFuncName,
+                PubVarTarget = pubVarTarget,
+                Arguments = currentArgExprs,
+                OriginalExpression = invoke.ToString(),
+                SourceLine = 0,
+            }];
+        }
+        result.AddRange(lowered);
+
+        // Cross-cutting post-processing: descriptor owns core fields, BS2CFG owns bookkeeping.
+        foreach (var s in lowered)
+        {
+            if (string.IsNullOrEmpty(s.StatementId))
+                s.StatementId = !string.IsNullOrEmpty(statementId) ? statementId : Guid.NewGuid().ToString();
+
+            if (s.Fingerprint == null
+                && s.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
+            {
+                s.Fingerprint = ExprUtils.ComputeFingerprint(funcName, currentArgExprs);
+            }
+
+            s.FullFunctionName ??= fullFuncName;
+
+            // Preserve the deleted PubVar-fallback side-effect: when assignedVar is used as
+            // the statement's target, ensure it is tracked as a PubVar.
+            if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_"
+                && s.PubVarTarget == assignedVar && !context.PubVarNames.Contains(assignedVar))
+            {
+                context.PubVarNames.Add(assignedVar);
+            }
+        }
 
         return result;
     }
@@ -343,46 +340,37 @@ public class BS2CFGConverter
             var funcName = ExprUtils.GetMethodName(invoke);
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
 
-            // Check registry for function classification
-            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef)
+            // Non-extractable / flow-control functions stay inline (cannot be nested-call results).
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef
+                && (inlineDef.IsNonExtractable || inlineDef.IsFlowControl))
             {
-                // Non-extractable functions (Set/Print/Pause) stay inline
-                if (inlineDef.IsNonExtractable)
-                    return (new(), invoke.ToString());
-
-                // Flow control functions → should not appear as arguments
-                if (inlineDef.IsFlowControl)
-                    return (new(), invoke.ToString());
+                return (new(), invoke.ToString());
             }
 
-            // Check registry for functions that need extraction (e.g., Get)
-            // Registered functions use their FormatInvocation to create proper statements.
+            // Expand this call's arguments once (nested calls → PubVars), shared by both paths below.
+            var (expansionStmts, expandedArgs) = ExpandArguments(invoke, blockName, context);
+
+            // Registered value-producing functions lower via their descriptor.
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } regFuncDef)
             {
-                var formatted = regFuncDef.FormatInvocation(invoke, blockName, context, null);
-                var lastStmt = formatted.LastOrDefault();
+                var lowered = regFuncDef.LowerToCFG(invoke, expandedArgs, blockName, context, null);
+                var lastStmt = lowered.LastOrDefault();
                 if (lastStmt?.PubVarTarget != null)
-                    return (formatted, lastStmt.PubVarTarget);
+                {
+                    var combined = new List<CFGStatement>(expansionStmts);
+                    combined.AddRange(lowered);
+                    return (combined, lastStmt.PubVarTarget);
+                }
+                // No target (e.g. PluginCallWithTarget nested) → fall through to helper path,
+                // which synthesizes a PubVar for the replacement expression.
             }
 
-            // This is a helper/regular function call that needs extraction
-            // First, recursively expand ITS arguments
-            var allStmts = new List<CFGStatement>();
-            var currentArgs = new List<string>();
-            foreach (var arg in invoke.ArgumentList.Arguments)
-            {
-                var (expanded, finalExpr) = ExpandExpression(arg.Expression, blockName, context);
-                allStmts.AddRange(expanded);
-                currentArgs.Add(finalExpr);
-            }
-
-            // Generate PubVar for this call
+            // Helper / regular function call: synthesize a PubVar assignment.
             var pubVarName = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
             if (!context.PubVarNames.Contains(pubVarName))
                 context.PubVarNames.Add(pubVarName);
 
-            var fingerprint = ExprUtils.ComputeFingerprint(funcName, currentArgs);
-
+            var allStmts = new List<CFGStatement>(expansionStmts);
             allStmts.Add(new CFGStatement
             {
                 BlockName = blockName,
@@ -390,9 +378,9 @@ public class BS2CFGConverter
                 PubVarTarget = pubVarName,
                 FunctionName = funcName,
                 FullFunctionName = fullFuncName,
-                Arguments = currentArgs,
+                Arguments = expandedArgs,
                 OriginalExpression = $"{pubVarName} = {invoke}",
-                Fingerprint = fingerprint
+                Fingerprint = ExprUtils.ComputeFingerprint(funcName, expandedArgs)
             });
 
             return (allStmts, pubVarName);
@@ -445,7 +433,7 @@ public class BS2CFGConverter
             if (string.IsNullOrEmpty(funcName)) return (result, null);
 
             var fullFuncName = ExprUtils.GetFullMethodName(invoke);
-            var formatted = FormatInvocation(invoke, funcName, blockName, context, null, fullFuncName);
+            var formatted = LowerAndPostProcess(invoke, funcName, blockName, context, null, fullFuncName);
 
             // The last statement should be the main call
             // If it already has a PubVarTarget, use it

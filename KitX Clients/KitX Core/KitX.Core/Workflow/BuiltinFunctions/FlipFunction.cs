@@ -48,26 +48,6 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             return stmt;
         }
 
-        public List<CFGStatement> FormatInvocation(
-            InvocationExpressionSyntax invoke, string blockName,
-            PipelineContext context, string? assignedVar)
-        {
-            var args = invoke.ArgumentList.Arguments;
-            var trueBlock = args.Count >= 1 ? GetStringLiteral(args[0].Expression) : "";
-            var falseBlock = args.Count >= 2 ? GetStringLiteral(args[1].Expression) : "";
-
-            return [new CFGStatement
-            {
-                BlockName = blockName,
-                Kind = CFGStatementKind.Branch, // Reuse Branch kind for pipeline routing
-                FunctionName = FunctionName,
-                TrueBlockName = trueBlock,
-                FalseBlockName = falseBlock,
-                OriginalExpression = invoke.ToString(),
-                SourceLine = 0,
-            }];
-        }
-
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
         public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)

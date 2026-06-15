@@ -39,12 +39,10 @@ public class GetFunction : IBuiltinFunctionDefinition
         return ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildGetInvocation(varName));
     }
 
-    public List<CFGStatement> FormatInvocation(
-        InvocationExpressionSyntax invoke, string blockName,
-        PipelineContext context, string? assignedVar)
+    public List<CFGStatement> LowerToCFG(
+        InvocationExpressionSyntax invoke, IReadOnlyList<string> expandedArgs,
+        string blockName, PipelineContext context, string? assignedVar)
     {
-        var args = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
-
         // Auto-generate PubVar if not already assigned
         string? pubVarTarget;
         if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
@@ -64,7 +62,7 @@ public class GetFunction : IBuiltinFunctionDefinition
             Kind = CFGStatementKind.Assignment,
             FunctionName = FunctionName,
             PubVarTarget = pubVarTarget,
-            Arguments = args,
+            Arguments = expandedArgs.ToList(),
             OriginalExpression = invoke.ToString(),
             SourceLine = 0,
         }];
@@ -81,25 +79,6 @@ public class GetFunction : IBuiltinFunctionDefinition
                 pin.DefaultValue = varName;
         }
         return node;
-    }
-
-    public (string?, string?, string?) ExtractStatementFields(
-        InvocationExpressionSyntax invoke, List<string> expandedArgs,
-        string? assignedVar, PipelineContext context)
-    {
-        string? pubVarTarget;
-        if (string.IsNullOrEmpty(assignedVar) || !context.PubVarNames.Contains(assignedVar))
-        {
-            pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
-            if (!context.PubVarNames.Contains(pubVarTarget))
-                context.PubVarNames.Add(pubVarTarget);
-        }
-        else
-        {
-            pubVarTarget = assignedVar;
-        }
-
-        return (null, null, pubVarTarget);
     }
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)

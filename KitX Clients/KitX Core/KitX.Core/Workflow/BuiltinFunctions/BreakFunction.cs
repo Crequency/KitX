@@ -32,20 +32,6 @@ public class BreakFunction : IBuiltinFunctionDefinition
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         => new() { ctx.Return() };
 
-    public List<CFGStatement> FormatInvocation(
-        InvocationExpressionSyntax invoke, string blockName,
-        PipelineContext context, string? assignedVar)
-    {
-        return [new CFGStatement
-        {
-            BlockName = blockName,
-            Kind = CFGStatementKind.Break,
-            FunctionName = FunctionName,
-            OriginalExpression = invoke.ToString(),
-            SourceLine = 0,
-        }];
-    }
-
     public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)

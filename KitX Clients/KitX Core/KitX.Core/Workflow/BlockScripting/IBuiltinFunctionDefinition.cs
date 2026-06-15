@@ -38,24 +38,6 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     CFGStatementKind StatementKind { get; }
 
-    // ─── 语句字段提取（可选，默认无操作）──────────────
-
-    /// <summary>
-    /// 从调用表达式中提取语句特定的字段（如 Set 的变量名、Get 的变量名和 PubVar）。
-    /// BS2CFGConverter.FormatInvocation 在处理已注册函数时调用此方法获取 Kind 之外的特殊字段。
-    /// 默认实现不提取任何特殊字段。
-    /// </summary>
-    /// <param name="invoke">原始 Roslyn 调用表达式</param>
-    /// <param name="expandedArgs">已展开的参数列表（可被修改，如 Set 移除第一个参数）</param>
-    /// <param name="assignedVar">语句左侧的赋值变量名（可能为 null）</param>
-    /// <param name="context">管线上下文（可用于 PubVar 计数器等状态）</param>
-    (string? setVarName, string? getVarName, string? pubVarTarget) ExtractStatementFields(
-        InvocationExpressionSyntax invoke,
-        List<string> expandedArgs,
-        string? assignedVar,
-        PipelineContext context)
-        => (null, null, null);
-
     // ─── 节点布局 ───────────────────────────────────
 
     /// <summary>蓝图节点宽度</summary>
@@ -81,14 +63,30 @@ public interface IBuiltinFunctionDefinition
     // ─── 格式化（AST → CFGStatement）─────────
 
     /// <summary>
-    /// 将函数调用格式化为展开后的 CFGStatement 列表。
-    /// 嵌套参数应在此时被展开为 PubVar 赋值。
+    /// 将已展开参数的调用降低为 CFGStatement 列表（AST→CFG 阶段，统一服务顶层与嵌套）。
+    /// 默认实现产出单条通用语句（Kind=StatementKind, Arguments=expandedArgs, PubVarTarget=assignedVar）；
+    /// 需要 PubVar 生成等自定义逻辑的函数（如 Get/TryGetDevice）覆写此方法。
+    /// BS2CFGConverter 对返回语句做横切后处理（StatementId/Fingerprint/PubVarNames 追踪）。
     /// </summary>
-    List<CFGStatement> FormatInvocation(
+    List<CFGStatement> LowerToCFG(
         InvocationExpressionSyntax invoke,
+        IReadOnlyList<string> expandedArgs,
         string blockName,
         PipelineContext context,
-        string? assignedVar);
+        string? assignedVar)
+        => new()
+        {
+            new CFGStatement
+            {
+                BlockName = blockName,
+                Kind = StatementKind,
+                FunctionName = FunctionName,
+                Arguments = expandedArgs.ToList(),
+                PubVarTarget = assignedVar,
+                OriginalExpression = invoke.ToString(),
+                SourceLine = 0,
+            }
+        };
 
     // ─── 节点构建（CFGStatement → BlueprintNode）──
 

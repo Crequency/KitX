@@ -29,22 +29,6 @@ namespace KitX.Core.Workflow.BuiltinFunctions
 
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-        public List<CFGStatement> FormatInvocation(
-            InvocationExpressionSyntax invoke, string blockName,
-            PipelineContext context, string? assignedVar)
-        {
-            var args = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
-            return [new CFGStatement
-            {
-                BlockName = blockName,
-                Kind = CFGStatementKind.Expression,
-                FunctionName = FunctionName,
-                Arguments = args,
-                OriginalExpression = invoke.ToString(),
-                SourceLine = 0,
-            }];
-        }
-
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)

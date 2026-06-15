@@ -46,13 +46,6 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             return stmt;
         }
 
-        public List<CFGStatement> FormatInvocation(
-            InvocationExpressionSyntax invoke, string blockName,
-            PipelineContext context, string? assignedVar)
-        {
-            return [];
-        }
-
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
         public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)

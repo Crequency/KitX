@@ -36,25 +36,6 @@ namespace KitX.Core.Workflow.BuiltinFunctions
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         => ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildPluginCallExpression(stmt, ctx.PubVarTypes));
 
-        public List<CFGStatement> FormatInvocation(
-            InvocationExpressionSyntax invoke, string blockName,
-            PipelineContext context, string? assignedVar)
-        {
-            var args = invoke.ArgumentList.Arguments
-                .Select(a => a.Expression.ToString())
-                .ToList();
-            return [new CFGStatement
-            {
-                BlockName = blockName,
-                Kind = CFGStatementKind.Expression,
-                FunctionName = FunctionName,
-                PubVarTarget = null,
-                Arguments = args,
-                OriginalExpression = invoke.ToString(),
-                SourceLine = 0,
-            }];
-        }
-
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper) => null;

@@ -44,23 +44,6 @@ namespace KitX.Core.Workflow.BuiltinFunctions
         return result;
     }
 
-        public List<CFGStatement> FormatInvocation(
-            InvocationExpressionSyntax invoke, string blockName,
-            PipelineContext context, string? assignedVar)
-        {
-            var currentArgExprs = invoke.ArgumentList.Arguments.Select(a => a.Expression.ToString()).ToList();
-
-            return [new CFGStatement
-            {
-                BlockName = blockName,
-                Kind = CFGStatementKind.Set,
-                FunctionName = FunctionName,
-                Arguments = currentArgExprs,
-                OriginalExpression = invoke.ToString(),
-                SourceLine = 0,
-            }];
-        }
-
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
         {
             // Set default value on VarName pin from first argument
@@ -72,14 +55,6 @@ namespace KitX.Core.Workflow.BuiltinFunctions
                     varPin.DefaultValue = varName;
             }
             return node;
-        }
-
-        public (string?, string?, string?) ExtractStatementFields(
-            InvocationExpressionSyntax invoke, List<string> expandedArgs,
-            string? assignedVar, PipelineContext context)
-        {
-            // Don't strip first arg — it stays as the VarName pin argument
-            return (null, null, null);
         }
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)

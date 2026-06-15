@@ -44,14 +44,10 @@ namespace KitX.Core.Workflow.BuiltinFunctions
             return new();
         }
 
-        public List<CFGStatement> FormatInvocation(
-            InvocationExpressionSyntax invoke, string blockName,
-            PipelineContext context, string? assignedVar)
+        public List<CFGStatement> LowerToCFG(
+            InvocationExpressionSyntax invoke, IReadOnlyList<string> expandedArgs,
+            string blockName, PipelineContext context, string? assignedVar)
         {
-            var args = invoke.ArgumentList.Arguments
-                .Select(a => a.Expression.ToString())
-                .ToList();
-
             string? pubVarTarget;
             if (!string.IsNullOrEmpty(assignedVar))
             {
@@ -70,7 +66,7 @@ namespace KitX.Core.Workflow.BuiltinFunctions
                 Kind = CFGStatementKind.TryGetDevice,
                 FunctionName = FunctionName,
                 PubVarTarget = pubVarTarget,
-                Arguments = args,
+                Arguments = expandedArgs.ToList(),
                 OriginalExpression = invoke.ToString(),
                 SourceLine = 0,
             }];
