@@ -57,6 +57,9 @@ public static class ServiceCollectionExtensions
             var deviceServer = provider.GetRequiredService<IDeviceServer>();
             return new RealPluginManager(pluginServer, eventService, deviceDiscoveryService, deviceServer, provider.GetRequiredService<IDeviceHttpClient>());
         });
+        // Expose the same RealPluginManager instance under the bridge contract so the
+        // host (Dashboard) can pre-resolve it to force eager singleton construction.
+        services.AddSingleton<IRealPluginManagerBridge>(sp => sp.GetRequiredService<RealPluginManager>());
 
         // KCS File Service
         services.AddSingleton<IKcsFileService, KcsFileService>();
