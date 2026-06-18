@@ -111,9 +111,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPlugin.Winform.Core", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestPlugin.WPF.Core", "KitX SDK\KitX Plugins\TestPlugin.WPF.Core\TestPlugin.WPF.Core.csproj", "{73C9C918-2222-4425-9214-887BED47C77F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Csharpell", "Reference\CSharpell\Csharpell\Csharpell.csproj", "{657F7502-43A9-4FC0-8026-1C8F2D103DBA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Csharpell", "Reference\Csharpell\Csharpell\Csharpell.csproj", "{657F7502-43A9-4FC0-8026-1C8F2D103DBA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Csharpell.Core", "Reference\CSharpell\Csharpell.Core\Csharpell.Core.csproj", "{C161612B-8AE2-4F1C-A29E-875C411F31D1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Csharpell.Core", "Reference\Csharpell\Csharpell.Core\Csharpell.Core.csproj", "{C161612B-8AE2-4F1C-A29E-875C411F31D1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KitX File Formats", "KitX File Formats", "{A0152BF5-A875-40C0-BD57-D99DDCDB5D4C}"
 EndProject
