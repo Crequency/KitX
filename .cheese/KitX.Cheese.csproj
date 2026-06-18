@@ -6,4 +6,11 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <NoWarn>CS8802</NoWarn>
+        <NoWarn>CS0246</NoWarn>
+        <NoWarn>CS0103</NoWarn>
+        <NoWarn>CS0136</NoWarn>
+    </PropertyGroup>
+
 </Project>

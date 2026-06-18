@@ -1,0 +1,85 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="ARM" />
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/KitX Clients/" />
+  <Folder Name="/KitX Clients/KitX Dashboard/">
+    <File Path="KitX Clients/KitX Dashboard/.gitignore" />
+    <File Path="KitX Clients/KitX Dashboard/LICENSE" />
+    <File Path="KitX Clients/KitX Dashboard/README.md" />
+    <Project Path="KitX Clients/KitX Dashboard/KitX Dashboard Assets/KitX.Dashboard.Assets.csproj" />
+    <Project Path="KitX Clients/KitX Dashboard/KitX Dashboard Fonts/KitX.Dashboard.Fonts.csproj" />
+    <Project Path="KitX Clients/KitX Dashboard/KitX Dashboard Repair Tool/KitX.Dashboard.RepairTool.csproj" />
+    <Project Path="KitX Clients/KitX Dashboard/KitX Dashboard Updater/KitX.Dashboard.Updater.csproj" />
+    <Project Path="KitX Clients/KitX Dashboard/KitX Dashboard/KitX.Dashboard.csproj" />
+  </Folder>
+  <Folder Name="/KitX Clients/KitX Dashboard/Specific/">
+    <Project Path="KitX Clients/KitX Dashboard/Specific/KitX Dashboard Specific MsWindows/KitX.Dashboard.Specific.MsWindows.csproj" />
+  </Folder>
+  <Folder Name="/KitX SDK/">
+    <File Path="KitX SDK/.gitignore" />
+    <File Path="KitX SDK/.gitmodules" />
+    <File Path="KitX SDK/LICENSE" />
+    <File Path="KitX SDK/README.md" />
+  </Folder>
+  <Folder Name="/KitX SDK/Generators/">
+    <Project Path="KitX SDK/Generators/KitX.Sdk.Generators.CSharp/KitX.Sdk.Generators.CSharp.csproj" />
+  </Folder>
+  <Folder Name="/KitX SDK/KitX Loaders/">
+    <File Path="KitX SDK/KitX Loaders/.gitignore" />
+    <File Path="KitX SDK/KitX Loaders/LICENSE" />
+    <File Path="KitX SDK/KitX Loaders/README.md" />
+    <Project Path="KitX SDK/KitX Loaders/KitX.Loader.CSharp/KitX.Loader.CSharp.csproj" />
+    <Project Path="KitX SDK/KitX Loaders/KitX.Loader.Winform.Core/KitX.Loader.Winform.Core.csproj" />
+    <Project Path="KitX SDK/KitX Loaders/KitX.Loader.WPF.Core/KitX.Loader.WPF.Core.csproj" />
+  </Folder>
+  <Folder Name="/KitX SDK/KitX Plugins/">
+    <File Path="KitX SDK/KitX Plugins/.gitignore" />
+    <File Path="KitX SDK/KitX Plugins/LICENSE" />
+    <File Path="KitX SDK/KitX Plugins/README.md" />
+    <Project Path="KitX SDK/KitX Plugins/TestPlugin.CSharp/TestPlugin.CSharp.csproj" />
+    <Project Path="KitX SDK/KitX Plugins/TestPlugin.Winform.Core/TestPlugin.Winform.Core.csproj" />
+    <Project Path="KitX SDK/KitX Plugins/TestPlugin.WPF.Core/TestPlugin.WPF.Core.csproj" />
+  </Folder>
+  <Folder Name="/KitX SDK/Reference/" />
+  <Folder Name="/KitX SDK/Reference/XamlMultiLanguageEditor/">
+    <Project Path="KitX SDK/Reference/XamlMultiLanguageEditor/XamlMultiLanguageEditor.Winform/XamlMultiLanguageEditor.Winform.csproj" />
+  </Folder>
+  <Folder Name="/KitX SDK/Units/">
+    <Project Path="KitX SDK/Utils/SyncCodes/SyncCodes.csproj" />
+  </Folder>
+  <Folder Name="/KitX Standard/">
+    <File Path="KitX Standard/.gitignore" />
+    <File Path="KitX Standard/LICENSE" />
+    <File Path="KitX Standard/README.md" />
+  </Folder>
+  <Folder Name="/KitX Standard/KitX Contracts/">
+    <File Path="KitX Standard/KitX Contracts/README.md" />
+    <Project Path="KitX Standard/KitX Contracts/KitX.Contract.CSharp/KitX.Contract.CSharp.csproj" />
+  </Folder>
+  <Folder Name="/KitX Standard/KitX File Formats/">
+    <Project Path="KitX Standard/KitX File Formats/KitX.FileFormats.CSharp/KitX.FileFormats.CSharp.csproj" />
+  </Folder>
+  <Folder Name="/KitX Standard/KitX Script/">
+    <Project Path="KitX Standard/KitX Script/Kscript.Compiler/Kscript.Compiler.csproj" />
+    <Project Path="KitX Standard/KitX Script/Kscript.Parser/Kscript.Parser.csproj" />
+    <Project Path="KitX Standard/KitX Script/Kscript.VM/Kscript.VM.csproj" />
+  </Folder>
+  <Folder Name="/KitX Standard/KitX Shared/">
+    <Project Path="KitX Standard/KitX Shared/KitX.Shared.CSharp/KitX.Shared.CSharp.csproj" />
+  </Folder>
+  <Folder Name="/Reference/">
+    <Project Path="Reference/Common.Activity/Common.Activity/Common.Activity.csproj" />
+    <Project Path="Reference/Common.BasicHelper/Common.BasicHelper/Common.BasicHelper.csproj" />
+    <Project Path="Reference/Common.Update/Common.Update.Checker/Common.Update.Checker.csproj" />
+    <Project Path="Reference/Common.Update/Common.Update.Manual/Common.Update.Manual.csproj" />
+    <Project Path="Reference/Common.Update/Common.Update.Replacer/Common.Update.Replacer.csproj" />
+    <Project Path="Reference/CSharpell/Csharpell.Core/Csharpell.Core.csproj" />
+    <Project Path="Reference/CSharpell/Csharpell/Csharpell.csproj" />
+  </Folder>
+  <Project Path=".cheese/KitX.Cheese.csproj" />
+</Solution>

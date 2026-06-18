@@ -1,0 +1,29 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "git.autorefresh": true,
+    "dotnet.defaultSolution": "KitX.slnx",
+    "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "[csharp]": {
+      "editor.defaultFormatter": "csharpier.csharpier-vscode",
+      "editor.formatOnSave": true,
+      "editor.rulers": [140, 160]
+    },
+    "[xml]": {
+      "editor.defaultFormatter": "PrateekMahendrakar.prettyxml",
+      "editor.formatOnSave": true
+    },
+    "[xaml]": {
+      "editor.defaultFormatter": "PrateekMahendrakar.prettyxml",
+      "editor.formatOnSave": true
+    },
+    "prettyxml.settings.formatOnSave": true,
+    "prettyxml.settings.preserveWhiteSpacesInComment": true
+  }
+}
