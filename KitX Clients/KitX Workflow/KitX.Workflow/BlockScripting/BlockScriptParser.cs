@@ -37,6 +37,10 @@ public class BlockScriptParser : IBlockScriptParser
             };
         }
 
+        // Declared outside the try so the catch block can still attach whatever diagnostics
+        // were collected before the exception.
+        var diagnostics = new ConversionDiagnostics();
+
         try
         {
             Log.Debug("[BlockScriptParser] Parse called with {LineCount} lines of code", sourceCode.Split('\n').Length);
@@ -75,12 +79,13 @@ public class BlockScriptParser : IBlockScriptParser
                     {
                         IsSuccess = false,
                         ErrorMessage = validationResult.ErrorMessage,
-                        ErrorLine = recognized.StartLine + validationResult.ErrorLine
+                        ErrorLine = recognized.StartLine + validationResult.ErrorLine,
+                        Diagnostics = diagnostics
                     };
                 }
 
                 // Phase 3: Extract statements and create BlockDefinition
-                var blockDef = _extractor.CreateBlockDefinition(recognized, validationResult);
+                var blockDef = _extractor.CreateBlockDefinition(recognized, validationResult, diagnostics);
 
                 // Add to appropriate slot in script
                 switch (recognized.BlockType)
@@ -119,7 +124,8 @@ public class BlockScriptParser : IBlockScriptParser
             return new BlockScriptParseResult
             {
                 IsSuccess = true,
-                Script = script
+                Script = script,
+                Diagnostics = diagnostics
             };
         }
         catch (Exception ex)
@@ -129,7 +135,8 @@ public class BlockScriptParser : IBlockScriptParser
             {
                 IsSuccess = false,
                 ErrorMessage = $"Parse error: {ex.Message}",
-                ErrorLine = 0
+                ErrorLine = 0,
+                Diagnostics = diagnostics
             };
         }
     }

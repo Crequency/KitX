@@ -44,7 +44,7 @@ namespace KitX.Workflow.BuiltinFunctions
                 SourceCode = exprText ?? invoke.ToFullString(),
                 ControlType = FlowControlType.ToLoopCond
             };
-            if (args.Count >= 1) stmt.ToLoopCondReturnTo = GetStringLiteral(args[0].Expression);
+            if (args.Count >= 1) stmt.ToLoopCondReturnTo = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
             return stmt;
         }
 
@@ -107,9 +107,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public IEnumerable<OutputArmDescriptor> GetOutputArms() => [
             new() { PinName = "Exec", IsLoopback = false }
         ];
-
-        private static string GetStringLiteral(ExpressionSyntax expr) =>
-            expr is LiteralExpressionSyntax lit ? lit.Token.ValueText : expr.ToString().Trim('"');
     }
 }
 

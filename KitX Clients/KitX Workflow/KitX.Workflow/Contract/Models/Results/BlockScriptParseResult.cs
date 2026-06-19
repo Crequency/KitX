@@ -24,4 +24,11 @@ public class BlockScriptParseResult
     /// The parsed script if successful
     /// </summary>
     public BlockScript? Script { get; set; }
+
+    /// <summary>
+    /// User-facing diagnostics recorded during parsing (e.g. dead-code warnings, unsupported
+    /// statement forms). Empty when the parse is clean. Carried into the conversion result by
+    /// <c>BlockScriptToBlueprintConverter</c> so the Dashboard editor can surface them.
+    /// </summary>
+    public ConversionDiagnostics Diagnostics { get; set; } = new();
 }

@@ -44,6 +44,11 @@ internal class ConversionContext
     /// Maps loop node ID to the block name that contains the Loop statement.
     /// </summary>
     public Dictionary<string, string> LoopOwnerBlockNames { get; set; } = new();
+
+    /// <summary>
+    /// User-facing diagnostics accumulated across BP→CFG→BS phases.
+    /// </summary>
+    public ConversionDiagnostics Diagnostics { get; set; } = new();
 }
 
 /// <summary>

@@ -41,8 +41,8 @@ namespace KitX.Workflow.BuiltinFunctions
                 ControlType = FlowControlType.Loop
             };
             if (args.Count >= 1) stmt.ConditionExpression = args[0].Expression.ToString();
-            if (args.Count >= 2) stmt.TrueBlockName = GetStringLiteral(args[1].Expression);
-            if (args.Count >= 3) stmt.FalseBlockName = GetStringLiteral(args[2].Expression);
+            if (args.Count >= 2) stmt.TrueBlockName = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;
+            if (args.Count >= 3) stmt.FalseBlockName = ExprUtils.GetStringLiteralValue(args[2].Expression) ?? string.Empty;
             return stmt;
         }
 
@@ -94,9 +94,6 @@ namespace KitX.Workflow.BuiltinFunctions
             new() { PinName = "LoopBody", IsLoopback = false },
             new() { PinName = "LoopEnd", IsLoopback = false }
         ];
-
-        private static string GetStringLiteral(ExpressionSyntax expr) =>
-            expr is LiteralExpressionSyntax lit ? lit.Token.ValueText : expr.ToString().Trim('"');
     }
 }
 

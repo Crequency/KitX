@@ -43,8 +43,8 @@ namespace KitX.Workflow.BuiltinFunctions
                 SourceCode = exprText ?? invoke.ToFullString(),
                 ControlType = FlowControlType.Branch // Reuse Branch type for cross-block routing
             };
-            if (args.Count >= 1) stmt.TrueBlockName = GetStringLiteral(args[0].Expression);
-            if (args.Count >= 2) stmt.FalseBlockName = GetStringLiteral(args[1].Expression);
+            if (args.Count >= 1) stmt.TrueBlockName = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
+            if (args.Count >= 2) stmt.FalseBlockName = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;
             return stmt;
         }
 
@@ -90,9 +90,6 @@ namespace KitX.Workflow.BuiltinFunctions
             new() { PinName = "A", IsLoopback = false },
             new() { PinName = "B", IsLoopback = false }
         ];
-
-        private static string GetStringLiteral(ExpressionSyntax expr) =>
-            expr is LiteralExpressionSyntax lit ? lit.Token.ValueText : expr.ToString().Trim('"');
     }
 }
 

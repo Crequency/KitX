@@ -223,6 +223,77 @@ public class Program
             Console.WriteLine("└──────────────────────────────────────────┘\n");
             RunQualifiedPluginCallTest(parser);
         }
+
+        if (ShouldRunTest("T"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test T: Nested PluginCall in Set            │");
+            Console.WriteLine("└──────────────────────────────────────────────┘\n");
+            RunNestedPluginCallTest(parser);
+        }
+
+        if (ShouldRunTest("U"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test U: Conversion Diagnostics              │");
+            Console.WriteLine("└──────────────────────────────────────────────┘\n");
+            RunDiagnosticsTest(converter, helpers, "Test U");
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Test U: Conversion diagnostics surface user errors instead of silently dropping them.
+    // Guards the P0 diagnostics channel: a clean script yields no diagnostics, and dead code
+    // after a flow-control statement (BlockScript §6) yields a BS_DEAD_CODE warning.
+    // ──────────────────────────────────────────────
+    private static void RunDiagnosticsTest(
+        BlockScriptToBlueprintConverter converter,
+        List<HelperFunction> helpers,
+        string label)
+    {
+        bool allPassed = true;
+
+        // U1: a valid script produces NO diagnostics.
+        try
+        {
+            converter.Convert(GetRawNestedScript(), helpers);
+            var diag = converter.LastDiagnostics;
+            bool clean = diag == null || (!diag.HasErrors && !diag.HasWarnings);
+            Console.WriteLine($"  [U1] Clean script diagnostics: {(clean ? "none (expected)" : diag!.Format())}");
+            if (!clean) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  [U1] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        // U2: dead code after a flow-control statement → BS_DEAD_CODE warning (non-fatal).
+        try
+        {
+            var src = @"#MainBlock
+Print(""before"");
+NextBlock = Branch(true, ""T"", ""F"");
+Print(""dead"");
+
+#Block T
+Print(""t"");
+
+#Block F
+Print(""f"");";
+            converter.Convert(src, helpers);
+            var diag = converter.LastDiagnostics;
+            bool hasDeadCode = diag != null && diag.Items.Any(d => d.Code == "BS_DEAD_CODE");
+            Console.WriteLine($"  [U2] Dead-code warning emitted: {hasDeadCode}");
+            if (!hasDeadCode) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  [U2] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
+        Console.WriteLine($"\n[{label}] {(allPassed ? "PASS - diagnostics channel works" : "FAIL - see above")}");
     }
 
     private static void ParseArgs(string[] args)
@@ -1828,5 +1899,73 @@ TestPlugin.WPF.Core.HelloAnything(v);
         {
             Console.WriteLine($"[Test S] FAILED: {ex.Message}\n  {ex.StackTrace}");
         }
+    }
+
+    // Test T: Nested PluginCall inside Set — does the BS→CFG expander flatten it
+    // into a temp PubVar + standalone PluginCall, the way it does for Helper functions
+    // (Test B/C exercise HelperFuncAdd(Get(...), 1))? If yes, the generated C# should
+    // compile cleanly. If no, the nested PluginCall is emitted verbatim and fails with
+    // CS0103 'PluginCall does not exist' — a real converter gap worth fixing.
+    private static void RunNestedPluginCallTest(IBlockScriptParser parser)
+    {
+        Console.WriteLine("[Test T] Nested PluginCall as Set argument — expander coverage check");
+
+        // Form 1: builtin PluginCall(plugin, method, args) nested in Set.
+        var sourceBuiltin = @"
+#PubVarBlock
+dynamic result;
+
+#MainBlock
+Set(""result"", PluginCall(""TestPlugin"", ""Echo"", ""hello""));
+Print(Get(""result""));
+";
+
+        // Form 2: dotted Plugin.Method(args) nested in Set.
+        var sourceDotted = @"
+#PubVarBlock
+dynamic result;
+
+#MainBlock
+Set(""result"", TestPlugin.Echo(""hello""));
+Print(Get(""result""));
+";
+
+        int fails = 0;
+
+        foreach (var (label, src) in new[] { ("builtin", sourceBuiltin), ("dotted", sourceDotted) })
+        {
+            try
+            {
+                var pr = parser.Parse(src);
+                if (!pr.IsSuccess || pr.Script == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: parse error: {pr.ErrorMessage}");
+                    fails++;
+                    continue;
+                }
+                pr.Script.HelperFunctions = new List<HelperFunction>();
+
+                var compiler = new CSCompiler();
+                var compiled = compiler.CompileScript(pr.Script, workflowId: null, out var errors);
+                if (compiled != null)
+                {
+                    Console.WriteLine($"  [{label}] PASS: nested PluginCall expanded + compiled");
+                }
+                else
+                {
+                    Console.WriteLine($"  [{label}] FAIL: compiled null, {errors.Count} error(s):");
+                    foreach (var e in errors.Take(3))
+                        Console.WriteLine($"         {e}");
+                    fails++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  [{label}] FAIL: {ex.Message}");
+                fails++;
+            }
+        }
+
+        Console.WriteLine($"[Test T] {(fails == 0 ? "PASS" : "FAIL - see above")}");
     }
 }

@@ -69,7 +69,9 @@ public class BuiltinFunctionRegistry
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning(ex, "[BuiltinFunctionRegistry] Failed to instantiate {Type}", type.Name);
+                        // Engine-internal: a builtin function definition failed to construct. This is a
+                        // backend bug, not a user/workflow-author error — log to Serilog, do not surface.
+                        Log.Error(ex, "[BuiltinFunctionRegistry] Failed to instantiate {Type}", type.Name);
                     }
                 }
             }

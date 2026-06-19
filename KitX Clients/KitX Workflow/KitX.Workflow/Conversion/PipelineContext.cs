@@ -66,6 +66,12 @@ public class PipelineContext
 
     // --- Debug tracking ---
     public List<string> DebugLog { get; set; } = new();
+
+    /// <summary>
+    /// User-facing diagnostics accumulated across BS→CFG→BP phases. Backend-bug-class
+    /// problems go to Serilog instead and are NOT collected here.
+    /// </summary>
+    public ConversionDiagnostics Diagnostics { get; set; } = new();
 }
 
 /// <summary>

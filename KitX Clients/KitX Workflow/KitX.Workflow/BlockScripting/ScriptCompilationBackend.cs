@@ -19,9 +19,17 @@ internal static class ScriptCompilationBackend
     /// </summary>
     /// <param name="compilationUnit">The syntax tree to compile.</param>
     /// <param name="hash">Script hash used for naming.</param>
+    /// <param name="errors">When compilation fails, receives the human-readable Roslyn
+    /// diagnostics (one entry per error, capped at 10). Null/empty on success. Surfacing
+    /// these lets the Dashboard show WHY a workflow failed to compile instead of just
+    /// "Script compilation failed".</param>
     /// <returns>A memory stream containing the assembly, or null on failure.</returns>
-    internal static MemoryStream? CompileToAssembly(CompilationUnitSyntax compilationUnit, string hash)
+    internal static MemoryStream? CompileToAssembly(
+        CompilationUnitSyntax compilationUnit,
+        string hash,
+        out IReadOnlyList<string>? errors)
     {
+        errors = null;
         var normalized = compilationUnit.NormalizeWhitespace();
         var sourceText = normalized.ToFullString();
 
@@ -55,6 +63,9 @@ internal static class ScriptCompilationBackend
                 Log.Warning("[ScriptCompilationBackend]   {Diagnostic}", diag);
             }
 
+            // Hand the diagnostics back to the caller so it can surface them in the UI,
+            // not just in the log file.
+            errors = diagnostics;
             return null;
         }
 
@@ -63,6 +74,14 @@ internal static class ScriptCompilationBackend
             assemblyStream.Length);
         return assemblyStream;
     }
+
+    /// <summary>
+    /// Backwards-compatible overload that discards diagnostics. Prefer the
+    /// <see cref="CompileToAssembly(CompilationUnitSyntax, string, out IReadOnlyList{string}?)"/>
+    /// overload at new call sites.
+    /// </summary>
+    internal static MemoryStream? CompileToAssembly(CompilationUnitSyntax compilationUnit, string hash)
+        => CompileToAssembly(compilationUnit, hash, out _);
 
     /// <summary>
     /// Gets the set of <see cref="MetadataReference"/>s needed for compilation.

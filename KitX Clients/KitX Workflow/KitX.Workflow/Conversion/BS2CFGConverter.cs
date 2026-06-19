@@ -68,10 +68,25 @@ public class BS2CFGConverter
     private CFGBlock FormatBlock(BlockDefinition blockDef, PipelineContext context)
     {
         var result = new CFGBlock { Name = blockDef.Name, NextBlockName = blockDef.NextBlockName };
+        // BlockScript §6: a flow-control statement (Branch/Loop/ToLoopCond/Break) terminates
+        // the block; any statement after it is unreachable dead code. Track the terminator and
+        // warn (non-fatal) on subsequent statements instead of silently formatting them.
+        bool seenTerminator = false;
         foreach (var stmt in blockDef.Statements)
         {
+            if (seenTerminator)
+            {
+                context.Diagnostics.AddWarning("BS_DEAD_CODE",
+                    $"Unreachable statement after flow-control in block '{blockDef.Name}' is ignored",
+                    stmt.LineNumber > 0 ? stmt.LineNumber : null);
+                continue;
+            }
+
             var formatted = FormatStatement(stmt, blockDef.Name, context);
             result.Statements.AddRange(formatted);
+
+            if (stmt is FlowControlStatement)
+                seenTerminator = true;
         }
         return result;
     }
@@ -86,6 +101,11 @@ public class BS2CFGConverter
             case ExpressionStatement expr:
                 return FormatExpressionStatement(expr, blockName, context);
             default:
+                // Per BlockScript §4.3, variable declarations are not allowed inside MainBlock/
+                // NamedBlock; any other unhandled statement form is a user error, not a silent drop.
+                context.Diagnostics.AddWarning("BS_UNSUPPORTED_STMT",
+                    $"Unsupported statement kind '{stmt.GetType().Name}' in block '{blockName}' is skipped",
+                    stmt.LineNumber > 0 ? stmt.LineNumber : null);
                 return new();
         }
     }
@@ -183,13 +203,41 @@ public class BS2CFGConverter
         var result = new List<CFGStatement>();
         var expression = exprStmt.Expression;
 
-        // Try to parse the expression
-        var parsed = ExprUtils.ParseStatement(expression);
-        if (parsed == null) return result;
+        // Prefer the invocation that BlockStatementExtractor already parsed and attached, avoiding
+        // a second Roslyn parse of the same expression text (the double-parse smell). Fall back to
+        // parsing Expression when ParsedInvocation is absent (e.g. programmatically-built statements
+        // produced by CFG2BSConverter from a CFG, which have no source tree attached).
+        ExpressionSyntax? rightExpr;
+        string? assignedVar;
+        if (exprStmt.ParsedInvocation is { } preParsed)
+        {
+            rightExpr = preParsed;
+            assignedVar = exprStmt.AssignedVariable;
+        }
+        else
+        {
+            var parsed = ExprUtils.ParseStatement(expression);
+            if (parsed == null)
+            {
+                context.Diagnostics.AddError("BS_UNPARSEABLE_STMT",
+                    $"Could not parse statement in block '{blockName}': {expression}",
+                    exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
+                return result;
+            }
 
-        var (rightExpr, assignedVar) = parsed.Value;
+            var (r, a) = parsed.Value;
 
-        if (rightExpr == null) return result;
+            if (r == null)
+            {
+                context.Diagnostics.AddError("BS_UNPARSEABLE_STMT",
+                    $"Statement in block '{blockName}' has no right-hand expression: {expression}",
+                    exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
+                return result;
+            }
+
+            rightExpr = r;
+            assignedVar = a;
+        }
 
         // Handle "NextBlock = ..." assignments (should be handled as FlowControl by parser)
         if (assignedVar != null && assignedVar == "NextBlock")
@@ -199,7 +247,13 @@ public class BS2CFGConverter
         if (rightExpr is InvocationExpressionSyntax invoke)
         {
             var funcName = ExprUtils.GetMethodName(invoke);
-            if (string.IsNullOrEmpty(funcName)) return result;
+            if (string.IsNullOrEmpty(funcName))
+            {
+                context.Diagnostics.AddError("BS_EMPTY_FUNCNAME",
+                    $"Invocation in block '{blockName}' has no resolvable function name: {expression}",
+                    exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
+                return result;
+            }
 
             // Skip flow control functions (handled by FlowControlStatement)
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.IsFlowControl)

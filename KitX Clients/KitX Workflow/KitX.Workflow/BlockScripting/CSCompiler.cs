@@ -54,7 +54,9 @@ internal class CSCompiler
 
     /// <summary>
     /// Compiles a <see cref="BlockScript"/> into an <see cref="ICompiledBlockScript"/>.
-    /// Returns <c>null</c> if compilation fails (caller should fall back to CSharpScript).
+    /// Returns <c>null</c> if compilation fails; Roslyn diagnostics are surfaced via the
+    /// <c>out compileErrors</c> overload so the caller (e.g. the Dashboard output panel) can
+    /// show why compilation failed.
     /// </summary>
     public ICompiledBlockScript? CompileScript(BlockScript script) =>
         CompileScript(script, workflowId: null);
@@ -64,7 +66,19 @@ internal class CSCompiler
     /// with optional disk persistence for cross-session reuse.
     /// </summary>
     public ICompiledBlockScript? CompileScript(BlockScript script, string? workflowId)
+        => CompileScript(script, workflowId, out _);
+
+    /// <summary>
+    /// Compiles a <see cref="BlockScript"/> and reports Roslyn diagnostics on failure.
+    /// Use this overload when the caller wants to surface WHY compilation failed
+    /// (e.g. the workflow editor output panel).
+    /// </summary>
+    public ICompiledBlockScript? CompileScript(
+        BlockScript script,
+        string? workflowId,
+        out IReadOnlyList<string> compileErrors)
     {
+        compileErrors = Array.Empty<string>();
         var hash = ScriptCompilationBackend.ComputeScriptHash(script);
 
         // Step 1: Check in-memory cache
@@ -97,9 +111,12 @@ internal class CSCompiler
                 script, formattedScript, pubVarTypes, hash);
 
             // Phase 3: Compile via CSharpCompilation
-            var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash);
+            var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash, out var errors);
             if (assembly == null)
+            {
+                compileErrors = errors ?? Array.Empty<string>();
                 return null;
+            }
 
             // Phase 4: Load into collectible ALContext and instantiate
             var alc = new CollectibleAssemblyLoadContext(hash);
@@ -109,6 +126,7 @@ internal class CSCompiler
             if (scriptType == null)
             {
                 Log.Warning("[CSCompiler] Compiled type not found in assembly");
+                compileErrors = new[] { "Compiled type not found in generated assembly (workflow engine bug)." };
                 alc.Unload();
                 return null;
             }
@@ -127,7 +145,8 @@ internal class CSCompiler
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[CSCompiler] Compilation failed, returning null for fallback");
+            Log.Warning(ex, "[CSCompiler] Compilation threw an exception");
+            compileErrors = new[] { $"Compilation threw an exception: {ex.Message}" };
             return null;
         }
     }
@@ -139,7 +158,18 @@ internal class CSCompiler
     /// </summary>
     public ICompiledBlockScript? CompileFromCFG(
         ControlFlowGraph cfg, BlockScript script, string? workflowId)
+        => CompileFromCFG(cfg, script, workflowId, out _);
+
+    /// <summary>
+    /// CFG-path variant that also reports Roslyn diagnostics on failure.
+    /// </summary>
+    public ICompiledBlockScript? CompileFromCFG(
+        ControlFlowGraph cfg,
+        BlockScript script,
+        string? workflowId,
+        out IReadOnlyList<string> compileErrors)
     {
+        compileErrors = Array.Empty<string>();
         var baseHash = ScriptCompilationBackend.ComputeScriptHash(script);
         var hash = CFG2CSGenerator.IsDebugMode ? $"debug_{baseHash}" : baseHash;
 
@@ -175,14 +205,23 @@ internal class CSCompiler
             var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(cfg, script.HelperFunctions, context);
 
             var compilationUnit = CFG2CSGenerator.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
-            var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash);
-            if (assembly == null) return null;
+            var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash, out var errors);
+            if (assembly == null)
+            {
+                compileErrors = errors ?? Array.Empty<string>();
+                return null;
+            }
 
             var alc = new CollectibleAssemblyLoadContext(hash);
             var loadedAssembly = alc.LoadFromStream(assembly);
             var typeName = $"KitX.Workflow.BlockScripting.Generated.CompiledScript_{hash}";
             var scriptType = loadedAssembly.GetType(typeName);
-            if (scriptType == null) { alc.Unload(); return null; }
+            if (scriptType == null)
+            {
+                compileErrors = new[] { "Compiled type not found in generated assembly (workflow engine bug)." };
+                alc.Unload();
+                return null;
+            }
 
             var instance = (ICompiledBlockScript)Activator.CreateInstance(scriptType)!;
             _cache[hash] = new CompiledScriptEntry(instance, alc);
@@ -196,6 +235,7 @@ internal class CSCompiler
         catch (Exception ex)
         {
             Log.Warning(ex, "[CSCompiler] CompileFromCFG failed");
+            compileErrors = new[] { $"Compilation threw an exception: {ex.Message}" };
             return null;
         }
     }

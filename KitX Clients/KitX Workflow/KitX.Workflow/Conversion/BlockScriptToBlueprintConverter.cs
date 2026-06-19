@@ -22,6 +22,13 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
     /// </summary>
     public PipelineContext? LastContext { get; private set; }
 
+    /// <summary>
+    /// User-facing diagnostics from the last conversion (parse-time + convert-time merged).
+    /// Empty when the conversion was clean. Surface this in the Dashboard editor output panel
+    /// the same way <c>BlockScriptExecutor.FormatCompileErrors</c> surfaces compile errors.
+    /// </summary>
+    public ConversionDiagnostics? LastDiagnostics => LastContext?.Diagnostics;
+
     public BlockScriptToBlueprintConverter(
         IBlockScriptParser parser,
         INodeRegistry nodeRegistry,
@@ -50,7 +57,12 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
         if (helperFunctions != null)
             result.Script.HelperFunctions = helperFunctions;
 
-        return Convert(result.Script);
+        var blueprint = Convert(result.Script);
+
+        // Surface parse-time diagnostics (e.g. unsupported-statement warnings) alongside the
+        // convert-time diagnostics already collected on LastContext.
+        LastContext?.Diagnostics.AddRange(result.Diagnostics);
+        return blueprint;
     }
 
     public KitX.Core.Contract.Workflow.Blueprint Convert(BlockScript script)

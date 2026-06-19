@@ -46,6 +46,12 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 
     public KitX.Core.Contract.Workflow.Blueprint Blueprint { get; private set; } = null!;
 
+    /// <summary>
+    /// User-facing diagnostics from the last BP→BS conversion. Empty when clean. Surface in the
+    /// Dashboard editor output panel; backend-bug-class problems stay in Serilog logs.
+    /// </summary>
+    public ConversionDiagnostics? LastDiagnostics { get; private set; }
+
     public string Convert(KitX.Core.Contract.Workflow.Blueprint blueprint)
         => ConvertToBlockScript(blueprint).SourceCode;
 
@@ -60,6 +66,7 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         // Phase 1: BP → CFG via pipeline
         var cfg = CFGPipeline.BP2CFG(blueprint, _strategyMap, _builtinMap, _exportHelper, prebuiltBuilder: _cfgBuilder);
         LastCFG = cfg;
+        LastDiagnostics = ctx.Diagnostics;
 
         Log.Debug("[BlueprintToScript] CFG: {BlockCount} blocks, {EdgeCount} edges",
             cfg.Blocks.Count, cfg.Blocks.Sum(b => b.Successors.Count));

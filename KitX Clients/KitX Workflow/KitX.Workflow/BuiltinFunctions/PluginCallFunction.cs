@@ -15,7 +15,14 @@ namespace KitX.Workflow.BuiltinFunctions
         public string FunctionName => "PluginCall";
         public string DisplayName => "PluginCall";
         public bool IsFlowControl => false;
-        public bool IsNonExtractable => true;
+        // PluginCall has a return value (OutputPin "Return") and is meant to be used as
+        // an expression in argument position (e.g. Set("x", PluginCall("P","M",arg))).
+        // IsNonExtractable=true would make BS2CFGConverter.ExpandExpression keep it inline
+        // as a raw string instead of expanding it into a temp PubVar + standalone call,
+        // which then fails to compile (CS0103 'PluginCall' undefined in generated C#).
+        // false matches PluginCallWithTarget/Get/TryGetDevice — value-producing builtins
+        // that CAN be nested. Set/Print/Pause stay true (pure side-effects, no return).
+        public bool IsNonExtractable => false;
         public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 140;
         public double NodeHeight => 80;

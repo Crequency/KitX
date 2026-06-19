@@ -44,6 +44,8 @@
     <Project Path="KitX SDK/KitX Plugins/TestPlugin.CSharp/TestPlugin.CSharp.csproj" />
     <Project Path="KitX SDK/KitX Plugins/TestPlugin.Winform.Core/TestPlugin.Winform.Core.csproj" />
     <Project Path="KitX SDK/KitX Plugins/TestPlugin.WPF.Core/TestPlugin.WPF.Core.csproj" />
+    <Project Path="KitX SDK/KitX Plugins/OfficialPlugins/KitX.AI.Plugin/KitX.AI.Plugin.csproj" />
+    <Project Path="KitX SDK/KitX Plugins/OfficialPlugins/KitX.FloatAssist.Plugin/KitX.FloatAssist.Plugin.csproj" />
   </Folder>
   <Folder Name="/KitX SDK/Reference/" />
   <Folder Name="/KitX SDK/Reference/XamlMultiLanguageEditor/">

@@ -583,8 +583,16 @@ internal static class CFG2CSGenerator
                     }
                     else
                     {
-                        rawExpr = ParseExpression(
-                            $"{stmt.FunctionName}({string.Join(", ", stmt.Arguments)})");
+                        // Unknown bare call (not a registered builtin, helper, or dotted plugin
+                        // method). Emit it as a direct invocation via SyntaxFactory so the Roslyn
+                        // compile step surfaces CS0103 (name not found) to the user, instead of
+                        // round-tripping through string concatenation + reparse.
+                        var bareArgs = stmt.Arguments
+                            .Select(a => Argument(ResolveArgumentExpression(a, pubVarTypes)))
+                            .ToArray();
+                        rawExpr = InvocationExpression(
+                            IdentifierName(stmt.FunctionName ?? string.Empty),
+                            ArgumentList(SeparatedList(bareArgs)));
                     }
 
                     caseStatements.AddRange(
@@ -694,9 +702,16 @@ internal static class CFG2CSGenerator
     internal static List<StatementSyntax> EmitDefaultStatements(CFGStatement stmt, CSEmitContext ctx)
     {
         var name = stmt.FunctionName ?? "";
-        var args = string.Join(", ", stmt.Arguments ?? new List<string>());
+        var argExprs = (stmt.Arguments ?? new List<string>())
+            .Select(a => ResolveArgumentExpression(a, ctx.PubVarTypes))
+            .ToArray();
         var isBuiltin = FunctionRegistry.AllFunctionNames.Contains(name);
-        var rawExpr = ParseExpression(isBuiltin ? $"G.{name}({args})" : $"{name}({args})");
+        // Build the invocation directly via SyntaxFactory (no string concat + reparse). For
+        // registered builtins emit G.Name(args); for helpers emit Name(args). An unresolved
+        // name surfaces as CS0103 at compile time — the same user-visible result as before.
+        var rawExpr = isBuiltin
+            ? BuildGInvoke(name, argExprs)
+            : InvocationExpression(IdentifierName(name), ArgumentList(SeparatedList(argExprs.Select(Argument))));
         return BuildValueAssignment(stmt.PubVarTarget, rawExpr, "object", ctx.PubVarTypes);
     }
 

@@ -111,14 +111,14 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             CFG2CSGenerator.IsDebugMode = _debugger != null;
 
             // Full-script assembly compilation
-            var compiled = _assemblyCompiler.CompileScript(script, _workflowId);
+            var compiled = _assemblyCompiler.CompileScript(script, _workflowId, out var compileErrors);
             if (compiled == null)
             {
                 _stopwatch.Stop();
                 return new BlockScriptExecutionResult
                 {
                     IsSuccess = false,
-                    ErrorMessage = "Script compilation failed",
+                    ErrorMessage = FormatCompileErrors(compileErrors),
                     ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
                     Output = _output
                 };
@@ -184,14 +184,14 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         {
             CFG2CSGenerator.IsDebugMode = _debugger != null;
 
-            var compiled = _assemblyCompiler.CompileFromCFG(cfg, script, _workflowId);
+            var compiled = _assemblyCompiler.CompileFromCFG(cfg, script, _workflowId, out var compileErrors);
             if (compiled == null)
             {
                 _stopwatch.Stop();
                 return new BlockScriptExecutionResult
                 {
                     IsSuccess = false,
-                    ErrorMessage = "Script compilation failed",
+                    ErrorMessage = FormatCompileErrors(compileErrors),
                     ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
                     Output = _output
                 };
@@ -315,5 +315,38 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             result.IsValid = false;
 
         return result;
+    }
+
+    /// <summary>
+    /// Formats Roslyn compilation diagnostics into a single multi-line string suitable
+    /// for display in the workflow editor's output panel. Capped at 10 entries so a flood
+    /// of cascading errors (e.g. one missing type producing dozens) stays readable.
+    /// </summary>
+    private static string FormatCompileErrors(IReadOnlyList<string>? errors)
+    {
+        if (errors is null || errors.Count == 0)
+            return "Script compilation failed (no diagnostic details were captured).";
+
+        const int maxShown = 10;
+        var sb = new System.Text.StringBuilder();
+        sb.Append("Script compilation failed with ");
+        sb.Append(errors.Count);
+        sb.Append(" error");
+        if (errors.Count != 1) sb.Append('s');
+        sb.Append(':');
+        sb.AppendLine();
+        var shown = Math.Min(maxShown, errors.Count);
+        for (var i = 0; i < shown; i++)
+        {
+            sb.Append("  • ");
+            sb.AppendLine(errors[i]);
+        }
+        if (errors.Count > maxShown)
+        {
+            sb.Append("  • …and ");
+            sb.Append(errors.Count - maxShown);
+            sb.AppendLine(" more (see Log/ for the full list).");
+        }
+        return sb.ToString().TrimEnd();
     }
 }
