@@ -51,8 +51,13 @@ public class DataEdgeBuilder
 
         if (funcDef != null)
         {
-            // Map arguments to input pins based on the function definition
-            var nonExecPins = funcDef.InputPins.Where(p => p.Type != PinType.Execution).ToList();
+            // Use the target node's actual input pins (may include dynamic pins added by
+            // ConfigureNode, e.g. StringConcatFunction and PluginCallFunction). The
+            // descriptor pins are a subset; reading from the node ensures extra arguments
+            // map to dynamically added pins and survive the BP round-trip.
+            var nonExecPins = targetNode.InputPins
+                .Where(p => p.Type != PinType.Execution)
+                .ToList();
 
             if (stmt.Arguments != null)
             {

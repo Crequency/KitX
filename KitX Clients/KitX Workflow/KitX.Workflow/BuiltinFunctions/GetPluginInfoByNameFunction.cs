@@ -43,10 +43,12 @@ namespace KitX.Workflow.BuiltinFunctions
             var pluginName = node is BuiltinFunctionNode bfn
                 ? bfn.Properties.GetValueOrDefault("PluginName", "") ?? ""
                 : "";
+            var expr = $"{FunctionName}(\"{pluginName}\")";
+            var pubVar = helper.GetOutputPubVar(node, "Return");
             return new ExpressionStatement
             {
-                Expression = $"{FunctionName}(\"{pluginName}\")",
-                SourceCode = $"{FunctionName}(\"{pluginName}\");",
+                Expression = expr,
+                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
                 LineNumber = 1
             };
         }

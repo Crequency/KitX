@@ -26,10 +26,14 @@ public partial class Program
 
         // --kcs <path>: compile a .kcs workflow file and report diagnostics.
         // Useful for validating real workflow scripts without running the Dashboard.
+        // --roundtrip (alongside --kcs): additionally run a BS→BP→BS→Compile round-trip
+        // to surface converter regressions a one-way compile would hide.
         var kcsIdx = Array.IndexOf(args, "--kcs");
         if (kcsIdx >= 0 && kcsIdx + 1 < args.Length)
         {
-            RunKcsCompileTest(args[kcsIdx + 1]);
+            bool withRoundTrip = Array.IndexOf(args, "--roundtrip") >= 0
+                || Array.IndexOf(args, "-r") >= 0;
+            RunKcsCompileTest(args[kcsIdx + 1], withRoundTrip);
             return;
         }
 
@@ -247,6 +251,14 @@ public partial class Program
             Console.WriteLine("│ Test U: Conversion Diagnostics              │");
             Console.WriteLine("└──────────────────────────────────────────────┘\n");
             RunDiagnosticsTest(converter, helpers, "Test U");
+        }
+
+        if (ShouldRunTest("V"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test V: StringConcat Round-Trip             │");
+            Console.WriteLine("└──────────────────────────────────────────────┘\n");
+            RunStringConcatRoundTripTest(parser, converter, reverseConverter, new List<HelperFunction>());
         }
     }
 
@@ -1976,5 +1988,129 @@ Print(Get(""result""));
         }
 
         Console.WriteLine($"[Test T] {(fails == 0 ? "PASS" : "FAIL - see above")}");
+    }
+
+    // Test V: StringConcat round-trip — verifies that:
+    //   1. BS source with "+" string concatenation compiles to assembly.
+    //   2. BS→BP→BS round-trip preserves the semantics (StringConcat nodes appear).
+    //   3. The round-tripped BS also compiles.
+    //   4. Explicit StringConcat(a, b, c) in BS also compiles and round-trips.
+    private static void RunStringConcatRoundTripTest(
+        IBlockScriptParser parser,
+        BlockScriptToBlueprintConverter converter,
+        IBlueprintToBlockScriptConverter reverseConverter,
+        List<HelperFunction> helpers)
+    {
+        Console.WriteLine("[Test V] StringConcat: + expansion, compile, BS↔BP round-trip");
+
+        int fails = 0;
+
+        // --- Sub-test 1: "+" concatenation compiles ---
+        var srcPlus = @"
+#ConstBlock
+string a = ""Hello"";
+string b = ""World"";
+
+#PubVarBlock
+dynamic v;
+
+#MainBlock
+v = a + "", "" + b + ""!"";
+Print(v);
+";
+
+        // --- Sub-test 2: explicit StringConcat compiles ---
+        var srcExplicit = @"
+#ConstBlock
+string a = ""Hello"";
+string b = ""World"";
+
+#PubVarBlock
+dynamic v;
+
+#MainBlock
+v = StringConcat(a, "", "", b, ""!"");
+Print(v);
+";
+
+        foreach (var (label, src) in new[] { ("+ syntax", srcPlus), ("StringConcat explicit", srcExplicit) })
+        {
+            try
+            {
+                // Phase 1: parse + compile
+                var pr = parser.Parse(src);
+                if (!pr.IsSuccess || pr.Script == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: parse error: {pr.ErrorMessage}");
+                    fails++;
+                    continue;
+                }
+                pr.Script.HelperFunctions = helpers;
+
+                var compiler = new CSCompiler();
+                var compiled = compiler.CompileScript(pr.Script, workflowId: null, out var errors);
+                if (compiled == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: compile null, {errors.Count} error(s)");
+                    foreach (var e in errors.Take(3)) Console.WriteLine($"         {e}");
+                    fails++;
+                    continue;
+                }
+                Console.WriteLine($"  [{label}] Compile: OK");
+
+                // Phase 2: BS→BP→BS round-trip
+                var bpResult = converter.Convert(src, helpers);
+                if (bpResult == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: BS→BP conversion returned null");
+                    fails++;
+                    continue;
+                }
+
+                var bsResult = reverseConverter.Convert(bpResult);
+                if (string.IsNullOrEmpty(bsResult))
+                {
+                    Console.WriteLine($"  [{label}] FAIL: BP→BS conversion returned empty");
+                    fails++;
+                    continue;
+                }
+
+                // Phase 3: round-tripped BS should contain StringConcat
+                if (!bsResult.Contains("StringConcat"))
+                {
+                    Console.WriteLine($"  [{label}] FAIL: round-tripped BS does not contain 'StringConcat'");
+                    Console.WriteLine($"         Round-tripped source:\n{bsResult}");
+                    fails++;
+                    continue;
+                }
+
+                // Phase 4: round-tripped BS compiles
+                var pr2 = parser.Parse(bsResult);
+                if (!pr2.IsSuccess || pr2.Script == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: round-tripped BS parse error: {pr2.ErrorMessage}");
+                    fails++;
+                    continue;
+                }
+                pr2.Script.HelperFunctions = helpers;
+                var compiled2 = new CSCompiler().CompileScript(pr2.Script, workflowId: null, out var errors2);
+                if (compiled2 == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: round-tripped BS compile null, {errors2.Count} error(s)");
+                    foreach (var e in errors2.Take(3)) Console.WriteLine($"         {e}");
+                    fails++;
+                    continue;
+                }
+
+                Console.WriteLine($"  [{label}] Round-trip: OK (StringConcat present, re-compiles)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  [{label}] FAIL: {ex.Message}");
+                fails++;
+            }
+        }
+
+        Console.WriteLine($"[Test V] {(fails == 0 ? "PASS" : "FAIL - see above")}");
     }
 }

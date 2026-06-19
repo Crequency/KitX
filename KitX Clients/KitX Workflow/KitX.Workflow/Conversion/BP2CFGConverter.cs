@@ -828,7 +828,19 @@ internal class BP2CFGConverter
             {
                 if (node is BuiltinFunctionNode bfNode
                     && _builtinFunctionStrategies.TryGetValue(bfNode.FunctionName, out var bfStrategy))
-                    return bfStrategy.ToStatement(node, _exportHelper);
+                {
+                    var blockStmt = bfStrategy.ToStatement(node, _exportHelper);
+                    if (blockStmt != null) return blockStmt;
+                    // ToStatement returned null — build a generic ExpressionStatement
+                    // from the node's function name and input pin values instead of
+                    // silently dropping the node (which would leave orphaned PubVar
+                    // references and cause CS0103 in downstream code generation).
+                    // PluginCallFunction used to return null before its ToStatement was
+                    // implemented; this fallback ensures other builtins are safe too.
+                    Log.Debug("[BP2CFGConverter] BuiltinFunction '{FuncName}' ToStatement returned null, " +
+                        "using generic expression fallback", bfNode.FunctionName);
+                    return BuildGenericBuiltinStatement(bfNode, bfNode.FunctionName);
+                }
                 return null;
             }
             default:
@@ -985,6 +997,48 @@ internal class BP2CFGConverter
             SourceLine = 1
         };
         return stmt;
+    }
+
+    /// <summary>
+    /// Fallback: builds a generic ExpressionStatement for a BuiltinFunctionNode whose
+    /// ToStatement strategy returns null. Collects non-exec input pin values in pin order
+    /// and emits <c>FunctionName(arg1, arg2, ...)</c>. Handles PubVar assignment when
+    /// a data output pin is consumed by downstream connections.
+    /// </summary>
+    private BlockStatement? BuildGenericBuiltinStatement(BuiltinFunctionNode bfNode, string functionName)
+    {
+        var argPins = bfNode.InputPins
+            .Where(p => p.Type != PinType.Execution)
+            .ToList();
+
+        var args = argPins
+            .Select(p => _exportHelper.GetInputValue(bfNode, p.Name))
+            .ToList();
+
+        var expr = $"{functionName}({string.Join(", ", args)})";
+
+        // Determine if an output PubVar assignment is needed (Return/Result pin consumed by downstream connections)
+        string? pubVar = null;
+        foreach (var pin in bfNode.OutputPins.Where(p => p.Type != PinType.Execution))
+        {
+            var pv = NodeExportHelper.FindOutputPubVar(bfNode, pin.Name, _currentCtx);
+            if (!string.IsNullOrEmpty(pv))
+            {
+                pubVar = pv;
+                break;
+            }
+        }
+
+        var sourceCode = !string.IsNullOrEmpty(pubVar)
+            ? $"{pubVar} = {expr};"
+            : $"{expr};";
+
+        return new ExpressionStatement
+        {
+            Expression = expr,
+            SourceCode = sourceCode,
+            LineNumber = 1
+        };
     }
 
     // ════════════════════════════════════════════════════════════════════

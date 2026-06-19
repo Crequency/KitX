@@ -243,6 +243,39 @@ public class BS2CFGConverter
         if (assignedVar != null && assignedVar == "NextBlock")
             return result;
 
+        // If RHS is a "+" binary expression, expand it into a StringConcat call.
+        // ExpandExpression synthesizes a vaaa#### = StringConcat(...) statement;
+        // if there's an assignment target (v = "a" + "b"), redirect that statement's
+        // PubVarTarget to v so we get a single clean CFG statement instead of a
+        // vaaa#### temp + a separate v = vaaa#### assignment.
+        if (rightExpr is BinaryExpressionSyntax binExpr && binExpr.OperatorToken.Text == "+")
+        {
+            var (expStmts, finalExpr) = ExpandExpression(rightExpr, blockName, context);
+
+            if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
+            {
+                // Redirect the last expansion statement's PubVarTarget to assignedVar.
+                // The last statement is the StringConcat synthesis (vaaa#### = StringConcat(...)).
+                if (expStmts.Count > 0 && !string.IsNullOrEmpty(expStmts[^1].PubVarTarget))
+                {
+                    var oldTarget = expStmts[^1].PubVarTarget;
+                    expStmts[^1].PubVarTarget = assignedVar;
+                    // Update OriginalExpression for traceability.
+                    expStmts[^1].OriginalExpression = expStmts[^1].OriginalExpression?
+                        .Replace(oldTarget, assignedVar);
+                    if (!context.PubVarNames.Contains(assignedVar))
+                        context.PubVarNames.Add(assignedVar);
+                }
+                result.AddRange(expStmts);
+            }
+            else
+            {
+                // No assignment target — standalone expression (rare for +, but handle it).
+                result.AddRange(expStmts);
+            }
+            return result;
+        }
+
         // If RHS is a function invocation, process it
         if (rightExpr is InvocationExpressionSyntax invoke)
         {
@@ -444,24 +477,79 @@ public class BS2CFGConverter
         if (expr is ParenthesizedExpressionSyntax paren)
             return ExpandExpression(paren.Expression, blockName, context);
 
-        // Binary expression (e.g. "prefix" + Get("var") + "suffix"):
-        // Recurse into both operands so nested calls inside concatenations are
-        // expanded into temp PubVars. Without this, the default branch below would
-        // stringify the whole expression verbatim, leaving Get/PluginCall/etc. as
-        // unresolved identifiers in the generated C# (CS0103).
+        // Binary expression (e.g. "prefix" + Get("var") + "suffix").
+        // For the "+" operator, collect all operands (left-associative chaining) and
+        // synthesize a single StringConcat(...) call so the CFG→BP path produces a
+        // proper blueprint node instead of an opaque string expression.
         if (expr is BinaryExpressionSyntax binary)
         {
+            var op = binary.OperatorToken.Text;
+            if (op == "+")
+            {
+                // Flatten left-associative + chains: ((a + b) + c) → [a, b, c]
+                var operands = new List<ExpressionSyntax>();
+                CollectAddOperands(binary, operands);
+
+                // Expand each operand (nested calls → temp PubVars), collect statements.
+                var allStmts = new List<CFGStatement>();
+                var argExprs = new List<string>();
+                foreach (var operand in operands)
+                {
+                    var (oStmts, oExpr) = ExpandExpression(operand, blockName, context);
+                    allStmts.AddRange(oStmts);
+                    argExprs.Add(oExpr);
+                }
+
+                // Synthesize: vaaa#### = StringConcat(arg1, arg2, ...)
+                var pubVarName = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
+                if (!context.PubVarNames.Contains(pubVarName))
+                    context.PubVarNames.Add(pubVarName);
+
+                allStmts.Add(new CFGStatement
+                {
+                    BlockName = blockName,
+                    Kind = CFGStatementKind.Assignment,
+                    PubVarTarget = pubVarName,
+                    FunctionName = "StringConcat",
+                    FullFunctionName = "StringConcat",
+                    Arguments = argExprs,
+                    OriginalExpression = $"{pubVarName} = StringConcat({string.Join(", ", argExprs)})",
+                    Fingerprint = ExprUtils.ComputeFingerprint("StringConcat", argExprs)
+                });
+
+                return (allStmts, pubVarName);
+            }
+
+            // Non-+ binary: recurse operands and rebuild as string (defensive fallback).
             var (leftStmts, leftExpr) = ExpandExpression(binary.Left, blockName, context);
             var (rightStmts, rightExpr) = ExpandExpression(binary.Right, blockName, context);
             var combined = new List<CFGStatement>(leftStmts);
             combined.AddRange(rightStmts);
-            var op = binary.OperatorToken.Text;
             var rebuilt = $"{leftExpr} {op} {rightExpr}";
             return (combined, rebuilt);
         }
 
         // Default: return as-is
         return (new(), expr.ToString());
+    }
+
+    /// <summary>
+    /// Recursively flattens a left-associative chain of "+" binary expressions into a
+    /// flat list of leaf operands. e.g. ((a + b) + c) → [a, b, c].
+    /// Non-+ leaves (literals, identifiers, calls) are collected as-is.
+    /// </summary>
+    private static void CollectAddOperands(BinaryExpressionSyntax binary, List<ExpressionSyntax> operands)
+    {
+        if (binary.Left is BinaryExpressionSyntax leftBinary
+            && leftBinary.OperatorToken.Text == "+")
+        {
+            CollectAddOperands(leftBinary, operands);
+        }
+        else
+        {
+            operands.Add(binary.Left);
+        }
+        operands.Add(binary.Right);
     }
 
     // ──────────────────────────────────────────────

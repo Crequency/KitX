@@ -264,11 +264,15 @@ internal class BlockStatementExtractor
                         else
                         {
                             Log.Debug("[BlockStatementExtractor]   assignment.Right is NOT InvocationExpressionSyntax, type = {Type}", assignment.Right.GetType().Name);
+                            // Preserve AssignedVariable so BS2CFGConverter can handle
+                            // non-invocation RHS (e.g. v = a + b + c where RHS is BinaryExpression).
                             block.Statements.Add(new ExpressionStatement
                             {
                                 LineNumber = exprStmt.GetLineNumber(),
                                 SourceCode = exprText,
-                                Expression = exprText
+                                Expression = exprText,
+                                AssignedVariable = assignment.Left.ToString(),
+                                ParsedInvocation = assignment.Right as InvocationExpressionSyntax
                             });
                         }
                     }

@@ -262,7 +262,11 @@ internal static class CFG2CSGenerator
     internal static List<StatementSyntax> ParseHelperFunctionBody(string? code)
     {
         if (string.IsNullOrWhiteSpace(code))
-            return new List<StatementSyntax> { ReturnStatement(LiteralExpression(SyntaxKind.NullLiteralExpression)) };
+            // Use default(T) instead of null so value-type return types (bool/int/...)
+            // don't cause CS0037. The runtime will overwrite this stub if a real Code
+            // is provided; this is just the empty-body fallback.
+            return new List<StatementSyntax> { ReturnStatement(
+                LiteralExpression(SyntaxKind.DefaultLiteralExpression)) };
 
         var wrapper = $"void __wrapper() {{ {code} }}";
         var tree = CSharpSyntaxTree.ParseText(wrapper);
@@ -283,7 +287,8 @@ internal static class CFG2CSGenerator
         }
 
         Log.Warning("[CFG2CSGenerator] Failed to parse helper function body, using empty body");
-        return new List<StatementSyntax> { ReturnStatement(LiteralExpression(SyntaxKind.NullLiteralExpression)) };
+        return new List<StatementSyntax> { ReturnStatement(
+            LiteralExpression(SyntaxKind.DefaultLiteralExpression)) };
     }
 
     // ──────────────────────────────────────────────

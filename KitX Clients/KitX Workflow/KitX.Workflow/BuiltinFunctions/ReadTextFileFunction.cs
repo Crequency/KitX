@@ -34,10 +34,12 @@ namespace KitX.Workflow.BuiltinFunctions
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
             var value = helper.GetInputValue(node, "Path");
+            var expr = $"{FunctionName}({value})";
+            var pubVar = helper.GetOutputPubVar(node, "Return");
             return new ExpressionStatement
             {
-                Expression = $"{FunctionName}({value})",
-                SourceCode = $"{FunctionName}({value});",
+                Expression = expr,
+                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
                 LineNumber = 1
             };
         }

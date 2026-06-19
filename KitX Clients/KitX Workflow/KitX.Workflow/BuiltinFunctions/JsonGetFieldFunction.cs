@@ -44,10 +44,12 @@ namespace KitX.Workflow.BuiltinFunctions
             var fieldPath = node is BuiltinFunctionNode bfn
                 ? bfn.Properties.GetValueOrDefault("FieldPath", "") ?? ""
                 : "";
+            var expr = $"{FunctionName}({jsonValue}, \"{fieldPath}\")";
+            var pubVar = helper.GetOutputPubVar(node, "Return");
             return new ExpressionStatement
             {
-                Expression = $"{FunctionName}({jsonValue}, \"{fieldPath}\")",
-                SourceCode = $"{FunctionName}({jsonValue}, \"{fieldPath}\");",
+                Expression = expr,
+                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
                 LineNumber = 1
             };
         }

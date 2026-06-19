@@ -41,10 +41,12 @@ namespace KitX.Workflow.BuiltinFunctions
         {
             var name = helper.GetInputValue(node, "Name");
             var source = helper.GetInputValue(node, "Source");
+            var expr = $"{FunctionName}({name}, {source})";
+            var pubVar = helper.GetOutputPubVar(node, "Return");
             return new ExpressionStatement
             {
-                Expression = $"{FunctionName}({name}, {source})",
-                SourceCode = $"{FunctionName}({name}, {source});",
+                Expression = expr,
+                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
                 LineNumber = 1
             };
         }

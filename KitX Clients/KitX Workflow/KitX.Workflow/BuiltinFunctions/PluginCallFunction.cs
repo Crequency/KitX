@@ -4,6 +4,8 @@ using Serilog;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Blueprint;
+using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -40,12 +42,58 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
-    public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
-        => ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildPluginCallExpression(stmt, ctx.PubVarTypes));
+        public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+            => ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildPluginCallExpression(stmt, ctx.PubVarTypes));
 
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
+        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
+        {
+            // PluginCall has variable arguments: PluginName, MethodName, plus optional data args.
+            // The static descriptor declares 2 data pins (PluginName, MethodName); if the
+            // statement carries more arguments (e.g. PluginCall(ui, "M", data)), add extra
+            // input pins so DataEdgeBuilder can wire them into the node and the round-trip
+            // preserves all arguments.
+            var existingDataPins = node.InputPins.Count(p => p.Type != PinType.Execution);
+            var needed = stmt.Arguments?.Count ?? 0;
+            for (int i = existingDataPins; i < needed; i++)
+            {
+                node.InputPins.Add(new BlueprintPin
+                {
+                    Name = $"arg{i}",
+                    Direction = PinDirection.Input,
+                    Type = PinType.Any
+                });
+            }
+            return node;
+        }
 
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper) => null;
+        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
+        {
+            // Collect all non-Exec input pin values in pin order → PluginCall(arg0, arg1, ...)
+            // Reverses the ConfigureNode + DataEdgeBuilder wiring to reconstruct the original
+            // expression. Handles PubVar assignment when the Return output is consumed.
+            var argPins = node.InputPins
+                .Where(p => p.Type != PinType.Execution)
+                .ToList();
+            if (argPins.Count < 2) return null;
+
+            var args = argPins
+                .Select(p => helper.GetInputValue(node, p.Name))
+                .ToList();
+
+            var expr = $"{FunctionName}({string.Join(", ", args)})";
+
+            var pubVar = helper.GetOutputPubVar(node, Return);
+            var sourceCode = !string.IsNullOrEmpty(pubVar)
+                ? $"{pubVar} = {expr};"
+                : $"{expr};";
+
+            return new ExpressionStatement
+            {
+                Expression = expr,
+                SourceCode = sourceCode,
+                LineNumber = 1
+            };
+        }
 
         public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
     }
