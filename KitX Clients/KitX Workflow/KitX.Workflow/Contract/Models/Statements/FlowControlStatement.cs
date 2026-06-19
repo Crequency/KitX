@@ -1,3 +1,5 @@
+using KitX.Core.Contract.Workflow;
+
 namespace KitX.Workflow.Contract.Models;
 
 /// <summary>
@@ -16,24 +18,57 @@ public class FlowControlStatement : BlockStatement
     public string ConditionExpression { get; set; } = string.Empty;
 
     /// <summary>
-    /// Target block name when condition is true (for Branch/Loop)
+    /// Outgoing arms of this control-flow statement. Replaces the former fixed
+    /// <c>TrueBlockName</c>/<c>FalseBlockName</c>/<c>ToLoopCondReturnTo</c> triple.
+    /// <list type="bullet">
+    /// <item>Branch: [<c>"True"</c>, <c>"False"</c>]</item>
+    /// <item>Loop: [<c>"LoopBody"</c>, <c>"LoopEnd"</c>]</item>
+    /// <item>ToLoopCond: [<c>"Exec"</c> with <see cref="BranchArm.IsLoopback"/>=true]</item>
+    /// <item>Switch: [<c>"Default"</c>, <c>"0"</c>, <c>"1"</c>, ... , <c>"N-1"</c>]</item>
+    /// </list>
     /// </summary>
-    public string TrueBlockName { get; set; } = string.Empty;
+    public List<BranchArm> Arms { get; set; } = [];
 
     /// <summary>
-    /// Target block name when condition is false (for Branch/Loop)
-    /// For Loop: this is the loop exit block
+    /// Convenience: the true-branch target (Arms[0].TargetBlockName for Branch/Loop).
+    /// Kept for readability at call sites that conceptually deal with a two-way branch.
     /// </summary>
-    public string FalseBlockName { get; set; } = string.Empty;
+    public string TrueBlockName
+    {
+        get => Arms.Count > 0 ? Arms[0].TargetBlockName : string.Empty;
+        set => SetArm(0, "True", value);
+    }
 
     /// <summary>
-    /// For ToLoopCond: the block name containing the Loop statement to return to
+    /// Convenience: the false-branch target (Arms[1].TargetBlockName for Branch/Loop).
     /// </summary>
-    public string? ToLoopCondReturnTo { get; set; }
+    public string FalseBlockName
+    {
+        get => Arms.Count > 1 ? Arms[1].TargetBlockName : string.Empty;
+        set => SetArm(1, "False", value);
+    }
+
+    /// <summary>
+    /// Convenience: the loopback target for ToLoopCond (Arms[0].TargetBlockName).
+    /// </summary>
+    public string? ToLoopCondReturnTo
+    {
+        get => Arms.Count > 0 ? Arms[0].TargetBlockName : null;
+        set => SetArm(0, "Exec", value ?? string.Empty, isLoopback: true);
+    }
+
+    private void SetArm(int index, string pinName, string value, bool isLoopback = false)
+    {
+        while (Arms.Count <= index)
+            Arms.Add(new BranchArm());
+        Arms[index].PinName = pinName;
+        Arms[index].TargetBlockName = value;
+        Arms[index].IsLoopback = isLoopback;
+    }
 
     /// <summary>
     /// Regenerates SourceCode from current field values.
-    /// Call after updating TrueBlockName/FalseBlockName/etc. to keep SourceCode in sync.
+    /// Call after updating Arms/ConditionExpression/etc. to keep SourceCode in sync.
     /// </summary>
     public void RegenerateSourceCode()
     {
@@ -41,11 +76,21 @@ public class FlowControlStatement : BlockStatement
         {
             FlowControlType.Branch => $"NextBlock = Branch({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
             FlowControlType.Loop => $"NextBlock = Loop({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
-            FlowControlType.ToLoopCond => ToLoopCondReturnTo != null
+            FlowControlType.ToLoopCond => !string.IsNullOrEmpty(ToLoopCondReturnTo)
                 ? $"NextBlock = ToLoopCond(\"{ToLoopCondReturnTo}\");"
                 : "ToLoopCond();",
+            FlowControlType.Switch => RegenerateSwitchSource(),
             FlowControlType.Break => "Break();",
             _ => SourceCode
         };
+    }
+
+    private string RegenerateSwitchSource()
+    {
+        // Arms layout: [Default, 0, 1, ..., N-1]
+        if (Arms.Count == 0) return "Switch();";
+        var defaultBlock = Arms[0].TargetBlockName;
+        var blocks = Arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
+        return $"NextBlock = Switch({ConditionExpression}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
     }
 }

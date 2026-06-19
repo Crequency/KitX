@@ -1,5 +1,7 @@
 namespace KitX.Workflow.CFG;
 
+using KitX.Core.Contract.Workflow;
+
 /// <summary>
 /// Kinds of statements in the CFG. Unified statement kind replacing the former Pipeline.FormattedStatementKind.
 /// </summary>
@@ -28,6 +30,9 @@ public enum CFGStatementKind
 
     /// <summary>Loop(condition, loopBody, afterLoop)</summary>
     Loop,
+
+    /// <summary>Switch(selector, defaultBlock, b0, b1, ...) — N-way dispatch by integer index</summary>
+    Switch,
 
     /// <summary>ToLoopCond("parentBlock")</summary>
     ToLoopCond,
@@ -111,8 +116,8 @@ public class CFGStatement
 
     // --- For flow control ---
     /// <summary>
-    /// The condition expression for Branch/Loop statements.
-    /// May be a PubVar name or a complex expression.
+    /// The condition expression for Branch/Loop/Switch statements.
+    /// May be a PubVar name or a complex expression. For Switch this is the integer selector.
     /// </summary>
     public string? ConditionExpression { get; set; }
 
@@ -122,19 +127,41 @@ public class CFGStatement
     public string? ConditionPubVar { get; set; }
 
     /// <summary>
-    /// Target block name when Branch/Loop condition is true.
+    /// Outgoing arms of this control-flow statement. Generalised model replacing the former
+    /// fixed <c>TrueBlockName</c>/<c>FalseBlockName</c>/<c>ToLoopCondReturnTo</c> triple.
+    /// See <see cref="BranchArm"/> for the per-arm layout of each control-flow kind.
     /// </summary>
-    public string? TrueBlockName { get; set; }
+    public List<BranchArm> Arms { get; set; } = [];
 
-    /// <summary>
-    /// Target block name when Branch/Loop condition is false.
-    /// </summary>
-    public string? FalseBlockName { get; set; }
+    /// <summary>Convenience accessor: the true-branch / loop-body target (Arms[0]).</summary>
+    public string? TrueBlockName
+    {
+        get => Arms.Count > 0 ? Arms[0].TargetBlockName : null;
+        set => SetArm(0, "True", value);
+    }
 
-    /// <summary>
-    /// For ToLoopCond: the name of the loop condition block to return to.
-    /// </summary>
-    public string? ToLoopCondReturnTo { get; set; }
+    /// <summary>Convenience accessor: the false-branch / loop-exit target (Arms[1]).</summary>
+    public string? FalseBlockName
+    {
+        get => Arms.Count > 1 ? Arms[1].TargetBlockName : null;
+        set => SetArm(1, "False", value);
+    }
+
+    /// <summary>Convenience accessor: the ToLoopCond loopback target (Arms[0], IsLoopback=true).</summary>
+    public string? ToLoopCondReturnTo
+    {
+        get => Arms.Count > 0 ? Arms[0].TargetBlockName : null;
+        set => SetArm(0, "Exec", value ?? string.Empty, isLoopback: true);
+    }
+
+    private void SetArm(int index, string pinName, string? value, bool isLoopback = false)
+    {
+        while (Arms.Count <= index)
+            Arms.Add(new BranchArm());
+        Arms[index].PinName = pinName;
+        Arms[index].TargetBlockName = value ?? string.Empty;
+        Arms[index].IsLoopback = isLoopback;
+    }
 
     // --- Metadata ---
     /// <summary>

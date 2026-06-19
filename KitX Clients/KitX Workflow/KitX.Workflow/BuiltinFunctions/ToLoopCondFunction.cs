@@ -122,8 +122,7 @@ namespace KitX.Workflow.BlockScripting
         /// </summary>
         public string? ToLoopCond(string parentBlockName)
         {
-            NextBlock = parentBlockName;
-            return NextBlock;
+            return AdvanceTo(parentBlockName);
         }
     }
 }

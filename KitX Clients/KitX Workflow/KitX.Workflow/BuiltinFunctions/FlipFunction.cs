@@ -108,8 +108,7 @@ namespace KitX.Workflow.BlockScripting
         public string? Flip(string outputA, string outputB)
         {
             _flipCounter++;
-            NextBlock = (_flipCounter % 2 == 1) ? outputA : outputB;
-            return NextBlock;
+            return AdvanceTo((_flipCounter % 2 == 1) ? outputA : outputB);
         }
 
         /// <summary>

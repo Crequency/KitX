@@ -478,46 +478,54 @@ internal class BP2CFGConverter
 
         if (arms == null) return;
 
-        foreach (var arm in arms)
-        {
-            var pin = cfNode.OutputPins.FirstOrDefault(p => p.Name == arm.PinName);
-            if (pin == null) continue;
+        // For variadic output nodes (e.g. Switch), the descriptor's declared arms are a fixed
+        // base set, but the node's actual output execution pins may be more. Iterate the real
+        // pins and key each arm by pin name so N arms survive without positional loss.
+        var loopbackPinNames = arms.Where(a => a.IsLoopback).Select(a => a.PinName).ToHashSet();
 
+        foreach (var pin in cfNode.OutputPins.Where(p => p.Type == PinType.Execution))
+        {
             var conn = execConns.FirstOrDefault(c => c.SourcePinId == pin.Id);
             if (conn == null) continue;
 
             var targetNode = blueprint.GetNodeById(conn.TargetNodeId);
             if (targetNode == null) continue;
 
+            var isLoopback = loopbackPinNames.Contains(pin.Name);
             var blockName = $"Block_{blockCounter++}";
             var block = new CFGBlock
             {
                 Name = blockName,
-                Type = arm.IsLoopback ? CFGBlockType.LoopBody : CFGBlockType.Basic,
-                ParentLoopBlockName = arm.IsLoopback ? FindContainingBlockName(cfg, cfNode.Id) : null
+                Type = isLoopback ? CFGBlockType.LoopBody : CFGBlockType.Basic,
+                ParentLoopBlockName = isLoopback ? FindContainingBlockName(cfg, cfNode.Id) : null
             };
             cfg.Blocks.Add(block);
 
-            if (arm.IsLoopback)
+            if (isLoopback)
                 loopOwnerBlockNames[cfNode.Id] = blockName;
 
             WalkNode(targetNode, block, cfg, nodeById, reachableNodeIds, execConns,
                 blueprint, new HashSet<string>(), pendingControlFlowNodes: new(),
                 loopNodes, loopOwnerBlockNames, ref blockCounter,
-                loopbackTargetId: arm.IsLoopback ? cfNode.Id : null);
+                loopbackTargetId: isLoopback ? cfNode.Id : null);
 
-            // Update the CFG statement with the resolved target block name
+            // Record the resolved target as an arm keyed by the output pin name.
+            // This generalises the former positional True/False assignment so that
+            // Branch(True/False), Loop(LoopBody/LoopEnd) and Switch(Default/0/1/...)
+            // all preserve their identity.
             var cfStmt = FindBranchStatement(cfg, cfNode.Id);
             if (cfStmt != null)
             {
-                // Map arm pin name to TrueBlockName/FalseBlockName
-                // First non-loopback arm → TrueBlockName, second → FalseBlockName
-                var normalArms = arms.Where(a => !a.IsLoopback).ToList();
-                var armIndex = normalArms.IndexOf(arm);
-                if (armIndex == 0)
-                    cfStmt.TrueBlockName = blockName;
-                else if (armIndex == 1)
-                    cfStmt.FalseBlockName = blockName;
+                var existing = cfStmt.Arms.FirstOrDefault(a => a.PinName == pin.Name);
+                if (existing != null)
+                    existing.TargetBlockName = blockName;
+                else
+                    cfStmt.Arms.Add(new BranchArm
+                    {
+                        PinName = pin.Name,
+                        TargetBlockName = blockName,
+                        IsLoopback = isLoopback
+                    });
 
                 cfStmt.OriginalExpression = RegenerateBranchSource(cfStmt);
             }
@@ -545,19 +553,17 @@ internal class BP2CFGConverter
                 && _builtinFunctionStrategies.TryGetValue(lastStmt.FunctionName, out var builtinStrat)
                 && builtinStrat.IsControlFlow)
             {
-                var arms = builtinStrat.GetOutputArms(null!);
-                foreach (var arm in arms)
+                // Edges are derived directly from the statement's resolved Arms, so N-way
+                // Switch (Default/0/1/...) and variadic shapes survive without positional loss.
+                foreach (var arm in lastStmt.Arms)
                 {
-                    var targetBlock = arm.IsLoopback ? lastStmt.ToLoopCondReturnTo
-                        : (IsFirstNormalArm(arms, arm) ? lastStmt.TrueBlockName : lastStmt.FalseBlockName);
-
-                    if (string.IsNullOrEmpty(targetBlock)) continue;
+                    if (string.IsNullOrEmpty(arm.TargetBlockName)) continue;
 
                     block.Successors.Add(new CFGEdge
                     {
                         FromBlockName = block.Name,
-                        ToBlockName = targetBlock,
-                        Type = GetEdgeType(arm),
+                        ToBlockName = arm.TargetBlockName,
+                        Type = GetEdgeType(lastStmt.Kind, arm),
                         PinName = arm.PinName
                     });
                 }
@@ -910,6 +916,7 @@ internal class BP2CFGConverter
                 {
                     FlowControlType.Branch => CFGStatementKind.Branch,
                     FlowControlType.Loop => CFGStatementKind.Loop,
+                    FlowControlType.Switch => CFGStatementKind.Switch,
                     FlowControlType.ToLoopCond => CFGStatementKind.ToLoopCond,
                     FlowControlType.Break => CFGStatementKind.Break,
                     _ => CFGStatementKind.Unknown
@@ -918,14 +925,19 @@ internal class BP2CFGConverter
                 {
                     FlowControlType.Branch => "Branch",
                     FlowControlType.Loop => "Loop",
+                    FlowControlType.Switch => "Switch",
                     FlowControlType.ToLoopCond => "ToLoopCond",
                     FlowControlType.Break => "Break",
                     _ => null
                 };
                 cfgStmt.ConditionExpression = flow.ConditionExpression;
-                cfgStmt.TrueBlockName = flow.TrueBlockName;
-                cfgStmt.FalseBlockName = flow.FalseBlockName;
-                cfgStmt.ToLoopCondReturnTo = flow.ToLoopCondReturnTo;
+                // Copy the full arm list so N-way Switch and any variadic shape survive.
+                cfgStmt.Arms = flow.Arms.Select(a => new BranchArm
+                {
+                    PinName = a.PinName,
+                    TargetBlockName = a.TargetBlockName,
+                    IsLoopback = a.IsLoopback
+                }).ToList();
                 cfgStmt.ConditionPubVar = flow.ConditionExpression?.Trim();
                 break;
 
@@ -1046,10 +1058,12 @@ internal class BP2CFGConverter
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// After blocks are built, resolves the TrueBlockName/FalseBlockName of
-    /// Branch and Loop statements from Blueprint execution connections.
+    /// After blocks are built, resolves the outgoing arms (<see cref="CFGStatement.Arms"/>)
+    /// of Branch / Loop / Switch statements from Blueprint execution connections.
     /// Strategy-generated statements don't know their target block names;
     /// we derive them from the node's output pins → connections → target node → containing block.
+    /// Each output execution pin maps to one arm keyed by the pin's <see cref="BlueprintPin.Name"/>,
+    /// so N-way Switch arms (Default/0/1/...) are preserved without positional loss.
     /// </summary>
     private static void ResolveControlFlowTargets(
         ControlFlowGraph cfg,
@@ -1061,10 +1075,10 @@ internal class BP2CFGConverter
         {
             foreach (var stmt in block.Statements)
             {
-                if (stmt.Kind is not (CFGStatementKind.Branch or CFGStatementKind.Loop))
+                if (stmt.Kind is not (CFGStatementKind.Branch or CFGStatementKind.Loop
+                    or CFGStatementKind.Switch))
                     continue;
-                if (!string.IsNullOrEmpty(stmt.TrueBlockName) && !string.IsNullOrEmpty(stmt.FalseBlockName))
-                    continue;
+                if (stmt.Arms.Count > 0) continue;
 
                 if (!nodeById.TryGetValue(stmt.StatementId, out var node))
                     continue;
@@ -1079,6 +1093,9 @@ internal class BP2CFGConverter
         ControlFlowGraph cfg, KitX.Core.Contract.Workflow.Blueprint blueprint,
         List<BlueprintConnection> execConns)
     {
+        // Map each output execution pin → (pinName, targetBlock), appending one arm per pin.
+        // Pin name becomes the arm key, so Branch(True/False), Loop(LoopBody/LoopEnd) and
+        // Switch(Default/0/1/...) all preserve their identity with no positional loss.
         foreach (var pin in cfNode.OutputPins.Where(p => p.Type == PinType.Execution))
         {
             var conn = execConns.FirstOrDefault(c => c.SourcePinId == pin.Id);
@@ -1087,14 +1104,14 @@ internal class BP2CFGConverter
             var targetBlock = FindBlockContainingNode(cfg, conn.TargetNodeId, blueprint);
             if (targetBlock == null) continue;
 
-            // Assign first unset target
-            if (string.IsNullOrEmpty(stmt.TrueBlockName))
-                stmt.TrueBlockName = targetBlock;
-            else if (string.IsNullOrEmpty(stmt.FalseBlockName))
-                stmt.FalseBlockName = targetBlock;
+            stmt.Arms.Add(new BranchArm
+            {
+                PinName = pin.Name,
+                TargetBlockName = targetBlock
+            });
         }
 
-        if (!string.IsNullOrEmpty(stmt.TrueBlockName) || !string.IsNullOrEmpty(stmt.FalseBlockName))
+        if (stmt.Arms.Count > 0)
             stmt.OriginalExpression = RegenerateBranchSource(stmt);
     }
 
@@ -1145,25 +1162,43 @@ internal class BP2CFGConverter
         return null;
     }
 
-    private static string RegenerateBranchSource(CFGStatement branchStmt)
+    private static string RegenerateBranchSource(CFGStatement cfStmt)
     {
-        return branchStmt.Kind == CFGStatementKind.Loop
-            ? $"NextBlock = Loop({branchStmt.ConditionExpression}, \"{branchStmt.TrueBlockName}\", \"{branchStmt.FalseBlockName}\");"
-            : $"NextBlock = Branch({branchStmt.ConditionExpression}, \"{branchStmt.TrueBlockName}\", \"{branchStmt.FalseBlockName}\");";
+        return cfStmt.Kind switch
+        {
+            CFGStatementKind.Loop => $"NextBlock = Loop({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");",
+            CFGStatementKind.Switch => RegenerateSwitchSource(cfStmt),
+            _ => $"NextBlock = Branch({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");"
+        };
     }
 
-    private static bool IsFirstNormalArm(IEnumerable<OutputArmDescriptor> arms, OutputArmDescriptor target)
+    /// <summary>
+    /// Regenerates Switch source from its arms. Arms layout: [Default, 0, 1, ..., N-1].
+    /// </summary>
+    private static string RegenerateSwitchSource(CFGStatement cfStmt)
     {
-        var normalArms = arms.Where(a => !a.IsLoopback).ToList();
-        return normalArms.Count > 0 && normalArms[0].PinName == target.PinName;
+        if (cfStmt.Arms.Count == 0) return $"NextBlock = Switch({cfStmt.ConditionExpression}, \"\");";
+        var defaultBlock = cfStmt.Arms[0].TargetBlockName;
+        var blocks = cfStmt.Arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
+        return $"NextBlock = Switch({cfStmt.ConditionExpression}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
     }
 
-    private static CFGEdgeType GetEdgeType(OutputArmDescriptor arm)
+    private static CFGEdgeType GetEdgeType(CFGStatementKind kind, BranchArm arm)
     {
         if (arm.IsLoopback) return CFGEdgeType.LoopbackToCondition;
-        // For normal arms: first → BranchTrue/LoopBody, second → BranchFalse/LoopEnd
-        // This is a simplified heuristic; more sophisticated logic can be added if needed
-        return CFGEdgeType.BranchTrue;
+
+        // Derive edge semantics from the pin name so the mapping is data-driven rather than
+        // positional. Handles Branch (True/False), Loop (LoopBody/LoopEnd) and Switch
+        // (Default/0/1/...) uniformly.
+        return (kind, arm.PinName) switch
+        {
+            (CFGStatementKind.Loop, "LoopBody") => CFGEdgeType.LoopBody,
+            (CFGStatementKind.Loop, "LoopEnd") => CFGEdgeType.LoopExit,
+            (CFGStatementKind.Switch, _) => CFGEdgeType.Switch,
+            (_, "False") => CFGEdgeType.BranchFalse,
+            (_, "LoopEnd") => CFGEdgeType.LoopExit,
+            _ => CFGEdgeType.BranchTrue
+        };
     }
 
     // ─── Node Type Helpers ────────────────────────────────────────────

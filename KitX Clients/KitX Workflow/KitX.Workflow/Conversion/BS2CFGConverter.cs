@@ -141,9 +141,13 @@ public class BS2CFGConverter
             FunctionName = functionName,
             ConditionPubVar = condPubVar,
             ConditionExpression = flowCtrl.ConditionExpression,
-            TrueBlockName = flowCtrl.TrueBlockName,
-            FalseBlockName = flowCtrl.FalseBlockName,
-            ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
+            // Copy the full arm list so N-way Switch and any variadic shape survive.
+            Arms = flowCtrl.Arms.Select(a => new BranchArm
+            {
+                PinName = a.PinName,
+                TargetBlockName = a.TargetBlockName,
+                IsLoopback = a.IsLoopback
+            }).ToList(),
             OriginalExpression = flowCtrl.SourceCode,
             SourceLine = flowCtrl.LineNumber
         };
@@ -180,6 +184,7 @@ public class BS2CFGConverter
     {
         FlowControlType.Branch => Branch,
         FlowControlType.Loop => Loop,
+        FlowControlType.Switch => Switch,
         FlowControlType.ToLoopCond => ToLoopCond,
         FlowControlType.Break => Break,
         _ => string.Empty
@@ -189,6 +194,7 @@ public class BS2CFGConverter
     {
         FlowControlType.Branch => CFGStatementKind.Branch,
         FlowControlType.Loop => CFGStatementKind.Loop,
+        FlowControlType.Switch => CFGStatementKind.Switch,
         FlowControlType.ToLoopCond => CFGStatementKind.ToLoopCond,
         FlowControlType.Break => CFGStatementKind.Break,
         _ => CFGStatementKind.Unknown

@@ -1,3 +1,5 @@
+using KitX.Core.Contract.Workflow;
+
 namespace KitX.Workflow.CFG;
 
 /// <summary>
@@ -80,9 +82,13 @@ internal class CFGConditionDuplicator
         Arguments = source.Arguments,
         ConditionExpression = source.ConditionExpression,
         ConditionPubVar = source.ConditionPubVar,
-        TrueBlockName = source.TrueBlockName,
-        FalseBlockName = source.FalseBlockName,
-        ToLoopCondReturnTo = source.ToLoopCondReturnTo,
+        // Clone the full arm list so N-way shapes survive duplication.
+        Arms = source.Arms.Select(a => new BranchArm
+        {
+            PinName = a.PinName,
+            TargetBlockName = a.TargetBlockName,
+            IsLoopback = a.IsLoopback
+        }).ToList(),
         Fingerprint = source.Fingerprint,
         IsLoopConditionDuplication = true
     };

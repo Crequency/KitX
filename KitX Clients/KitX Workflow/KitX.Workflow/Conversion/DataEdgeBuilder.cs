@@ -67,10 +67,12 @@ public class DataEdgeBuilder
                 }
             }
 
-            // Connect ConditionPubVar to any Boolean-type input pin (Branch/Loop condition)
+            // Connect ConditionPubVar to the flow-control node's condition/selector input pin.
+            // This is the first non-Exec data input pin (Branch/Loop "Condition" is Boolean,
+            // Switch "Selector" is Integer), so match by position rather than hard-coding Boolean.
             if (!string.IsNullOrEmpty(stmt.ConditionPubVar))
             {
-                var condPin = funcDef.InputPins.FirstOrDefault(p => p.Type == PinType.Boolean);
+                var condPin = funcDef.InputPins.FirstOrDefault(p => p.Type != PinType.Execution);
                 if (condPin != null)
                     ConnectPubVarSource(stmt.ConditionPubVar, targetNode, condPin.Name, context);
             }

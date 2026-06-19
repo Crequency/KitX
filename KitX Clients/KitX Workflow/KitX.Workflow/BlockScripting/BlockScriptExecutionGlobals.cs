@@ -20,9 +20,24 @@ public partial class BlockScriptExecutionGlobals
     // ─── 内置属性 ───────────────────────────────────────────────
 
     /// <summary>
-    /// NextBlock 内置变量 - 设置后执行器会跳转到指定块
+    /// NextBlock 内置变量 - 设置后执行器会跳转到指定块。
+    /// 这是控制流的唯一载体。普通 <c>Set/Get</c> 不再识别 "NextBlock" 这个名字,
+    /// 因此用户脚本无法通过变量赋值劫持控制流、绕过 Loop/Break 语义或 CFG 校验。
+    /// 仅两类调用方可写此属性:(1) 生成的 <c>RunAsync</c> 主干(G.NextBlock = ...)——
+    /// 它是可信基础设施,完全由 CFG2CSGenerator 按已校验的 CFG 产出;(2) 受信任的 flow
+    /// 函数(Branch/Loop/Switch/Flip/ToLoopCond),应优先通过 <see cref="AdvanceTo"/> 写入。
     /// </summary>
     public string? NextBlock { get; set; }
+
+    /// <summary>
+    /// 受信任的控制流改写入口。内置 flow 函数应通过此方法设置下一个块,
+    /// 而非直接写 <see cref="NextBlock"/>,以保持单一改写路径。
+    /// </summary>
+    internal string? AdvanceTo(string? blockName)
+    {
+        NextBlock = blockName;
+        return NextBlock;
+    }
 
     /// <summary>
     /// Number of blocks executed so far in the current run.
@@ -47,11 +62,11 @@ public partial class BlockScriptExecutionGlobals
 
     /// <summary>
     /// Gets a variable value dynamically (CSharpScript path).
+    /// "NextBlock" is no longer a recognised variable name — control flow is only mutated
+    /// via <see cref="AdvanceTo"/> by trusted flow functions.
     /// </summary>
     public dynamic Get(string name)
     {
-        if (name == "NextBlock")
-            return NextBlock!;
         if (_variables.TryGetValue(name, out var value))
             return value!;
         return _scopeManager.ResolveVariable(name)!;
@@ -62,8 +77,6 @@ public partial class BlockScriptExecutionGlobals
     /// </summary>
     public T? Get<T>(string name)
     {
-        if (name == "NextBlock")
-            return (T?)(object?)NextBlock;
         if (_variables.TryGetValue(name, out var value))
             return (T?)value;
         return (T?)_scopeManager.ResolveVariable(name);
@@ -74,11 +87,6 @@ public partial class BlockScriptExecutionGlobals
     /// </summary>
     public void Set(string name, object? value)
     {
-        if (name == "NextBlock")
-        {
-            NextBlock = value as string;
-            return;
-        }
         _variables[name] = value;
         _scopeManager.SetVariable(name, value, global: false);
         Debugger?.UpdateVariableSnapshot(GetAllVariables());
@@ -89,11 +97,6 @@ public partial class BlockScriptExecutionGlobals
     /// </summary>
     public void SetGlobalVariable(string name, object? value)
     {
-        if (name == "NextBlock")
-        {
-            NextBlock = value as string;
-            return;
-        }
         _variables[name] = value;
         _scopeManager.SetVariable(name, value, global: true);
         Debugger?.UpdateVariableSnapshot(GetAllVariables());

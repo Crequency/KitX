@@ -109,6 +109,7 @@ internal class CFG2BSConverter
     {
         [CFGStatementKind.Branch] = FlowControlType.Branch,
         [CFGStatementKind.Loop] = FlowControlType.Loop,
+        [CFGStatementKind.Switch] = FlowControlType.Switch,
         [CFGStatementKind.ToLoopCond] = FlowControlType.ToLoopCond,
         [CFGStatementKind.Break] = FlowControlType.Break,
     };
@@ -123,9 +124,13 @@ internal class CFG2BSConverter
                 StatementId = cfgStmt.StatementId,
                 ControlType = controlType.Value,
                 ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
-                TrueBlockName = cfgStmt.TrueBlockName ?? string.Empty,
-                FalseBlockName = cfgStmt.FalseBlockName ?? string.Empty,
-                ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,
+                // Copy the full arm list so N-way Switch and any variadic shape survive.
+                Arms = cfgStmt.Arms.Select(a => new BranchArm
+                {
+                    PinName = a.PinName,
+                    TargetBlockName = a.TargetBlockName,
+                    IsLoopback = a.IsLoopback
+                }).ToList(),
                 SourceCode = cfgStmt.OriginalExpression,
                 LineNumber = cfgStmt.SourceLine
             };

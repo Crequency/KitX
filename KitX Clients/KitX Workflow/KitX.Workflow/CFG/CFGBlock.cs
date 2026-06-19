@@ -74,9 +74,9 @@ public class CFGBlock
 
     /// <summary>
     /// Whether this block ends with a control flow statement
-    /// (Branch, Loop, ToLoopCond, Break, Return).
+    /// (Branch, Loop, Switch, ToLoopCond, Break, Return).
     /// </summary>
     public bool EndsWithControlFlow =>
         Statements.Count > 0 && Statements[^1] is { Kind: CFGStatementKind.Branch or CFGStatementKind.Loop
-            or CFGStatementKind.ToLoopCond or CFGStatementKind.Break };
+            or CFGStatementKind.Switch or CFGStatementKind.ToLoopCond or CFGStatementKind.Break };
 }

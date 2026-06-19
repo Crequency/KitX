@@ -273,38 +273,14 @@ public class BlockScriptExecutor : IBlockScriptExecutor
             {
                 if (statement is FlowControlStatement flow)
                 {
-                    if (flow.ControlType == FlowControlType.Branch)
+                    // Validate every arm target exists. Works uniformly for Branch (True/False),
+                    // Loop (LoopBody/LoopEnd), ToLoopCond (Exec loopback) and Switch (Default/0/1/...).
+                    foreach (var arm in flow.Arms)
                     {
-                        if (!string.IsNullOrEmpty(flow.TrueBlockName) &&
-                            !allBlockNames.Contains(flow.TrueBlockName))
+                        if (!string.IsNullOrEmpty(arm.TargetBlockName) &&
+                            !allBlockNames.Contains(arm.TargetBlockName))
                         {
-                            result.AddError($"Block '{flow.TrueBlockName}' referenced in Branch at line {flow.LineNumber} does not exist");
-                        }
-                        if (!string.IsNullOrEmpty(flow.FalseBlockName) &&
-                            !allBlockNames.Contains(flow.FalseBlockName))
-                        {
-                            result.AddError($"Block '{flow.FalseBlockName}' referenced in Branch at line {flow.LineNumber} does not exist");
-                        }
-                    }
-                    else if (flow.ControlType == FlowControlType.Loop)
-                    {
-                        if (!string.IsNullOrEmpty(flow.TrueBlockName) &&
-                            !allBlockNames.Contains(flow.TrueBlockName))
-                        {
-                            result.AddError($"Block '{flow.TrueBlockName}' referenced in Loop at line {flow.LineNumber} does not exist");
-                        }
-                        if (!string.IsNullOrEmpty(flow.FalseBlockName) &&
-                            !allBlockNames.Contains(flow.FalseBlockName))
-                        {
-                            result.AddError($"Block '{flow.FalseBlockName}' referenced in Loop at line {flow.LineNumber} does not exist");
-                        }
-                    }
-                    else if (flow.ControlType == FlowControlType.ToLoopCond)
-                    {
-                        if (!string.IsNullOrEmpty(flow.ToLoopCondReturnTo) &&
-                            !allBlockNames.Contains(flow.ToLoopCondReturnTo))
-                        {
-                            result.AddError($"Block '{flow.ToLoopCondReturnTo}' referenced in ToLoopCond at line {flow.LineNumber} does not exist");
+                            result.AddError($"Block '{arm.TargetBlockName}' referenced in {flow.ControlType} (arm '{arm.PinName}') at line {flow.LineNumber} does not exist");
                         }
                     }
                 }

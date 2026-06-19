@@ -106,8 +106,7 @@ namespace KitX.Workflow.BlockScripting
         /// </summary>
         public string? Loop(bool condition, string trueBlock, string falseBlock)
         {
-            NextBlock = condition ? trueBlock : falseBlock;
-            return NextBlock;
+            return AdvanceTo(condition ? trueBlock : falseBlock);
         }
     }
 }

@@ -28,5 +28,11 @@ public enum FlowControlType
     /// <summary>
     /// To loop condition - marks the end of a loop body and returns to loop condition
     /// </summary>
-    ToLoopCond
+    ToLoopCond,
+
+    /// <summary>
+    /// Switch to one of N blocks by integer index (default on out-of-range).
+    /// Syntax: Switch(selector, "defaultBlock", "b0", "b1", ...)
+    /// </summary>
+    Switch
 }

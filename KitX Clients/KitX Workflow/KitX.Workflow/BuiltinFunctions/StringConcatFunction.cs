@@ -33,6 +33,13 @@ public class StringConcatFunction : IBuiltinFunctionDefinition
         new("Result", PinType.String, 40),
     ];
 
+    /// <summary>
+    /// Input-side variadic growth: when the last String input is connected, the editor
+    /// auto-appends a new "Input {N}" String pin. Declared here (on the descriptor) so the
+    /// editor's generic variadic logic handles it instead of the former StringConcat name match.
+    /// </summary>
+    public VariadicPinSpec? InputVariadic => new("Input ", 3, PinType.String);
+
     public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)

@@ -47,6 +47,12 @@ public enum CFGEdgeType
     /// Break from the current loop — exits to the loop's exit block.
     /// </summary>
     Break,
+
+    /// <summary>
+    /// Switch arm taken by integer selector. <see cref="CFGEdge.PinName"/> carries the arm
+    /// index (<c>"Default"</c> or <c>"0"</c>..<c>"N-1"</c>).
+    /// </summary>
+    Switch,
 }
 
 /// <summary>

@@ -67,6 +67,26 @@ public interface IBuiltinFunctionDefinition
     /// <summary>输出引脚描述</summary>
     IReadOnlyList<PinDescriptor> OutputPins { get; }
 
+    /// <summary>
+    /// 输入侧变长端口配置。非 null 时,蓝图编辑器在该组最后一个输入端口被连接后,
+    /// 自动追加一个 <see cref="VariadicPinSpec.PinType"/> 类型的新输入端口。
+    /// 默认 null(非变长)。StringConcat 覆写为字符串变长输入。
+    /// </summary>
+    VariadicPinSpec? InputVariadic => null;
+
+    /// <summary>
+    /// 输出侧变长端口配置。非 null 时,蓝图编辑器在该组最后一个输出端口被连接后,
+    /// 自动追加一个新输出端口。默认 null(非变长)。Switch 覆写为执行流变长输出。
+    /// </summary>
+    VariadicPinSpec? OutputVariadic => null;
+
+    /// <summary>
+    /// 按本语句的实际情况返回输出 Pin 描述符。默认返回固定 <see cref="OutputPins"/>(旧行为)。
+    /// 变长输出节点(如 Switch,其输出 arm 数随语句而变)覆写此方法,按 <see cref="CFGStatement.Arms"/>
+    /// 数量动态生成 [Default, 0, 1, ..., N-1],使 BS→BP 导入时端口数与 arm 数匹配。
+    /// </summary>
+    IReadOnlyList<PinDescriptor> GetOutputPinsFor(CFGStatement stmt) => OutputPins;
+
     // ─── 解析（BlockScript → AST）─────────────────
 
     /// <summary>
