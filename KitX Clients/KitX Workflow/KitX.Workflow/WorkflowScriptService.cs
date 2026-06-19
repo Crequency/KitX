@@ -126,6 +126,9 @@ public class WorkflowScriptService : IWorkflowManagementService,
 
     public Task<bool> RunWorkflowAsync(string workflowId) => ManagementService.RunWorkflowAsync(workflowId);
 
+    public Task<WorkflowRunResult> RunWorkflowWithDetailsAsync(string workflowId)
+        => ManagementService.RunWorkflowWithDetailsAsync(workflowId);
+
     public Task<bool> StopWorkflowAsync(string workflowId) => ManagementService.StopWorkflowAsync(workflowId);
 
     public Task<bool> CompileAndPersistWorkflowAsync(string workflowId) =>

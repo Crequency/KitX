@@ -13,7 +13,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string FunctionName => "InstallPlugin";
         public string DisplayName => "Install Plugin";
         public bool IsFlowControl => false;
-        public bool IsNonExtractable => true;
+        public bool IsNonExtractable => false; // Value-producing (has Return pin) — can be nested as an expression
         public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 140;
         public double NodeHeight => 60;

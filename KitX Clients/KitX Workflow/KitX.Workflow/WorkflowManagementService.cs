@@ -53,7 +53,14 @@ internal class WorkflowManagementService : IWorkflowManagementService
     /// <inheritdoc />
     public async Task<bool> RunWorkflowAsync(string workflowId)
     {
-        const string location = $"{nameof(WorkflowManagementService)}.{nameof(RunWorkflowAsync)}";
+        var result = await RunWorkflowWithDetailsAsync(workflowId);
+        return result.IsSuccess;
+    }
+
+    /// <inheritdoc />
+    public async Task<WorkflowRunResult> RunWorkflowWithDetailsAsync(string workflowId)
+    {
+        const string location = $"{nameof(WorkflowManagementService)}.{nameof(RunWorkflowWithDetailsAsync)}";
 
         try
         {
@@ -65,7 +72,7 @@ internal class WorkflowManagementService : IWorkflowManagementService
                 Log.Warning("[{Location}] Workflow data not found in storage for ID: {WorkflowId}. " +
                     "Expected file path: {Path}", location, workflowId,
                     storageService.GetWorkflowFilePath(workflowId));
-                return false;
+                return new WorkflowRunResult(false, "Workflow data not found", null);
             }
 
             Log.Information("[{Location}] Loaded workflow '{Name}' (ID: {Id}), " +
@@ -87,7 +94,7 @@ internal class WorkflowManagementService : IWorkflowManagementService
             {
                 Log.Warning("[{Location}] Workflow '{Name}' (ID: {Id}) has no executable source code",
                     location, data.Name, workflowId);
-                return false;
+                return new WorkflowRunResult(false, "No executable source code", null);
             }
 
             Log.Information("[{Location}] Executing workflow '{Name}' ({SourceLength} chars)...",
@@ -113,13 +120,13 @@ internal class WorkflowManagementService : IWorkflowManagementService
                     location, data.Name, result.ErrorMessage);
             }
 
-            return result.IsSuccess;
+            return new WorkflowRunResult(result.IsSuccess, result.ErrorMessage, result.Output);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[{Location}] Error running workflow {WorkflowId}: {Message}",
                 location, workflowId, ex.Message);
-            return false;
+            return new WorkflowRunResult(false, ex.Message, null);
         }
     }
 

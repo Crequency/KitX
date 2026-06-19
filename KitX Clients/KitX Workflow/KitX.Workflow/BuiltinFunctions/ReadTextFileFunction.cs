@@ -12,7 +12,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string FunctionName => "ReadTextFile";
         public string DisplayName => "Read Text File";
         public bool IsFlowControl => false;
-        public bool IsNonExtractable => true;
+        public bool IsNonExtractable => false; // Value-producing (has Return pin) — can be nested as an expression
         public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 140;
         public double NodeHeight => 60;

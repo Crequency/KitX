@@ -444,6 +444,22 @@ public class BS2CFGConverter
         if (expr is ParenthesizedExpressionSyntax paren)
             return ExpandExpression(paren.Expression, blockName, context);
 
+        // Binary expression (e.g. "prefix" + Get("var") + "suffix"):
+        // Recurse into both operands so nested calls inside concatenations are
+        // expanded into temp PubVars. Without this, the default branch below would
+        // stringify the whole expression verbatim, leaving Get/PluginCall/etc. as
+        // unresolved identifiers in the generated C# (CS0103).
+        if (expr is BinaryExpressionSyntax binary)
+        {
+            var (leftStmts, leftExpr) = ExpandExpression(binary.Left, blockName, context);
+            var (rightStmts, rightExpr) = ExpandExpression(binary.Right, blockName, context);
+            var combined = new List<CFGStatement>(leftStmts);
+            combined.AddRange(rightStmts);
+            var op = binary.OperatorToken.Text;
+            var rebuilt = $"{leftExpr} {op} {rightExpr}";
+            return (combined, rebuilt);
+        }
+
         // Default: return as-is
         return (new(), expr.ToString());
     }

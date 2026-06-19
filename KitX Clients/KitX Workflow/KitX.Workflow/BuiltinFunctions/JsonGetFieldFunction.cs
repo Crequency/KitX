@@ -13,7 +13,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string FunctionName => "JsonGetField";
         public string DisplayName => "JSON Get Field";
         public bool IsFlowControl => false;
-        public bool IsNonExtractable => true;
+        public bool IsNonExtractable => false; // Value-producing (has Return pin) — can be nested as an expression
         public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 160;
         public double NodeHeight => 80;

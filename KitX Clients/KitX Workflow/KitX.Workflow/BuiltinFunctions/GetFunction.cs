@@ -37,7 +37,11 @@ public class GetFunction : IBuiltinFunctionDefinition
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
     {
         var varName = stmt.Arguments?.Count > 0 ? stmt.Arguments[0].Trim('"') : "";
-        return ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildGetInvocation(varName));
+        // Look up the ConstBlock variable's declared type so Get<T> returns the right type.
+        // Without this, Get always returns object, and passing it to a function expecting
+        // string/int/bool causes CS1503. Falls back to object if the variable is unknown.
+        var typeName = ctx.PubVarTypes.GetValueOrDefault(varName, "object");
+        return ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSGenerator.BuildGetInvocation(varName, typeName));
     }
 
     public List<CFGStatement> LowerToCFG(

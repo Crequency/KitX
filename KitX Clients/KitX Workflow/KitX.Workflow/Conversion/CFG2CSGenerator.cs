@@ -50,9 +50,20 @@ internal static class CFG2CSGenerator
         foreach (var name in context.PubVarNames)
             pubVarTypes[name] = "object";
 
-        // Add ConstBlock variables (accessible as identifiers in expressions)
+        // Add ConstBlock variables (accessible as identifiers in expressions).
+        // ConstNodes is populated by BS→BP but NOT by BS→CFG→CS, so also read directly
+        // from the source script's ConstBlock to cover the compilation-only path.
         foreach (var kvp in context.ConstNodes)
             pubVarTypes[kvp.Key] = kvp.Value.ConstType ?? "object";
+
+        if (context.Script.ConstBlock != null)
+        {
+            foreach (var variable in context.Script.ConstBlock.Variables)
+            {
+                if (!pubVarTypes.ContainsKey(variable.Name))
+                    pubVarTypes[variable.Name] = variable.Type ?? "object";
+            }
+        }
 
         // First pass: SOURCE types
         foreach (var block in formattedScript.Blocks)
@@ -64,6 +75,15 @@ internal static class CFG2CSGenerator
                 if (helperMap.TryGetValue(stmt.FunctionName ?? "", out var helper))
                 {
                     pubVarTypes[stmt.PubVarTarget] = helper.ReturnType;
+                }
+                // Get("varName") returns the same type as the ConstBlock variable it reads.
+                // Without this, Get's temp PubVar defaults to "object", causing CS1503 when
+                // passed to functions expecting typed arguments (e.g. InstallPlugin(string)).
+                else if (stmt.FunctionName == "Get" && stmt.Arguments.Count > 0)
+                {
+                    var varName = stmt.Arguments[0].Trim('"');
+                    if (pubVarTypes.TryGetValue(varName, out var varType) && varType != "object")
+                        pubVarTypes[stmt.PubVarTarget] = varType;
                 }
             }
         }
@@ -716,16 +736,49 @@ internal static class CFG2CSGenerator
     }
 
     /// <summary>
-    /// Builds <c>G.Get&lt;object&gt;("varName")</c> expression.
+    /// Builds <c>G.Get&lt;T&gt;("varName")</c> expression. The type parameter T is looked
+    /// up from the inferred type map (which includes ConstBlock declarations). Falls back
+    /// to <c>object</c> if the variable is unknown or untyped. This ensures that a
+    /// <c>Get("installUrl")</c> where <c>installUrl</c> is declared as <c>string</c> in
+    /// ConstBlock produces <c>G.Get&lt;string&gt;("installUrl")</c> — so the result can
+    /// be passed directly to functions expecting <c>string</c> without CS1503.
     /// </summary>
     internal static InvocationExpressionSyntax BuildGetInvocation(string varName)
+        => BuildGetInvocation(varName, "object");
+
+    /// <summary>
+    /// Builds <c>G.Get&lt;T&gt;("varName")</c> with an explicit type argument.
+    /// </summary>
+    internal static InvocationExpressionSyntax BuildGetInvocation(string varName, string typeName)
     {
+        // Map BS type keywords to C# type syntax. "object" → object, "string" → string, etc.
+        // "dynamic" stays dynamic (it suppresses compile-time type checking).
+        TypeSyntax typeArg;
+        if (typeName == "dynamic")
+            typeArg = IdentifierName("dynamic");
+        else
+            typeArg = PredefinedType(Token(SyntaxKind.ObjectKeyword)) // fallback
+                .WithKeyword(Token(SyntaxKind.ObjectKeyword));
+
+        // Use the correct C# keyword for primitive types declared in ConstBlock.
+        typeArg = typeName switch
+        {
+            "string" => PredefinedType(Token(SyntaxKind.StringKeyword)),
+            "int" => PredefinedType(Token(SyntaxKind.IntKeyword)),
+            "bool" => PredefinedType(Token(SyntaxKind.BoolKeyword)),
+            "double" => PredefinedType(Token(SyntaxKind.DoubleKeyword)),
+            "float" => PredefinedType(Token(SyntaxKind.FloatKeyword)),
+            "char" => PredefinedType(Token(SyntaxKind.CharKeyword)),
+            "object" => PredefinedType(Token(SyntaxKind.ObjectKeyword)),
+            "dynamic" => IdentifierName("dynamic"),
+            _ => ParseTypeName(typeName) // custom types (unlikely for ConstBlock but safe)
+        };
+
         return InvocationExpression(
             MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                 IdentifierName("G"),
                 GenericName(Identifier("Get"),
-                    TypeArgumentList(SeparatedList(new TypeSyntax[]
-                        { PredefinedType(Token(SyntaxKind.ObjectKeyword)) })))),
+                    TypeArgumentList(SeparatedList(new TypeSyntax[] { typeArg })))),
             ArgumentList(SeparatedList(new[]
             {
                 Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(varName)))
@@ -734,20 +787,52 @@ internal static class CFG2CSGenerator
 
     /// <summary>
     /// Builds <c>G.PluginCall("pluginName", "methodName", args...)</c> expression.
+    /// Handles two forms:
+    ///   - Dotted: <c>Plugin.Method(args)</c> — plugin/method extracted from FullFunctionName.
+    ///   - Builtin: <c>PluginCall(pluginName, methodName, args...)</c> — plugin/method are
+    ///     the first two positional Arguments (matching the runtime signature
+    ///     G.PluginCall(string, string, params object[])).
     /// </summary>
     internal static InvocationExpressionSyntax BuildPluginCallExpression(
         CFGStatement stmt, Dictionary<string, string> pubVarTypes)
     {
-        var lastDot = (stmt.FullFunctionName ?? "").LastIndexOf('.');
-        var pluginName = lastDot >= 0 ? stmt.FullFunctionName![..lastDot] : stmt.FullFunctionName ?? "";
-        var methodName = lastDot >= 0 ? stmt.FullFunctionName![(lastDot + 1)..] : "";
+        var fullFn = stmt.FullFunctionName ?? "";
+        var lastDot = fullFn.LastIndexOf('.');
 
-        var pluginCallArgs = new List<ArgumentSyntax>
+        List<ArgumentSyntax> pluginCallArgs;
+        List<string> remainingArgs;
+
+        if (lastDot >= 0)
         {
-            Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(pluginName))),
-            Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(methodName)))
-        };
-        pluginCallArgs.AddRange(stmt.Arguments.Select(a =>
+            // Dotted form: Plugin.Method(args)
+            var pluginName = fullFn[..lastDot];
+            var methodName = fullFn[(lastDot + 1)..];
+            pluginCallArgs = new()
+            {
+                Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(pluginName))),
+                Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(methodName)))
+            };
+            remainingArgs = stmt.Arguments ?? new();
+        }
+        else
+        {
+            // Builtin form: PluginCall(pluginName, methodName, args...)
+            // The first two Arguments ARE the plugin/method names (they may be ConstBlock
+            // variable references like `uiPlugin` or string literals like `"KitX.AI.Plugin"`).
+            // Resolve them as expressions so variable refs become C# identifiers.
+            var pluginNameArg = stmt.Arguments.Count > 0 ? stmt.Arguments[0] : "\"\"";
+            var methodNameArg = stmt.Arguments.Count > 1 ? stmt.Arguments[1] : "\"\"";
+            pluginCallArgs = new()
+            {
+                Argument(ResolveArgumentExpression(pluginNameArg, pubVarTypes)),
+                Argument(ResolveArgumentExpression(methodNameArg, pubVarTypes))
+            };
+            remainingArgs = stmt.Arguments.Count > 2
+                ? stmt.Arguments.Skip(2).ToList()
+                : new();
+        }
+
+        pluginCallArgs.AddRange(remainingArgs.Select(a =>
             Argument(ResolveArgumentExpression(a, pubVarTypes))));
 
         return InvocationExpression(

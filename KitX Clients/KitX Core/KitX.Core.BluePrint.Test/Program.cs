@@ -14,7 +14,7 @@ using KitX.Workflow.Conversion;
 
 namespace KitX.Core.BluePrint.Test;
 
-public class Program
+public partial class Program
 {
     // Test selection: --test A,D,K or --test all (default: all)
     private static HashSet<string> _selectedTests = new(StringComparer.OrdinalIgnoreCase) { "ALL" };
@@ -23,6 +23,15 @@ public class Program
     public static void Main(string[] args)
     {
         ParseArgs(args);
+
+        // --kcs <path>: compile a .kcs workflow file and report diagnostics.
+        // Useful for validating real workflow scripts without running the Dashboard.
+        var kcsIdx = Array.IndexOf(args, "--kcs");
+        if (kcsIdx >= 0 && kcsIdx + 1 < args.Length)
+        {
+            RunKcsCompileTest(args[kcsIdx + 1]);
+            return;
+        }
 
         Console.WriteLine("=== KitX BlockScript → Blueprint Pipeline Test ===\n");
 

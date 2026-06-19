@@ -179,12 +179,14 @@ public class TriggerManager : ITriggerManager
                 Log.Information("[TriggerManager] Triggering workflow: {WorkflowId}", workflowId);
                 _ = System.Threading.Tasks.Task.Run(async () =>
                 {
-                    bool success = await ServiceLocator.GetRequiredService<IWorkflowManagementService>().RunWorkflowAsync(workflowId);
+                    var runResult = await ServiceLocator.GetRequiredService<IWorkflowManagementService>()
+                        .RunWorkflowWithDetailsAsync(workflowId);
                     ServiceLocator.GetRequiredService<IEventService>().Publish(
                         WorkflowEventNames.WorkflowExecutionResult,
                         new WorkflowExecutionResultEventArgs(
-                            workflowId, success,
-                            success ? null : "Workflow execution failed"));
+                            workflowId, runResult.IsSuccess,
+                            runResult.IsSuccess ? null : runResult.ErrorMessage ?? "Workflow execution failed",
+                            runResult.Output));
                 });
             }
         }
