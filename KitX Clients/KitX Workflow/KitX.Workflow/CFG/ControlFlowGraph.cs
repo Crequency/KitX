@@ -79,8 +79,8 @@ public class ControlFlowGraph
                 sb.AppendLine($"    [{stmt.Kind}] {stmt.OriginalExpression}{dup}");
                 if (!string.IsNullOrEmpty(stmt.TrueBlockName))
                     sb.AppendLine($"      → True=\"{stmt.TrueBlockName}\", False=\"{stmt.FalseBlockName}\"");
-                if (!string.IsNullOrEmpty(stmt.ToLoopCondReturnTo))
-                    sb.AppendLine($"      → ToLoopCond=\"{stmt.ToLoopCondReturnTo}\"");
+                if (!string.IsNullOrEmpty(stmt.LoopbackTarget))
+                    sb.AppendLine($"      → ToLoopCond=\"{stmt.LoopbackTarget}\"");
                 if (!string.IsNullOrEmpty(stmt.PubVarTarget))
                     sb.AppendLine($"      PubVarTarget={stmt.PubVarTarget}");
             }

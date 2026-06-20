@@ -117,10 +117,8 @@ internal class CFG2BSConverter
                 ControlType = controlType.Value,
                 ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
+                // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
                 Arms = cfgStmt.Arms.Select(a => a.Clone()).ToList(),
-                // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
-                // ToLoopCond statements retain their loopback target across CFG→BS.
-                ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,
                 SourceCode = cfgStmt.OriginalExpression,
                 LineNumber = cfgStmt.SourceLine
             };

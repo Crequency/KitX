@@ -44,7 +44,7 @@ namespace KitX.Workflow.BuiltinFunctions
                 SourceCode = exprText ?? invoke.ToFullString(),
                 ControlType = FlowControlType.ToLoopCond
             };
-            if (args.Count >= 1) stmt.ToLoopCondReturnTo = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
+            if (args.Count >= 1) stmt.LoopbackTarget = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
             return stmt;
         }
 
@@ -52,7 +52,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)
         {
-            var returnToBlock = stmt.ToLoopCondReturnTo;
+            var returnToBlock = stmt.LoopbackTarget;
             if (!string.IsNullOrEmpty(returnToBlock))
             {
                 context.DeferredEdges.Add(new DeferredControlFlowEdge
@@ -64,7 +64,7 @@ namespace KitX.Workflow.BuiltinFunctions
         }
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
-            => ctx.EmitNextBlockAssignment("ToLoopCond", ctx.Literal(stmt.ToLoopCondReturnTo ?? ""));
+            => ctx.EmitNextBlockAssignment("ToLoopCond", ctx.Literal(stmt.LoopbackTarget ?? ""));
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
         {
@@ -87,7 +87,7 @@ namespace KitX.Workflow.BuiltinFunctions
                             return new FlowControlStatement
                             {
                                 ControlType = FlowControlType.ToLoopCond,
-                                ToLoopCondReturnTo = returnTo,
+                                LoopbackTarget = returnTo,
                                 SourceCode = $"NextBlock = ToLoopCond(\"{returnTo}\");",
                                 LineNumber = 1
                             };
@@ -105,7 +105,7 @@ namespace KitX.Workflow.BuiltinFunctions
         }
 
         public IEnumerable<OutputArmDescriptor> GetOutputArms() => [
-            new() { PinName = "Exec", IsLoopback = false }
+            new() { PinName = "Exec", IsLoopback = true }
         ];
     }
 }

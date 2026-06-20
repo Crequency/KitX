@@ -177,7 +177,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
                     $" | PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName}" +
                     $" Args=[{args}]" +
                     $" CondPubVar={stmt.ConditionPubVar} True={stmt.TrueBlockName} False={stmt.FalseBlockName}" +
-                    $" ToLoopCondReturnTo={stmt.ToLoopCondReturnTo}{dup}{fp}");
+                    $" LoopbackTarget={stmt.LoopbackTarget}{dup}{fp}");
             }
             sb.AppendLine();
         }

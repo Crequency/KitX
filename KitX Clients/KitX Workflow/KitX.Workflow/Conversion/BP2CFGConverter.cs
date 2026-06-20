@@ -573,11 +573,11 @@ internal class BP2CFGConverter
             // Non-registry control flow handling (fallback)
             if (lastStmt.Kind == CFGStatementKind.ToLoopCond)
             {
-                if (!string.IsNullOrEmpty(lastStmt.ToLoopCondReturnTo))
+                if (!string.IsNullOrEmpty(lastStmt.LoopbackTarget))
                     block.Successors.Add(new CFGEdge
                     {
                         FromBlockName = block.Name,
-                        ToBlockName = lastStmt.ToLoopCondReturnTo,
+                        ToBlockName = lastStmt.LoopbackTarget,
                         Type = CFGEdgeType.LoopbackToCondition
                     });
                 continue;
@@ -895,11 +895,9 @@ internal class BP2CFGConverter
                     cfgStmt.FunctionName = null;
                 cfgStmt.ConditionExpression = flow.ConditionExpression;
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
+                // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), so it is
+                // carried by this clone — no separate field copy needed.
                 cfgStmt.Arms = flow.Arms.Select(a => a.Clone()).ToList();
-                // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
-                // ToLoopCond statements (and Loop statements carrying a loopback target set by
-                // BlockStatementExtractor.CreateLoopBlocksForBlock) retain it across BP→CFG.
-                cfgStmt.ToLoopCondReturnTo = flow.ToLoopCondReturnTo;
                 cfgStmt.ConditionPubVar = flow.ConditionExpression?.Trim();
                 break;
 
@@ -964,12 +962,14 @@ internal class BP2CFGConverter
         var stmt = new CFGStatement
         {
             Kind = CFGStatementKind.ToLoopCond,
-            ToLoopCondReturnTo = returnTo,
             OriginalExpression = returnTo != null
                 ? $"NextBlock = ToLoopCond(\"{returnTo}\");"
                 : "NextBlock = ToLoopCond();",
             SourceLine = 1
         };
+        // The loopback target is the sole arm (PinName="Exec", IsLoopback=true), unifying
+        // ToLoopCond with Branch/Loop/Switch: all control-flow targets live in Arms.
+        stmt.LoopbackTarget = returnTo;
         return stmt;
     }
 

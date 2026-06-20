@@ -107,27 +107,6 @@ internal class BlockStatementExtractor
     }
 
     /// <summary>
-    /// Sets ToLoopCondReturnTo metadata for Loop statements in the block.
-    /// New design: Loop statements stay in their parent block, no hidden sub-blocks created.
-    /// </summary>
-    public void CreateLoopBlocksForBlock(BlockDefinition block, BlockScript script)
-    {
-        var loopStatements = block.Statements
-            .OfType<FlowControlStatement>()
-            .Where(fs => fs.ControlType == FlowControlType.Loop)
-            .ToList();
-
-        if (loopStatements.Count == 0) return;
-
-        foreach (var loopStmt in loopStatements)
-            loopStmt.ToLoopCondReturnTo = block.Name;
-
-        Log.Debug("[BlockStatementExtractor] Block '{BlockName}' contains {Count} Loop statement(s), " +
-            "ToLoopCondReturnTo set to '{BlockName}'",
-            block.Name, loopStatements.Count, block.Name);
-    }
-
-    /// <summary>
     /// Extracts statements from syntax root into block definition.
     /// Dispatches each descendant node to a focused helper, keeping the top-level
     /// foreach flat (2 levels max). The 6 former copy-pasted

@@ -142,10 +142,8 @@ public class BS2CFGConverter
             ConditionPubVar = condPubVar,
             ConditionExpression = flowCtrl.ConditionExpression,
             // Copy the full arm list so N-way Switch and any variadic shape survive.
+            // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
             Arms = flowCtrl.Arms.Select(a => a.Clone()).ToList(),
-            // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
-            // ToLoopCond statements retain their loopback target across BS→CFG.
-            ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
             OriginalExpression = flowCtrl.SourceCode,
             SourceLine = flowCtrl.LineNumber
         };

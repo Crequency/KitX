@@ -49,14 +49,18 @@ public class FlowControlStatement : BlockStatement
     }
 
     /// <summary>
-    /// The ToLoopCond loopback target block name. Kept as a SEPARATE field (not routed through
-    /// Arms[0]) so that setting it on a Loop/Branch statement — which <c>BlockStatementExtractor
-    /// .CreateLoopBlocksForBlock</c> does to record the loop's own block as the loopback target —
-    /// does NOT clobber <see cref="TrueBlockName"/> (Arms[0]). On a ToLoopCond statement this is
-    /// the sole target; on a Loop/Branch statement it carries the owning loop's condition block
-    /// for back-edge resolution and is independent of the Branch/Loop arms.
+    /// The ToLoopCond loopback target — the loop condition block this statement returns to.
+    /// Unified into <see cref="Arms"/>[0] (PinName="Exec", IsLoopback=true) so ToLoopCond is
+    /// treated uniformly with Branch/Loop/Switch: all control-flow targets live in Arms.
+    /// The former standalone <c>ToLoopCondReturnTo</c> field was a patch over an Arms[0]
+    /// collision that no longer exists; Loop statements no longer carry this metadata at all
+    /// (it was dead — never read for control flow, only copied and debug-printed).
     /// </summary>
-    public string? ToLoopCondReturnTo { get; set; }
+    public string? LoopbackTarget
+    {
+        get => Arms.Count > 0 ? Arms[0].TargetBlockName : null;
+        set => SetArm(0, "Exec", value ?? string.Empty, isLoopback: true);
+    }
 
     private void SetArm(int index, string pinName, string value, bool isLoopback = false)
     {
@@ -77,8 +81,8 @@ public class FlowControlStatement : BlockStatement
         {
             FlowControlType.Branch => $"NextBlock = Branch({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
             FlowControlType.Loop => $"NextBlock = Loop({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
-            FlowControlType.ToLoopCond => !string.IsNullOrEmpty(ToLoopCondReturnTo)
-                ? $"NextBlock = ToLoopCond(\"{ToLoopCondReturnTo}\");"
+            FlowControlType.ToLoopCond => !string.IsNullOrEmpty(LoopbackTarget)
+                ? $"NextBlock = ToLoopCond(\"{LoopbackTarget}\");"
                 : "ToLoopCond();",
             FlowControlType.Switch => RegenerateSwitchSource(),
             FlowControlType.Break => "Break();",
