@@ -5,12 +5,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>KitX.Core.BluePrint.Test</RootNamespace>
+    <RootNamespace>KitX.Workflow.Test</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\KitX Standard\KitX Core Contracts\KitX.Core.Contract\KitX.Core.Contract.csproj" />
-    <ProjectReference Include="..\KitX.Core\KitX.Core.csproj" />
+    <ProjectReference Include="..\KitX.Workflow\KitX.Workflow.csproj" />
+    <ProjectReference Include="..\..\KitX Core\KitX.Core\KitX.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

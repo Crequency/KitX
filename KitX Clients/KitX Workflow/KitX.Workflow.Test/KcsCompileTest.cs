@@ -15,7 +15,7 @@ using KitX.Workflow.Blueprint;
 using KitX.Workflow.CFG;
 using KitX.Workflow.Conversion;
 
-namespace KitX.Core.BluePrint.Test;
+namespace KitX.Workflow.Test;
 
 /// <summary>
 /// Compiles a .kcs workflow file end-to-end (parse + BS→CFG→CS→assembly) and reports

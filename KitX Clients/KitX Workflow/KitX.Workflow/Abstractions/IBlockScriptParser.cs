@@ -8,7 +8,7 @@ namespace KitX.Workflow.Abstractions;
 /// Block script parser interface — parses C# scripts with block attributes.
 ///
 /// Internal to the workflow pipeline (only BlockScriptExecutor / DI use it); moved out of the
-/// public Contract surface. Consumed cross-assembly by the KitX.Core.BluePrint.Test project.
+/// public Contract surface. Consumed cross-assembly by the KitX.Workflow.Test project.
 /// </summary>
 public interface IBlockScriptParser
 {

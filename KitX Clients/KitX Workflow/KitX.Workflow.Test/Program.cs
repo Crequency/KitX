@@ -15,7 +15,7 @@ using KitX.Workflow.Abstractions.Models.Statements;
 using KitX.Workflow.Abstractions.Models.Results;
 using KitX.Workflow.Conversion;
 
-namespace KitX.Core.BluePrint.Test;
+namespace KitX.Workflow.Test;
 
 public partial class Program
 {
@@ -891,7 +891,7 @@ Print(""示例工作流结束"");";
     {
         try
         {
-            var bp = new Contract.Workflow.Blueprint
+            var bp = new KitX.Core.Contract.Workflow.Blueprint
             {
                 Name = "ManualTest"
             };
@@ -987,7 +987,7 @@ Print(""示例工作流结束"");";
     {
         try
         {
-            var bp = new Contract.Workflow.Blueprint { Name = "NestedControlFlowTopology" };
+            var bp = new KitX.Core.Contract.Workflow.Blueprint { Name = "NestedControlFlowTopology" };
 
             // Entry → Branch(cond, TrueArm, FalseArm); TrueArm → Loop(cond, LoopBody, LoopEnd)
             var entry = new EntryNode();
