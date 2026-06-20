@@ -13,7 +13,7 @@ using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// 真实的插件管理器实现，通过 WebSocket 与插件通信。

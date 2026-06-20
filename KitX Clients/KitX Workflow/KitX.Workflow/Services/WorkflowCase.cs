@@ -1,6 +1,6 @@
 using KitX.Core.Contract.Workflow;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// Workflow case implementation

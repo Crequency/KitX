@@ -3,7 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Hosting;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// Workflow storage service implementation - manages workflow file persistence

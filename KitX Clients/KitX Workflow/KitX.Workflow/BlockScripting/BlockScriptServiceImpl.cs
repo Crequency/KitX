@@ -1,9 +1,9 @@
 using KitX.Core.Contract.Workflow;
-using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Abstractions;
+using KitX.Workflow.Services;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.BlockScripting;
 
 /// <summary>
 /// BlockScript parsing and execution service.

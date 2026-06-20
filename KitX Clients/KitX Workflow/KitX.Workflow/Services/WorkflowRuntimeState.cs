@@ -3,7 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.BlockScripting;
 using KitX.Shared.CSharp.Plugin;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// Shared state container for workflow runtime services.

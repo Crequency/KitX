@@ -16,3 +16,8 @@ global using KitX.Workflow.Compilation;
 global using KitX.Workflow.BlockScripting;
 global using KitX.Workflow.Conversion;
 global using KitX.Workflow.CFG;
+// Services holds the high-level workflow service implementations (WorkflowManagementService,
+// RealPluginManager, WorkflowOutput, etc.) consumed by Hosting's DI wiring and by the
+// BuiltinFunctions that call into plugin/workflow services. Global so those consumers resolve
+// the concrete service types without per-file using churn.
+global using KitX.Workflow.Services;

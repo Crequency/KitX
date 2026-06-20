@@ -5,6 +5,7 @@ using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Blueprint;
+using KitX.Workflow.Services;
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 
 namespace KitX.Workflow.BuiltinFunctions

@@ -2,7 +2,7 @@ using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// KCS文件服务实现 - 仅负责KCS文件的读写

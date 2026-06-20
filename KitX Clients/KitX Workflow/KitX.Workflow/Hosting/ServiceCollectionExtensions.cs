@@ -7,6 +7,7 @@ using KitX.Workflow;
 using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Blueprint;
 using KitX.Workflow.Conversion;
+using KitX.Workflow.Services;
 using Serilog;
 
 namespace KitX.Workflow.Hosting;

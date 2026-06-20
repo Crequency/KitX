@@ -1,7 +1,8 @@
 using KitX.Core.Contract.Workflow;
+using KitX.Workflow.BlockScripting;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// Workflow lifecycle management service.

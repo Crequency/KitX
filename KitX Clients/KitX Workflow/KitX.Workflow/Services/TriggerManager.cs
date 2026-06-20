@@ -8,7 +8,7 @@ using Serilog;
 using KitX.Workflow.Hosting;
 using PluginMessageReceivedEventArgs = KitX.Core.Contract.Plugin.Events.PluginMessageReceivedEventArgs;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// 管理触发器路由：从插件接收触发信号，路由到匹配的工作流并执行。

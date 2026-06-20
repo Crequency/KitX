@@ -1,9 +1,10 @@
 using KitX.Core.Contract.Workflow;
+using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Hosting;
 using KitX.Shared.CSharp.Plugin;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// Static factory container for the workflow service graph.

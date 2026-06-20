@@ -5,7 +5,7 @@ using KitX.Shared.CSharp.Plugin;
 using Microsoft.CodeAnalysis.CSharp;
 using Serilog;
 
-namespace KitX.Workflow;
+namespace KitX.Workflow.Services;
 
 /// <summary>
 /// Plugin coordination service for workflow script processing.
