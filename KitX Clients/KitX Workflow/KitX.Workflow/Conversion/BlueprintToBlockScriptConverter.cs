@@ -13,8 +13,7 @@ namespace KitX.Workflow.Conversion;
 public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 {
     private readonly NodeExportHelper _exportHelper = new();
-    private readonly Dictionary<BlueprintNodeType, INodeExportStrategy> _strategyMap;
-    private readonly Dictionary<string, INodeExportStrategy> _builtinMap;
+    private readonly Dictionary<string, IBuiltinFunctionDefinition> _builtinMap;
 
     // CFG pipeline components
     private readonly BP2CFGConverter _cfgBuilder;
@@ -22,24 +21,16 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
     private readonly CFG2BSConverter _cfg2bs = new();
     private readonly BlockScriptSerializer _serializer = new();
 
-    public BlueprintToBlockScriptConverter(IEnumerable<INodeExportStrategy> strategies)
+    public BlueprintToBlockScriptConverter(IEnumerable<IBuiltinFunctionDefinition> definitions)
     {
-        _strategyMap = new Dictionary<BlueprintNodeType, INodeExportStrategy>();
-        _builtinMap = new Dictionary<string, INodeExportStrategy>();
+        // Every node export need is satisfied directly by IBuiltinFunctionDefinition
+        // (ToStatement/GetOutputArms/StatementKind/AutoSynthesizePubVar/IsFlowControl are all
+        // on the interface). The former INodeExportStrategy + BuiltinFunctionExportStrategyAdapter
+        // layer was a strict-subset adapter that only forwarded to these members, with the
+        // dispatcher further special-casing the adapter type — pure indirection, removed.
+        _builtinMap = definitions.ToDictionary(d => d.FunctionName);
 
-        foreach (var s in strategies)
-        {
-            if (s is BuiltinFunctionExportStrategyAdapter adapter)
-            {
-                _builtinMap[adapter.FunctionName] = s;
-            }
-            else
-            {
-                _strategyMap[s.NodeType] = s;
-            }
-        }
-
-        _cfgBuilder = new BP2CFGConverter(_strategyMap, _builtinMap, _exportHelper);
+        _cfgBuilder = new BP2CFGConverter(_builtinMap, _exportHelper);
     }
 
     internal ControlFlowGraph? LastCFG { get; private set; }
@@ -64,7 +55,7 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         _cfgBuilder.SetContext(blueprint, ctx);
 
         // Phase 1: BP → CFG via pipeline
-        var cfg = CFGPipeline.BP2CFG(blueprint, _strategyMap, _builtinMap, _exportHelper, prebuiltBuilder: _cfgBuilder);
+        var cfg = CFGPipeline.BP2CFG(blueprint, _builtinMap, _exportHelper, prebuiltBuilder: _cfgBuilder);
         LastCFG = cfg;
         LastDiagnostics = ctx.Diagnostics;
 

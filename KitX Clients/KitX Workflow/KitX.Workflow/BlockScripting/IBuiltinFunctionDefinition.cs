@@ -55,10 +55,20 @@ public interface IBuiltinFunctionDefinition
 
     // ─── 节点布局 ───────────────────────────────────
 
-    /// <summary>蓝图节点宽度</summary>
+    /// <summary>
+    /// The canonical node layout descriptor, assembled from <see cref="InputPins"/>,
+    /// <see cref="OutputPins"/>, <see cref="DisplayName"/>, <see cref="InputVariadic"/> and
+    /// <see cref="OutputVariadic"/>. The default implementation builds it on demand so the 26
+    /// builtin implementations need not each declare a Descriptor — they keep providing the
+    /// individual members and <see cref="Blueprint.NodeRegistry"/> consumes this single property,
+    /// eliminating the per-node manual reassembly that used to live there.
+    /// </summary>
+    NodeDescriptor Descriptor => new(InputPins, OutputPins, DisplayName, InputVariadic, OutputVariadic);
+
+    /// <summary>蓝图节点宽度（已不再被任何消费者读取；LayoutService 用节点实例 BlueprintNode.Width/Height。保留以免破坏 26 个实现。）</summary>
     double NodeWidth { get; }
 
-    /// <summary>蓝图节点高度</summary>
+    /// <summary>蓝图节点高度（同 NodeWidth，已不再被读取。）</summary>
     double NodeHeight { get; }
 
     /// <summary>输入引脚描述</summary>

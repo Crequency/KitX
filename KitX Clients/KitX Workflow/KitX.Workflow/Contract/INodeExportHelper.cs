@@ -5,9 +5,8 @@ namespace KitX.Workflow.Contract;
 using ContractWorkflow = KitX.Core.Contract.Workflow;
 
 /// <summary>
-/// Helper service providing data resolution utilities for node export strategies.
-/// Implemented by BlueprintToBlockScriptConverter.
-/// Internal to the workflow pipeline.
+/// Helper service providing data resolution utilities for node export.
+/// Implemented by <c>NodeExportHelper</c>. Internal to the workflow pipeline.
 /// </summary>
 public interface INodeExportHelper
 {
@@ -40,40 +39,9 @@ public interface INodeExportHelper
 }
 
 /// <summary>
-/// Strategy for converting a specific node type to a BlockScript statement.
-/// Each node type that participates in reverse conversion provides an implementation,
-/// eliminating the need for switch-based dispatch in the converter.
-/// Internal to the workflow pipeline.
-/// </summary>
-public interface INodeExportStrategy
-{
-    /// <summary>
-    /// The node type this strategy handles.
-    /// </summary>
-    ContractWorkflow.BlueprintNodeType NodeType { get; }
-
-    /// <summary>
-    /// Whether this node type represents a control flow construct (Branch, Loop, etc.).
-    /// Used by the converter to determine main flow termination and sub-graph processing.
-    /// </summary>
-    bool IsControlFlow { get; }
-
-    /// <summary>
-    /// Converts the node to a BlockScript statement, or null if the node should be skipped.
-    /// </summary>
-    KitX.Workflow.Contract.Models.BlockStatement? ToStatement(ContractWorkflow.BlueprintNode node, INodeExportHelper helper);
-
-    /// <summary>
-    /// For control flow nodes: returns the output arm configuration.
-    /// Each arm defines an output pin name and whether it represents a loopback.
-    /// Non-control-flow strategies return an empty collection.
-    /// </summary>
-    IEnumerable<OutputArmDescriptor> GetOutputArms(ContractWorkflow.BlueprintNode node);
-}
-
-/// <summary>
-/// Describes a single output arm of a control flow node (e.g., Branch's True/False, Loop's LoopBody/LoopEnd).
-/// Internal to the workflow pipeline.
+/// Describes a single output arm of a control flow node (e.g., Branch's True/False, Loop's
+/// LoopBody/LoopEnd). Internal to the workflow pipeline. Returned by
+/// <see cref="BlockScripting.IBuiltinFunctionDefinition.GetOutputArms"/>.
 /// </summary>
 public struct OutputArmDescriptor
 {

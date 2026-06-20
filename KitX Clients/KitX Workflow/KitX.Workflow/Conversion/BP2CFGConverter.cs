@@ -20,16 +20,13 @@ namespace KitX.Workflow.Conversion;
 /// </summary>
 internal class BP2CFGConverter
 {
-    private readonly Dictionary<BlueprintNodeType, INodeExportStrategy> _strategies;
-    private readonly Dictionary<string, INodeExportStrategy> _builtinFunctionStrategies;
+    private readonly Dictionary<string, IBuiltinFunctionDefinition> _builtinFunctionStrategies;
     private readonly NodeExportHelper _exportHelper;
 
     public BP2CFGConverter(
-        Dictionary<BlueprintNodeType, INodeExportStrategy> strategies,
-        Dictionary<string, INodeExportStrategy> builtinFunctionStrategies,
+        Dictionary<string, IBuiltinFunctionDefinition> builtinFunctionStrategies,
         NodeExportHelper exportHelper)
     {
-        _strategies = strategies;
         _builtinFunctionStrategies = builtinFunctionStrategies;
         _exportHelper = exportHelper;
     }
@@ -213,9 +210,8 @@ internal class BP2CFGConverter
             if (sourceNode.NodeType is BlueprintNodeType.Call
                 or BlueprintNodeType.CallHelper
                 || (sourceNode is BuiltinFunctionNode bfn
-                    && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var strat)
-                    && strat is BuiltinFunctionExportStrategyAdapter pubVarAdapter
-                    && pubVarAdapter.AutoSynthesizePubVar))
+                    && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var def)
+                    && def.AutoSynthesizePubVar))
             {
                 var sourcePin = sourceNode.GetPinById(conn.SourcePinId);
                 if (sourcePin == null) continue;
@@ -468,11 +464,7 @@ internal class BP2CFGConverter
         if (cfNode is BuiltinFunctionNode bfn
             && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfStrat))
         {
-            arms = bfStrat.GetOutputArms(cfNode);
-        }
-        else if (_strategies.TryGetValue(cfNode.NodeType, out var strat))
-        {
-            arms = strat.GetOutputArms(cfNode);
+            arms = bfStrat.GetOutputArms();
         }
 
         if (arms == null) return;
@@ -550,7 +542,7 @@ internal class BP2CFGConverter
             // Use registry to determine edge types for control flow statements
             if (!string.IsNullOrEmpty(lastStmt.FunctionName)
                 && _builtinFunctionStrategies.TryGetValue(lastStmt.FunctionName, out var builtinStrat)
-                && builtinStrat.IsControlFlow)
+                && builtinStrat.IsFlowControl)
             {
                 // Edges are derived directly from the statement's resolved Arms, so N-way
                 // Switch (Default/0/1/...) and variadic shapes survive without positional loss.
@@ -821,29 +813,19 @@ internal class BP2CFGConverter
                     // from the node's function name and input pin values instead of
                     // silently dropping the node (which would leave orphaned PubVar
                     // references and cause CS0103 in downstream code generation).
-                    // PluginCallFunction used to return null before its ToStatement was
-                    // implemented; this fallback ensures other builtins are safe too.
                     Log.Debug("[BP2CFGConverter] BuiltinFunction '{FuncName}' ToStatement returned null, " +
                         "using generic expression fallback", bfNode.FunctionName);
                     return BuildGenericBuiltinStatement(bfNode, bfNode.FunctionName);
                 }
                 return null;
             }
+            // Const / Variable / other node types carry no executable statement — the former
+            // _strategies fallback is gone (it was always empty: every node type either has an
+            // explicit case above or is a pure data node that produces no BlockStatement).
             default:
-                break;
+                Log.Debug("[BP2CFGConverter] Node type {NodeType} produces no statement", node.NodeType);
+                return null;
         }
-
-        if (!_strategies.TryGetValue(node.NodeType, out var strategy))
-        {
-            Log.Warning("[BP2CFGConverter] Unhandled node type: {NodeType}", node.NodeType);
-            return null;
-        }
-
-        var stmt = strategy.ToStatement(node, _exportHelper);
-        if (stmt == null) return null;
-
-        PostProcessCallReturn(node, stmt);
-        return stmt;
     }
 
     private void PostProcessCallReturn(BlueprintNode node, BlockStatement stmt)
@@ -907,19 +889,12 @@ internal class BP2CFGConverter
             case ExpressionStatement expr:
                 cfgStmt.OriginalExpression = expr.SourceCode;
 
-                // Kind & FunctionName from strategy (built-in function metadata)
+                // Kind & FunctionName from builtin function metadata (data-driven, no adapter layer)
                 if (node is BuiltinFunctionNode bfn
-                    && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfStrat)
-                    && bfStrat is BuiltinFunctionExportStrategyAdapter bfAdapter)
+                    && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfDef))
                 {
-                    cfgStmt.Kind = bfAdapter.StatementKind;
-                    cfgStmt.FunctionName = bfAdapter.FunctionName;
-                }
-                else if (_strategies.TryGetValue(node.NodeType, out var strat)
-                    && strat is BuiltinFunctionExportStrategyAdapter adapter)
-                {
-                    cfgStmt.Kind = adapter.StatementKind;
-                    cfgStmt.FunctionName = adapter.FunctionName;
+                    cfgStmt.Kind = bfDef.StatementKind;
+                    cfgStmt.FunctionName = bfDef.FunctionName;
                 }
                 else
                 {
@@ -1170,6 +1145,6 @@ internal class BP2CFGConverter
 
     private bool IsControlFlowNode(BlueprintNode node) =>
         node is BuiltinFunctionNode bfn
-        && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var strat)
-        && strat.IsControlFlow;
+        && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var def)
+        && def.IsFlowControl;
 }

@@ -54,12 +54,11 @@ internal static class CFGPipeline
     /// </summary>
     internal static ControlFlowGraph BP2CFG(
         KitX.Core.Contract.Workflow.Blueprint blueprint,
-        Dictionary<BlueprintNodeType, INodeExportStrategy> strategyMap,
-        Dictionary<string, INodeExportStrategy> builtinMap,
+        Dictionary<string, IBuiltinFunctionDefinition> builtinMap,
         NodeExportHelper exportHelper,
         BP2CFGConverter? prebuiltBuilder = null)
     {
-        var builder = prebuiltBuilder ?? new BP2CFGConverter(strategyMap, builtinMap, exportHelper);
+        var builder = prebuiltBuilder ?? new BP2CFGConverter(builtinMap, exportHelper);
         if (prebuiltBuilder == null)
         {
             builder.SetContext(blueprint, new ConversionContext

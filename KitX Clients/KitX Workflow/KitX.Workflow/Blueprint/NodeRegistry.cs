@@ -86,12 +86,9 @@ public class NodeRegistry : INodeRegistry
             Name = def.DisplayName
         };
 
-        var descriptor = new NodeDescriptor(
-            def.InputPins, def.OutputPins,
-            def.DisplayName,
-            def.InputVariadic,
-            def.OutputVariadic
-        );
+        // Descriptor is assembled once by IBuiltinFunctionDefinition.Descriptor (default impl),
+        // so this site no longer manually reassembles InputPins/OutputPins/DisplayName/variadics.
+        var descriptor = def.Descriptor;
         node.SetDescriptor(descriptor);
 
         foreach (var pd in descriptor.InputPins)

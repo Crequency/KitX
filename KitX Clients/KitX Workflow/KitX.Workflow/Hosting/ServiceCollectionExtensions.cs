@@ -115,11 +115,11 @@ public static class ServiceCollectionExtensions
         });
         services.AddSingleton<IBlueprintToBlockScriptConverter, BlueprintToBlockScriptConverter>();
 
-        // Blueprint Export Strategies — all auto-registered from IBuiltinFunctionDefinition implementations
-        foreach (var def in functionRegistry.AllDefinitions)
-        {
-            services.AddSingleton<INodeExportStrategy>(new BuiltinFunctionExportStrategyAdapter(def));
-        }
+        // Built-in function definitions feed BlueprintToBlockScriptConverter directly (the
+        // former INodeExportStrategy + BuiltinFunctionExportStrategyAdapter indirection was a
+        // strict-subset forwarder removed in this refactor). The registry remains the single
+        // source of truth for builtins; expose it as IEnumerable<IBuiltinFunctionDefinition>.
+        services.AddSingleton<IEnumerable<IBuiltinFunctionDefinition>>(functionRegistry.AllDefinitions);
 
         // Blueprint Services
         services.AddSingleton<IBlueprintService, BlueprintService>();
