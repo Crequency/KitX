@@ -87,7 +87,6 @@ public class NodeRegistry : INodeRegistry
         };
 
         var descriptor = new NodeDescriptor(
-            def.NodeWidth, def.NodeHeight,
             def.InputPins, def.OutputPins,
             def.DisplayName,
             def.InputVariadic,

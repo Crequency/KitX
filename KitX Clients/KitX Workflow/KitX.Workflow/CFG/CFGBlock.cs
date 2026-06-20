@@ -19,9 +19,6 @@ public enum CFGBlockType
 
     /// <summary>The body of a loop — may reach back to the LoopHeader via ToLoopCond.</summary>
     LoopBody,
-
-    /// <summary>The exit block of a loop (what runs after the loop condition is false).</summary>
-    LoopExit,
 }
 
 /// <summary>

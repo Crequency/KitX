@@ -594,29 +594,6 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            if (lastStmt.Kind == CFGStatementKind.ToLoopCond)
-            {
-                if (!string.IsNullOrEmpty(lastStmt.ToLoopCondReturnTo))
-                    block.Successors.Add(new CFGEdge
-                    {
-                        FromBlockName = block.Name,
-                        ToBlockName = lastStmt.ToLoopCondReturnTo,
-                        Type = CFGEdgeType.LoopbackToCondition
-                    });
-                continue;
-            }
-
-            if (lastStmt.Kind == CFGStatementKind.Break)
-            {
-                block.Successors.Add(new CFGEdge
-                {
-                    FromBlockName = block.Name,
-                    ToBlockName = "__break__",
-                    Type = CFGEdgeType.Break
-                });
-                continue;
-            }
-
             // Sequential fall-through: derive NextBlockName from the block or from exec connections
             if (!string.IsNullOrEmpty(block.NextBlockName))
             {
