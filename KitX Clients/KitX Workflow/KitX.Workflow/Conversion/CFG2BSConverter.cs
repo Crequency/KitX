@@ -131,6 +131,9 @@ internal class CFG2BSConverter
                     TargetBlockName = a.TargetBlockName,
                     IsLoopback = a.IsLoopback
                 }).ToList(),
+                // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
+                // ToLoopCond statements retain their loopback target across CFG→BS.
+                ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,
                 SourceCode = cfgStmt.OriginalExpression,
                 LineNumber = cfgStmt.SourceLine
             };

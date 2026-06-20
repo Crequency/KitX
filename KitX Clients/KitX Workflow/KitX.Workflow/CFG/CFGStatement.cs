@@ -147,12 +147,15 @@ public class CFGStatement
         set => SetArm(1, "False", value);
     }
 
-    /// <summary>Convenience accessor: the ToLoopCond loopback target (Arms[0], IsLoopback=true).</summary>
-    public string? ToLoopCondReturnTo
-    {
-        get => Arms.Count > 0 ? Arms[0].TargetBlockName : null;
-        set => SetArm(0, "Exec", value ?? string.Empty, isLoopback: true);
-    }
+    /// <summary>
+    /// The ToLoopCond loopback target block name. Kept as a SEPARATE field (not routed through
+    /// Arms[0]) so that setting it on a Loop/Branch statement — which <c>BlockStatementExtractor
+    /// .CreateLoopBlocksForBlock</c> does to record the loop's own block as the loopback target —
+    /// does NOT clobber <see cref="TrueBlockName"/> (Arms[0]). On a ToLoopCond statement this is
+    /// the sole target; on a Loop/Branch statement it carries the owning loop's condition block
+    /// for back-edge resolution and is independent of the Branch/Loop arms.
+    /// </summary>
+    public string? ToLoopCondReturnTo { get; set; }
 
     private void SetArm(int index, string pinName, string? value, bool isLoopback = false)
     {

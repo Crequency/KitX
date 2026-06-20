@@ -938,6 +938,10 @@ internal class BP2CFGConverter
                     TargetBlockName = a.TargetBlockName,
                     IsLoopback = a.IsLoopback
                 }).ToList();
+                // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
+                // ToLoopCond statements (and Loop statements carrying a loopback target set by
+                // BlockStatementExtractor.CreateLoopBlocksForBlock) retain it across BP→CFG.
+                cfgStmt.ToLoopCondReturnTo = flow.ToLoopCondReturnTo;
                 cfgStmt.ConditionPubVar = flow.ConditionExpression?.Trim();
                 break;
 

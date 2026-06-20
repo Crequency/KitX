@@ -89,6 +89,8 @@ internal class CFGConditionDuplicator
             TargetBlockName = a.TargetBlockName,
             IsLoopback = a.IsLoopback
         }).ToList(),
+        // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly.
+        ToLoopCondReturnTo = source.ToLoopCondReturnTo,
         Fingerprint = source.Fingerprint,
         IsLoopConditionDuplication = true
     };
