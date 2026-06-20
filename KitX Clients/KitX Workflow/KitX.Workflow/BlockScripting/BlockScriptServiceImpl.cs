@@ -16,40 +16,26 @@ namespace KitX.Workflow.BlockScripting;
 internal class BlockScriptServiceImpl : IBlockScriptService
 {
     private readonly WorkflowRuntimeState _state;
-    private RealPluginManager? _realPluginManager;
+    private readonly BlockScriptExecutor _executor;
 
     /// <summary>
     /// Initializes a new instance of BlockScriptServiceImpl.
     /// </summary>
     /// <param name="state">Shared runtime state.</param>
-    /// <param name="realPluginManager">RealPluginManager instance from DI container (optional).</param>
-    internal BlockScriptServiceImpl(WorkflowRuntimeState state, RealPluginManager? realPluginManager = null)
+    /// <param name="executor">
+    /// The DI-registered, plugin-manager-wired <see cref="IBlockScriptExecutor"/> singleton.
+    /// Must be the same instance registered in <c>AddKitXWorkflow</c> (where its
+    /// <c>SetPluginManager</c> is called with the <see cref="RealPluginManager"/>), so that
+    /// <c>G.PluginCall(...)</c> dispatches to live plugins during execution. Injecting it here
+    /// (instead of lazily constructing a bare <c>new BlockScriptExecutor()</c>) eliminates the
+    /// prior dual-instance bug where the trigger execution path ran on an unwired executor.
+    /// </param>
+    internal BlockScriptServiceImpl(WorkflowRuntimeState state, IBlockScriptExecutor executor)
     {
         _state = state;
-        _realPluginManager = realPluginManager;
-        TrySetPluginManager();
-    }
-
-    /// <summary>
-    /// Sets the RealPluginManager after initialization.
-    /// This is needed when RealPluginManager is resolved after BlockScriptServiceImpl is created.
-    /// </summary>
-    internal void SetRealPluginManager(RealPluginManager? realPluginManager)
-    {
-        _realPluginManager = realPluginManager;
-        TrySetPluginManager();
-    }
-
-    /// <summary>
-    /// Try to set the plugin manager on the BlockScriptExecutor if conditions are met.
-    /// </summary>
-    private void TrySetPluginManager()
-    {
-        if (_state.BlockScriptExecutor != null && _state.IsParserInitialized && _realPluginManager != null)
-        {
-            Log.Information("[BlockScriptServiceImpl] Setting RealPluginManager. HashCode: {HashCode}", _realPluginManager.GetHashCode());
-            _state.BlockScriptExecutor.SetPluginManager(_realPluginManager);
-        }
+        // The contract guarantees a wired executor; cast once to the concrete type the
+        // pipeline (ExecuteAsync / CompileForPersistence / PreloadFromDisk / Validate) needs.
+        _executor = (BlockScriptExecutor)executor;
     }
 
     /// <summary>
@@ -60,23 +46,9 @@ internal class BlockScriptServiceImpl : IBlockScriptService
             BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
 
     /// <summary>
-    /// Gets the BlockScript executor, creating it if necessary.
-    /// The executor is initialized with the plugin manager if the parser is initialized.
+    /// Gets the DI-injected BlockScript executor (single, plugin-manager-wired instance).
     /// </summary>
-    private BlockScriptExecutor BlockScriptExecutor
-    {
-        get
-        {
-            if (_state.BlockScriptExecutor == null)
-            {
-                Log.Information("[BlockScriptServiceImpl] Creating new BlockScriptExecutor, IsParserInitialized = {_IsParserInitialized}",
-                    _state.IsParserInitialized);
-                _state.BlockScriptExecutor = new BlockScriptExecutor();
-                TrySetPluginManager();
-            }
-            return _state.BlockScriptExecutor;
-        }
-    }
+    private BlockScriptExecutor BlockScriptExecutor => _executor;
 
     /// <inheritdoc />
     public BlockScriptParseResult ParseBlockScript(string sourceCode)

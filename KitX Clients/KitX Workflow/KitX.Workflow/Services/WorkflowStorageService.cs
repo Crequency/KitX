@@ -60,7 +60,6 @@ public class WorkflowStorageService : IWorkflowStorageService
             Author = string.Empty,
             CreatedTime = now,
             LastModifiedTime = now,
-            TriggerType = "Manual",
             UseBlockMode = true,
             BlockScriptSource = GetDefaultBlockScriptTemplate(),
             MainProgram = string.Empty,
@@ -84,7 +83,6 @@ public class WorkflowStorageService : IWorkflowStorageService
             ScriptPath = filePath,
             CreatedTime = now,
             LastModifiedTime = now,
-            TriggerType = "Manual",
         };
     }
 
@@ -169,11 +167,6 @@ public class WorkflowStorageService : IWorkflowStorageService
                         ? File.GetCreationTimeUtc(file)
                         : kcs.CreatedTime;
 
-                    // Prefer TriggerConfig (structured) over legacy TriggerType (string)
-                    var triggerConfig = kcs.TriggerConfig;
-                    var triggerType = triggerConfig?.TriggerType
-                        ?? (string.IsNullOrEmpty(kcs.TriggerType) ? "Manual" : kcs.TriggerType);
-
                     results.Add(new WorkflowCase
                     {
                         Id = id,
@@ -184,8 +177,7 @@ public class WorkflowStorageService : IWorkflowStorageService
                         ScriptPath = file,
                         CreatedTime = createdTime,
                         LastModifiedTime = kcs.LastModifiedTime == default ? File.GetLastWriteTimeUtc(file) : kcs.LastModifiedTime,
-                        TriggerType = triggerType,
-                        TriggerConfig = triggerConfig,
+                        TriggerConfig = kcs.TriggerConfig,
                     });
                 }
                 catch (Exception ex)
@@ -298,8 +290,6 @@ public class WorkflowStorageService : IWorkflowStorageService
                 result.Description = desc.GetString() ?? string.Empty;
             if (root.TryGetProperty(nameof(KcsFileFormat.Author), out var author))
                 result.Author = author.GetString() ?? string.Empty;
-            if (root.TryGetProperty(nameof(KcsFileFormat.TriggerType), out var triggerType))
-                result.TriggerType = triggerType.GetString() ?? "Manual";
             if (root.TryGetProperty(nameof(KcsFileFormat.UseBlockMode), out var useBlockMode))
                 result.UseBlockMode = useBlockMode.GetBoolean();
             if (root.TryGetProperty(nameof(KcsFileFormat.BlockScriptSource), out var bsSource))

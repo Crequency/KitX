@@ -1,6 +1,5 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
-using KitX.Workflow.Hosting;
 using KitX.Shared.CSharp.Plugin;
 using Microsoft.CodeAnalysis.CSharp;
 using Serilog;
@@ -22,32 +21,6 @@ internal class WorkflowPluginService : IWorkflowPluginService
     internal WorkflowPluginService(WorkflowRuntimeState state)
     {
         _state = state;
-    }
-
-    /// <inheritdoc />
-    public void InitializePluginManager()
-    {
-        if (_state.IsParserInitialized) return;
-
-        try
-        {
-            if (!ServiceLocator.IsInitialized)
-            {
-                Log.Error("[WorkflowPluginService] Cannot initialize plugin manager: ServiceLocator not initialized");
-                return;
-            }
-
-            var pluginServer = ServiceLocator.GetRequiredService<IPluginServer>();
-            var realPluginManager = new RealPluginManager(pluginServer);
-
-            _state.IsParserInitialized = true;
-            Log.Information("[WorkflowPluginService] Real plugin manager initialized");
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"[WorkflowPluginService] Failed to initialize real plugin manager: {ex.Message}");
-            _state.IsParserInitialized = true;
-        }
     }
 
     /// <inheritdoc />

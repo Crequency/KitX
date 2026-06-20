@@ -23,11 +23,6 @@ internal class WorkflowRuntimeState
     internal CSharpScriptEngine? Engine;
 
     /// <summary>
-    /// Whether the plugin manager has been initialized.
-    /// </summary>
-    internal bool IsParserInitialized;
-
-    /// <summary>
     /// Available plugins for workflow execution.
     /// </summary>
     internal List<PluginInfo> AvailablePlugins { get; set; } = new();
@@ -36,9 +31,4 @@ internal class WorkflowRuntimeState
     /// Block script parser instance.
     /// </summary>
     internal BlockScriptParser? BlockScriptParser;
-
-    /// <summary>
-    /// Block script executor instance.
-    /// </summary>
-    internal BlockScriptExecutor? BlockScriptExecutor;
 }

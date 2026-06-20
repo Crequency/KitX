@@ -67,7 +67,7 @@ namespace KitX.Workflow.BlockScripting
                     w.Id,
                     w.Name,
                     w.Description,
-                    w.TriggerType
+                    TriggerType = w.TriggerConfig?.TriggerType ?? "Manual"
                 });
                 return JsonSerializer.Serialize(info);
             }

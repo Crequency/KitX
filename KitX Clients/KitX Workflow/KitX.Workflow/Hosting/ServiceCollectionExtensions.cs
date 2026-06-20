@@ -32,14 +32,17 @@ public static class ServiceCollectionExtensions
     {
         Log.Information("[AddKitXWorkflow] Registering workflow services...");
 
-        // IBlockScriptService is created via factory to inject RealPluginManager from DI.
+        // IBlockScriptService is created via factory. It receives the same DI-registered,
+        // plugin-manager-wired IBlockScriptExecutor singleton (registered below) so the trigger
+        // execution path runs plugins through the wired executor, not a bare new instance.
         // WorkflowScriptService facade is kept as the backward-compat singleton graph.
         services.AddSingleton<IBlockScriptService>(provider =>
         {
             var state = WorkflowScriptService.RuntimeState;
             var rpm = provider.GetRequiredService<RealPluginManager>();
-            var service = new BlockScriptServiceImpl(state, rpm);
-            Log.Information("[DI] IBlockScriptService created with RealPluginManager. HashCode: {HashCode}", rpm.GetHashCode());
+            var executor = provider.GetRequiredService<IBlockScriptExecutor>();
+            var service = new BlockScriptServiceImpl(state, executor);
+            Log.Information("[DI] IBlockScriptService created with RealPluginManager + wired executor. RPM HashCode: {HashCode}", rpm.GetHashCode());
             return service;
         });
         // IBlockScriptPipelineService was removed (zero interface-type consumers;

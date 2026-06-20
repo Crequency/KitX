@@ -60,7 +60,7 @@ public partial class Program
 
         Console.WriteLine($"Name: {kcs.Name}");
         Console.WriteLine($"Id: {kcs.Id}");
-        Console.WriteLine($"Trigger: {kcs.TriggerType}");
+        Console.WriteLine($"Trigger: {kcs.TriggerConfig?.TriggerType ?? "Manual"}");
         Console.WriteLine($"UseBlockMode: {kcs.UseBlockMode}");
         Console.WriteLine($"Helpers: {(kcs.HelperFunctions?.Count ?? 0)}");
         Console.WriteLine();

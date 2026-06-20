@@ -27,7 +27,5 @@ public class WorkflowCase : IWorkflowCase
 
     public DateTime LastModifiedTime { get; set; } = DateTime.UtcNow;
 
-    public string TriggerType { get; set; } = "Manual";
-
     public TriggerConfig? TriggerConfig { get; set; }
 }
