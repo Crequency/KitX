@@ -65,7 +65,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
     public void SetDebugger(IBlueprintDebugController? debugger)
     {
         _debugger = debugger;
-        CFG2CSGenerator.IsDebugMode = debugger != null;
+        CFG2CSConverter.IsDebugMode = debugger != null;
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
 
         try
         {
-            CFG2CSGenerator.IsDebugMode = _debugger != null;
+            CFG2CSConverter.IsDebugMode = _debugger != null;
 
             var (compiled, compileErrors) = compileFn();
             if (compiled == null)

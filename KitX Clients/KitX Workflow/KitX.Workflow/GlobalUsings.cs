@@ -4,5 +4,15 @@
 // without each file having to repeat them.
 
 global using KitX.Workflow.Hosting;
-global using KitX.Workflow.Contract;
-global using KitX.Workflow.Contract.Models;
+global using KitX.Workflow.Abstractions;
+global using KitX.Workflow.Abstractions.Models;
+global using KitX.Workflow.Abstractions.Models.Statements;
+global using KitX.Workflow.Abstractions.Models.Results;
+// Compilation / BlockScripting / Conversion are the three core subsystem namespaces and are
+// cross-referenced bidirectionally (e.g. Compilation's CSCompiler uses BlockScripting's
+// BuiltinFunctionRegistry and Conversion's CFGPipeline; BlockScripting's BlockScriptExecutor
+// uses Compilation's CSCompiler). Declaring them globally avoids per-file using churn.
+global using KitX.Workflow.Compilation;
+global using KitX.Workflow.BlockScripting;
+global using KitX.Workflow.Conversion;
+global using KitX.Workflow.CFG;

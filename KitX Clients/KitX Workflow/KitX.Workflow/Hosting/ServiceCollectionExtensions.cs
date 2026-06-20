@@ -41,9 +41,8 @@ public static class ServiceCollectionExtensions
             Log.Information("[DI] IBlockScriptService created with RealPluginManager. HashCode: {HashCode}", rpm.GetHashCode());
             return service;
         });
-        // IBlockScriptPipelineService shares the same BlockScriptServiceImpl instance
-        // (it carries the parsed-model methods split out of the public IBlockScriptService).
-        services.AddSingleton<IBlockScriptPipelineService>(sp => (IBlockScriptPipelineService)sp.GetRequiredService<IBlockScriptService>());
+        // IBlockScriptPipelineService was removed (zero interface-type consumers;
+        // WorkflowManagementService uses the concrete BlockScriptServiceImpl directly).
         services.AddSingleton<IWorkflowPluginService>(sp => WorkflowScriptService.PluginServiceInstance);
         services.AddSingleton<IWorkflowManagementService>(sp => WorkflowScriptService.ManagementServiceInstance);
 

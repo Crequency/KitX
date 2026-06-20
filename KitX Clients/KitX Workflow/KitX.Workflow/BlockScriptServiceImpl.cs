@@ -1,17 +1,19 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.BlockScripting;
-using KitX.Workflow.Contract;
+using KitX.Workflow.Abstractions;
 using Serilog;
 
 namespace KitX.Workflow;
 
 /// <summary>
 /// BlockScript parsing and execution service.
-/// Implements both the public <c>IBlockScriptService</c> (Dashboard-facing, source-string
-/// based methods) and the internal <c>IBlockScriptPipelineService</c> (parsed-model based
-/// methods consumed only by the workflow pipeline).
+/// Implements the public <c>IBlockScriptService</c> (Dashboard-facing, source-string based
+/// methods). The parsed-model based methods (ParseBlockScript / ExecuteBlockScriptAsync(BlockScript)
+/// / CompileAndPersistAsync) live on this concrete class and are consumed directly by
+/// WorkflowManagementService — the former IBlockScriptPipelineService indirection was removed
+/// as it had no interface-type consumers.
 /// </summary>
-internal class BlockScriptServiceImpl : IBlockScriptService, IBlockScriptPipelineService
+internal class BlockScriptServiceImpl : IBlockScriptService
 {
     private readonly WorkflowRuntimeState _state;
     private RealPluginManager? _realPluginManager;

@@ -1,6 +1,6 @@
 using KitX.Core.Contract.Workflow;
 
-namespace KitX.Workflow.CFG;
+namespace KitX.Workflow.Conversion;
 
 /// <summary>
 /// Duplicates Loop condition evaluation statements before each ToLoopCond

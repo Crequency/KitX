@@ -217,7 +217,7 @@ public class WorkflowStorageService : IWorkflowStorageService
         var workflows = await DiscoverWorkflowsAsync();
         var totalLoaded = 0;
 
-        var scriptService = WorkflowScriptService.Instance;
+        var scriptService = ServiceLocator.GetRequiredService<IBlockScriptService>();
 
         foreach (var workflow in workflows)
         {

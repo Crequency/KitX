@@ -24,7 +24,7 @@ public partial class BlockScriptExecutionGlobals
     /// 这是控制流的唯一载体。普通 <c>Set/Get</c> 不再识别 "NextBlock" 这个名字,
     /// 因此用户脚本无法通过变量赋值劫持控制流、绕过 Loop/Break 语义或 CFG 校验。
     /// 仅两类调用方可写此属性:(1) 生成的 <c>RunAsync</c> 主干(G.NextBlock = ...)——
-    /// 它是可信基础设施,完全由 CFG2CSGenerator 按已校验的 CFG 产出;(2) 受信任的 flow
+    /// 它是可信基础设施,完全由 CFG2CSConverter 按已校验的 CFG 产出;(2) 受信任的 flow
     /// 函数(Branch/Loop/Switch/Flip/ToLoopCond),应优先通过 <see cref="AdvanceTo"/> 写入。
     /// </summary>
     public string? NextBlock { get; set; }

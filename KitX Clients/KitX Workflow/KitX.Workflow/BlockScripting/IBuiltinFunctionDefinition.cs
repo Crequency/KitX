@@ -153,7 +153,7 @@ public interface IBuiltinFunctionDefinition
     // ─── CS 生成（CFGStatement → C#）────────────
 
     /// <summary>
-    /// 按 <see cref="CFGStatement"/> 生成 C# 语句（CFG→CS 阶段）。由 CFG2CSGenerator
+    /// 按 <see cref="CFGStatement"/> 生成 C# 语句（CFG→CS 阶段）。由 CFG2CSConverter
     /// 统一派发调用，使生成器无需针对具体函数名硬编码分支。
     /// 默认实现走通用 <c>G.{FunctionName}(args)</c> 形式 + 赋值包裹；
     /// 需要自定义代码生成的函数覆写此方法。
