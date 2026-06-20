@@ -889,32 +889,13 @@ internal class BP2CFGConverter
         switch (blockStmt)
         {
             case FlowControlStatement flow:
-                cfgStmt.Kind = flow.ControlType switch
-                {
-                    FlowControlType.Branch => CFGStatementKind.Branch,
-                    FlowControlType.Loop => CFGStatementKind.Loop,
-                    FlowControlType.Switch => CFGStatementKind.Switch,
-                    FlowControlType.ToLoopCond => CFGStatementKind.ToLoopCond,
-                    FlowControlType.Break => CFGStatementKind.Break,
-                    _ => CFGStatementKind.Unknown
-                };
-                cfgStmt.FunctionName = flow.ControlType switch
-                {
-                    FlowControlType.Branch => "Branch",
-                    FlowControlType.Loop => "Loop",
-                    FlowControlType.Switch => "Switch",
-                    FlowControlType.ToLoopCond => "ToLoopCond",
-                    FlowControlType.Break => "Break",
-                    _ => null
-                };
+                cfgStmt.Kind = ControlFlowMapping.ToKind(flow.ControlType);
+                cfgStmt.FunctionName = ControlFlowMapping.ToFunctionName(flow.ControlType);
+                if (string.IsNullOrEmpty(cfgStmt.FunctionName))
+                    cfgStmt.FunctionName = null;
                 cfgStmt.ConditionExpression = flow.ConditionExpression;
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
-                cfgStmt.Arms = flow.Arms.Select(a => new BranchArm
-                {
-                    PinName = a.PinName,
-                    TargetBlockName = a.TargetBlockName,
-                    IsLoopback = a.IsLoopback
-                }).ToList();
+                cfgStmt.Arms = flow.Arms.Select(a => a.Clone()).ToList();
                 // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
                 // ToLoopCond statements (and Loop statements carrying a loopback target set by
                 // BlockStatementExtractor.CreateLoopBlocksForBlock) retain it across BP→CFG.

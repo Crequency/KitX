@@ -128,7 +128,11 @@ internal class BlockStatementExtractor
     }
 
     /// <summary>
-    /// Extracts statements from syntax root into block definition
+    /// Extracts statements from syntax root into block definition.
+    /// Dispatches each descendant node to a focused helper, keeping the top-level
+    /// foreach flat (2 levels max). The 6 former copy-pasted
+    /// <c>new ExpressionStatement { ... }</c> initializers collapse into the single
+    /// <see cref="BuildExpressionStatement"/> factory.
     /// </summary>
     private void ExtractStatements(
         SyntaxNode root, BlockDefinition block, BlockType blockType,
@@ -151,164 +155,161 @@ internal class BlockStatementExtractor
 
         foreach (var node in root.DescendantNodes())
         {
-            if (node is LocalDeclarationStatementSyntax varDecl)
+            switch (node)
             {
-                foreach (var variable in varDecl.Declaration.Variables)
-                {
-                    var varDefinition = new VariableDeclaration
+                case LocalDeclarationStatementSyntax varDecl:
+                    AddLocalVarDeclarations(varDecl, block);
+                    break;
+                case ExpressionStatementSyntax exprStmt:
+                    AddExpressionStatement(exprStmt, block, blockType, diagnostics);
+                    break;
+                case ReturnStatementSyntax returnStmt:
+                    block.Statements.Add(new FlowControlStatement
                     {
-                        Name = variable.Identifier.Text,
-                        Type = varDecl.Declaration.Type.ToString(),
-                        InitialValueExpression = variable.Initializer?.Value?.ToString()
-                    };
-
-                    if (variable.Initializer?.Value is LiteralExpressionSyntax literal)
-                    {
-                        varDefinition.DefaultValue = ExprUtils.GetLiteralValue(literal);
-                    }
-
-                    block.Variables.Add(varDefinition);
-                }
-            }
-            else if (node is ExpressionStatementSyntax exprStmt)
-            {
-                var exprText = exprStmt.Expression.ToString();
-
-                Log.Debug("[BlockStatementExtractor] Processing ExpressionStatementSyntax: Type={ExprType}, Text={ExprText}",
-                    exprStmt.Expression.GetType().Name, exprText);
-
-                if (exprStmt.Expression is InvocationExpressionSyntax invoke)
-                {
-                    var methodName = ExprUtils.GetMethodName(invoke);
-
-                    // Try BuiltinFunctionRegistry for all registered functions
-                    if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
-                    {
-                        var stmt = funcDef.ExtractStatement(invoke, exprStmt.GetLineNumber(), exprText);
-                        if (stmt != null)
-                            block.Statements.Add(stmt);
-                        else
-                            // Carry the already-parsed invocation so BS2CFGConverter does not
-                            // re-parse the same expression text (eliminates the double parse).
-                            block.Statements.Add(new ExpressionStatement
-                            {
-                                LineNumber = exprStmt.GetLineNumber(),
-                                SourceCode = exprText,
-                                Expression = exprText,
-                                ParsedInvocation = invoke,
-                                AssignedVariable = null
-                            });
-                    }
-                    else
-                    {
-                        block.Statements.Add(new ExpressionStatement
-                        {
-                            LineNumber = exprStmt.GetLineNumber(),
-                            SourceCode = exprText,
-                            Expression = exprText,
-                            ParsedInvocation = invoke,
-                            AssignedVariable = null
-                        });
-                    }
-                }
-                else if (exprStmt.Expression is AssignmentExpressionSyntax assignment)
-                {
-                    Log.Debug("[BlockStatementExtractor] Processing AssignmentExpressionSyntax: {ExprText}", exprText);
-                    if (assignment.Right is InvocationExpressionSyntax assignInvoke)
-                    {
-                        var methodName = ExprUtils.GetMethodName(assignInvoke);
-                        Log.Debug("[BlockStatementExtractor]   assignment.Right is InvocationExpressionSyntax, methodName = {MethodName}", methodName);
-                        // The LHS is the assignment target (e.g. "x" in "x = Func(...)"). Captured once
-                        // here so BS2CFGConverter does not re-derive it by re-parsing.
-                        var assignedVar = assignment.Left.ToString();
-
-                        // Try BuiltinFunctionRegistry for all registered functions
-                        if (_functionRegistry != null && _functionRegistry.Get(methodName) is { } funcDef)
-                        {
-                            var stmt = funcDef.ExtractStatement(assignInvoke, exprStmt.GetLineNumber(), exprText);
-                            if (stmt != null)
-                                block.Statements.Add(stmt);
-                            else
-                                block.Statements.Add(new ExpressionStatement
-                                {
-                                    LineNumber = exprStmt.GetLineNumber(),
-                                    SourceCode = exprText,
-                                    Expression = exprText,
-                                    ParsedInvocation = assignInvoke,
-                                    AssignedVariable = assignedVar
-                                });
-                        }
-                        else
-                        {
-                            Log.Debug("[BlockStatementExtractor]   Unknown methodName '{MethodName}', treating as ExpressionStatement", methodName);
-                            block.Statements.Add(new ExpressionStatement
-                            {
-                                LineNumber = exprStmt.GetLineNumber(),
-                                SourceCode = exprText,
-                                Expression = exprText,
-                                ParsedInvocation = assignInvoke,
-                                AssignedVariable = assignedVar
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // Check for NextBlock = "BlockName" (plain string assignment to NextBlock)
-                        if (assignment.Left is IdentifierNameSyntax { Identifier.Text: "NextBlock" }
-                            && assignment.Right is LiteralExpressionSyntax nextBlockLiteral
-                            && nextBlockLiteral.Token.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StringLiteralToken))
-                        {
-                            block.NextBlockName = nextBlockLiteral.Token.ValueText;
-                            Log.Debug("[BlockStatementExtractor]   Set NextBlockName = {NextBlockName}", block.NextBlockName);
-                        }
-                        else
-                        {
-                            Log.Debug("[BlockStatementExtractor]   assignment.Right is NOT InvocationExpressionSyntax, type = {Type}", assignment.Right.GetType().Name);
-                            // Preserve AssignedVariable so BS2CFGConverter can handle
-                            // non-invocation RHS (e.g. v = a + b + c where RHS is BinaryExpression).
-                            block.Statements.Add(new ExpressionStatement
-                            {
-                                LineNumber = exprStmt.GetLineNumber(),
-                                SourceCode = exprText,
-                                Expression = exprText,
-                                AssignedVariable = assignment.Left.ToString(),
-                                ParsedInvocation = assignment.Right as InvocationExpressionSyntax
-                            });
-                        }
-                    }
-                }
-                else
-                {
-                    // Not an invocation and not an assignment — per BlockScript grammar a statement
-                    // must be a function call, an assignment, or a NextBlock/flow-control directive.
-                    // This is likely a user error; record a warning (non-fatal) so the editor can
-                    // surface it instead of silently dropping the statement downstream.
-                    var lineNum = exprStmt.GetLineNumber();
-                    diagnostics?.AddWarning("BS_UNSUPPORTED_EXPR",
-                        $"Unsupported expression form '{exprStmt.Expression.GetType().Name}' in {blockType}: {exprText}",
-                        lineNum);
-                    Log.Debug("[BlockStatementExtractor] Unhandled expression type in {BlockType}: {Type} = {Expr}",
-                        blockType, exprStmt.Expression.GetType().Name, exprText);
-                    block.Statements.Add(new ExpressionStatement
-                    {
-                        LineNumber = lineNum,
-                        SourceCode = exprText,
-                        Expression = exprText
+                        LineNumber = returnStmt.GetLineNumber(),
+                        SourceCode = returnStmt.ToFullString(),
+                        ControlType = FlowControlType.Return,
+                        ConditionExpression = returnStmt.Expression?.ToString() ?? string.Empty
                     });
-                }
-            }
-            else if (node is ReturnStatementSyntax returnStmt)
-            {
-                block.Statements.Add(new FlowControlStatement
-                {
-                    LineNumber = returnStmt.GetLineNumber(),
-                    SourceCode = returnStmt.ToFullString(),
-                    ControlType = FlowControlType.Return,
-                    ConditionExpression = returnStmt.Expression?.ToString() ?? string.Empty
-                });
+                    break;
             }
         }
     }
+
+    /// <summary>
+    /// Lifts <c>LocalDeclarationStatementSyntax</c> variables into <see cref="BlockDefinition.Variables"/>,
+    /// pre-evaluating literal initialisers.
+    /// </summary>
+    private static void AddLocalVarDeclarations(LocalDeclarationStatementSyntax varDecl, BlockDefinition block)
+    {
+        foreach (var variable in varDecl.Declaration.Variables)
+        {
+            var varDefinition = new VariableDeclaration
+            {
+                Name = variable.Identifier.Text,
+                Type = varDecl.Declaration.Type.ToString(),
+                InitialValueExpression = variable.Initializer?.Value?.ToString()
+            };
+
+            if (variable.Initializer?.Value is LiteralExpressionSyntax literal)
+            {
+                varDefinition.DefaultValue = ExprUtils.GetLiteralValue(literal);
+            }
+
+            block.Variables.Add(varDefinition);
+        }
+    }
+
+    /// <summary>
+    /// Handles an <c>ExpressionStatementSyntax</c>: invocation, assignment (with or
+    /// without invocation RHS), NextBlock string directive, or unsupported form.
+    /// Uses early returns to keep nesting shallow. The registry-hit-returns-null and
+    /// registry-miss cases share one construction path via
+    /// <see cref="BuildExpressionStatement"/> (they previously held two
+    /// character-identical <c>new ExpressionStatement</c> blocks).
+    /// </summary>
+    private void AddExpressionStatement(
+        ExpressionStatementSyntax exprStmt, BlockDefinition block,
+        BlockType blockType, ConversionDiagnostics? diagnostics)
+    {
+        var exprText = exprStmt.Expression.ToString();
+
+        Log.Debug("[BlockStatementExtractor] Processing ExpressionStatementSyntax: Type={ExprType}, Text={ExprText}",
+            exprStmt.Expression.GetType().Name, exprText);
+
+        if (exprStmt.Expression is InvocationExpressionSyntax invoke)
+        {
+            AddInvocationStatement(exprStmt, invoke, exprText, assignedVar: null, block);
+            return;
+        }
+
+        if (exprStmt.Expression is AssignmentExpressionSyntax assignment)
+        {
+            if (TryHandleNextBlockStringAssign(assignment, block))
+                return;
+
+            if (assignment.Right is InvocationExpressionSyntax assignInvoke)
+            {
+                AddInvocationStatement(exprStmt, assignInvoke, exprText,
+                    assignedVar: assignment.Left.ToString(), block);
+                return;
+            }
+
+            Log.Debug("[BlockStatementExtractor]   assignment.Right is NOT InvocationExpressionSyntax, type = {Type}",
+                assignment.Right.GetType().Name);
+            // Preserve AssignedVariable so BS2CFGConverter can handle non-invocation RHS
+            // (e.g. v = a + b + c where RHS is BinaryExpression).
+            block.Statements.Add(BuildExpressionStatement(exprStmt, exprText,
+                parsedInvocation: assignment.Right as InvocationExpressionSyntax,
+                assignedVar: assignment.Left.ToString()));
+            return;
+        }
+
+        // Not an invocation and not an assignment — per BlockScript grammar a statement
+        // must be a function call, an assignment, or a NextBlock/flow-control directive.
+        // This is likely a user error; record a warning (non-fatal) so the editor can
+        // surface it instead of silently dropping the statement downstream.
+        var lineNum = exprStmt.GetLineNumber();
+        diagnostics?.AddWarning("BS_UNSUPPORTED_EXPR",
+            $"Unsupported expression form '{exprStmt.Expression.GetType().Name}' in {blockType}: {exprText}",
+            lineNum);
+        Log.Debug("[BlockStatementExtractor] Unhandled expression type in {BlockType}: {Type} = {Expr}",
+            blockType, exprStmt.Expression.GetType().Name, exprText);
+        block.Statements.Add(BuildExpressionStatement(exprStmt, exprText,
+            parsedInvocation: null, assignedVar: null));
+    }
+
+    /// <summary>
+    /// Handles an invocation expression statement (bare call or call assigned to a
+    /// variable). Consults the builtin registry first; if it produces a statement it
+    /// is used directly, otherwise a generic <see cref="ExpressionStatement"/> carries
+    /// the already-parsed invocation so BS2CFGConverter does not re-parse the same
+    /// expression text (eliminates the double parse). The registry-hit-returns-null
+    /// and registry-miss cases converge on <see cref="BuildExpressionStatement"/>.
+    /// </summary>
+    private void AddInvocationStatement(
+        ExpressionStatementSyntax exprStmt, InvocationExpressionSyntax invoke,
+        string exprText, string? assignedVar, BlockDefinition block)
+    {
+        var methodName = ExprUtils.GetMethodName(invoke);
+        var stmt = _functionRegistry?.Get(methodName)?.ExtractStatement(invoke, exprStmt.GetLineNumber(), exprText);
+        block.Statements.Add(stmt ?? BuildExpressionStatement(exprStmt, exprText, invoke, assignedVar));
+    }
+
+    /// <summary>
+    /// Recognises the plain <c>NextBlock = "BlockName"</c> string-literal directive
+    /// (distinct from the FlowControl form <c>NextBlock = Branch(...)</c>, which is
+    /// dropped upstream in BS2CFGConverter). Sets <see cref="BlockDefinition.NextBlockName"/>
+    /// and returns true when handled, false otherwise.
+    /// </summary>
+    private static bool TryHandleNextBlockStringAssign(AssignmentExpressionSyntax assignment, BlockDefinition block)
+    {
+        if (assignment.Left is IdentifierNameSyntax { Identifier.Text: "NextBlock" }
+            && assignment.Right is LiteralExpressionSyntax nextBlockLiteral
+            && nextBlockLiteral.Token.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StringLiteralToken))
+        {
+            block.NextBlockName = nextBlockLiteral.Token.ValueText;
+            Log.Debug("[BlockStatementExtractor]   Set NextBlockName = {NextBlockName}", block.NextBlockName);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Single factory for the generic <see cref="ExpressionStatement"/> fallback.
+    /// Replaces the six near-identical inline initializers (two pairs of which were
+    /// character-for-character identical: registry-hit-returns-null vs registry-miss).
+    /// </summary>
+    private static ExpressionStatement BuildExpressionStatement(
+        ExpressionStatementSyntax exprStmt, string exprText,
+        InvocationExpressionSyntax? parsedInvocation, string? assignedVar) => new()
+    {
+        LineNumber = exprStmt.GetLineNumber(),
+        SourceCode = exprText,
+        Expression = exprText,
+        ParsedInvocation = parsedInvocation,
+        AssignedVariable = assignedVar
+    };
 }
 
 /// <summary>

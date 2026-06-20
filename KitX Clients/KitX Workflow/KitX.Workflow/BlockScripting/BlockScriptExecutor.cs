@@ -102,6 +102,47 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         BlockScript script,
         Dictionary<string, object?>? parameters = null,
         CancellationToken cancellationToken = default)
+        => await ExecuteCoreAsync(script, parameters, cancellationToken,
+            () =>
+            {
+                var compiled = _assemblyCompiler.CompileScript(script, _workflowId, out var compileErrors);
+                return (compiled, compileErrors);
+            },
+            "assembly-compiled execution path",
+            "Error executing block script");
+
+    /// <summary>
+    /// Executes a BlockScript using a pre-built CFG (BP→CFG→CS direct path).
+    /// Skips the BS→CFG conversion, preserving StatementIds from the blueprint.
+    /// </summary>
+    internal async Task<BlockScriptExecutionResult> ExecuteFromCFGAsync(
+        BlockScript script,
+        ControlFlowGraph cfg,
+        Dictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteCoreAsync(script, parameters, cancellationToken,
+            () =>
+            {
+                var compiled = _assemblyCompiler.CompileFromCFG(cfg, script, _workflowId, out var compileErrors);
+                return (compiled, compileErrors);
+            },
+            "BP→CFG→CS direct execution path",
+            "Error executing from CFG");
+
+    /// <summary>
+    /// Shared execute pipeline for <see cref="ExecuteAsync"/> and
+    /// <see cref="ExecuteFromCFGAsync"/>. The two public methods differ only in the
+    /// compile call and two log strings; everything else (stopwatch, debug-mode flag,
+    /// null-compiled failure result, globals setup, parameter import, RunAsync, and the
+    /// success/cancel/exception result handling) is identical and lives here once.
+    /// </summary>
+    private async Task<BlockScriptExecutionResult> ExecuteCoreAsync(
+        BlockScript script,
+        Dictionary<string, object?>? parameters,
+        CancellationToken cancellationToken,
+        Func<(ICompiledBlockScript? compiled, IReadOnlyList<string> compileErrors)> compileFn,
+        string pathLabel,
+        string errorLabel)
     {
         _stopwatch.Restart();
         _output = new List<string>();
@@ -110,8 +151,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         {
             CFG2CSGenerator.IsDebugMode = _debugger != null;
 
-            // Full-script assembly compilation
-            var compiled = _assemblyCompiler.CompileScript(script, _workflowId, out var compileErrors);
+            var (compiled, compileErrors) = compileFn();
             if (compiled == null)
             {
                 _stopwatch.Stop();
@@ -124,7 +164,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                 };
             }
 
-            Log.Debug("[BlockScriptExecutor] Using assembly-compiled execution path");
+            Log.Debug("[BlockScriptExecutor] Using {PathLabel}", pathLabel);
             _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
             _globals.Debugger = _debugger;
             _globals.ResetRunState();
@@ -156,79 +196,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         catch (Exception ex)
         {
             _stopwatch.Stop();
-            Log.Error(ex, "[BlockScriptExecutor] Error executing block script");
-            return new BlockScriptExecutionResult
-            {
-                IsSuccess = false,
-                ErrorMessage = $"Execution error: {ex.Message}",
-                ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
-                Output = _output
-            };
-        }
-    }
-
-    /// <summary>
-    /// Executes a BlockScript using a pre-built CFG (BP→CFG→CS direct path).
-    /// Skips the BS→CFG conversion, preserving StatementIds from the blueprint.
-    /// </summary>
-    internal async Task<BlockScriptExecutionResult> ExecuteFromCFGAsync(
-        BlockScript script,
-        ControlFlowGraph cfg,
-        Dictionary<string, object?>? parameters = null,
-        CancellationToken cancellationToken = default)
-    {
-        _stopwatch.Restart();
-        _output = new List<string>();
-
-        try
-        {
-            CFG2CSGenerator.IsDebugMode = _debugger != null;
-
-            var compiled = _assemblyCompiler.CompileFromCFG(cfg, script, _workflowId, out var compileErrors);
-            if (compiled == null)
-            {
-                _stopwatch.Stop();
-                return new BlockScriptExecutionResult
-                {
-                    IsSuccess = false,
-                    ErrorMessage = FormatCompileErrors(compileErrors),
-                    ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
-                    Output = _output
-                };
-            }
-
-            Log.Debug("[BlockScriptExecutor] Using BP→CFG→CS direct execution path");
-            _globals = new BlockScriptExecutionGlobals(_scopeManager, _output, _pluginManager);
-            _globals.Debugger = _debugger;
-            _globals.ResetRunState();
-            _scopeManager.InitializeGlobalScope(script);
-
-            if (parameters != null)
-            {
-                foreach (var p in parameters)
-                    _globals.Set(p.Key, p.Value);
-            }
-
-            await compiled.RunAsync(_globals, cancellationToken);
-
-            _stopwatch.Stop();
-            return new BlockScriptExecutionResult
-            {
-                IsSuccess = true,
-                ExecutedBlockCount = _globals.ExecutedBlockCount,
-                ExecutionTimeMs = _stopwatch.ElapsedMilliseconds,
-                Output = _output
-            };
-        }
-        catch (OperationCanceledException)
-        {
-            _stopwatch.Stop();
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _stopwatch.Stop();
-            Log.Error(ex, "[BlockScriptExecutor] Error executing from CFG");
+            Log.Error(ex, "[BlockScriptExecutor] {ErrorLabel}", errorLabel);
             return new BlockScriptExecutionResult
             {
                 IsSuccess = false,

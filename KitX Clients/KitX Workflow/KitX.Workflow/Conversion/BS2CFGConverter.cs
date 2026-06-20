@@ -120,7 +120,7 @@ public class BS2CFGConverter
 
         // Determine the function name from the source code or control type
         var functionName = GetFunctionNameFromFlowControl(flowCtrl);
-        var kind = _functionRegistry?.Get(functionName)?.StatementKind ?? MapControlTypeToKind(flowCtrl.ControlType);
+        var kind = _functionRegistry?.Get(functionName)?.StatementKind ?? ControlFlowMapping.ToKind(flowCtrl.ControlType);
 
         // Expand condition for Branch/Loop
         var hasCondition = !string.IsNullOrEmpty(flowCtrl.ConditionExpression);
@@ -142,12 +142,7 @@ public class BS2CFGConverter
             ConditionPubVar = condPubVar,
             ConditionExpression = flowCtrl.ConditionExpression,
             // Copy the full arm list so N-way Switch and any variadic shape survive.
-            Arms = flowCtrl.Arms.Select(a => new BranchArm
-            {
-                PinName = a.PinName,
-                TargetBlockName = a.TargetBlockName,
-                IsLoopback = a.IsLoopback
-            }).ToList(),
+            Arms = flowCtrl.Arms.Select(a => a.Clone()).ToList(),
             // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
             // ToLoopCond statements retain their loopback target across BS→CFG.
             ToLoopCondReturnTo = flowCtrl.ToLoopCondReturnTo,
@@ -180,28 +175,8 @@ public class BS2CFGConverter
         if (parsed?.rightExpr is IdentifierNameSyntax id)
             return id.Identifier.Text;
         // Fallback: derive from ControlType
-        return MapControlTypeToFunctionName(flowCtrl.ControlType);
+        return ControlFlowMapping.ToFunctionName(flowCtrl.ControlType);
     }
-
-    private static string MapControlTypeToFunctionName(FlowControlType type) => type switch
-    {
-        FlowControlType.Branch => Branch,
-        FlowControlType.Loop => Loop,
-        FlowControlType.Switch => Switch,
-        FlowControlType.ToLoopCond => ToLoopCond,
-        FlowControlType.Break => Break,
-        _ => string.Empty
-    };
-
-    private static CFGStatementKind MapControlTypeToKind(FlowControlType type) => type switch
-    {
-        FlowControlType.Branch => CFGStatementKind.Branch,
-        FlowControlType.Loop => CFGStatementKind.Loop,
-        FlowControlType.Switch => CFGStatementKind.Switch,
-        FlowControlType.ToLoopCond => CFGStatementKind.ToLoopCond,
-        FlowControlType.Break => CFGStatementKind.Break,
-        _ => CFGStatementKind.Unknown
-    };
 
     // ──────────────────────────────────────────────
     // Expression statement formatting

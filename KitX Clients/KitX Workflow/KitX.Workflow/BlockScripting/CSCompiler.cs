@@ -2,6 +2,7 @@ using KitX.Core.Contract.Workflow;
 using Serilog;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace KitX.Workflow.BlockScripting;
 
@@ -78,8 +79,61 @@ internal class CSCompiler
         string? workflowId,
         out IReadOnlyList<string> compileErrors)
     {
-        compileErrors = Array.Empty<string>();
         var hash = ScriptCompilationBackend.ComputeScriptHash(script);
+        return LoadOrCompile(hash, workflowId, () =>
+        {
+            // Phase 1: Format script + infer PubVar types
+            var (formattedScript, pubVarTypes) = FormatAndInferTypes(script);
+            // Phase 2: Generate CompilationUnitSyntax
+            return CFG2CSGenerator.GenerateCompilationUnit(script, formattedScript, pubVarTypes, hash);
+        }, "Successfully compiled and cached script hash", out compileErrors);
+    }
+
+    /// <summary>
+    /// Compiles a <see cref="BlockScript"/> using a pre-built <see cref="ControlFlowGraph"/>
+    /// (e.g., from BP→CFG conversion). Skips the BS→CFG formatting step, preserving
+    /// the original <see cref="CFGStatement.StatementId"/> values for debug checkpoints.
+    /// </summary>
+    public ICompiledBlockScript? CompileFromCFG(
+        ControlFlowGraph cfg, BlockScript script, string? workflowId)
+        => CompileFromCFG(cfg, script, workflowId, out _);
+
+    /// <summary>
+    /// CFG-path variant that also reports Roslyn diagnostics on failure.
+    /// </summary>
+    public ICompiledBlockScript? CompileFromCFG(
+        ControlFlowGraph cfg,
+        BlockScript script,
+        string? workflowId,
+        out IReadOnlyList<string> compileErrors)
+    {
+        var baseHash = ScriptCompilationBackend.ComputeScriptHash(script);
+        var hash = CFG2CSGenerator.IsDebugMode ? $"debug_{baseHash}" : baseHash;
+        return LoadOrCompile(hash, workflowId, () =>
+        {
+            Log.Debug("[CSCompiler] Compiling from pre-built CFG: {BlockCount} blocks", cfg.Blocks.Count);
+            var context = new PipelineContext { Script = script };
+            PrepPubVarNames(context, script);
+            var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(cfg, script.HelperFunctions, context);
+            return CFG2CSGenerator.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
+        }, "CompileFromCFG success for hash", out compileErrors);
+    }
+
+    /// <summary>
+    /// Shared compile/cache/load/persist pipeline. Both <see cref="CompileScript"/> and
+    /// <see cref="CompileFromCFG"/> delegate here, supplying a <paramref name="buildUnit"/>
+    /// closure that performs their Phase 1 (format/infer) differences and returns the
+    /// <c>CompilationUnitSyntax</c>. The cache-lookup / Roslyn compile / ALC load /
+    /// instantiate / disk-persist / exception-handling tail is identical across both
+    /// paths and lives here once.
+    /// </summary>
+    private ICompiledBlockScript? LoadOrCompile(
+        string hash, string? workflowId,
+        Func<CompilationUnitSyntax> buildUnit,
+        string successLogPrefix,
+        out IReadOnlyList<string> compileErrors)
+    {
+        compileErrors = Array.Empty<string>();
 
         // Step 1: Check in-memory cache
         if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
@@ -103,12 +157,7 @@ internal class CSCompiler
         // Step 3: Roslyn compilation
         try
         {
-            // Phase 1: Format script + infer PubVar types
-            var (formattedScript, pubVarTypes) = FormatAndInferTypes(script);
-
-            // Phase 2: Generate CompilationUnitSyntax
-            var compilationUnit = CFG2CSGenerator.GenerateCompilationUnit(
-                script, formattedScript, pubVarTypes, hash);
+            var compilationUnit = buildUnit();
 
             // Phase 3: Compile via CSharpCompilation
             var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash, out var errors);
@@ -136,105 +185,14 @@ internal class CSCompiler
 
             // Step 5: Persist to disk (if workflowId provided)
             if (workflowId != null)
-            {
                 _persistence.SaveToDisk(workflowId, hash, assembly, typeName);
-            }
 
-            Log.Debug("[CSCompiler] Successfully compiled and cached script hash '{Hash}'", hash);
+            Log.Debug("[CSCompiler] {Prefix} '{Hash}'", successLogPrefix, hash);
             return instance;
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "[CSCompiler] Compilation threw an exception");
-            compileErrors = new[] { $"Compilation threw an exception: {ex.Message}" };
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Compiles a <see cref="BlockScript"/> using a pre-built <see cref="ControlFlowGraph"/>
-    /// (e.g., from BP→CFG conversion). Skips the BS→CFG formatting step, preserving
-    /// the original <see cref="CFGStatement.StatementId"/> values for debug checkpoints.
-    /// </summary>
-    public ICompiledBlockScript? CompileFromCFG(
-        ControlFlowGraph cfg, BlockScript script, string? workflowId)
-        => CompileFromCFG(cfg, script, workflowId, out _);
-
-    /// <summary>
-    /// CFG-path variant that also reports Roslyn diagnostics on failure.
-    /// </summary>
-    public ICompiledBlockScript? CompileFromCFG(
-        ControlFlowGraph cfg,
-        BlockScript script,
-        string? workflowId,
-        out IReadOnlyList<string> compileErrors)
-    {
-        compileErrors = Array.Empty<string>();
-        var baseHash = ScriptCompilationBackend.ComputeScriptHash(script);
-        var hash = CFG2CSGenerator.IsDebugMode ? $"debug_{baseHash}" : baseHash;
-
-        if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
-        {
-            Log.Debug("[CSCompiler] Memory cache hit for hash '{Hash}'", hash);
-            return entry.Instance;
-        }
-
-        if (workflowId != null)
-        {
-            var diskInstance = _persistence.TryLoadFromDisk(workflowId, hash);
-            if (diskInstance != null)
-            {
-                Log.Debug("[CSCompiler] Disk cache hit for hash '{Hash}'", hash);
-                return diskInstance;
-            }
-        }
-
-        try
-        {
-            Log.Debug("[CSCompiler] Compiling from pre-built CFG: {BlockCount} blocks", cfg.Blocks.Count);
-
-            var context = new PipelineContext { Script = script };
-            if (script.PubVarBlock != null)
-            {
-                foreach (var variable in script.PubVarBlock.Variables)
-                {
-                    if (!context.PubVarNames.Contains(variable.Name))
-                        context.PubVarNames.Add(variable.Name);
-                }
-            }
-            var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(cfg, script.HelperFunctions, context);
-
-            var compilationUnit = CFG2CSGenerator.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
-            var assembly = ScriptCompilationBackend.CompileToAssembly(compilationUnit, hash, out var errors);
-            if (assembly == null)
-            {
-                compileErrors = errors ?? Array.Empty<string>();
-                return null;
-            }
-
-            var alc = new CollectibleAssemblyLoadContext(hash);
-            var loadedAssembly = alc.LoadFromStream(assembly);
-            var typeName = $"KitX.Workflow.BlockScripting.Generated.CompiledScript_{hash}";
-            var scriptType = loadedAssembly.GetType(typeName);
-            if (scriptType == null)
-            {
-                compileErrors = new[] { "Compiled type not found in generated assembly (workflow engine bug)." };
-                alc.Unload();
-                return null;
-            }
-
-            var instance = (ICompiledBlockScript)Activator.CreateInstance(scriptType)!;
-            _cache[hash] = new CompiledScriptEntry(instance, alc);
-
-            if (workflowId != null)
-                _persistence.SaveToDisk(workflowId, hash, assembly, typeName);
-
-            Log.Debug("[CSCompiler] CompileFromCFG success for hash '{Hash}'", hash);
-            return instance;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "[CSCompiler] CompileFromCFG failed");
             compileErrors = new[] { $"Compilation threw an exception: {ex.Message}" };
             return null;
         }
@@ -266,15 +224,7 @@ internal class CSCompiler
         BlockScript script)
     {
         var context = new PipelineContext { Script = script };
-
-        if (script.PubVarBlock != null)
-        {
-            foreach (var variable in script.PubVarBlock.Variables)
-            {
-                if (!context.PubVarNames.Contains(variable.Name))
-                    context.PubVarNames.Add(variable.Name);
-            }
-        }
+        PrepPubVarNames(context, script);
 
         var formattedScript = CFGPipeline.BS2CFG(script, script.HelperFunctions ?? [], FunctionRegistry, context);
 
@@ -292,5 +242,20 @@ internal class CSCompiler
 
         var pubVarTypes = CFG2CSGenerator.InferPubVarTypes(formattedScript, script.HelperFunctions, context);
         return (formattedScript, pubVarTypes);
+    }
+
+    /// <summary>
+    /// Copies <see cref="BlockScript.PubVarBlock"/> variable names into the pipeline
+    /// context's <see cref="PipelineContext.PubVarNames"/>, deduplicated. Replaces two
+    /// character-identical inline copies that lived in CompileFromCFG and FormatAndInferTypes.
+    /// </summary>
+    private static void PrepPubVarNames(PipelineContext context, BlockScript script)
+    {
+        if (script.PubVarBlock == null) return;
+        foreach (var variable in script.PubVarBlock.Variables)
+        {
+            if (!context.PubVarNames.Contains(variable.Name))
+                context.PubVarNames.Add(variable.Name);
+        }
     }
 }

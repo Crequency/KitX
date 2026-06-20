@@ -105,19 +105,11 @@ internal class CFG2BSConverter
 
     // ─── Statement Conversion ──────────────────────────────────────────
 
-    private static readonly Dictionary<CFGStatementKind, FlowControlType?> KindToControlType = new()
-    {
-        [CFGStatementKind.Branch] = FlowControlType.Branch,
-        [CFGStatementKind.Loop] = FlowControlType.Loop,
-        [CFGStatementKind.Switch] = FlowControlType.Switch,
-        [CFGStatementKind.ToLoopCond] = FlowControlType.ToLoopCond,
-        [CFGStatementKind.Break] = FlowControlType.Break,
-    };
-
     private static BlockStatement? ConvertStatement(CFGStatement cfgStmt)
     {
         // Control flow statements → FlowControlStatement
-        if (KindToControlType.TryGetValue(cfgStmt.Kind, out var controlType) && controlType != null)
+        var controlType = ControlFlowMapping.ToControlType(cfgStmt.Kind);
+        if (controlType != null)
         {
             return new FlowControlStatement
             {
@@ -125,12 +117,7 @@ internal class CFG2BSConverter
                 ControlType = controlType.Value,
                 ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
-                Arms = cfgStmt.Arms.Select(a => new BranchArm
-                {
-                    PinName = a.PinName,
-                    TargetBlockName = a.TargetBlockName,
-                    IsLoopback = a.IsLoopback
-                }).ToList(),
+                Arms = cfgStmt.Arms.Select(a => a.Clone()).ToList(),
                 // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly so
                 // ToLoopCond statements retain their loopback target across CFG→BS.
                 ToLoopCondReturnTo = cfgStmt.ToLoopCondReturnTo,

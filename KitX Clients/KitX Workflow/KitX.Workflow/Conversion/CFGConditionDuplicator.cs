@@ -83,12 +83,7 @@ internal class CFGConditionDuplicator
         ConditionExpression = source.ConditionExpression,
         ConditionPubVar = source.ConditionPubVar,
         // Clone the full arm list so N-way shapes survive duplication.
-        Arms = source.Arms.Select(a => new BranchArm
-        {
-            PinName = a.PinName,
-            TargetBlockName = a.TargetBlockName,
-            IsLoopback = a.IsLoopback
-        }).ToList(),
+        Arms = source.Arms.Select(a => a.Clone()).ToList(),
         // ToLoopCondReturnTo is a separate field (not in Arms) — copy it explicitly.
         ToLoopCondReturnTo = source.ToLoopCondReturnTo,
         Fingerprint = source.Fingerprint,
