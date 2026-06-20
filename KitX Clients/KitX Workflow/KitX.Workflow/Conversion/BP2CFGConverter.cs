@@ -446,7 +446,7 @@ internal class BP2CFGConverter
                 processedNodes.Add(node.Id);
 
                 ProcessControlFlowSubGraph(node, cfg, nodeById, reachableNodeIds, execConns,
-                    blueprint, loopNodes, loopOwnerBlockNames, ref blockCounter);
+                    blueprint, pendingControlFlowNodes, loopNodes, loopOwnerBlockNames, ref blockCounter);
             }
         }
     }
@@ -455,6 +455,7 @@ internal class BP2CFGConverter
         BlueprintNode cfNode, ControlFlowGraph cfg,
         Dictionary<string, BlueprintNode> nodeById, HashSet<string> reachableNodeIds,
         List<BlueprintConnection> execConns, KitX.Core.Contract.Workflow.Blueprint blueprint,
+        List<BlueprintNode> pendingControlFlowNodes,
         Dictionary<string, BlueprintNode> loopNodes,
         Dictionary<string, string> loopOwnerBlockNames, ref int blockCounter)
     {
@@ -495,8 +496,12 @@ internal class BP2CFGConverter
             if (isLoopback)
                 loopOwnerBlockNames[cfNode.Id] = blockName;
 
+            // Propagate the shared pending list so nested control-flow nodes discovered during
+            // sub-graph walking are queued for ProcessSubGraphs' outer loop. Previously this
+            // passed `new()`, dropping nested control-flow nodes (e.g. a Loop inside a Branch's
+            // True arm) on the floor — their blocks/arms were never built on the topology path.
             WalkNode(targetNode, block, cfg, nodeById, reachableNodeIds, execConns,
-                blueprint, new HashSet<string>(), pendingControlFlowNodes: new(),
+                blueprint, new HashSet<string>(), pendingControlFlowNodes,
                 loopNodes, loopOwnerBlockNames, ref blockCounter,
                 loopbackTargetId: isLoopback ? cfNode.Id : null);
 

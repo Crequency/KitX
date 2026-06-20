@@ -260,6 +260,14 @@ public partial class Program
             Console.WriteLine("└──────────────────────────────────────────────┘\n");
             RunStringConcatRoundTripTest(parser, converter, reverseConverter, new List<HelperFunction>());
         }
+
+        if (ShouldRunTest("W"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test W: Nested control flow (topology path)         │");
+            Console.WriteLine("└──────────────────────────────────────────────────────┘\n");
+            RunNestedControlFlowTopologyTest(reverseConverter, nodeRegistry, "Test W");
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -964,7 +972,67 @@ Print(""示例工作流结束"");";
     }
 
     // ──────────────────────────────────────────────
-    // Test F: Pure sequential flow (no Branch/Loop)
+    // Test W: Nested control flow on the topology path.
+    // A hand-built Blueprint (no BlockScopes → forces BuildBlocksFromTopology / WalkNode /
+    // ProcessSubGraphs) with a Loop nested inside a Branch's True arm. Before the L9 pending
+    // fix, WalkNode's recursive call passed `pendingControlFlowNodes: new()`, so the nested
+    // Loop node was queued into a throwaway list and never expanded — its LoopBody/LoopEnd
+    // arms were dropped. This test asserts the Loop's arms survive the BP→BS conversion.
+    // ──────────────────────────────────────────────
+    private static void RunNestedControlFlowTopologyTest(
+        IBlueprintToBlockScriptConverter reverseConverter, INodeRegistry nodeRegistry, string label)
+    {
+        try
+        {
+            var bp = new Contract.Workflow.Blueprint { Name = "NestedControlFlowTopology" };
+
+            // Entry → Branch(cond, TrueArm, FalseArm); TrueArm → Loop(cond, LoopBody, LoopEnd)
+            var entry = new EntryNode();
+            var branch = nodeRegistry.CreateBuiltinFunctionNode("Branch");
+            var loop = nodeRegistry.CreateBuiltinFunctionNode("Loop");
+            var constTrue = new ConstNode { ConstName = "c", ConstType = "bool", ConstValue = "true" };
+
+            bp.AddNode(entry);
+            bp.AddNode(branch);
+            bp.AddNode(loop);
+            bp.AddNode(constTrue);
+
+            BlueprintConnection Conn(string sNode, string sPin, string tNode, string tPin) => new()
+            {
+                SourceNodeId = sNode,
+                SourcePinId = sPin,
+                TargetNodeId = tNode,
+                TargetPinId = tPin
+            };
+            string OutPin(BlueprintNode n, string name) => n.OutputPins.First(p => p.Name == name).Id;
+            string InPin(BlueprintNode n, string name) => n.InputPins.First(p => p.Name == name).Id;
+
+            // Exec: Entry → Branch
+            bp.AddConnection(Conn(entry.Id, OutPin(entry, "Exec"), branch.Id, InPin(branch, "Exec")));
+            // Branch.True → Loop (nested control flow inside Branch's True arm)
+            bp.AddConnection(Conn(branch.Id, OutPin(branch, "True"), loop.Id, InPin(loop, "Exec")));
+            // Data: const → Branch.Condition and const → Loop.Condition
+            bp.AddConnection(Conn(constTrue.Id, OutPin(constTrue, "Value"), branch.Id, InPin(branch, "Condition")));
+            bp.AddConnection(Conn(constTrue.Id, OutPin(constTrue, "Value"), loop.Id, InPin(loop, "Condition")));
+
+            var script = reverseConverter.Convert(bp);
+
+            // The generated BlockScript must contain the Loop directive. Before the L9 fix,
+            // the nested Loop was dropped by the throwaway pending list, so the script held
+            // only the Branch with an empty/unresolved True arm.
+            bool hasLoop = script.Contains("Loop(");
+            Console.WriteLine($"  Generated script:\n{script}");
+            Console.WriteLine($"  Loop directive present: {hasLoop}");
+
+            Console.WriteLine($"[{label}] {(hasLoop ? "PASS - nested Loop arms survived" : "FAIL - nested Loop dropped")}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{label}] FAILED: {ex.Message}");
+            Console.WriteLine($"  {ex.StackTrace}");
+        }
+    }
+
     // ──────────────────────────────────────────────
     private static string GetSequentialScript() => @"#ConstBlock
 string greeting = ""Hello"";
