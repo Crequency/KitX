@@ -1,7 +1,6 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Plugin;
 using KitX.Shared.CSharp.Plugin;
-using Microsoft.CodeAnalysis.CSharp;
 using Serilog;
 
 namespace KitX.Workflow.Services;
@@ -21,13 +20,6 @@ internal class WorkflowPluginService : IWorkflowPluginService
     internal WorkflowPluginService(WorkflowRuntimeState state)
     {
         _state = state;
-    }
-
-    /// <inheritdoc />
-    public void UpdateAvailablePlugins(List<PluginInfo> plugins)
-    {
-        _state.AvailablePlugins = plugins ?? new List<PluginInfo>();
-        Log.Information($"[WorkflowPluginService] Updated available plugins: {_state.AvailablePlugins.Count} plugins");
     }
 
     /// <inheritdoc />
@@ -95,58 +87,5 @@ internal class WorkflowPluginService : IWorkflowPluginService
         {
             return valueStr;
         }
-    }
-
-    /// <inheritdoc />
-    public string ApplyConstantsToCode(string code, List<VariableConstant> constants)
-    {
-        if (string.IsNullOrWhiteSpace(code) || constants == null || !constants.Any())
-            return code;
-
-        var constantValues = new Dictionary<string, object?>();
-        foreach (var constant in constants)
-        {
-            var typedValue = constant.UserValue;
-            if (typedValue != null && constant.Type != null)
-            {
-                typedValue = ConvertToTypedValue(typedValue, constant.Type);
-            }
-            constantValues[constant.Name] = typedValue;
-        }
-
-        var tree = CSharpSyntaxTree.ParseText(code);
-        var root = tree.GetRoot();
-
-        var rewriter = new ConstantValueRewriter(constantValues);
-        var newRoot = rewriter.Visit(root);
-
-        return newRoot.ToFullString();
-    }
-
-    /// <summary>
-    /// Converts a value to the specified type.
-    /// </summary>
-    private static object? ConvertToTypedValue(object? value, string type)
-    {
-        if (value == null) return null;
-
-        return type.ToLowerInvariant() switch
-        {
-            "int" => Convert.ToInt32(value),
-            "long" => Convert.ToInt64(value),
-            "double" => Convert.ToDouble(value),
-            "float" => Convert.ToSingle(value),
-            "decimal" => Convert.ToDecimal(value),
-            "bool" or "boolean" => Convert.ToBoolean(value),
-            "string" => value.ToString(),
-            "char" => Convert.ToChar(value),
-            _ => value
-        };
-    }
-
-    /// <inheritdoc />
-    public string MergeHelperFunctions(string mainCode, List<HelperFunction> helperFunctions)
-    {
-        return BlockScripting.HelperFunctionCodeGenerator.MergeWithMainProgram(mainCode, helperFunctions);
     }
 }

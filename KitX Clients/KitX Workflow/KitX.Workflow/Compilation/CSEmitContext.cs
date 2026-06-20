@@ -32,10 +32,6 @@ public sealed class CSEmitContext
     public ExpressionSyntax Literal(string value)
         => LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(value));
 
-    /// <summary>A <c>null</c> literal expression.</summary>
-    public ExpressionSyntax NullLiteral()
-        => LiteralExpression(SyntaxKind.NullLiteralExpression);
-
     /// <summary>Resolves a formatted argument string into a Roslyn expression.</summary>
     public ExpressionSyntax ResolveArgument(string arg)
         => CFG2CSConverter.ResolveArgumentExpression(arg, PubVarTypes);

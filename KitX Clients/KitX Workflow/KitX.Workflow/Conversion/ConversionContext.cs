@@ -23,17 +23,9 @@ internal class ConversionContext
     public List<string> AllPubVars { get; set; } = new();
     public List<string> AutoPubVars { get; set; } = new();
     public int PubVarCounter { get; set; } = 1;
-    public int BlockCounter { get; set; } = 0;
 
     // Phase 2: CFG block construction
-    public Dictionary<string, FlowControlStatement> ControlFlowMap { get; set; } = new();
-    public List<BlueprintNode> PendingControlFlowNodes { get; set; } = new();
     public Dictionary<string, BlueprintNode> LoopNodes { get; set; } = new();
-    public Dictionary<string, BlockDefinition> LoopBodyBlocks { get; set; } = new();
-    public Dictionary<string, (string TrueBlockName, string FalseBlockName)> BlockNameAssignments { get; set; } = new();
-
-    // Block scope fast path
-    public Dictionary<string, BlueprintBlockScope> ScopesByName { get; set; } = new();
 
     /// <summary>
     /// Current loopback target ID when walking inside a loop body.

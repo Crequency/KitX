@@ -39,9 +39,4 @@ public static class WorkflowOutput
         }
         return sb.ToString();
     }
-
-    /// <summary>
-    /// 检查是否有输出
-    /// </summary>
-    public static bool HasOutput => !_outputQueue.IsEmpty;
 }

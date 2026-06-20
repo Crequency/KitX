@@ -45,7 +45,6 @@ public class PipelineContext
 
     // --- Shared state ---
     public int NextPubVarCounter { get; set; } = 0;
-    public HashSet<string> VisitedBlocks { get; set; } = new();
 
     /// <summary>
     /// PubVar reuse tracking: fingerprint → assignment info.
@@ -65,7 +64,6 @@ public class PipelineContext
     public Dictionary<string, ConditionInfo> LoopConditions { get; set; } = new();
 
     // --- Debug tracking ---
-    public List<string> DebugLog { get; set; } = new();
 
     /// <summary>
     /// User-facing diagnostics accumulated across BS→CFG→BP phases. Backend-bug-class
@@ -84,12 +82,6 @@ public class PubVarAssignment
     public BlueprintNode SourceNode { get; set; } = null!;
     public BlueprintPin SourcePin { get; set; } = null!;
     public string StatementId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Sub-assignments that are part of this expression (e.g. Get nodes that feed into a CallHelper).
-    /// Key = sub-expression fingerprint, Value = (node, pin, statementId).
-    /// </summary>
-    public Dictionary<string, SubAssignment> SubAssignments { get; set; } = new();
 }
 
 /// <summary>
@@ -116,11 +108,6 @@ public class ConditionInfo
     /// The expanded condition expression (e.g. "HelperFuncCompare(\"BLE\", Get(\"currentLoop\"), loopMax)").
     /// </summary>
     public string RawExpression { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The fingerprint of the condition expression for reuse detection.
-    /// </summary>
-    public string Fingerprint { get; set; } = string.Empty;
 
     /// <summary>
     /// The formatted statements that evaluate the condition (may be multiple if nested).

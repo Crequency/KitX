@@ -49,18 +49,6 @@ public class ControlFlowGraph
     public BlueprintDebugContext? DebugContext { get; set; }
 
     /// <summary>
-    /// Gets a block by name. Returns null if not found.
-    /// </summary>
-    public CFGBlock? GetBlock(string name)
-        => Blocks.FirstOrDefault(b => b.Name == name);
-
-    /// <summary>
-    /// Generates the next unique PubVar name.
-    /// </summary>
-    public string NextPubVarName()
-        => $"vaaa{PubVarCounter++:D4}";
-
-    /// <summary>
     /// Dumps the CFG as a human-readable string for diagnostics.
     /// </summary>
     public string Dump()

@@ -63,10 +63,4 @@ public static class ServiceLocator
     /// </summary>
     public static T GetRequiredService<T>() where T : notnull
         => ServiceProvider.GetRequiredService<T>();
-
-    /// <summary>
-    /// Gets a service from the DI container, or null if not registered.
-    /// </summary>
-    public static T? GetService<T>() where T : class
-        => ServiceProvider.GetService<T>();
 }

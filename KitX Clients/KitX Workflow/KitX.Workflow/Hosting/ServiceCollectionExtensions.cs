@@ -64,9 +64,6 @@ public static class ServiceCollectionExtensions
         // host (Dashboard) can pre-resolve it to force eager singleton construction.
         services.AddSingleton<IRealPluginManagerBridge>(sp => sp.GetRequiredService<RealPluginManager>());
 
-        // KCS File Service
-        services.AddSingleton<IKcsFileService, KcsFileService>();
-
         // Block Script Services
         services.AddSingleton<IBlockScriptParser>(provider =>
         {

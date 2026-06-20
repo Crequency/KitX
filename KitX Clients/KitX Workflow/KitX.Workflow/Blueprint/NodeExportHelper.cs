@@ -60,26 +60,6 @@ internal class NodeExportHelper : INodeExportHelper
         => _currentCtx?.ConsumedOutputs.Contains((node.Id, pinName)) == true;
 
     /// <summary>
-    /// Resolves an input pin's value using the pre-built InputDataMap (for topology path).
-    /// </summary>
-    public string ResolveInputValue(BlueprintNode node, string pinName, ConversionContext ctx)
-    {
-        var pin = node.InputPins.FirstOrDefault(p => p.Name == pinName);
-        if (pin == null) return string.Empty;
-
-        if (ctx.InputDataMap.TryGetValue((node.Id, pin.Name), out var info))
-        {
-            if (info.SourceNode is ConstNode constNode)
-                return constNode.ConstName;
-            if (!string.IsNullOrEmpty(info.PubVarName))
-                return info.PubVarName;
-        }
-
-        var defaultValue = pin.DefaultValue ?? string.Empty;
-        return FormatLiteralValue(defaultValue, ctx);
-    }
-
-    /// <summary>
     /// Finds the PubVar name assigned to a node's output pin.
     /// </summary>
     public static string? FindOutputPubVar(BlueprintNode node, string pinName, ConversionContext ctx)

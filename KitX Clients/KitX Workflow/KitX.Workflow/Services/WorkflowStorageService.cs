@@ -129,18 +129,6 @@ public class WorkflowStorageService : IWorkflowStorageService
     }
 
     /// <inheritdoc/>
-    public async Task RenameWorkflowAsync(string workflowId, string newName)
-    {
-        var data = await LoadWorkflowDataAsync(workflowId);
-        if (data != null)
-        {
-            data.Name = newName;
-            await SaveWorkflowDataAsync(workflowId, data);
-            Log.Information("[WorkflowStorageService] Renamed workflow {Id} to: {Name}", workflowId, newName);
-        }
-    }
-
-    /// <inheritdoc/>
     public async Task<IReadOnlyList<IWorkflowCase>> DiscoverWorkflowsAsync()
     {
         EnsureDirectoryExists();
@@ -199,36 +187,6 @@ public class WorkflowStorageService : IWorkflowStorageService
     public string GetWorkflowFilePath(string workflowId)
     {
         return Path.Combine(_storageDirectory, $"{workflowId}.kcs");
-    }
-
-    /// <inheritdoc/>
-    public async Task<int> PreloadCompiledScriptsAsync()
-    {
-        EnsureDirectoryExists();
-
-        var workflows = await DiscoverWorkflowsAsync();
-        var totalLoaded = 0;
-
-        var scriptService = ServiceLocator.GetRequiredService<IBlockScriptService>();
-
-        foreach (var workflow in workflows)
-        {
-            try
-            {
-                var count = scriptService.PreloadCompiledScripts(workflow.Id);
-                totalLoaded += count;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "[WorkflowStorageService] Error preloading compiled scripts for workflow {Id}", workflow.Id);
-            }
-        }
-
-        if (totalLoaded > 0)
-            Log.Information("[WorkflowStorageService] Preloaded {Count} compiled scripts for {WfCount} workflows",
-                totalLoaded, workflows.Count);
-
-        return totalLoaded;
     }
 
     private void EnsureDirectoryExists()

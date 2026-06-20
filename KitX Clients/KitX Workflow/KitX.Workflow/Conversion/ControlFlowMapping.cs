@@ -1,8 +1,6 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.CFG;
 
-using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
-
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
@@ -33,11 +31,11 @@ internal static class ControlFlowMapping
     /// <summary>FlowControlType → canonical function-name string (e.g. "Branch").</summary>
     public static string ToFunctionName(FlowControlType type) => type switch
     {
-        FlowControlType.Branch => Branch,
-        FlowControlType.Loop => Loop,
-        FlowControlType.Switch => Switch,
-        FlowControlType.ToLoopCond => ToLoopCond,
-        FlowControlType.Break => Break,
+        FlowControlType.Branch => "Branch",
+        FlowControlType.Loop => "Loop",
+        FlowControlType.Switch => "Switch",
+        FlowControlType.ToLoopCond => "ToLoopCond",
+        FlowControlType.Break => "Break",
         _ => string.Empty
     };
 

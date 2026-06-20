@@ -57,12 +57,6 @@ internal class BlockScriptServiceImpl : IBlockScriptService
     }
 
     /// <inheritdoc />
-    public Task<BlockScriptParseResult> ParseBlockScriptAsync(string sourceCode)
-    {
-        return BlockScriptParser.ParseAsync(sourceCode);
-    }
-
-    /// <inheritdoc />
     public BlockScriptValidationResult ValidateBlockScript(string sourceCode)
     {
         return BlockScriptParser.Validate(sourceCode);
@@ -103,24 +97,6 @@ internal class BlockScriptServiceImpl : IBlockScriptService
         }
 
         return result;
-    }
-
-    /// <inheritdoc />
-    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
-        BlockScript script,
-        Dictionary<string, object?>? parameters = null,
-        CancellationToken cancellationToken = default)
-    {
-        return BlockScriptExecutor.ExecuteAsync(script, parameters, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public Task<BlockScriptExecutionResult> ExecuteBlockScriptAsync(
-        string sourceCode,
-        Dictionary<string, object?>? parameters = null,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecuteBlockScriptCoreAsync(sourceCode, null, parameters, cancellationToken);
     }
 
     /// <inheritdoc />

@@ -27,31 +27,6 @@ internal class WorkflowManagementService : IWorkflowManagementService
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<IWorkflowCase> GetWorkflows()
-    {
-        return _state.Workflows.ToList();
-    }
-
-    /// <inheritdoc />
-    public void AddWorkflow(IWorkflowCase workflow)
-    {
-        if (workflow != null && !_state.Workflows.Any(w => w.Id == workflow.Id))
-        {
-            _state.Workflows.Add(workflow);
-        }
-    }
-
-    /// <inheritdoc />
-    public void RemoveWorkflow(string workflowId)
-    {
-        var workflow = _state.Workflows.FirstOrDefault(w => w.Id == workflowId);
-        if (workflow != null)
-        {
-            _state.Workflows.Remove(workflow);
-        }
-    }
-
-    /// <inheritdoc />
     public async Task<bool> RunWorkflowAsync(string workflowId)
     {
         var result = await RunWorkflowWithDetailsAsync(workflowId);

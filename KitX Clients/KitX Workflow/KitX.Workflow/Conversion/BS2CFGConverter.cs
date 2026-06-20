@@ -3,7 +3,6 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.BlockScripting;
 using Serilog;
 
-using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Functions;
 using KitX.Workflow.CFG;
 
 using KitX.Workflow.Blueprint;

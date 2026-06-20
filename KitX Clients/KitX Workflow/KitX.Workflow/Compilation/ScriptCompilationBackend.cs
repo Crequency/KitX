@@ -76,14 +76,6 @@ internal static class ScriptCompilationBackend
     }
 
     /// <summary>
-    /// Backwards-compatible overload that discards diagnostics. Prefer the
-    /// <see cref="CompileToAssembly(CompilationUnitSyntax, string, out IReadOnlyList{string}?)"/>
-    /// overload at new call sites.
-    /// </summary>
-    internal static MemoryStream? CompileToAssembly(CompilationUnitSyntax compilationUnit, string hash)
-        => CompileToAssembly(compilationUnit, hash, out _);
-
-    /// <summary>
     /// Gets the set of <see cref="MetadataReference"/>s needed for compilation.
     /// </summary>
     internal static List<MetadataReference> GetCompilationReferences()

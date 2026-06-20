@@ -199,16 +199,6 @@ internal class CSCompiler
     }
 
     /// <summary>
-    /// Clears the compilation cache and unloads all cached assemblies.
-    /// </summary>
-    public void ClearCache()
-    {
-        foreach (var entry in _cache.Values)
-            entry.Unload();
-        _cache.Clear();
-    }
-
-    /// <summary>
     /// Preloads all persisted compiled scripts for a given workflow from disk.
     /// </summary>
     public int PreloadFromDisk(string workflowId) => _persistence.PreloadFromDisk(workflowId);
