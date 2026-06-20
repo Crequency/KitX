@@ -25,8 +25,7 @@ internal class CSCompiler
     /// Auto-discovered builtin function registry used by the <see cref="BS2CFGConverter"/>
     /// to correctly classify and expand function calls during the formatting phase.
     /// </summary>
-    private static readonly BuiltinFunctionRegistry FunctionRegistry =
-        BuiltinFunctionRegistry.Discover(typeof(CSCompiler).Assembly);
+    private static readonly BuiltinFunctionRegistry FunctionRegistry = BuiltinFunctionRegistry.Instance;
 
     /// <summary>
     /// Cached compiled script entries, keyed by computed script hash.

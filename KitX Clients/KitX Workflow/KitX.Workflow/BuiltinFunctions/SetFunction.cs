@@ -17,7 +17,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Set";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Set;
         public double NodeWidth => 160;
         public double NodeHeight => 60;
 

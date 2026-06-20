@@ -17,7 +17,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Loop;
+        public FlowControlType? FlowControlShape => FlowControlType.IterativeJump;
         public double NodeWidth => 120;
         public double NodeHeight => 80;
 
@@ -38,7 +38,7 @@ namespace KitX.Workflow.BuiltinFunctions
             {
                 LineNumber = lineNumber,
                 SourceCode = exprText ?? invoke.ToFullString(),
-                ControlType = FlowControlType.Loop
+                ControlType = FlowControlType.IterativeJump
             };
             if (args.Count >= 1) stmt.ConditionExpression = args[0].Expression.ToString();
             if (args.Count >= 2) stmt.TrueBlockName = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;
@@ -82,7 +82,7 @@ namespace KitX.Workflow.BuiltinFunctions
             var condition = helper.GetInputValue(node, "Condition");
             return new FlowControlStatement
             {
-                ControlType = FlowControlType.Loop,
+                ControlType = FlowControlType.IterativeJump,
                 ConditionExpression = condition,
                 SourceCode = $"Loop({condition}, \"\", \"\");",
                 LineNumber = 1

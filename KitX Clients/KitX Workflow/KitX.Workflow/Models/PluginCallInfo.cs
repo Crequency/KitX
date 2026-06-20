@@ -1,6 +1,6 @@
 using System;
 
-namespace KitX.Workflow.Abstractions.Models;
+namespace KitX.Workflow.Models;
 
 /// <summary>
 /// 插件调用信息，用于传递给 IPluginManager.Call 的参数。

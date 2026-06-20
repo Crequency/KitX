@@ -1,4 +1,4 @@
-namespace KitX.Workflow.Abstractions.Models.Statements;
+namespace KitX.Workflow.Models.Statements;
 
 /// <summary>
 /// Base class for statements within a block

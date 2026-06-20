@@ -1,4 +1,4 @@
-namespace KitX.Workflow.Abstractions.Models;
+namespace KitX.Workflow.Models;
 
 /// <summary>
 /// Severity of a conversion/parse diagnostic. Mirrors the compile-path model so the

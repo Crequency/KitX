@@ -39,7 +39,7 @@ internal class BP2CFGConverter
     {
         var cfg = new ControlFlowGraph
         {
-            DebugContext = new BlueprintDebugContext()
+            DebugStatementToNodeId = new Dictionary<string, string>()
         };
 
         // ── Step 1: Index and classify all nodes and connections ──
@@ -125,7 +125,7 @@ internal class BP2CFGConverter
             cfg.Blocks.Count, cfg.Blocks.Sum(b => b.Successors.Count));
 
         // ── Step 9: Populate debug node mapping ──
-        if (cfg.DebugContext != null && cfg.Blocks != null)
+        if (cfg.DebugStatementToNodeId != null && cfg.Blocks != null)
         {
             foreach (var block in cfg.Blocks)
             {
@@ -133,7 +133,7 @@ internal class BP2CFGConverter
                 foreach (var stmt in block.Statements)
                 {
                     if (stmt != null && !string.IsNullOrEmpty(stmt.StatementId))
-                        cfg.DebugContext.StatementToNodeId[stmt.StatementId] = stmt.StatementId;
+                        cfg.DebugStatementToNodeId[stmt.StatementId] = stmt.StatementId;
                 }
             }
         }
@@ -378,7 +378,7 @@ internal class BP2CFGConverter
             if (isControlFlow)
             {
                 pendingControlFlowNodes.Add(node);
-                if (stmt.Kind == CFGStatementKind.Loop)
+                if (stmt.FlowControlShape == FlowControlType.IterativeJump)
                 {
                     loopNodes[node.Id] = node;
                     loopOwnerBlockNames[node.Id] = currentBlock.Name;
@@ -386,8 +386,8 @@ internal class BP2CFGConverter
             }
         }
 
-        // If ToLoopCond, don't follow exec chain
-        if (stmt is { Kind: CFGStatementKind.ToLoopCond })
+        // If LoopBackedge, don't follow exec chain
+        if (stmt is { FlowControlShape: FlowControlType.LoopBackedge })
             return;
 
         if (isControlFlow)
@@ -559,7 +559,7 @@ internal class BP2CFGConverter
                     {
                         FromBlockName = block.Name,
                         ToBlockName = arm.TargetBlockName,
-                        Type = GetEdgeType(lastStmt.Kind, arm),
+                        Type = GetEdgeType(lastStmt.FlowControlShape, arm),
                         PinName = arm.PinName
                     });
                 }
@@ -567,7 +567,7 @@ internal class BP2CFGConverter
             }
 
             // Non-registry control flow handling (fallback)
-            if (lastStmt.Kind == CFGStatementKind.ToLoopCond)
+            if (lastStmt.FlowControlShape == FlowControlType.LoopBackedge)
             {
                 if (!string.IsNullOrEmpty(lastStmt.LoopbackTarget))
                     block.Successors.Add(new CFGEdge
@@ -579,7 +579,7 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            if (lastStmt.Kind == CFGStatementKind.Break)
+            if (lastStmt.FlowControlShape == FlowControlType.LoopExit)
             {
                 block.Successors.Add(new CFGEdge
                 {
@@ -682,10 +682,10 @@ internal class BP2CFGConverter
             if (block.Statements.Count > 0)
             {
                 var lastStmt = block.Statements[^1];
-                block.Type = lastStmt.Kind switch
+                block.Type = lastStmt.FlowControlShape switch
                 {
-                    CFGStatementKind.Branch => CFGBlockType.BranchHeader,
-                    CFGStatementKind.Loop => CFGBlockType.LoopHeader,
+                    FlowControlType.ConditionalJump => CFGBlockType.BranchHeader,
+                    FlowControlType.IterativeJump => CFGBlockType.LoopHeader,
                     _ => block.Type
                 };
             }
@@ -880,6 +880,7 @@ internal class BP2CFGConverter
         {
             case FlowControlStatement flow:
                 cfgStmt.Kind = ControlFlowMapping.ToKind(flow.ControlType);
+                cfgStmt.FlowControlShape = flow.ControlType;
                 cfgStmt.FunctionName = ControlFlowMapping.ToFunctionName(flow.ControlType);
                 if (string.IsNullOrEmpty(cfgStmt.FunctionName))
                     cfgStmt.FunctionName = null;
@@ -944,7 +945,8 @@ internal class BP2CFGConverter
     {
         var stmt = new CFGStatement
         {
-            Kind = CFGStatementKind.ToLoopCond,
+            Kind = CFGStatementKind.Expression,
+            FlowControlShape = FlowControlType.LoopBackedge,
             OriginalExpression = returnTo != null
                 ? $"NextBlock = ToLoopCond(\"{returnTo}\");"
                 : "NextBlock = ToLoopCond();",
@@ -1020,8 +1022,8 @@ internal class BP2CFGConverter
         {
             foreach (var stmt in block.Statements)
             {
-                if (stmt.Kind is not (CFGStatementKind.Branch or CFGStatementKind.Loop
-                    or CFGStatementKind.Switch))
+                if (stmt.FlowControlShape is not (FlowControlType.ConditionalJump
+                    or FlowControlType.IterativeJump or FlowControlType.IndexedDispatch))
                     continue;
                 if (stmt.Arms.Count > 0) continue;
 
@@ -1109,10 +1111,10 @@ internal class BP2CFGConverter
 
     private static string RegenerateBranchSource(CFGStatement cfStmt)
     {
-        return cfStmt.Kind switch
+        return cfStmt.FlowControlShape switch
         {
-            CFGStatementKind.Loop => $"NextBlock = Loop({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");",
-            CFGStatementKind.Switch => RegenerateSwitchSource(cfStmt),
+            FlowControlType.IterativeJump => $"NextBlock = Loop({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");",
+            FlowControlType.IndexedDispatch => RegenerateSwitchSource(cfStmt),
             _ => $"NextBlock = Branch({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");"
         };
     }
@@ -1128,18 +1130,18 @@ internal class BP2CFGConverter
         return $"NextBlock = Switch({cfStmt.ConditionExpression}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
     }
 
-    private static CFGEdgeType GetEdgeType(CFGStatementKind kind, BranchArm arm)
+    private static CFGEdgeType GetEdgeType(FlowControlType? shape, BranchArm arm)
     {
         if (arm.IsLoopback) return CFGEdgeType.LoopbackToCondition;
 
         // Derive edge semantics from the pin name so the mapping is data-driven rather than
-        // positional. Handles Branch (True/False), Loop (LoopBody/LoopEnd) and Switch
-        // (Default/0/1/...) uniformly.
-        return (kind, arm.PinName) switch
+        // positional. Handles ConditionalJump (True/False), IterativeJump (LoopBody/LoopEnd) and
+        // IndexedDispatch (Default/0/1/...) uniformly.
+        return (shape, arm.PinName) switch
         {
-            (CFGStatementKind.Loop, "LoopBody") => CFGEdgeType.LoopBody,
-            (CFGStatementKind.Loop, "LoopEnd") => CFGEdgeType.LoopExit,
-            (CFGStatementKind.Switch, _) => CFGEdgeType.Switch,
+            (FlowControlType.IterativeJump, "LoopBody") => CFGEdgeType.LoopBody,
+            (FlowControlType.IterativeJump, "LoopEnd") => CFGEdgeType.LoopExit,
+            (FlowControlType.IndexedDispatch, _) => CFGEdgeType.Switch,
             (_, "False") => CFGEdgeType.BranchFalse,
             (_, "LoopEnd") => CFGEdgeType.LoopExit,
             _ => CFGEdgeType.BranchTrue

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace KitX.Workflow.Abstractions.Models;
+namespace KitX.Workflow.Models;
 
 /// <summary>
 /// Collects user-facing diagnostics across the parse + conversion pipeline, mirroring the

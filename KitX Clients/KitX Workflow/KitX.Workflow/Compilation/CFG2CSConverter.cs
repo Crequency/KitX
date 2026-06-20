@@ -20,8 +20,7 @@ namespace KitX.Workflow.Compilation;
 /// </summary>
 internal static class CFG2CSConverter
 {
-    private static readonly BuiltinFunctionRegistry FunctionRegistry =
-        BuiltinFunctionRegistry.Discover(typeof(CFG2CSConverter).Assembly);
+    private static readonly BuiltinFunctionRegistry FunctionRegistry = BuiltinFunctionRegistry.Instance;
 
     public static bool IsDebugMode { get; set; }
 
@@ -93,8 +92,9 @@ internal static class CFG2CSConverter
         {
             foreach (var stmt in block.Statements)
             {
-                // Branch/Loop condition demands bool
-                if ((stmt.Kind == CFGStatementKind.Branch || stmt.Kind == CFGStatementKind.Loop)
+                // Conditional/iterative jump condition demands bool
+                if ((stmt.FlowControlShape == FlowControlType.ConditionalJump
+                     || stmt.FlowControlShape == FlowControlType.IterativeJump)
                     && !string.IsNullOrEmpty(stmt.ConditionPubVar)
                     && pubVarTypes.ContainsKey(stmt.ConditionPubVar))
                 {

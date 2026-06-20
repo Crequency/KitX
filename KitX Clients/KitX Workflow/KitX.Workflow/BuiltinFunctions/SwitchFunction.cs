@@ -29,7 +29,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Switch;
+        public FlowControlType? FlowControlShape => FlowControlType.IndexedDispatch;
         public double NodeWidth => 120;
         public double NodeHeight => 80;
 
@@ -57,7 +57,7 @@ namespace KitX.Workflow.BuiltinFunctions
             {
                 LineNumber = lineNumber,
                 SourceCode = exprText ?? invoke.ToFullString(),
-                ControlType = FlowControlType.Switch
+                ControlType = FlowControlType.IndexedDispatch
             };
 
             if (args.Count >= 1)
@@ -151,7 +151,7 @@ namespace KitX.Workflow.BuiltinFunctions
             var selector = helper.GetInputValue(node, Pins.Selector);
             var stmt = new FlowControlStatement
             {
-                ControlType = FlowControlType.Switch,
+                ControlType = FlowControlType.IndexedDispatch,
                 ConditionExpression = selector,
                 LineNumber = 1
             };

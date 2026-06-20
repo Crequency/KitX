@@ -16,7 +16,7 @@ public class BreakFunction : IBuiltinFunctionDefinition
     public bool IsFlowControl => true;
         public bool IsBlockTerminator => true;
         public bool IsNonExtractable => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Break;
+        public FlowControlType? FlowControlShape => FlowControlType.LoopExit;
     public double NodeWidth => 100;
     public double NodeHeight => 40;
 
@@ -38,7 +38,7 @@ public class BreakFunction : IBuiltinFunctionDefinition
     {
         return new FlowControlStatement
         {
-            ControlType = FlowControlType.Break,
+            ControlType = FlowControlType.LoopExit,
             SourceCode = "Break();",
             LineNumber = 1
         };

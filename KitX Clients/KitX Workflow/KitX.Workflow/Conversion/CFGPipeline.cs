@@ -44,7 +44,7 @@ internal static class CFGPipeline
         var ctx = context ?? new PipelineContext { Script = script };
         var formatter = new BS2CFGConverter(helpers, functionRegistry);
         var cfg = formatter.Format(script, ctx);
-        cfg.DebugContext = new BlueprintDebugContext();
+        cfg.DebugStatementToNodeId = new Dictionary<string, string>();
         return cfg;
     }
 

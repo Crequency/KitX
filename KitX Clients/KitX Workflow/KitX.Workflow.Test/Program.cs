@@ -10,9 +10,9 @@ using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Compilation;
 using KitX.Workflow.Abstractions;
-using KitX.Workflow.Abstractions.Models;
-using KitX.Workflow.Abstractions.Models.Statements;
-using KitX.Workflow.Abstractions.Models.Results;
+using KitX.Workflow.Models;
+using KitX.Workflow.Models.Statements;
+using KitX.Workflow.Models.Results;
 using KitX.Workflow.Conversion;
 
 namespace KitX.Workflow.Test;

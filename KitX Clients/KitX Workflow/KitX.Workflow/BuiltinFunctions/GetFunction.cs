@@ -41,7 +41,7 @@ public class GetFunction : IBuiltinFunctionDefinition
         // Without this, Get always returns object, and passing it to a function expecting
         // string/int/bool causes CS1503. Falls back to object if the variable is unknown.
         var typeName = ctx.PubVarTypes.GetValueOrDefault(varName, "object");
-        return ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSConverter.BuildGetInvocation(varName, typeName));
+        return ctx.EmitValueAssignment(stmt.PubVarTarget, ctx.GetInvocation(varName, typeName));
     }
 
     public List<CFGStatement> LowerToCFG(

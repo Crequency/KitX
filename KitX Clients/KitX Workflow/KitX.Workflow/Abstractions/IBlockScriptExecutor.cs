@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
-using KitX.Workflow.Abstractions.Models;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.Abstractions;
 

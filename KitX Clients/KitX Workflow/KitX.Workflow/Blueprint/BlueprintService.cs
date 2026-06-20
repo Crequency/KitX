@@ -80,8 +80,8 @@ public class BlueprintService : IBlueprintService
                 Log.Debug("[BlueprintService] Using BP→CFG→CS direct path");
                 var result = await bse.ExecuteFromCFGAsync(blockScript, concrete.LastCFG, null, CancellationToken.None);
 
-                if (concrete.LastCFG.DebugContext != null)
-                    result.DebugNodeMapping = new Dictionary<string, string>(concrete.LastCFG.DebugContext.StatementToNodeId);
+                if (concrete.LastCFG.DebugStatementToNodeId != null)
+                    result.DebugNodeMapping = new Dictionary<string, string>(concrete.LastCFG.DebugStatementToNodeId);
 
                 return result;
             }
@@ -106,8 +106,8 @@ public class BlueprintService : IBlueprintService
         try
         {
             var blockScript = _toBlockScriptConverter.ConvertToBlockScript(blueprint);
-            if (_toBlockScriptConverter is BlueprintToBlockScriptConverter concrete && concrete.LastCFG?.DebugContext != null)
-                return new Dictionary<string, string>(concrete.LastCFG.DebugContext.StatementToNodeId);
+            if (_toBlockScriptConverter is BlueprintToBlockScriptConverter concrete && concrete.LastCFG?.DebugStatementToNodeId != null)
+                return new Dictionary<string, string>(concrete.LastCFG.DebugStatementToNodeId);
             return new Dictionary<string, string>();
         }
         catch (Exception ex)

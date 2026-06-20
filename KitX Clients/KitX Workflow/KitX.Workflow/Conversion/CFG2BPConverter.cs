@@ -49,10 +49,10 @@ public class CFG2BPConverter
         ResolveCrossBlockEdges(context);
 
         // Populate debug context: StatementId → NodeId mapping
-        if (script.DebugContext != null)
+        if (script.DebugStatementToNodeId != null)
         {
             foreach (var kvp in context.NodeByStatementId)
-                script.DebugContext.StatementToNodeId[kvp.Key] = kvp.Value.Id;
+                script.DebugStatementToNodeId[kvp.Key] = kvp.Value.Id;
         }
 
         Log.Debug("[CFG2BPConverter] Done: {NodeCount} nodes, {ExecEdgeCount} exec edges",

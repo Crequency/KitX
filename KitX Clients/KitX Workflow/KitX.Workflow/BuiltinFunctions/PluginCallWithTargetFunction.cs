@@ -19,7 +19,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "PluginCallWithTarget";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
-        public CFGStatementKind StatementKind => CFGStatementKind.PluginCallWithTarget;
         public BuiltinNodeKind NodeKind => BuiltinNodeKind.Call;
         // Preserve prior early-route behavior: identical cross-device calls dedup to one node.
         public string? GetReuseKey(CFGStatement stmt) => stmt.Fingerprint;
@@ -41,7 +40,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
-            => ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSConverter.BuildPluginCallWithTargetExpression(stmt, ctx.PubVarTypes));
+            => ctx.EmitValueAssignment(stmt.PubVarTarget, ctx.PluginCallWithTargetExpression(stmt));
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
         {

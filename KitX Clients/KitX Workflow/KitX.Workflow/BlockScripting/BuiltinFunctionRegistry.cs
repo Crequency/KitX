@@ -11,6 +11,14 @@ public class BuiltinFunctionRegistry
 {
     private readonly Dictionary<string, IBuiltinFunctionDefinition> _functions = new();
 
+    /// <summary>
+    /// 进程级共享单例，懒初始化一次 <see cref="Discover"/>（反射扫描本程序集）。
+    /// 编译期静态消费者（CFG2CSConverter/CSCompiler）使用此单例，避免各自重复 Discover
+    /// 造成的多次反射开销与实例漂移。DI 路径仍可独立注册（服务消费者通过注入获取）。
+    /// </summary>
+    public static BuiltinFunctionRegistry Instance { get; } =
+        new Lazy<BuiltinFunctionRegistry>(() => Discover(typeof(BuiltinFunctionRegistry).Assembly)).Value;
+
     /// <summary>注册一个函数定义</summary>
     public void Register(IBuiltinFunctionDefinition definition)
     {

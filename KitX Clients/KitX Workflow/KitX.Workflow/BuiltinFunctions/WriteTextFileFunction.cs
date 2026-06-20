@@ -13,7 +13,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Write Text File";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 160;
         public double NodeHeight => 80;
 

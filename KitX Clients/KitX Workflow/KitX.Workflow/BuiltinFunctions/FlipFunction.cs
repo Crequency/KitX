@@ -20,7 +20,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public bool IsFlowControl => true;
         public bool IsNonExtractable => true;
         public bool IsBlockTerminator => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Branch;
+        public FlowControlType? FlowControlShape => FlowControlType.ConditionalJump;
         public double NodeWidth => 120;
         public double NodeHeight => 80;
 
@@ -41,7 +41,7 @@ namespace KitX.Workflow.BuiltinFunctions
             {
                 LineNumber = lineNumber,
                 SourceCode = exprText ?? invoke.ToFullString(),
-                ControlType = FlowControlType.Branch // Reuse Branch type for cross-block routing
+                ControlType = FlowControlType.ConditionalJump // Reuse ConditionalJump shape for cross-block routing
             };
             if (args.Count >= 1) stmt.TrueBlockName = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
             if (args.Count >= 2) stmt.FalseBlockName = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;

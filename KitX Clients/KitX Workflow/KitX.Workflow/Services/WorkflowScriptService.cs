@@ -13,7 +13,7 @@ namespace KitX.Workflow.Services;
 /// IWorkflowPluginService / IBlockScriptService / IBlockScriptPipelineService by forwarding
 /// to the real implementations. Those interface implementations were dead code — DI never
 /// resolved WorkflowScriptService itself as any of those interfaces (it registered
-/// BlockScriptServiceImpl for IBlockScriptService, and the management/plugin services via the
+/// BlockScriptService for IBlockScriptService, and the management/plugin services via the
 /// static factory properties below). The facade interface implementations have been removed;
 /// what remains is the static service-graph factory that the DI lambdas in
 /// ServiceCollectionExtensions still reference (RuntimeState / PluginServiceInstance /
@@ -50,26 +50,26 @@ public class WorkflowScriptService
 
     /// <summary>
     /// Gets the ManagementService, creating it lazily once BlockScriptService is available.
-    /// BlockScriptServiceImpl is resolved from DI by the caller (ServiceCollectionExtensions),
+    /// BlockScriptService is resolved from DI by the caller (ServiceCollectionExtensions),
     /// but the management service here is built against the static SharedState + the
-    /// BlockScriptServiceImpl that DI constructs — wired via ManagementServiceInstance.
+    /// BlockScriptService that DI constructs — wired via ManagementServiceInstance.
     /// </summary>
     private static IWorkflowManagementService ManagementService =>
-        _managementService ??= new WorkflowManagementService(SharedState, ResolveBlockScriptServiceImpl());
+        _managementService ??= new WorkflowManagementService(SharedState, ResolveBlockScriptService());
 
     /// <summary>Exposes IWorkflowManagementService for DI registration.</summary>
     internal static IWorkflowManagementService ManagementServiceInstance => ManagementService;
 
     /// <summary>
-    /// Resolves the DI-registered BlockScriptServiceImpl. The DI factory in
+    /// Resolves the DI-registered BlockScriptService. The DI factory in
     /// ServiceCollectionExtensions constructs it with RealPluginManager; here we fetch the
-    /// IBlockScriptService that DI registered (which is that same BlockScriptServiceImpl).
+    /// IBlockScriptService that DI registered (which is that same BlockScriptService).
     /// </summary>
-    private static BlockScriptServiceImpl ResolveBlockScriptServiceImpl()
+    private static BlockScriptService ResolveBlockScriptService()
     {
-        // The DI-registered IBlockScriptService is a BlockScriptServiceImpl instance; cast to
+        // The DI-registered IBlockScriptService is a BlockScriptService instance; cast to
         // reach the parsed-model methods that WorkflowManagementService needs.
-        var bss = (BlockScriptServiceImpl)ServiceLocator.GetRequiredService<IBlockScriptService>();
+        var bss = (BlockScriptService)ServiceLocator.GetRequiredService<IBlockScriptService>();
         return bss;
     }
 

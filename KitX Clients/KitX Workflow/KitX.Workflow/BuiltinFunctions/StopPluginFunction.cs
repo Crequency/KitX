@@ -14,7 +14,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Stop Plugin";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 140;
         public double NodeHeight => 60;
 

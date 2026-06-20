@@ -1,4 +1,4 @@
-namespace KitX.Workflow.Abstractions.Models.Results;
+namespace KitX.Workflow.Models.Results;
 
 /// <summary>
 /// Result of parsing operation

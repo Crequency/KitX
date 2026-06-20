@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,8 +13,21 @@ namespace KitX.Workflow.Conversion;
 /// </summary>
 public static class ExprUtils
 {
-    /// <summary>Parses an expression string using Roslyn. Returns null on failure.</summary>
+    /// <summary>
+    /// Memoization cache for <see cref="ParseExpression"/> — Roslyn parsing is the hot path
+    /// (called per-statement, often re-parsing the same OriginalExpression across phases).
+    /// Keyed by input expression string.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, ExpressionSyntax?> _parseExpressionCache = new();
+
+    /// <summary>Memoization cache for <see cref="ParseStatement"/>.</summary>
+    private static readonly ConcurrentDictionary<string, (ExpressionSyntax? rightExpr, string? assignedVar)?> _parseStatementCache = new();
+
+    /// <summary>Parses an expression string using Roslyn. Returns null on failure. Memoized.</summary>
     public static ExpressionSyntax? ParseExpression(string expression)
+        => _parseExpressionCache.GetOrAdd(expression, ParseExpressionCore);
+
+    private static ExpressionSyntax? ParseExpressionCore(string expression)
     {
         try
         {
@@ -29,8 +43,11 @@ public static class ExprUtils
         catch { return null; }
     }
 
-    /// <summary>Parses a full statement (may be assignment or plain expression).</summary>
+    /// <summary>Parses a full statement (may be assignment or plain expression). Memoized.</summary>
     public static (ExpressionSyntax? rightExpr, string? assignedVar)? ParseStatement(string statement)
+        => _parseStatementCache.GetOrAdd(statement, ParseStatementCore);
+
+    private static (ExpressionSyntax? rightExpr, string? assignedVar)? ParseStatementCore(string statement)
     {
         try
         {
@@ -138,9 +155,9 @@ public static class ExprUtils
         if (string.IsNullOrEmpty(value)) return false;
         // Fast pre-check: C# char literals always start and end with single quote
         if (value.Length < 3 || value[0] != '\'' || value[^1] != '\'') return false;
-        // Validate with Roslyn
-        var expr = ParseExpression(value);
-        return expr is LiteralExpressionSyntax lit
-               && lit.Token.IsKind(SyntaxKind.CharacterLiteralToken);
+        // Validate with Roslyn — parse as a single token (far cheaper than a full expression
+        // tree parse). A char literal parses as a CharacterLiteralToken.
+        var token = SyntaxFactory.ParseToken(value);
+        return token.IsKind(SyntaxKind.CharacterLiteralToken);
     }
 }

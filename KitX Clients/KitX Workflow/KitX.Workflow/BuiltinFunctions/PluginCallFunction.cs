@@ -26,7 +26,6 @@ namespace KitX.Workflow.BuiltinFunctions
         // false matches PluginCallWithTarget/Get/TryGetDevice — value-producing builtins
         // that CAN be nested. Set/Print/Pause stay true (pure side-effects, no return).
         public bool IsNonExtractable => false;
-        public CFGStatementKind StatementKind => CFGStatementKind.Expression;
         public double NodeWidth => 140;
         public double NodeHeight => 80;
 
@@ -44,7 +43,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
-            => ctx.EmitValueAssignment(stmt.PubVarTarget, CFG2CSConverter.BuildPluginCallExpression(stmt, ctx.PubVarTypes));
+            => ctx.EmitValueAssignment(stmt.PubVarTarget, ctx.PluginCallExpression(stmt));
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
         {

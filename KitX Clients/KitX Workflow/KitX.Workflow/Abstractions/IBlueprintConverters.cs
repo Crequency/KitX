@@ -21,5 +21,5 @@ public interface IBlockScriptToBlueprintConverter
     /// </summary>
     /// <param name="script">Parsed BlockScript</param>
     /// <returns>Converted Blueprint</returns>
-    KitX.Core.Contract.Workflow.Blueprint Convert(KitX.Workflow.Abstractions.Models.BlockScript script);
+    KitX.Core.Contract.Workflow.Blueprint Convert(KitX.Workflow.Models.BlockScript script);
 }

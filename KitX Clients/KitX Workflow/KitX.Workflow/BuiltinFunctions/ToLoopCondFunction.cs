@@ -17,7 +17,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.ToLoopCond;
+        public FlowControlType? FlowControlShape => FlowControlType.LoopBackedge;
         public double NodeWidth => 80;
         public double NodeHeight => 60;
 
@@ -42,7 +42,7 @@ namespace KitX.Workflow.BuiltinFunctions
             {
                 LineNumber = lineNumber,
                 SourceCode = exprText ?? invoke.ToFullString(),
-                ControlType = FlowControlType.ToLoopCond
+                ControlType = FlowControlType.LoopBackedge
             };
             if (args.Count >= 1) stmt.LoopbackTarget = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
             return stmt;
@@ -86,7 +86,7 @@ namespace KitX.Workflow.BuiltinFunctions
                             var returnTo = targetScope.Name;
                             return new FlowControlStatement
                             {
-                                ControlType = FlowControlType.ToLoopCond,
+                                ControlType = FlowControlType.LoopBackedge,
                                 LoopbackTarget = returnTo,
                                 SourceCode = $"NextBlock = ToLoopCond(\"{returnTo}\");",
                                 LineNumber = 1
@@ -98,7 +98,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
             return new FlowControlStatement
             {
-                ControlType = FlowControlType.ToLoopCond,
+                ControlType = FlowControlType.LoopBackedge,
                 SourceCode = "ToLoopCond();",
                 LineNumber = 1
             };

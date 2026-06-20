@@ -7,8 +7,8 @@ using KitX.Workflow.Blueprint;
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
-/// Accumulated state flowing through all 6 conversion phases.
-/// Replaces the old ConversionContext.
+/// Accumulated mutable state flowing through all 6 phases of the BS→BP conversion pipeline.
+/// (ConversionContext serves the opposite BP→CFG direction; the two coexist, not replace each other.)
 /// </summary>
 public class PipelineContext
 {

@@ -44,6 +44,18 @@ public sealed class CSEmitContext
     public InvocationExpressionSyntax GInvoke(string member, params ExpressionSyntax[] args)
         => CFG2CSConverter.BuildGInvoke(member, args);
 
+    /// <summary>Builds a <c>G.Get&lt;T&gt;("varName")</c> typed-PubVar read expression.</summary>
+    public InvocationExpressionSyntax GetInvocation(string varName, string typeName)
+        => CFG2CSConverter.BuildGetInvocation(varName, typeName);
+
+    /// <summary>Builds a <c>G.PluginCall(...)</c> expression for a dotted plugin-method call.</summary>
+    public InvocationExpressionSyntax PluginCallExpression(CFGStatement stmt)
+        => CFG2CSConverter.BuildPluginCallExpression(stmt, PubVarTypes);
+
+    /// <summary>Builds a <c>G.PluginCallWithTarget(...)</c> expression for a cross-device call.</summary>
+    public InvocationExpressionSyntax PluginCallWithTargetExpression(CFGStatement stmt)
+        => CFG2CSConverter.BuildPluginCallWithTargetExpression(stmt, PubVarTypes);
+
     /// <summary>Builds a <c>G.member(args...)</c> expression statement.</summary>
     public StatementSyntax GInvokeStatement(string member, params ExpressionSyntax[] args)
         => ExpressionStatement(GInvoke(member, args));

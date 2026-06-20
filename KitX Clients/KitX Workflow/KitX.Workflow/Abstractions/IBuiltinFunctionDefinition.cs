@@ -30,13 +30,32 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     bool IsNonExtractable { get; }
 
-    // ─── 语句类型映射 ─────────────────────────────────
+    // ─── 控制流形态 ─────────────────────────────────
 
     /// <summary>
-    /// 对应的 CFGStatementKind。用于 BS2CFGConverter 确定语句类型，
-    /// 以及 CFG2BPConverter 选择节点创建策略。
+    /// 该内置函数产生的 CFG 控制流形态（图结构角色）。非控制流函数返回 null（默认）。
+    /// 这是控制流语义的权威来源——消费端（BP2CFGConverter/CFG2BPConverter/CFGConditionDuplicator/
+    /// CFG2CSConverter 的类型推断等）应查询此属性而非 switch(CFGStatementKind)。
+    /// 新增控制流内置函数只需覆写此属性，无需修改 CFGStatementKind 枚举或散弹式 switch。
     /// </summary>
-    CFGStatementKind StatementKind { get; }
+    FlowControlType? FlowControlShape => null;
+
+    // ─── 语句类型映射（派生）─────────────────────────
+
+    /// <summary>
+    /// 对应的 CFGStatementKind。现在由 <see cref="FlowControlShape"/> 派生：
+    /// 控制流形态映射到对应的 Kind；非控制流默认 Expression。
+    /// 保留供尚未迁移的旧消费点使用（见 Phase B.3 清理）。
+    /// </summary>
+    CFGStatementKind StatementKind => FlowControlShape switch
+    {
+        FlowControlType.ConditionalJump => CFGStatementKind.Branch,
+        FlowControlType.IterativeJump => CFGStatementKind.Loop,
+        FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
+        FlowControlType.LoopBackedge => CFGStatementKind.ToLoopCond,
+        FlowControlType.LoopExit => CFGStatementKind.Break,
+        _ => CFGStatementKind.Expression
+    };
 
     /// <summary>
     /// 此内置函数在蓝图中物化为哪种节点类型。默认 <see cref="BuiltinNodeKind.BuiltinFunction"/>；
@@ -125,6 +144,7 @@ public interface IBuiltinFunctionDefinition
             {
                 BlockName = blockName,
                 Kind = StatementKind,
+                FlowControlShape = FlowControlShape,
                 FunctionName = FunctionName,
                 Arguments = expandedArgs.ToList(),
                 PubVarTarget = assignedVar,

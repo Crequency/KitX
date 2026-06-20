@@ -28,9 +28,9 @@ internal static class BlockLinker
             // A block ending with Branch/Loop should NOT fall through
             var lastStatement = currentBlock.Statements.LastOrDefault();
             if (lastStatement is FlowControlStatement flowStmt &&
-                (flowStmt.ControlType == FlowControlType.Branch ||
-                 flowStmt.ControlType == FlowControlType.Loop ||
-                 flowStmt.ControlType == FlowControlType.Return))
+                (flowStmt.ControlType == FlowControlType.ConditionalJump ||
+                 flowStmt.ControlType == FlowControlType.IterativeJump ||
+                 flowStmt.ControlType == FlowControlType.ScriptReturn))
             {
                 continue;
             }

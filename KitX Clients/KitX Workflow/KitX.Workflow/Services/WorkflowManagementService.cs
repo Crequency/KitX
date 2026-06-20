@@ -13,14 +13,14 @@ internal class WorkflowManagementService : IWorkflowManagementService
     private readonly WorkflowRuntimeState _state;
     // Holds the concrete impl so both the public IBlockScriptService (source-string methods)
     // and the internal IBlockScriptPipelineService (parsed-model methods) are reachable.
-    private readonly BlockScriptServiceImpl _blockScriptService;
+    private readonly BlockScriptService _blockScriptService;
 
     /// <summary>
     /// Initializes a new instance of WorkflowManagementService.
     /// </summary>
     /// <param name="state">Shared runtime state.</param>
     /// <param name="blockScriptService">Block script execution service.</param>
-    internal WorkflowManagementService(WorkflowRuntimeState state, BlockScriptServiceImpl blockScriptService)
+    internal WorkflowManagementService(WorkflowRuntimeState state, BlockScriptService blockScriptService)
     {
         _state = state;
         _blockScriptService = blockScriptService;

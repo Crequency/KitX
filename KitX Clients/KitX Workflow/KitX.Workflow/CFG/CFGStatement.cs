@@ -3,41 +3,36 @@ namespace KitX.Workflow.CFG;
 using KitX.Core.Contract.Workflow;
 
 /// <summary>
-/// Kinds of statements in the CFG. Unified statement kind replacing the former Pipeline.FormattedStatementKind.
+/// Kinds of statements in the CFG — the VALUE-CARRYING classification only.
+/// Control-flow shape is now carried by <see cref="CFGStatement.FlowControlShape"/>
+/// (a <see cref="FlowControlType"/>), queried directly by converters; the 5 control-flow
+/// Kind values below (Branch/Loop/Switch/ToLoopCond/Break) remain only as derived labels
+/// for diagnostics (<see cref="ControlFlowGraph.Dump"/>) and the derived
+/// <see cref="IBuiltinFunctionDefinition.StatementKind"/>. The former per-builtin values
+/// (Print/Set/Get/Pause/PluginCallWithTarget/TryGetDevice) were registry-migration leftovers
+/// with zero consumers and have been removed.
 /// </summary>
 public enum CFGStatementKind
 {
     /// <summary>Unknown or unclassified</summary>
     Unknown,
 
-    /// <summary>Print(expr)</summary>
-    Print,
-
-    /// <summary>Pause(ms)</summary>
-    Pause,
-
-    /// <summary>Set("varName", expr)</summary>
-    Set,
-
-    /// <summary>Get("varName") — standalone or as part of a PubVar assignment</summary>
-    Get,
-
-    /// <summary>pubVar = FunctionCall(args...)</summary>
+    /// <summary>pubVar = FunctionCall(args...) — value assigned to a PubVar</summary>
     Assignment,
 
-    /// <summary>Branch(condition, trueBlock, falseBlock)</summary>
+    /// <summary>Conditional two-way jump (derived label; authoritative shape = FlowControlShape.ConditionalJump)</summary>
     Branch,
 
-    /// <summary>Loop(condition, loopBody, afterLoop)</summary>
+    /// <summary>Iterative jump with loop-back (derived label; authoritative shape = FlowControlShape.IterativeJump)</summary>
     Loop,
 
-    /// <summary>Switch(selector, defaultBlock, b0, b1, ...) — N-way dispatch by integer index</summary>
+    /// <summary>N-way dispatch (derived label; authoritative shape = FlowControlShape.IndexedDispatch)</summary>
     Switch,
 
-    /// <summary>ToLoopCond("parentBlock")</summary>
+    /// <summary>Loop back-edge (derived label; authoritative shape = FlowControlShape.LoopBackedge)</summary>
     ToLoopCond,
 
-    /// <summary>Break()</summary>
+    /// <summary>Loop exit (derived label; authoritative shape = FlowControlShape.LoopExit)</summary>
     Break,
 
     /// <summary>NextBlock = ... (handled internally, no node created)</summary>
@@ -45,12 +40,6 @@ public enum CFGStatementKind
 
     /// <summary>Plain expression without assignment</summary>
     Expression,
-
-    /// <summary>PluginCallWithTarget(pluginName, methodName, targetDevice, args...) — cross-device plugin call</summary>
-    PluginCallWithTarget,
-
-    /// <summary>TryGetDevice(deviceSearchPattern) — returns DeviceInfo or null</summary>
-    TryGetDevice,
 }
 
 /// <summary> within a CFG block. All expressions are flat —
@@ -75,6 +64,15 @@ public class CFGStatement
     /// What kind of statement this is.
     /// </summary>
     public CFGStatementKind Kind { get; set; }
+
+    /// <summary>
+    /// The control-flow graph shape of this statement (null for non-control-flow statements).
+    /// This is the authoritative control-flow classification — consumers should query this
+    /// instead of switching on <see cref="Kind"/>. Populated from the builtin descriptor's
+    /// FlowControlShape during lowering, or set directly for CFG-synthesized statements
+    /// (e.g. ToLoopCond → <see cref="FlowControlType.LoopBackedge"/>).
+    /// </summary>
+    public FlowControlType? FlowControlShape { get; set; }
 
     /// <summary>
     /// The original source expression for this statement.

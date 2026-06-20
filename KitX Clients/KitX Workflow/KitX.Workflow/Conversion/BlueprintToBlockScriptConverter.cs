@@ -18,7 +18,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
     // CFG pipeline components
     private readonly BP2CFGConverter _cfgBuilder;
     private readonly CFGConditionDuplicator _cfgConditionDuplicator = new();
-    private readonly CFG2BSConverter _cfg2bs = new();
     private readonly BlockScriptSerializer _serializer = new();
 
     public BlueprintToBlockScriptConverter(IEnumerable<IBuiltinFunctionDefinition> definitions)
@@ -73,8 +72,8 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 
         script.HelperFunctions = blueprint.HelperFunctions ?? [];
 
-        if (cfg.DebugContext != null)
-            script.DebugNodeMapping = new Dictionary<string, string>(cfg.DebugContext.StatementToNodeId);
+        if (cfg.DebugStatementToNodeId != null)
+            script.DebugNodeMapping = new Dictionary<string, string>(cfg.DebugStatementToNodeId);
 
         Log.Debug("[BlueprintToScript] Done. Source code length: {Len}, HelperFunctions: {Count}, DebugMapping: {Map}",
             script.SourceCode?.Length ?? 0, script.HelperFunctions?.Count ?? 0,

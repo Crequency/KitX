@@ -1,4 +1,4 @@
-namespace KitX.Workflow.Abstractions.Models;
+namespace KitX.Workflow.Models;
 
 /// <summary>
 /// Variable declaration

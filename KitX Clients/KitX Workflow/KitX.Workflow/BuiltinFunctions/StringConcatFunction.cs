@@ -18,7 +18,6 @@ public class StringConcatFunction : IBuiltinFunctionDefinition
     public string DisplayName => "String Concat";
     public bool IsFlowControl => false;
     public bool IsNonExtractable => false; // value-producing, can be nested
-    public CFGStatementKind StatementKind => CFGStatementKind.Expression;
     public double NodeWidth => 140;
     public double NodeHeight => 70;
 

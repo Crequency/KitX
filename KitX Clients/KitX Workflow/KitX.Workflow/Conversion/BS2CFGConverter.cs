@@ -135,7 +135,9 @@ public class BS2CFGConverter
 
         // Determine the function name from the source code or control type
         var functionName = GetFunctionNameFromFlowControl(flowCtrl);
-        var kind = _functionRegistry?.Get(functionName)?.StatementKind ?? ControlFlowMapping.ToKind(flowCtrl.ControlType);
+        var def = _functionRegistry?.Get(functionName);
+        var kind = def?.StatementKind ?? ControlFlowMapping.ToKind(flowCtrl.ControlType);
+        var shape = def?.FlowControlShape ?? flowCtrl.ControlType;
 
         // Expand condition for Branch/Loop
         var hasCondition = !string.IsNullOrEmpty(flowCtrl.ConditionExpression);
@@ -153,6 +155,7 @@ public class BS2CFGConverter
             StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
             BlockName = blockName,
             Kind = kind,
+            FlowControlShape = shape,
             FunctionName = functionName,
             ConditionPubVar = condPubVar,
             ConditionExpression = flowCtrl.ConditionExpression,
@@ -164,8 +167,8 @@ public class BS2CFGConverter
         };
         result.Add(stmt);
 
-        // Store loop condition for duplication before ToLoopCond
-        if (kind == CFGStatementKind.Loop && !string.IsNullOrEmpty(condPubVar))
+        // Store loop condition for duplication before LoopBackedge
+        if (shape == FlowControlType.IterativeJump && !string.IsNullOrEmpty(condPubVar))
         {
             context.LoopConditions[blockName] = new ConditionInfo
             {

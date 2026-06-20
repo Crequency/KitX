@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
-using KitX.Workflow.Abstractions.Models.Results;
+using KitX.Workflow.Models.Results;
 
 namespace KitX.Workflow.Abstractions;
 

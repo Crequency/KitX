@@ -21,7 +21,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "TryGetDevice";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
-        public CFGStatementKind StatementKind => CFGStatementKind.TryGetDevice;
         public double NodeWidth => 120;
         public double NodeHeight => 60;
 
@@ -63,7 +62,7 @@ namespace KitX.Workflow.BuiltinFunctions
             return [new CFGStatement
             {
                 BlockName = blockName,
-                Kind = CFGStatementKind.TryGetDevice,
+                Kind = CFGStatementKind.Expression,
                 FunctionName = FunctionName,
                 PubVarTarget = pubVarTarget,
                 Arguments = expandedArgs.ToList(),

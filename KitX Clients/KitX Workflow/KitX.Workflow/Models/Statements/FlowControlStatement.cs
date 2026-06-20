@@ -1,6 +1,6 @@
 using KitX.Core.Contract.Workflow;
 
-namespace KitX.Workflow.Abstractions.Models.Statements;
+namespace KitX.Workflow.Models.Statements;
 
 /// <summary>
 /// Flow control statement
@@ -76,13 +76,13 @@ public class FlowControlStatement : BlockStatement
     {
         SourceCode = ControlType switch
         {
-            FlowControlType.Branch => $"NextBlock = Branch({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
-            FlowControlType.Loop => $"NextBlock = Loop({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
-            FlowControlType.ToLoopCond => !string.IsNullOrEmpty(LoopbackTarget)
+            FlowControlType.ConditionalJump => $"NextBlock = Branch({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
+            FlowControlType.IterativeJump => $"NextBlock = Loop({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
+            FlowControlType.LoopBackedge => !string.IsNullOrEmpty(LoopbackTarget)
                 ? $"NextBlock = ToLoopCond(\"{LoopbackTarget}\");"
                 : "ToLoopCond();",
-            FlowControlType.Switch => RegenerateSwitchSource(),
-            FlowControlType.Break => "Break();",
+            FlowControlType.IndexedDispatch => RegenerateSwitchSource(),
+            FlowControlType.LoopExit => "Break();",
             _ => SourceCode
         };
     }

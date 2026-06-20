@@ -46,7 +46,13 @@ public class ControlFlowGraph
     /// </summary>
     public int PubVarCounter { get; set; } = 1;
 
-    public BlueprintDebugContext? DebugContext { get; set; }
+    /// <summary>
+    /// Debug mapping from CFG statement IDs to Blueprint node IDs.
+    /// Populated during BP→CFG / CFG→BP conversion for use by the debug execution pipeline.
+    /// Null when no debug context was produced. (Inlined from the former BlueprintDebugContext
+    /// 1-field wrapper; the null guard distinguishes "no mapping" from "empty mapping".)
+    /// </summary>
+    public Dictionary<string, string>? DebugStatementToNodeId { get; set; }
 
     /// <summary>
     /// Dumps the CFG as a human-readable string for diagnostics.

@@ -16,7 +16,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Print";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Print;
         public double NodeWidth => 100;
         public double NodeHeight => 50;
 

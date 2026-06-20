@@ -19,7 +19,7 @@ internal class CFGConditionDuplicator
         foreach (var block in cfg.Blocks.Where(b => b.Type == CFGBlockType.LoopHeader))
         {
             var loopStmt = block.Statements.FirstOrDefault(s =>
-                s.Kind == CFGStatementKind.Loop);
+                s.FlowControlShape == FlowControlType.IterativeJump);
             if (loopStmt == null) continue;
 
             // Find the condition evaluation statements (everything before the Loop statement)
@@ -27,7 +27,7 @@ internal class CFGConditionDuplicator
             if (loopIndex <= 0) continue;
 
             var condStmts = block.Statements.Take(loopIndex)
-                .Where(s => s.Kind is CFGStatementKind.Assignment or CFGStatementKind.Get or CFGStatementKind.Expression)
+                .Where(s => s.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
                 .ToList();
 
             if (condStmts.Count == 0) continue;
@@ -54,7 +54,7 @@ internal class CFGConditionDuplicator
         for (int i = 0; i < bodyBlock.Statements.Count; i++)
         {
             var stmt = bodyBlock.Statements[i];
-            if (stmt.Kind == CFGStatementKind.ToLoopCond)
+            if (stmt.FlowControlShape == FlowControlType.LoopBackedge)
             {
                 var dupStmts = condStmts.Select(CloneStatement).ToList();
                 insertions.Add((i, dupStmts));

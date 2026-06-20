@@ -13,13 +13,13 @@ namespace KitX.Workflow.BlockScripting;
 /// WorkflowManagementService — the former IBlockScriptPipelineService indirection was removed
 /// as it had no interface-type consumers.
 /// </summary>
-internal class BlockScriptServiceImpl : IBlockScriptService
+internal class BlockScriptService : IBlockScriptService
 {
     private readonly WorkflowRuntimeState _state;
     private readonly BlockScriptExecutor _executor;
 
     /// <summary>
-    /// Initializes a new instance of BlockScriptServiceImpl.
+    /// Initializes a new instance of BlockScriptService.
     /// </summary>
     /// <param name="state">Shared runtime state.</param>
     /// <param name="executor">
@@ -30,7 +30,7 @@ internal class BlockScriptServiceImpl : IBlockScriptService
     /// (instead of lazily constructing a bare <c>new BlockScriptExecutor()</c>) eliminates the
     /// prior dual-instance bug where the trigger execution path ran on an unwired executor.
     /// </param>
-    internal BlockScriptServiceImpl(WorkflowRuntimeState state, IBlockScriptExecutor executor)
+    internal BlockScriptService(WorkflowRuntimeState state, IBlockScriptExecutor executor)
     {
         _state = state;
         // The contract guarantees a wired executor; cast once to the concrete type the
@@ -93,7 +93,7 @@ internal class BlockScriptServiceImpl : IBlockScriptService
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "[BlockScriptServiceImpl] Error parsing constants from BlockScript");
+            Log.Warning(ex, "[BlockScriptService] Error parsing constants from BlockScript");
         }
 
         return result;

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 
 using KitX.Core.Contract.Workflow;
-namespace KitX.Workflow.Abstractions.Models;
+namespace KitX.Workflow.Models;
 
 /// <summary>
 /// Parsed block script container

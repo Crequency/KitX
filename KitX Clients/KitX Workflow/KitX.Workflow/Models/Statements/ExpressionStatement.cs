@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace KitX.Workflow.Abstractions.Models.Statements;
+namespace KitX.Workflow.Models.Statements;
 
 /// <summary>
 /// Expression statement

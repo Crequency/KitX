@@ -41,12 +41,12 @@ public static class ServiceCollectionExtensions
             var state = WorkflowScriptService.RuntimeState;
             var rpm = provider.GetRequiredService<RealPluginManager>();
             var executor = provider.GetRequiredService<IBlockScriptExecutor>();
-            var service = new BlockScriptServiceImpl(state, executor);
+            var service = new BlockScriptService(state, executor);
             Log.Information("[DI] IBlockScriptService created with RealPluginManager + wired executor. RPM HashCode: {HashCode}", rpm.GetHashCode());
             return service;
         });
         // IBlockScriptPipelineService was removed (zero interface-type consumers;
-        // WorkflowManagementService uses the concrete BlockScriptServiceImpl directly).
+        // WorkflowManagementService uses the concrete BlockScriptService directly).
         services.AddSingleton<IWorkflowPluginService>(sp => WorkflowScriptService.PluginServiceInstance);
         services.AddSingleton<IWorkflowManagementService>(sp => WorkflowScriptService.ManagementServiceInstance);
 

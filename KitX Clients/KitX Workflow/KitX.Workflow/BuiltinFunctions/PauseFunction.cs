@@ -15,7 +15,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Pause";
         public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public CFGStatementKind StatementKind => CFGStatementKind.Pause;
         public double NodeWidth => 100;
         public double NodeHeight => 50;
 

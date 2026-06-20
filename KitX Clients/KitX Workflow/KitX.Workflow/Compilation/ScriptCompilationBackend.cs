@@ -86,9 +86,9 @@ internal static class ScriptCompilationBackend
         var seedAssemblies = new Assembly[]
         {
             typeof(BlockScriptExecutionGlobals).Assembly,
-            typeof(KitX.Workflow.Abstractions.Models.BlockScript).Assembly,
+            typeof(KitX.Workflow.Models.BlockScript).Assembly,
             typeof(ICompiledBlockScript).Assembly,
-            typeof(KitX.Workflow.Abstractions.Models.PluginCallInfo).Assembly,
+            typeof(KitX.Workflow.Models.PluginCallInfo).Assembly,
             typeof(Microsoft.CSharp.RuntimeBinder.Binder).Assembly,
             typeof(object).Assembly,
             typeof(System.Collections.Generic.List<>).Assembly,

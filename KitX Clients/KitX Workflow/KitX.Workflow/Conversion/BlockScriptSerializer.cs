@@ -8,9 +8,9 @@ using KitX.Workflow.Blueprint;
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
-/// Serializes a <see cref="BlockScript"/> to source code string.
-/// This is the deterministic BP→BS Phase 4 — pure string assembly,
-/// no logic.
+/// Serializes a <see cref="BlockScript"/> model to source code string.
+/// This is the final stage of CFG→BS conversion: <see cref="CFG2BSConverter"/> builds the
+/// BlockScript model tree, then this class renders it to text. Pure string assembly, no logic.
 ///
 /// NextBlock assignment is derived from
 /// <see cref="BlockDefinition.NextBlockName"/> using
@@ -110,10 +110,10 @@ internal class BlockScriptSerializer
         var last = block.Statements[^1];
         if (last is FlowControlStatement flow)
         {
-            return flow.ControlType is FlowControlType.Branch
-                or FlowControlType.Loop
-                or FlowControlType.ToLoopCond
-                or FlowControlType.Break;
+            return flow.ControlType is FlowControlType.ConditionalJump
+                or FlowControlType.IterativeJump
+                or FlowControlType.LoopBackedge
+                or FlowControlType.LoopExit;
         }
         return false;
     }

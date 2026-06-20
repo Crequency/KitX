@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace KitX.Workflow.Abstractions.Models;
+namespace KitX.Workflow.Models;
 
 /// <summary>
 /// Represents a single block definition in the script

@@ -147,7 +147,7 @@ internal class BlockStatementExtractor
                     {
                         LineNumber = returnStmt.GetLineNumber(),
                         SourceCode = returnStmt.ToFullString(),
-                        ControlType = FlowControlType.Return,
+                        ControlType = FlowControlType.ScriptReturn,
                         ConditionExpression = returnStmt.Expression?.ToString() ?? string.Empty
                     });
                     break;

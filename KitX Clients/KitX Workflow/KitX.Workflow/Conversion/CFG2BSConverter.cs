@@ -111,13 +111,12 @@ internal class CFG2BSConverter
     private static BlockStatement? ConvertStatement(CFGStatement cfgStmt)
     {
         // Control flow statements → FlowControlStatement
-        var controlType = ControlFlowMapping.ToControlType(cfgStmt.Kind);
-        if (controlType != null)
+        if (cfgStmt.FlowControlShape != null)
         {
             return new FlowControlStatement
             {
                 StatementId = cfgStmt.StatementId,
-                ControlType = controlType.Value,
+                ControlType = cfgStmt.FlowControlShape.Value,
                 ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
                 // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
