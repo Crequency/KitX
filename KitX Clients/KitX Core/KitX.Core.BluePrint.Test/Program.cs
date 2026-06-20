@@ -351,7 +351,7 @@ Print(""f"");";
                 var formatted = converter.LastContext.FormattedScript;
                 foreach (var block in formatted.Blocks)
                 {
-                    Console.WriteLine($"  #Block {block.Name}  (NextBlock={block.NextBlockName ?? "null"})");
+                    Console.WriteLine($"  #Block {block.Name}  (FallThrough={block.FallThroughTarget ?? "null"})");
                     foreach (var stmt in block.Statements)
                     {
                         var args = stmt.Arguments != null ? string.Join(", ", stmt.Arguments) : "";

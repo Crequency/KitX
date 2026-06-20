@@ -631,14 +631,16 @@ internal static class CFG2CSGenerator
             }
         }
 
-        // Auto-complete NextBlock if block has NextBlockName and no explicit assignment
-        if (!hasNextBlockAssignment && !string.IsNullOrEmpty(block.NextBlockName))
+        // Auto-complete NextBlock if block has a sequential fall-through target and no explicit assignment.
+        // The fall-through target is now derived from the CFG's Sequential Successors edge.
+        var fallThrough = block.FallThroughTarget;
+        if (!hasNextBlockAssignment && !string.IsNullOrEmpty(fallThrough))
         {
             caseStatements.Add(ExpressionStatement(
                 AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
                     MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                         IdentifierName("G"), IdentifierName("NextBlock")),
-                    LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(block.NextBlockName)))));
+                    LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(fallThrough)))));
         }
 
         if (!caseStatements.Any(s => s is BreakStatementSyntax or ReturnStatementSyntax))

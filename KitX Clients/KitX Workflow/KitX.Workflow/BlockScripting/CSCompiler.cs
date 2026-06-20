@@ -232,8 +232,8 @@ internal class CSCompiler
             formattedScript.Blocks.Count, formattedScript.MainBlockName);
         foreach (var block in formattedScript.Blocks)
         {
-            Log.Debug("[CSCompiler]   Block '{Name}' → NextBlock={Next}, Statements={Count}",
-                block.Name, block.NextBlockName, block.Statements.Count);
+            Log.Debug("[CSCompiler]   Block '{Name}' → FallThrough={Next}, Statements={Count}",
+                block.Name, block.FallThroughTarget, block.Statements.Count);
             foreach (var stmt in block.Statements)
                 Log.Debug("[CSCompiler]     Kind={Kind} PubVar={PubVar} Fn={Fn} Args=[{Args}] CondPubVar={Cond}",
                     stmt.Kind, stmt.PubVarTarget, stmt.FunctionName,

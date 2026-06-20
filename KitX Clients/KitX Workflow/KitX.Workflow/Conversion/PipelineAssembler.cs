@@ -191,7 +191,7 @@ public class PipelineAssembler
             {
                 Name = block.Name,
                 IsMainBlock = block.Name == mainBlockName,
-                NextBlockName = block.NextBlockName,
+                NextBlockName = block.FallThroughTarget,
                 NodeIds = nodeIds,
             });
         }

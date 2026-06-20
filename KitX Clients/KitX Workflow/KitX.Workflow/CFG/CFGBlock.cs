@@ -48,15 +48,22 @@ public class CFGBlock
     /// <summary>
     /// Typed edges from this block to its successors.
     /// A block can have multiple successors (e.g., BranchHeader → True/False).
+    /// Sequential fall-through is represented as a <see cref="CFGEdgeType.Sequential"/>
+    /// edge here — the single source of truth for "what runs next" — instead of a
+    /// parallel <c>NextBlockName</c> field that could drift out of sync.
     /// </summary>
     public List<CFGEdge> Successors { get; set; } = [];
 
     /// <summary>
-    /// For sequential fall-through (NextBlock = "..."), the name of the next block.
-    /// Null if this block ends with a control flow statement (Branch/Loop/ToLoopCond/Break)
-    /// or has no successor.
+    /// The sequential fall-through target: the <c>ToBlockName</c> of the
+    /// <see cref="CFGEdgeType.Sequential"/> edge in <see cref="Successors"/>, or null.
+    /// Equivalent to the former standalone <c>NextBlockName</c> field, now derived from
+    /// <see cref="Successors"/> so there is a single source of truth. Non-null only for
+    /// blocks that do not <see cref="EndsWithControlFlow"/> (control-flow blocks have no
+    /// Sequential edge).
     /// </summary>
-    public string? NextBlockName { get; set; }
+    public string? FallThroughTarget =>
+        Successors.FirstOrDefault(e => e.Type == CFGEdgeType.Sequential)?.ToBlockName;
 
     /// <summary>
     /// For loop body blocks, the name of the parent loop header block.

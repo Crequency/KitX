@@ -167,7 +167,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
         var sb = new System.Text.StringBuilder();
         foreach (var block in context.FormattedScript.Blocks)
         {
-            sb.AppendLine($"#Block {block.Name}  (NextBlock={block.NextBlockName ?? "null"})");
+            sb.AppendLine($"#Block {block.Name}  (FallThrough={block.FallThroughTarget ?? "null"})");
             foreach (var stmt in block.Statements)
             {
                 var dup = stmt.IsLoopConditionDuplication ? " [LoopCondDup]" : "";

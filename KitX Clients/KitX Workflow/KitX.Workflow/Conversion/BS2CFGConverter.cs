@@ -67,7 +67,7 @@ public class BS2CFGConverter
 
     private CFGBlock FormatBlock(BlockDefinition blockDef, PipelineContext context)
     {
-        var result = new CFGBlock { Name = blockDef.Name, NextBlockName = blockDef.NextBlockName };
+        var result = new CFGBlock { Name = blockDef.Name };
         // BlockScript §6: a flow-control statement (Branch/Loop/ToLoopCond/Break) terminates
         // the block; any statement after it is unreachable dead code. Track the terminator and
         // warn (non-fatal) on subsequent statements instead of silently formatting them.
@@ -88,6 +88,22 @@ public class BS2CFGConverter
             if (stmt is FlowControlStatement)
                 seenTerminator = true;
         }
+
+        // Sequential fall-through: represent BlockDefinition.NextBlockName as a Sequential edge
+        // in Successors (single source of truth) instead of a parallel CFGBlock.NextBlockName
+        // field. Only non-control-flow blocks fall through; control-flow blocks already carry
+        // their Branch/Loop/Switch/ToLoopCond/Break targets as typed Successors edges elsewhere.
+        if (!result.EndsWithControlFlow && !string.IsNullOrEmpty(blockDef.NextBlockName))
+        {
+            result.Successors.Add(new CFGEdge
+            {
+                FromBlockName = result.Name,
+                ToBlockName = blockDef.NextBlockName,
+                Type = CFGEdgeType.Sequential,
+                PinName = "Exec"
+            });
+        }
+
         return result;
     }
 

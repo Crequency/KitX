@@ -297,7 +297,6 @@ internal class BP2CFGConverter
             {
                 Name = scope.Name,
                 Type = scope.IsMainBlock ? CFGBlockType.Entry : CFGBlockType.Basic,
-                NextBlockName = scope.NextBlockName,
             };
 
             foreach (var nodeId in scope.NodeIds)
@@ -594,13 +593,17 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            // Sequential fall-through: derive NextBlockName from the block or from exec connections
-            if (!string.IsNullOrEmpty(block.NextBlockName))
+            // Sequential fall-through: derive the target from the block's BlueprintBlockScope
+            // (for the BlockScopes path) — the single source of truth is now the Sequential edge
+            // built here, not a parallel CFGBlock.NextBlockName field.
+            var scope = blueprint.BlockScopes.FirstOrDefault(s => s.Name == block.Name);
+            var fallThrough = scope?.NextBlockName;
+            if (!string.IsNullOrEmpty(fallThrough))
             {
                 block.Successors.Add(new CFGEdge
                 {
                     FromBlockName = block.Name,
-                    ToBlockName = block.NextBlockName,
+                    ToBlockName = fallThrough,
                     Type = CFGEdgeType.Sequential,
                     PinName = Exec
                 });
@@ -623,7 +626,7 @@ internal class BP2CFGConverter
     {
         foreach (var block in cfg.Blocks)
         {
-            if (!string.IsNullOrEmpty(block.NextBlockName)) continue;
+            if (block.FallThroughTarget != null) continue;  // Already has a Sequential edge
             if (block.EndsWithControlFlow) continue;
             if (block.Successors.Count > 0) continue;  // Already has edges
 
@@ -657,7 +660,7 @@ internal class BP2CFGConverter
             var targetBlockName = FindBlockContainingNode(cfg, targetNode.Id, blueprint);
             if (targetBlockName != null)
             {
-                block.NextBlockName = targetBlockName;
+                // Single source of truth: build the Sequential edge (no parallel NextBlockName field).
                 block.Successors.Add(new CFGEdge
                 {
                     FromBlockName = block.Name,

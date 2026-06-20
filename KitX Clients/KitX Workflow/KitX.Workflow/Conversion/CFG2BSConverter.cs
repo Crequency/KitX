@@ -78,7 +78,10 @@ internal class CFG2BSConverter
             {
                 Type = cfgBlock.IsMainBlock ? BlockType.MainBlock : BlockType.NamedBlock,
                 Name = cfgBlock.Name,
-                NextBlockName = cfgBlock.NextBlockName
+                // BS-layer BlockDefinition.NextBlockName is retained as the BlockScript native
+                // expression of fall-through; its value is now derived from the CFG's Sequential
+                // Successors edge (single source of truth) rather than a parallel field.
+                NextBlockName = cfgBlock.FallThroughTarget
             };
 
             foreach (var cfgStmt in cfgBlock.Statements)

@@ -99,8 +99,10 @@ public class CFG2BPConverter
             _blockLastStmtId[block.Name] = prevStmtId ?? "";
         }
 
-        if (!string.IsNullOrEmpty(block.NextBlockName))
-            context.BlockNextBlock[block.Name] = block.NextBlockName;
+        // Sequential fall-through target now derived from the CFG's Sequential Successors edge
+        // (single source of truth) rather than a parallel NextBlockName field.
+        if (!string.IsNullOrEmpty(block.FallThroughTarget))
+            context.BlockNextBlock[block.Name] = block.FallThroughTarget;
 
         context.BlockEndsWithFlowCtrl[block.Name] = endsWithFlowCtrl;
     }
