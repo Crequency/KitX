@@ -111,6 +111,41 @@ public sealed class BSParenthesized : BSExpression
     public BSExpression Inner { get; set; } = new BSIdentifier();
 }
 
+/// <summary>
+/// A pipeline statement: <c>SourceList \- Target { \- Target }</c>.
+/// <para>
+/// <see cref="Sources"/> is the comma-separated list of source expressions (1 or more).
+/// <see cref="Targets"/> is the ordered list of pipeline segments (each a <see cref="BSCall"/>,
+/// which may contain <see cref="BSPlaceholder"/> arguments marking where pipeline values insert).
+/// </para>
+/// <para>
+/// Flattening (BS→CFG): each Source becomes a PubVar assignment; each Target becomes a call
+/// statement whose arguments are filled from Sources (first segment) or the previous segment's
+/// single result (subsequent segments). All statements share a <c>PipelineId</c> for round-trip
+/// reconstruction. The CFG's flat semantics are unchanged — the pipeline is purely a text-side
+/// sugar whose structure is captured as provenance metadata.
+/// </para>
+/// </summary>
+public sealed class BSPipeline : BSExpression
+{
+    /// <summary>The comma-separated source expressions (the left side of the first <c>\-</c>).</summary>
+    public IReadOnlyList<BSExpression> Sources { get; set; } = Array.Empty<BSExpression>();
+
+    /// <summary>The ordered pipeline segments (each <c>\- Target</c>).</summary>
+    public IReadOnlyList<BSCall> Targets { get; set; } = Array.Empty<BSCall>();
+}
+
+/// <summary>
+/// A pipeline placeholder (<c>_</c>) — marks a parameter position where a pipeline value
+/// (from Sources or the previous segment's result) should be inserted during flattening.
+/// <see cref="Index"/> is the ordinal among multiple placeholders in the same call (0-based),
+/// used to match pipeline values to positions when a target has more than one <c>_</c>.
+/// </summary>
+public sealed class BSPlaceholder : BSExpression
+{
+    public int Index { get; set; }
+}
+
 /// <summary>Extension methods over BSExpression, replacing the Roslyn-coupled ExprUtils helpers.</summary>
 public static class BSExpressionExtensions
 {
@@ -171,7 +206,10 @@ public static class BSExpressionAdapter
             case LiteralExpressionSyntax lit:
                 return FromLiteral(lit);
             case IdentifierNameSyntax id:
-                return new BSIdentifier { Name = id.Identifier.Text, SourceText = id.ToString() };
+                // The lone underscore is the pipeline placeholder, not a variable reference.
+                return id.Identifier.Text == "_"
+                    ? new BSPlaceholder { SourceText = "_" }
+                    : new BSIdentifier { Name = id.Identifier.Text, SourceText = id.ToString() };
             case AssignmentExpressionSyntax assign:
                 return FromAssignment(assign);
             case BinaryExpressionSyntax binary:

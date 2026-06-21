@@ -205,6 +205,11 @@ public class BS2CFGConverter
             return result;
         }
 
+        // Pipeline (\-) statements flatten into a sequence of PubVar assignments + calls sharing
+        // a PipelineId for round-trip reconstruction. Handled before the general call/binary paths.
+        if (rightExpr is BSPipeline pipeline)
+            return FormatPipeline(pipeline, blockName, context);
+
         var assignedVar = exprStmt.AssignedVariable;
 
         // Handle "NextBlock = ..." assignments (should be handled as FlowControl by parser)
@@ -515,6 +520,147 @@ public class BS2CFGConverter
             operands.Add(binary.Left);
         }
         operands.Add(binary.Right);
+    }
+
+    // ──────────────────────────────────────────────
+    // Pipeline (\-) flattening
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Flattens a <see cref="BSPipeline"/> into a sequence of CFG statements that share a
+    /// <see cref="CFGStatement.PipelineId"/> for round-trip reconstruction.
+    /// <para>
+    /// Each Source becomes an assignment; each Target becomes a call whose arguments are filled
+    /// from the current inputs (Sources for the first Target, the previous Target's single result
+    /// for subsequent ones). Targets containing <c>_</c> placeholders consume inputs at those
+    /// positions; targets without placeholders consume all inputs positionally.
+    /// </para>
+    /// <para>
+    /// The flattened form is semantically equivalent to nested calls — the pipeline is pure
+    /// text-side sugar. The CFG's flat PubVar-assignment form is what executes.
+    /// </para>
+    /// </summary>
+    private List<CFGStatement> FormatPipeline(BSPipeline pipeline, string blockName, PipelineContext context)
+    {
+        var result = new List<CFGStatement>();
+        var pipelineId = Guid.NewGuid().ToString();
+        int segIndex = 0;
+        // Preserve the verbatim pipeline source text on the first segment so CFG2BSConverter can
+        // rebuild the pipeline statement text without re-deriving it from the flattened form.
+        var pipelineSource = pipeline.SourceText;
+
+        // ── Sources: expand each (nested calls → temp PubVars) and record as assignments. ──
+        // The PubVar name (or literal/identifier text) of each source is the "current input"
+        // fed to the first Target.
+        var currentInputs = new List<string>();
+        foreach (var source in pipeline.Sources)
+        {
+            var (srcStmts, srcExpr) = ExpandExpression(source, blockName, context);
+            foreach (var s in srcStmts)
+            {
+                s.PipelineId = pipelineId;
+                s.PipelineSegmentIndex = segIndex++;
+                result.Add(s);
+            }
+            currentInputs.Add(srcExpr);
+        }
+
+        // ── Targets: fill arguments from current inputs, emit one call each. ──
+        // Each non-terminal target synthesizes a PubVar to hold its result so the next segment
+        // can consume it; the terminal target (last) is a bare side-effect call with no PubVar.
+        for (int t = 0; t < pipeline.Targets.Count; t++)
+        {
+            var target = pipeline.Targets[t];
+            bool isTerminal = t == pipeline.Targets.Count - 1;
+            var resolvedArgs = ResolvePipelineArgs(target, currentInputs, blockName, context, result, pipelineId, ref segIndex);
+
+            // Synthesize a PubVar target for non-terminal segments so the result flows forward.
+            string? pubVarTarget = null;
+            if (!isTerminal)
+            {
+                pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
+                if (!context.PubVarNames.Contains(pubVarTarget))
+                    context.PubVarNames.Add(pubVarTarget);
+            }
+
+            var funcDef = _functionRegistry?.Get(target.MethodName);
+            var stmt = new CFGStatement
+            {
+                BlockName = blockName,
+                Kind = pubVarTarget != null ? CFGStatementKind.Assignment : CFGStatementKind.Expression,
+                FlowControlShape = funcDef?.FlowControlShape,
+                FunctionName = target.MethodName,
+                FullFunctionName = target.FullMethodName,
+                PubVarTarget = pubVarTarget,
+                Arguments = resolvedArgs,
+                OriginalExpression = pubVarTarget != null
+                    ? $"{pubVarTarget} = {target.MethodName}({string.Join(", ", resolvedArgs)})"
+                    : $"{target.MethodName}({string.Join(", ", resolvedArgs)})",
+                Fingerprint = ExprUtils.ComputeFingerprint(target.MethodName, resolvedArgs),
+                PipelineId = pipelineId,
+                PipelineSegmentIndex = segIndex++
+            };
+            if (string.IsNullOrEmpty(stmt.StatementId))
+                stmt.StatementId = Guid.NewGuid().ToString();
+            result.Add(stmt);
+
+            currentInputs = pubVarTarget != null ? new List<string> { pubVarTarget } : new List<string>();
+        }
+
+        // Stamp the verbatim pipeline source text on the first segment so CFG2BS can rebuild
+        // the pipeline statement without re-deriving it from the flattened PubVar form.
+        if (result.Count > 0 && !string.IsNullOrEmpty(pipelineSource))
+            result[0].OriginalExpression = pipelineSource;
+
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves a pipeline target's arguments to concrete PubVar/literal strings, substituting
+    /// <c>_</c> placeholders and non-placeholder args. When the target has placeholders, each
+    /// placeholder consumes one input in order; the remaining (literal) args are kept verbatim.
+    /// When the target has no placeholders, all current inputs fill the argument positions in order.
+    /// Any nested calls in non-placeholder args are expanded (appended to <paramref name="result"/>).
+    /// </summary>
+    private List<string> ResolvePipelineArgs(BSCall target, List<string> currentInputs,
+        string blockName, PipelineContext context, List<CFGStatement> result,
+        string pipelineId, ref int segIndex)
+    {
+        var placeholders = target.Args.OfType<BSPlaceholder>().ToList();
+        var resolved = new List<string>();
+        int inputCursor = 0;
+
+        foreach (var arg in target.Args)
+        {
+            if (arg is BSPlaceholder)
+            {
+                resolved.Add(inputCursor < currentInputs.Count
+                    ? currentInputs[inputCursor++]
+                    : "null");
+            }
+            else
+            {
+                // Expand any nested call in this arg, then use its final expression string.
+                var (nested, finalExpr) = ExpandExpression(arg, blockName, context);
+                foreach (var s in nested)
+                {
+                    s.PipelineId = pipelineId;
+                    s.PipelineSegmentIndex = segIndex++;
+                    result.Add(s);
+                }
+                resolved.Add(finalExpr);
+            }
+        }
+
+        // No placeholders → fill positional slots from currentInputs if the call had no explicit args.
+        // (e.g. `Get("a"), Get("b") \- StringConcat` — StringConcat has no args, all inputs apply.)
+        if (placeholders.Count == 0 && target.Args.Count == 0)
+        {
+            foreach (var input in currentInputs)
+                resolved.Add(input);
+        }
+
+        return resolved;
     }
 
     // ──────────────────────────────────────────────

@@ -198,6 +198,25 @@ internal class BlockStatementExtractor
 
         if (exprStmt.Expression is InvocationExpressionSyntax invoke)
         {
+            // Pipeline statements are rewritten to __pipe(...) by PipelinePreScanner.
+            // Rebuild a BSPipeline AST node carried as the ParsedExpression of a generic
+            // ExpressionStatement; BS2CFGConverter.FormatPipeline flattens it.
+            if (IsPipeSentinel(invoke))
+            {
+                var pipeLine = exprStmt.GetLineNumber();
+                var pipeline = BuildPipeline(invoke, pipeLine, exprText);
+                if (pipeline != null)
+                {
+                    block.Statements.Add(new ExpressionStatement
+                    {
+                        LineNumber = pipeLine,
+                        SourceCode = exprText,
+                        Expression = exprText,
+                        ParsedExpression = pipeline
+                    });
+                    return;
+                }
+            }
             AddInvocationStatement(exprStmt, invoke, exprText, assignedVar: null, block);
             return;
         }
@@ -290,4 +309,75 @@ internal class BlockStatementExtractor
         ParsedExpression = parsedExpression,
         AssignedVariable = assignedVar
     };
+
+    // ─── Pipeline (\-) support ────────────────────────────────────────
+    // PipelinePreScanner rewrites `src \- t1 \- t2;` to `__pipe(src, __seg(t1), __seg(t2));`.
+    // These helpers detect that sentinel form and rebuild a BSPipeline AST node whose Sources
+    // are the leading non-__seg args and whose Targets are the __seg-wrapped calls.
+
+    private static bool IsPipeSentinel(InvocationExpressionSyntax invoke)
+        => invoke.Expression is IdentifierNameSyntax id
+           && id.Identifier.Text == PipelinePreScanner.PipeSentinel;
+
+    /// <summary>
+    /// Builds a <see cref="BSPipeline"/> from a <c>__pipe(sources..., __seg(t1), __seg(t2))</c>
+    /// invocation. Leading arguments that are not <c>__seg</c> calls are the pipeline sources;
+    /// each <c>__seg(call)</c> argument contributes its inner call as a pipeline target.
+    /// Returns null when the structure is malformed (no targets).
+    /// </summary>
+    private static BSPipeline? BuildPipeline(InvocationExpressionSyntax invoke, int lineNumber, string exprText)
+    {
+        var sources = new List<BSExpression>();
+        var targets = new List<BSCall>();
+        foreach (var arg in invoke.ArgumentList.Arguments)
+        {
+            if (arg.Expression is InvocationExpressionSyntax segInvoke && IsSegSentinel(segInvoke))
+            {
+                // __seg(target) — the single argument is the target. It may be a call with args
+                // (e.g. __seg(StringConcat("x", _))) or a bare function name with no parens
+                // (e.g. __seg(Print)), which is a 0-arg target whose inputs come from the pipeline.
+                var targetExpr = segInvoke.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+                if (targetExpr is InvocationExpressionSyntax targetInvoke)
+                {
+                    if (BSExpressionAdapter.FromRoslyn(targetInvoke) is BSCall targetCall)
+                        targets.Add(targetCall);
+                }
+                else if (targetExpr is IdentifierNameSyntax targetId)
+                {
+                    // Bare function name → treat as a 0-arg call; ResolvePipelineArgs fills inputs.
+                    targets.Add(new BSCall
+                    {
+                        MethodName = targetId.Identifier.Text,
+                        FullMethodName = targetId.Identifier.Text,
+                        Args = Array.Empty<BSExpression>(),
+                        RawArgs = Array.Empty<string>(),
+                        SourceText = targetId.Identifier.Text
+                    });
+                }
+            }
+            else
+            {
+                // A source expression.
+                if (BSExpressionAdapter.FromRoslyn(arg.Expression) is { } src)
+                    sources.Add(src);
+            }
+        }
+
+        if (targets.Count == 0)
+        {
+            Log.Debug("[BlockStatementExtractor] __pipe had no __seg targets: {Expr}", exprText);
+            return null;
+        }
+
+        return new BSPipeline
+        {
+            Sources = sources,
+            Targets = targets,
+            SourceText = exprText
+        };
+    }
+
+    private static bool IsSegSentinel(InvocationExpressionSyntax invoke)
+        => invoke.Expression is IdentifierNameSyntax id
+           && id.Identifier.Text == PipelinePreScanner.SegSentinel;
 }

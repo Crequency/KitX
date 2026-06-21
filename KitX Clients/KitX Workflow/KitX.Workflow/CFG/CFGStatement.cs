@@ -181,4 +181,20 @@ public class CFGStatement
     /// Same expression → same fingerprint → nodes can be shared.
     /// </summary>
     public string? Fingerprint { get; set; }
+
+    // --- Pipeline (\-) provenance ---
+    /// <summary>
+    /// When non-null, this statement is part of a pipeline (<c>\-</c>) that was flattened into
+    /// sequential PubVar assignments. All statements sharing the same <see cref="PipelineId"/>
+    /// belong to one pipeline and can be reconstructed into a single pipeline statement by
+    /// CFG2BSConverter. Null for non-pipeline statements (the common case). Pure metadata —
+    /// the execution layer ignores it.
+    /// </summary>
+    public string? PipelineId { get; set; }
+
+    /// <summary>
+    /// Ordinal of this statement within its pipeline (<see cref="PipelineId"/>), 0-based.
+    /// -1 for non-pipeline statements. Source assignments come before target calls in index order.
+    /// </summary>
+    public int PipelineSegmentIndex { get; set; } = -1;
 }

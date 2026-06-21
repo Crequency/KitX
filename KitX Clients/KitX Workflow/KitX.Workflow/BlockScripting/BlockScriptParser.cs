@@ -71,6 +71,10 @@ public class BlockScriptParser : IBlockScriptParser
 
             foreach (var recognized in recognizer.Blocks)
             {
+                // Phase 1.5: Rewrite pipeline (\-) statements into the __pipe placeholder form
+                // so Roslyn's C# parser can accept them (\- is not a legal C# token).
+                recognized.Content = PipelinePreScanner.Rewrite(recognized.Content);
+
                 // Phase 2: Validate syntax
                 var validationResult = _validator.Validate(recognized);
                 if (!validationResult.IsValid)
@@ -183,6 +187,9 @@ public class BlockScriptParser : IBlockScriptParser
             {
                 if (string.IsNullOrWhiteSpace(recognized.Content))
                     continue;
+
+                // Phase 1.5: rewrite pipelines to placeholder form before Roslyn parses.
+                recognized.Content = PipelinePreScanner.Rewrite(recognized.Content);
 
                 var validationResult = _validator.Validate(recognized);
                 if (!validationResult.IsValid)

@@ -84,11 +84,35 @@ internal class CFG2BSConverter
                 NextBlockName = cfgBlock.FallThroughTarget
             };
 
-            foreach (var cfgStmt in cfgBlock.Statements)
+            // Iterate statements, batching pipeline (\-) groups: all statements sharing a
+            // PipelineId are segments of one flattened pipeline and are rebuilt into a single
+            // pipeline statement whose text was preserved on the first segment.
+            var i = 0;
+            while (i < cfgBlock.Statements.Count)
             {
+                var cfgStmt = cfgBlock.Statements[i];
+
+                // Pipeline group: collect all consecutive statements with the same PipelineId.
+                if (!string.IsNullOrEmpty(cfgStmt.PipelineId))
+                {
+                    var pid = cfgStmt.PipelineId;
+                    var group = new List<CFGStatement>();
+                    while (i < cfgBlock.Statements.Count
+                           && cfgBlock.Statements[i].PipelineId == pid)
+                    {
+                        group.Add(cfgBlock.Statements[i]);
+                        i++;
+                    }
+                    var pipelineStmt = ConvertPipelineGroup(group);
+                    if (pipelineStmt != null)
+                        blockDef.Statements.Add(pipelineStmt);
+                    continue;
+                }
+
                 var blockStmt = ConvertStatement(cfgStmt);
                 if (blockStmt != null)
                     blockDef.Statements.Add(blockStmt);
+                i++;
             }
 
             if (cfgBlock.IsMainBlock)
@@ -107,6 +131,29 @@ internal class CFG2BSConverter
     }
 
     // ─── Statement Conversion ──────────────────────────────────────────
+
+    /// <summary>
+    /// Rebuilds a flattened pipeline group (statements sharing a PipelineId) into a single
+    /// pipeline statement. The verbatim pipeline source text was stamped on the first segment's
+    /// <see cref="CFGStatement.OriginalExpression"/> by BS2CFGConverter.FormatPipeline; we emit it
+    /// as one ExpressionStatement. On re-parse, PipelinePreScanner rewrites the <c>\-</c> syntax
+    /// and BlockStatementExtractor rebuilds the BSPipeline AST, so no AST reconstruction is needed
+    /// here — the text carries the structure.
+    /// </summary>
+    private static BlockStatement? ConvertPipelineGroup(List<CFGStatement> group)
+    {
+        if (group.Count == 0) return null;
+        var first = group[0];
+        var source = first.OriginalExpression;
+        if (string.IsNullOrEmpty(source)) return null;
+        return new ExpressionStatement
+        {
+            StatementId = first.StatementId,
+            Expression = ExtractExpression(source),
+            SourceCode = source,
+            LineNumber = first.SourceLine
+        };
+    }
 
     private static BlockStatement? ConvertStatement(CFGStatement cfgStmt)
     {

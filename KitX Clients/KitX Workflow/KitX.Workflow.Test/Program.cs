@@ -271,6 +271,22 @@ public partial class Program
             Console.WriteLine("└──────────────────────────────────────────────────────┘\n");
             RunNestedControlFlowTopologyTest(reverseConverter, nodeRegistry, "Test W");
         }
+
+        if (ShouldRunTest("X"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test X: Pipeline (\\-) parse + flatten + compile + exec   │");
+            Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
+            RunPipelineExecutionTest(parser, converter);
+        }
+
+        if (ShouldRunTest("Y"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test Y: Pipeline (\\-) round-trip fidelity                │");
+            Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
+            RunPipelineRoundTripTest(parser, converter, reverseConverter);
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -2183,5 +2199,202 @@ Print(v);
         }
 
         Console.WriteLine($"[Test V] {(fails == 0 ? "PASS" : "FAIL - see above")}");
+    }
+
+    // ──────────────────────────────────────────────
+    // Test X: Pipeline (\-) parse + flatten + compile + execute.
+    // Exercises linear chains, diamond (multi-source) dependency, and the _ placeholder.
+    // ──────────────────────────────────────────────
+    private static void RunPipelineExecutionTest(
+        IBlockScriptParser parser,
+        BlockScriptToBlueprintConverter converter)
+    {
+        Console.WriteLine("[Test X] Pipeline (\\-): parse, flatten, compile, execute");
+        int fails = 0;
+
+        // X1: linear chain — Get → StringConcat → Print. Verifies single-source pipeline compiles
+        // and the Print output reflects the data flow through both stages.
+        var srcLinear = @"
+#ConstBlock
+string name = ""World"";
+
+#PubVarBlock
+dynamic greeting;
+
+#MainBlock
+Get(""name"") \- StringConcat(""Hello, "", _) \- Print;
+";
+
+        // X2: diamond dependency — two sources (Get + literal) feed StringConcat positionally.
+        var srcDiamond = @"
+#ConstBlock
+string a = ""Hello"";
+string b = ""World"";
+
+#MainBlock
+Get(""a""), Get(""b"") \- StringConcat \- Print;
+";
+
+        foreach (var (label, src, expectedInOutput) in new[]
+        {
+            ("linear",   srcLinear,  "Hello, World"),
+            ("diamond",  srcDiamond, "HelloWorld"),
+        })
+        {
+            try
+            {
+                var pr = parser.Parse(src);
+                if (!pr.IsSuccess || pr.Script == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: parse error: {pr.ErrorMessage}");
+                    fails++;
+                    continue;
+                }
+                pr.Script.HelperFunctions = new List<HelperFunction>();
+
+                var compiled = new CSCompiler().CompileScript(pr.Script, workflowId: null, out var errors);
+                if (compiled == null)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: compile null, {errors.Count} error(s)");
+                    foreach (var e in errors.Take(3)) Console.WriteLine($"         {e}");
+                    fails++;
+                    continue;
+                }
+
+                var output = new List<string>();
+                var globals = new BlockScriptExecutionGlobals(new BlockScopeManager(), output);
+                globals.ResetRunState();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                try
+                {
+                    compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine($"  [{label}] FAIL: execution TIMEOUT");
+                    fails++;
+                    continue;
+                }
+
+                var ok = output.Any(o => o.Contains(expectedInOutput));
+                Console.WriteLine($"  [{label}] {(ok ? "PASS" : "FAIL")}: output [{string.Join(", ", output)}] (expected to contain '{expectedInOutput}')");
+                if (!ok) fails++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  [{label}] FAIL: {ex.GetType().Name}: {ex.Message}");
+                fails++;
+            }
+        }
+
+        Console.WriteLine($"[Test X] {(fails == 0 ? "PASS" : "FAIL - see above")}");
+    }
+
+    // ──────────────────────────────────────────────
+    // Test Y: Pipeline (\-) round-trip.
+    // BS → BP → BS. The pipeline flattens across the blueprint boundary (BlueprintNode does not
+    // carry CFG PipelineId provenance), so the round-tripped BS is the equivalent flat PubVar
+    // form — which must still parse and compile, and execute to the same output. Preserving the
+    // literal \- syntax through the blueprint is a future enhancement (storing pipeline grouping
+    // on blueprint nodes); for now the contract is semantic equivalence + re-compilability.
+    // ──────────────────────────────────────────────
+    private static void RunPipelineRoundTripTest(
+        IBlockScriptParser parser,
+        BlockScriptToBlueprintConverter converter,
+        IBlueprintToBlockScriptConverter reverseConverter)
+    {
+        Console.WriteLine("[Test Y] Pipeline (\\-): BS↔BP round-trip (semantic equivalence)");
+        int fails = 0;
+
+        var src = @"
+#ConstBlock
+string name = ""World"";
+
+#MainBlock
+Get(""name"") \- StringConcat(""Hi "", _) \- Print;
+";
+
+        try
+        {
+            // Capture original execution output for comparison.
+            var pr1 = parser.Parse(src);
+            if (!pr1.IsSuccess || pr1.Script == null)
+            {
+                Console.WriteLine("  FAIL: original parse error");
+                fails++;
+                Console.WriteLine($"[Test Y] {(fails == 0 ? "PASS" : "FAIL")}");
+                return;
+            }
+            pr1.Script.HelperFunctions = new List<HelperFunction>();
+            var compiled1 = new CSCompiler().CompileScript(pr1.Script, workflowId: null, out _);
+            var origOutput = new List<string>();
+            if (compiled1 != null)
+            {
+                var g1 = new BlockScriptExecutionGlobals(new BlockScopeManager(), origOutput);
+                g1.ResetRunState();
+                using var cts1 = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                try { compiled1.RunAsync(g1, cts1.Token).GetAwaiter().GetResult(); }
+                catch { /* timeout — compare anyway */ }
+            }
+
+            var bpResult = converter.Convert(src, new List<HelperFunction>());
+            if (bpResult == null)
+            {
+                Console.WriteLine("  FAIL: BS→BP conversion returned null");
+                fails++;
+            }
+            else
+            {
+                var bsResult = reverseConverter.Convert(bpResult);
+                Console.WriteLine($"  Round-tripped source:\n{bsResult}\n");
+
+                if (string.IsNullOrEmpty(bsResult))
+                {
+                    Console.WriteLine("  FAIL: BP→BS returned empty");
+                    fails++;
+                }
+                else
+                {
+                    // The round-tripped BS must re-parse and re-compile.
+                    var pr2 = parser.Parse(bsResult);
+                    bool recompiles = false;
+                    List<string>? rtOutput = null;
+                    if (pr2.IsSuccess && pr2.Script != null)
+                    {
+                        pr2.Script.HelperFunctions = new List<HelperFunction>();
+                        var compiled2 = new CSCompiler().CompileScript(pr2.Script, workflowId: null, out var errors2);
+                        recompiles = compiled2 != null;
+                        if (!recompiles)
+                            foreach (var e in errors2.Take(3)) Console.WriteLine($"         re-compile error: {e}");
+                        else
+                        {
+                            rtOutput = new List<string>();
+                            var g2 = new BlockScriptExecutionGlobals(new BlockScopeManager(), rtOutput);
+                            g2.ResetRunState();
+                            using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                            try { compiled2.RunAsync(g2, cts2.Token).GetAwaiter().GetResult(); }
+                            catch { /* timeout */ }
+                        }
+                    }
+                    Console.WriteLine($"  Re-parse + re-compile: {(recompiles ? "OK" : "FAIL")}");
+                    if (!recompiles) fails++;
+
+                    // Semantic equivalence: same output.
+                    bool sameOutput = rtOutput != null && origOutput.Count == rtOutput.Count
+                        && origOutput.Zip(rtOutput).All(p => p.First == p.Second);
+                    Console.WriteLine($"  Output match (original vs round-trip): {(sameOutput ? "OK" : "DIFF")}");
+                    Console.WriteLine($"    original:      [{string.Join(", ", origOutput)}]");
+                    Console.WriteLine($"    round-tripped: [{string.Join(", ", rtOutput ?? new List<string>())}]");
+                    if (!sameOutput) fails++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  FAIL: {ex.GetType().Name}: {ex.Message}");
+            fails++;
+        }
+
+        Console.WriteLine($"[Test Y] {(fails == 0 ? "PASS" : "FAIL - see above")}");
     }
 }
