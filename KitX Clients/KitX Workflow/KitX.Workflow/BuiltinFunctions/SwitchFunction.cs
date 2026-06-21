@@ -3,6 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -50,23 +51,23 @@ namespace KitX.Workflow.BuiltinFunctions
         /// BS 解析：从 NextBlock = Switch(selector, "default", "b0", "b1", ...) 提取。
         /// arg[0]=default,arg[1..N]=分支块。Arms = [Default, 0, 1, ..., N-1]。
         /// </summary>
-        public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText)
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
         {
-            var args = invoke.ArgumentList.Arguments;
+            var args = invoke.Args;
             var stmt = new FlowControlStatement
             {
                 LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.ToFullString(),
+                SourceCode = exprText ?? invoke.SourceText,
                 ControlType = FlowControlType.IndexedDispatch
             };
 
             if (args.Count >= 1)
-                stmt.ConditionExpression = args[0].Expression.ToString();
+                stmt.ConditionExpression = args[0].SourceText;
 
             // arg[1] = default block; arg[2..N] = branch blocks b0, b1, ...
             if (args.Count >= 2)
             {
-                var defaultBlock = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;
+                var defaultBlock = args[1].AsStringLiteral() ?? string.Empty;
                 stmt.Arms.Add(new BranchArm { PinName = Pins.Default, TargetBlockName = defaultBlock });
             }
             else
@@ -76,7 +77,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
             for (int i = 2; i < args.Count; i++)
             {
-                var block = ExprUtils.GetStringLiteralValue(args[i].Expression) ?? string.Empty;
+                var block = args[i].AsStringLiteral() ?? string.Empty;
                 stmt.Arms.Add(new BranchArm { PinName = (i - 2).ToString(), TargetBlockName = block });
             }
 

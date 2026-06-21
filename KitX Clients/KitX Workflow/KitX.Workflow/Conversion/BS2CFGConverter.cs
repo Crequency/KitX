@@ -1,9 +1,9 @@
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.BlockScripting;
 using Serilog;
 
 using KitX.Workflow.CFG;
+using KitX.Workflow.Models;
 
 using KitX.Workflow.Blueprint;
 namespace KitX.Workflow.Conversion;
@@ -182,17 +182,10 @@ public class BS2CFGConverter
     }
 
     private static string GetFunctionNameFromFlowControl(FlowControlStatement flowCtrl)
-    {
-        var src = flowCtrl.SourceCode;
-        // Parse function name from source like "NextBlock = Branch(...)", "Break()", etc.
-        var parsed = ExprUtils.ParseStatement(src);
-        if (parsed?.rightExpr is InvocationExpressionSyntax invoke)
-            return ExprUtils.GetMethodName(invoke);
-        if (parsed?.rightExpr is IdentifierNameSyntax id)
-            return id.Identifier.Text;
-        // Fallback: derive from ControlType
-        return ControlFlowMapping.ToFunctionName(flowCtrl.ControlType);
-    }
+        // The ControlType is authoritative for flow-control statements — it was set by the
+        // builtin's ExtractStatement at parse time and uniquely maps to the function name.
+        // No need to re-parse SourceCode.
+        => ControlFlowMapping.ToFunctionName(flowCtrl.ControlType);
 
     // ──────────────────────────────────────────────
     // Expression statement formatting
@@ -201,43 +194,18 @@ public class BS2CFGConverter
     private List<CFGStatement> FormatExpressionStatement(ExpressionStatement exprStmt, string blockName, PipelineContext context)
     {
         var result = new List<CFGStatement>();
-        var expression = exprStmt.Expression;
 
-        // Prefer the invocation that BlockStatementExtractor already parsed and attached, avoiding
-        // a second Roslyn parse of the same expression text (the double-parse smell). Fall back to
-        // parsing Expression when ParsedInvocation is absent (e.g. programmatically-built statements
-        // produced by CFG2BSConverter from a CFG, which have no source tree attached).
-        ExpressionSyntax? rightExpr;
-        string? assignedVar;
-        if (exprStmt.ParsedInvocation is { } preParsed)
+        // The BS AST is attached by BlockStatementExtractor at parse time. Every ExpressionStatement
+        // reaching BS2CFG comes from parsed source, so ParsedExpression is always present.
+        if (exprStmt.ParsedExpression is not { } rightExpr)
         {
-            rightExpr = preParsed;
-            assignedVar = exprStmt.AssignedVariable;
+            context.Diagnostics.AddError("BS_UNPARSEABLE_STMT",
+                $"Statement in block '{blockName}' has no pre-parsed expression: {exprStmt.Expression}",
+                exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
+            return result;
         }
-        else
-        {
-            var parsed = ExprUtils.ParseStatement(expression);
-            if (parsed == null)
-            {
-                context.Diagnostics.AddError("BS_UNPARSEABLE_STMT",
-                    $"Could not parse statement in block '{blockName}': {expression}",
-                    exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
-                return result;
-            }
 
-            var (r, a) = parsed.Value;
-
-            if (r == null)
-            {
-                context.Diagnostics.AddError("BS_UNPARSEABLE_STMT",
-                    $"Statement in block '{blockName}' has no right-hand expression: {expression}",
-                    exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
-                return result;
-            }
-
-            rightExpr = r;
-            assignedVar = a;
-        }
+        var assignedVar = exprStmt.AssignedVariable;
 
         // Handle "NextBlock = ..." assignments (should be handled as FlowControl by parser)
         if (assignedVar != null && assignedVar == "NextBlock")
@@ -248,7 +216,7 @@ public class BS2CFGConverter
         // if there's an assignment target (v = "a" + "b"), redirect that statement's
         // PubVarTarget to v so we get a single clean CFG statement instead of a
         // vaaa#### temp + a separate v = vaaa#### assignment.
-        if (rightExpr is BinaryExpressionSyntax binExpr && binExpr.OperatorToken.Text == "+")
+        if (rightExpr is BSBinary binExpr && binExpr.Operator == "+")
         {
             var (expStmts, finalExpr) = ExpandExpression(rightExpr, blockName, context);
 
@@ -277,13 +245,13 @@ public class BS2CFGConverter
         }
 
         // If RHS is a function invocation, process it
-        if (rightExpr is InvocationExpressionSyntax invoke)
+        if (rightExpr is BSCall invoke)
         {
-            var funcName = ExprUtils.GetMethodName(invoke);
+            var funcName = invoke.MethodName;
             if (string.IsNullOrEmpty(funcName))
             {
                 context.Diagnostics.AddError("BS_EMPTY_FUNCNAME",
-                    $"Invocation in block '{blockName}' has no resolvable function name: {expression}",
+                    $"Invocation in block '{blockName}' has no resolvable function name: {exprStmt.Expression}",
                     exprStmt.LineNumber > 0 ? exprStmt.LineNumber : null);
                 return result;
             }
@@ -292,7 +260,7 @@ public class BS2CFGConverter
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.IsFlowControl)
                 return result;
 
-            var fullFuncName = ExprUtils.GetFullMethodName(invoke);
+            var fullFuncName = invoke.FullMethodName;
             result.AddRange(LowerAndPostProcess(invoke, funcName, blockName, context, assignedVar, fullFuncName,
                 statementId: exprStmt.StatementId));
             return result;
@@ -306,12 +274,10 @@ public class BS2CFGConverter
     /// Formats a function invocation, expanding nested calls in arguments.
     /// </summary>
     private List<CFGStatement> LowerAndPostProcess(
-        InvocationExpressionSyntax invoke, string funcName, string blockName,
+        BSCall invoke, string funcName, string blockName,
         PipelineContext context, string? assignedVar, string? fullFuncName = null,
         string? statementId = null)
     {
-        // "_" is the dummy LHS produced by ExprUtils.ParseStatement for standalone
-        // expression statements (`_ = WriteTextFile(...)`); treat it as no assignment.
         if (assignedVar == "_") assignedVar = null;
 
         var result = new List<CFGStatement>();
@@ -350,7 +316,7 @@ public class BS2CFGConverter
                 FullFunctionName = fullFuncName,
                 PubVarTarget = pubVarTarget,
                 Arguments = currentArgExprs,
-                OriginalExpression = invoke.ToString(),
+                OriginalExpression = invoke.SourceText,
                 SourceLine = 0,
             }];
         }
@@ -391,14 +357,14 @@ public class BS2CFGConverter
     /// Returns (expansionStatements, currentArgStrings).
     /// </summary>
     private (List<CFGStatement> stmts, List<string> argExprs) ExpandArguments(
-        InvocationExpressionSyntax invoke, string blockName, PipelineContext context)
+        BSCall invoke, string blockName, PipelineContext context)
     {
         var stmts = new List<CFGStatement>();
         var argExprs = new List<string>();
 
-        foreach (var arg in invoke.ArgumentList.Arguments)
+        foreach (var arg in invoke.Args)
         {
-            var (expanded, finalExpr) = ExpandExpression(arg.Expression, blockName, context);
+            var (expanded, finalExpr) = ExpandExpression(arg, blockName, context);
             stmts.AddRange(expanded);
             argExprs.Add(finalExpr);
         }
@@ -411,27 +377,27 @@ public class BS2CFGConverter
     /// Returns (expansionStatements, finalExpressionString).
     /// </summary>
     private (List<CFGStatement> stmts, string finalExpr) ExpandExpression(
-        ExpressionSyntax expr, string blockName, PipelineContext context)
+        BSExpression expr, string blockName, PipelineContext context)
     {
         // Literal → return as-is
-        if (expr is LiteralExpressionSyntax)
-            return (new(), expr.ToString());
+        if (expr is BSLiteral)
+            return (new(), expr.SourceText);
 
         // Simple identifier → return as-is
-        if (expr is IdentifierNameSyntax)
-            return (new(), expr.ToString());
+        if (expr is BSIdentifier)
+            return (new(), expr.SourceText);
 
         // Invocation → may need expansion
-        if (expr is InvocationExpressionSyntax invoke)
+        if (expr is BSCall invoke)
         {
-            var funcName = ExprUtils.GetMethodName(invoke);
-            var fullFuncName = ExprUtils.GetFullMethodName(invoke);
+            var funcName = invoke.MethodName;
+            var fullFuncName = invoke.FullMethodName;
 
             // Non-extractable / flow-control functions stay inline (cannot be nested-call results).
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef
                 && (inlineDef.IsNonExtractable || inlineDef.IsFlowControl))
             {
-                return (new(), invoke.ToString());
+                return (new(), invoke.SourceText);
             }
 
             // Expand this call's arguments once (nested calls → PubVars), shared by both paths below.
@@ -466,7 +432,7 @@ public class BS2CFGConverter
                 FunctionName = funcName,
                 FullFunctionName = fullFuncName,
                 Arguments = expandedArgs,
-                OriginalExpression = $"{pubVarName} = {invoke}",
+                OriginalExpression = $"{pubVarName} = {invoke.SourceText}",
                 Fingerprint = ExprUtils.ComputeFingerprint(funcName, expandedArgs)
             });
 
@@ -474,20 +440,20 @@ public class BS2CFGConverter
         }
 
         // Parenthesized expression
-        if (expr is ParenthesizedExpressionSyntax paren)
-            return ExpandExpression(paren.Expression, blockName, context);
+        if (expr is BSParenthesized paren)
+            return ExpandExpression(paren.Inner, blockName, context);
 
         // Binary expression (e.g. "prefix" + Get("var") + "suffix").
         // For the "+" operator, collect all operands (left-associative chaining) and
         // synthesize a single StringConcat(...) call so the CFG→BP path produces a
         // proper blueprint node instead of an opaque string expression.
-        if (expr is BinaryExpressionSyntax binary)
+        if (expr is BSBinary binary)
         {
-            var op = binary.OperatorToken.Text;
+            var op = binary.Operator;
             if (op == "+")
             {
                 // Flatten left-associative + chains: ((a + b) + c) → [a, b, c]
-                var operands = new List<ExpressionSyntax>();
+                var operands = new List<BSExpression>();
                 CollectAddOperands(binary, operands);
 
                 // Expand each operand (nested calls → temp PubVars), collect statements.
@@ -530,7 +496,7 @@ public class BS2CFGConverter
         }
 
         // Default: return as-is
-        return (new(), expr.ToString());
+        return (new(), expr.SourceText);
     }
 
     /// <summary>
@@ -538,10 +504,9 @@ public class BS2CFGConverter
     /// flat list of leaf operands. e.g. ((a + b) + c) → [a, b, c].
     /// Non-+ leaves (literals, identifiers, calls) are collected as-is.
     /// </summary>
-    private static void CollectAddOperands(BinaryExpressionSyntax binary, List<ExpressionSyntax> operands)
+    private static void CollectAddOperands(BSBinary binary, List<BSExpression> operands)
     {
-        if (binary.Left is BinaryExpressionSyntax leftBinary
-            && leftBinary.OperatorToken.Text == "+")
+        if (binary.Left is BSBinary leftBinary && leftBinary.Operator == "+")
         {
             CollectAddOperands(leftBinary, operands);
         }
@@ -575,22 +540,22 @@ public class BS2CFGConverter
         if (context.ConstNodes.ContainsKey(trimmed) || context.VariableNodes.ContainsKey(trimmed))
             return (result, null);
 
-        // Parse the expression
-        var expr = ExprUtils.ParseExpression(trimmed);
+        // Parse the expression (one-shot Roslyn parse at the boundary)
+        var expr = BSExpressionAdapter.Parse(trimmed);
         if (expr == null)
             return (result, null);
 
         // If it's a simple identifier, no expansion needed
-        if (expr is IdentifierNameSyntax)
+        if (expr is BSIdentifier)
             return (result, null);
 
         // If it's an invocation, expand it
-        if (expr is InvocationExpressionSyntax invoke)
+        if (expr is BSCall invoke)
         {
-            var funcName = ExprUtils.GetMethodName(invoke);
+            var funcName = invoke.MethodName;
             if (string.IsNullOrEmpty(funcName)) return (result, null);
 
-            var fullFuncName = ExprUtils.GetFullMethodName(invoke);
+            var fullFuncName = invoke.FullMethodName;
             var formatted = LowerAndPostProcess(invoke, funcName, blockName, context, null, fullFuncName);
 
             // The last statement should be the main call

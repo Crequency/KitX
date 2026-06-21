@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BlockScripting;
 
@@ -119,10 +120,10 @@ public interface IBuiltinFunctionDefinition
     // ─── 解析（BlockScript → AST）─────────────────
 
     /// <summary>
-    /// 从 Roslyn InvocationExpressionSyntax 提取语句。
+    /// 从已解析的 <see cref="BSCall"/>（BS 表达式 AST）提取语句。
     /// 返回 null 表示使用默认 ExpressionStatement 处理。
     /// </summary>
-    BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText);
+    BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText);
 
     // ─── 格式化（AST → CFGStatement）─────────
 
@@ -133,7 +134,7 @@ public interface IBuiltinFunctionDefinition
     /// BS2CFGConverter 对返回语句做横切后处理（StatementId/Fingerprint/PubVarNames 追踪）。
     /// </summary>
     List<CFGStatement> LowerToCFG(
-        InvocationExpressionSyntax invoke,
+        BSCall invoke,
         IReadOnlyList<string> expandedArgs,
         string blockName,
         PipelineContext context,
@@ -148,7 +149,7 @@ public interface IBuiltinFunctionDefinition
                 FunctionName = FunctionName,
                 Arguments = expandedArgs.ToList(),
                 PubVarTarget = assignedVar,
-                OriginalExpression = invoke.ToString(),
+                OriginalExpression = invoke.SourceText,
                 SourceLine = 0,
             }
         };

@@ -3,6 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -34,17 +35,17 @@ namespace KitX.Workflow.BuiltinFunctions
         ];
 
 
-        public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText)
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
         {
-            var args = invoke.ArgumentList.Arguments;
+            var args = invoke.Args;
             var stmt = new FlowControlStatement
             {
                 LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.ToFullString(),
+                SourceCode = exprText ?? invoke.SourceText,
                 ControlType = FlowControlType.ConditionalJump // Reuse ConditionalJump shape for cross-block routing
             };
-            if (args.Count >= 1) stmt.TrueBlockName = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
-            if (args.Count >= 2) stmt.FalseBlockName = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;
+            if (args.Count >= 1) stmt.TrueBlockName = args[0].AsStringLiteral() ?? string.Empty;
+            if (args.Count >= 2) stmt.FalseBlockName = args[1].AsStringLiteral() ?? string.Empty;
             return stmt;
         }
 

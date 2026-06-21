@@ -6,6 +6,7 @@ using Serilog;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -34,7 +35,7 @@ namespace KitX.Workflow.BuiltinFunctions
             new("DeviceInfo", PinType.Any, 40)
         ];
 
-        public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         {
@@ -44,7 +45,7 @@ namespace KitX.Workflow.BuiltinFunctions
         }
 
         public List<CFGStatement> LowerToCFG(
-            InvocationExpressionSyntax invoke, IReadOnlyList<string> expandedArgs,
+            BSCall invoke, IReadOnlyList<string> expandedArgs,
             string blockName, PipelineContext context, string? assignedVar)
         {
             string? pubVarTarget;
@@ -66,7 +67,7 @@ namespace KitX.Workflow.BuiltinFunctions
                 FunctionName = FunctionName,
                 PubVarTarget = pubVarTarget,
                 Arguments = expandedArgs.ToList(),
-                OriginalExpression = invoke.ToString(),
+                OriginalExpression = invoke.SourceText,
                 SourceLine = 0,
             }];
         }

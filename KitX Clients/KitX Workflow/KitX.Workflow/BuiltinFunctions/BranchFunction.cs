@@ -3,6 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -30,18 +31,18 @@ namespace KitX.Workflow.BuiltinFunctions
             new("False", PinType.Execution, 50)
         ];
 
-        public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText)
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
         {
-            var args = invoke.ArgumentList.Arguments;
+            var args = invoke.Args;
             var stmt = new FlowControlStatement
             {
                 LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.ToFullString(),
+                SourceCode = exprText ?? invoke.SourceText,
                 ControlType = FlowControlType.ConditionalJump
             };
-            if (args.Count >= 1) stmt.ConditionExpression = args[0].Expression.ToString();
-            if (args.Count >= 2) stmt.TrueBlockName = ExprUtils.GetStringLiteralValue(args[1].Expression) ?? string.Empty;
-            if (args.Count >= 3) stmt.FalseBlockName = ExprUtils.GetStringLiteralValue(args[2].Expression) ?? string.Empty;
+            if (args.Count >= 1) stmt.ConditionExpression = args[0].SourceText;
+            if (args.Count >= 2) stmt.TrueBlockName = args[1].AsStringLiteral() ?? string.Empty;
+            if (args.Count >= 3) stmt.FalseBlockName = args[2].AsStringLiteral() ?? string.Empty;
             return stmt;
         }
 

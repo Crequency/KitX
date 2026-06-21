@@ -4,6 +4,7 @@ using KitX.Workflow.BlockScripting;
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 using Serilog;
 using KitX.Workflow.CFG;
+using KitX.Workflow.Models;
 
 using KitX.Workflow.Blueprint;
 namespace KitX.Workflow.Conversion;
@@ -115,7 +116,7 @@ public class DataEdgeBuilder
         }
 
         // Character literal → DefaultValue
-        if (ExprUtils.IsCharacterLiteral(trimmed))
+        if (BSExpressionExtensions.IsCharacterLiteral(trimmed))
         {
             SetDefaultValue(targetNode, targetPinName, trimmed);
             return;

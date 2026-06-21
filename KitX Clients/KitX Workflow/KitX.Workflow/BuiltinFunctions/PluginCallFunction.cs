@@ -7,6 +7,7 @@ using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Blueprint;
 using KitX.Workflow.Services;
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -40,7 +41,7 @@ namespace KitX.Workflow.BuiltinFunctions
             new("Return", PinType.Any, 40)
         ];
 
-        public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
             => ctx.EmitValueAssignment(stmt.PubVarTarget, ctx.PluginCallExpression(stmt));

@@ -3,6 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions
 {
@@ -35,16 +36,16 @@ namespace KitX.Workflow.BuiltinFunctions
         /// </summary>
 
 
-        public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText)
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
         {
-            var args = invoke.ArgumentList.Arguments;
+            var args = invoke.Args;
             var stmt = new FlowControlStatement
             {
                 LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.ToFullString(),
+                SourceCode = exprText ?? invoke.SourceText,
                 ControlType = FlowControlType.LoopBackedge
             };
-            if (args.Count >= 1) stmt.LoopbackTarget = ExprUtils.GetStringLiteralValue(args[0].Expression) ?? string.Empty;
+            if (args.Count >= 1) stmt.LoopbackTarget = args[0].AsStringLiteral() ?? string.Empty;
             return stmt;
         }
 

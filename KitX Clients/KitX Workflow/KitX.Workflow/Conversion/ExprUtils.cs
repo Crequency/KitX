@@ -1,103 +1,17 @@
-using System.Collections.Concurrent;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 using KitX.Workflow.CFG;
-using KitX.Workflow.BlockScripting;
-using KitX.Workflow.Blueprint;
+
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
-/// Shared expression-parsing utilities used across pipeline phases.
+/// Parser-agnostic BS/CFG helpers. The Roslyn-coupled expression-parsing helpers that used
+/// to live here (ParseExpression / ParseStatement / GetStringLiteralValue / GetLiteralValue /
+/// GetMethodName / GetFullMethodName / IsCharacterLiteral) have been retired: BS now has its
+/// own AST (<see cref="KitX.Workflow.Models.BSExpression"/>) adapted from Roslyn exactly once
+/// at the parse boundary, so consumers walk the structured AST instead of re-parsing text.
+/// What remains here are pure string/counter utilities with no Roslyn dependency.
 /// </summary>
 public static class ExprUtils
 {
-    /// <summary>
-    /// Memoization cache for <see cref="ParseExpression"/> — Roslyn parsing is the hot path
-    /// (called per-statement, often re-parsing the same OriginalExpression across phases).
-    /// Keyed by input expression string.
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, ExpressionSyntax?> _parseExpressionCache = new();
-
-    /// <summary>Memoization cache for <see cref="ParseStatement"/>.</summary>
-    private static readonly ConcurrentDictionary<string, (ExpressionSyntax? rightExpr, string? assignedVar)?> _parseStatementCache = new();
-
-    /// <summary>Parses an expression string using Roslyn. Returns null on failure. Memoized.</summary>
-    public static ExpressionSyntax? ParseExpression(string expression)
-        => _parseExpressionCache.GetOrAdd(expression, ParseExpressionCore);
-
-    private static ExpressionSyntax? ParseExpressionCore(string expression)
-    {
-        try
-        {
-            var wrappedCode = "_ = " + expression + ";";
-            var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode, cancellationToken: CancellationToken.None);
-            var root = syntaxTree.GetCompilationUnitRoot();
-            var globalStmt = root.Members.FirstOrDefault() as GlobalStatementSyntax;
-            var stmt = globalStmt?.Statement as ExpressionStatementSyntax;
-            if (stmt?.Expression is AssignmentExpressionSyntax assignment)
-                return assignment.Right;
-            return stmt?.Expression;
-        }
-        catch { return null; }
-    }
-
-    /// <summary>Parses a full statement (may be assignment or plain expression). Memoized.</summary>
-    public static (ExpressionSyntax? rightExpr, string? assignedVar)? ParseStatement(string statement)
-        => _parseStatementCache.GetOrAdd(statement, ParseStatementCore);
-
-    private static (ExpressionSyntax? rightExpr, string? assignedVar)? ParseStatementCore(string statement)
-    {
-        try
-        {
-            var wrappedCode = "_ = " + statement + ";";
-            var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode, cancellationToken: CancellationToken.None);
-            var root = syntaxTree.GetCompilationUnitRoot();
-            var globalStmt = root.Members.FirstOrDefault() as GlobalStatementSyntax;
-            var stmt = globalStmt?.Statement as ExpressionStatementSyntax;
-            if (stmt?.Expression == null) return (null, null);
-
-            if (stmt.Expression is AssignmentExpressionSyntax outerAssignment)
-            {
-                ExpressionSyntax rightExpr = outerAssignment.Right;
-                AssignmentExpressionSyntax? innermost = null;
-                while (rightExpr is AssignmentExpressionSyntax nested)
-                {
-                    innermost = nested;
-                    rightExpr = nested.Right;
-                }
-                var assignedVar = (innermost ?? outerAssignment).Left.ToString().Trim();
-                return (rightExpr, assignedVar);
-            }
-            return (stmt.Expression, null);
-        }
-        catch { return (null, null); }
-    }
-
-    /// <summary>Extracts the short method name from an invocation expression.</summary>
-    public static string GetMethodName(InvocationExpressionSyntax invoke)
-    {
-        if (invoke.Expression is IdentifierNameSyntax id) return id.Identifier.Text;
-        if (invoke.Expression is GenericNameSyntax generic) return generic.Identifier.Text;
-        if (invoke.Expression is MemberAccessExpressionSyntax member) return member.Name.Identifier.Text;
-        return string.Empty;
-    }
-
-    /// <summary>
-    /// Extracts the full dotted method path from an invocation expression.
-    /// For "TestPlugin.WPF.Core.HelloKitX()" returns "TestPlugin.WPF.Core.HelloKitX".
-    /// For simple calls like "Get(...)" returns just "Get".
-    /// </summary>
-    public static string GetFullMethodName(InvocationExpressionSyntax invoke)
-    {
-        if (invoke.Expression is IdentifierNameSyntax id) return id.Identifier.Text;
-        if (invoke.Expression is GenericNameSyntax generic) return generic.Identifier.Text;
-        if (invoke.Expression is MemberAccessExpressionSyntax member)
-            return member.Expression.ToString() + "." + member.Name.Identifier.Text;
-        return string.Empty;
-    }
-
     /// <summary>
     /// Generates a PubVar name from a linear counter, cycling from vaaa0001 to vzzz9999.
     /// Format: 'v' + 3 lowercase letters + 4 digits. Total capacity: 26^3 * 10000 = 175,760,000.
@@ -128,36 +42,7 @@ public static class ExprUtils
         return letterPart * 10000 + digitPart;
     }
 
-    /// <summary>
     /// <summary>Computes a fingerprint string for a call expression for reuse detection.</summary>
     public static string ComputeFingerprint(string funcName, List<string> args)
         => $"{funcName}({string.Join(",", args.Select(a => a.Trim().Replace(" ", "")))})";
-
-    /// <summary>Gets the string value of a string literal, or null.</summary>
-    public static string? GetStringLiteralValue(ExpressionSyntax expr)
-    {
-        if (expr is LiteralExpressionSyntax lit && lit.Token.IsKind(SyntaxKind.StringLiteralToken))
-            return lit.Token.ValueText;
-        return null;
-    }
-
-    /// <summary>Gets the value of any literal expression (string, int, double, bool, null).</summary>
-    public static object? GetLiteralValue(LiteralExpressionSyntax literal)
-        => literal.Token.Value;
-
-    /// <summary>
-    /// Determines whether a value string represents a C# character literal (e.g. '\0', 'a', '\n').
-    /// Uses Roslyn parsing for reliable detection — avoids string-pattern heuristics.
-    /// Returns true only when the expression parses as a CharacterLiteralExpression.
-    /// </summary>
-    public static bool IsCharacterLiteral(string value)
-    {
-        if (string.IsNullOrEmpty(value)) return false;
-        // Fast pre-check: C# char literals always start and end with single quote
-        if (value.Length < 3 || value[0] != '\'' || value[^1] != '\'') return false;
-        // Validate with Roslyn — parse as a single token (far cheaper than a full expression
-        // tree parse). A char literal parses as a CharacterLiteralToken.
-        var token = SyntaxFactory.ParseToken(value);
-        return token.IsKind(SyntaxKind.CharacterLiteralToken);
-    }
 }

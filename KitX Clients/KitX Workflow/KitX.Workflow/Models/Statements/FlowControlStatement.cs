@@ -71,28 +71,51 @@ public class FlowControlStatement : BlockStatement
     /// <summary>
     /// Regenerates SourceCode from current field values.
     /// Call after updating Arms/ConditionExpression/etc. to keep SourceCode in sync.
+    /// Delegates to the static <see cref="RenderSource"/> so every site that rebuilds BS
+    /// control-flow source text (this instance method, BP2CFGConverter, CFG2BSConverter)
+    /// shares one renderer and cannot drift out of sync.
     /// </summary>
     public void RegenerateSourceCode()
     {
-        SourceCode = ControlType switch
-        {
-            FlowControlType.ConditionalJump => $"NextBlock = Branch({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
-            FlowControlType.IterativeJump => $"NextBlock = Loop({ConditionExpression}, \"{TrueBlockName}\", \"{FalseBlockName}\");",
-            FlowControlType.LoopBackedge => !string.IsNullOrEmpty(LoopbackTarget)
-                ? $"NextBlock = ToLoopCond(\"{LoopbackTarget}\");"
-                : "ToLoopCond();",
-            FlowControlType.IndexedDispatch => RegenerateSwitchSource(),
-            FlowControlType.LoopExit => "Break();",
-            _ => SourceCode
-        };
+        SourceCode = RenderSource(ControlType, ConditionExpression, Arms, LoopbackTarget);
     }
 
-    private string RegenerateSwitchSource()
+    /// <summary>
+    /// Single source of truth for rendering a control-flow statement back to BlockScript text.
+    /// Takes the authoritative shape plus the fields that vary per shape:
+    /// <list type="bullet">
+    /// <item><c>ConditionalJump</c>/<c>IterativeJump</c>: Branch/Loop(cond, "true", "false").</item>
+    /// <item><c>LoopBackedge</c>: ToLoopCond("target") (or bare ToLoopCond() when no target).</item>
+    /// <item><c>IndexedDispatch</c>: Switch(cond, "default", "b0", "b1", ...) — arms[0] is default.</item>
+    /// <item><c>LoopExit</c>: Break().</item>
+    /// </list>
+    /// </summary>
+    /// <param name="shape">The control-flow shape (FlowControlType).</param>
+    /// <param name="condition">The condition/selector expression text (may be empty for ToLoopCond/Break).</param>
+    /// <param name="arms">The arms; for Switch the layout is [Default, 0, 1, …]; for Branch/Loop
+    /// arms[0]/arms[1] are true/false. Ignored for ToLoopCond/Break.</param>
+    /// <param name="loopbackTarget">The ToLoopCond return-to block name (null/empty → bare ToLoopCond()).</param>
+    public static string RenderSource(FlowControlType shape, string condition,
+        IReadOnlyList<BranchArm> arms, string? loopbackTarget) => shape switch
+    {
+        FlowControlType.ConditionalJump =>
+            $"NextBlock = Branch({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
+        FlowControlType.IterativeJump =>
+            $"NextBlock = Loop({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
+        FlowControlType.LoopBackedge => !string.IsNullOrEmpty(loopbackTarget)
+            ? $"NextBlock = ToLoopCond(\"{loopbackTarget}\");"
+            : "ToLoopCond();",
+        FlowControlType.IndexedDispatch => RenderSwitchSource(condition, arms),
+        FlowControlType.LoopExit => "Break();",
+        _ => string.Empty
+    };
+
+    private static string RenderSwitchSource(string condition, IReadOnlyList<BranchArm> arms)
     {
         // Arms layout: [Default, 0, 1, ..., N-1]
-        if (Arms.Count == 0) return "Switch();";
-        var defaultBlock = Arms[0].TargetBlockName;
-        var blocks = Arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
-        return $"NextBlock = Switch({ConditionExpression}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
+        if (arms.Count == 0) return $"NextBlock = Switch({condition}, \"\");";
+        var defaultBlock = arms[0].TargetBlockName;
+        var blocks = arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
+        return $"NextBlock = Switch({condition}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
     }
 }

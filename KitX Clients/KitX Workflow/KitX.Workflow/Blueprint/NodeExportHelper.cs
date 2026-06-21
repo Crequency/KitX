@@ -1,5 +1,6 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
+using KitX.Workflow.Models;
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
 
 namespace KitX.Workflow.Blueprint;
@@ -80,7 +81,7 @@ internal class NodeExportHelper : INodeExportHelper
         if (value == null) return string.Empty;
         if (value.Length == 0) return "\"\"";  // empty string literal
         if (value.StartsWith("\"")) return value;
-        if (ExprUtils.IsCharacterLiteral(value)) return value;  // char literal — pass through
+        if (BSExpressionExtensions.IsCharacterLiteral(value)) return value;  // char literal — pass through
         if (ctx != null && ctx.AllPubVars.Contains(value)) return value;
         if (int.TryParse(value, out _) || double.TryParse(value, out _)) return value;
         if (value == "true" || value == "false") return value;

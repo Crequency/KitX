@@ -1,6 +1,5 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Blueprint;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Serilog;
 
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Pins;
@@ -8,6 +7,7 @@ using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
@@ -764,6 +764,8 @@ internal class BP2CFGConverter
                 if (node is not CallNode call) return null;
                 var callArgs = _exportHelper.GetInputArgs(call);
                 string sourceCode;
+                string methodName;
+                string fullMethodName;
                 if (!string.IsNullOrEmpty(call.TargetDevice))
                 {
                     // 跨设备调用：PluginCallWithTarget("plugin", "method", "device", args...)
@@ -776,6 +778,8 @@ internal class BP2CFGConverter
                             arg => NodeExportHelper.FormatLiteralValue(arg, _currentCtx)))
                         : "";
                     sourceCode = $"PluginCallWithTarget({pluginNameLit}, {methodNameLit}, {targetDeviceLit}{extraArgs})";
+                    methodName = "PluginCallWithTarget";
+                    fullMethodName = "PluginCallWithTarget";
                 }
                 else
                 {
@@ -783,13 +787,10 @@ internal class BP2CFGConverter
                     var funcRef = string.IsNullOrEmpty(call.PluginName)
                         ? call.FunctionName : $"{call.PluginName}.{call.FunctionName}";
                     sourceCode = $"{funcRef}({callArgs})";
+                    methodName = call.FunctionName;
+                    fullMethodName = funcRef;
                 }
-                var callStmt = new ExpressionStatement
-                {
-                    Expression = sourceCode,
-                    SourceCode = sourceCode + ";",
-                    LineNumber = 1
-                };
+                var callStmt = MakeCallStatement(sourceCode, methodName, fullMethodName);
                 PostProcessCallReturn(node, callStmt);
                 return callStmt;
             }
@@ -798,12 +799,7 @@ internal class BP2CFGConverter
                 if (node is not CallHelperNode callHelper) return null;
                 var helperArgs = _exportHelper.GetInputArgs(callHelper);
                 var expression = $"{callHelper.HelperFunctionName}({helperArgs})";
-                var helperStmt = new ExpressionStatement
-                {
-                    Expression = expression,
-                    SourceCode = expression + ";",
-                    LineNumber = 1
-                };
+                var helperStmt = MakeCallStatement(expression, callHelper.HelperFunctionName, callHelper.HelperFunctionName);
                 PostProcessCallReturn(node, helperStmt);
                 return helperStmt;
             }
@@ -832,6 +828,27 @@ internal class BP2CFGConverter
                 return null;
         }
     }
+
+    /// <summary>
+    /// Builds an <see cref="ExpressionStatement"/> for a blueprint call, attaching a
+    /// <see cref="BSCall"/> so downstream <see cref="ConvertBlockStatementToCfgStatement"/>
+    /// reads <c>FunctionName</c> directly from the AST instead of re-parsing <c>SourceCode</c>.
+    /// Args are not modeled structurally here (the CFG consumes argument strings from input pins);
+    /// only MethodName/FullMethodName/SourceText are needed.
+    /// </summary>
+    private static ExpressionStatement MakeCallStatement(string sourceCode, string methodName, string fullMethodName)
+        => new()
+        {
+            Expression = sourceCode,
+            SourceCode = sourceCode + ";",
+            LineNumber = 1,
+            ParsedExpression = new BSCall
+            {
+                MethodName = methodName,
+                FullMethodName = fullMethodName,
+                SourceText = sourceCode
+            }
+        };
 
     private void PostProcessCallReturn(BlueprintNode node, BlockStatement stmt)
     {
@@ -905,10 +922,10 @@ internal class BP2CFGConverter
                 else
                 {
                     cfgStmt.Kind = CFGStatementKind.Expression;
-                    // Fallback: parse FunctionName from SourceCode for nodes without strategy (CallHelper, Call, etc.)
-                    var fallbackParsed = ExprUtils.ParseStatement(expr.SourceCode);
-                    if (fallbackParsed?.rightExpr is InvocationExpressionSyntax fallbackInvoke)
-                        cfgStmt.FunctionName = ExprUtils.GetMethodName(fallbackInvoke);
+                    // FunctionName from the pre-built BS call attached by GenerateBlockStatement
+                    // (Call/CallHelper nodes carry a BSCall in ParsedExpression).
+                    if (expr.ParsedExpression is BSCall bsCall)
+                        cfgStmt.FunctionName = bsCall.MethodName;
                 }
 
                 // Arguments from node input pins (no text parsing)
@@ -996,7 +1013,13 @@ internal class BP2CFGConverter
         {
             Expression = expr,
             SourceCode = sourceCode,
-            LineNumber = 1
+            LineNumber = 1,
+            ParsedExpression = new BSCall
+            {
+                MethodName = functionName,
+                FullMethodName = functionName,
+                SourceText = expr
+            }
         };
     }
 
@@ -1110,25 +1133,13 @@ internal class BP2CFGConverter
     }
 
     private static string RegenerateBranchSource(CFGStatement cfStmt)
-    {
-        return cfStmt.FlowControlShape switch
-        {
-            FlowControlType.IterativeJump => $"NextBlock = Loop({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");",
-            FlowControlType.IndexedDispatch => RegenerateSwitchSource(cfStmt),
-            _ => $"NextBlock = Branch({cfStmt.ConditionExpression}, \"{cfStmt.TrueBlockName}\", \"{cfStmt.FalseBlockName}\");"
-        };
-    }
-
-    /// <summary>
-    /// Regenerates Switch source from its arms. Arms layout: [Default, 0, 1, ..., N-1].
-    /// </summary>
-    private static string RegenerateSwitchSource(CFGStatement cfStmt)
-    {
-        if (cfStmt.Arms.Count == 0) return $"NextBlock = Switch({cfStmt.ConditionExpression}, \"\");";
-        var defaultBlock = cfStmt.Arms[0].TargetBlockName;
-        var blocks = cfStmt.Arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
-        return $"NextBlock = Switch({cfStmt.ConditionExpression}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
-    }
+        // Delegate to the shared renderer on FlowControlStatement so BS↔graph source text stays
+        // in sync with the instance RegenerateSourceCode path (single source of truth).
+        => FlowControlStatement.RenderSource(
+            cfStmt.FlowControlShape ?? FlowControlType.ConditionalJump,
+            cfStmt.ConditionExpression ?? string.Empty,
+            cfStmt.Arms,
+            loopbackTarget: null);
 
     private static CFGEdgeType GetEdgeType(FlowControlType? shape, BranchArm arm)
     {

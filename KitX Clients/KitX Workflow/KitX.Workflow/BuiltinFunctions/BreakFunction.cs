@@ -3,6 +3,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Conversion;
 using KitX.Workflow.CFG;
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BuiltinFunctions;
 
@@ -27,7 +28,7 @@ public class BreakFunction : IBuiltinFunctionDefinition
     public IReadOnlyList<PinDescriptor> OutputPins => [];
 
 
-    public BlockStatement? ExtractStatement(InvocationExpressionSyntax invoke, int lineNumber, string? exprText) => null;
+    public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
 
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         => new() { ctx.Return() };

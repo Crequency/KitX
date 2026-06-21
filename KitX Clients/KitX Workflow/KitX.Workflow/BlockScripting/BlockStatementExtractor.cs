@@ -6,6 +6,7 @@ using Serilog;
 
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 using KitX.Workflow.Conversion;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BlockScripting;
 
@@ -89,7 +90,7 @@ internal class BlockStatementExtractor
                     // Pre-evaluate constant values
                     if (variable.Initializer?.Value is LiteralExpressionSyntax literal)
                     {
-                        varDefinition.DefaultValue = ExprUtils.GetLiteralValue(literal);
+                        varDefinition.DefaultValue = literal.Token.Value;
                     }
 
                     blockDef.Variables.Add(varDefinition);
@@ -172,7 +173,7 @@ internal class BlockStatementExtractor
 
             if (variable.Initializer?.Value is LiteralExpressionSyntax literal)
             {
-                varDefinition.DefaultValue = ExprUtils.GetLiteralValue(literal);
+                varDefinition.DefaultValue = literal.Token.Value;
             }
 
             block.Variables.Add(varDefinition);
@@ -184,8 +185,7 @@ internal class BlockStatementExtractor
     /// without invocation RHS), NextBlock string directive, or unsupported form.
     /// Uses early returns to keep nesting shallow. The registry-hit-returns-null and
     /// registry-miss cases share one construction path via
-    /// <see cref="BuildExpressionStatement"/> (they previously held two
-    /// character-identical <c>new ExpressionStatement</c> blocks).
+    /// <see cref="BuildExpressionStatement"/>.
     /// </summary>
     private void AddExpressionStatement(
         ExpressionStatementSyntax exprStmt, BlockDefinition block,
@@ -217,9 +217,10 @@ internal class BlockStatementExtractor
             Log.Debug("[BlockStatementExtractor]   assignment.Right is NOT InvocationExpressionSyntax, type = {Type}",
                 assignment.Right.GetType().Name);
             // Preserve AssignedVariable so BS2CFGConverter can handle non-invocation RHS
-            // (e.g. v = a + b + c where RHS is BinaryExpression).
+            // (e.g. v = a + b + c where RHS is BinaryExpression). Adapt the RHS once here so
+            // BS2CFGConverter walks the BS AST directly instead of re-parsing the text.
             block.Statements.Add(BuildExpressionStatement(exprStmt, exprText,
-                parsedInvocation: assignment.Right as InvocationExpressionSyntax,
+                parsedExpression: BSExpressionAdapter.FromRoslyn(assignment.Right),
                 assignedVar: assignment.Left.ToString()));
             return;
         }
@@ -235,24 +236,23 @@ internal class BlockStatementExtractor
         Log.Debug("[BlockStatementExtractor] Unhandled expression type in {BlockType}: {Type} = {Expr}",
             blockType, exprStmt.Expression.GetType().Name, exprText);
         block.Statements.Add(BuildExpressionStatement(exprStmt, exprText,
-            parsedInvocation: null, assignedVar: null));
+            parsedExpression: null, assignedVar: null));
     }
 
     /// <summary>
     /// Handles an invocation expression statement (bare call or call assigned to a
-    /// variable). Consults the builtin registry first; if it produces a statement it
-    /// is used directly, otherwise a generic <see cref="ExpressionStatement"/> carries
-    /// the already-parsed invocation so BS2CFGConverter does not re-parse the same
-    /// expression text (eliminates the double parse). The registry-hit-returns-null
-    /// and registry-miss cases converge on <see cref="BuildExpressionStatement"/>.
+    /// variable). Adapts the Roslyn invocation to a <see cref="BSCall"/> once, then
+    /// consults the builtin registry; if it produces a statement it is used directly,
+    /// otherwise a generic <see cref="ExpressionStatement"/> carries the already-parsed
+    /// call so BS2CFGConverter does not re-parse the same expression text.
     /// </summary>
     private void AddInvocationStatement(
         ExpressionStatementSyntax exprStmt, InvocationExpressionSyntax invoke,
         string exprText, string? assignedVar, BlockDefinition block)
     {
-        var methodName = ExprUtils.GetMethodName(invoke);
-        var stmt = _functionRegistry?.Get(methodName)?.ExtractStatement(invoke, exprStmt.GetLineNumber(), exprText);
-        block.Statements.Add(stmt ?? BuildExpressionStatement(exprStmt, exprText, invoke, assignedVar));
+        var bsCall = (BSCall)BSExpressionAdapter.FromRoslyn(invoke)!;
+        var stmt = _functionRegistry?.Get(bsCall.MethodName)?.ExtractStatement(bsCall, exprStmt.GetLineNumber(), exprText);
+        block.Statements.Add(stmt ?? BuildExpressionStatement(exprStmt, exprText, bsCall, assignedVar));
     }
 
     /// <summary>
@@ -276,17 +276,18 @@ internal class BlockStatementExtractor
 
     /// <summary>
     /// Single factory for the generic <see cref="ExpressionStatement"/> fallback.
-    /// Replaces the six near-identical inline initializers (two pairs of which were
-    /// character-for-character identical: registry-hit-returns-null vs registry-miss).
+    /// <paramref name="parsedExpression"/> is the BS AST adapted from the Roslyn node
+    /// (a <see cref="BSCall"/> for invocations, or a <see cref="BSBinary"/>/other for
+    /// non-invocation assignment RHS). Carried so BS2CFGConverter skips re-parsing text.
     /// </summary>
     private static ExpressionStatement BuildExpressionStatement(
         ExpressionStatementSyntax exprStmt, string exprText,
-        InvocationExpressionSyntax? parsedInvocation, string? assignedVar) => new()
+        BSExpression? parsedExpression, string? assignedVar) => new()
     {
         LineNumber = exprStmt.GetLineNumber(),
         SourceCode = exprText,
         Expression = exprText,
-        ParsedInvocation = parsedInvocation,
+        ParsedExpression = parsedExpression,
         AssignedVariable = assignedVar
     };
 }
