@@ -133,6 +133,23 @@ internal class BlockStatementExtractor
             Log.Debug("  - Expression type: {ExprType}, Text: {Text}", es.Expression.GetType().Name, es.Expression.ToString());
         }
 
+        // Nested-call deprecation: warn when a function call appears as an argument of another
+        // call (e.g. Outer(Inner(x))). The pipeline operator (>) is the preferred replacement;
+        // nested calls are slated for removal. Non-fatal — the expander still handles them.
+        if (diagnostics != null)
+        {
+            foreach (var es in exprStatements)
+            {
+                if (ContainsNestedCall(es))
+                {
+                    diagnostics.AddWarning("BS_DEPRECATED_NESTING",
+                        "Nested function calls are deprecated; use the pipeline operator (>) instead. " +
+                        "For example, rewrite 'Print(Get(\"x\"))' as 'Get(\"x\") > Print'.",
+                        es.GetLineNumber());
+                }
+            }
+        }
+
         foreach (var node in root.DescendantNodes())
         {
             switch (node)
@@ -311,7 +328,7 @@ internal class BlockStatementExtractor
     };
 
     // ─── Pipeline (\-) support ────────────────────────────────────────
-    // PipelinePreScanner rewrites `src \- t1 \- t2;` to `__pipe(src, __seg(t1), __seg(t2));`.
+    // PipelinePreScanner rewrites `src > t1 > t2;` to `__pipe(src, __seg(t1), __seg(t2));`.
     // These helpers detect that sentinel form and rebuild a BSPipeline AST node whose Sources
     // are the leading non-__seg args and whose Targets are the __seg-wrapped calls.
 
@@ -380,4 +397,25 @@ internal class BlockStatementExtractor
     private static bool IsSegSentinel(InvocationExpressionSyntax invoke)
         => invoke.Expression is IdentifierNameSyntax id
            && id.Identifier.Text == PipelinePreScanner.SegSentinel;
+
+    /// <summary>
+    /// Returns true when <paramref name="node"/> contains a nested function call — i.e. an
+    /// <see cref="InvocationExpressionSyntax"/> whose arguments themselves contain another
+    /// invocation (e.g. <c>Outer(Inner(x))</c>). Used to emit the BS_DEPRECATED_NESTING warning.
+    /// The top-level call itself does not count; only a call nested inside another call's args.
+    /// </summary>
+    private static bool ContainsNestedCall(SyntaxNode node)
+    {
+        // Find every invocation; if any invocation has an invocation among its argument
+        // descendants, it's a nested call.
+        foreach (var invoke in node.DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            // Skip the __pipe/__seg sentinels (pipeline rewrites — not user nesting).
+            if (IsPipeSentinel(invoke) || IsSegSentinel(invoke))
+                continue;
+            if (invoke.ArgumentList.Arguments.Any(a => a.DescendantNodes().OfType<InvocationExpressionSyntax>().Any()))
+                return true;
+        }
+        return false;
+    }
 }

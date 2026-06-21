@@ -298,7 +298,9 @@ public class WorkflowStorageService : IWorkflowStorageService
     /// <summary>
     /// Returns a default BlockScript template for new workflows.
     /// Includes a complete guessing game example demonstrating
-    /// ConstBlock, PubVarBlock, MainBlock, Loop, Branch, and custom blocks.
+    /// ConstBlock, PubVarBlock, MainBlock, the pipeline operator (>) for simple data flow,
+    /// Loop, Branch, and custom blocks. Nesting-free — conditions are pre-computed into
+    /// PubVars, and simple chains use the pipeline operator.
     /// </summary>
     private static string GetDefaultBlockScriptTemplate()
     {
@@ -318,25 +320,23 @@ Set(""currentLoop"", 0);
 NextBlock = ""LoopCond"";
 
 #Block LoopCond
-vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);
+// Pre-compute the loop condition (read currentLoop → compare → store bool).
+vaaa0002 = Get(""currentLoop"");
+vaaa0001 = HelperFuncCompare(""BLE"", vaaa0002, loopMax);
 NextBlock = Loop(vaaa0001, ""LoopBody"", ""EndLogic"");
 
 #Block LoopBody
-vaaa0002 = Get(""currentLoop"");
-Print(vaaa0002);
-Set(""currentLoop"", HelperFuncAdd(Get(""currentLoop""), 1));
-NextBlock = Branch(
-    HelperFuncCompare(""BEQ"", guessNum, targetNum),
-    ""SuccessLogic"",
-    ""CheckLogic""
-);
+// Pipeline: read currentLoop, print it.
+Get(""currentLoop"") > Print;
+// Pipeline: read currentLoop, add 1, write back.
+Get(""currentLoop"") > HelperFuncAdd(_, 1) > Set(""currentLoop"", _);
+// Pre-compute the branch condition (compare guessNum with targetNum, branch).
+vaaa0001 = HelperFuncCompare(""BEQ"", guessNum, targetNum);
+NextBlock = Branch(vaaa0001, ""SuccessLogic"", ""CheckLogic"");
 
 #Block CheckLogic
-NextBlock = Branch(
-    HelperFuncCompare(""BLT"", guessNum, targetNum),
-    ""LessThanLogic"",
-    ""GreaterThanLogic""
-);
+vaaa0001 = HelperFuncCompare(""BLT"", guessNum, targetNum);
+NextBlock = Branch(vaaa0001, ""LessThanLogic"", ""GreaterThanLogic"");
 
 #Block LessThanLogic
 Print(""Too small"");

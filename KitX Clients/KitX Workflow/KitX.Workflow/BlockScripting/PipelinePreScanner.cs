@@ -3,19 +3,20 @@ using System.Text;
 namespace KitX.Workflow.BlockScripting;
 
 /// <summary>
-/// Pre-scans block content for the pipeline operator <c>\-</c> and rewrites pipeline statements
-/// into a valid C# placeholder form so Roslyn's C# parser can accept them (<c>\-</c> is not a
-/// legal C# token).
+/// Pre-scans block content for the pipeline operator <c>&gt;</c> and rewrites pipeline statements
+/// into a valid C# placeholder form so Roslyn's C# parser can accept them (a bare <c>&gt;</c>
+/// between expressions is not a legal C# construct).
 /// <para>
-/// A pipeline statement <c>src1, src2 \- Target1 \- Target2;</c> is rewritten to
+/// A pipeline statement <c>src1, src2 &gt; Target1 &gt; Target2;</c> is rewritten to
 /// <c>__pipe(src1, src2, __seg(Target1), __seg(Target2));</c>. The <see cref="BlockStatementExtractor"/>
 /// recognises the <c>__pipe</c> sentinel and rebuilds a <see cref="KitX.Workflow.Models.BSPipeline"/>
 /// AST node; the rewritten form never reaches the compiled output.
 /// </para>
 /// <para>
-/// The scanner is literal-aware: backslashes inside string/char literals and comments are left
-/// untouched. Only a <c>\</c> immediately followed by <c>-</c> outside any literal/comment is
-/// treated as the pipeline operator.
+/// The scanner is literal-aware: a <c>&gt;</c> inside string/char literals or comments is left
+/// untouched. Only a <c>&gt;</c> outside any literal/comment is treated as the pipeline operator.
+/// BS forbids comparison operators, so there is no ambiguity with <c>&gt;</c> meaning
+/// "greater-than".
 /// </para>
 /// </summary>
 internal static class PipelinePreScanner
@@ -33,7 +34,7 @@ internal static class PipelinePreScanner
     /// </summary>
     public static string Rewrite(string content)
     {
-        if (string.IsNullOrEmpty(content) || !content.Contains('\\'))
+        if (string.IsNullOrEmpty(content) || !content.Contains('>'))
             return content;
 
         var result = new StringBuilder(content.Length + 16);
@@ -112,12 +113,13 @@ internal static class PipelinePreScanner
                 return (sb.ToString(), i + 1, hasPipeline);
             }
 
-            // Pipeline operator: \ immediately followed by -.
-            if (c == '\\' && i + 1 < content.Length && content[i + 1] == '-')
+            // Pipeline operator: > (single char). BS forbids comparison operators so this is
+            // unambiguous outside literals/comments.
+            if (c == '>')
             {
                 hasPipeline = true;
-                sb.Append("\\-");
-                i += 2;
+                sb.Append('>');
+                i++;
                 continue;
             }
 
@@ -129,17 +131,17 @@ internal static class PipelinePreScanner
 
     /// <summary>
     /// Rewrites a single pipeline-bearing segment from
-    /// <c>sources \- t1 \- t2;</c> to <c>__pipe(sources, __seg(t1), __seg(t2));</c>.
+    /// <c>sources &gt; t1 &gt; t2;</c> to <c>__pipe(sources, __seg(t1), __seg(t2));</c>.
     /// The segment includes its trailing <c>;</c> (if any). The sources portion is everything
-    /// before the first top-level <c>\-</c>; each target is the text between consecutive <c>\-</c>
-    /// operators (or the trailing <c>;</c>).
+    /// before the first top-level <c>&gt;</c>; each target is the text between consecutive
+    /// <c>&gt;</c> operators (or the trailing <c>;</c>).
     /// </summary>
     private static string RewriteSegment(string segment)
     {
-        // Split on top-level \- (the scanner already ensured these are outside literals).
+        // Split on top-level > (the scanner already ensured these are outside literals).
         var parts = SplitOnPipeline(segment);
         if (parts.Count < 2)
-            return segment;  // Defensive: a lone \- with no target is malformed; leave for Roslyn to reject.
+            return segment;  // Defensive: a lone > with no target is malformed; leave for Roslyn to reject.
 
         var sources = parts[0].TrimEnd();
         var sb = new StringBuilder();
@@ -163,7 +165,7 @@ internal static class PipelinePreScanner
     }
 
     /// <summary>
-    /// Splits a pipeline segment on each top-level <c>\-</c> sequence, preserving the rest.
+    /// Splits a pipeline segment on each top-level <c>&gt;</c>, preserving the rest.
     /// Handles the trailing <c>;</c> by keeping it attached to the last part.
     /// </summary>
     private static List<string> SplitOnPipeline(string segment)
@@ -175,7 +177,7 @@ internal static class PipelinePreScanner
         {
             var c = segment[i];
 
-            // Skip over literals/comments wholesale so \- inside them is ignored.
+            // Skip over literals/comments wholesale so > inside them is ignored.
             if (c == '/' && i + 1 < segment.Length && segment[i + 1] == '/')
             {
                 var nl = segment.IndexOf('\n', i);
@@ -214,11 +216,11 @@ internal static class PipelinePreScanner
                 continue;
             }
 
-            if (c == '\\' && i + 1 < segment.Length && segment[i + 1] == '-')
+            if (c == '>')
             {
                 parts.Add(current.ToString());
                 current.Clear();
-                i += 2;
+                i++;
                 continue;
             }
 

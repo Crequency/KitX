@@ -275,7 +275,7 @@ public partial class Program
         if (ShouldRunTest("X"))
         {
             Console.WriteLine("\n┌──────────────────────────────────────────────────────────┐");
-            Console.WriteLine("│ Test X: Pipeline (\\-) parse + flatten + compile + exec   │");
+            Console.WriteLine("│ Test X: Pipeline (>) parse + flatten + compile + exec    │");
             Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
             RunPipelineExecutionTest(parser, converter);
         }
@@ -283,7 +283,7 @@ public partial class Program
         if (ShouldRunTest("Y"))
         {
             Console.WriteLine("\n┌──────────────────────────────────────────────────────────┐");
-            Console.WriteLine("│ Test Y: Pipeline (\\-) round-trip fidelity                │");
+            Console.WriteLine("│ Test Y: Pipeline (>) round-trip fidelity                 │");
             Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
             RunPipelineRoundTripTest(parser, converter, reverseConverter);
         }
@@ -301,10 +301,12 @@ public partial class Program
     {
         bool allPassed = true;
 
-        // U1: a valid script produces NO diagnostics.
+        // U1: a valid, nesting-free script produces NO diagnostics.
+        // (GetSequentialScript is used because the deprecated nested form now emits
+        // BS_DEPRECATED_NESTING warnings, which is correct behaviour, not a clean script.)
         try
         {
-            converter.Convert(GetRawNestedScript(), helpers);
+            converter.Convert(GetSequentialScript(), helpers);
             var diag = converter.LastDiagnostics;
             bool clean = diag == null || (!diag.HasErrors && !diag.HasWarnings);
             Console.WriteLine($"  [U1] Clean script diagnostics: {(clean ? "none (expected)" : diag!.Format())}");
@@ -734,7 +736,10 @@ Print(""猜对啦！"");
 Print(""示例工作流结束"");";
 
     // ──────────────────────────────────────────────
-    // Test B: Raw nested format (BS2CFGConverter must expand)
+    // Test B: Raw nested format — exercises the BS2CFGConverter nested-call expander. Nested
+    // calls are deprecated (BS_DEPRECATED_NESTING warning) but still supported; this test guards
+    // the expander until nesting is fully removed in a future commit (pending a CFG2CS variable-
+    // ordering fix that the pre-expanded form needs to compile cleanly through round-trip).
     // ──────────────────────────────────────────────
     private static string GetRawNestedScript() => @"#ConstBlock
 int guessNum = 5;
@@ -1072,54 +1077,72 @@ Set(""x"", 42);
 Print(""Done"");";
 
     // ──────────────────────────────────────────────
-    // Test H: Break inside Loop
+    // Test H: Break inside Loop (pre-expanded PubVar form, no nested calls)
     // ──────────────────────────────────────────────
     private static string GetBreakScript() => @"#ConstBlock
 int maxIter = 10;
 int target = 3;
 
+#PubVarBlock
+bool vaaa0001;
+int vaaa0002;
+
 #MainBlock
 Set(""i"", 0);
-NextBlock = Loop(HelperFuncCompare(""BLE"", Get(""i""), maxIter), ""LoopBody"", ""AfterLoop"");
+vaaa0002 = Get(""i"");
+vaaa0001 = HelperFuncCompare(""BLE"", vaaa0002, maxIter);
+NextBlock = Loop(vaaa0001, ""LoopBody"", ""AfterLoop"");
 
 #Block LoopBody
-NextBlock = Branch(
-    HelperFuncCompare(""BEQ"", Get(""i""), target),
-    ""BreakBlock"",
-    ""ContinueBlock""
-);
+vaaa0002 = Get(""i"");
+vaaa0001 = HelperFuncCompare(""BEQ"", vaaa0002, target);
+NextBlock = Branch(vaaa0001, ""BreakBlock"", ""ContinueBlock"");
 
 #Block BreakBlock
 Break();
 
 #Block ContinueBlock
-Set(""i"", HelperFuncAdd(Get(""i""), 1));
+vaaa0002 = Get(""i"");
+vaaa0002 = HelperFuncAdd(vaaa0002, 1);
+Set(""i"", vaaa0002);
 NextBlock = ToLoopCond(""MainBlock"");
 
 #Block AfterLoop
 Print(""Loop finished with break"");";
 
     // ──────────────────────────────────────────────
-    // Test I: Nested Loop
+    // Test I: Nested Loop (pre-expanded PubVar form, no nested calls)
     // ──────────────────────────────────────────────
     private static string GetNestedLoopScript() => @"#ConstBlock
 int outerMax = 2;
 int innerMax = 3;
 
+#PubVarBlock
+bool vaaa0001;
+int vaaa0002;
+
 #MainBlock
 Set(""outer"", 0);
-NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""outer""), outerMax), ""OuterBody"", ""Done"");
+vaaa0002 = Get(""outer"");
+vaaa0001 = HelperFuncCompare(""BLT"", vaaa0002, outerMax);
+NextBlock = Loop(vaaa0001, ""OuterBody"", ""Done"");
 
 #Block OuterBody
 Set(""inner"", 0);
-NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""inner""), innerMax), ""InnerBody"", ""OuterEnd"");
+vaaa0002 = Get(""inner"");
+vaaa0001 = HelperFuncCompare(""BLT"", vaaa0002, innerMax);
+NextBlock = Loop(vaaa0001, ""InnerBody"", ""OuterEnd"");
 
 #Block InnerBody
-Set(""inner"", HelperFuncAdd(Get(""inner""), 1));
+vaaa0002 = Get(""inner"");
+vaaa0002 = HelperFuncAdd(vaaa0002, 1);
+Set(""inner"", vaaa0002);
 NextBlock = ToLoopCond(""OuterBody"");
 
 #Block OuterEnd
-Set(""outer"", HelperFuncAdd(Get(""outer""), 1));
+vaaa0002 = Get(""outer"");
+vaaa0002 = HelperFuncAdd(vaaa0002, 1);
+Set(""outer"", vaaa0002);
 NextBlock = ToLoopCond(""MainBlock"");
 
 #Block Done
@@ -2009,33 +2032,31 @@ TestPlugin.WPF.Core.HelloAnything(v);
         }
     }
 
-    // Test T: Nested PluginCall inside Set — does the BS→CFG expander flatten it
-    // into a temp PubVar + standalone PluginCall, the way it does for Helper functions
-    // (Test B/C exercise HelperFuncAdd(Get(...), 1))? If yes, the generated C# should
-    // compile cleanly. If no, the nested PluginCall is emitted verbatim and fails with
-    // CS0103 'PluginCall does not exist' — a real converter gap worth fixing.
+    // Test T: PluginCall assigned to a PubVar — does the BS→CFG converter lower a value-producing
+    // PluginCall (builtin or dotted) into a temp PubVar + the call, so the generated C# compiles
+    // cleanly? The expanded form is the nesting-free successor to the former nested Set.
     private static void RunNestedPluginCallTest(IBlockScriptParser parser)
     {
-        Console.WriteLine("[Test T] Nested PluginCall as Set argument — expander coverage check");
+        Console.WriteLine("[Test T] PluginCall assigned to PubVar — expander coverage check");
 
-        // Form 1: builtin PluginCall(plugin, method, args) nested in Set.
+        // Form 1: builtin PluginCall(plugin, method, args) assigned to a PubVar.
         var sourceBuiltin = @"
 #PubVarBlock
 dynamic result;
 
 #MainBlock
-Set(""result"", PluginCall(""TestPlugin"", ""Echo"", ""hello""));
-Print(Get(""result""));
+result = PluginCall(""TestPlugin"", ""Echo"", ""hello"");
+Print(result);
 ";
 
-        // Form 2: dotted Plugin.Method(args) nested in Set.
+        // Form 2: dotted Plugin.Method(args) assigned to a PubVar.
         var sourceDotted = @"
 #PubVarBlock
 dynamic result;
 
 #MainBlock
-Set(""result"", TestPlugin.Echo(""hello""));
-Print(Get(""result""));
+result = TestPlugin.Echo(""hello"");
+Print(result);
 ";
 
         int fails = 0;
@@ -2202,14 +2223,14 @@ Print(v);
     }
 
     // ──────────────────────────────────────────────
-    // Test X: Pipeline (\-) parse + flatten + compile + execute.
+    // Test X: Pipeline (>) parse + flatten + compile + execute.
     // Exercises linear chains, diamond (multi-source) dependency, and the _ placeholder.
     // ──────────────────────────────────────────────
     private static void RunPipelineExecutionTest(
         IBlockScriptParser parser,
         BlockScriptToBlueprintConverter converter)
     {
-        Console.WriteLine("[Test X] Pipeline (\\-): parse, flatten, compile, execute");
+        Console.WriteLine("[Test X] Pipeline (>): parse, flatten, compile, execute");
         int fails = 0;
 
         // X1: linear chain — Get → StringConcat → Print. Verifies single-source pipeline compiles
@@ -2222,7 +2243,7 @@ string name = ""World"";
 dynamic greeting;
 
 #MainBlock
-Get(""name"") \- StringConcat(""Hello, "", _) \- Print;
+Get(""name"") > StringConcat(""Hello, "", _) > Print;
 ";
 
         // X2: diamond dependency — two sources (Get + literal) feed StringConcat positionally.
@@ -2232,7 +2253,7 @@ string a = ""Hello"";
 string b = ""World"";
 
 #MainBlock
-Get(""a""), Get(""b"") \- StringConcat \- Print;
+Get(""a""), Get(""b"") > StringConcat > Print;
 ";
 
         foreach (var (label, src, expectedInOutput) in new[]
@@ -2291,11 +2312,11 @@ Get(""a""), Get(""b"") \- StringConcat \- Print;
     }
 
     // ──────────────────────────────────────────────
-    // Test Y: Pipeline (\-) round-trip.
+    // Test Y: Pipeline (>) round-trip.
     // BS → BP → BS. The pipeline flattens across the blueprint boundary (BlueprintNode does not
     // carry CFG PipelineId provenance), so the round-tripped BS is the equivalent flat PubVar
     // form — which must still parse and compile, and execute to the same output. Preserving the
-    // literal \- syntax through the blueprint is a future enhancement (storing pipeline grouping
+    // literal > syntax through the blueprint is a future enhancement (storing pipeline grouping
     // on blueprint nodes); for now the contract is semantic equivalence + re-compilability.
     // ──────────────────────────────────────────────
     private static void RunPipelineRoundTripTest(
@@ -2303,7 +2324,7 @@ Get(""a""), Get(""b"") \- StringConcat \- Print;
         BlockScriptToBlueprintConverter converter,
         IBlueprintToBlockScriptConverter reverseConverter)
     {
-        Console.WriteLine("[Test Y] Pipeline (\\-): BS↔BP round-trip (semantic equivalence)");
+        Console.WriteLine("[Test Y] Pipeline (>): BS↔BP round-trip (semantic equivalence)");
         int fails = 0;
 
         var src = @"
@@ -2311,7 +2332,7 @@ Get(""a""), Get(""b"") \- StringConcat \- Print;
 string name = ""World"";
 
 #MainBlock
-Get(""name"") \- StringConcat(""Hi "", _) \- Print;
+Get(""name"") > StringConcat(""Hi "", _) > Print;
 ";
 
         try
