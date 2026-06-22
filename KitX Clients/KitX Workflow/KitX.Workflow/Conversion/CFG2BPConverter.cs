@@ -211,7 +211,8 @@ public class CFG2BPConverter
         else if (string.IsNullOrEmpty(stmt.FunctionName) && !string.IsNullOrEmpty(stmt.PubVarTarget))
         {
             // v5.0: pure variable assignment (`Expr > var`). De-dupe by target name — one
-            // __assign node per variable, reused across multiple writes (stabilizes round-trip).
+            // __assign node per variable, reused across multiple writes. This is closer to
+            // stable round-trip than no-dedup (which grows unboundedly each round).
             var existingAssign = context.AllNodes.OfType<CallNode>()
                 .FirstOrDefault(c => c.PluginName == "__assign" && c.FunctionName == stmt.PubVarTarget);
             if (existingAssign != null)
