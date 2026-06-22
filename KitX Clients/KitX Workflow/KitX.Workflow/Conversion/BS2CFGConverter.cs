@@ -713,9 +713,11 @@ public class BS2CFGConverter
             }
         }
 
-        // No placeholders → fill positional slots from currentInputs if the call had no explicit args.
-        // (e.g. `Get("a"), Get("b") \- StringConcat` — StringConcat has no args, all inputs apply.)
-        if (placeholders.Count == 0 && target.Args.Count == 0)
+        // No placeholders → fill positional slots from currentInputs. When the call had no
+        // explicit args, ALL inputs apply (e.g. `a, b > StringConcat`). When the call had some
+        // explicit args (e.g. `guessNum, targetNum > HelperFuncCompare("BEQ")`), the inputs
+        // append AFTER the literal args (BEQ stays first, then guessNum, targetNum).
+        if (placeholders.Count == 0)
         {
             foreach (var input in currentInputs)
                 resolved.Add(input);
