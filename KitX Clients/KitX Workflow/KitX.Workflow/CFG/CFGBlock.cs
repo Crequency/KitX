@@ -3,6 +3,10 @@ namespace KitX.Workflow.CFG;
 /// <summary>
 /// Type of a CFG block, indicating its structural role in the control flow.
 /// </summary>
+/// <remarks>
+/// v5.0 transition: <c>LoopHeader</c>/<c>LoopBody</c> remain during the staged migration
+/// (removed once Loop/ToLoopCond and their CFG consumers are deleted, layer 6).
+/// </remarks>
 public enum CFGBlockType
 {
     /// <summary>MainBlock — the entry point of the script.</summary>
@@ -67,7 +71,7 @@ public class CFGBlock
 
     /// <summary>
     /// For loop body blocks, the name of the parent loop header block.
-    /// Used to generate correct ToLoopCond arguments.
+    /// Used to generate correct ToLoopCond arguments. v5.0 transition: retained during migration.
     /// </summary>
     public string? ParentLoopBlockName { get; set; }
 
@@ -78,7 +82,8 @@ public class CFGBlock
 
     /// <summary>
     /// Whether this block ends with a control flow statement
-    /// (ConditionalJump, IterativeJump, IndexedDispatch, LoopBackedge, LoopExit, ScriptReturn).
+    /// (any non-null FlowControlShape: ConditionalJump, IterativeJump/IterativeCounted,
+    /// UnconditionalJump, IndexedDispatch, LoopBackedge, LoopExit, ScriptReturn).
     /// </summary>
     public bool EndsWithControlFlow =>
         Statements.Count > 0 && Statements[^1].FlowControlShape != null;

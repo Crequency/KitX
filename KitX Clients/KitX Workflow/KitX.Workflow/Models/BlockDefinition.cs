@@ -18,9 +18,23 @@ public class BlockDefinition
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Variable declarations in this block
+    /// Variable declarations in this block. Semantics depend on <see cref="Type"/>:
+    /// ConstBlock → read-only constants; PubVarBlock → global mutable variables.
     /// </summary>
     public List<VariableDeclaration> Variables { get; set; } = [];
+
+    /// <summary>
+    /// Block-local variable declarations (##BlockVars, v5.0 §3.3). Only meaningful for
+    /// MainBlock / NamedBlock. Lifetime = one block activation; reset on each entry.
+    /// </summary>
+    public List<VariableDeclaration> BlockVars { get; set; } = [];
+
+    /// <summary>
+    /// Whether the block body was introduced by an explicit <c>##BlockBody</c> marker.
+    /// Required when <see cref="BlockVars"/> is non-empty (to separate declarations from
+    /// statements). Optional otherwise. See BlockScriptGrammarRule §2.1.
+    /// </summary>
+    public bool HasExplicitBlockBody { get; set; }
 
     /// <summary>
     /// Statements in this block (excluding Loop statements, which are separated)
@@ -33,8 +47,11 @@ public class BlockDefinition
     public int LineNumber { get; set; }
 
     /// <summary>
-    /// Name of the next block to execute when this block ends naturally
-    /// (i.e., not ended by Branch/Loop/ToLoopCond)
+    /// Name of the next block to execute when this block ends via sequential fall-through.
+    /// v5.0: no implicit fall-through — a block must end with a control-flow statement
+    /// (Branch/ForLoop/Switch/Goto/Break). This field carries the Goto target when the
+    /// block ends with <c>Goto("name")</c>. Null when the block ends with another
+    /// control-flow form. See BlockScriptGrammarRule §7.7.
     /// </summary>
     public string? NextBlockName { get; set; }
 

@@ -5,13 +5,16 @@ using KitX.Core.Contract.Workflow;
 /// <summary>
 /// Kinds of statements in the CFG — the VALUE-CARRYING classification only.
 /// Control-flow shape is now carried by <see cref="CFGStatement.FlowControlShape"/>
-/// (a <see cref="FlowControlType"/>), queried directly by converters; the 5 control-flow
-/// Kind values below (Branch/Loop/Switch/ToLoopCond/Break) remain only as derived labels
-/// for diagnostics (<see cref="ControlFlowGraph.Dump"/>) and the derived
-/// <see cref="IBuiltinFunctionDefinition.StatementKind"/>. The former per-builtin values
-/// (Print/Set/Get/Pause/PluginCallWithTarget/TryGetDevice) were registry-migration leftovers
-/// with zero consumers and have been removed.
+/// (a <see cref="FlowControlType"/>), queried directly by converters; the control-flow
+/// Kind values below remain only as derived labels for diagnostics
+/// (<see cref="ControlFlowGraph.Dump"/>) and the derived
+/// <see cref="IBuiltinFunctionDefinition.StatementKind"/>.
 /// </summary>
+/// <remarks>
+/// v5.0 transition: <c>Loop</c> and <c>ToLoopCond</c> remain during the staged migration
+/// (removed with their builtin functions in layer 3). <c>ForLoop</c> and <c>Goto</c> are the
+/// v5.0 replacements, added ahead of use.
+/// </remarks>
 public enum CFGStatementKind
 {
     /// <summary>Unknown or unclassified</summary>
@@ -23,14 +26,20 @@ public enum CFGStatementKind
     /// <summary>Conditional two-way jump (derived label; authoritative shape = FlowControlShape.ConditionalJump)</summary>
     Branch,
 
-    /// <summary>Iterative jump with loop-back (derived label; authoritative shape = FlowControlShape.IterativeJump)</summary>
+    /// <summary>Iterative jump with loop-back (v4.0 Loop; derived label; FlowControlShape.IterativeJump)</summary>
     Loop,
+
+    /// <summary>Counted iterative jump (v5.0 ForLoop; derived label; FlowControlShape.IterativeCounted)</summary>
+    ForLoop,
 
     /// <summary>N-way dispatch (derived label; authoritative shape = FlowControlShape.IndexedDispatch)</summary>
     Switch,
 
-    /// <summary>Loop back-edge (derived label; authoritative shape = FlowControlShape.LoopBackedge)</summary>
+    /// <summary>Loop back-edge (v4.0 ToLoopCond; derived label; FlowControlShape.LoopBackedge)</summary>
     ToLoopCond,
+
+    /// <summary>Unconditional jump (v5.0 Goto; derived label; FlowControlShape.UnconditionalJump)</summary>
+    Goto,
 
     /// <summary>Loop exit (derived label; authoritative shape = FlowControlShape.LoopExit)</summary>
     Break,
@@ -69,8 +78,8 @@ public class CFGStatement
     /// The control-flow graph shape of this statement (null for non-control-flow statements).
     /// This is the authoritative control-flow classification — consumers should query this
     /// instead of switching on <see cref="Kind"/>. Populated from the builtin descriptor's
-    /// FlowControlShape during lowering, or set directly for CFG-synthesized statements
-    /// (e.g. ToLoopCond → <see cref="FlowControlType.LoopBackedge"/>).
+    /// FlowControlShape during lowering. v5.0 shapes: ConditionalJump (Branch),
+    /// IterativeCounted (ForLoop), UnconditionalJump (Goto), LoopExit (Break), IndexedDispatch (Switch).
     /// </summary>
     public FlowControlType? FlowControlShape { get; set; }
 
@@ -116,11 +125,14 @@ public class CFGStatement
     /// <summary>
     /// The condition expression for Branch/Loop/Switch statements.
     /// May be a PubVar name or a complex expression. For Switch this is the integer selector.
+    /// v5.0: ForLoop has no condition expression (its condition is internalized in the node).
     /// </summary>
     public string? ConditionExpression { get; set; }
 
     /// <summary>
     /// The PubVar holding the condition result, if pre-computed.
+    /// v5.0 transition: retained while Loop/ToLoopCond/CFGConditionDuplicator are being removed;
+    /// deleted with them (layer 4/6).
     /// </summary>
     public string? ConditionPubVar { get; set; }
 
@@ -158,9 +170,9 @@ public class CFGStatement
     }
 
     /// <summary>
-    /// The ToLoopCond loopback target — the loop condition block this statement returns to.
-    /// Unified into <see cref="Arms"/>[0] (PinName="Exec", IsLoopback=true) so ToLoopCond is
-    /// treated uniformly with Branch/Loop/Switch: all control-flow targets live in Arms.
+    /// The ToLoopCond loopback target (v4.0) — unified into <see cref="Arms"/>[0]
+    /// (PinName="Exec", IsLoopback=true). v5.0 Goto uses the same Arms[0] slot with a plain
+    /// Exec arm. Retained during the staged migration.
     /// </summary>
     public string? LoopbackTarget
     {
@@ -171,8 +183,8 @@ public class CFGStatement
     // --- Metadata ---
     /// <summary>
     /// True if this statement was inserted as a Loop condition duplication
-    /// before a ToLoopCond statement. These are not present in the original
-    /// script but are needed for correct loop execution semantics.
+    /// before a ToLoopCond statement. v5.0 transition: retained while CFGConditionDuplicator
+    /// is being removed; deleted with it (layer 6).
     /// </summary>
     public bool IsLoopConditionDuplication { get; set; }
 
@@ -182,13 +194,13 @@ public class CFGStatement
     /// </summary>
     public string? Fingerprint { get; set; }
 
-    // --- Pipeline (\-) provenance ---
+    // --- Pipeline (>) provenance ---
     /// <summary>
-    /// When non-null, this statement is part of a pipeline (<c>\-</c>) that was flattened into
-    /// sequential PubVar assignments. All statements sharing the same <see cref="PipelineId"/>
+    /// When non-null, this statement is part of a pipeline (<c>&gt;</c>) that was flattened into
+    /// sequential assignments. All statements sharing the same <see cref="PipelineId"/>
     /// belong to one pipeline and can be reconstructed into a single pipeline statement by
-    /// CFG2BSConverter. Null for non-pipeline statements (the common case). Pure metadata —
-    /// the execution layer ignores it.
+    /// CFG2BSConverter. Null for non-pipeline statements. Pure metadata —
+    /// the execution layer ignores it. See BlockScriptGrammarRule §6.
     /// </summary>
     public string? PipelineId { get; set; }
 
@@ -197,4 +209,11 @@ public class CFGStatement
     /// -1 for non-pipeline statements. Source assignments come before target calls in index order.
     /// </summary>
     public int PipelineSegmentIndex { get; set; } = -1;
+
+    /// <summary>
+    /// Comment attached to this statement (v5.0 bidirectional comment retention, §9).
+    /// For pipeline groups, the leading comment anchors to segment 0 (this statement when
+    /// PipelineSegmentIndex == 0). Round-trips BS→CFG→BS and BS→BP→BS.
+    /// </summary>
+    public string? Comment { get; set; }
 }
