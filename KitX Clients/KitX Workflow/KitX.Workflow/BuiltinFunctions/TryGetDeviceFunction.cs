@@ -46,7 +46,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public List<CFGStatement> LowerToCFG(
             BSCall invoke, IReadOnlyList<string> expandedArgs,
-            string blockName, PipelineContext context, string? assignedVar)
+            LowerContext ctx, PipelineContext context, string? assignedVar)
         {
             string? pubVarTarget;
             if (!string.IsNullOrEmpty(assignedVar))
@@ -60,16 +60,13 @@ namespace KitX.Workflow.BuiltinFunctions
                     context.PubVarNames.Add(pubVarTarget);
             }
 
-            return [new CFGStatement
+            return [ctx.Build(b =>
             {
-                BlockName = blockName,
-                Kind = CFGStatementKind.Expression,
-                FunctionName = FunctionName,
-                PubVarTarget = pubVarTarget,
-                Arguments = expandedArgs.ToList(),
-                OriginalExpression = invoke.SourceText,
-                SourceLine = 0,
-            }];
+                b.FunctionName = FunctionName;
+                b.PubVarTarget = pubVarTarget;
+                b.Arguments = expandedArgs.ToList();
+                b.SourceText = invoke.SourceText;
+            })];
         }
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)

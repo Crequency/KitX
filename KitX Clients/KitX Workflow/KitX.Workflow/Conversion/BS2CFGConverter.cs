@@ -353,39 +353,33 @@ public class BS2CFGConverter : IPipelineFlattenContext
         var (expansionStmts, currentArgExprs) = ExpandArguments(invoke, blockName, context);
         result.AddRange(expansionStmts);
 
+        // Cross-cutting bookkeeping the descriptor needs: StatementId, FullFunctionName, plus the
+        // PubVar-name set so auto-minted temps stay visible. The descriptor builds statements via
+        // ctx.Build(...) so StatementId/Fingerprint/FullFunctionName are derived by the builder.
+        var lowerCtx = new LowerContext
+        {
+            BlockName = blockName,
+            StatementId = statementId,
+            FullFunctionName = fullFuncName,
+            PubVarNames = context.PubVarNames,
+        };
+
         // Lower: registered builtins via their descriptor; helpers/unknown via fallback assembly.
         List<CFGStatement> lowered;
         if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } funcDef)
         {
-            lowered = funcDef.LowerToCFG(invoke, currentArgExprs, blockName, context, assignedVar);
-            // Cross-cutting bookkeeping the descriptor doesn't own: StatementId, Fingerprint,
-            // FullFunctionName. TODO(phase-2): fold into CfgStatementBuilder once descriptors
-            // emit via the builder instead of constructing CFGStatement directly.
-            foreach (var s in lowered)
-            {
-                if (string.IsNullOrEmpty(s.StatementId))
-                    s.StatementId = !string.IsNullOrEmpty(statementId) ? statementId : Guid.NewGuid().ToString();
-                if (s.Fingerprint == null
-                    && s.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
-                {
-                    s.Fingerprint = ExprUtils.ComputeFingerprint(funcName, currentArgExprs);
-                }
-                s.FullFunctionName ??= fullFuncName;
-            }
+            lowered = funcDef.LowerToCFG(invoke, currentArgExprs, lowerCtx, context, assignedVar);
         }
         else
         {
             // Helper or regular function call → single Assignment/Expression statement.
-            lowered = [new CfgStatementBuilder
+            lowered = [lowerCtx.Build(b =>
             {
-                BlockName = blockName,
-                FunctionName = funcName,
-                FullFunctionName = fullFuncName,
-                PubVarTarget = !string.IsNullOrEmpty(assignedVar) && assignedVar != "_" ? assignedVar : null,
-                Arguments = currentArgExprs,
-                SourceText = invoke.SourceText,
-                StatementId = statementId,
-            }.Build(context.PubVarNames)];
+                b.FunctionName = funcName;
+                b.PubVarTarget = !string.IsNullOrEmpty(assignedVar) && assignedVar != "_" ? assignedVar : null;
+                b.Arguments = currentArgExprs;
+                b.SourceText = invoke.SourceText;
+            })];
         }
         result.AddRange(lowered);
 
@@ -454,7 +448,17 @@ public class BS2CFGConverter : IPipelineFlattenContext
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } regFuncDef)
             {
                 // v5.0: pass terminalAssignedVar so `Func() > var` writes directly to var.
-                var lowered = regFuncDef.LowerToCFG(invoke, expandedArgs, blockName, context, terminalAssignedVar);
+                // Descriptors don't need StatementId/fullFuncName here (this is a synthesized temp
+                // assignment, not a top-level source statement) — LowerContext leaves them null
+                // and the builder mints a fresh Guid, matching the previous helper-path behaviour.
+                var lowerCtx = new LowerContext
+                {
+                    BlockName = blockName,
+                    StatementId = null,
+                    FullFunctionName = fullFuncName,
+                    PubVarNames = context.PubVarNames,
+                };
+                var lowered = regFuncDef.LowerToCFG(invoke, expandedArgs, lowerCtx, context, terminalAssignedVar);
                 var lastStmt = lowered.LastOrDefault();
                 if (lastStmt?.PubVarTarget != null)
                 {

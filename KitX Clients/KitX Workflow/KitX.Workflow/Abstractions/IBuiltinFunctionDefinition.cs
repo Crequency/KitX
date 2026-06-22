@@ -129,29 +129,27 @@ public interface IBuiltinFunctionDefinition
 
     /// <summary>
     /// 将已展开参数的调用降低为 CFGStatement 列表（AST→CFG 阶段，统一服务顶层与嵌套）。
-    /// 默认实现产出单条通用语句（Kind=StatementKind, Arguments=expandedArgs, PubVarTarget=assignedVar）；
-    /// 需要 PubVar 生成等自定义逻辑的函数（如 Get/TryGetDevice）覆写此方法。
-    /// BS2CFGConverter 对返回语句做横切后处理（StatementId/Fingerprint/PubVarNames 追踪）。
+    /// 默认实现经 <see cref="CfgStatementBuilder"/> 产出单条通用语句（Kind=StatementKind,
+    /// Arguments=expandedArgs, PubVarTarget=assignedVar）；需要 PubVar 生成等自定义逻辑的
+    /// 函数（如 TryGetDevice）覆写此方法并通过 <c>ctx.Build(...)</c> 构造，使 StatementId/
+    /// Fingerprint/FullFunctionName 由 builder 单一推导，无需 BS2CFGConverter 后处理补丁。
     /// </summary>
     List<CFGStatement> LowerToCFG(
         BSCall invoke,
         IReadOnlyList<string> expandedArgs,
-        string blockName,
+        LowerContext ctx,
         PipelineContext context,
         string? assignedVar)
         => new()
         {
-            new CFGStatement
+            ctx.Build(b =>
             {
-                BlockName = blockName,
-                Kind = StatementKind,
-                FlowControlShape = FlowControlShape,
-                FunctionName = FunctionName,
-                Arguments = expandedArgs.ToList(),
-                PubVarTarget = assignedVar,
-                OriginalExpression = invoke.SourceText,
-                SourceLine = 0,
-            }
+                b.FlowControlShape = FlowControlShape;
+                b.FunctionName = FunctionName;
+                b.Arguments = expandedArgs.ToList();
+                b.PubVarTarget = assignedVar;
+                b.SourceText = invoke.SourceText;
+            })
         };
 
     // ─── 节点构建（CFGStatement → BlueprintNode）──
