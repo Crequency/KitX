@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Superpower;
+using Superpower.Model;
 using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Blueprint;
@@ -295,6 +297,156 @@ public partial class Program
             Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
             RunDefaultTemplateTest(parser);
         }
+
+        if (ShouldRunTest("AA"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test AA: BSParser (Superpower) smoke test                 │");
+            Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
+            RunBSParserSmokeTest();
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Test AA: BSParser direct smoke test (no wiring).
+    // Validates the Superpower-based parser produces correct BSExpression shapes
+    // for literals, identifiers, calls, dotted paths, pipelines, placeholders, +.
+    // ──────────────────────────────────────────────
+    private static void RunBSParserSmokeTest()
+    {
+        int pass = 0, fail = 0;
+        void Check(string label, bool ok)
+        {
+            Console.WriteLine($"  {(ok ? "PASS" : "FAIL")}: {label}");
+            if (ok) pass++; else fail++;
+        }
+
+        // 1. Integer literal
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("42");
+            Check("integer literal 42 → BSLiteral(Integer, 42)",
+                e is KitX.Workflow.Models.BSLiteral { Kind: KitX.Workflow.Models.BSLiteralKind.Integer } lit && (int)lit.Value! == 42);
+        }
+        catch (Exception ex) { Check($"integer literal threw: {ex.Message}", false); }
+
+        // 2. String literal
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("\"hello\"");
+            Check("string literal → BSLiteral(String, hello)",
+                e is KitX.Workflow.Models.BSLiteral { Kind: KitX.Workflow.Models.BSLiteralKind.String } lit && (string)lit.Value! == "hello");
+        }
+        catch (Exception ex) { Check($"string literal threw: {ex.Message}", false); }
+
+        // 3. Boolean literal
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("true");
+            Check("boolean literal true → BSLiteral(Boolean, true)",
+                e is KitX.Workflow.Models.BSLiteral { Kind: KitX.Workflow.Models.BSLiteralKind.Boolean } lit && (bool)lit.Value!);
+        }
+        catch (Exception ex) { Check($"boolean literal threw: {ex.Message}", false); }
+
+        // 4. Identifier
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("currentLoop");
+            Check("identifier currentLoop → BSIdentifier",
+                e is KitX.Workflow.Models.BSIdentifier id && id.Name == "currentLoop");
+        }
+        catch (Exception ex) { Check($"identifier threw: {ex.Message}", false); }
+
+        // 5. Bare function call
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("Print(x)");
+            Check("Print(x) → BSCall(Print, [x])",
+                e is KitX.Workflow.Models.BSCall c && c.MethodName == "Print" && c.Args.Count == 1);
+        }
+        catch (Exception ex) { Check($"bare call threw: {ex.Message}", false); }
+
+        // 6. Dotted function call
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("TestPlugin.WPF.Core.HelloKitX()");
+            Check("TestPlugin.WPF.Core.HelloKitX() → BSCall(HelloKitX, FullMethodName dotted)",
+                e is KitX.Workflow.Models.BSCall c && c.MethodName == "HelloKitX"
+                    && c.FullMethodName == "TestPlugin.WPF.Core.HelloKitX" && c.Args.Count == 0);
+        }
+        catch (Exception ex) { Check($"dotted call threw: {ex.Message}", false); }
+
+        // 7. Binary +
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("\"a\" + \"b\"");
+            Check("\"a\" + \"b\" → BSBinary(+)", e is KitX.Workflow.Models.BSBinary b && b.Operator == "+");
+        }
+        catch (Exception ex) { Check($"binary + threw: {ex.Message}", false); }
+
+        // 8. Placeholder _
+        try
+        {
+            var tokens = KitX.Workflow.BlockScripting.BSParser.Tokenize("_");
+            var first = tokens.ElementAt(0);
+            Check("_ → Placeholder token", first.Kind == KitX.Workflow.BlockScripting.BSToken.Placeholder);
+        }
+        catch (Exception ex) { Check($"placeholder threw: {ex.Message}", false); }
+
+        // 9. Multi-arg call
+        try
+        {
+            var e = KitX.Workflow.BlockScripting.BSParser.ParseExpression("HelperFuncCompare(\"BLE\", x, 100)");
+            Check("HelperFuncCompare(\"BLE\", x, 100) → 3 args",
+                e is KitX.Workflow.Models.BSCall c && c.Args.Count == 3);
+        }
+        catch (Exception ex) { Check($"multi-arg call threw: {ex.Message}", false); }
+
+        // 10. Pipeline statement parse (via StatementList on a snippet)
+        try
+        {
+            var tokens = KitX.Workflow.BlockScripting.BSParser.Tokenize("a, b > StringConcat > Print;");
+            var stmts = KitX.Workflow.BlockScripting.BSParser.StatementList.Parse(tokens);
+            Check("a, b > StringConcat > Print; → 1 statement, BSPipeline with 2 sources + 2 targets",
+                stmts.Count == 1 && stmts[0] is KitX.Workflow.Models.BSPipeline p
+                    && p.Sources.Count == 2 && p.Targets.Count == 2);
+        }
+        catch (Exception ex) { Check($"pipeline statement threw: {ex.Message}", false); }
+
+        // 11. Pipeline with placeholder
+        try
+        {
+            var tokens = KitX.Workflow.BlockScripting.BSParser.Tokenize("x > HelperFuncAdd(_, 1) > Print;");
+            var stmts = KitX.Workflow.BlockScripting.BSParser.StatementList.Parse(tokens);
+            Check("x > HelperFuncAdd(_, 1) > Print; → 2 targets, first arg is BSPlaceholder",
+                stmts.Count == 1 && stmts[0] is KitX.Workflow.Models.BSPipeline p
+                    && p.Targets.Count == 2
+                    && p.Targets[0].Args[0] is KitX.Workflow.Models.BSPlaceholder);
+        }
+        catch (Exception ex) { Check($"pipeline with placeholder threw: {ex.Message}", false); }
+
+        // 12. Variable declarations
+        try
+        {
+            var tokens = KitX.Workflow.BlockScripting.BSParser.Tokenize("int guessNum = 5; int loopMax;");
+            var decls = KitX.Workflow.BlockScripting.BSParser.VariableDeclarations.Parse(tokens);
+            Check("int guessNum = 5; int loopMax; → 2 declarations, first has DefaultValue=5",
+                decls.Count == 2 && (int)decls[0].DefaultValue! == 5 && decls[1].Name == "loopMax");
+        }
+        catch (Exception ex) { Check($"variable declarations threw: {ex.Message}", false); }
+
+        // 13. Bare statement (no pipeline)
+        try
+        {
+            var tokens = KitX.Workflow.BlockScripting.BSParser.Tokenize("Print(\"hi\");");
+            var stmts = KitX.Workflow.BlockScripting.BSParser.StatementList.Parse(tokens);
+            Check("Print(\"hi\"); → 1 statement, BSPipeline with 0 targets",
+                stmts.Count == 1 && stmts[0] is KitX.Workflow.Models.BSPipeline p && p.Targets.Count == 0);
+        }
+        catch (Exception ex) { Check($"bare statement threw: {ex.Message}", false); }
+
+        Console.WriteLine($"\n[Test AA] {pass} passed, {fail} failed");
+        if (fail == 0) Console.WriteLine("[Test AA] PASS");
     }
 
     // ──────────────────────────────────────────────
