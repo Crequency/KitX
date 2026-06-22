@@ -686,6 +686,9 @@ internal class BP2CFGConverter
                 {
                     FlowControlType.ConditionalJump => CFGBlockType.BranchHeader,
                     FlowControlType.IterativeJump => CFGBlockType.LoopHeader,
+                    // v5.0 ForLoop: classify as LoopHeader so existing loop-body classification
+                    // (ParentLoopBlockName → LoopBody) keeps working during the v4→v5 transition.
+                    FlowControlType.IterativeCounted => CFGBlockType.LoopHeader,
                     _ => block.Type
                 };
             }
@@ -1146,12 +1149,21 @@ internal class BP2CFGConverter
         if (arm.IsLoopback) return CFGEdgeType.LoopbackToCondition;
 
         // Derive edge semantics from the pin name so the mapping is data-driven rather than
-        // positional. Handles ConditionalJump (True/False), IterativeJump (LoopBody/LoopEnd) and
-        // IndexedDispatch (Default/0/1/...) uniformly.
+        // positional. Handles ConditionalJump (True/False), IterativeJump/IterativeCounted
+        // (LoopBody/LoopEnd), UnconditionalJump (Goto → Sequential), and IndexedDispatch
+        // (Default/0/1/...) uniformly.
         return (shape, arm.PinName) switch
         {
+            // v5.0 Goto: unconditional jump uses a plain Sequential edge (the unified
+            // fall-through/back-edge mechanism, §7.6). Goto's single "Exec" arm lands here.
+            (FlowControlType.UnconditionalJump, _) => CFGEdgeType.Sequential,
+
+            // v5.0 ForLoop / v4.0 Loop: LoopBody/LoopEnd arms.
             (FlowControlType.IterativeJump, "LoopBody") => CFGEdgeType.LoopBody,
             (FlowControlType.IterativeJump, "LoopEnd") => CFGEdgeType.LoopExit,
+            (FlowControlType.IterativeCounted, "LoopBody") => CFGEdgeType.LoopBody,
+            (FlowControlType.IterativeCounted, "LoopEnd") => CFGEdgeType.LoopExit,
+
             (FlowControlType.IndexedDispatch, _) => CFGEdgeType.Switch,
             (_, "False") => CFGEdgeType.BranchFalse,
             (_, "LoopEnd") => CFGEdgeType.LoopExit,
