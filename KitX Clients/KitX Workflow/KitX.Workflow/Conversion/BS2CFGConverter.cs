@@ -615,6 +615,24 @@ public class BS2CFGConverter
                 var assignedVar = target.MethodName;
                 if (!context.PubVarNames.Contains(assignedVar))
                     context.PubVarNames.Add(assignedVar);
+
+                // v5.0: when the previous target was a function whose pubVarTarget was redirected
+                // to this variable (next-is-terminal-variable optimization), the assignment is
+                // already captured — skip the redundant __assign node. BUT only when the variable
+                // is not also the function's input (self-increment like `x > Add(_,1) > x` needs
+                // the assignment to be separate so the read precedes the write in codegen).
+                if (isTerminal && result.Count > 0)
+                {
+                    var prevStmt = result[^1];
+                    if (prevStmt.PubVarTarget == assignedVar
+                        && !string.IsNullOrEmpty(prevStmt.FunctionName)
+                        && !(prevStmt.Arguments?.Contains(assignedVar) == true))
+                    {
+                        currentInputs = new List<string> { assignedVar };
+                        continue;
+                    }
+                }
+
                 var assignStmt = new CFGStatement
                 {
                     BlockName = blockName,
@@ -636,12 +654,30 @@ public class BS2CFGConverter
             }
 
             // Synthesize a PubVar target for non-terminal segments so the result flows forward.
+            // v5.0: when the NEXT target is the terminal variable assignment, use its name as this
+            // function's pubVarTarget — the result flows directly into the variable (no intermediate
+            // vaaa, no __assign node). BUT skip this optimization when the variable is also this
+            // function's input (self-increment `x > Add(_,1) > x` needs a temp so read precedes write).
             string? pubVarTarget = null;
             if (!isTerminal)
             {
-                pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
-                if (!context.PubVarNames.Contains(pubVarTarget))
-                    context.PubVarNames.Add(pubVarTarget);
+                var nextTarget = pipeline.Targets[t + 1];
+                bool nextIsVariable = IsVariableName(nextTarget.MethodName, context)
+                    && !IsFunctionName(nextTarget.MethodName, context);
+                bool nextIsTerminal = t + 1 == pipeline.Targets.Count - 1;
+                bool selfIncrement = resolvedArgs.Contains(nextTarget.MethodName);
+                if (nextIsVariable && nextIsTerminal && !selfIncrement)
+                {
+                    pubVarTarget = nextTarget.MethodName;
+                    if (!context.PubVarNames.Contains(pubVarTarget))
+                        context.PubVarNames.Add(pubVarTarget);
+                }
+                else
+                {
+                    pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
+                    if (!context.PubVarNames.Contains(pubVarTarget))
+                        context.PubVarNames.Add(pubVarTarget);
+                }
             }
 
             var funcDef = _functionRegistry?.Get(target.MethodName);
