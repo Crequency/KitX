@@ -189,6 +189,11 @@ public class BS2CFGConverter : IPipelineFlattenContext
             FlowControlShape = shape,
             FunctionName = functionName,
             ConditionExpression = effectiveCondition,
+            // Variadic control-flow forms (ForLoop) carry from/to/step/indexName as positional args;
+            // copy them through so EmitStatements/CFG2BS can consume without re-parsing source text.
+            Arguments = flowCtrl.FlowArguments.Count > 0
+                ? new List<string>(flowCtrl.FlowArguments)
+                : [],
             // Copy the full arm list so N-way Switch and any variadic shape survive.
             // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
             Arms = flowCtrl.Arms.Select(a => a.Clone()).ToList(),

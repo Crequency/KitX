@@ -287,6 +287,63 @@ public partial class Program
             Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
             RunPipelineRoundTripTest(parser, converter, reverseConverter);
         }
+
+        if (ShouldRunTest("Z"))
+        {
+            Console.WriteLine("\n┌──────────────────────────────────────────────────────────┐");
+            Console.WriteLine("│ Test Z: Default template (pure v5.0) parse+compile+exec   │");
+            Console.WriteLine("└──────────────────────────────────────────────────────────┘\n");
+            RunDefaultTemplateTest(parser);
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Test Z: Default workflow template (pure v5.0) end-to-end.
+    // Verifies WorkflowStorageService.GetDefaultBlockScriptTemplate() parses, compiles,
+    // and executes — guards the new-workflow authoring path.
+    // ──────────────────────────────────────────────
+    private static void RunDefaultTemplateTest(IBlockScriptParser parser)
+    {
+        var sourceCode = KitX.Workflow.Services.WorkflowStorageService.GetDefaultBlockScriptTemplate();
+        var parseResult = parser.Parse(sourceCode);
+        if (!parseResult.IsSuccess || parseResult.Script == null)
+        {
+            Console.WriteLine($"[Test Z] FAILED: Parse error: {parseResult.ErrorMessage} (line {parseResult.ErrorLine})");
+            return;
+        }
+        Console.WriteLine($"[Test Z] Parse: OK ({parseResult.Script.AllBlocks.Count} blocks)");
+
+        parseResult.Script.HelperFunctions = GetExecutionHelpers();
+        var compiler = new CSCompiler();
+        var compiled = compiler.CompileScript(parseResult.Script, workflowId: null, out var compileErrors);
+        if (compiled == null)
+        {
+            Console.WriteLine("[Test Z] FAILED: Compile returned null");
+            foreach (var err in compileErrors)
+                Console.WriteLine($"  • {err}");
+            return;
+        }
+        Console.WriteLine("[Test Z] Compile: OK");
+
+        var output = new List<string>();
+        var globals = new BlockScriptExecutionGlobals(new BlockScopeManager(), output);
+        globals.ResetRunState();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        try
+        {
+            compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult();
+            var joined = string.Join(" | ", output);
+            Console.WriteLine($"[Test Z] Execute: OK — output [{joined}]");
+            // guessNum=5 vs targetNum=7: BLT true on every iteration → "Too small" x3, then "Workflow ended".
+            if (joined.Contains("Too small") && joined.Contains("Workflow ended"))
+                Console.WriteLine("[Test Z] PASS");
+            else
+                Console.WriteLine("[Test Z] FAILED: expected 'Too small' + 'Workflow ended' in output");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Test Z] FAILED: Execution threw: {ex.Message}");
+        }
     }
 
     // ──────────────────────────────────────────────

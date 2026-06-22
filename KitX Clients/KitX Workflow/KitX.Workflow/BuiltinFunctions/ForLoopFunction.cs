@@ -55,12 +55,19 @@ namespace KitX.Workflow.BuiltinFunctions
                 ControlType = FlowControlType.IterativeCounted
             };
             // ForLoop(from, to, step, indexName, bodyBlock, endBlock)
-            // from/to/step are integer expressions stored in Arguments; indexName/body/end as arms.
-            if (args.Count >= 1) stmt.ConditionExpression = args[0].SourceText; // reuse for "from" textual
+            //   from/to/step/indexName → FlowArguments (verbatim source text, resolved at CS emit);
+            //   bodyBlock/endBlock → Arms (TrueBlockName/FalseBlockName).
+            // ForLoop has no external condition (counter + bound are internalised), so
+            // ConditionExpression stays empty — InferPubVarTypes skips IterativeCounted for bool forcing.
             if (args.Count >= 4)
             {
-                // Arms: indexName carried as a sentinel on the TrueBlockName metadata is awkward;
-                // store indexName in Arguments[3] and body/end as arms.
+                stmt.FlowArguments =
+                [
+                    args[0].SourceText,  // from
+                    args[1].SourceText,  // to
+                    args[2].SourceText,  // step
+                    args[3].SourceText.Trim('"'),  // indexName (string literal → bare name)
+                ];
                 stmt.TrueBlockName = args[4].AsStringLiteral();   // bodyBlock
                 if (args.Count >= 5) stmt.FalseBlockName = args[5].AsStringLiteral(); // endBlock
             }

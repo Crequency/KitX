@@ -298,53 +298,45 @@ public class WorkflowStorageService : IWorkflowStorageService
     /// <summary>
     /// Returns a default BlockScript template for new workflows.
     /// Includes a complete guessing game example demonstrating
-    /// ConstBlock, PubVarBlock, MainBlock, the pipeline operator (>) for simple data flow,
-    /// Loop, Branch, and custom blocks. Nesting-free — conditions are pre-computed into
-    /// PubVars, and simple chains use the pipeline operator.
+    /// ConstBlock, PubVarBlock, MainBlock, the pipeline operator (>) for data flow,
+    /// ForLoop (v5.0 counted loop), Branch, Goto, and custom blocks. Pure v5.0 syntax —
+    /// no Set/Get/NextBlock/Loop/ToLoopCond.
     /// </summary>
-    private static string GetDefaultBlockScriptTemplate()
+    internal static string GetDefaultBlockScriptTemplate()
     {
         return @"#ConstBlock
 int guessNum = 5;
 int loopMax = 3;
 int targetNum = 7;
-int currentLoop;
 
 #PubVarBlock
-bool vaaa0001;
-int vaaa0002;
+bool cond;
 
 #MainBlock
 Print(""Start Workflow"");
-Set(""currentLoop"", 0);
-NextBlock = ""LoopCond"";
+Goto(""LoopHead"");
 
-#Block LoopCond
-// Pre-compute the loop condition (read currentLoop → compare → store bool).
-vaaa0002 = Get(""currentLoop"");
-vaaa0001 = HelperFuncCompare(""BLE"", vaaa0002, loopMax);
-NextBlock = Loop(vaaa0001, ""LoopBody"", ""EndLogic"");
+#Block LoopHead
+// ForLoop owns the counter: each Goto back to LoopHead re-enters it, advancing the index
+// and dispatching to LoopBody or EndLogic. The index `i` is injected into LoopBody's scope.
+ForLoop(0, loopMax, 1, ""i"", ""LoopBody"", ""EndLogic"");
 
 #Block LoopBody
-// Pipeline: read currentLoop, print it.
-Get(""currentLoop"") > Print;
-// Pipeline: read currentLoop, add 1, write back.
-Get(""currentLoop"") > HelperFuncAdd(_, 1) > Set(""currentLoop"", _);
-// Pre-compute the branch condition (compare guessNum with targetNum, branch).
-vaaa0001 = HelperFuncCompare(""BEQ"", guessNum, targetNum);
-NextBlock = Branch(vaaa0001, ""SuccessLogic"", ""CheckLogic"");
+// Compare guessNum with targetNum, branch on the result.
+guessNum, targetNum > HelperFuncCompare(""BEQ"") > cond;
+Branch(cond, ""SuccessLogic"", ""CheckLogic"");
 
 #Block CheckLogic
-vaaa0001 = HelperFuncCompare(""BLT"", guessNum, targetNum);
-NextBlock = Branch(vaaa0001, ""LessThanLogic"", ""GreaterThanLogic"");
+guessNum, targetNum > HelperFuncCompare(""BLT"") > cond;
+Branch(cond, ""LessThanLogic"", ""GreaterThanLogic"");
 
 #Block LessThanLogic
 Print(""Too small"");
-NextBlock = ToLoopCond(""LoopCond"");
+Goto(""LoopHead"");
 
 #Block GreaterThanLogic
 Print(""Too big"");
-NextBlock = ToLoopCond(""LoopCond"");
+Goto(""LoopHead"");
 
 #Block SuccessLogic
 Print(""Correct!"");

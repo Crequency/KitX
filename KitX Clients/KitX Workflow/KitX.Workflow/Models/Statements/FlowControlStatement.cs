@@ -18,6 +18,17 @@ public class FlowControlStatement : BlockStatement
     public string ConditionExpression { get; set; } = string.Empty;
 
     /// <summary>
+    /// Extra positional arguments carried by variadic control-flow forms.
+    /// <para>
+    /// ForLoop(from, to, step, indexName, bodyBlock, endBlock) stores <c>[from, to, step, indexName]</c>
+    /// here (the body/end targets live in <see cref="Arms"/>). Other shapes leave this empty.
+    /// Carried verbatim into <see cref="CFGStatement.Arguments"/> so <c>EmitStatements</c> can
+    /// resolve them without re-parsing source text.
+    /// </para>
+    /// </summary>
+    public List<string> FlowArguments { get; set; } = [];
+
+    /// <summary>
     /// Shared control-flow arms model (Arms / TrueBlockName / FalseBlockName / LoopbackTarget).
     /// Embedded once here instead of duplicating the accessors and SetArm across
     /// FlowControlStatement and CFGStatement. The delegating properties below keep the public
@@ -77,31 +88,35 @@ public class FlowControlStatement : BlockStatement
     /// </summary>
     public void RegenerateSourceCode()
     {
-        SourceCode = RenderSource(ControlType, ConditionExpression, Arms, LoopbackTarget);
+        SourceCode = RenderSource(ControlType, ConditionExpression, Arms, LoopbackTarget, FlowArguments);
     }
 
     /// <summary>
     /// Single source of truth for rendering a control-flow statement back to BlockScript text.
     /// Takes the authoritative shape plus the fields that vary per shape:
     /// <list type="bullet">
-    /// <item><c>ConditionalJump</c>/<c>IterativeJump</c>: Branch/Loop(cond, "true", "false").</item>
-    /// <item><c>LoopBackedge</c>: ToLoopCond("target") (or bare ToLoopCond() when no target).</item>
+    /// <item><c>ConditionalJump</c>: Branch(cond, "true", "false").</item>
+    /// <item><c>IterativeCounted</c>: ForLoop(from, to, step, indexName, "body", "end") —
+    /// <paramref name="flowArguments"/> carries [from, to, step, indexName]; arms[0]/arms[1] are body/end.</item>
+    /// <item><c>UnconditionalJump</c>: Goto("target").</item>
     /// <item><c>IndexedDispatch</c>: Switch(cond, "default", "b0", "b1", ...) — arms[0] is default.</item>
     /// <item><c>LoopExit</c>: Break().</item>
     /// </list>
     /// </summary>
     /// <param name="shape">The control-flow shape (FlowControlType).</param>
-    /// <param name="condition">The condition/selector expression text (may be empty for ToLoopCond/Break).</param>
-    /// <param name="arms">The arms; for Switch the layout is [Default, 0, 1, …]; for Branch/Loop
-    /// arms[0]/arms[1] are true/false. Ignored for ToLoopCond/Break.</param>
-    /// <param name="loopbackTarget">The ToLoopCond return-to block name (null/empty → bare ToLoopCond()).</param>
+    /// <param name="condition">The condition/selector expression text (empty for ForLoop/Goto/Break).</param>
+    /// <param name="arms">The arms; for Switch the layout is [Default, 0, 1, …]; for Branch/ForLoop
+    /// arms[0]/arms[1] are the body-true / exit-false targets. Ignored for Goto/Break.</param>
+    /// <param name="loopbackTarget">The Goto return-to block name (null/empty → bare Goto()).</param>
+    /// <param name="flowArguments">Extra positional args (ForLoop's from/to/step/indexName). Empty for other shapes.</param>
     public static string RenderSource(FlowControlType shape, string condition,
-        IReadOnlyList<BranchArm> arms, string? loopbackTarget) => shape switch
+        IReadOnlyList<BranchArm> arms, string? loopbackTarget,
+        IReadOnlyList<string>? flowArguments = null) => shape switch
     {
         FlowControlType.ConditionalJump =>
             $"Branch({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
         FlowControlType.IterativeCounted =>
-            $"ForLoop({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
+            RenderForLoopSource(flowArguments ?? [], arms),
         FlowControlType.UnconditionalJump => !string.IsNullOrEmpty(loopbackTarget)
             ? $"Goto(\"{loopbackTarget}\");"
             : "Goto();",
@@ -109,6 +124,18 @@ public class FlowControlStatement : BlockStatement
         FlowControlType.LoopExit => "Break();",
         _ => string.Empty
     };
+
+    private static string RenderForLoopSource(IReadOnlyList<string> flowArguments, IReadOnlyList<BranchArm> arms)
+    {
+        // ForLoop(from, to, step, indexName, "body", "end")
+        var from = flowArguments.ElementAtOrDefault(0) ?? "0";
+        var to = flowArguments.ElementAtOrDefault(1) ?? "0";
+        var step = flowArguments.ElementAtOrDefault(2) ?? "1";
+        var indexName = flowArguments.ElementAtOrDefault(3) ?? "i";
+        var body = arms.ElementAtOrDefault(0)?.TargetBlockName ?? "";
+        var end = arms.ElementAtOrDefault(1)?.TargetBlockName ?? "";
+        return $"ForLoop({from}, {to}, {step}, \"{indexName}\", \"{body}\", \"{end}\");";
+    }
 
     private static string RenderSwitchSource(string condition, IReadOnlyList<BranchArm> arms)
     {
