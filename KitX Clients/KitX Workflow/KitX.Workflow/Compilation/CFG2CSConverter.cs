@@ -314,6 +314,25 @@ internal static class CFG2CSConverter
 
         statements.AddRange(GenerateInitStatements(script));
 
+        // v5.0 CS0841 fix (Option A): pre-declare every PubVar (user-declared + auto-generated
+        // vaaa####) at method scope so case-internal references are always in scope. ConstBlock
+        // variables are already declared by GenerateInitStatements above; PubVars are not, so
+        // declare them here with their inferred type and a default initialiser. Case bodies then
+        // use plain assignment (see BuildValueAssignment) instead of re-declaring, eliminating
+        // "local variable used before declaration" across switch cases.
+        foreach (var (name, typeName) in pubVarTypes)
+        {
+            // Skip ConstBlock variables — already declared by GenerateInitStatements.
+            if (script.ConstBlock != null && script.ConstBlock.Variables.Any(v => v.Name == name))
+                continue;
+            var cs = typeName == "dynamic" ? "object" : typeName;
+            statements.Add(LocalDeclarationStatement(
+                VariableDeclaration(ParseTypeName(cs))
+                    .AddVariables(VariableDeclarator(Identifier(name))
+                        .WithInitializer(EqualsValueClause(
+                            LiteralExpression(SyntaxKind.DefaultLiteralExpression))))));
+        }
+
         // G.NextBlock = "MainBlock";
         statements.Add(ExpressionStatement(
             AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
@@ -669,11 +688,17 @@ internal static class CFG2CSConverter
     }
 
     /// <summary>
-    /// Builds the C# statements for a value-producing expression: either a typed local
-    /// declaration plus a <c>G.Set</c> sync (when assigned to a PubVar), or a bare
-    /// expression statement. This is the shared assignment wrapping used by all
-    /// value-producing builtin functions.
+    /// Builds the C# statements for a value-producing expression: either a typed assignment
+    /// plus a <c>G.Set</c> sync (when assigned to a PubVar), or a bare expression statement.
+    /// This is the shared assignment wrapping used by all value-producing builtin functions.
     /// </summary>
+    /// <remarks>
+    /// v5.0 CS0841 fix: PubVars are pre-declared at method scope by <see cref="GenerateRunMethod"/>,
+    /// so this method emits a plain assignment (<c>name = expr;</c>) rather than a local
+    /// declaration (<c>TYPE name = expr;</c>). A local declaration inside a switch case was the
+    /// CS0841 root cause — the local was invisible to other cases. Names absent from
+    /// <paramref name="pubVarTypes"/> (rare; e.g. an unminted target) fall back to declaration.
+    /// </remarks>
     internal static List<StatementSyntax> BuildValueAssignment(
         string? pubVarTarget, ExpressionSyntax rawExpr, string sourceType,
         Dictionary<string, string> pubVarTypes)
@@ -687,10 +712,20 @@ internal static class CFG2CSConverter
                 ? BuildConvertToInvocation(typeName, rawExpr)
                 : rawExpr;
 
-            result.Add(LocalDeclarationStatement(
-                VariableDeclaration(ParseTypeName(typeName))
-                    .AddVariables(VariableDeclarator(Identifier(pubVarTarget))
-                        .WithInitializer(EqualsValueClause(initExpr)))));
+            // v5.0: emit assignment when the target is pre-declared (in pubVarTypes), else declare.
+            if (pubVarTypes.ContainsKey(pubVarTarget))
+            {
+                result.Add(ExpressionStatement(
+                    AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                        IdentifierName(pubVarTarget), initExpr)));
+            }
+            else
+            {
+                result.Add(LocalDeclarationStatement(
+                    VariableDeclaration(ParseTypeName(typeName))
+                        .AddVariables(VariableDeclarator(Identifier(pubVarTarget))
+                            .WithInitializer(EqualsValueClause(initExpr)))));
+            }
 
             // Sync PubVar to globals so debugger sees the value
             result.Add(ExpressionStatement(
