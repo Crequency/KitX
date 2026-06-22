@@ -398,28 +398,6 @@ public class CFG2BPConverter
             return;
         }
 
-        // Backward-compat: existing blueprints may still carry __assign placeholder CallNodes
-        // produced by the pre-refactor converter. Keep wiring them so BP→BS reads don't break
-        // before the old data is cleaned up by the KCS-migration track.
-        if (node is CallNode assignCall && assignCall.PluginName == "__assign")
-        {
-            var valuePin = assignCall.InputPins.FirstOrDefault(p => p.Name == "Value");
-            if (valuePin != null)
-                WireAssignSource(stmt, assignCall, valuePin, context);
-            var returnPin = assignCall.OutputPins.FirstOrDefault(p => p.Name == "Return");
-            if (returnPin != null)
-            {
-                context.PubVarAssignments[stmt.PubVarTarget] = new PubVarAssignment
-                {
-                    PubVarName = stmt.PubVarTarget,
-                    SourceNode = assignCall,
-                    SourcePin = returnPin,
-                    StatementId = stmt.StatementId,
-                };
-            }
-            return;
-        }
-
         var outputPin = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
         if (outputPin == null) return;
 
@@ -439,9 +417,8 @@ public class CFG2BPConverter
 
     /// <summary>
     /// v5.0: wires the pure-assignment source (stmt.Arguments[0]) to the VariableNode's Value
-    /// input pin (or, for legacy blueprints, the __assign CallNode's Value pin). The source may
-    /// be a PubVar (→ existing PubVarAssignment producer), a ConstBlock variable (→ ConstNode),
-    /// or a literal (→ DefaultValue on the pin).
+    /// input pin. The source may be a PubVar (→ existing PubVarAssignment producer), a ConstBlock
+    /// variable (→ ConstNode), or a literal (→ DefaultValue on the pin).
     /// </summary>
     private void WireAssignSource(CFGStatement stmt, BlueprintNode assignNode, BlueprintPin valuePin, PipelineContext context)
     {

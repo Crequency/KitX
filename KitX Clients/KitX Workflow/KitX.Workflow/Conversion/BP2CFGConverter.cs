@@ -760,22 +760,6 @@ internal class BP2CFGConverter
             case BlueprintNodeType.Call:
             {
                 if (node is not CallNode call) return null;
-                // v5.0: __assign placeholder CallNode → reconstruct as `value > var` (pure
-                // variable assignment, pipeline tap form). The RHS comes from the Value input
-                // pin's connection/default value; the target is FunctionName.
-                if (call.PluginName == "__assign")
-                {
-                    var rhs = _exportHelper.GetInputValue(call, "Value");
-                    if (string.IsNullOrEmpty(rhs)) rhs = "null";
-                    var target = call.FunctionName ?? "";
-                    var assignExpr = $"{rhs} > {target}";
-                    return new ExpressionStatement
-                    {
-                        Expression = assignExpr,
-                        SourceCode = $"{assignExpr};",
-                        AssignedVariable = target
-                    };
-                }
                 var callArgs = _exportHelper.GetInputArgs(call);
                 string sourceCode;
                 string methodName;
@@ -994,16 +978,6 @@ internal class BP2CFGConverter
                 {
                     cfgStmt.Kind = bfDef.StatementKind;
                     cfgStmt.FunctionName = bfDef.FunctionName;
-                }
-                else if (node is CallNode assignCall && assignCall.PluginName == "__assign")
-                {
-                    // v5.0: __assign placeholder → Assignment with PubVarTarget from FunctionName.
-                    // The RHS comes from the Value input pin (resolved by export helper).
-                    cfgStmt.Kind = CFGStatementKind.Assignment;
-                    cfgStmt.FunctionName = null;
-                    cfgStmt.PubVarTarget = assignCall.FunctionName;
-                    var rhs = _exportHelper.GetInputValue(assignCall, "Value");
-                    cfgStmt.Arguments = new List<string> { rhs };
                 }
                 else
                 {
