@@ -51,9 +51,9 @@ public interface IBuiltinFunctionDefinition
     CFGStatementKind StatementKind => FlowControlShape switch
     {
         FlowControlType.ConditionalJump => CFGStatementKind.Branch,
-        FlowControlType.IterativeJump => CFGStatementKind.Loop,
+        FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
+        FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
         FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-        FlowControlType.LoopBackedge => CFGStatementKind.ToLoopCond,
         FlowControlType.LoopExit => CFGStatementKind.Break,
         _ => CFGStatementKind.Expression
     };

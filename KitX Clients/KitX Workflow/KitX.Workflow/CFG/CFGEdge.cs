@@ -5,8 +5,8 @@ namespace KitX.Workflow.CFG;
 /// explicit eliminates the need for heuristic-based control flow resolution.
 /// </summary>
 /// <remarks>
-/// v5.0 transition: <c>LoopbackToCondition</c> remains during the staged migration (removed
-/// with ToLoopCond/CFGConditionDuplicator in layer 6). v5.0 Goto uses <see cref="Sequential"/>.
+/// v5.0 removed <c>LoopbackToCondition</c>: ForLoop's body re-enters the loop via a plain
+/// <see cref="Sequential"/> edge (Goto), and the CFGConditionDuplicator that consumed it is deleted.
 /// </remarks>
 public enum CFGEdgeType
 {
@@ -30,22 +30,16 @@ public enum CFGEdgeType
     BranchFalse,
 
     /// <summary>
-    /// Loop/ForLoop condition evaluates to true — enter loop body.
-    /// Maps to Blueprint's LoopBody output pin.
+    /// ForLoop condition evaluates to true — enter loop body.
+    /// Maps to Blueprint's LoopBody output pin on a ForLoop node.
     /// </summary>
     LoopBody,
 
     /// <summary>
-    /// Loop/ForLoop condition evaluates to false — exit loop.
-    /// Maps to Blueprint's LoopEnd output pin.
+    /// ForLoop condition evaluates to false — exit loop.
+    /// Maps to Blueprint's LoopEnd output pin on a ForLoop node.
     /// </summary>
     LoopExit,
-
-    /// <summary>
-    /// Return to the loop condition block from the loop body (ToLoopCond).
-    /// v5.0 transition: retained during migration; Goto uses Sequential instead.
-    /// </summary>
-    LoopbackToCondition,
 
     /// <summary>
     /// Break from the current loop — exits to the loop's exit block.

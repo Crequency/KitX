@@ -370,7 +370,7 @@ internal class BP2CFGConverter
             {
                 FromBlockName = currentBlock.Name,
                 ToBlockName = ownerName ?? loopbackTargetId,
-                Type = CFGEdgeType.LoopbackToCondition
+                Type = CFGEdgeType.Sequential  // v5.0: Goto-style back-edge uses Sequential
             });
             return;
         }
@@ -385,7 +385,9 @@ internal class BP2CFGConverter
             if (isControlFlow)
             {
                 pendingControlFlowNodes.Add(node);
-                if (stmt.FlowControlShape == FlowControlType.IterativeJump)
+                // v5.0: ForLoop (IterativeCounted) registers like v4.0 Loop (IterativeJump) did,
+                // so loopback resolution keeps working for ForLoop-bodied blueprints.
+                if (stmt.FlowControlShape == FlowControlType.IterativeCounted)
                 {
                     loopNodes[node.Id] = node;
                     loopOwnerBlockNames[node.Id] = currentBlock.Name;
@@ -393,8 +395,8 @@ internal class BP2CFGConverter
             }
         }
 
-        // If LoopBackedge, don't follow exec chain
-        if (stmt is { FlowControlShape: FlowControlType.LoopBackedge })
+        // v5.0: Goto (UnconditionalJump) ends the exec chain like v4.0 ToLoopCond (LoopBackedge).
+        if (stmt is { FlowControlShape: FlowControlType.UnconditionalJump })
             return;
 
         if (isControlFlow)
@@ -421,7 +423,7 @@ internal class BP2CFGConverter
             {
                 FromBlockName = currentBlock.Name,
                 ToBlockName = ownerName2 ?? loopbackTargetId,
-                Type = CFGEdgeType.LoopbackToCondition
+                Type = CFGEdgeType.Sequential  // v5.0: Goto-style back-edge uses Sequential
             });
             return;
         }
@@ -495,7 +497,8 @@ internal class BP2CFGConverter
             var block = new CFGBlock
             {
                 Name = blockName,
-                Type = isLoopback ? CFGBlockType.LoopBody : CFGBlockType.Basic,
+                // v5.0: LoopBody block type removed; loop bodies are plain Basic blocks.
+                Type = CFGBlockType.Basic,
                 ParentLoopBlockName = isLoopback ? FindContainingBlockName(cfg, cfNode.Id) : null
             };
             cfg.Blocks.Add(block);
@@ -573,15 +576,16 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            // Non-registry control flow handling (fallback)
-            if (lastStmt.FlowControlShape == FlowControlType.LoopBackedge)
+            // Non-registry control flow handling (fallback). v5.0: Goto (UnconditionalJump)
+            // replaces v4.0 ToLoopCond (LoopBackedge) for back-edges; uses a Sequential edge.
+            if (lastStmt.FlowControlShape == FlowControlType.UnconditionalJump)
             {
                 if (!string.IsNullOrEmpty(lastStmt.LoopbackTarget))
                     block.Successors.Add(new CFGEdge
                     {
                         FromBlockName = block.Name,
                         ToBlockName = lastStmt.LoopbackTarget,
-                        Type = CFGEdgeType.LoopbackToCondition
+                        Type = CFGEdgeType.Sequential
                     });
                 continue;
             }
@@ -692,17 +696,13 @@ internal class BP2CFGConverter
                 block.Type = lastStmt.FlowControlShape switch
                 {
                     FlowControlType.ConditionalJump => CFGBlockType.BranchHeader,
-                    FlowControlType.IterativeJump => CFGBlockType.LoopHeader,
-                    // v5.0 ForLoop: classify as LoopHeader so existing loop-body classification
-                    // (ParentLoopBlockName → LoopBody) keeps working during the v4→v5 transition.
-                    FlowControlType.IterativeCounted => CFGBlockType.LoopHeader,
+                    // v5.0: ForLoop blocks stay Basic (LoopHeader type removed); loop structure
+                    // is expressed via Goto back-edges, not dedicated block types.
                     _ => block.Type
                 };
             }
 
-            // Classify blocks that are targets of LoopBody edges
-            if (block.ParentLoopBlockName != null && block.Type == CFGBlockType.Basic)
-                block.Type = CFGBlockType.LoopBody;
+            // v5.0: LoopBody classification removed — loop bodies are plain Basic blocks.
         }
     }
 
@@ -712,33 +712,10 @@ internal class BP2CFGConverter
 
     private static void SetParentLoopReferences(ControlFlowGraph cfg)
     {
-        // For each block with a LoopbackToCondition edge, set ParentLoopBlockName
-        foreach (var block in cfg.Blocks)
-        {
-            if (block.ParentLoopBlockName != null) continue;
-
-            var toLoopCondEdge = block.Successors.FirstOrDefault(e => e.Type == CFGEdgeType.LoopbackToCondition);
-            if (toLoopCondEdge != null)
-                block.ParentLoopBlockName = toLoopCondEdge.ToBlockName;
-        }
-
-        // For each block that is the target of a LoopBody edge, set ParentLoopBlockName
-        foreach (var block in cfg.Blocks)
-        {
-            if (block.ParentLoopBlockName != null) continue;
-
-            foreach (var other in cfg.Blocks)
-            {
-                var loopBodyEdge = other.Successors.FirstOrDefault(e =>
-                    e.Type == CFGEdgeType.LoopBody && e.ToBlockName == block.Name);
-                if (loopBodyEdge != null)
-                {
-                    block.ParentLoopBlockName = other.Name;
-                    block.Type = CFGBlockType.LoopBody;
-                    break;
-                }
-            }
-        }
+        // v5.0: the v4.0 LoopbackToCondition-edge and LoopBody-edge based parent-loop resolution
+        // is removed (those edge/block types are gone). ForLoop's body is a plain block that
+        // re-enters via Goto (Sequential edge); ParentLoopBlockName is no longer populated by
+        // this pass. Left as a no-op for any future loop-structure analysis that may need it.
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -968,19 +945,21 @@ internal class BP2CFGConverter
         return cfgStmt;
     }
 
+    /// <summary>
+    /// v5.0: synthesises a Goto statement for the WalkNode loopback path (formerly a v4.0
+    /// ToLoopCond statement). The loopback target lives in Arms[0] / LoopbackTarget.
+    /// </summary>
     private static CFGStatement CreateToLoopCondStatement(string? returnTo)
     {
         var stmt = new CFGStatement
         {
-            Kind = CFGStatementKind.Expression,
-            FlowControlShape = FlowControlType.LoopBackedge,
+            Kind = CFGStatementKind.Goto,
+            FlowControlShape = FlowControlType.UnconditionalJump,
             OriginalExpression = returnTo != null
-                ? $"NextBlock = ToLoopCond(\"{returnTo}\");"
-                : "NextBlock = ToLoopCond();",
+                ? $"Goto(\"{returnTo}\");"
+                : "Goto();",
             SourceLine = 1
         };
-        // The loopback target is the sole arm (PinName="Exec", IsLoopback=true), unifying
-        // ToLoopCond with Branch/Loop/Switch: all control-flow targets live in Arms.
         stmt.LoopbackTarget = returnTo;
         return stmt;
     }
@@ -1056,7 +1035,7 @@ internal class BP2CFGConverter
             foreach (var stmt in block.Statements)
             {
                 if (stmt.FlowControlShape is not (FlowControlType.ConditionalJump
-                    or FlowControlType.IterativeJump or FlowControlType.IndexedDispatch))
+                    or FlowControlType.IterativeCounted or FlowControlType.IndexedDispatch))
                     continue;
                 if (stmt.Arms.Count > 0) continue;
 
@@ -1153,11 +1132,12 @@ internal class BP2CFGConverter
 
     private static CFGEdgeType GetEdgeType(FlowControlType? shape, BranchArm arm)
     {
-        if (arm.IsLoopback) return CFGEdgeType.LoopbackToCondition;
+        // v5.0: loopback arms (v4.0 ToLoopCond) now use Sequential (Goto back-edge).
+        if (arm.IsLoopback) return CFGEdgeType.Sequential;
 
         // Derive edge semantics from the pin name so the mapping is data-driven rather than
-        // positional. Handles ConditionalJump (True/False), IterativeJump/IterativeCounted
-        // (LoopBody/LoopEnd), UnconditionalJump (Goto → Sequential), and IndexedDispatch
+        // positional. Handles ConditionalJump (True/False), IterativeCounted (ForLoop
+        // LoopBody/LoopEnd), UnconditionalJump (Goto → Sequential), and IndexedDispatch
         // (Default/0/1/...) uniformly.
         return (shape, arm.PinName) switch
         {
@@ -1165,9 +1145,7 @@ internal class BP2CFGConverter
             // fall-through/back-edge mechanism, §7.6). Goto's single "Exec" arm lands here.
             (FlowControlType.UnconditionalJump, _) => CFGEdgeType.Sequential,
 
-            // v5.0 ForLoop / v4.0 Loop: LoopBody/LoopEnd arms.
-            (FlowControlType.IterativeJump, "LoopBody") => CFGEdgeType.LoopBody,
-            (FlowControlType.IterativeJump, "LoopEnd") => CFGEdgeType.LoopExit,
+            // v5.0 ForLoop: LoopBody/LoopEnd arms.
             (FlowControlType.IterativeCounted, "LoopBody") => CFGEdgeType.LoopBody,
             (FlowControlType.IterativeCounted, "LoopEnd") => CFGEdgeType.LoopExit,
 

@@ -92,9 +92,9 @@ internal static class CFG2CSConverter
         {
             foreach (var stmt in block.Statements)
             {
-                // Conditional/iterative jump condition demands bool
-                if ((stmt.FlowControlShape == FlowControlType.ConditionalJump
-                     || stmt.FlowControlShape == FlowControlType.IterativeJump)
+                // Conditional jump (Branch) condition demands bool. ForLoop's condition is
+                // internalized (no ConditionPubVar), so only ConditionalJump needs this.
+                if (stmt.FlowControlShape == FlowControlType.ConditionalJump
                     && !string.IsNullOrEmpty(stmt.ConditionPubVar)
                     && pubVarTypes.ContainsKey(stmt.ConditionPubVar))
                 {

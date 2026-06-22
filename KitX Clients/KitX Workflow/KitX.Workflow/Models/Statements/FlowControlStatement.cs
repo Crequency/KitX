@@ -99,12 +99,12 @@ public class FlowControlStatement : BlockStatement
         IReadOnlyList<BranchArm> arms, string? loopbackTarget) => shape switch
     {
         FlowControlType.ConditionalJump =>
-            $"NextBlock = Branch({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
-        FlowControlType.IterativeJump =>
-            $"NextBlock = Loop({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
-        FlowControlType.LoopBackedge => !string.IsNullOrEmpty(loopbackTarget)
-            ? $"NextBlock = ToLoopCond(\"{loopbackTarget}\");"
-            : "ToLoopCond();",
+            $"Branch({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
+        FlowControlType.IterativeCounted =>
+            $"ForLoop({condition}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");",
+        FlowControlType.UnconditionalJump => !string.IsNullOrEmpty(loopbackTarget)
+            ? $"Goto(\"{loopbackTarget}\");"
+            : "Goto();",
         FlowControlType.IndexedDispatch => RenderSwitchSource(condition, arms),
         FlowControlType.LoopExit => "Break();",
         _ => string.Empty
@@ -113,9 +113,9 @@ public class FlowControlStatement : BlockStatement
     private static string RenderSwitchSource(string condition, IReadOnlyList<BranchArm> arms)
     {
         // Arms layout: [Default, 0, 1, ..., N-1]
-        if (arms.Count == 0) return $"NextBlock = Switch({condition}, \"\");";
+        if (arms.Count == 0) return $"Switch({condition}, \"\");";
         var defaultBlock = arms[0].TargetBlockName;
         var blocks = arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
-        return $"NextBlock = Switch({condition}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
+        return $"Switch({condition}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
     }
 }

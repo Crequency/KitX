@@ -4,8 +4,9 @@ namespace KitX.Workflow.CFG;
 /// Type of a CFG block, indicating its structural role in the control flow.
 /// </summary>
 /// <remarks>
-/// v5.0 transition: <c>LoopHeader</c>/<c>LoopBody</c> remain during the staged migration
-/// (removed once Loop/ToLoopCond and their CFG consumers are deleted, layer 6).
+/// v5.0 removed <c>LoopHeader</c>/<c>LoopBody</c>: ForLoop's body is an ordinary block that
+/// re-enters the loop via Goto, and the loop header is just the block holding the ForLoop
+/// statement. The CFG no longer needs dedicated loop-block types.
 /// </remarks>
 public enum CFGBlockType
 {
@@ -17,12 +18,6 @@ public enum CFGBlockType
 
     /// <summary>A block ending with a Branch statement (condition → true/false targets).</summary>
     BranchHeader,
-
-    /// <summary>A block ending with a Loop statement (condition → body/exit targets).</summary>
-    LoopHeader,
-
-    /// <summary>The body of a loop — may reach back to the LoopHeader via ToLoopCond.</summary>
-    LoopBody,
 }
 
 /// <summary>

@@ -117,8 +117,9 @@ internal class BlockScriptSerializer
         if (last is FlowControlStatement flow)
         {
             return flow.ControlType is FlowControlType.ConditionalJump
-                or FlowControlType.IterativeJump
-                or FlowControlType.LoopBackedge
+                or FlowControlType.IterativeCounted
+                or FlowControlType.UnconditionalJump
+                or FlowControlType.IndexedDispatch
                 or FlowControlType.LoopExit;
         }
         return false;

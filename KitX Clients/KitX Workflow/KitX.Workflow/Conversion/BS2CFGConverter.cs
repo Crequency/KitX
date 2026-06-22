@@ -177,16 +177,8 @@ public class BS2CFGConverter
         };
         result.Add(stmt);
 
-        // Store loop condition for duplication before LoopBackedge
-        if (shape == FlowControlType.IterativeJump && !string.IsNullOrEmpty(condPubVar))
-        {
-            context.LoopConditions[blockName] = new ConditionInfo
-            {
-                ConditionPubVar = condPubVar,
-                RawExpression = flowCtrl.ConditionExpression,
-                ExpansionStatements = result.Where(s => s != stmt).ToList()
-            };
-        }
+        // v5.0: the v4.0 LoopConditions bookkeeping (for CFGConditionDuplicator) is removed —
+        // ForLoop/Goto make condition re-evaluation natural via block re-entry.
 
         return result;
     }

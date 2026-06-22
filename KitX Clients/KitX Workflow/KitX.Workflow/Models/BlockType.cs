@@ -1,11 +1,12 @@
 namespace KitX.Workflow.Models;
 
 /// <summary>
-/// Block type enumeration.
+/// Block type enumeration (v5.0).
 /// </summary>
 /// <remarks>
-/// v5.0 transition: <c>LoopBlock</c> remains during the staged migration (removed with Loop
-/// in layer 3). ForLoop lives in an ordinary NamedBlock.
+/// v5.0 removed <c>LoopBlock</c>: the v4.0 auto-generated LoopBlock is gone with Loop/ToLoopCond.
+/// ForLoop lives in an ordinary NamedBlock; its body is a NamedBlock that re-enters via Goto.
+/// See BlockScriptGrammarRule §2.2.
 /// </remarks>
 public enum BlockType
 {
@@ -20,17 +21,12 @@ public enum BlockType
     MainBlock,
 
     /// <summary>
-    /// Named block — jumped to by Branch/Loop/Switch/ToLoopCond/Goto. May carry ##BlockVars.
+    /// Named block — jumped to by Branch/ForLoop/Switch/Goto. May carry ##BlockVars.
     /// </summary>
     NamedBlock,
 
     /// <summary>
     /// Public variable block — global mutable variables, cross-block read/write (§3.2).
     /// </summary>
-    PubVarBlock,
-
-    /// <summary>
-    /// Loop block — auto-generated block containing a Loop statement (v4.0, being removed).
-    /// </summary>
-    LoopBlock
+    PubVarBlock
 }

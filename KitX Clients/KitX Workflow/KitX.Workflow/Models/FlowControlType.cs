@@ -6,25 +6,17 @@ namespace KitX.Workflow.Models;
 /// (not by function name) to avoid confusion with <c>IBuiltinFunctionDefinition.FunctionName</c>.
 /// </summary>
 /// <remarks>
-/// v5.0 transition note: <see cref="IterativeJump"/> (v4.0 Loop) and <see cref="LoopBackedge"/>
-/// (v4.0 ToLoopCond) remain in this enum during the staged migration — they are removed once
-/// the Loop/ToLoopCond builtin functions and their consumers are deleted (architecture layer 3+).
-/// <see cref="IterativeCounted"/> (ForLoop) and <see cref="UnconditionalJump"/> (Goto) are the
-/// v5.0 replacements, added ahead of use.
+/// v5.0 shapes only. The v4.0 <c>IterativeJump</c> (Loop) and <c>LoopBackedge</c> (ToLoopCond)
+/// are removed — ForLoop (<see cref="IterativeCounted"/>) and Goto
+/// (<see cref="UnconditionalJump"/>) replace them. See BlockScriptGrammarRule §7.
 /// </remarks>
 public enum FlowControlType
 {
     /// <summary>
-    /// Conditional two-way jump (true/false arms). Produced by Branch (and Flip, which
-    /// reuses this shape). Graph: condition → {True arm, False arm}.
+    /// Conditional two-way jump (true/false arms). Produced by Branch.
+    /// Graph: condition → {True arm, False arm}.
     /// </summary>
     ConditionalJump,
-
-    /// <summary>
-    /// Iterative jump with a loop-back edge. Produced by Loop (v4.0, being removed).
-    /// Graph: condition → {LoopBody arm (back-edge to condition), LoopExit arm}.
-    /// </summary>
-    IterativeJump,
 
     /// <summary>
     /// Counted iterative jump (v5.0). Produced by ForLoop.
@@ -47,17 +39,10 @@ public enum FlowControlType
     ScriptReturn,
 
     /// <summary>
-    /// Exit the enclosing loop. Produced by Break. Graph: unconditional jump to the
-    /// loop's after-block (synthesized <c>__break__</c> target).
+    /// Exit the enclosing loop / terminate the workflow activation. Produced by Break.
     /// v5.0: emits a raw <c>return;</c> (ends the whole workflow run, §7.4).
     /// </summary>
     LoopExit,
-
-    /// <summary>
-    /// Loop back-edge — marks the end of a loop body and returns control to the loop
-    /// condition block. Produced by ToLoopCond (v4.0, being removed).
-    /// </summary>
-    LoopBackedge,
 
     /// <summary>
     /// N-way dispatch by integer index. Produced by Switch. Graph: selector →

@@ -26,17 +26,11 @@ public enum CFGStatementKind
     /// <summary>Conditional two-way jump (derived label; authoritative shape = FlowControlShape.ConditionalJump)</summary>
     Branch,
 
-    /// <summary>Iterative jump with loop-back (v4.0 Loop; derived label; FlowControlShape.IterativeJump)</summary>
-    Loop,
-
     /// <summary>Counted iterative jump (v5.0 ForLoop; derived label; FlowControlShape.IterativeCounted)</summary>
     ForLoop,
 
     /// <summary>N-way dispatch (derived label; authoritative shape = FlowControlShape.IndexedDispatch)</summary>
     Switch,
-
-    /// <summary>Loop back-edge (v4.0 ToLoopCond; derived label; FlowControlShape.LoopBackedge)</summary>
-    ToLoopCond,
 
     /// <summary>Unconditional jump (v5.0 Goto; derived label; FlowControlShape.UnconditionalJump)</summary>
     Goto,
