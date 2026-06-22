@@ -1047,16 +1047,19 @@ internal class BP2CFGConverter
     /// </summary>
     private static CFGStatement CreateToLoopCondStatement(string? returnTo)
     {
-        var stmt = new CFGStatement
+        var stmt = new CfgStatementBuilder
         {
-            Kind = CFGStatementKind.Goto,
+            // BlockName is set by the caller (WalkNode) after this returns; empty here matches
+            // the pre-builder default.
+            BlockName = string.Empty,
             FlowControlShape = FlowControlType.UnconditionalJump,
-            OriginalExpression = returnTo != null
-                ? $"Goto(\"{returnTo}\");"
-                : "Goto();",
-            SourceLine = 1
-        };
-        stmt.LoopbackTarget = returnTo;
+            // Loopback target carried in Arms[0] (IsLoopback=true) so the builder's default
+            // renderer produces Goto("target"); via RenderSource.
+            Arms = returnTo != null
+                ? [new BranchArm { TargetBlockName = returnTo, IsLoopback = true }]
+                : [],
+            SourceLine = 1,
+        }.Build();
         return stmt;
     }
 

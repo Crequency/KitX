@@ -146,13 +146,14 @@ public class BS2CFGConverter
         // Determine the function name from the source code or control type
         var functionName = GetFunctionNameFromFlowControl(flowCtrl);
         var def = _functionRegistry?.Get(functionName);
-        var kind = def?.StatementKind ?? ControlFlowMapping.ToKind(flowCtrl.ControlType);
         var shape = def?.FlowControlShape ?? flowCtrl.ControlType;
 
-        // Expand condition for Branch/Loop
+        // Expand condition for Branch/Loop (nested calls in the condition → temp PubVars).
+        // condPubVar feeds ConditionPubVar, still read by CFG2CSConverter.InferPubVarTypes to
+        // force the condition variable to bool. TODO(phase-2/4): retire ConditionPubVar once
+        // the type inferencer derives bool-ness from ConditionalJump arms directly.
         var hasCondition = !string.IsNullOrEmpty(flowCtrl.ConditionExpression);
         string? condPubVar = null;
-
         if (hasCondition)
         {
             var (condStmts, pubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
@@ -160,21 +161,20 @@ public class BS2CFGConverter
             condPubVar = pubVar;
         }
 
-        var stmt = new CFGStatement
+        var stmt = new CfgStatementBuilder
         {
-            StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : Guid.NewGuid().ToString(),
+            StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : null,
             BlockName = blockName,
-            Kind = kind,
             FlowControlShape = shape,
             FunctionName = functionName,
-            ConditionPubVar = condPubVar,
             ConditionExpression = flowCtrl.ConditionExpression,
+            ConditionPubVar = condPubVar,
             // Copy the full arm list so N-way Switch and any variadic shape survive.
             // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
             Arms = flowCtrl.Arms.Select(a => a.Clone()).ToList(),
-            OriginalExpression = flowCtrl.SourceCode,
-            SourceLine = flowCtrl.LineNumber
-        };
+            SourceText = flowCtrl.SourceCode,
+            SourceLine = flowCtrl.LineNumber,
+        }.Build();
         result.Add(stmt);
 
         // v5.0: the v4.0 LoopConditions bookkeeping (for CFGConditionDuplicator) is removed —
@@ -322,59 +322,36 @@ public class BS2CFGConverter
         if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } funcDef)
         {
             lowered = funcDef.LowerToCFG(invoke, currentArgExprs, blockName, context, assignedVar);
+            // Cross-cutting bookkeeping the descriptor doesn't own: StatementId, Fingerprint,
+            // FullFunctionName. TODO(phase-2): fold into CfgStatementBuilder once descriptors
+            // emit via the builder instead of constructing CFGStatement directly.
+            foreach (var s in lowered)
+            {
+                if (string.IsNullOrEmpty(s.StatementId))
+                    s.StatementId = !string.IsNullOrEmpty(statementId) ? statementId : Guid.NewGuid().ToString();
+                if (s.Fingerprint == null
+                    && s.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
+                {
+                    s.Fingerprint = ExprUtils.ComputeFingerprint(funcName, currentArgExprs);
+                }
+                s.FullFunctionName ??= fullFuncName;
+            }
         }
         else
         {
-            // Helper or regular function call
-            CFGStatementKind kind;
-            string? pubVarTarget = null;
-            if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_")
-            {
-                kind = CFGStatementKind.Assignment;
-                pubVarTarget = assignedVar;
-                if (!context.PubVarNames.Contains(assignedVar))
-                    context.PubVarNames.Add(assignedVar);
-            }
-            else
-            {
-                kind = CFGStatementKind.Expression;
-            }
-            lowered = [new CFGStatement
+            // Helper or regular function call → single Assignment/Expression statement.
+            lowered = [new CfgStatementBuilder
             {
                 BlockName = blockName,
-                Kind = kind,
                 FunctionName = funcName,
                 FullFunctionName = fullFuncName,
-                PubVarTarget = pubVarTarget,
+                PubVarTarget = !string.IsNullOrEmpty(assignedVar) && assignedVar != "_" ? assignedVar : null,
                 Arguments = currentArgExprs,
-                OriginalExpression = invoke.SourceText,
-                SourceLine = 0,
-            }];
+                SourceText = invoke.SourceText,
+                StatementId = statementId,
+            }.Build(context.PubVarNames)];
         }
         result.AddRange(lowered);
-
-        // Cross-cutting post-processing: descriptor owns core fields, BS2CFG owns bookkeeping.
-        foreach (var s in lowered)
-        {
-            if (string.IsNullOrEmpty(s.StatementId))
-                s.StatementId = !string.IsNullOrEmpty(statementId) ? statementId : Guid.NewGuid().ToString();
-
-            if (s.Fingerprint == null
-                && s.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
-            {
-                s.Fingerprint = ExprUtils.ComputeFingerprint(funcName, currentArgExprs);
-            }
-
-            s.FullFunctionName ??= fullFuncName;
-
-            // Preserve the deleted PubVar-fallback side-effect: when assignedVar is used as
-            // the statement's target, ensure it is tracked as a PubVar.
-            if (!string.IsNullOrEmpty(assignedVar) && assignedVar != "_"
-                && s.PubVarTarget == assignedVar && !context.PubVarNames.Contains(assignedVar))
-            {
-                context.PubVarNames.Add(assignedVar);
-            }
-        }
 
         return result;
     }
@@ -460,17 +437,17 @@ public class BS2CFGConverter
                 context.PubVarNames.Add(pubVarName);
 
             var allStmts = new List<CFGStatement>(expansionStmts);
-            allStmts.Add(new CFGStatement
+            allStmts.Add(new CfgStatementBuilder
             {
                 BlockName = blockName,
-                Kind = CFGStatementKind.Assignment,
-                PubVarTarget = pubVarName,
                 FunctionName = funcName,
                 FullFunctionName = fullFuncName,
+                PubVarTarget = pubVarName,
                 Arguments = expandedArgs,
-                OriginalExpression = $"{pubVarName} = {invoke.SourceText}",
-                Fingerprint = ExprUtils.ComputeFingerprint(funcName, expandedArgs)
-            });
+                // Render the {pubVar} = {invoke.SourceText} form explicitly so the original
+                // (possibly nested) call text is preserved for traceability.
+                SourceText = $"{pubVarName} = {invoke.SourceText}",
+            }.Build(context.PubVarNames));
 
             return (allStmts, pubVarName);
         }
@@ -507,17 +484,15 @@ public class BS2CFGConverter
                 if (!context.PubVarNames.Contains(pubVarName))
                     context.PubVarNames.Add(pubVarName);
 
-                allStmts.Add(new CFGStatement
+                allStmts.Add(new CfgStatementBuilder
                 {
                     BlockName = blockName,
-                    Kind = CFGStatementKind.Assignment,
-                    PubVarTarget = pubVarName,
                     FunctionName = "StringConcat",
                     FullFunctionName = "StringConcat",
+                    PubVarTarget = pubVarName,
                     Arguments = argExprs,
-                    OriginalExpression = $"{pubVarName} = StringConcat({string.Join(", ", argExprs)})",
-                    Fingerprint = ExprUtils.ComputeFingerprint("StringConcat", argExprs)
-                });
+                    SourceText = $"{pubVarName} = StringConcat({string.Join(", ", argExprs)})",
+                }.Build(context.PubVarNames));
 
                 return (allStmts, pubVarName);
             }
@@ -659,20 +634,17 @@ public class BS2CFGConverter
                     }
                 }
 
-                var assignStmt = new CFGStatement
+                var assignStmt = new CfgStatementBuilder
                 {
                     BlockName = blockName,
-                    Kind = CFGStatementKind.Assignment,
+                    // FunctionName null → pure assignment (Expr > var tap). Builder renders
+                    // "{rhs} > {PubVarTarget}" via RenderDefault, matching the v5.0 syntax.
                     FunctionName = null,
                     PubVarTarget = assignedVar,
-                    // The RHS is the single piped value (currentInputs has one entry for chains).
                     Arguments = currentInputs,
-                    OriginalExpression = $"{currentInputs.FirstOrDefault() ?? "null"} > {assignedVar}",
                     PipelineId = pipelineId,
-                    PipelineSegmentIndex = segIndex++
-                };
-                if (string.IsNullOrEmpty(assignStmt.StatementId))
-                    assignStmt.StatementId = Guid.NewGuid().ToString();
+                    PipelineSegmentIndex = segIndex++,
+                }.Build(context.PubVarNames);
                 result.Add(assignStmt);
                 // Tap: the assigned value passes through to the next segment.
                 currentInputs = new List<string> { assignedVar };
@@ -707,24 +679,17 @@ public class BS2CFGConverter
             }
 
             var funcDef = _functionRegistry?.Get(target.MethodName);
-            var stmt = new CFGStatement
+            var stmt = new CfgStatementBuilder
             {
                 BlockName = blockName,
-                Kind = pubVarTarget != null ? CFGStatementKind.Assignment : CFGStatementKind.Expression,
                 FlowControlShape = funcDef?.FlowControlShape,
                 FunctionName = target.MethodName,
                 FullFunctionName = target.FullMethodName,
                 PubVarTarget = pubVarTarget,
                 Arguments = resolvedArgs,
-                OriginalExpression = pubVarTarget != null
-                    ? $"{pubVarTarget} = {target.MethodName}({string.Join(", ", resolvedArgs)})"
-                    : $"{target.MethodName}({string.Join(", ", resolvedArgs)})",
-                Fingerprint = ExprUtils.ComputeFingerprint(target.MethodName, resolvedArgs),
                 PipelineId = pipelineId,
-                PipelineSegmentIndex = segIndex++
-            };
-            if (string.IsNullOrEmpty(stmt.StatementId))
-                stmt.StatementId = Guid.NewGuid().ToString();
+                PipelineSegmentIndex = segIndex++,
+            }.Build(context.PubVarNames);
             result.Add(stmt);
 
             currentInputs = pubVarTarget != null ? new List<string> { pubVarTarget } : new List<string>();
