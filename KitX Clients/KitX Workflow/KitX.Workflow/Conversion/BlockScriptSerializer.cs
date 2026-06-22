@@ -88,11 +88,17 @@ internal class BlockScriptSerializer
     /// <summary>
     /// Appends block statements and, if the block has a NextBlockName and doesn't
     /// end with a control flow statement, appends a NextBlock assignment.
+    /// v5.0 §9: emits the statement's leading comment on its own line above the statement.
     /// </summary>
     private static void AppendBlockStatements(StringBuilder sb, BlockDefinition block)
     {
         foreach (var stmt in block.Statements)
+        {
+            // v5.0 §9.1: render the leading comment above the statement.
+            if (!string.IsNullOrEmpty(stmt.Comment))
+                sb.AppendLine($"// {stmt.Comment}");
             sb.AppendLine(stmt.SourceCode);
+        }
 
         // If the block has a fall-through NextBlockName and the last statement
         // isn't already a control flow statement, add a NextBlock assignment.

@@ -109,12 +109,15 @@ public class BS2CFGConverter
     /// <summary>Returns a list of FormattedStatements (may be multiple when expansion occurs).</summary>
     private List<CFGStatement> FormatStatement(BlockStatement stmt, string blockName, PipelineContext context)
     {
+        List<CFGStatement> result;
         switch (stmt)
         {
             case FlowControlStatement flowCtrl:
-                return FormatFlowControl(flowCtrl, blockName, context);
+                result = FormatFlowControl(flowCtrl, blockName, context);
+                break;
             case ExpressionStatement expr:
-                return FormatExpressionStatement(expr, blockName, context);
+                result = FormatExpressionStatement(expr, blockName, context);
+                break;
             default:
                 // Per BlockScript §4.3, variable declarations are not allowed inside MainBlock/
                 // NamedBlock; any other unhandled statement form is a user error, not a silent drop.
@@ -123,6 +126,13 @@ public class BS2CFGConverter
                     stmt.LineNumber > 0 ? stmt.LineNumber : null);
                 return new();
         }
+
+        // v5.0 §9.1: anchor the statement's leading comment to the first CFG statement
+        // (for pipelines, this is segment 0, consistent with OriginalExpression stamping).
+        if (result.Count > 0 && !string.IsNullOrEmpty(stmt.Comment))
+            result[0].Comment ??= stmt.Comment;
+
+        return result;
     }
 
     // ──────────────────────────────────────────────

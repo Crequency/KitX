@@ -215,6 +215,9 @@ public class CFG2BPConverter
                 : CreatePluginCallNode(stmt);
             AddParamPins(node, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
         }
+        // v5.0 §9: carry the statement comment onto the blueprint node.
+        if (!string.IsNullOrEmpty(stmt.Comment))
+            node.Comment = stmt.Comment;
         return node;
     }
 

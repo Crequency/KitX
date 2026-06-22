@@ -151,7 +151,9 @@ internal class CFG2BSConverter
             StatementId = first.StatementId,
             Expression = ExtractExpression(source),
             SourceCode = source,
-            LineNumber = first.SourceLine
+            LineNumber = first.SourceLine,
+            // v5.0 §9.1: the leading comment was anchored to the first segment by BS2CFG.
+            Comment = first.Comment
         };
     }
 
@@ -169,7 +171,8 @@ internal class CFG2BSConverter
                 // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
                 Arms = cfgStmt.Arms.Select(a => a.Clone()).ToList(),
                 SourceCode = cfgStmt.OriginalExpression,
-                LineNumber = cfgStmt.SourceLine
+                LineNumber = cfgStmt.SourceLine,
+                Comment = cfgStmt.Comment
             };
         }
 
@@ -185,7 +188,8 @@ internal class CFG2BSConverter
                 StatementId = cfgStmt.StatementId,
                 Expression = ExtractExpression(cfgStmt.OriginalExpression),
                 SourceCode = cfgStmt.OriginalExpression,
-                LineNumber = cfgStmt.SourceLine
+                LineNumber = cfgStmt.SourceLine,
+                Comment = cfgStmt.Comment
             };
         }
 
