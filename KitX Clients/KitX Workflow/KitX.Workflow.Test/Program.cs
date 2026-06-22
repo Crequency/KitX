@@ -890,6 +890,12 @@ Print(""示例工作流结束"");";
                 Console.WriteLine($"  Line count differs: Round 1={lines1.Count}, Round 2={lines2.Count}");
             }
 
+            // v5.0: strict text match is the round-trip stability criterion. Auto-generated
+            // vaaa#### temporaries are IR-only and should stabilize across rounds. When they
+            // don't (D/H/I), the __assign node dedup is the root cause — the full VariableNode
+            // data-edge model (each write as a separate edge, not a deduped node) is the
+            // complete fix, deferred to a dedicated refactor.
+
             Console.WriteLine($"\n[{label}] {(match ? "PASS - Round-trip consistent!" : "DIFF - See differences above")}");
         }
         catch (Exception ex)
