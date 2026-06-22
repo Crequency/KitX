@@ -50,8 +50,15 @@ internal class BlockStatementExtractor
         {
             Type = recognized.BlockType,
             Name = blockName,
-            LineNumber = recognized.StartLine
+            LineNumber = recognized.StartLine,
+            HasExplicitBlockBody = recognized.HasExplicitBlockBody
         };
+
+        // v5.0: parse ##BlockVars declarations (block-local variables, §3.3) if present.
+        if (!string.IsNullOrWhiteSpace(recognized.BlockVarsContent))
+        {
+            blockDef.BlockVars = ParseVariableDeclarations(recognized.BlockVarsContent);
+        }
 
         if (string.IsNullOrWhiteSpace(recognized.Content))
         {
@@ -166,7 +173,8 @@ internal class BlockStatementExtractor
                         LineNumber = returnStmt.GetLineNumber(),
                         SourceCode = returnStmt.ToFullString(),
                         ControlType = FlowControlType.ScriptReturn,
-                        ConditionExpression = returnStmt.Expression?.ToString() ?? string.Empty
+                        ConditionExpression = returnStmt.Expression?.ToString() ?? string.Empty,
+                        Comment = ExtractLeadingComment(returnStmt)
                     });
                     break;
             }
@@ -181,20 +189,40 @@ internal class BlockStatementExtractor
     {
         foreach (var variable in varDecl.Declaration.Variables)
         {
-            var varDefinition = new VariableDeclaration
-            {
-                Name = variable.Identifier.Text,
-                Type = varDecl.Declaration.Type.ToString(),
-                InitialValueExpression = variable.Initializer?.Value?.ToString()
-            };
-
-            if (variable.Initializer?.Value is LiteralExpressionSyntax literal)
-            {
-                varDefinition.DefaultValue = literal.Token.Value;
-            }
-
-            block.Variables.Add(varDefinition);
+            block.Variables.Add(BuildVariableDeclaration(varDecl, variable));
         }
+    }
+
+    /// <summary>
+    /// Parses a raw text region of variable declarations (used for <c>##BlockVars</c> content,
+    /// v5.0 §3.3) into <see cref="VariableDeclaration"/> list. The text is parsed with Roslyn
+    /// so the same literal-evaluation path as inline declarations is reused.
+    /// </summary>
+    private static List<VariableDeclaration> ParseVariableDeclarations(string text)
+    {
+        var result = new List<VariableDeclaration>();
+        var tree = CSharpSyntaxTree.ParseText(text);
+        foreach (var varDecl in tree.GetRoot().DescendantNodes().OfType<LocalDeclarationStatementSyntax>())
+        {
+            foreach (var variable in varDecl.Declaration.Variables)
+                result.Add(BuildVariableDeclaration(varDecl, variable));
+        }
+        return result;
+    }
+
+    /// <summary>Shared builder for a <see cref="VariableDeclaration"/> from a Roslyn variable.</summary>
+    private static VariableDeclaration BuildVariableDeclaration(
+        LocalDeclarationStatementSyntax varDecl, VariableDeclaratorSyntax variable)
+    {
+        var def = new VariableDeclaration
+        {
+            Name = variable.Identifier.Text,
+            Type = varDecl.Declaration.Type.ToString(),
+            InitialValueExpression = variable.Initializer?.Value?.ToString()
+        };
+        if (variable.Initializer?.Value is LiteralExpressionSyntax literal)
+            def.DefaultValue = literal.Token.Value;
+        return def;
     }
 
     /// <summary>
@@ -229,7 +257,8 @@ internal class BlockStatementExtractor
                         LineNumber = pipeLine,
                         SourceCode = exprText,
                         Expression = exprText,
-                        ParsedExpression = pipeline
+                        ParsedExpression = pipeline,
+                        Comment = ExtractLeadingComment(exprStmt)
                     });
                     return;
                 }
@@ -288,7 +317,16 @@ internal class BlockStatementExtractor
     {
         var bsCall = (BSCall)BSExpressionAdapter.FromRoslyn(invoke)!;
         var stmt = _functionRegistry?.Get(bsCall.MethodName)?.ExtractStatement(bsCall, exprStmt.GetLineNumber(), exprText);
-        block.Statements.Add(stmt ?? BuildExpressionStatement(exprStmt, exprText, bsCall, assignedVar));
+        if (stmt != null)
+        {
+            // Attach the leading comment (v5.0 §9.1) to the registry-built statement.
+            stmt.Comment ??= ExtractLeadingComment(exprStmt);
+            block.Statements.Add(stmt);
+        }
+        else
+        {
+            block.Statements.Add(BuildExpressionStatement(exprStmt, exprText, bsCall, assignedVar));
+        }
     }
 
     /// <summary>
@@ -315,6 +353,7 @@ internal class BlockStatementExtractor
     /// <paramref name="parsedExpression"/> is the BS AST adapted from the Roslyn node
     /// (a <see cref="BSCall"/> for invocations, or a <see cref="BSBinary"/>/other for
     /// non-invocation assignment RHS). Carried so BS2CFGConverter skips re-parsing text.
+    /// Also captures the statement's leading <c>//</c> comment (v5.0 §9.1).
     /// </summary>
     private static ExpressionStatement BuildExpressionStatement(
         ExpressionStatementSyntax exprStmt, string exprText,
@@ -324,8 +363,32 @@ internal class BlockStatementExtractor
         SourceCode = exprText,
         Expression = exprText,
         ParsedExpression = parsedExpression,
-        AssignedVariable = assignedVar
+        AssignedVariable = assignedVar,
+        Comment = ExtractLeadingComment(exprStmt)
     };
+
+    /// <summary>
+    /// Extracts the leading <c>//</c> comment trivia attached to a statement (v5.0 §9.1).
+    /// Roslyn attaches a <c>//</c> line comment to the next token's LeadingTrivia, so a
+    /// comment above a statement appears in its <c>LeadingTrivia</c>. Returns the comment
+    /// text without the <c>//</c> prefix and trimmed, or null when there is none.
+    /// </summary>
+    private static string? ExtractLeadingComment(SyntaxNode node)
+    {
+        var trivia = node.GetLeadingTrivia();
+        if (trivia.Count == 0) return null;
+        foreach (var t in trivia)
+        {
+            if (t.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.SingleLineCommentTrivia))
+            {
+                var text = t.ToString();
+                // Strip leading "//" and an optional single space.
+                if (text.StartsWith("//")) text = text[2..];
+                return text.Trim();
+            }
+        }
+        return null;
+    }
 
     // ─── Pipeline (\-) support ────────────────────────────────────────
     // PipelinePreScanner rewrites `src > t1 > t2;` to `__pipe(src, __seg(t1), __seg(t2));`.

@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis.Text;
 using KitX.Core.Contract.Workflow;
 using Serilog;
+using System.Linq;
 
 using static KitX.Workflow.BlockScripting.BlockScriptWellKnown.Blocks;
 
@@ -56,6 +57,12 @@ internal class BlockStructureRecognizer
             var line = lines[i];
             var trimmed = line.Trim();
 
+            // v5.0: ## sub-section markers are handled by FinalizeBlockContent (they split
+            // a #Block's content into BlockVars/body regions). They do NOT start a new block.
+            // Only top-level # markers start new blocks here.
+            if (IsSubSectionMarker(trimmed))
+                continue;
+
             // Check if this line is a block marker
             var blockType = TryParseBlockMarker(trimmed);
             if (blockType.HasValue)
@@ -64,7 +71,7 @@ internal class BlockStructureRecognizer
                 if (currentBlock != null)
                 {
                     currentBlock.ContentEnd = GetLineStartPosition(i);
-                    currentBlock.Content = ExtractPureCode(currentBlockContentStart, currentBlock.ContentEnd);
+                    FinalizeBlockContent(currentBlock, currentBlockContentStart, currentBlock.ContentEnd);
                     _blocks.Add(currentBlock);
                 }
 
@@ -92,7 +99,7 @@ internal class BlockStructureRecognizer
         if (currentBlock != null)
         {
             currentBlock.ContentEnd = _sourceCode.Length;
-            currentBlock.Content = ExtractPureCode(currentBlockContentStart, currentBlock.ContentEnd);
+            FinalizeBlockContent(currentBlock, currentBlockContentStart, currentBlock.ContentEnd);
             _blocks.Add(currentBlock);
         }
 
@@ -103,6 +110,77 @@ internal class BlockStructureRecognizer
             ErrorMessage = "Script must have a #MainBlock";
             ErrorLine = 0;
         }
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="trimmed"/> is a v5.0 <c>##</c> sub-section marker
+    /// (<c>##BlockVars</c>, <c>##BlockBody</c>, <c>##BlockEnd</c>). These do not start new
+    /// blocks; they partition a <c>#Block</c>'s content.
+    /// </summary>
+    private static bool IsSubSectionMarker(string trimmed)
+        => trimmed == MarkerBlockVars
+           || trimmed == MarkerBlockBody
+           || trimmed == MarkerBlockEnd;
+
+    /// <summary>
+    /// Finalizes a block's content by splitting it into BlockVars and body regions based on
+    /// <c>##BlockVars</c>/<c>##BlockBody</c>/<c>##BlockEnd</c> markers (v5.0 §2.1). Sets
+    /// <see cref="RecognizedBlock.Content"/> (body), <see cref="RecognizedBlock.BlockVarsContent"/>,
+    /// <see cref="RecognizedBlock.HasExplicitBlockBody"/>, and <see cref="RecognizedBlock.HasBlockEnd"/>.
+    /// For v4.0 blocks (no ## markers) Content is the full region as before.
+    /// </summary>
+    private void FinalizeBlockContent(RecognizedBlock block, int start, int end)
+    {
+        if (start >= end || start < 0 || end > _sourceCode.Length)
+        {
+            block.Content = string.Empty;
+            return;
+        }
+
+        var raw = _sourceCode.Substring(start, end - start);
+        var lines = raw.Split('\n');
+
+        // Locate ##BlockVars / ##BlockBody / ##BlockEnd line indices (if any).
+        int varsIdx = -1, bodyIdx = -1, endIdx = -1;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var t = lines[i].Trim();
+            if (t == MarkerBlockVars) varsIdx = i;
+            else if (t == MarkerBlockBody) bodyIdx = i;
+            else if (t == MarkerBlockEnd) endIdx = i;
+        }
+
+        block.HasExplicitBlockBody = bodyIdx >= 0;
+        block.HasBlockEnd = endIdx >= 0;
+
+        if (varsIdx < 0)
+        {
+            // No ##BlockVars: Content is everything (minus marker lines), as in v4.0.
+            block.Content = ExtractPureCode(start, end);
+            block.BlockVarsContent = string.Empty;
+            return;
+        }
+
+        // ##BlockVars present. Determine the body region: from ##BlockBody if present,
+        // otherwise from the line after the BlockVars declarations end. The BlockVars
+        // declarations run from varsIdx+1 until the next ## marker (##BlockBody / ##BlockEnd)
+        // or the original block end.
+        var varsEnd = bodyIdx > varsIdx ? bodyIdx : (endIdx > varsIdx ? endIdx : lines.Length);
+        var bodyStart = bodyIdx >= 0 ? bodyIdx + 1 : varsEnd;
+
+        // BlockVars text: lines (varsIdx+1 .. varsEnd), excluding ## marker lines.
+        var varsLines = lines.Skip(varsIdx + 1).Take(varsEnd - varsIdx - 1)
+            .Where(l => !IsSubSectionMarker(l.Trim()));
+        block.BlockVarsContent = string.Join("\n", varsLines).Trim();
+
+        // Body text: lines (bodyStart .. endIdx<0 ? end : endIdx), excluding marker lines.
+        var bodyLimit = endIdx >= 0 ? endIdx : lines.Length;
+        var bodyLines = lines.Skip(bodyStart).Take(bodyLimit - bodyStart)
+            .Where(l => !IsSubSectionMarker(l.Trim()));
+        block.Content = string.Join("\n", bodyLines).Trim();
+
+        Log.Debug("[BlockStructureRecognizer] Block '{Name}': BlockVars ({VarsLen} chars), Body ({BodyLen} chars), ExplicitBody={Explicit}, BlockEnd={BlockEnd}",
+            block.BlockName, block.BlockVarsContent.Length, block.Content.Length, block.HasExplicitBlockBody, block.HasBlockEnd);
     }
 
     /// <summary>

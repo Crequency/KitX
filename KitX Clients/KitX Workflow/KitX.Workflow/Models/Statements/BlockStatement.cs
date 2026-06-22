@@ -21,4 +21,12 @@ public abstract class BlockStatement
     /// Original source code for this statement
     /// </summary>
     public string SourceCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Comment attached to this statement (v5.0 bidirectional comment retention, §9).
+    /// Captured from Roslyn LeadingTrivia (`//` comments above the statement, or inline
+    /// trailing the previous token). For pipeline groups, anchors to the first segment
+    /// (PipelineSegmentIndex == 0). Round-trips BS→CFG→BS and BS→BP→BS. Null = no comment.
+    /// </summary>
+    public string? Comment { get; set; }
 }

@@ -18,6 +18,11 @@ public static class BlockScriptWellKnown
         public const string MarkerPubVarBlock = "#PubVarBlock";
         public const string MarkerMainBlock = "#MainBlock";
         public const string MarkerBlockPrefix = "#Block ";
+
+        // v5.0 sub-section markers (## prefix, nested under #Block)
+        public const string MarkerBlockVars = "##BlockVars";
+        public const string MarkerBlockBody = "##BlockBody";
+        public const string MarkerBlockEnd = "##BlockEnd";
     }
 
     /// <summary>Pin name constants</summary>
