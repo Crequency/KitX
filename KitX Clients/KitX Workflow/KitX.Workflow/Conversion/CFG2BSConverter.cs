@@ -78,10 +78,11 @@ internal class CFG2BSConverter
             {
                 Type = cfgBlock.IsMainBlock ? BlockType.MainBlock : BlockType.NamedBlock,
                 Name = cfgBlock.Name,
-                // BS-layer BlockDefinition.NextBlockName is retained as the BlockScript native
-                // expression of fall-through; its value is now derived from the CFG's Sequential
-                // Successors edge (single source of truth) rather than a parallel field.
-                NextBlockName = cfgBlock.FallThroughTarget
+                // v5.0: a block ending with Goto (UnconditionalJump) carries its target in the
+                // Goto statement itself — do NOT also emit NextBlockName (which produced the
+                // duplicate `Goto(); NextBlock = "X"` in round-trip, Test D/H/I/K DIFF).
+                // NextBlockName is only for v4.0-style implicit fall-through (no control-flow end).
+                NextBlockName = EndsWithGoto(cfgBlock) ? null : cfgBlock.FallThroughTarget
             };
 
             // Iterate statements, batching pipeline (\-) groups: all statements sharing a
@@ -206,4 +207,12 @@ internal class CFG2BSConverter
             return trimmed[..^1];
         return trimmed;
     }
+
+    /// <summary>
+    /// v5.0: returns true when the block's last statement is a Goto (UnconditionalJump).
+    /// Such blocks carry their target in the Goto statement, not in NextBlockName.
+    /// </summary>
+    private static bool EndsWithGoto(CFG.CFGBlock cfgBlock) =>
+        cfgBlock.Statements.Count > 0
+        && cfgBlock.Statements[^1].FlowControlShape == Models.FlowControlType.UnconditionalJump;
 }

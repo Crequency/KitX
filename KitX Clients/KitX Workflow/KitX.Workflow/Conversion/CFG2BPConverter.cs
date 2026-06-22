@@ -121,7 +121,7 @@ public class CFG2BPConverter
         // Control-flow terminators (Branch/Loop/Flip/ToLoopCond): node + deferred cross-block edges.
         if (funcDef is { IsBlockTerminator: true })
         {
-            var node = CreateAndConfigureNode(stmt, funcDef);
+            var node = CreateAndConfigureNode(stmt, funcDef, context);
             ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
             funcDef.OnNodeCreated(node, stmt, context);
             return node;
@@ -177,7 +177,7 @@ public class CFG2BPConverter
         }
 
         // --- Create + configure (single descriptor-driven path) ---
-        var mainNode = CreateAndConfigureNode(stmt, funcDef);
+        var mainNode = CreateAndConfigureNode(stmt, funcDef, context);
 
         context.AllNodes.Add(mainNode);
         context.NodeByStatementId[stmt.StatementId] = mainNode;
@@ -195,7 +195,7 @@ public class CFG2BPConverter
     /// <see cref="IBuiltinFunctionDefinition.ConfigureNode"/>, and adds param pins for bare
     /// Call/CallHelper nodes. Unregistered statements fall back to helper/plugin-call nodes.
     /// </summary>
-    private BlueprintNode CreateAndConfigureNode(CFGStatement stmt, IBuiltinFunctionDefinition? funcDef)
+    private BlueprintNode CreateAndConfigureNode(CFGStatement stmt, IBuiltinFunctionDefinition? funcDef, PipelineContext context)
     {
         BlueprintNode node;
         if (funcDef != null)
@@ -207,6 +207,34 @@ public class CFG2BPConverter
             // Bare CallNode has no descriptor pins → add param pins like helper/plugin calls.
             if (funcDef.NodeKind == BuiltinNodeKind.Call)
                 AddParamPins(node, stmt.FunctionName!, stmt.Arguments?.Count ?? 0);
+        }
+        else if (string.IsNullOrEmpty(stmt.FunctionName) && !string.IsNullOrEmpty(stmt.PubVarTarget))
+        {
+            // v5.0: pure variable assignment (`Expr > var`). De-dupe by target name — one
+            // __assign node per variable, reused across multiple writes (stabilizes round-trip).
+            var existingAssign = context.AllNodes.OfType<CallNode>()
+                .FirstOrDefault(c => c.PluginName == "__assign" && c.FunctionName == stmt.PubVarTarget);
+            if (existingAssign != null)
+            {
+                node = existingAssign;
+            }
+            else
+            {
+                node = _registry.Create(BlueprintNodeType.Call);
+                if (node is CallNode callNode)
+                {
+                    callNode.PluginName = "__assign";
+                    callNode.FunctionName = stmt.PubVarTarget;
+                    var valuePin = new BlueprintPin
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Name = "Value",
+                        Direction = PinDirection.Input,
+                        Type = PinType.Any
+                    };
+                    callNode.InputPins.Add(valuePin);
+                }
+            }
         }
         else
         {
@@ -336,6 +364,29 @@ public class CFG2BPConverter
     {
         if (string.IsNullOrEmpty(stmt.PubVarTarget)) return;
 
+        // v5.0: __assign placeholder CallNode — wire the assignment source to its Value input
+        // pin (so the source's output is "consumed" → PostProcessCallReturn prefixes the pubVar),
+        // then register the __assign node's Return pin as the PubVarTarget producer so downstream
+        // reads connect to it.
+        if (node is CallNode assignCall && assignCall.PluginName == "__assign")
+        {
+            var valuePin = assignCall.InputPins.FirstOrDefault(p => p.Name == "Value");
+            if (valuePin != null)
+                WireAssignSource(stmt, assignCall, valuePin, context);
+            var returnPin = assignCall.OutputPins.FirstOrDefault(p => p.Name == "Return");
+            if (returnPin != null)
+            {
+                context.PubVarAssignments[stmt.PubVarTarget] = new PubVarAssignment
+                {
+                    PubVarName = stmt.PubVarTarget,
+                    SourceNode = assignCall,
+                    SourcePin = returnPin,
+                    StatementId = stmt.StatementId,
+                };
+            }
+            return;
+        }
+
         var outputPin = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
         if (outputPin == null) return;
 
@@ -351,6 +402,53 @@ public class CFG2BPConverter
             SourcePin = outputPin,
             StatementId = stmt.StatementId,
         };
+    }
+
+    /// <summary>
+    /// v5.0: wires the pure-assignment source (stmt.Arguments[0]) to the __assign node's Value
+    /// input pin. The source may be a PubVar (→ existing PubVarAssignment producer), a ConstBlock
+    /// variable (→ ConstNode), or a literal (→ DefaultValue on the pin).
+    /// </summary>
+    private void WireAssignSource(CFGStatement stmt, BlueprintNode assignNode, BlueprintPin valuePin, PipelineContext context)
+    {
+        var source = stmt.Arguments.FirstOrDefault()?.Trim() ?? "null";
+
+        var existingAssignment = context.PubVarAssignments.Values
+            .FirstOrDefault(a => a.PubVarName == source);
+        if (existingAssignment != null)
+        {
+            context.DataEdges.Add(new PendingDataEdge
+            {
+                SourceNodeId = existingAssignment.SourceNode.Id,
+                SourcePinName = existingAssignment.SourcePin.Name,
+                TargetNodeId = assignNode.Id,
+                TargetPinName = "Value",
+                // PubVarName = the SOURCE pubVar (not the target), so PostProcessCallReturn
+                // on the source node prefixes the correct source name, not the assign target.
+                PubVarName = source
+            });
+            return;
+        }
+
+        if (context.ConstNodes.TryGetValue(source, out var cn))
+        {
+            var cpin = cn.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+            if (cpin != null)
+            {
+                context.DataEdges.Add(new PendingDataEdge
+                {
+                    SourceNodeId = cn.Id,
+                    SourcePinName = cpin.Name,
+                    TargetNodeId = assignNode.Id,
+                    TargetPinName = "Value",
+                    PubVarName = source
+                });
+            }
+            return;
+        }
+
+        // Literal → set DefaultValue.
+        valuePin.DefaultValue = source.Trim('"');
     }
 
     // v5.0 NOTE: VariableNode-based variable write/round-trip (GetOrCreateVariableNode /

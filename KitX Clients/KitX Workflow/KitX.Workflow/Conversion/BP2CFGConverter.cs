@@ -749,6 +749,22 @@ internal class BP2CFGConverter
             case BlueprintNodeType.Call:
             {
                 if (node is not CallNode call) return null;
+                // v5.0: __assign placeholder CallNode → reconstruct as `value > var` (pure
+                // variable assignment, pipeline tap form). The RHS comes from the Value input
+                // pin's connection/default value; the target is FunctionName.
+                if (call.PluginName == "__assign")
+                {
+                    var rhs = _exportHelper.GetInputValue(call, "Value");
+                    if (string.IsNullOrEmpty(rhs)) rhs = "null";
+                    var target = call.FunctionName ?? "";
+                    var assignExpr = $"{rhs} > {target}";
+                    return new ExpressionStatement
+                    {
+                        Expression = assignExpr,
+                        SourceCode = $"{assignExpr};",
+                        AssignedVariable = target
+                    };
+                }
                 var callArgs = _exportHelper.GetInputArgs(call);
                 string sourceCode;
                 string methodName;
@@ -797,6 +813,23 @@ internal class BP2CFGConverter
                 {
                     var blockStmt = bfStrategy.ToStatement(node, _exportHelper);
                     if (blockStmt != null) return blockStmt;
+                    // v5.0: flow-control functions (Branch/ForLoop/Goto/Switch/Break) whose
+                    // ToStatement returns null must become FlowControlStatements so
+                    // ConvertBlockStatementToCfgStatement sets FlowControlShape and arms get
+                    // resolved. Without this, Goto round-tripped as `Goto()` (ExpressionStatement)
+                    // with no target (Test D/H/I/K DIFF).
+                    if (bfStrategy.IsFlowControl && bfStrategy.FlowControlShape != null)
+                    {
+                        var shape = bfStrategy.FlowControlShape.Value;
+                        var fcStmt = new FlowControlStatement
+                        {
+                            ControlType = shape,
+                            SourceCode = FlowControlStatement.RenderSource(
+                                shape, string.Empty, new List<BranchArm>(), null),
+                            LineNumber = 1
+                        };
+                        return fcStmt;
+                    }
                     // ToStatement returned null — build a generic ExpressionStatement
                     // from the node's function name and input pin values instead of
                     // silently dropping the node (which would leave orphaned PubVar
@@ -924,6 +957,16 @@ internal class BP2CFGConverter
                 {
                     cfgStmt.Kind = bfDef.StatementKind;
                     cfgStmt.FunctionName = bfDef.FunctionName;
+                }
+                else if (node is CallNode assignCall && assignCall.PluginName == "__assign")
+                {
+                    // v5.0: __assign placeholder → Assignment with PubVarTarget from FunctionName.
+                    // The RHS comes from the Value input pin (resolved by export helper).
+                    cfgStmt.Kind = CFGStatementKind.Assignment;
+                    cfgStmt.FunctionName = null;
+                    cfgStmt.PubVarTarget = assignCall.FunctionName;
+                    var rhs = _exportHelper.GetInputValue(assignCall, "Value");
+                    cfgStmt.Arguments = new List<string> { rhs };
                 }
                 else
                 {
@@ -1054,7 +1097,8 @@ internal class BP2CFGConverter
             foreach (var stmt in block.Statements)
             {
                 if (stmt.FlowControlShape is not (FlowControlType.ConditionalJump
-                    or FlowControlType.IterativeCounted or FlowControlType.IndexedDispatch))
+                    or FlowControlType.IterativeCounted or FlowControlType.IndexedDispatch
+                    or FlowControlType.UnconditionalJump))
                     continue;
                 if (stmt.Arms.Count > 0) continue;
 
@@ -1143,11 +1187,15 @@ internal class BP2CFGConverter
     private static string RegenerateBranchSource(CFGStatement cfStmt)
         // Delegate to the shared renderer on FlowControlStatement so BS↔graph source text stays
         // in sync with the instance RegenerateSourceCode path (single source of truth).
+        // v5.0: Goto (UnconditionalJump) carries its target in Arms[0].TargetBlockName — pass it
+        // as loopbackTarget so RenderSource emits `Goto("target")` instead of `Goto()`.
         => FlowControlStatement.RenderSource(
             cfStmt.FlowControlShape ?? FlowControlType.ConditionalJump,
             cfStmt.ConditionExpression ?? string.Empty,
             cfStmt.Arms,
-            loopbackTarget: null);
+            loopbackTarget: cfStmt.FlowControlShape == FlowControlType.UnconditionalJump
+                ? cfStmt.Arms.FirstOrDefault()?.TargetBlockName
+                : null);
 
     private static CFGEdgeType GetEdgeType(FlowControlType? shape, BranchArm arm)
     {
