@@ -353,6 +353,13 @@ public class CFG2BPConverter
         };
     }
 
+    // v5.0 NOTE: VariableNode-based variable write/round-trip (GetOrCreateVariableNode /
+    // RegisterVariableWrite) was attempted but requires full BP→CS/CFG2CS integration to avoid
+    // duplicate-declaration (CS0128) on the compile path. Deferred to the dedicated
+    // DataEdgeBuilder/VariableNode model refactor. The PostProcessCallReturn fix below remains
+    // (it correctly prefixes builtin-with-return results as `value > pubVar`).
+
+
     private void AddExecEdge(string? sourceStmtId, string targetStmtId, PipelineContext context)
     {
         if (sourceStmtId == null) return;

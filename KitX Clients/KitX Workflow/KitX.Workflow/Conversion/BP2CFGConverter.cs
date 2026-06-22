@@ -841,16 +841,35 @@ internal class BP2CFGConverter
     {
         if (_currentCtx == null) return;
 
-        if (node.NodeType is BlueprintNodeType.Call or BlueprintNodeType.CallHelper
-            && stmt is ExpressionStatement exprStmt)
+        // v5.0: BuiltinFunction nodes (HelperFuncCompare/HelperFuncAdd/etc.) also carry a consumed
+        // data output that must be prefixed as `pubVar = expr;`. The v4.0 path only handled
+        // Call/CallHelper; without this, builtin-with-return round-trips lost the LHS, producing
+        // orphaned `(vaaa0001)` statements (Test D/H/I/K DIFF).
+        if (stmt is ExpressionStatement exprStmt)
         {
-            var returnPin = node.OutputPins.FirstOrDefault(p => p.Name == Return);
-            bool hasReturn = returnPin != null && _currentCtx.ConsumedOutputs.Contains((node.Id, Return));
-            if (hasReturn)
+            string? pubVar = null;
+            if (node.NodeType is BlueprintNodeType.Call or BlueprintNodeType.CallHelper)
             {
-                var pubVar = NodeExportHelper.FindOutputPubVar(node, Return, _currentCtx);
-                if (pubVar != null)
-                    exprStmt.SourceCode = $"{pubVar} = {exprStmt.Expression};";
+                var returnPin = node.OutputPins.FirstOrDefault(p => p.Name == Return);
+                bool hasReturn = returnPin != null && _currentCtx.ConsumedOutputs.Contains((node.Id, Return));
+                if (hasReturn)
+                    pubVar = NodeExportHelper.FindOutputPubVar(node, Return, _currentCtx);
+            }
+            else if (node.NodeType == BlueprintNodeType.BuiltinFunction)
+            {
+                // Find the first consumed non-Exec output pin (Return/Result/Value/etc.).
+                var dataOut = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+                if (dataOut != null && _currentCtx.ConsumedOutputs.Contains((node.Id, dataOut.Name)))
+                    pubVar = NodeExportHelper.FindOutputPubVar(node, dataOut.Name, _currentCtx);
+            }
+
+            if (pubVar != null)
+            {
+                // v5.0: emit `value > pubVar` (pipeline tap form) for round-trip fidelity, matching
+                // the v5.0 assignment syntax. Falls back to `pubVar = expr` for complex expressions.
+                var rhs = exprStmt.Expression;
+                exprStmt.SourceCode = $"{rhs} > {pubVar};";
+                exprStmt.AssignedVariable = pubVar;
             }
         }
     }
