@@ -602,6 +602,21 @@ internal static class CFG2CSConverter
             switch (stmt.Kind)
             {
                 case CFGStatementKind.Assignment:
+                {
+                    // v5.0: a pure variable assignment (Expr > var) carries FunctionName=null and
+                    // PubVarTarget=varName. The RHS is the single argument value. Emit a direct
+                    // typed assignment + G.Set sync — NOT a function call (which would hit the
+                    // "unknown bare call" fallback and produce an empty-identifier CS0103).
+                    if (string.IsNullOrEmpty(stmt.FunctionName) && !string.IsNullOrEmpty(stmt.PubVarTarget))
+                    {
+                        var rhsArg = stmt.Arguments.FirstOrDefault() ?? "null";
+                        var rawExpr = ResolveArgumentExpression(rhsArg, pubVarTypes);
+                        caseStatements.AddRange(
+                            BuildValueAssignment(stmt.PubVarTarget, rawExpr, "object", pubVarTypes));
+                        break;
+                    }
+                    goto case CFGStatementKind.Expression;
+                }
                 case CFGStatementKind.Expression:
                 {
                     ExpressionSyntax rawExpr;
