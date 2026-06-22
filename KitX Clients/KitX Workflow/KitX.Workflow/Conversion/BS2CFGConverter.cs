@@ -602,7 +602,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
             return (result, null);
 
         // Parse the expression (one-shot Roslyn parse at the boundary)
-        var expr = BSExpressionAdapter.Parse(trimmed);
+        var expr = BSParser.ParseExpression(trimmed);
         if (expr == null)
             return (result, null);
 

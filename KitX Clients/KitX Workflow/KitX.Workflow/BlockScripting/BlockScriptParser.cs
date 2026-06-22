@@ -5,21 +5,19 @@ namespace KitX.Workflow.BlockScripting;
 
 /// <summary>
 /// Block script parser implementation.
-/// Thin orchestrator that delegates to three phases:
-///   Phase 1: BlockStructureRecognizer — DSL block structure scanning
-///   Phase 2: BlockSyntaxValidator — Roslyn syntax validation
-///   Phase 3: BlockStatementExtractor — Statement model extraction + LoopBlock creation
+/// Thin orchestrator that delegates to two phases:
+///   Phase 1: BlockStructureRecognizer — DSL block structure scanning (pure text, no parser)
+///   Phase 2+3: BSParser — Superpower token-driven parse + statement extraction
 /// </summary>
 public class BlockScriptParser : IBlockScriptParser
 {
-    private readonly BlockSyntaxValidator _validator = new();
-    private readonly BlockStatementExtractor _extractor;
+    private readonly BuiltinFunctionRegistry? _functionRegistry;
 
     public BlockScriptParser() : this(null) { }
 
     public BlockScriptParser(BuiltinFunctionRegistry? functionRegistry)
     {
-        _extractor = new BlockStatementExtractor(functionRegistry);
+        _functionRegistry = functionRegistry;
     }
 
     /// <summary>
@@ -45,7 +43,7 @@ public class BlockScriptParser : IBlockScriptParser
         {
             Log.Debug("[BlockScriptParser] Parse called with {LineCount} lines of code", sourceCode.Split('\n').Length);
 
-            // Phase 1: Recognize block structure
+            // Phase 1: Recognize block structure (pure text scan, no parser)
             var recognizer = new BlockStructureRecognizer(sourceCode);
             recognizer.RecognizeBlocks();
 
@@ -66,30 +64,14 @@ public class BlockScriptParser : IBlockScriptParser
                     block.BlockType, block.BlockName, block.StartLine, block.Content.Length);
             }
 
-            // Phase 2+3: Validate and extract statements for each block
+            // Phase 2+3: BSParser parses each block (Superpower tokenizer + combinator parser).
+            // Replaces the old Roslyn C# parser + PipelinePreScanner __pipe/__seg hack +
+            // BSExpressionAdapter.FromRoslyn bridge in a single step.
             var script = new BlockScript();
 
             foreach (var recognized in recognizer.Blocks)
             {
-                // Phase 1.5: Rewrite pipeline (\-) statements into the __pipe placeholder form
-                // so Roslyn's C# parser can accept them (\- is not a legal C# token).
-                recognized.Content = PipelinePreScanner.Rewrite(recognized.Content);
-
-                // Phase 2: Validate syntax
-                var validationResult = _validator.Validate(recognized);
-                if (!validationResult.IsValid)
-                {
-                    return new BlockScriptParseResult
-                    {
-                        IsSuccess = false,
-                        ErrorMessage = validationResult.ErrorMessage,
-                        ErrorLine = recognized.StartLine + validationResult.ErrorLine,
-                        Diagnostics = diagnostics
-                    };
-                }
-
-                // Phase 3: Extract statements and create BlockDefinition
-                var blockDef = _extractor.CreateBlockDefinition(recognized, validationResult, diagnostics);
+                var blockDef = BSParser.ParseBlock(recognized, _functionRegistry, diagnostics);
 
                 // Add to appropriate slot in script
                 switch (recognized.BlockType)
@@ -182,22 +164,25 @@ public class BlockScriptParser : IBlockScriptParser
                 return result;
             }
 
-            // Phase 2: Validate each block's pure C# code
+            // Phase 2+3: Parse each block via BSParser (validates syntax via Superpower
+            // token-level errors + extracts BlockDefinition; we discard the result here
+            // since Validate only checks for errors, not produces a script).
+            var diagnostics = new ConversionDiagnostics();
             foreach (var recognized in recognizer.Blocks)
             {
-                if (string.IsNullOrWhiteSpace(recognized.Content))
+                if (string.IsNullOrWhiteSpace(recognized.Content)
+                    && string.IsNullOrWhiteSpace(recognized.BlockVarsContent))
                     continue;
 
-                // Phase 1.5: rewrite pipelines to placeholder form before Roslyn parses.
-                recognized.Content = PipelinePreScanner.Rewrite(recognized.Content);
+                BSParser.ParseBlock(recognized, _functionRegistry, diagnostics);
+            }
 
-                var validationResult = _validator.Validate(recognized);
-                if (!validationResult.IsValid)
-                {
-                    result.IsValid = false;
-                    result.AddError(validationResult.ErrorMessage);
-                    return result;
-                }
+            if (diagnostics.HasErrors)
+            {
+                result.IsValid = false;
+                foreach (var err in diagnostics.Errors)
+                    result.AddError(err.Message);
+                return result;
             }
 
             return result;
