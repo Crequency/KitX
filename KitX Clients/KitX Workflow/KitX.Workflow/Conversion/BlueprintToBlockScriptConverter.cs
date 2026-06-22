@@ -17,7 +17,6 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 
     // CFG pipeline components
     private readonly BP2CFGConverter _cfgBuilder;
-    private readonly CFGConditionDuplicator _cfgConditionDuplicator = new();
     private readonly BlockScriptSerializer _serializer = new();
 
     public BlueprintToBlockScriptConverter(IEnumerable<IBuiltinFunctionDefinition> definitions)
@@ -61,8 +60,9 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         Log.Debug("[BlueprintToScript] CFG: {BlockCount} blocks, {EdgeCount} edges",
             cfg.Blocks.Count, cfg.Blocks.Sum(b => b.Successors.Count));
 
-        // Phase 2: Duplicate loop conditions
-        _cfgConditionDuplicator.Duplicate(cfg);
+        // v5.0: the v4.0 CFGConditionDuplicator (BP→BS loop-condition duplication) is removed —
+        // ForLoop/Goto make back-edges ordinary Sequential edges, so condition re-evaluation is
+        // handled by the trampoline re-entering the condition block naturally.
 
         // Phase 3: CFG → BS via pipeline
         var script = CFGPipeline.CFG2BS(cfg);

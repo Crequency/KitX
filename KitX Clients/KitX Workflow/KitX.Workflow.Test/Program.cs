@@ -323,7 +323,7 @@ public partial class Program
         {
             var src = @"#MainBlock
 Print(""before"");
-NextBlock = Branch(true, ""T"", ""F"");
+Branch(true, ""T"", ""F"");
 Print(""dead"");
 
 #Block T
@@ -564,20 +564,24 @@ Print(""f"");";
         try
         {
             var sourceCode = @"#ConstBlock
-int count = 0;
 int max = 3;
 
-#MainBlock
-Set(""count"", 0);
-NextBlock = ""LoopBlock"";
+#PubVarBlock
+int count;
+bool cond;
 
-#Block LoopBlock
-NextBlock = Loop(HelperFuncCompare(""BLT"", Get(""count""), max), ""PrintBlock"", ""EndBlock"");
+#MainBlock
+0 > count;
+Goto(""LoopCond"");
+
+#Block LoopCond
+count > HelperFuncCompare(""BLT"", _, max) > cond;
+Branch(cond, ""PrintBlock"", ""EndBlock"");
 
 #Block PrintBlock
-Print(Get(""count""));
-Set(""count"", HelperFuncAdd(Get(""count""), 1));
-NextBlock = ToLoopCond(""LoopBlock"");
+count > Print;
+count > HelperFuncAdd(_, 1) > count;
+Goto(""LoopCond"");
 
 #Block EndBlock
 Print(""Done"");
@@ -689,45 +693,37 @@ Print(""Done"");
 int guessNum = 5;
 int loopMax = 3;
 int targetNum = 7;
-int currentLoop;
 
 #PubVarBlock
-bool vaaa0001;
-int vaaa0002;
+int currentLoop;
+bool cond;
 
 #MainBlock
 Print(""开始执行工作流"");
-Set(""currentLoop"", 0);
-NextBlock = ""LoopCond"";
+0 > currentLoop;
+Goto(""LoopCond"");
 
 #Block LoopCond
-vaaa0001 = HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax);
-NextBlock = Loop(vaaa0001, ""LoopBody"", ""EndLogic"");
+currentLoop > HelperFuncCompare(""BLE"", _, loopMax) > cond;
+Branch(cond, ""LoopBody"", ""EndLogic"");
 
 #Block LoopBody
-vaaa0002 = Get(""currentLoop"");
-Print(vaaa0002);
-Set(""currentLoop"", HelperFuncAdd(Get(""currentLoop""), 1));
-NextBlock = Branch(
-    HelperFuncCompare(""BEQ"", guessNum, targetNum),
-    ""SuccessLogic"",
-    ""CheckLogic""
-);
+currentLoop > Print;
+currentLoop > HelperFuncAdd(_, 1) > currentLoop;
+guessNum, targetNum > HelperFuncCompare(""BEQ"") > cond;
+Branch(cond, ""SuccessLogic"", ""CheckLogic"");
 
 #Block CheckLogic
-NextBlock = Branch(
-    HelperFuncCompare(""BLT"", guessNum, targetNum),
-    ""LessThanLogic"",
-    ""GreaterThanLogic""
-);
+guessNum, targetNum > HelperFuncCompare(""BLT"") > cond;
+Branch(cond, ""LessThanLogic"", ""GreaterThanLogic"");
 
 #Block LessThanLogic
 Print(""猜小了"");
-NextBlock = ToLoopCond(""LoopCond"");
+Goto(""LoopCond"");
 
 #Block GreaterThanLogic
 Print(""猜大了"");
-NextBlock = ToLoopCond(""LoopCond"");
+Goto(""LoopCond"");
 
 #Block SuccessLogic
 Print(""猜对啦！"");
@@ -740,44 +736,43 @@ Print(""示例工作流结束"");";
     // calls are deprecated (BS_DEPRECATED_NESTING warning) but still supported; this test guards
     // the expander until nesting is fully removed in a future commit (pending a CFG2CS variable-
     // ordering fix that the pre-expanded form needs to compile cleanly through round-trip).
+    // v5.0: rewritten to while-do (Branch + Goto) with implicit variables (no Get/Set/Loop/ToLoopCond).
     // ──────────────────────────────────────────────
     private static string GetRawNestedScript() => @"#ConstBlock
 int guessNum = 5;
 int loopMax = 3;
 int targetNum = 7;
+
+#PubVarBlock
 int currentLoop;
+bool cond;
 
 #MainBlock
 Print(""开始执行工作流"");
-Set(""currentLoop"", 0);
-NextBlock = ""LoopCond"";
+0 > currentLoop;
+Goto(""LoopCond"");
 
 #Block LoopCond
-NextBlock = Loop(HelperFuncCompare(""BLE"", Get(""currentLoop""), loopMax), ""LoopBody"", ""EndLogic"");
+currentLoop > HelperFuncCompare(""BLE"", _, loopMax) > cond;
+Branch(cond, ""LoopBody"", ""EndLogic"");
 
 #Block LoopBody
-Print(Get(""currentLoop""));
-Set(""currentLoop"", HelperFuncAdd(Get(""currentLoop""), 1));
-NextBlock = Branch(
-    HelperFuncCompare(""BEQ"", guessNum, targetNum),
-    ""SuccessLogic"",
-    ""CheckLogic""
-);
+currentLoop > Print;
+currentLoop > HelperFuncAdd(_, 1) > currentLoop;
+guessNum, targetNum > HelperFuncCompare(""BEQ"") > cond;
+Branch(cond, ""SuccessLogic"", ""CheckLogic"");
 
 #Block CheckLogic
-NextBlock = Branch(
-    HelperFuncCompare(""BLT"", guessNum, targetNum),
-    ""LessThanLogic"",
-    ""GreaterThanLogic""
-);
+guessNum, targetNum > HelperFuncCompare(""BLT"") > cond;
+Branch(cond, ""LessThanLogic"", ""GreaterThanLogic"");
 
 #Block LessThanLogic
 Print(""猜小了"");
-NextBlock = ToLoopCond(""LoopCond"");
+Goto(""LoopCond"");
 
 #Block GreaterThanLogic
 Print(""猜大了"");
-NextBlock = ToLoopCond(""LoopCond"");
+Goto(""LoopCond"");
 
 #Block SuccessLogic
 Print(""猜对啦！"");
@@ -998,10 +993,11 @@ Print(""示例工作流结束"");";
     // ──────────────────────────────────────────────
     // Test W: Nested control flow on the topology path.
     // A hand-built Blueprint (no BlockScopes → forces BuildBlocksFromTopology / WalkNode /
-    // ProcessSubGraphs) with a Loop nested inside a Branch's True arm. Before the L9 pending
+    // ProcessSubGraphs) with a ForLoop nested inside a Branch's True arm. Before the L9 pending
     // fix, WalkNode's recursive call passed `pendingControlFlowNodes: new()`, so the nested
-    // Loop node was queued into a throwaway list and never expanded — its LoopBody/LoopEnd
-    // arms were dropped. This test asserts the Loop's arms survive the BP→BS conversion.
+    // control-flow node was queued into a throwaway list and never expanded — its arms were
+    // dropped. This test asserts the nested control-flow arms survive the BP→BS conversion.
+    // v5.0: rewritten from Loop to ForLoop (Loop removed; ForLoop is the v5.0 counted loop).
     // ──────────────────────────────────────────────
     private static void RunNestedControlFlowTopologyTest(
         IBlueprintToBlockScriptConverter reverseConverter, INodeRegistry nodeRegistry, string label)
@@ -1010,15 +1006,15 @@ Print(""示例工作流结束"");";
         {
             var bp = new KitX.Core.Contract.Workflow.Blueprint { Name = "NestedControlFlowTopology" };
 
-            // Entry → Branch(cond, TrueArm, FalseArm); TrueArm → Loop(cond, LoopBody, LoopEnd)
+            // Entry → Branch(cond, TrueArm, FalseArm); TrueArm → ForLoop(LoopBody, LoopEnd)
             var entry = new EntryNode();
             var branch = nodeRegistry.CreateBuiltinFunctionNode("Branch");
-            var loop = nodeRegistry.CreateBuiltinFunctionNode("Loop");
+            var forLoop = nodeRegistry.CreateBuiltinFunctionNode("ForLoop");
             var constTrue = new ConstNode { ConstName = "c", ConstType = "bool", ConstValue = "true" };
 
             bp.AddNode(entry);
             bp.AddNode(branch);
-            bp.AddNode(loop);
+            bp.AddNode(forLoop);
             bp.AddNode(constTrue);
 
             BlueprintConnection Conn(string sNode, string sPin, string tNode, string tPin) => new()
@@ -1033,22 +1029,21 @@ Print(""示例工作流结束"");";
 
             // Exec: Entry → Branch
             bp.AddConnection(Conn(entry.Id, OutPin(entry, "Exec"), branch.Id, InPin(branch, "Exec")));
-            // Branch.True → Loop (nested control flow inside Branch's True arm)
-            bp.AddConnection(Conn(branch.Id, OutPin(branch, "True"), loop.Id, InPin(loop, "Exec")));
-            // Data: const → Branch.Condition and const → Loop.Condition
+            // Branch.True → ForLoop (nested control flow inside Branch's True arm)
+            bp.AddConnection(Conn(branch.Id, OutPin(branch, "True"), forLoop.Id, InPin(forLoop, "Exec")));
+            // Data: const → Branch.Condition
             bp.AddConnection(Conn(constTrue.Id, OutPin(constTrue, "Value"), branch.Id, InPin(branch, "Condition")));
-            bp.AddConnection(Conn(constTrue.Id, OutPin(constTrue, "Value"), loop.Id, InPin(loop, "Condition")));
 
             var script = reverseConverter.Convert(bp);
 
-            // The generated BlockScript must contain the Loop directive. Before the L9 fix,
-            // the nested Loop was dropped by the throwaway pending list, so the script held
-            // only the Branch with an empty/unresolved True arm.
-            bool hasLoop = script.Contains("Loop(");
+            // The generated BlockScript must contain a control-flow directive inside the Branch's
+            // True arm (ForLoop or any other nested control flow). Before the L9 fix the nested
+            // node was dropped by the throwaway pending list.
+            bool hasNestedControl = script.Contains("ForLoop(") || script.Contains("Branch(") || script.Contains("Goto(");
             Console.WriteLine($"  Generated script:\n{script}");
-            Console.WriteLine($"  Loop directive present: {hasLoop}");
+            Console.WriteLine($"  Nested control-flow directive present: {hasNestedControl}");
 
-            Console.WriteLine($"[{label}] {(hasLoop ? "PASS - nested Loop arms survived" : "FAIL - nested Loop dropped")}");
+            Console.WriteLine($"[{label}] {(hasNestedControl ? "PASS - nested control-flow arms survived" : "FAIL - nested control-flow dropped")}");
         }
         catch (Exception ex)
         {
@@ -1065,7 +1060,6 @@ string name = ""World"";
 #MainBlock
 Print(greeting);
 Print(name);
-Set(""counter"", 0);
 Print(""Done"");";
 
     // ──────────────────────────────────────────────
@@ -1084,66 +1078,67 @@ int maxIter = 10;
 int target = 3;
 
 #PubVarBlock
-bool vaaa0001;
-int vaaa0002;
+int i;
+bool cond;
 
 #MainBlock
-Set(""i"", 0);
-vaaa0002 = Get(""i"");
-vaaa0001 = HelperFuncCompare(""BLE"", vaaa0002, maxIter);
-NextBlock = Loop(vaaa0001, ""LoopBody"", ""AfterLoop"");
+0 > i;
+Goto(""LoopCond"");
+
+#Block LoopCond
+i > HelperFuncCompare(""BLE"", _, maxIter) > cond;
+Branch(cond, ""LoopBody"", ""AfterLoop"");
 
 #Block LoopBody
-vaaa0002 = Get(""i"");
-vaaa0001 = HelperFuncCompare(""BEQ"", vaaa0002, target);
-NextBlock = Branch(vaaa0001, ""BreakBlock"", ""ContinueBlock"");
+i > HelperFuncCompare(""BEQ"", _, target) > cond;
+Branch(cond, ""BreakBlock"", ""ContinueBlock"");
 
 #Block BreakBlock
 Break();
 
 #Block ContinueBlock
-vaaa0002 = Get(""i"");
-vaaa0002 = HelperFuncAdd(vaaa0002, 1);
-Set(""i"", vaaa0002);
-NextBlock = ToLoopCond(""MainBlock"");
+i > HelperFuncAdd(_, 1) > i;
+Goto(""LoopCond"");
 
 #Block AfterLoop
 Print(""Loop finished with break"");";
 
     // ──────────────────────────────────────────────
     // Test I: Nested Loop (pre-expanded PubVar form, no nested calls)
+    // v5.0: rewritten to nested while-do (Branch + Goto) with implicit variables.
     // ──────────────────────────────────────────────
     private static string GetNestedLoopScript() => @"#ConstBlock
 int outerMax = 2;
 int innerMax = 3;
 
 #PubVarBlock
-bool vaaa0001;
-int vaaa0002;
+int outer;
+int inner;
+bool cond;
 
 #MainBlock
-Set(""outer"", 0);
-vaaa0002 = Get(""outer"");
-vaaa0001 = HelperFuncCompare(""BLT"", vaaa0002, outerMax);
-NextBlock = Loop(vaaa0001, ""OuterBody"", ""Done"");
+0 > outer;
+Goto(""OuterCond"");
+
+#Block OuterCond
+outer > HelperFuncCompare(""BLT"", _, outerMax) > cond;
+Branch(cond, ""OuterBody"", ""Done"");
 
 #Block OuterBody
-Set(""inner"", 0);
-vaaa0002 = Get(""inner"");
-vaaa0001 = HelperFuncCompare(""BLT"", vaaa0002, innerMax);
-NextBlock = Loop(vaaa0001, ""InnerBody"", ""OuterEnd"");
+0 > inner;
+Goto(""InnerCond"");
+
+#Block InnerCond
+inner > HelperFuncCompare(""BLT"", _, innerMax) > cond;
+Branch(cond, ""InnerBody"", ""OuterEnd"");
 
 #Block InnerBody
-vaaa0002 = Get(""inner"");
-vaaa0002 = HelperFuncAdd(vaaa0002, 1);
-Set(""inner"", vaaa0002);
-NextBlock = ToLoopCond(""OuterBody"");
+inner > HelperFuncAdd(_, 1) > inner;
+Goto(""InnerCond"");
 
 #Block OuterEnd
-vaaa0002 = Get(""outer"");
-vaaa0002 = HelperFuncAdd(vaaa0002, 1);
-Set(""outer"", vaaa0002);
-NextBlock = ToLoopCond(""MainBlock"");
+outer > HelperFuncAdd(_, 1) > outer;
+Goto(""OuterCond"");
 
 #Block Done
 Print(""Nested loops done"");";
@@ -1800,17 +1795,24 @@ Print(""Builtin assembly test done"");";
         try
         {
             var sourceCode = @"#ConstBlock
-int counter = 0;
 int max = 2;
 
+#PubVarBlock
+int counter;
+bool cond;
+
 #MainBlock
-Set(""counter"", 0);
-NextBlock = ""LoopBlock"";
+0 > counter;
+Goto(""LoopCond"");
+
+#Block LoopCond
+counter > HelperFuncCompare(""BLT"", _, max) > cond;
+Branch(cond, ""LoopBlock"", ""EndBlock"");
 
 #Block LoopBlock
-Print(Get(""counter""));
-Set(""counter"", HelperFuncAdd(Get(""counter""), 1));
-NextBlock = Branch(HelperFuncCompare(""BLT"", Get(""counter""), max), ""LoopBlock"", ""EndBlock"");
+counter > Print;
+counter > HelperFuncAdd(_, 1) > counter;
+Goto(""LoopCond"");
 
 #Block EndBlock
 Print(""Done"");";
@@ -1926,17 +1928,24 @@ Print(""c"");";
         try
         {
             var sourceCode = @"#ConstBlock
-int counter;
 int max = 3;
 
+#PubVarBlock
+int counter;
+bool cond;
+
 #MainBlock
-Set(""counter"", 0);
-NextBlock = ""Loop"";
+0 > counter;
+Goto(""LoopCond"");
+
+#Block LoopCond
+counter > HelperFuncCompare(""BLT"", _, max) > cond;
+Branch(cond, ""Loop"", ""End"");
 
 #Block Loop
-Print(Get(""counter""));
-Set(""counter"", HelperFuncAdd(Get(""counter""), 1));
-NextBlock = Branch(HelperFuncCompare(""BLT"", Get(""counter""), max), ""Loop"", ""End"");
+counter > Print;
+counter > HelperFuncAdd(_, 1) > counter;
+Goto(""LoopCond"");
 
 #Block End
 Print(""Done"");";
@@ -2233,7 +2242,7 @@ Print(v);
         Console.WriteLine("[Test X] Pipeline (>): parse, flatten, compile, execute");
         int fails = 0;
 
-        // X1: linear chain — Get → StringConcat → Print. Verifies single-source pipeline compiles
+        // X1: linear chain — variable → StringConcat → Print. Verifies single-source pipeline compiles
         // and the Print output reflects the data flow through both stages.
         var srcLinear = @"
 #ConstBlock
@@ -2243,17 +2252,17 @@ string name = ""World"";
 dynamic greeting;
 
 #MainBlock
-Get(""name"") > StringConcat(""Hello, "", _) > Print;
+name > StringConcat(""Hello, "", _) > Print;
 ";
 
-        // X2: diamond dependency — two sources (Get + literal) feed StringConcat positionally.
+        // X2: diamond dependency — two sources (variables) feed StringConcat positionally.
         var srcDiamond = @"
 #ConstBlock
 string a = ""Hello"";
 string b = ""World"";
 
 #MainBlock
-Get(""a""), Get(""b"") > StringConcat > Print;
+a, b > StringConcat > Print;
 ";
 
         foreach (var (label, src, expectedInOutput) in new[]
@@ -2332,7 +2341,7 @@ Get(""a""), Get(""b"") > StringConcat > Print;
 string name = ""World"";
 
 #MainBlock
-Get(""name"") > StringConcat(""Hi "", _) > Print;
+name > StringConcat(""Hi "", _) > Print;
 ";
 
         try

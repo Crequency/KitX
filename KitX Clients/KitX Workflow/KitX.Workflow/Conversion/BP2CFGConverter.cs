@@ -95,6 +95,13 @@ internal class BP2CFGConverter
         SetParentLoopReferences(cfg);
 
         // ── Step 8: Transfer PubVar data ──
+        // v5.0: blueprint.PubVarNames carries user-declared PubVars that may not appear on any
+        // data connection (e.g. a PubVar only written via the implicit-set pipeline form, where
+        // the write materialises as a node output → PubVarTarget without a named connection).
+        // Merge them in so the BS↔BP round-trip preserves user variable declarations.
+        foreach (var name in blueprint.PubVarNames)
+            if (!allPubVars.Contains(name))
+                allPubVars.Add(name);
         cfg.PubVarDeclarations = allPubVars;
         cfg.PubVarCounter = pubVarCounter;
 
