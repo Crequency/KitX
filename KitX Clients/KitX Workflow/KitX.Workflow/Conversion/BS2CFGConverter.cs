@@ -406,9 +406,12 @@ public class BS2CFGConverter
     /// <summary>
     /// Recursively expands nested calls within a single expression.
     /// Returns (expansionStatements, finalExpressionString).
+    /// <paramref name="terminalAssignedVar"/> (v5.0): when non-null, the top-level call is
+    /// lowered with this PubVarTarget instead of synthesising a vaaa#### temp. Used by
+    /// FormatPipeline for `Func() > var` so the call writes directly to the terminal variable.
     /// </summary>
     private (List<CFGStatement> stmts, string finalExpr) ExpandExpression(
-        BSExpression expr, string blockName, PipelineContext context)
+        BSExpression expr, string blockName, PipelineContext context, string? terminalAssignedVar = null)
     {
         // Literal → return as-is
         if (expr is BSLiteral)
@@ -437,7 +440,8 @@ public class BS2CFGConverter
             // Registered value-producing functions lower via their descriptor.
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } regFuncDef)
             {
-                var lowered = regFuncDef.LowerToCFG(invoke, expandedArgs, blockName, context, null);
+                // v5.0: pass terminalAssignedVar so `Func() > var` writes directly to var.
+                var lowered = regFuncDef.LowerToCFG(invoke, expandedArgs, blockName, context, terminalAssignedVar);
                 var lastStmt = lowered.LastOrDefault();
                 if (lastStmt?.PubVarTarget != null)
                 {
@@ -450,7 +454,8 @@ public class BS2CFGConverter
             }
 
             // Helper / regular function call: synthesize a PubVar assignment.
-            var pubVarName = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
+            // v5.0: when terminalAssignedVar is set, use it instead of a generated temp.
+            var pubVarName = terminalAssignedVar ?? ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
             if (!context.PubVarNames.Contains(pubVarName))
                 context.PubVarNames.Add(pubVarName);
 
@@ -578,10 +583,31 @@ public class BS2CFGConverter
         // ── Sources: expand each (nested calls → temp PubVars) and record as assignments. ──
         // The PubVar name (or literal/identifier text) of each source is the "current input"
         // fed to the first Target.
+        // v5.0: single-source-call → single-terminal-variable redirect. When the pipeline is of
+        // the form `Func(args) > var` (one source that is a call, one terminal target that is a
+        // bare variable), expand the source call with the terminal variable as its PubVarTarget.
+        // This avoids synthesising an intermediate vaaa#### that would drift across round-trips
+        // (Round 1: `Func() > var`; Round 2: `Func() > vaaaNNNN; vaaaNNNN > var`). The terminal
+        // assignment is then emitted by the variable-target branch below, which detects the
+        // redirect via the skip-opt (prevStmt.PubVarTarget == assignedVar) and drops the
+        // redundant assignment. This mirrors the existing next-is-terminal-variable redirect in
+        // the Targets loop but covers the case where the call is the lone SOURCE, not a target.
+        string? sourceRedirectVar = null;
+        if (pipeline.Sources.Count == 1
+            && pipeline.Sources[0] is BSCall
+            && pipeline.Targets.Count == 1
+            && IsVariableName(pipeline.Targets[0].MethodName, context)
+            && !IsFunctionName(pipeline.Targets[0].MethodName, context))
+        {
+            sourceRedirectVar = pipeline.Targets[0].MethodName;
+            if (!context.PubVarNames.Contains(sourceRedirectVar))
+                context.PubVarNames.Add(sourceRedirectVar);
+        }
+
         var currentInputs = new List<string>();
         foreach (var source in pipeline.Sources)
         {
-            var (srcStmts, srcExpr) = ExpandExpression(source, blockName, context);
+            var (srcStmts, srcExpr) = ExpandExpression(source, blockName, context, sourceRedirectVar);
             foreach (var s in srcStmts)
             {
                 s.PipelineId = pipelineId;

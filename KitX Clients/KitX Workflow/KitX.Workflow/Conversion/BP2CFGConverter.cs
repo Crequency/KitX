@@ -106,7 +106,14 @@ internal class BP2CFGConverter
         cfg.PubVarCounter = pubVarCounter;
 
         // ── Step 9: Transfer const declarations ──
-        // Collect ConstNode (initialized variables) and VariableNode (uninitialized variables)
+        // Collect ConstNode (initialized variables) and floating VariableNodes (uninitialized
+        // declarations from ConstBlock). v5.0: write-site VariableNodes (those with Exec pins,
+        // added by CFG2BPConverter when generating `Expr > var`) are excluded — they are
+        // statement-level writes emitted by GenerateBlockStatement, not ConstBlock declarations.
+        // Including them would duplicate the variable name in ConstBlock and break round-trip
+        // (and risk CS0128 in CFG2CS). Detection by Exec pin is robust for literal writes too,
+        // where no incoming data connection exists (DefaultValue is set instead).
+
         foreach (var node in blueprint.Nodes.OfType<ConstNode>())
         {
             cfg.ConstDeclarations.Add(new ConstDeclaration
@@ -117,8 +124,12 @@ internal class BP2CFGConverter
                 InitialValueExpression = null  // Blueprint doesn't store source expression
             });
         }
+        var seenVarNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var node in blueprint.Nodes.OfType<VariableNode>())
         {
+            // Write-site VariableNodes carry Exec pins (added in CFG2BPConverter); skip them.
+            if (node.InputPins.Any(p => p.Type == PinType.Execution)) continue;
+            if (!seenVarNames.Add(node.VarName)) continue;  // dedup floating declarations
             cfg.ConstDeclarations.Add(new ConstDeclaration
             {
                 Name = node.VarName,
@@ -843,6 +854,29 @@ internal class BP2CFGConverter
             // Const / Variable / other node types carry no executable statement — the former
             // _strategies fallback is gone (it was always empty: every node type either has an
             // explicit case above or is a pure data node that produces no BlockStatement).
+            // v5.0: VariableNode write sites (incoming Value data edge) are handled above; a
+            // VariableNode with no incoming Value edge is a floating read/declaration and
+            // produces no statement (its value flows inline via downstream argument resolution).
+            case BlueprintNodeType.Variable:
+            {
+                if (node is not VariableNode varNode) return null;
+                // Write-site VariableNodes carry Exec pins (added in CFG2BPConverter); only those
+                // emit `rhs > VarName`. Floating declaration/read VariableNodes (no Exec pin)
+                // produce no statement.
+                bool isWriteSite = varNode.InputPins.Any(p => p.Type == PinType.Execution);
+                if (!isWriteSite) return null;
+
+                var rhs = _exportHelper.GetInputValue(varNode, "Value");
+                if (string.IsNullOrEmpty(rhs)) rhs = "null";
+                var target = varNode.VarName ?? "";
+                var assignExpr = $"{rhs} > {target}";
+                return new ExpressionStatement
+                {
+                    Expression = assignExpr,
+                    SourceCode = $"{assignExpr};",
+                    AssignedVariable = target
+                };
+            }
             default:
                 Log.Debug("[BP2CFGConverter] Node type {NodeType} produces no statement", node.NodeType);
                 return null;

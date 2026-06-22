@@ -149,10 +149,29 @@ public class DataEdgeBuilder
             return;
         }
 
-        // VariableNode (no initial value) → set as DefaultValue fallback on target pin
+        // VariableNode (floating declaration, no initial value). v5.0: pure-assignment writes
+        // register a PubVarAssignment producer for the variable name (a write-site VariableNode);
+        // prefer connecting to that producer so reads of an already-written variable flow as a
+        // real data edge. Fall back to DefaultValue only for variables never written in this pass.
         if (context.VariableNodes.ContainsKey(trimmed))
         {
-            SetDefaultValue(targetNode, targetPinName, trimmed);
+            var producer = context.PubVarAssignments.Values
+                .FirstOrDefault(a => a.PubVarName == trimmed);
+            if (producer != null)
+            {
+                context.DataEdges.Add(new PendingDataEdge
+                {
+                    SourceNodeId = producer.SourceNode.Id,
+                    SourcePinName = producer.SourcePin.Name,
+                    TargetNodeId = targetNode.Id,
+                    TargetPinName = targetPinName,
+                    PubVarName = trimmed
+                });
+            }
+            else
+            {
+                SetDefaultValue(targetNode, targetPinName, trimmed);
+            }
             return;
         }
 

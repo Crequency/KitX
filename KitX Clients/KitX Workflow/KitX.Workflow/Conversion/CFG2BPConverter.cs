@@ -210,32 +210,38 @@ public class CFG2BPConverter
         }
         else if (string.IsNullOrEmpty(stmt.FunctionName) && !string.IsNullOrEmpty(stmt.PubVarTarget))
         {
-            // v5.0: pure variable assignment (`Expr > var`). De-dupe by target name — one
-            // __assign node per variable, reused across multiple writes. This is closer to
-            // stable round-trip than no-dedup (which grows unboundedly each round).
-            var existingAssign = context.AllNodes.OfType<CallNode>()
-                .FirstOrDefault(c => c.PluginName == "__assign" && c.FunctionName == stmt.PubVarTarget);
-            if (existingAssign != null)
+            // v5.0: pure variable assignment (`Expr > var`) → one VariableNode per write site
+            // (mirrors the old Get/Set "one node per call" model). Each write is an independent
+            // data edge entering the VariableNode's Value input pin; no shared/deduped node, so
+            // every write survives round-trip. VarKind defaults to PubVar (the only tier that
+            // participates in `Expr > var` writes today); BlockVar/LoopIndex writes are produced
+            // by their own builtin strategies.
+            //
+            // Write-site VariableNodes participate in the exec flow (like the old Set node):
+            // add Exec input/output pins so CreateExecConnection can chain them and
+            // FindReachableNodeIds reaches them from Entry. Floating declaration VariableNodes
+            // (from Phase 1) keep the descriptor's data-only pin set.
+            var varNode = (VariableNode)_registry.Create(BlueprintNodeType.Variable);
+            varNode.VarName = stmt.PubVarTarget;
+            varNode.VarKind = VariableKind.PubVar;
+            // Type is unknown at this layer (typed via ConstValues/PubVarBlock downstream);
+            // leave the default "int" — CFG2CSConverter.InferPubVarTypes resolves the real type.
+            // Add Exec pins (the descriptor only declares Value in/out).
+            varNode.InputPins.Add(new BlueprintPin
             {
-                node = existingAssign;
-            }
-            else
+                Id = Guid.NewGuid().ToString(),
+                Name = Exec,
+                Direction = PinDirection.Input,
+                Type = PinType.Execution
+            });
+            varNode.OutputPins.Add(new BlueprintPin
             {
-                node = _registry.Create(BlueprintNodeType.Call);
-                if (node is CallNode callNode)
-                {
-                    callNode.PluginName = "__assign";
-                    callNode.FunctionName = stmt.PubVarTarget;
-                    var valuePin = new BlueprintPin
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        Name = "Value",
-                        Direction = PinDirection.Input,
-                        Type = PinType.Any
-                    };
-                    callNode.InputPins.Add(valuePin);
-                }
-            }
+                Id = Guid.NewGuid().ToString(),
+                Name = Exec,
+                Direction = PinDirection.Output,
+                Type = PinType.Execution
+            });
+            node = varNode;
         }
         else
         {
@@ -365,10 +371,34 @@ public class CFG2BPConverter
     {
         if (string.IsNullOrEmpty(stmt.PubVarTarget)) return;
 
-        // v5.0: __assign placeholder CallNode — wire the assignment source to its Value input
-        // pin (so the source's output is "consumed" → PostProcessCallReturn prefixes the pubVar),
-        // then register the __assign node's Return pin as the PubVarTarget producer so downstream
-        // reads connect to it.
+        // v5.0: VariableNode write site — wire the assignment source to the VariableNode's Value
+        // input pin (so the source's output is "consumed" → PostProcessCallReturn prefixes the
+        // pubVar on the source node), then register the VariableNode's Value OUTPUT pin as the
+        // PubVarTarget producer so downstream reads connect to it (tap/read edge leaves the same
+        // node's output pin). One VariableNode per write site → every write is a distinct edge
+        // and survives round-trip.
+        if (node is VariableNode writeVar)
+        {
+            var inPin = writeVar.InputPins.FirstOrDefault(p => p.Name == "Value");
+            if (inPin != null)
+                WireAssignSource(stmt, writeVar, inPin, context);
+            var outPin = writeVar.OutputPins.FirstOrDefault(p => p.Name == "Value");
+            if (outPin != null)
+            {
+                context.PubVarAssignments[stmt.PubVarTarget] = new PubVarAssignment
+                {
+                    PubVarName = stmt.PubVarTarget,
+                    SourceNode = writeVar,
+                    SourcePin = outPin,
+                    StatementId = stmt.StatementId,
+                };
+            }
+            return;
+        }
+
+        // Backward-compat: existing blueprints may still carry __assign placeholder CallNodes
+        // produced by the pre-refactor converter. Keep wiring them so BP→BS reads don't break
+        // before the old data is cleaned up by the KCS-migration track.
         if (node is CallNode assignCall && assignCall.PluginName == "__assign")
         {
             var valuePin = assignCall.InputPins.FirstOrDefault(p => p.Name == "Value");
@@ -406,9 +436,10 @@ public class CFG2BPConverter
     }
 
     /// <summary>
-    /// v5.0: wires the pure-assignment source (stmt.Arguments[0]) to the __assign node's Value
-    /// input pin. The source may be a PubVar (→ existing PubVarAssignment producer), a ConstBlock
-    /// variable (→ ConstNode), or a literal (→ DefaultValue on the pin).
+    /// v5.0: wires the pure-assignment source (stmt.Arguments[0]) to the VariableNode's Value
+    /// input pin (or, for legacy blueprints, the __assign CallNode's Value pin). The source may
+    /// be a PubVar (→ existing PubVarAssignment producer), a ConstBlock variable (→ ConstNode),
+    /// or a literal (→ DefaultValue on the pin).
     /// </summary>
     private void WireAssignSource(CFGStatement stmt, BlueprintNode assignNode, BlueprintPin valuePin, PipelineContext context)
     {
