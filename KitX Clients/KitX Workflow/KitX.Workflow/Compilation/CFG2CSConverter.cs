@@ -40,7 +40,7 @@ internal static class CFG2CSConverter
     internal static Dictionary<string, string> InferPubVarTypes(
         ControlFlowGraph formattedScript,
         List<HelperFunction>? helperFunctions,
-        PipelineContext context)
+        ForwardConversionState context)
     {
         var pubVarTypes = new Dictionary<string, string>(StringComparer.Ordinal);
         var helperMap = (helperFunctions ?? []).ToDictionary(h => h.Name, h => h, StringComparer.Ordinal);

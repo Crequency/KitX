@@ -10,12 +10,12 @@ namespace KitX.Workflow.Conversion;
 /// Phase 6: Assembles the final Blueprint from all pipeline outputs.
 /// Converts PendingExecEdges and PendingDataEdges into BlueprintConnections.
 /// </summary>
-public class PipelineAssembler
+public class BlueprintAssembler
 {
-    private PipelineContext _ctx = null!;
+    private ForwardConversionState _ctx = null!;
     private Dictionary<string, BlueprintNode> _nodeById = new();
 
-    public KitX.Core.Contract.Workflow.Blueprint Assemble(PipelineContext context)
+    public KitX.Core.Contract.Workflow.Blueprint Assemble(ForwardConversionState context)
     {
         _ctx = context;
 
@@ -71,7 +71,7 @@ public class PipelineAssembler
                 bp.AddConnection(conn);
         }
 
-        Log.Debug("[PipelineAssembler] Assembled: {NodeCount} nodes, {ConnCount} connections",
+        Log.Debug("[BlueprintAssembler] Assembled: {NodeCount} nodes, {ConnCount} connections",
             bp.Nodes.Count, bp.Connections.Count);
 
         // Build block scopes from pipeline context
@@ -172,7 +172,7 @@ public class PipelineAssembler
     // Block Scope Construction
     // ──────────────────────────────────────────────
 
-    private void BuildBlockScopes(KitX.Core.Contract.Workflow.Blueprint bp, PipelineContext ctx)
+    private void BuildBlockScopes(KitX.Core.Contract.Workflow.Blueprint bp, ForwardConversionState ctx)
     {
         var mainBlockName = ctx.FormattedScript.MainBlockName;
 
@@ -211,7 +211,7 @@ public class PipelineAssembler
             }
         }
 
-        Log.Debug("[PipelineAssembler] Built {ScopeCount} block scopes",
+        Log.Debug("[BlueprintAssembler] Built {ScopeCount} block scopes",
             bp.BlockScopes.Count);
     }
 

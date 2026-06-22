@@ -46,7 +46,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public List<CFGStatement> LowerToCFG(
             BSCall invoke, IReadOnlyList<string> expandedArgs,
-            LowerContext ctx, PipelineContext context, string? assignedVar)
+            LowerContext ctx, ForwardConversionState context, string? assignedVar)
         {
             string? pubVarTarget;
             if (!string.IsNullOrEmpty(assignedVar))

@@ -12,7 +12,7 @@ namespace KitX.Workflow.Conversion;
 ///   BS2CFG(BlockScript)        → ControlFlowGraph    (parse, expand syntax sugar, allocate IDs)
 ///   BP2CFG(Blueprint)          → ControlFlowGraph    (build from nodes, StatementId = node.Id)
 ///   CFG2BS(ControlFlowGraph)   → BlockScript         (serialize, preserve StatementId)
-///   CFG2BP(ControlFlowGraph)   → (via PipelineContext) (build visual nodes)
+///   CFG2BP(ControlFlowGraph)   → (via ForwardConversionState) (build visual nodes)
 ///   CFG2CS(ControlFlowGraph, …) → CompilationUnitSyntax (generate C#, emit debug checkpoints)
 ///
 /// Main paths:
@@ -29,7 +29,7 @@ namespace KitX.Workflow.Conversion;
 ///   CFG2CS — uses stmt.StatementId for debug checkpoints ✓
 ///   CFG2BP — uses stmt.StatementId for NodeByStatementId mapping ✓
 /// </summary>
-internal static class CFGPipeline
+internal static class ConversionPaths
 {
     /// <summary>
     /// BS → CFG: parse source code, expand syntax sugar, allocate IDs.
@@ -39,9 +39,9 @@ internal static class CFGPipeline
         BlockScript script,
         List<HelperFunction> helpers,
         BuiltinFunctionRegistry? functionRegistry,
-        PipelineContext? context = null)
+        ForwardConversionState? context = null)
     {
-        var ctx = context ?? new PipelineContext { Script = script };
+        var ctx = context ?? new ForwardConversionState { Script = script };
         var formatter = new BS2CFGConverter(helpers, functionRegistry);
         var cfg = formatter.Format(script, ctx);
         cfg.DebugStatementToNodeId = new Dictionary<string, string>();
@@ -87,7 +87,7 @@ internal static class CFGPipeline
     /// </summary>
     internal static void CFG2BP(
         ControlFlowGraph cfg,
-        PipelineContext context,
+        ForwardConversionState context,
         INodeRegistry registry,
         List<HelperFunction> helpers,
         BuiltinFunctionRegistry? functionRegistry = null)

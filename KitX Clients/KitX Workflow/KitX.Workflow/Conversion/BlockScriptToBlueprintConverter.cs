@@ -20,7 +20,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
     /// <summary>
     /// The pipeline context from the last conversion (for debug inspection).
     /// </summary>
-    public PipelineContext? LastContext { get; private set; }
+    public ForwardConversionState? LastContext { get; private set; }
 
     /// <summary>
     /// User-facing diagnostics from the last conversion (parse-time + convert-time merged).
@@ -70,7 +70,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
         var helpers = script.HelperFunctions ?? new List<HelperFunction>();
 
         // ── Phase 1: ConstBlock + PubVarBlock processing ──
-        var context = new PipelineContext
+        var context = new ForwardConversionState
         {
             Script = script,
             HelperFunctions = helpers
@@ -81,14 +81,14 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             context.ConstNodes.Count, context.PubVarNames.Count);
 
         // ── Phase 2: Script formatting (expand nested calls + loop condition duplication) ──
-        var cfg = CFGPipeline.BS2CFG(script, helpers, _functionRegistry, context);
+        var cfg = ConversionPaths.BS2CFG(script, helpers, _functionRegistry, context);
         context.FormattedScript = cfg;
         Log.Debug("[Converter] Phase 2: {BlockCount} blocks, {StmtCount} statements",
             cfg.Blocks.Count,
             cfg.Blocks.Sum(b => b.Statements.Count));
 
         // ── Phase 3: CFG → BP via pipeline ──
-        CFGPipeline.CFG2BP(context.FormattedScript, context, _nodeRegistry, helpers, _functionRegistry);
+        ConversionPaths.CFG2BP(context.FormattedScript, context, _nodeRegistry, helpers, _functionRegistry);
         Log.Debug("[Converter] Phase 3: {NodeCount} nodes, {ExecEdgeCount} exec edges",
             context.AllNodes.Count, context.ExecEdges.Count);
 
@@ -105,7 +105,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
         Log.Debug("[Converter] Phase 4+5: {DataEdgeCount} data edges", context.DataEdges.Count);
 
         // ── Phase 6: Assemble Blueprint ──
-        var assembler = new PipelineAssembler();
+        var assembler = new BlueprintAssembler();
         var blueprint = assembler.Assemble(context);
 
         // ── Layout ──
@@ -123,7 +123,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
     // Phase 1: ConstBlock + PubVarBlock
     // ──────────────────────────────────────────────
 
-    private void Phase1_ProcessConstAndPubVar(PipelineContext context)
+    private void Phase1_ProcessConstAndPubVar(ForwardConversionState context)
     {
         // Process ConstBlock variables → ConstNodes or VariableNodes
         if (context.Script.ConstBlock != null)
@@ -169,7 +169,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
     /// <summary>
     /// Dumps the formatted script (Phase 2 output) as a human-readable string.
     /// </summary>
-    public static string DumpFormattedScript(PipelineContext context)
+    public static string DumpFormattedScript(ForwardConversionState context)
     {
         var sb = new System.Text.StringBuilder();
         foreach (var block in context.FormattedScript.Blocks)

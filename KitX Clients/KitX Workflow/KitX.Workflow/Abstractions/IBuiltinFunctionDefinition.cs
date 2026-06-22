@@ -138,7 +138,7 @@ public interface IBuiltinFunctionDefinition
         BSCall invoke,
         IReadOnlyList<string> expandedArgs,
         LowerContext ctx,
-        PipelineContext context,
+        ForwardConversionState context,
         string? assignedVar)
         => new()
         {
@@ -203,7 +203,7 @@ public interface IBuiltinFunctionDefinition
     /// 仅在 IsFlowControl == true 且 IsBlockTerminator == true 时被调用。
     /// 默认无操作。
     /// </summary>
-    void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context) { }
+    void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context) { }
 }
 
 /// <summary>

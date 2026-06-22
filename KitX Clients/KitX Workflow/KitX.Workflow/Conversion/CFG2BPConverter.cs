@@ -31,7 +31,7 @@ public class CFG2BPConverter
         _functionRegistry = functionRegistry;
     }
 
-    public void Build(ControlFlowGraph script, PipelineContext context)
+    public void Build(ControlFlowGraph script, ForwardConversionState context)
     {
         // Create EntryNode
         var entry = (EntryNode)_registry.Create(BlueprintNodeType.Entry);
@@ -63,7 +63,7 @@ public class CFG2BPConverter
     // Block processing
     // ──────────────────────────────────────────────
 
-    private void ProcessBlock(CFGBlock block, PipelineContext context)
+    private void ProcessBlock(CFGBlock block, ForwardConversionState context)
     {
         string? prevStmtId = null;
         BlueprintNode? prevNode = null;
@@ -114,7 +114,7 @@ public class CFG2BPConverter
     // ──────────────────────────────────────────────
 
     private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
-        PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
+        ForwardConversionState context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         var funcDef = !string.IsNullOrEmpty(stmt.FunctionName)
             ? _functionRegistry?.Get(stmt.FunctionName)
@@ -158,7 +158,7 @@ public class CFG2BPConverter
     // ──────────────────────────────────────────────
 
     private BlueprintNode? ProcessCallOrAssignment(CFGStatement stmt,
-        IBuiltinFunctionDefinition? funcDef, PipelineContext context,
+        IBuiltinFunctionDefinition? funcDef, ForwardConversionState context,
         ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         // --- PubVar reuse check (§6.5) ---
@@ -197,7 +197,7 @@ public class CFG2BPConverter
     /// <see cref="IBuiltinFunctionDefinition.ConfigureNode"/>, and adds param pins for bare
     /// Call/CallHelper nodes. Unregistered statements fall back to helper/plugin-call nodes.
     /// </summary>
-    private BlueprintNode CreateAndConfigureNode(CFGStatement stmt, IBuiltinFunctionDefinition? funcDef, PipelineContext context)
+    private BlueprintNode CreateAndConfigureNode(CFGStatement stmt, IBuiltinFunctionDefinition? funcDef, ForwardConversionState context)
     {
         BlueprintNode node;
         if (funcDef != null)
@@ -286,7 +286,7 @@ public class CFG2BPConverter
     // Cross-block edge resolution
     // ──────────────────────────────────────────────
 
-    private void ResolveCrossBlockEdges(PipelineContext context)
+    private void ResolveCrossBlockEdges(ForwardConversionState context)
     {
         // Sequential fall-through for blocks without flow control endings
         foreach (var (blockName, nextBlockName) in context.BlockNextBlock)
@@ -356,7 +356,7 @@ public class CFG2BPConverter
 
     /// <summary>Creates a node, registers it, and chains it into the exec flow.</summary>
     private BlueprintNode ChainNewNode(BlueprintNode node, CFGStatement stmt,
-        PipelineContext context, ref BlueprintNode? prevNode, ref string? prevStmtId)
+        ForwardConversionState context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
         context.AllNodes.Add(node);
         context.NodeByStatementId[stmt.StatementId] = node;
@@ -369,7 +369,7 @@ public class CFG2BPConverter
     }
 
     private void RegisterPubVarAssignment(CFGStatement stmt, BlueprintNode node,
-        IBuiltinFunctionDefinition? funcDef, PipelineContext context)
+        IBuiltinFunctionDefinition? funcDef, ForwardConversionState context)
     {
         if (string.IsNullOrEmpty(stmt.PubVarTarget)) return;
 
@@ -420,7 +420,7 @@ public class CFG2BPConverter
     /// input pin. The source may be a PubVar (→ existing PubVarAssignment producer), a ConstBlock
     /// variable (→ ConstNode), or a literal (→ DefaultValue on the pin).
     /// </summary>
-    private void WireAssignSource(CFGStatement stmt, BlueprintNode assignNode, BlueprintPin valuePin, PipelineContext context)
+    private void WireAssignSource(CFGStatement stmt, BlueprintNode assignNode, BlueprintPin valuePin, ForwardConversionState context)
     {
         var source = stmt.Arguments.FirstOrDefault()?.Trim() ?? "null";
 
@@ -469,7 +469,7 @@ public class CFG2BPConverter
     // (it correctly prefixes builtin-with-return results as `value > pubVar`).
 
 
-    private void AddExecEdge(string? sourceStmtId, string targetStmtId, PipelineContext context)
+    private void AddExecEdge(string? sourceStmtId, string targetStmtId, ForwardConversionState context)
     {
         if (sourceStmtId == null) return;
         context.ExecEdges.Add(new PendingExecEdge
@@ -480,7 +480,7 @@ public class CFG2BPConverter
     }
 
     /// <summary>Finds the statement ID that maps to a given node.</summary>
-    private string? FindStmtIdForNode(BlueprintNode node, PipelineContext context)
+    private string? FindStmtIdForNode(BlueprintNode node, ForwardConversionState context)
     {
         foreach (var kvp in context.NodeByStatementId)
         {

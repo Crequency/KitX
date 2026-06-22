@@ -10,7 +10,7 @@ namespace KitX.Workflow.Conversion;
 /// Accumulated mutable state flowing through all 6 phases of the BS→BP conversion pipeline.
 /// (ConversionContext serves the opposite BP→CFG direction; the two coexist, not replace each other.)
 /// </summary>
-public class PipelineContext
+public class ForwardConversionState
 {
     // --- Input ---
     public required BlockScript Script { get; set; }

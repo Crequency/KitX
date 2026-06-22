@@ -24,7 +24,7 @@ public class DataEdgeBuilder
         _functionRegistry = functionRegistry;
     }
 
-    public void Build(PipelineContext context)
+    public void Build(ForwardConversionState context)
     {
         // Phase 4: track the current block + effective-statement position so ProcessArgument can
         // query reaching-definitions for multi-writer variable resolution (Test K fix).
@@ -56,7 +56,7 @@ public class DataEdgeBuilder
     // Statement processing — registry-driven
     // ──────────────────────────────────────────────
 
-    private void ProcessStatement(CFGStatement stmt, PipelineContext context)
+    private void ProcessStatement(CFGStatement stmt, ForwardConversionState context)
     {
         if (!context.NodeByStatementId.TryGetValue(stmt.StatementId, out var targetNode)) return;
 
@@ -119,7 +119,7 @@ public class DataEdgeBuilder
     /// Processes a single argument expression and creates a data edge or sets DefaultValue.
     /// </summary>
     private void ProcessArgument(string arg, BlueprintNode targetNode, string targetPinName,
-        CFGStatement parentStmt, int argIndex, PipelineContext context)
+        CFGStatement parentStmt, int argIndex, ForwardConversionState context)
     {
         // Phase 3: use the shared ArgumentSourceClassifier so the string/char/numeric/identifier
         // predicates are not duplicated with NodeExportHelper.FormatLiteralValue.
@@ -182,7 +182,7 @@ public class DataEdgeBuilder
     // ──────────────────────────────────────────────
 
     private void ConnectPubVarSource(string pubVarName, BlueprintNode targetNode,
-        string targetPinName, PipelineContext context)
+        string targetPinName, ForwardConversionState context)
     {
         // Phase 4: use reaching-definitions analysis to resolve multi-writer variables. For a
         // consumer at (_currentBlockName, _currentPosition), find the definition of pubVarName
@@ -236,7 +236,7 @@ public class DataEdgeBuilder
     // Data edge deduplication (Phase 5)
     // ──────────────────────────────────────────────
 
-    private void DeduplicateDataEdges(PipelineContext context)
+    private void DeduplicateDataEdges(ForwardConversionState context)
     {
         var unique = new Dictionary<string, PendingDataEdge>();
 

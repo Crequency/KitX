@@ -39,10 +39,10 @@ public class BS2CFGConverter : IPipelineFlattenContext
         BSExpression expr, string blockName, string? terminalAssignedVar)
         => ExpandExpression(expr, blockName, _currentContext!, terminalAssignedVar);
 
-    /// <summary>The PipelineContext for the current Format pass (set by Format).</summary>
-    private PipelineContext _currentContext = null!;
+    /// <summary>The ForwardConversionState for the current Format pass (set by Format).</summary>
+    private ForwardConversionState _currentContext = null!;
 
-    public ControlFlowGraph Format(BlockScript script, PipelineContext context)
+    public ControlFlowGraph Format(BlockScript script, ForwardConversionState context)
     {
         var result = new ControlFlowGraph();
         _currentContext = context;
@@ -83,7 +83,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     // Block-level formatting
     // ──────────────────────────────────────────────
 
-    private CFGBlock FormatBlock(BlockDefinition blockDef, PipelineContext context)
+    private CFGBlock FormatBlock(BlockDefinition blockDef, ForwardConversionState context)
     {
         var result = new CFGBlock { Name = blockDef.Name };
         // BlockScript §6: a flow-control statement (Branch/Loop/ToLoopCond/Break) terminates
@@ -126,7 +126,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     }
 
     /// <summary>Returns a list of FormattedStatements (may be multiple when expansion occurs).</summary>
-    private List<CFGStatement> FormatStatement(BlockStatement stmt, string blockName, PipelineContext context)
+    private List<CFGStatement> FormatStatement(BlockStatement stmt, string blockName, ForwardConversionState context)
     {
         List<CFGStatement> result;
         switch (stmt)
@@ -158,7 +158,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     // Flow control formatting
     // ──────────────────────────────────────────────
 
-    private List<CFGStatement> FormatFlowControl(FlowControlStatement flowCtrl, string blockName, PipelineContext context)
+    private List<CFGStatement> FormatFlowControl(FlowControlStatement flowCtrl, string blockName, ForwardConversionState context)
     {
         var result = new List<CFGStatement>();
 
@@ -217,7 +217,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     /// v5.0: returns true if <paramref name="name"/> is a known variable (PubVar or ConstBlock).
     /// Used to distinguish a pipeline variable-assignment target (tap) from a function call.
     /// </summary>
-    private static bool IsVariableName(string name, PipelineContext context)
+    private static bool IsVariableName(string name, ForwardConversionState context)
     {
         if (string.IsNullOrEmpty(name)) return false;
         if (context.PubVarNames.Contains(name)) return true;
@@ -229,7 +229,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     /// <summary>
     /// v5.0: returns true if <paramref name="name"/> is a registered builtin or a declared helper.
     /// </summary>
-    private bool IsFunctionName(string name, PipelineContext context)
+    private bool IsFunctionName(string name, ForwardConversionState context)
     {
         if (string.IsNullOrEmpty(name)) return false;
         if (_functionRegistry?.Get(name) != null) return true;
@@ -237,7 +237,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
         return false;
     }
 
-    private List<CFGStatement> FormatExpressionStatement(ExpressionStatement exprStmt, string blockName, PipelineContext context)
+    private List<CFGStatement> FormatExpressionStatement(ExpressionStatement exprStmt, string blockName, ForwardConversionState context)
     {
         var result = new List<CFGStatement>();
 
@@ -266,7 +266,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
                 Comment = exprStmt.Comment,
             };
             // Set the flattener closure — captures this converter (IPipelineFlattenContext) and
-            // the current PipelineContext. Lazy + cached inside PipelineStatement.
+            // the current ForwardConversionState. Lazy + cached inside PipelineStatement.
             var self = this;
             ps.Flattener = stmt => PipelineFlattener.Flatten(
                 stmt.Pipeline, stmt.BlockName, self, _currentContext);
@@ -343,7 +343,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     /// </summary>
     private List<CFGStatement> LowerAndPostProcess(
         BSCall invoke, string funcName, string blockName,
-        PipelineContext context, string? assignedVar, string? fullFuncName = null,
+        ForwardConversionState context, string? assignedVar, string? fullFuncName = null,
         string? statementId = null)
     {
         if (assignedVar == "_") assignedVar = null;
@@ -396,7 +396,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     /// Returns (expansionStatements, currentArgStrings).
     /// </summary>
     private (List<CFGStatement> stmts, List<string> argExprs) ExpandArguments(
-        BSCall invoke, string blockName, PipelineContext context)
+        BSCall invoke, string blockName, ForwardConversionState context)
     {
         var stmts = new List<CFGStatement>();
         var argExprs = new List<string>();
@@ -419,7 +419,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     /// FormatPipeline for `Func() > var` so the call writes directly to the terminal variable.
     /// </summary>
     private (List<CFGStatement> stmts, string finalExpr) ExpandExpression(
-        BSExpression expr, string blockName, PipelineContext context, string? terminalAssignedVar = null)
+        BSExpression expr, string blockName, ForwardConversionState context, string? terminalAssignedVar = null)
     {
         // Literal → return as-is
         if (expr is BSLiteral)
@@ -578,7 +578,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     // ──────────────────────────────────────────────
 
     private (List<CFGStatement> stmts, string? pubVar) ExpandCondition(
-        string conditionExpression, string blockName, PipelineContext context)
+        string conditionExpression, string blockName, ForwardConversionState context)
     {
         var result = new List<CFGStatement>();
         if (string.IsNullOrWhiteSpace(conditionExpression))

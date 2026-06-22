@@ -48,7 +48,7 @@ public static class PipelineFlattener
     /// </summary>
     public static List<CFGStatement> Flatten(
         BSPipeline pipeline, string blockName, IPipelineFlattenContext ctx,
-        PipelineContext context)
+        ForwardConversionState context)
     {
         var result = new List<CFGStatement>();
 
@@ -168,7 +168,7 @@ public static class PipelineFlattener
     /// </summary>
     private static List<string> ResolveArgs(
         BSCall target, List<string> currentInputs, string blockName,
-        IPipelineFlattenContext ctx, PipelineContext context,
+        IPipelineFlattenContext ctx, ForwardConversionState context,
         List<CFGStatement> result)
     {
         var placeholders = target.Args.OfType<BSPlaceholder>().ToList();

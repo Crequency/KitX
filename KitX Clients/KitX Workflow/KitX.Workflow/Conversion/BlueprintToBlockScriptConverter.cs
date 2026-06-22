@@ -8,7 +8,7 @@ namespace KitX.Workflow.Conversion;
 
 /// <summary>
 /// Converts Blueprint back to a fully-expanded BlockScript source code.
-/// Thin orchestrator that delegates to CFGPipeline phases.
+/// Thin orchestrator that delegates to ConversionPaths phases.
 /// </summary>
 public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
 {
@@ -53,7 +53,7 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         _cfgBuilder.SetContext(blueprint, ctx);
 
         // Phase 1: BP → CFG via pipeline
-        var cfg = CFGPipeline.BP2CFG(blueprint, _builtinMap, _exportHelper, prebuiltBuilder: _cfgBuilder);
+        var cfg = ConversionPaths.BP2CFG(blueprint, _builtinMap, _exportHelper, prebuiltBuilder: _cfgBuilder);
         LastCFG = cfg;
         LastDiagnostics = ctx.Diagnostics;
 
@@ -65,7 +65,7 @@ public class BlueprintToBlockScriptConverter : IBlueprintToBlockScriptConverter
         // handled by the trampoline re-entering the condition block naturally.
 
         // Phase 3: CFG → BS via pipeline
-        var script = CFGPipeline.CFG2BS(cfg);
+        var script = ConversionPaths.CFG2BS(cfg);
 
         // Phase 4: Serialize to source code
         script.SourceCode = _serializer.Serialize(script);

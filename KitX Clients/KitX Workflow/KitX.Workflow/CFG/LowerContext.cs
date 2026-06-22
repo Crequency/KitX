@@ -16,7 +16,7 @@ namespace KitX.Workflow.CFG;
 /// PubVar-name set) and uses <see cref="Build"/> to construct each statement, so the builder
 /// derives those fields exactly once.</para>
 /// <para><b>Lifecycle:</b> one <see cref="LowerContext"/> per <c>LowerToCFG</c> invocation. The
-/// <see cref="PubVarNames"/> reference is shared with the enclosing <c>PipelineContext</c> so
+/// <see cref="PubVarNames"/> reference is shared with the enclosing <c>ForwardConversionState</c> so
 /// auto-minted temps remain visible to subsequent name-resolution checks.</para>
 /// </remarks>
 public readonly struct LowerContext

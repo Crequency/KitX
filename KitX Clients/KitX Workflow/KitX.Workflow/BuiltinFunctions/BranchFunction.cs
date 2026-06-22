@@ -48,7 +48,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
-        public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)
+        public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context)
         {
             if (!string.IsNullOrEmpty(stmt.TrueBlockName) || !string.IsNullOrEmpty(stmt.FalseBlockName))
             {

@@ -117,7 +117,7 @@ namespace KitX.Workflow.BuiltinFunctions
             return pins;
         }
 
-        public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, PipelineContext context)
+        public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context)
         {
             // Build deferred edges: one arm per output pin (Default/0/1/...).
             if (stmt.Arms.Count == 0) return;

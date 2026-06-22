@@ -111,7 +111,7 @@ internal class CSCompiler
         return LoadOrCompile(hash, workflowId, () =>
         {
             Log.Debug("[CSCompiler] Compiling from pre-built CFG: {BlockCount} blocks", cfg.Blocks.Count);
-            var context = new PipelineContext { Script = script };
+            var context = new ForwardConversionState { Script = script };
             PrepPubVarNames(context, script);
             var pubVarTypes = CFG2CSConverter.InferPubVarTypes(cfg, script.HelperFunctions, context);
             return CFG2CSConverter.GenerateCompilationUnit(script, cfg, pubVarTypes, hash);
@@ -212,10 +212,10 @@ internal class CSCompiler
     private (ControlFlowGraph formatted, Dictionary<string, string> pubVarTypes) FormatAndInferTypes(
         BlockScript script)
     {
-        var context = new PipelineContext { Script = script };
+        var context = new ForwardConversionState { Script = script };
         PrepPubVarNames(context, script);
 
-        var formattedScript = CFGPipeline.BS2CFG(script, script.HelperFunctions ?? [], FunctionRegistry, context);
+        var formattedScript = ConversionPaths.BS2CFG(script, script.HelperFunctions ?? [], FunctionRegistry, context);
 
         Log.Debug("[CSCompiler] Formatted script: {BlockCount} blocks, MainBlock={Main}",
             formattedScript.Blocks.Count, formattedScript.MainBlockName);
@@ -235,10 +235,10 @@ internal class CSCompiler
 
     /// <summary>
     /// Copies <see cref="BlockScript.PubVarBlock"/> variable names into the pipeline
-    /// context's <see cref="PipelineContext.PubVarNames"/>, deduplicated. Replaces two
+    /// context's <see cref="ForwardConversionState.PubVarNames"/>, deduplicated. Replaces two
     /// character-identical inline copies that lived in CompileFromCFG and FormatAndInferTypes.
     /// </summary>
-    private static void PrepPubVarNames(PipelineContext context, BlockScript script)
+    private static void PrepPubVarNames(ForwardConversionState context, BlockScript script)
     {
         if (script.PubVarBlock == null) return;
         foreach (var variable in script.PubVarBlock.Variables)
