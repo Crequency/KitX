@@ -193,6 +193,30 @@ public class BS2CFGConverter
     // Expression statement formatting
     // ──────────────────────────────────────────────
 
+    /// <summary>
+    /// v5.0: returns true if <paramref name="name"/> is a known variable (PubVar or ConstBlock).
+    /// Used to distinguish a pipeline variable-assignment target (tap) from a function call.
+    /// </summary>
+    private static bool IsVariableName(string name, PipelineContext context)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        if (context.PubVarNames.Contains(name)) return true;
+        if (context.Script.ConstBlock?.Variables.Any(v => v.Name == name) == true) return true;
+        if (context.Script.PubVarBlock?.Variables.Any(v => v.Name == name) == true) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// v5.0: returns true if <paramref name="name"/> is a registered builtin or a declared helper.
+    /// </summary>
+    private bool IsFunctionName(string name, PipelineContext context)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        if (_functionRegistry?.Get(name) != null) return true;
+        if (context.HelperFunctions.Any(h => h.Name == name)) return true;
+        return false;
+    }
+
     private List<CFGStatement> FormatExpressionStatement(ExpressionStatement exprStmt, string blockName, PipelineContext context)
     {
         var result = new List<CFGStatement>();
@@ -570,11 +594,46 @@ public class BS2CFGConverter
         // ── Targets: fill arguments from current inputs, emit one call each. ──
         // Each non-terminal target synthesizes a PubVar to hold its result so the next segment
         // can consume it; the terminal target (last) is a bare side-effect call with no PubVar.
+        // v5.0: a target that is a bare variable name (in PubVarNames/ConstBlock, not a registered
+        // function) is a variable assignment (tap semantics: Expr > var), NOT a function call —
+        // it must produce an assignment CFGStatement with PubVarTarget = varName, so BP→BS round-trip
+        // reconstructs `Expr > var` rather than the malformed `var(Expr)`.
         for (int t = 0; t < pipeline.Targets.Count; t++)
         {
             var target = pipeline.Targets[t];
             bool isTerminal = t == pipeline.Targets.Count - 1;
             var resolvedArgs = ResolvePipelineArgs(target, currentInputs, blockName, context, result, pipelineId, ref segIndex);
+
+            // v5.0: detect a variable-assignment target (tap). A bare identifier that is a known
+            // variable (PubVar or ConstBlock) and NOT a registered/hesper function → assignment.
+            bool isVariableTarget = IsVariableName(target.MethodName, context)
+                && !IsFunctionName(target.MethodName, context);
+
+            if (isVariableTarget)
+            {
+                // Expr > var  →  assignment to var (implicit Set), with tap pass-through.
+                var assignedVar = target.MethodName;
+                if (!context.PubVarNames.Contains(assignedVar))
+                    context.PubVarNames.Add(assignedVar);
+                var assignStmt = new CFGStatement
+                {
+                    BlockName = blockName,
+                    Kind = CFGStatementKind.Assignment,
+                    FunctionName = null,
+                    PubVarTarget = assignedVar,
+                    // The RHS is the single piped value (currentInputs has one entry for chains).
+                    Arguments = currentInputs,
+                    OriginalExpression = $"{currentInputs.FirstOrDefault() ?? "null"} > {assignedVar}",
+                    PipelineId = pipelineId,
+                    PipelineSegmentIndex = segIndex++
+                };
+                if (string.IsNullOrEmpty(assignStmt.StatementId))
+                    assignStmt.StatementId = Guid.NewGuid().ToString();
+                result.Add(assignStmt);
+                // Tap: the assigned value passes through to the next segment.
+                currentInputs = new List<string> { assignedVar };
+                continue;
+            }
 
             // Synthesize a PubVar target for non-terminal segments so the result flows forward.
             string? pubVarTarget = null;
