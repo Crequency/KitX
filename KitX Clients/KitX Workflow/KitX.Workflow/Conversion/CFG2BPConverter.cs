@@ -80,7 +80,9 @@ public class CFG2BPConverter
             prevNode = context.EntryNode;
         }
 
-        foreach (var stmt in block.Statements)
+        // v5.0: iterate GetEffectiveStatements so PipelineStatement entries are transparently
+        // flattened — CFG2BP sees only plain CFGStatements and processes them as before.
+        foreach (var stmt in block.GetEffectiveStatements())
         {
             var node = ProcessStatement(stmt, block.Name, context, ref prevNode, ref prevStmtId);
             if (firstNode == null && node != null)

@@ -13,7 +13,7 @@ namespace KitX.Workflow.Conversion;
 /// where all nested function calls have been expanded into PubVar assignments.
 /// Also duplicates Loop condition evaluations before ToLoopCond statements.
 /// </summary>
-public class BS2CFGConverter
+public class BS2CFGConverter : IPipelineFlattenContext
 {
     private readonly List<HelperFunction> _helperFunctions;
     private readonly BuiltinFunctionRegistry? _functionRegistry;
@@ -24,9 +24,28 @@ public class BS2CFGConverter
         _functionRegistry = functionRegistry;
     }
 
+    /// <summary>IPipelineFlattenContext: lookup a builtin's flow-control shape.</summary>
+    FlowControlType? IPipelineFlattenContext.GetFlowControlShape(string functionName)
+        => _functionRegistry?.Get(functionName)?.FlowControlShape;
+
+    /// <summary>IPipelineFlattenContext: delegate to the instance IsVariableName.</summary>
+    bool IPipelineFlattenContext.IsVariableName(string name) => IsVariableName(name, _currentContext!);
+
+    /// <summary>IPipelineFlattenContext: delegate to the instance IsFunctionName.</summary>
+    bool IPipelineFlattenContext.IsFunctionName(string name) => IsFunctionName(name, _currentContext!);
+
+    /// <summary>IPipelineFlattenContext: delegate to ExpandExpression (terminalAssignedVar optional).</summary>
+    (List<CFGStatement> prefix, string finalExpr) IPipelineFlattenContext.ExpandExpression(
+        BSExpression expr, string blockName, string? terminalAssignedVar)
+        => ExpandExpression(expr, blockName, _currentContext!, terminalAssignedVar);
+
+    /// <summary>The PipelineContext for the current Format pass (set by Format).</summary>
+    private PipelineContext _currentContext = null!;
+
     public ControlFlowGraph Format(BlockScript script, PipelineContext context)
     {
         var result = new ControlFlowGraph();
+        _currentContext = context;
 
         // Initialize counter: find max existing PubVar counter to avoid conflicts
         context.NextPubVarCounter = 1;
@@ -231,10 +250,27 @@ public class BS2CFGConverter
             return result;
         }
 
-        // Pipeline (\-) statements flatten into a sequence of PubVar assignments + calls sharing
-        // a PipelineId for round-trip reconstruction. Handled before the general call/binary paths.
+        // v5.0: the pipeline (>) is the data-flow primitive of the functional core. Emit it as a
+        // first-class PipelineStatement carrying the BSPipeline AST verbatim. Flattening into the
+        // imperative PubVar-assignment form is deferred to PipelineStatement.FlattenedStatements
+        // (consumed by CFG2BP/CFG2CS/executor via CFGBlock.GetEffectiveStatements).
         if (rightExpr is BSPipeline pipeline)
-            return FormatPipeline(pipeline, blockName, context);
+        {
+            var ps = new PipelineStatement
+            {
+                BlockName = blockName,
+                Pipeline = pipeline,
+                StatementId = exprStmt.StatementId,
+                SourceLine = exprStmt.LineNumber,
+                Comment = exprStmt.Comment,
+            };
+            // Set the flattener closure — captures this converter (IPipelineFlattenContext) and
+            // the current PipelineContext. Lazy + cached inside PipelineStatement.
+            var self = this;
+            ps.Flattener = stmt => PipelineFlattener.Flatten(
+                stmt.Pipeline, stmt.BlockName, self, _currentContext);
+            return [ps];
+        }
 
         var assignedVar = exprStmt.AssignedVariable;
 
@@ -529,229 +565,8 @@ public class BS2CFGConverter
     }
 
     // ──────────────────────────────────────────────
-    // Pipeline (\-) flattening
+    // Pipeline flattening — MOVED to PipelineFlattener.cs (invoked via PipelineStatement.FlattenedStatements)
     // ──────────────────────────────────────────────
-
-    /// <summary>
-    /// Flattens a <see cref="BSPipeline"/> into a sequence of CFG statements that share a
-    /// <see cref="CFGStatement.PipelineId"/> for round-trip reconstruction.
-    /// <para>
-    /// Each Source becomes an assignment; each Target becomes a call whose arguments are filled
-    /// from the current inputs (Sources for the first Target, the previous Target's single result
-    /// for subsequent ones). Targets containing <c>_</c> placeholders consume inputs at those
-    /// positions; targets without placeholders consume all inputs positionally.
-    /// </para>
-    /// <para>
-    /// The flattened form is semantically equivalent to nested calls — the pipeline is pure
-    /// text-side sugar. The CFG's flat PubVar-assignment form is what executes.
-    /// </para>
-    /// </summary>
-    private List<CFGStatement> FormatPipeline(BSPipeline pipeline, string blockName, PipelineContext context)
-    {
-        var result = new List<CFGStatement>();
-        var pipelineId = Guid.NewGuid().ToString();
-        int segIndex = 0;
-        // Preserve the verbatim pipeline source text on the first segment so CFG2BSConverter can
-        // rebuild the pipeline statement text without re-deriving it from the flattened form.
-        var pipelineSource = pipeline.SourceText;
-
-        // ── Sources: expand each (nested calls → temp PubVars) and record as assignments. ──
-        // The PubVar name (or literal/identifier text) of each source is the "current input"
-        // fed to the first Target.
-        // v5.0: single-source-call → single-terminal-variable redirect. When the pipeline is of
-        // the form `Func(args) > var` (one source that is a call, one terminal target that is a
-        // bare variable), expand the source call with the terminal variable as its PubVarTarget.
-        // This avoids synthesising an intermediate vaaa#### that would drift across round-trips
-        // (Round 1: `Func() > var`; Round 2: `Func() > vaaaNNNN; vaaaNNNN > var`). The terminal
-        // assignment is then emitted by the variable-target branch below, which detects the
-        // redirect via the skip-opt (prevStmt.PubVarTarget == assignedVar) and drops the
-        // redundant assignment. This mirrors the existing next-is-terminal-variable redirect in
-        // the Targets loop but covers the case where the call is the lone SOURCE, not a target.
-        string? sourceRedirectVar = null;
-        if (pipeline.Sources.Count == 1
-            && pipeline.Sources[0] is BSCall
-            && pipeline.Targets.Count == 1
-            && IsVariableName(pipeline.Targets[0].MethodName, context)
-            && !IsFunctionName(pipeline.Targets[0].MethodName, context))
-        {
-            sourceRedirectVar = pipeline.Targets[0].MethodName;
-            if (!context.PubVarNames.Contains(sourceRedirectVar))
-                context.PubVarNames.Add(sourceRedirectVar);
-        }
-
-        var currentInputs = new List<string>();
-        foreach (var source in pipeline.Sources)
-        {
-            var (srcStmts, srcExpr) = ExpandExpression(source, blockName, context, sourceRedirectVar);
-            foreach (var s in srcStmts)
-            {
-                s.PipelineId = pipelineId;
-                s.PipelineSegmentIndex = segIndex++;
-                result.Add(s);
-            }
-            currentInputs.Add(srcExpr);
-        }
-
-        // ── Targets: fill arguments from current inputs, emit one call each. ──
-        // Each non-terminal target synthesizes a PubVar to hold its result so the next segment
-        // can consume it; the terminal target (last) is a bare side-effect call with no PubVar.
-        // v5.0: a target that is a bare variable name (in PubVarNames/ConstBlock, not a registered
-        // function) is a variable assignment (tap semantics: Expr > var), NOT a function call —
-        // it must produce an assignment CFGStatement with PubVarTarget = varName, so BP→BS round-trip
-        // reconstructs `Expr > var` rather than the malformed `var(Expr)`.
-        for (int t = 0; t < pipeline.Targets.Count; t++)
-        {
-            var target = pipeline.Targets[t];
-            bool isTerminal = t == pipeline.Targets.Count - 1;
-            var resolvedArgs = ResolvePipelineArgs(target, currentInputs, blockName, context, result, pipelineId, ref segIndex);
-
-            // v5.0: detect a variable-assignment target (tap). A bare identifier that is a known
-            // variable (PubVar or ConstBlock) and NOT a registered/hesper function → assignment.
-            bool isVariableTarget = IsVariableName(target.MethodName, context)
-                && !IsFunctionName(target.MethodName, context);
-
-            if (isVariableTarget)
-            {
-                // Expr > var  →  assignment to var (implicit Set), with tap pass-through.
-                var assignedVar = target.MethodName;
-                if (!context.PubVarNames.Contains(assignedVar))
-                    context.PubVarNames.Add(assignedVar);
-
-                // v5.0: when the previous target was a function whose pubVarTarget was redirected
-                // to this variable (next-is-terminal-variable optimization), the assignment is
-                // already captured — skip the redundant __assign node. BUT only when the variable
-                // is not also the function's input (self-increment like `x > Add(_,1) > x` needs
-                // the assignment to be separate so the read precedes the write in codegen).
-                if (isTerminal && result.Count > 0)
-                {
-                    var prevStmt = result[^1];
-                    if (prevStmt.PubVarTarget == assignedVar
-                        && !string.IsNullOrEmpty(prevStmt.FunctionName)
-                        && !(prevStmt.Arguments?.Contains(assignedVar) == true))
-                    {
-                        currentInputs = new List<string> { assignedVar };
-                        continue;
-                    }
-                }
-
-                var assignStmt = new CfgStatementBuilder
-                {
-                    BlockName = blockName,
-                    // FunctionName null → pure assignment (Expr > var tap). Builder renders
-                    // "{rhs} > {PubVarTarget}" via RenderDefault, matching the v5.0 syntax.
-                    FunctionName = null,
-                    PubVarTarget = assignedVar,
-                    Arguments = currentInputs,
-                    PipelineId = pipelineId,
-                    PipelineSegmentIndex = segIndex++,
-                }.Build(context.PubVarNames);
-                result.Add(assignStmt);
-                // Tap: the assigned value passes through to the next segment.
-                currentInputs = new List<string> { assignedVar };
-                continue;
-            }
-
-            // Synthesize a PubVar target for non-terminal segments so the result flows forward.
-            // v5.0: when the NEXT target is the terminal variable assignment, use its name as this
-            // function's pubVarTarget — the result flows directly into the variable (no intermediate
-            // vaaa, no __assign node). BUT skip this optimization when the variable is also this
-            // function's input (self-increment `x > Add(_,1) > x` needs a temp so read precedes write).
-            string? pubVarTarget = null;
-            if (!isTerminal)
-            {
-                var nextTarget = pipeline.Targets[t + 1];
-                bool nextIsVariable = IsVariableName(nextTarget.MethodName, context)
-                    && !IsFunctionName(nextTarget.MethodName, context);
-                bool nextIsTerminal = t + 1 == pipeline.Targets.Count - 1;
-                bool selfIncrement = resolvedArgs.Contains(nextTarget.MethodName);
-                if (nextIsVariable && nextIsTerminal && !selfIncrement)
-                {
-                    pubVarTarget = nextTarget.MethodName;
-                    if (!context.PubVarNames.Contains(pubVarTarget))
-                        context.PubVarNames.Add(pubVarTarget);
-                }
-                else
-                {
-                    pubVarTarget = ExprUtils.GeneratePubVarName(context.NextPubVarCounter++);
-                    if (!context.PubVarNames.Contains(pubVarTarget))
-                        context.PubVarNames.Add(pubVarTarget);
-                }
-            }
-
-            var funcDef = _functionRegistry?.Get(target.MethodName);
-            var stmt = new CfgStatementBuilder
-            {
-                BlockName = blockName,
-                FlowControlShape = funcDef?.FlowControlShape,
-                FunctionName = target.MethodName,
-                FullFunctionName = target.FullMethodName,
-                PubVarTarget = pubVarTarget,
-                Arguments = resolvedArgs,
-                PipelineId = pipelineId,
-                PipelineSegmentIndex = segIndex++,
-            }.Build(context.PubVarNames);
-            result.Add(stmt);
-
-            currentInputs = pubVarTarget != null ? new List<string> { pubVarTarget } : new List<string>();
-        }
-
-        // Stamp the verbatim pipeline source text on the first segment so CFG2BS can rebuild
-        // the pipeline statement without re-deriving it from the flattened PubVar form.
-        if (result.Count > 0 && !string.IsNullOrEmpty(pipelineSource))
-            result[0].OriginalExpression = pipelineSource;
-
-        return result;
-    }
-
-    /// <summary>
-    /// Resolves a pipeline target's arguments to concrete PubVar/literal strings, substituting
-    /// <c>_</c> placeholders and non-placeholder args. When the target has placeholders, each
-    /// placeholder consumes one input in order; the remaining (literal) args are kept verbatim.
-    /// When the target has no placeholders, all current inputs fill the argument positions in order.
-    /// Any nested calls in non-placeholder args are expanded (appended to <paramref name="result"/>).
-    /// </summary>
-    private List<string> ResolvePipelineArgs(BSCall target, List<string> currentInputs,
-        string blockName, PipelineContext context, List<CFGStatement> result,
-        string pipelineId, ref int segIndex)
-    {
-        var placeholders = target.Args.OfType<BSPlaceholder>().ToList();
-        var resolved = new List<string>();
-        int inputCursor = 0;
-
-        foreach (var arg in target.Args)
-        {
-            if (arg is BSPlaceholder)
-            {
-                resolved.Add(inputCursor < currentInputs.Count
-                    ? currentInputs[inputCursor++]
-                    : "null");
-            }
-            else
-            {
-                // Expand any nested call in this arg, then use its final expression string.
-                var (nested, finalExpr) = ExpandExpression(arg, blockName, context);
-                foreach (var s in nested)
-                {
-                    s.PipelineId = pipelineId;
-                    s.PipelineSegmentIndex = segIndex++;
-                    result.Add(s);
-                }
-                resolved.Add(finalExpr);
-            }
-        }
-
-        // No placeholders → fill positional slots from currentInputs. When the call had no
-        // explicit args, ALL inputs apply (e.g. `a, b > StringConcat`). When the call had some
-        // explicit args (e.g. `guessNum, targetNum > HelperFuncCompare("BEQ")`), the inputs
-        // append AFTER the literal args (BEQ stays first, then guessNum, targetNum).
-        if (placeholders.Count == 0)
-        {
-            foreach (var input in currentInputs)
-                resolved.Add(input);
-        }
-
-        return resolved;
-    }
 
     // ──────────────────────────────────────────────
     // Condition expansion (for Branch/Loop)

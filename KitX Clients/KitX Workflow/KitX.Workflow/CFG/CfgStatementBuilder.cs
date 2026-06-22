@@ -15,8 +15,7 @@ namespace KitX.Workflow.CFG;
 /// <list type="bullet">
 ///   <item>Structural (authoritative, set by caller): BlockName, FlowControlShape, FunctionName,
 ///   FullFunctionName, Arguments, PubVarTarget, ConditionExpression, Arms.</item>
-///   <item>Metadata (optional, set by caller): StatementId, PipelineId, PipelineSegmentIndex,
-///   Comment, SourceLine.</item>
+///   <item>Metadata (optional, set by caller): StatementId, Comment, SourceLine.</item>
 ///   <item>Source text (caller-supplied when known verbatim, else auto-rendered): SourceText.</item>
 ///   <item>Derived (computed by Build, never set by caller): Kind, Fingerprint, OriginalExpression.</item>
 /// </list>
@@ -61,12 +60,6 @@ public sealed class CfgStatementBuilder
 
     /// <summary>Caller-supplied statement id; null → Build mints a fresh Guid.</summary>
     public string? StatementId { get; set; }
-
-    /// <summary>Pipeline id for round-trip grouping; null for non-pipeline statements.</summary>
-    public string? PipelineId { get; set; }
-
-    /// <summary>Ordinal within the pipeline (-1 for non-pipeline).</summary>
-    public int PipelineSegmentIndex { get; set; } = -1;
 
     /// <summary>Comment anchored to this statement (v5.0 §9 bidirectional retention).</summary>
     public string? Comment { get; set; }
@@ -117,8 +110,6 @@ public sealed class CfgStatementBuilder
             Arms = Arms,
             OriginalExpression = originalExpression,
             Fingerprint = fingerprint,
-            PipelineId = PipelineId,
-            PipelineSegmentIndex = PipelineSegmentIndex,
             Comment = Comment,
             SourceLine = SourceLine,
         };

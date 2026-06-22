@@ -27,7 +27,9 @@ public class DataEdgeBuilder
     {
         foreach (var block in context.FormattedScript.Blocks)
         {
-            foreach (var stmt in block.Statements)
+            // v5.0: iterate GetEffectiveStatements so PipelineStatement entries are transparently
+            // flattened — DataEdgeBuilder sees only plain CFGStatements with resolved Arguments.
+            foreach (var stmt in block.GetEffectiveStatements())
             {
                 ProcessStatement(stmt, context);
             }

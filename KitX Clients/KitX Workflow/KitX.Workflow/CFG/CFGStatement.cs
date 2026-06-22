@@ -188,26 +188,10 @@ public class CFGStatement
     /// </summary>
     public string? Fingerprint { get; set; }
 
-    // --- Pipeline (>) provenance ---
-    /// <summary>
-    /// When non-null, this statement is part of a pipeline (<c>&gt;</c>) that was flattened into
-    /// sequential assignments. All statements sharing the same <see cref="PipelineId"/>
-    /// belong to one pipeline and can be reconstructed into a single pipeline statement by
-    /// CFG2BSConverter. Null for non-pipeline statements. Pure metadata —
-    /// the execution layer ignores it. See BlockScriptGrammarRule §6.
-    /// </summary>
-    public string? PipelineId { get; set; }
-
-    /// <summary>
-    /// Ordinal of this statement within its pipeline (<see cref="PipelineId"/>), 0-based.
-    /// -1 for non-pipeline statements. Source assignments come before target calls in index order.
-    /// </summary>
-    public int PipelineSegmentIndex { get; set; } = -1;
-
     /// <summary>
     /// Comment attached to this statement (v5.0 bidirectional comment retention, §9).
-    /// For pipeline groups, the leading comment anchors to segment 0 (this statement when
-    /// PipelineSegmentIndex == 0). Round-trips BS→CFG→BS and BS→BP→BS.
+    /// For pipelines, the leading comment anchors to the PipelineStatement. Round-trips
+    /// BS→CFG→BS and BS→BP→BS.
     /// </summary>
     public string? Comment { get; set; }
 }

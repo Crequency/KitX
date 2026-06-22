@@ -67,7 +67,7 @@ internal static class CFG2CSConverter
         // First pass: SOURCE types
         foreach (var block in formattedScript.Blocks)
         {
-            foreach (var stmt in block.Statements)
+            foreach (var stmt in block.GetEffectiveStatements())
             {
                 if (stmt.PubVarTarget == null) continue;
 
@@ -90,7 +90,7 @@ internal static class CFG2CSConverter
         // Second pass: DEMANDED types from consumers
         foreach (var block in formattedScript.Blocks)
         {
-            foreach (var stmt in block.Statements)
+            foreach (var stmt in block.GetEffectiveStatements())
             {
                 // Conditional jump (Branch) condition demands bool. ForLoop's condition is
                 // internalized (no ConditionPubVar), so only ConditionalJump needs this.
@@ -581,7 +581,7 @@ internal static class CFG2CSConverter
         var stmtIndex = 0;
         var ctx = new CSEmitContext(pubVarTypes, helperReturnTypes);
 
-        foreach (var stmt in block.Statements)
+        foreach (var stmt in block.GetEffectiveStatements())
         {
             if (IsDebugMode)
             {

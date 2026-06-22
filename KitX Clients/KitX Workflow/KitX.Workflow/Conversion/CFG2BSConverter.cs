@@ -85,35 +85,23 @@ internal class CFG2BSConverter
                 NextBlockName = EndsWithGoto(cfgBlock) ? null : cfgBlock.FallThroughTarget
             };
 
-            // Iterate statements, batching pipeline (\-) groups: all statements sharing a
-            // PipelineId are segments of one flattened pipeline and are rebuilt into a single
-            // pipeline statement whose text was preserved on the first segment.
-            var i = 0;
-            while (i < cfgBlock.Statements.Count)
+            // v5.0: iterate the raw Statements storage. PipelineStatement entries (first-class
+            // pipeline AST) are rendered directly from their BSPipeline — no more PipelineId
+            // batching or OriginalExpression text-stamping. Non-pipeline entries fall through to
+            // ConvertStatement as before.
+            foreach (var cfgStmt in cfgBlock.Statements)
             {
-                var cfgStmt = cfgBlock.Statements[i];
-
-                // Pipeline group: collect all consecutive statements with the same PipelineId.
-                if (!string.IsNullOrEmpty(cfgStmt.PipelineId))
+                BlockStatement? blockStmt;
+                if (cfgStmt is PipelineStatement ps)
                 {
-                    var pid = cfgStmt.PipelineId;
-                    var group = new List<CFGStatement>();
-                    while (i < cfgBlock.Statements.Count
-                           && cfgBlock.Statements[i].PipelineId == pid)
-                    {
-                        group.Add(cfgBlock.Statements[i]);
-                        i++;
-                    }
-                    var pipelineStmt = ConvertPipelineGroup(group);
-                    if (pipelineStmt != null)
-                        blockDef.Statements.Add(pipelineStmt);
-                    continue;
+                    blockStmt = ConvertPipelineStatement(ps);
                 }
-
-                var blockStmt = ConvertStatement(cfgStmt);
+                else
+                {
+                    blockStmt = ConvertStatement(cfgStmt);
+                }
                 if (blockStmt != null)
                     blockDef.Statements.Add(blockStmt);
-                i++;
             }
 
             if (cfgBlock.IsMainBlock)
@@ -134,27 +122,30 @@ internal class CFG2BSConverter
     // ─── Statement Conversion ──────────────────────────────────────────
 
     /// <summary>
-    /// Rebuilds a flattened pipeline group (statements sharing a PipelineId) into a single
-    /// pipeline statement. The verbatim pipeline source text was stamped on the first segment's
-    /// <see cref="CFGStatement.OriginalExpression"/> by BS2CFGConverter.FormatPipeline; we emit it
-    /// as one ExpressionStatement. On re-parse, PipelinePreScanner rewrites the <c>\-</c> syntax
-    /// and BlockStatementExtractor rebuilds the BSPipeline AST, so no AST reconstruction is needed
-    /// here — the text carries the structure.
+    /// Renders a first-class <see cref="PipelineStatement"/> back to a BlockScript expression
+    /// statement. The <see cref="BSPipeline"/> AST is attached directly as
+    /// <see cref="ExpressionStatement.ParsedExpression"/> (no re-parse needed). The <c>&gt;</c>
+    /// source text is reconstructed from the AST via <see cref="BSPipeline.RenderPipelineSource"/>,
+    /// which uses each node's verbatim <see cref="BSExpression.SourceText"/> — eliminating the
+    /// old dependency on the __pipe sentinel text stamped by PipelinePreScanner, and the
+    /// silent-drop failure mode (OriginalExpression empty → null → pipeline lost).
     /// </summary>
-    private static BlockStatement? ConvertPipelineGroup(List<CFGStatement> group)
+    private static BlockStatement? ConvertPipelineStatement(PipelineStatement ps)
     {
-        if (group.Count == 0) return null;
-        var first = group[0];
-        var source = first.OriginalExpression;
+        var pipeline = ps.Pipeline;
+        var source = pipeline.RenderPipelineSource();
         if (string.IsNullOrEmpty(source)) return null;
+
         return new ExpressionStatement
         {
-            StatementId = first.StatementId,
-            Expression = ExtractExpression(source),
-            SourceCode = source,
-            LineNumber = first.SourceLine,
-            // v5.0 §9.1: the leading comment was anchored to the first segment by BS2CFG.
-            Comment = first.Comment
+            StatementId = ps.StatementId,
+            Expression = source,
+            SourceCode = source + ";",
+            LineNumber = ps.SourceLine,
+            Comment = ps.Comment,
+            // Attach the structured AST so downstream re-parse is skipped — PipelinePreScanner
+            // and BlockStatementExtractor are bypassed on the BS side.
+            ParsedExpression = pipeline
         };
     }
 

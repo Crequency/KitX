@@ -82,4 +82,30 @@ public class CFGBlock
     /// </summary>
     public bool EndsWithControlFlow =>
         Statements.Count > 0 && Statements[^1].FlowControlShape != null;
+
+    /// <summary>
+    /// The effective statement sequence consumers should iterate. PipelineStatement entries are
+    /// transparently expanded to their <see cref="PipelineStatement.FlattenedStatements"/> view,
+    /// so CFG2BP/CFG2CS/executor see only plain CFGStatements. Non-pipeline statements pass through.
+    /// </summary>
+    /// <remarks>
+    /// Use this instead of <see cref="Statements"/> whenever the consumer treats each entry as an
+    /// executable step (node creation, CS emission, execution). <see cref="Statements"/> remains
+    /// the authoritative storage (BS2CFG writes PipelineStatement directly into it).
+    /// </remarks>
+    public IEnumerable<CFGStatement> GetEffectiveStatements()
+    {
+        foreach (var s in Statements)
+        {
+            if (s is PipelineStatement ps)
+            {
+                foreach (var f in ps.FlattenedStatements)
+                    yield return f;
+            }
+            else
+            {
+                yield return s;
+            }
+        }
+    }
 }

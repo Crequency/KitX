@@ -119,11 +119,9 @@ public sealed class BSParenthesized : BSExpression
 /// which may contain <see cref="BSPlaceholder"/> arguments marking where pipeline values insert).
 /// </para>
 /// <para>
-/// Flattening (BS→CFG): each Source becomes a PubVar assignment; each Target becomes a call
-/// statement whose arguments are filled from Sources (first segment) or the previous segment's
-/// single result (subsequent segments). All statements share a <c>PipelineId</c> for round-trip
-/// reconstruction. The CFG's flat semantics are unchanged — the pipeline is purely a text-side
-/// sugar whose structure is captured as provenance metadata.
+/// Flattening (BS→CFG): the BSPipeline is carried as a first-class <c>PipelineStatement</c>
+/// whose <c>FlattenedStatements</c> view expands to the imperative PubVar-assignment sequence
+/// consumed by CFG2BP/CFG2CS/executor. CFG2BS renders back from the AST directly.
 /// </para>
 /// </summary>
 public sealed class BSPipeline : BSExpression
@@ -133,6 +131,23 @@ public sealed class BSPipeline : BSExpression
 
     /// <summary>The ordered pipeline segments (each <c>\- Target</c>).</summary>
     public IReadOnlyList<BSCall> Targets { get; set; } = Array.Empty<BSCall>();
+
+    /// <summary>
+    /// Renders the pipeline back to its <c>&gt;</c> source form from the structured AST.
+    /// Used by CFG2BS to reconstruct pipeline text without relying on verbatim source (which may
+    /// be a __pipe sentinel from the Roslyn prescanner). Each Source/Target/Arg renders its own
+    /// <see cref="BSExpression.SourceText"/>, which is set losslessly at the parse boundary.
+    /// </summary>
+    public string RenderPipelineSource()
+    {
+        var sb = new System.Text.StringBuilder();
+        // Sources: comma-joined (each keeps its verbatim text, e.g. "a", "Get(x)", "\"lit\"").
+        sb.Append(string.Join(", ", Sources.Select(s => s.SourceText)));
+        // Targets: " > TargetText" each.
+        foreach (var target in Targets)
+            sb.Append(" > ").Append(target.SourceText);
+        return sb.ToString();
+    }
 }
 
 /// <summary>

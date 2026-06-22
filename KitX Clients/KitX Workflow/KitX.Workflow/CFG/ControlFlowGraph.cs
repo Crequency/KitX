@@ -67,7 +67,7 @@ public class ControlFlowGraph
         foreach (var block in Blocks)
         {
             sb.AppendLine($"  ── Block \"{block.Name}\" (Type={block.Type}, IsMain={block.IsMainBlock}, FallThrough={block.FallThroughTarget ?? "null"}, ParentLoop={block.ParentLoopBlockName ?? "null"})");
-            foreach (var stmt in block.Statements)
+            foreach (var stmt in block.GetEffectiveStatements())
             {
                 var dup = stmt.IsLoopConditionDuplication ? " [COND_DUP]" : "";
                 sb.AppendLine($"    [{stmt.Kind}] {stmt.OriginalExpression}{dup}");

@@ -168,7 +168,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
         foreach (var block in context.FormattedScript.Blocks)
         {
             sb.AppendLine($"#Block {block.Name}  (FallThrough={block.FallThroughTarget ?? "null"})");
-            foreach (var stmt in block.Statements)
+            foreach (var stmt in block.GetEffectiveStatements())
             {
                 var dup = stmt.IsLoopConditionDuplication ? " [LoopCondDup]" : "";
                 var fp = stmt.Fingerprint != null ? $" FP={stmt.Fingerprint}" : "";
