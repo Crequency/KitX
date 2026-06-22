@@ -42,6 +42,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
+    <!-- Superpower: token-driven parser combinator for the BS (BlockScript) parse layer.
+         Apache-2.0 (Datalust). License text in KitX Dashboard Assets/ThirdPartyLicense.md.
+         Roslyn remains for C# code emission + assembly compilation; Superpower only owns BS parsing. -->
+    <PackageReference Include="Superpower" Version="3.2.1" />
   </ItemGroup>
 
 </Project>
