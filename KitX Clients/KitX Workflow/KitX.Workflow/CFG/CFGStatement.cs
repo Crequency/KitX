@@ -118,17 +118,12 @@ public class CFGStatement
     // --- For flow control ---
     /// <summary>
     /// The condition expression for Branch/Loop/Switch statements.
-    /// May be a PubVar name or a complex expression. For Switch this is the integer selector.
-    /// v5.0: ForLoop has no condition expression (its condition is internalized in the node).
+    /// Post-expansion this is a single PubVar identifier (the source of the condition value);
+    /// consumers (EmitStatements, DataEdgeBuilder, InferPubVarTypes) treat it as the condition
+    /// source. For Switch this is the integer selector. v5.0 ForLoop has no condition expression
+    /// (its condition is internalized in the node).
     /// </summary>
     public string? ConditionExpression { get; set; }
-
-    /// <summary>
-    /// The PubVar holding the condition result, if pre-computed.
-    /// v5.0 transition: retained while Loop/ToLoopCond/CFGConditionDuplicator are being removed;
-    /// deleted with them (layer 4/6).
-    /// </summary>
-    public string? ConditionPubVar { get; set; }
 
     /// <summary>
     /// Shared control-flow arms model (Arms / TrueBlockName / FalseBlockName / LoopbackTarget).

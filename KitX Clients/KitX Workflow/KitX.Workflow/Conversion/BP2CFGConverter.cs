@@ -983,7 +983,6 @@ internal class BP2CFGConverter
                 // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), so it is
                 // carried by this clone — no separate field copy needed.
                 cfgStmt.Arms = flow.Arms.Select(a => a.Clone()).ToList();
-                cfgStmt.ConditionPubVar = flow.ConditionExpression?.Trim();
                 break;
 
             case ExpressionStatement expr:

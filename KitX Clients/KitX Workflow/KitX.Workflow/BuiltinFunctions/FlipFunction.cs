@@ -69,9 +69,7 @@ namespace KitX.Workflow.BuiltinFunctions
         {
             // NOTE: Flip currently shares the Branch control-flow form (StatementKind=Branch),
             // so it emits G.Branch(...) — a known alias to revisit. Not exercised by tests.
-            var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
-                ? ctx.ResolveArgument(stmt.ConditionPubVar)
-                : ctx.Parse(stmt.ConditionExpression ?? "false");
+            var condExpr = ctx.Parse(stmt.ConditionExpression ?? "false");
             return ctx.EmitNextBlockAssignment("Branch", condExpr,
                 ctx.Literal(stmt.TrueBlockName ?? ""), ctx.Literal(stmt.FalseBlockName ?? ""));
         }

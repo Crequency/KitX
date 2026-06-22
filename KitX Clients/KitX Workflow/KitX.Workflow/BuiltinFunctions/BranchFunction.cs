@@ -67,9 +67,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         {
-            var condExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
-                ? ctx.ResolveArgument(stmt.ConditionPubVar)
-                : ctx.Parse(stmt.ConditionExpression ?? "false");
+            var condExpr = ctx.Parse(stmt.ConditionExpression ?? "false");
             return ctx.EmitNextBlockAssignment("Branch", condExpr,
                 ctx.Literal(stmt.TrueBlockName ?? ""), ctx.Literal(stmt.FalseBlockName ?? ""));
         }

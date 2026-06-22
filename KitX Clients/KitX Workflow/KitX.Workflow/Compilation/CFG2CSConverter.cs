@@ -93,13 +93,16 @@ internal static class CFG2CSConverter
             foreach (var stmt in block.GetEffectiveStatements())
             {
                 // Conditional jump (Branch) condition demands bool. ForLoop's condition is
-                // internalized (no ConditionPubVar), so only ConditionalJump needs this.
-                if (stmt.FlowControlShape == FlowControlType.ConditionalJump
-                    && !string.IsNullOrEmpty(stmt.ConditionPubVar)
-                    && pubVarTypes.ContainsKey(stmt.ConditionPubVar))
+                // internalized, so only ConditionalJump needs this. The condition source PubVar
+                // is carried by ConditionExpression (single identifier post-expansion).
+                if (stmt.FlowControlShape == FlowControlType.ConditionalJump)
                 {
-                    if (pubVarTypes[stmt.ConditionPubVar] == "object")
-                        pubVarTypes[stmt.ConditionPubVar] = "bool";
+                    var condSrc = stmt.ConditionExpression?.Trim();
+                    if (!string.IsNullOrEmpty(condSrc) && pubVarTypes.ContainsKey(condSrc)
+                        && pubVarTypes[condSrc] == "object")
+                    {
+                        pubVarTypes[condSrc] = "bool";
+                    }
                 }
 
                 // Helper function arguments demand specific types

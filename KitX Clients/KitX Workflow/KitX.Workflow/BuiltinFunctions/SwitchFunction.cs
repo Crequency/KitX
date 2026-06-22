@@ -137,9 +137,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         {
             // G.NextBlock = G.Switch(selector, "default", "b0", "b1", ...); break;
-            var selExpr = !string.IsNullOrEmpty(stmt.ConditionPubVar)
-                ? ctx.ResolveArgument(stmt.ConditionPubVar)
-                : ctx.Parse(stmt.ConditionExpression ?? "0");
+            var selExpr = ctx.Parse(stmt.ConditionExpression ?? "0");
 
             // EmitNextBlockAssignment(member, params args) — prepend selector then all arm blocks.
             var args = new List<ExpressionSyntax> { selExpr };

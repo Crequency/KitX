@@ -81,14 +81,16 @@ public class DataEdgeBuilder
                 }
             }
 
-            // Connect ConditionPubVar to the flow-control node's condition/selector input pin.
+            // Connect the condition/selector source to the flow-control node's condition input pin.
             // This is the first non-Exec data input pin (Branch/Loop "Condition" is Boolean,
             // Switch "Selector" is Integer), so match by position rather than hard-coding Boolean.
-            if (!string.IsNullOrEmpty(stmt.ConditionPubVar))
+            // The source PubVar name is carried by ConditionExpression (single identifier post-expansion).
+            var condSrc = stmt.ConditionExpression?.Trim();
+            if (!string.IsNullOrEmpty(condSrc) && context.PubVarNames.Contains(condSrc))
             {
                 var condPin = funcDef.InputPins.FirstOrDefault(p => p.Type != PinType.Execution);
                 if (condPin != null)
-                    ConnectPubVarSource(stmt.ConditionPubVar, targetNode, condPin.Name, context);
+                    ConnectPubVarSource(condSrc, targetNode, condPin.Name, context);
             }
         }
         else
@@ -105,9 +107,10 @@ public class DataEdgeBuilder
             }
 
             // Handle condition for non-registry Branch/Loop
-            if (!string.IsNullOrEmpty(stmt.ConditionPubVar))
+            var nonRegCondSrc = stmt.ConditionExpression?.Trim();
+            if (!string.IsNullOrEmpty(nonRegCondSrc) && context.PubVarNames.Contains(nonRegCondSrc))
             {
-                ConnectPubVarSource(stmt.ConditionPubVar, targetNode, Condition, context);
+                ConnectPubVarSource(nonRegCondSrc, targetNode, Condition, context);
             }
         }
     }

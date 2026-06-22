@@ -183,7 +183,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
                 sb.AppendLine($"  [{stmt.Kind}] {stmt.OriginalExpression}" +
                     $" | PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName}" +
                     $" Args=[{args}]" +
-                    $" CondPubVar={stmt.ConditionPubVar} True={stmt.TrueBlockName} False={stmt.FalseBlockName}" +
+                    $" CondExpr={stmt.ConditionExpression} True={stmt.TrueBlockName} False={stmt.FalseBlockName}" +
                     $" LoopbackTarget={stmt.LoopbackTarget}{dup}{fp}");
             }
             sb.AppendLine();

@@ -168,16 +168,18 @@ public class BS2CFGConverter : IPipelineFlattenContext
         var shape = def?.FlowControlShape ?? flowCtrl.ControlType;
 
         // Expand condition for Branch/Loop (nested calls in the condition → temp PubVars).
-        // condPubVar feeds ConditionPubVar, still read by CFG2CSConverter.InferPubVarTypes to
-        // force the condition variable to bool. TODO(phase-2/4): retire ConditionPubVar once
-        // the type inferencer derives bool-ness from ConditionalJump arms directly.
+        // v5.0: when ExpandCondition materialises the condition into a PubVar, we overwrite
+        // ConditionExpression with that PubVar name so the field is the single source of truth
+        // for the condition source. Consumers (EmitStatements, DataEdgeBuilder, InferPubVarTypes)
+        // read ConditionExpression directly — no separate ConditionPubVar field needed.
         var hasCondition = !string.IsNullOrEmpty(flowCtrl.ConditionExpression);
-        string? condPubVar = null;
+        string? effectiveCondition = flowCtrl.ConditionExpression;
         if (hasCondition)
         {
             var (condStmts, pubVar) = ExpandCondition(flowCtrl.ConditionExpression, blockName, context);
             result.AddRange(condStmts);
-            condPubVar = pubVar;
+            if (!string.IsNullOrEmpty(pubVar))
+                effectiveCondition = pubVar;
         }
 
         var stmt = new CfgStatementBuilder
@@ -186,8 +188,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
             BlockName = blockName,
             FlowControlShape = shape,
             FunctionName = functionName,
-            ConditionExpression = flowCtrl.ConditionExpression,
-            ConditionPubVar = condPubVar,
+            ConditionExpression = effectiveCondition,
             // Copy the full arm list so N-way Switch and any variadic shape survive.
             // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
             Arms = flowCtrl.Arms.Select(a => a.Clone()).ToList(),

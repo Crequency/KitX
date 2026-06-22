@@ -43,15 +43,11 @@ public sealed class CfgStatementBuilder
     /// <summary>The PubVar being assigned, if this is an assignment.</summary>
     public string? PubVarTarget { get; set; }
 
-    /// <summary>Condition/selector expression for flow-control statements.</summary>
+    /// <summary>Condition/selector expression for flow-control statements.
+    /// Post-expansion this is a single PubVar identifier (the source of the condition value);
+    /// the builder passes it through to <see cref="CFGStatement.ConditionExpression"/> and
+    /// consumers derive bool-ness/selector-ness from the ConditionalJump/IndexedDispatch shape.</summary>
     public string? ConditionExpression { get; set; }
-
-    /// <summary>
-    /// The PubVar holding the condition result, if pre-computed. Transitional (CFG2CSConverter
-    /// still reads it to force bool typing on Branch conditions). TODO(phase-2/4): retire once
-    /// the type inferencer derives bool-ness from the ConditionalJump shape.
-    /// </summary>
-    public string? ConditionPubVar { get; set; }
 
     /// <summary>Control-flow arms (Branch true/false, Switch cases, Goto target).</summary>
     public List<BranchArm> Arms { get; set; } = [];
@@ -106,7 +102,6 @@ public sealed class CfgStatementBuilder
             Arguments = Arguments,
             PubVarTarget = PubVarTarget,
             ConditionExpression = ConditionExpression,
-            ConditionPubVar = ConditionPubVar,
             Arms = Arms,
             OriginalExpression = originalExpression,
             Fingerprint = fingerprint,

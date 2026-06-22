@@ -58,11 +58,6 @@ public class PipelineContext
     /// </summary>
     public Dictionary<string, BlueprintNode> LoopNodesByParent { get; set; } = new();
 
-    /// <summary>
-    /// parentBlockName → condition PubVar assignment info (for Loop condition duplication)
-    /// </summary>
-    public Dictionary<string, ConditionInfo> LoopConditions { get; set; } = new();
-
     // --- Debug tracking ---
 
     /// <summary>
@@ -102,28 +97,6 @@ public class SubAssignment
     public BlueprintNode Node { get; set; } = null!;
     public BlueprintPin Pin { get; set; } = null!;
     public string StatementId { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Information about a Loop's condition for duplication before ToLoopCond.
-/// </summary>
-public class ConditionInfo
-{
-    /// <summary>
-    /// The PubVar that holds the condition result (e.g. "vaaa0001").
-    /// </summary>
-    public string ConditionPubVar { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The expanded condition expression (e.g. "HelperFuncCompare(\"BLE\", Get(\"currentLoop\"), loopMax)").
-    /// </summary>
-    public string RawExpression { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The formatted statements that evaluate the condition (may be multiple if nested).
-    /// The last one assigns to ConditionPubVar.
-    /// </summary>
-    public List<CFGStatement> ExpansionStatements { get; set; } = new();
 }
 
 /// <summary>
