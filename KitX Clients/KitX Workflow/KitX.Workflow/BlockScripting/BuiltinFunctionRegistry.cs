@@ -1,5 +1,6 @@
 using System.Reflection;
 using Serilog;
+using KitX.Core.Contract.Workflow;
 
 namespace KitX.Workflow.BlockScripting;
 
@@ -22,6 +23,23 @@ public class BuiltinFunctionRegistry
     /// <summary>注册一个函数定义</summary>
     public void Register(IBuiltinFunctionDefinition definition)
     {
+        // v5.0 §7: control-flow functions must have no data output pins (only Execution pins).
+        // A control-flow statement terminates its block, so no later statement can consume a
+        // return value. Enforced at registration so future flow-control builtins can't violate it.
+        if (definition.IsFlowControl)
+        {
+            foreach (var pin in definition.OutputPins)
+            {
+                if (pin.Type != PinType.Execution)
+                {
+                    throw new InvalidOperationException(
+                        $"BS_INVALID_FLOWCTRL_PINS: builtin '{definition.FunctionName}' is flow-control " +
+                        $"but declares a non-Execution output pin '{pin.Name}' ({pin.Type}). " +
+                        "Control-flow functions must have only Execution output pins (§7).");
+                }
+            }
+        }
+
         _functions[definition.FunctionName] = definition;
         Log.Debug("[BuiltinFunctionRegistry] Registered: {Name} (FlowControl={FC}, NonExtractable={NE})",
             definition.FunctionName, definition.IsFlowControl, definition.IsNonExtractable);

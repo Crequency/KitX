@@ -22,6 +22,8 @@ internal static class ControlFlowMapping
     {
         FlowControlType.ConditionalJump => CFGStatementKind.Branch,
         FlowControlType.IterativeJump => CFGStatementKind.Loop,
+        FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
+        FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
         FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
         FlowControlType.LoopBackedge => CFGStatementKind.ToLoopCond,
         FlowControlType.LoopExit => CFGStatementKind.Break,
@@ -33,6 +35,8 @@ internal static class ControlFlowMapping
     {
         FlowControlType.ConditionalJump => "Branch",
         FlowControlType.IterativeJump => "Loop",
+        FlowControlType.IterativeCounted => "ForLoop",
+        FlowControlType.UnconditionalJump => "Goto",
         FlowControlType.IndexedDispatch => "Switch",
         FlowControlType.LoopBackedge => "ToLoopCond",
         FlowControlType.LoopExit => "Break",
@@ -44,6 +48,8 @@ internal static class ControlFlowMapping
     {
         CFGStatementKind.Branch => FlowControlType.ConditionalJump,
         CFGStatementKind.Loop => FlowControlType.IterativeJump,
+        CFGStatementKind.ForLoop => FlowControlType.IterativeCounted,
+        CFGStatementKind.Goto => FlowControlType.UnconditionalJump,
         CFGStatementKind.Switch => FlowControlType.IndexedDispatch,
         CFGStatementKind.ToLoopCond => FlowControlType.LoopBackedge,
         CFGStatementKind.Break => FlowControlType.LoopExit,
