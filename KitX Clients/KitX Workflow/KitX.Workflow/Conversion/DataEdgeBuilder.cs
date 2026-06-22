@@ -7,6 +7,7 @@ using KitX.Workflow.CFG;
 using KitX.Workflow.Models;
 
 using KitX.Workflow.Blueprint;
+using KitX.Workflow.Conversion.Arguments;
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
@@ -25,13 +26,19 @@ public class DataEdgeBuilder
 
     public void Build(PipelineContext context)
     {
+        // Phase 4: track the current block + effective-statement position so ProcessArgument can
+        // query reaching-definitions for multi-writer variable resolution (Test K fix).
         foreach (var block in context.FormattedScript.Blocks)
         {
+            _currentBlockName = block.Name;
+            _currentPosition = 0;
+
             // v5.0: iterate GetEffectiveStatements so PipelineStatement entries are transparently
             // flattened — DataEdgeBuilder sees only plain CFGStatements with resolved Arguments.
             foreach (var stmt in block.GetEffectiveStatements())
             {
                 ProcessStatement(stmt, context);
+                _currentPosition++;
             }
         }
 
@@ -40,6 +47,10 @@ public class DataEdgeBuilder
         Log.Debug("[DataEdgeBuilder] Done: {DataEdgeCount} data edges",
             context.DataEdges.Count);
     }
+
+    // Current block + position for reaching-definitions queries during ProcessArgument.
+    private string _currentBlockName = string.Empty;
+    private int _currentPosition;
 
     // ──────────────────────────────────────────────
     // Statement processing — registry-driven
@@ -107,29 +118,24 @@ public class DataEdgeBuilder
     private void ProcessArgument(string arg, BlueprintNode targetNode, string targetPinName,
         CFGStatement parentStmt, int argIndex, PipelineContext context)
     {
-        var trimmed = arg.Trim();
+        // Phase 3: use the shared ArgumentSourceClassifier so the string/char/numeric/identifier
+        // predicates are not duplicated with NodeExportHelper.FormatLiteralValue.
+        var source = ArgumentSourceClassifier.Classify(arg);
 
-        // String literal → DefaultValue
-        if (trimmed.StartsWith("\"") && trimmed.EndsWith("\""))
+        // Literals (string/char/numeric/boolean) → set DefaultValue on the target pin.
+        if (source.IsLiteral)
         {
-            var value = trimmed[1..^1];
-            SetDefaultValue(targetNode, targetPinName, value);
+            SetDefaultValue(targetNode, targetPinName,
+                source.Kind == ArgumentSourceKind.StringLiteral
+                    ? source.StrippedValue ?? source.RawValue  // string: strip outer quotes
+                    : source.RawValue);                        // char/numeric/boolean: verbatim
             return;
         }
 
-        // Character literal → DefaultValue
-        if (BSExpressionExtensions.IsCharacterLiteral(trimmed))
-        {
-            SetDefaultValue(targetNode, targetPinName, trimmed);
-            return;
-        }
-
-        // Numeric literal → DefaultValue
-        if (int.TryParse(trimmed, out _) || double.TryParse(trimmed, out _))
-        {
-            SetDefaultValue(targetNode, targetPinName, trimmed);
-            return;
-        }
+        // Call expressions are handled structurally by BS2CFGConverter.ExpandExpression —
+        // ProcessArgument should not receive them (they'd have been pre-expanded into PubVars).
+        // If one slips through, treat as opaque identifier fallback.
+        var trimmed = source.RawValue;
 
         // PubVar reference → find PubVarAssignment source
         if (context.PubVarNames.Contains(trimmed))
@@ -157,23 +163,9 @@ public class DataEdgeBuilder
         // real data edge. Fall back to DefaultValue only for variables never written in this pass.
         if (context.VariableNodes.ContainsKey(trimmed))
         {
-            var producer = context.PubVarAssignments.Values
-                .FirstOrDefault(a => a.PubVarName == trimmed);
-            if (producer != null)
-            {
-                context.DataEdges.Add(new PendingDataEdge
-                {
-                    SourceNodeId = producer.SourceNode.Id,
-                    SourcePinName = producer.SourcePin.Name,
-                    TargetNodeId = targetNode.Id,
-                    TargetPinName = targetPinName,
-                    PubVarName = trimmed
-                });
-            }
-            else
-            {
-                SetDefaultValue(targetNode, targetPinName, trimmed);
-            }
+            // Phase 4: delegate to ConnectPubVarSource which now uses reaching-definitions
+            // to resolve the correct writer for multi-writer variables.
+            ConnectPubVarSource(trimmed, targetNode, targetPinName, context);
             return;
         }
 
@@ -189,6 +181,35 @@ public class DataEdgeBuilder
     private void ConnectPubVarSource(string pubVarName, BlueprintNode targetNode,
         string targetPinName, PipelineContext context)
     {
+        // Phase 4: use reaching-definitions analysis to resolve multi-writer variables. For a
+        // consumer at (_currentBlockName, _currentPosition), find the definition of pubVarName
+        // that reaches this program point, then connect to the Blueprint node that materialised
+        // that definition. Falls back to first-match-wins when the analysis is unavailable or the
+        // reaching definition's node can't be resolved (legacy path).
+        if (context.ReachingDefinitions is { } reaching)
+        {
+            var site = reaching.ReachingAt(_currentBlockName, _currentPosition, pubVarName);
+            if (site != null && context.NodeByStatementId.TryGetValue(site.Value.Statement.StatementId, out var producerNode))
+            {
+                // Find the producer's data output pin (Return / Value / first non-Exec).
+                var producerPin = producerNode.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+                if (producerPin != null)
+                {
+                    context.DataEdges.Add(new PendingDataEdge
+                    {
+                        SourceNodeId = producerNode.Id,
+                        SourcePinName = producerPin.Name,
+                        TargetNodeId = targetNode.Id,
+                        TargetPinName = targetPinName,
+                        PubVarName = pubVarName
+                    });
+                    return;
+                }
+            }
+        }
+
+        // Fallback: first-match-wins by PubVarName (legacy behaviour for when reaching-definitions
+        // is unavailable or the reaching def's node is missing).
         foreach (var kvp in context.PubVarAssignments)
         {
             if (kvp.Value.PubVarName == pubVarName)

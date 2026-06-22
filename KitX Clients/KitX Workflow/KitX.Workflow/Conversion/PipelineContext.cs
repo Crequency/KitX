@@ -70,6 +70,16 @@ public class PipelineContext
     /// problems go to Serilog instead and are NOT collected here.
     /// </summary>
     public ConversionDiagnostics Diagnostics { get; set; } = new();
+
+    // --- Reaching definitions (Phase 4 prerequisite) ---
+
+    /// <summary>
+    /// Reaching-definitions analysis result, computed after Phase 3 (CFG2BP, which creates the
+    /// nodes and PubVarAssignments) and before Phase 4 (DataEdgeBuilder, which wires data edges).
+    /// When non-null, DataEdgeBuilder.ConnectPubVarSource uses it to resolve multi-writer variables
+    /// to the definition reaching the consumer's program point, instead of first-match-wins.
+    /// </summary>
+    public Analysis.ReachingDefinitionsAnalysis? ReachingDefinitions { get; set; }
 }
 
 /// <summary>

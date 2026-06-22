@@ -805,7 +805,14 @@ internal class BP2CFGConverter
                     fullMethodName = funcRef;
                 }
                 var callStmt = MakeCallStatement(sourceCode, methodName, fullMethodName);
-                PostProcessCallReturn(node, callStmt);
+                // Phase 2.1: build the `> pubVar` suffix at construction time (preferred over
+                // PostProcessCallReturn rewrite). Same result, no post-hoc mutation.
+                var consumedPubVar = TryGetConsumedPubVar(node);
+                if (consumedPubVar != null)
+                {
+                    callStmt.SourceCode = $"{callStmt.Expression} > {consumedPubVar};";
+                    callStmt.AssignedVariable = consumedPubVar;
+                }
                 return callStmt;
             }
             case BlueprintNodeType.CallHelper:
@@ -814,7 +821,13 @@ internal class BP2CFGConverter
                 var helperArgs = _exportHelper.GetInputArgs(callHelper);
                 var expression = $"{callHelper.HelperFunctionName}({helperArgs})";
                 var helperStmt = MakeCallStatement(expression, callHelper.HelperFunctionName, callHelper.HelperFunctionName);
-                PostProcessCallReturn(node, helperStmt);
+                // Phase 2.1: build the `> pubVar` suffix at construction time.
+                var helperPubVar = TryGetConsumedPubVar(node);
+                if (helperPubVar != null)
+                {
+                    helperStmt.SourceCode = $"{helperStmt.Expression} > {helperPubVar};";
+                    helperStmt.AssignedVariable = helperPubVar;
+                }
                 return helperStmt;
             }
             case BlueprintNodeType.BuiltinFunction:
@@ -904,41 +917,32 @@ internal class BP2CFGConverter
             }
         };
 
-    private void PostProcessCallReturn(BlueprintNode node, BlockStatement stmt)
+    /// <summary>
+    /// Returns the PubVar name assigned to this node's consumed data output, or null when the
+    /// output is not consumed downstream. Centralises the ConsumedOutputs + FindOutputPubVar
+    /// lookup so call sites build the `> pubVar` suffix at construction time (Phase 2.1 digestion
+    /// of the former PostProcessCallReturn post-processing patch).
+    /// </summary>
+    private string? TryGetConsumedPubVar(BlueprintNode node)
     {
-        if (_currentCtx == null) return;
+        if (_currentCtx == null) return null;
 
-        // v5.0: BuiltinFunction nodes (HelperFuncCompare/HelperFuncAdd/etc.) also carry a consumed
-        // data output that must be prefixed as `pubVar = expr;`. The v4.0 path only handled
-        // Call/CallHelper; without this, builtin-with-return round-trips lost the LHS, producing
-        // orphaned `(vaaa0001)` statements (Test D/H/I/K DIFF).
-        if (stmt is ExpressionStatement exprStmt)
+        if (node.NodeType is BlueprintNodeType.Call or BlueprintNodeType.CallHelper)
         {
-            string? pubVar = null;
-            if (node.NodeType is BlueprintNodeType.Call or BlueprintNodeType.CallHelper)
-            {
-                var returnPin = node.OutputPins.FirstOrDefault(p => p.Name == Return);
-                bool hasReturn = returnPin != null && _currentCtx.ConsumedOutputs.Contains((node.Id, Return));
-                if (hasReturn)
-                    pubVar = NodeExportHelper.FindOutputPubVar(node, Return, _currentCtx);
-            }
-            else if (node.NodeType == BlueprintNodeType.BuiltinFunction)
-            {
-                // Find the first consumed non-Exec output pin (Return/Result/Value/etc.).
-                var dataOut = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
-                if (dataOut != null && _currentCtx.ConsumedOutputs.Contains((node.Id, dataOut.Name)))
-                    pubVar = NodeExportHelper.FindOutputPubVar(node, dataOut.Name, _currentCtx);
-            }
-
-            if (pubVar != null)
-            {
-                // v5.0: emit `value > pubVar` (pipeline tap form) for round-trip fidelity, matching
-                // the v5.0 assignment syntax. Falls back to `pubVar = expr` for complex expressions.
-                var rhs = exprStmt.Expression;
-                exprStmt.SourceCode = $"{rhs} > {pubVar};";
-                exprStmt.AssignedVariable = pubVar;
-            }
+            var returnPin = node.OutputPins.FirstOrDefault(p => p.Name == Return);
+            bool hasReturn = returnPin != null
+                && _currentCtx.ConsumedOutputs.Contains((node.Id, Return));
+            return hasReturn ? NodeExportHelper.FindOutputPubVar(node, Return, _currentCtx) : null;
         }
+
+        if (node.NodeType == BlueprintNodeType.BuiltinFunction)
+        {
+            var dataOut = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
+            if (dataOut != null && _currentCtx.ConsumedOutputs.Contains((node.Id, dataOut.Name)))
+                return NodeExportHelper.FindOutputPubVar(node, dataOut.Name, _currentCtx);
+        }
+
+        return null;
     }
 
     private ConversionContext? _currentCtx;

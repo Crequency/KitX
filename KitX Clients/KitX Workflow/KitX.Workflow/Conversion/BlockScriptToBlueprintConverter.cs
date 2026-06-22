@@ -92,6 +92,13 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
         Log.Debug("[Converter] Phase 3: {NodeCount} nodes, {ExecEdgeCount} exec edges",
             context.AllNodes.Count, context.ExecEdges.Count);
 
+        // ── Phase 3.5: Reaching-definitions analysis ──
+        // Runs after CFG2BP (nodes + PubVarAssignments populated) and before DataEdgeBuilder
+        // (which queries it to resolve multi-writer variables like Test K's cond).
+        context.ReachingDefinitions = new Analysis.ReachingDefinitionsAnalysis(context.FormattedScript);
+        context.ReachingDefinitions.Run();
+        Log.Debug("[Converter] Phase 3.5: reaching-definitions analysis complete");
+
         // ── Phase 4+5: Data edges + deduplication ──
         var dataEdgeBuilder = new DataEdgeBuilder(_functionRegistry);
         dataEdgeBuilder.Build(context);
