@@ -23,38 +23,43 @@ static class TestCompileConsistency
     {
         Console.WriteLine("\n-- P8: Compilation product consistency --");
         var h = getExecHelpers();
-        var End = "\n\n#Block End\nPrint(\"done\");\nBreak();";
+        var End = "\n\n#Block End\nPrint(\"done\");\nExit();";
         var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");" + End;
 
         if (shouldRun("T69")) {
             var pr1 = parser.Parse(src);
-            pr1.Script!.HelperFunctions = h;
+            if (pr1.Script == null) { fail("T69", "ScriptHash consistent", "pr1.Script null"); }
+            else { pr1.Script.HelperFunctions = h;
             var hash1 = ScriptCompilationBackend.ComputeScriptHash(pr1.Script);
             var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
-            var pr2 = parser.Parse(rt);
-            pr2.Script!.HelperFunctions = h;
+            if (rt == null) { fail("T69", "ScriptHash consistent", "round-trip returned null"); }
+            else { var pr2 = parser.Parse(rt);
+            if (pr2.Script == null) { fail("T69", "ScriptHash consistent", "pr2.Script null after round-trip parse"); }
+            else { pr2.Script.HelperFunctions = h;
             var hash2 = ScriptCompilationBackend.ComputeScriptHash(pr2.Script);
             if (hash1 == hash2) pass("T69", "ScriptHash consistent");
-            else fail("T69", "ScriptHash consistent", "Round-trip changes CFG structure");
-        }
+            else fail("T69", "ScriptHash consistent", "Round-trip changes CFG structure"); } } } }
         if (shouldRun("T70")) {
             var origOutput = execScript(parser, sp, src, h, 5);
             var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
-            var rtOutput = execScript(parser, sp, rt, h, 5);
+            if (rt == null) { fail("T70", "execution output consistent", "round-trip returned null"); }
+            else { var rtOutput = execScript(parser, sp, rt, h, 5);
             bool ok = origOutput != null && rtOutput != null && origOutput.Count == rtOutput.Count && origOutput.Zip(rtOutput).All(p => p.First == p.Second);
-            check("T70", "execution output consistent", ok, "");
+            check("T70", "execution output consistent", ok, ""); }
         }
         if (shouldRun("T71")) {
             var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
-            var pr2 = parser.Parse(rt);
+            if (rt == null) { fail("T71", "round-trip BS compiles", "round-trip returned null"); }
+            else { var pr2 = parser.Parse(rt);
             pr2.Script!.HelperFunctions = h;
             var compiled = new CSCompiler().CompileScript(pr2.Script, workflowId: null, out var errors);
-            check("T71", "round-trip BS compiles", compiled != null, string.Join("\n", errors.Take(3)));
+            check("T71", "round-trip BS compiles", compiled != null, string.Join("\n", errors.Take(3))); }
         }
         if (shouldRun("T72")) {
             var template = KitX.Workflow.Services.WorkflowStorageService.GetDefaultBlockScriptTemplate();
             var pr = parser.Parse(template);
-            pr.Script!.HelperFunctions = getExecHelpers();
+            if (pr.Script == null) { fail("T72", "default template end-to-end", "default template parse returned null script"); }
+            else { pr.Script.HelperFunctions = getExecHelpers();
             var compiled = new CSCompiler().CompileScript(pr.Script, workflowId: null, out var errors);
             bool ok = compiled != null;
             if (ok) {
@@ -65,7 +70,7 @@ static class TestCompileConsistency
                 try { compiled.RunAsync(globals, cts.Token).GetAwaiter().GetResult(); } catch { }
                 ok = output.Contains("Too small") && output.Contains("Workflow ended");
             }
-            check("T72", "default template end-to-end", ok, "");
+            check("T72", "default template end-to-end", ok, ""); }
         }
     }
 

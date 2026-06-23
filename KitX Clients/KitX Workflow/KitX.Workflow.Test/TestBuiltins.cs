@@ -19,7 +19,7 @@ static class TestBuiltins
     {
         Console.WriteLine("\n-- P9: Builtin functions --");
         var h = getExecHelpers();
-        var End = "\n\n#Block End\nPrint(\"done\");\nBreak();";
+        var End = "\n\n#Block End\nPrint(\"done\");\nExit();";
 
         if (shouldRun("T73")) {
             var o = execScript(parser, sp, "#ConstBlock\nint x = 42;\n\n#MainBlock\nx > Print;\nGoto(\"End\");" + End, h, 5);

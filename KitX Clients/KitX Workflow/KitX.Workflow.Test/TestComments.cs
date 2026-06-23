@@ -17,7 +17,7 @@ static class TestComments
     {
         Console.WriteLine("\n── P5: Comment retention ──");
         var h = getDeclHelpers();
-        var End = "\n\n#Block End\nPrint(\"done\");\nBreak();";
+        var End = "\n\n#Block End\nPrint(\"done\");\nExit();";
 
         if (shouldRun("T49")) { var src = "#ConstBlock\nint a = 3;\n\n#MainBlock\n// This is a statement-level comment\na > Print;\nGoto(\"End\");" + End; var rt = roundTrip(parser, converter, reverseConverter, src, h); bool ok = rt != null && rt.Contains("// This is a statement-level comment"); if (ok) pass("T49", "statement-above comment retained"); else fail("T49", "statement-above comment retained", "BSParser drops comments via Ignore"); }
         if (shouldRun("T50")) { fail("T50", "inline comment retained", "Inline comment trivia tracking not implemented (§9.2)"); }

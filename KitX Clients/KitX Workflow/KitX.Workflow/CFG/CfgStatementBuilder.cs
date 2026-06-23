@@ -121,7 +121,7 @@ public sealed class CfgStatementBuilder
         FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
         FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
         FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-        FlowControlType.LoopExit => CFGStatementKind.Break,
+        FlowControlType.ScriptReturn => CFGStatementKind.Break,
         null => !string.IsNullOrEmpty(PubVarTarget)
             ? CFGStatementKind.Assignment
             : CFGStatementKind.Expression,

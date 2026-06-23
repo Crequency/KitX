@@ -21,15 +21,16 @@ namespace KitX.Workflow.BuiltinFunctions
     /// 见 <see cref="OutputVariadic"/>)。
     /// </para>
     /// </summary>
-    public class SwitchFunction : IBuiltinFunctionDefinition
+    public class SwitchFunction : IFlowControlFunctionDefinition
     {
         private const double PinGap = 20.0;
 
         public string FunctionName => "Switch";
         public string DisplayName => "Switch";
         public bool IsNonExtractable => false;
-        public bool IsBlockTerminator => true;
-        public FlowControlType? FlowControlShape => FlowControlType.IndexedDispatch;
+        public FlowControlType FlowControlShape => FlowControlType.IndexedDispatch;
+        public FlowControlArgLayout ArgLayout => new(1, 1, true);
+        public IReadOnlyList<string> ArmPinNames => [Pins.Default];  // variadic; base is just Default
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new(Pins.Exec, PinType.Execution, 20),
@@ -44,41 +45,16 @@ namespace KitX.Workflow.BuiltinFunctions
         /// <summary>输出侧变长：0 被连接后追加 "1"、"2"、...(Execution 类型)。</summary>
         public VariadicPinSpec? OutputVariadic => new(string.Empty, 1, PinType.Execution);
 
-        /// <summary>
-        /// BS 解析：从 NextBlock = Switch(selector, "default", "b0", "b1", ...) 提取。
-        /// arg[0]=default,arg[1..N]=分支块。Arms = [Default, 0, 1, ..., N-1]。
-        /// </summary>
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
+        // ArgLayout dispatch obsoletes hand-written ExtractStatement.
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
+                                   IReadOnlyList<string> flowArguments)
         {
-            var args = invoke.Args;
-            var stmt = new FlowControlStatement
-            {
-                LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.SourceText,
-                ControlType = FlowControlType.IndexedDispatch
-            };
-
-            if (args.Count >= 1)
-                stmt.ConditionExpression = args[0].SourceText;
-
-            // arg[1] = default block; arg[2..N] = branch blocks b0, b1, ...
-            if (args.Count >= 2)
-            {
-                var defaultBlock = args[1].AsStringLiteral() ?? string.Empty;
-                stmt.Arms.Add(new BranchArm { PinName = Pins.Default, TargetBlockName = defaultBlock });
-            }
-            else
-            {
-                stmt.Arms.Add(new BranchArm { PinName = Pins.Default, TargetBlockName = string.Empty });
-            }
-
-            for (int i = 2; i < args.Count; i++)
-            {
-                var block = args[i].AsStringLiteral() ?? string.Empty;
-                stmt.Arms.Add(new BranchArm { PinName = (i - 2).ToString(), TargetBlockName = block });
-            }
-
-            return stmt;
+            if (arms.Count == 0) return $"Switch({condition ?? ""}, \"\");";
+            var defaultBlock = arms[0].TargetBlockName;
+            var blocks = arms.Skip(1).Select(a => $"\"{a.TargetBlockName}\"");
+            return $"Switch({condition ?? ""}, \"{defaultBlock}\", {string.Join(", ", blocks)});";
         }
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)

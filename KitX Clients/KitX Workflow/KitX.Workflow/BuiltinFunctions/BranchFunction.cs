@@ -10,13 +10,14 @@ namespace KitX.Workflow.BuiltinFunctions
     /// <summary>
     /// Branch 内置函数 — 条件分支控制流。
     /// </summary>
-    public class BranchFunction : IBuiltinFunctionDefinition
+    public class BranchFunction : IFlowControlFunctionDefinition
     {
         public string FunctionName => "Branch";
         public string DisplayName => "Branch";
         public bool IsNonExtractable => false;
-        public bool IsBlockTerminator => true;
-        public FlowControlType? FlowControlShape => FlowControlType.ConditionalJump;
+        public FlowControlType FlowControlShape => FlowControlType.ConditionalJump;
+        public FlowControlArgLayout ArgLayout => new(1, 2, false);
+        public IReadOnlyList<string> ArmPinNames => ["True", "False"];
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 30),
@@ -28,20 +29,12 @@ namespace KitX.Workflow.BuiltinFunctions
             new("False", PinType.Execution, 50)
         ];
 
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
-        {
-            var args = invoke.Args;
-            var stmt = new FlowControlStatement
-            {
-                LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.SourceText,
-                ControlType = FlowControlType.ConditionalJump
-            };
-            if (args.Count >= 1) stmt.ConditionExpression = args[0].SourceText;
-            if (args.Count >= 2) stmt.TrueBlockName = args[1].AsStringLiteral() ?? string.Empty;
-            if (args.Count >= 3) stmt.FalseBlockName = args[2].AsStringLiteral() ?? string.Empty;
-            return stmt;
-        }
+        // ArgLayout dispatch obsoletes hand-written ExtractStatement.
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
+                                   IReadOnlyList<string> flowArguments)
+            => $"Branch({condition ?? ""}, \"{arms.ElementAtOrDefault(0)?.TargetBlockName ?? ""}\", \"{arms.ElementAtOrDefault(1)?.TargetBlockName ?? ""}\");";
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
@@ -97,8 +90,6 @@ namespace KitX.Workflow.BlockScripting
         /// Condition branch - sets NextBlock and returns the target block name.
         /// </summary>
         public string? Branch(bool condition, string trueBlock, string falseBlock)
-        {
-            return AdvanceTo(condition ? trueBlock : falseBlock);
-        }
+            => AdvanceTo(condition ? trueBlock : falseBlock);
     }
 }

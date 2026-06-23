@@ -24,7 +24,7 @@ internal static class ControlFlowMapping
         FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
         FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
         FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-        FlowControlType.LoopExit => CFGStatementKind.Break,
+        FlowControlType.ScriptReturn => CFGStatementKind.Break,
         _ => CFGStatementKind.Unknown
     };
 
@@ -35,7 +35,7 @@ internal static class ControlFlowMapping
         FlowControlType.IterativeCounted => "ForLoop",
         FlowControlType.UnconditionalJump => "Goto",
         FlowControlType.IndexedDispatch => "Switch",
-        FlowControlType.LoopExit => "Break",
+        FlowControlType.ScriptReturn => "Break",
         _ => string.Empty
     };
 
@@ -46,7 +46,7 @@ internal static class ControlFlowMapping
         CFGStatementKind.ForLoop => FlowControlType.IterativeCounted,
         CFGStatementKind.Goto => FlowControlType.UnconditionalJump,
         CFGStatementKind.Switch => FlowControlType.IndexedDispatch,
-        CFGStatementKind.Break => FlowControlType.LoopExit,
+        CFGStatementKind.Break => FlowControlType.ScriptReturn,
         _ => null
     };
 }

@@ -120,7 +120,7 @@ internal class BlockScriptSerializer
                 or FlowControlType.IterativeCounted
                 or FlowControlType.UnconditionalJump
                 or FlowControlType.IndexedDispatch
-                or FlowControlType.LoopExit;
+                or FlowControlType.ScriptReturn;
         }
         return false;
     }

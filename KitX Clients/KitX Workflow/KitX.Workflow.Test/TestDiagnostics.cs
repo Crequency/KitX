@@ -16,7 +16,7 @@ static class TestDiagnostics
     {
         Console.WriteLine("\n── P6: Diagnostics & errors ──");
         var h = getDeclHelpers();
-        var End = "\n\n#Block End\nPrint(\"done\");\nBreak();";
+        var End = "\n\n#Block End\nPrint(\"done\");\nExit();";
 
         if (shouldRun("T54")) { var bp = converter.Convert("#MainBlock\nPrint(Get(\"x\"));\nGoto(\"End\");" + End, h); var diag = converter.LastDiagnostics; check("T54", "nested call → BS_NESTED_CALL error", diag != null && diag.Items.Any(d => d.Code == "BS_NESTED_CALL"), ""); }
         if (shouldRun("T55")) { var pr = parser.Parse("#PubVarBlock\nint x;\n\n#MainBlock\nx = 42;\nGoto(\"End\");" + End); bool ok = !pr.IsSuccess || (pr.Diagnostics != null && pr.Diagnostics.Items.Any(d => d.Code == "BS_ILLEGAL_ASSIGNMENT")); if (ok) pass("T55", "global = assignment → error"); else fail("T55", "global = assignment → error", "Parser accepts = without error"); }

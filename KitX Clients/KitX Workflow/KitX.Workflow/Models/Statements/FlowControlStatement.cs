@@ -99,7 +99,7 @@ public class FlowControlStatement : BlockStatement
             ? $"Goto(\"{arms[0].TargetBlockName}\");"
             : "Goto();",
         FlowControlType.IndexedDispatch => RenderSwitchSource(condition, arms),
-        FlowControlType.LoopExit => "Break();",
+        FlowControlType.ScriptReturn => "Exit();",
         _ => string.Empty
     };
 

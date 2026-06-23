@@ -12,30 +12,26 @@ namespace KitX.Workflow.BuiltinFunctions
     /// <c>ToLoopCond</c>。作为块的终止语句，直接设置下一块并结束当前块。
     /// 见 BlockScriptGrammarRule §7.6。
     /// </summary>
-    public class GotoFunction : IBuiltinFunctionDefinition
+    public class GotoFunction : IFlowControlFunctionDefinition
     {
         public string FunctionName => "Goto";
         public string DisplayName => "Goto";
         public bool IsNonExtractable => false;
-        public bool IsBlockTerminator => true;
-        public FlowControlType? FlowControlShape => FlowControlType.UnconditionalJump;
+        public FlowControlType FlowControlShape => FlowControlType.UnconditionalJump;
+        public FlowControlArgLayout ArgLayout => new(0, 1, false);
+        public IReadOnlyList<string> ArmPinNames => ["Exec"];
 
         public IReadOnlyList<PinDescriptor> InputPins => [new("Exec", PinType.Execution, 30)];
         public IReadOnlyList<PinDescriptor> OutputPins => [new("Exec", PinType.Execution, 30)];
 
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
-        {
-            var args = invoke.Args;
-            var stmt = new FlowControlStatement
-            {
-                LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.SourceText,
-                ControlType = FlowControlType.UnconditionalJump
-            };
-            // Goto("targetBlock") — single string-literal arm (Arms[0] as Exec arm).
-            if (args.Count >= 1) stmt.TrueBlockName = args[0].AsStringLiteral();
-            return stmt;
-        }
+        // ArgLayout dispatch obsoletes hand-written ExtractStatement.
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
+                                   IReadOnlyList<string> flowArguments)
+            => !string.IsNullOrEmpty(arms.ElementAtOrDefault(0)?.TargetBlockName)
+                ? $"Goto(\"{arms[0].TargetBlockName}\");"
+                : "Goto();";
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
@@ -53,11 +49,7 @@ namespace KitX.Workflow.BuiltinFunctions
         }
 
         public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
-        {
-            // Goto sets NextBlock directly and breaks the switch case. The runtime AdvanceTo
-            // path is shared with Branch/ForLoop.
-            return ctx.EmitNextBlockAssignment("Goto", ctx.Literal(stmt.TrueBlockName ?? ""));
-        }
+            => ctx.EmitNextBlockAssignment("Goto", ctx.Literal(stmt.TrueBlockName ?? ""));
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper) => null;
 

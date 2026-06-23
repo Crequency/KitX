@@ -487,6 +487,89 @@ public static class BSParser
             DispatchStatement(parsed, recognized, registry, diagnostics, block);
     }
 
+    /// <summary>
+    /// v5.0: Builds a <see cref="FlowControlStatement"/> from a <see cref="BSCall"/>
+    /// using the declarative <see cref="FlowControlArgLayout"/>. No per-function
+    /// hand-written ExtractStatement needed.
+    /// </summary>
+    static FlowControlStatement BuildFlowControlFromArgLayout(
+        IFlowControlFunctionDefinition fcDef, BSCall call, int line)
+    {
+        var layout = fcDef.ArgLayout;
+        var args = call.Args;
+        var stmt = new FlowControlStatement
+        {
+            LineNumber = line,
+            SourceCode = call.SourceText,
+            ControlType = fcDef.FlowControlShape
+        };
+
+        // expressionArgs: leading expression arguments
+        int exprCount = layout.ExpressionArgs;
+        var flowArgs = new List<string>();
+        if (exprCount > 0)
+        {
+            for (int i = 0; i < exprCount && i < args.Count; i++)
+                flowArgs.Add(args[i].SourceText);
+            // First expression = condition/selector (if applicable)
+            if (fcDef.FlowControlShape is FlowControlType.ConditionalJump or FlowControlType.IndexedDispatch)
+                stmt.ConditionExpression = args[0].SourceText;
+        }
+        stmt.FlowArguments = flowArgs;
+
+        // blockNameArgs: block-name string literals following expressions
+        int blockStart = exprCount;
+        int totalBlockNames = args.Count - blockStart;
+        var armNames = fcDef.ArmPinNames;
+
+        // Extra block names beyond what fits in arms go to FlowArguments as strings.
+        // Example: ForLoop has BlockNameArgs=3 but only 2 arms (LoopBody, LoopEnd);
+        // the first block name (indexName) is appended to FlowArguments, stripped of quotes.
+        int armCount = layout.BlockNamesVariadic
+            ? totalBlockNames  // variadic: all block names are arms
+            : armNames.Count;
+        int extraBlockNames = totalBlockNames - armCount;
+
+        // Append extra block names to FlowArguments (stripped of quotes)
+        for (int i = 0; i < extraBlockNames; i++)
+            flowArgs.Add(args[blockStart + i].SourceText.Trim('"'));
+
+        // Build arms from the remaining block names
+        int armStart = blockStart + extraBlockNames;
+        if (layout.BlockNamesVariadic)
+        {
+            for (int i = armStart; i < args.Count; i++)
+            {
+                var blockName = ExtractStringArg(args[i]);
+                stmt.Arms.Add(new BranchArm
+                {
+                    PinName = i == armStart ? armNames[0] : (i - armStart - 1).ToString(),
+                    TargetBlockName = blockName
+                });
+            }
+        }
+        else
+        {
+            for (int i = 0; i < armNames.Count && (armStart + i) < args.Count; i++)
+            {
+                var blockName = ExtractStringArg(args[armStart + i]);
+                stmt.Arms.Add(new BranchArm { PinName = armNames[i], TargetBlockName = blockName });
+            }
+        }
+
+        // ForLoop specific: strip quotes from indexName in FlowArguments
+        if (fcDef.FlowControlShape == FlowControlType.IterativeCounted && flowArgs.Count >= 4)
+            flowArgs[3] = flowArgs[3].Trim('"');
+
+        stmt.FlowArguments = flowArgs;
+        return stmt;
+    }
+
+    static string ExtractStringArg(BSExpression arg) =>
+        (arg is BSLiteral { Kind: BSLiteralKind.String } lit)
+            ? lit.Value?.ToString() ?? ""
+            : arg.SourceText.Trim('"');
+
     static void DispatchStatement(
         BSExpression parsed, RecognizedBlock recognized,
         BuiltinFunctionRegistry? registry, ConversionDiagnostics diagnostics,
@@ -516,17 +599,18 @@ public static class BSParser
             }
         }
 
-        // Bare call (no pipeline): could be a control-flow function (Branch/ForLoop/...) or
-        // a side-effect call (Print). Consult the registry; if ExtractStatement returns a
-        // statement, use it; otherwise wrap as a generic ExpressionStatement.
+        // Bare call (no pipeline): could be a flow-control function (Branch/ForLoop/...)
+        // dispatched via IFlowControlFunctionDefinition.ArgLayout, or a side-effect call (Print).
         if (parsed is BSCall call)
         {
             var line = recognized.StartLine;
-            var builtin = registry?.Get(call.MethodName);
-            var stmt = builtin?.ExtractStatement(call, line, call.SourceText);
-            if (stmt != null)
+
+            // v5.0: unified ArgLayout dispatch for flow-control functions.
+            // No more per-function hand-written ExtractStatement — the Parser reads
+            // IFlowControlFunctionDefinition.ArgLayout and builds FlowControlStatement directly.
+            if (registry?.Get(call.MethodName) is IFlowControlFunctionDefinition fcDef)
             {
-                block.Statements.Add(stmt);
+                block.Statements.Add(BuildFlowControlFromArgLayout(fcDef, call, line));
                 return;
             }
 

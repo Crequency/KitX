@@ -609,7 +609,7 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            if (lastStmt.FlowControlShape == FlowControlType.LoopExit)
+            if (lastStmt.FlowControlShape == FlowControlType.ScriptReturn)
             {
                 block.Successors.Add(new CFGEdge
                 {
@@ -990,7 +990,7 @@ internal class BP2CFGConverter
                         FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
                         FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
                         FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-                        FlowControlType.LoopExit => CFGStatementKind.Break,
+                        FlowControlType.ScriptReturn => CFGStatementKind.Break,
                         _ => CFGStatementKind.Expression
                     };
                     cfgStmt.FunctionName = bfDef.FunctionName;

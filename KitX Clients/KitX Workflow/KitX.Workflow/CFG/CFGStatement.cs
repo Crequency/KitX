@@ -73,7 +73,7 @@ public class CFGStatement
     /// This is the authoritative control-flow classification — consumers should query this
     /// instead of switching on <see cref="Kind"/>. Populated from the builtin descriptor's
     /// FlowControlShape during lowering. v5.0 shapes: ConditionalJump (Branch),
-    /// IterativeCounted (ForLoop), UnconditionalJump (Goto), LoopExit (Break), IndexedDispatch (Switch).
+    /// IterativeCounted (ForLoop), UnconditionalJump (Goto), ScriptReturn (Exit), IndexedDispatch (Switch).
     /// </summary>
     public FlowControlType? FlowControlShape { get; set; }
 

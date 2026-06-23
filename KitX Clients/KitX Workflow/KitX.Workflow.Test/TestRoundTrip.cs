@@ -20,7 +20,7 @@ static class TestRoundTrip
     {
         Console.WriteLine("\n-- P4: Round-trip consistency --");
         var h = getDeclHelpers();
-        var End = "\n\n#Block End\nPrint(\"done\");\nBreak();";
+        var End = "\n\n#Block End\nPrint(\"done\");\nExit();";
         var guessingGame = @"#ConstBlock
 int guessNum = 5;
 int targetNum = 7;
@@ -59,7 +59,7 @@ Goto(""EndLogic"");
 
 #Block EndLogic
 Print(""示例工作流结束"");
-Break();";
+Exit();";
 
         var whileDo = @"#ConstBlock
 int guessNum = 5;
@@ -84,7 +84,7 @@ Goto(""LoopCond"");
 
 #Block EndLogic
 Print(""条件循环结束"");
-Break();";
+Exit();";
 
         if (shouldRun("T39")) { var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");" + End; var rt = roundTrip(parser, converter, reverseConverter, src, h); if (rt != null && textEquals(src, rt)) pass("T39", "basic round-trip"); else fail("T39", "basic round-trip", "not text-stable yet"); }
         if (shouldRun("T40")) { var src = "#PubVarBlock\nint currentLoop;\nstring userInput;\n\n#MainBlock\n0 > currentLoop;\nGoto(\"End\");" + End; var rt = roundTrip(parser, converter, reverseConverter, src, h); bool ok = rt != null && rt.Contains("int currentLoop") && rt.Contains("string userInput"); if (ok) pass("T40", "strong type PubVar"); else fail("T40", "strong type PubVar", "lost types"); }
@@ -95,6 +95,6 @@ Break();";
         if (shouldRun("T45")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); check("T45", "Goto form preserved", rt != null && rt.Contains("Goto(") && !rt.Contains("NextBlock = \""), ""); }
         if (shouldRun("T46")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); if (rt != null && textEquals(guessingGame, rt)) pass("T46", "guessing game round-trip"); else fail("T46", "guessing game round-trip", "not text-stable yet"); }
         if (shouldRun("T47")) { var rt = roundTrip(parser, converter, reverseConverter, whileDo, h); if (rt != null && textEquals(whileDo, rt)) pass("T47", "while-do round-trip"); else fail("T47", "while-do round-trip", "not text-stable yet"); }
-        if (shouldRun("T48")) { var bvSrc = "#Block ProcessBatch\n##BlockVars\nint processedCount = 0;\nstring currentItem;\n##BlockBody\n\"item1\" > currentItem;\ncurrentItem > Print;\nprocessedCount > HelperFuncAdd(_, 1) > processedCount;\nprocessedCount > Print;\nGoto(\"NextStage\");\n\n#MainBlock\nGoto(\"ProcessBatch\");\n\n#Block NextStage\nPrint(\"done\");\nBreak();"; var rt = roundTrip(parser, converter, reverseConverter, bvSrc, h); if (rt != null && textEquals(bvSrc, rt)) pass("T48", "BlockVar round-trip"); else fail("T48", "BlockVar round-trip", "not text-stable yet"); }
+        if (shouldRun("T48")) { var bvSrc = "#Block ProcessBatch\n##BlockVars\nint processedCount = 0;\nstring currentItem;\n##BlockBody\n\"item1\" > currentItem;\ncurrentItem > Print;\nprocessedCount > HelperFuncAdd(_, 1) > processedCount;\nprocessedCount > Print;\nGoto(\"NextStage\");\n\n#MainBlock\nGoto(\"ProcessBatch\");\n\n#Block NextStage\nPrint(\"done\");\nExit();"; var rt = roundTrip(parser, converter, reverseConverter, bvSrc, h); if (rt != null && textEquals(bvSrc, rt)) pass("T48", "BlockVar round-trip"); else fail("T48", "BlockVar round-trip", "not text-stable yet"); }
     }
 }

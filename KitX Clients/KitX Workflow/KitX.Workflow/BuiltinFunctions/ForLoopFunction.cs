@@ -19,13 +19,14 @@ namespace KitX.Workflow.BuiltinFunctions
     /// 无数据输出引脚（控制流函数通则，§7）。两臂：LoopBody（进入循环体）、LoopEnd（循环结束）。
     /// </para>
     /// </summary>
-    public class ForLoopFunction : IBuiltinFunctionDefinition
+    public class ForLoopFunction : IFlowControlFunctionDefinition
     {
         public string FunctionName => "ForLoop";
         public string DisplayName => "ForLoop";
         public bool IsNonExtractable => false;
-        public bool IsBlockTerminator => true;
-        public FlowControlType? FlowControlShape => FlowControlType.IterativeCounted;
+        public FlowControlType FlowControlShape => FlowControlType.IterativeCounted;
+        public FlowControlArgLayout ArgLayout => new(3, 3, false);
+        public IReadOnlyList<string> ArmPinNames => ["LoopBody", "LoopEnd"];
 
         public IReadOnlyList<PinDescriptor> InputPins =>
         [
@@ -42,33 +43,19 @@ namespace KitX.Workflow.BuiltinFunctions
             new("LoopEnd", PinType.Execution, 60)
         ];
 
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText)
+        // ArgLayout dispatch obsoletes hand-written ExtractStatement.
+        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
+                                   IReadOnlyList<string> flowArguments)
         {
-            var args = invoke.Args;
-            var stmt = new FlowControlStatement
-            {
-                LineNumber = lineNumber,
-                SourceCode = exprText ?? invoke.SourceText,
-                ControlType = FlowControlType.IterativeCounted
-            };
-            // ForLoop(from, to, step, indexName, bodyBlock, endBlock)
-            //   from/to/step/indexName → FlowArguments (verbatim source text, resolved at CS emit);
-            //   bodyBlock/endBlock → Arms (TrueBlockName/FalseBlockName).
-            // ForLoop has no external condition (counter + bound are internalised), so
-            // ConditionExpression stays empty — InferPubVarTypes skips IterativeCounted for bool forcing.
-            if (args.Count >= 4)
-            {
-                stmt.FlowArguments =
-                [
-                    args[0].SourceText,  // from
-                    args[1].SourceText,  // to
-                    args[2].SourceText,  // step
-                    args[3].SourceText.Trim('"'),  // indexName (string literal → bare name)
-                ];
-                stmt.TrueBlockName = args[4].AsStringLiteral();   // bodyBlock
-                if (args.Count >= 5) stmt.FalseBlockName = args[5].AsStringLiteral(); // endBlock
-            }
-            return stmt;
+            var from = flowArguments.ElementAtOrDefault(0) ?? "0";
+            var to = flowArguments.ElementAtOrDefault(1) ?? "0";
+            var step = flowArguments.ElementAtOrDefault(2) ?? "1";
+            var indexName = flowArguments.ElementAtOrDefault(3) ?? "i";
+            var body = arms.ElementAtOrDefault(0)?.TargetBlockName ?? "";
+            var end = arms.ElementAtOrDefault(1)?.TargetBlockName ?? "";
+            return $"ForLoop({from}, {to}, {step}, \"{indexName}\", \"{body}\", \"{end}\");";
         }
 
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;

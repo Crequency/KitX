@@ -20,7 +20,7 @@ static class TestPipeline
     {
         Console.WriteLine("\n── P2: Pipeline semantics ──");
         var h = ProgramHelpers.GetExecutionHelpers();
-        var End = "\n\n#Block End\nPrint(\"done\");\nBreak();";
+        var End = "\n\n#Block End\nPrint(\"done\");\nExit();";
 
         if (shouldRun("T19")) { var o = execScript(parser, sp, "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");" + End, h, 5); check("T19", "linear chain execution", o != null && o.Contains("Hi World"), ""); }
         if (shouldRun("T20")) { var o = execScript(parser, sp, "#ConstBlock\nstring a = \"Hello\";\nstring b = \"World\";\n\n#MainBlock\na, b > StringConcat > Print;\nGoto(\"End\");" + End, h, 5); check("T20", "diamond dependency", o != null && o.Contains("HelloWorld"), ""); }

@@ -72,7 +72,7 @@ public class CFGBlock
     /// <summary>
     /// Whether this block ends with a control flow statement
     /// (any non-null FlowControlShape: ConditionalJump, IterativeJump/IterativeCounted,
-    /// UnconditionalJump, IndexedDispatch, LoopBackedge, LoopExit, ScriptReturn).
+    /// UnconditionalJump, IndexedDispatch, ScriptReturn).
     /// </summary>
     public bool EndsWithControlFlow =>
         Statements.Count > 0 && Statements[^1].FlowControlShape != null;

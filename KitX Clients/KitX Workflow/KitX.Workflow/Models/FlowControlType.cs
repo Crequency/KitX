@@ -34,15 +34,10 @@ public enum FlowControlType
     UnconditionalJump,
 
     /// <summary>
-    /// Return from script execution (implicit control flow, no builtin).
+    /// Return from script execution — terminates the entire workflow activation.
+    /// Produced by Exit (formerly Break). v5.0 §7.4: emits a raw <c>return;</c>.
     /// </summary>
     ScriptReturn,
-
-    /// <summary>
-    /// Exit the enclosing loop / terminate the workflow activation. Produced by Break.
-    /// v5.0: emits a raw <c>return;</c> (ends the whole workflow run, §7.4).
-    /// </summary>
-    LoopExit,
 
     /// <summary>
     /// N-way dispatch by integer index. Produced by Switch. Graph: selector →
