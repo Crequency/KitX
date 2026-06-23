@@ -591,7 +591,7 @@ internal class BP2CFGConverter
                     {
                         FromBlockName = block.Name,
                         ToBlockName = arm.TargetBlockName,
-                        Type = GetEdgeType(lastStmt.FlowControlShape, arm),
+                        Type = GetEdgeType(arm),
                         PinName = arm.PinName
                     });
                 }
@@ -715,13 +715,8 @@ internal class BP2CFGConverter
             if (block.Statements.Count > 0)
             {
                 var lastStmt = block.Statements[^1];
-                block.Type = lastStmt.FlowControlShape switch
-                {
-                    FlowControlType.ConditionalJump => CFGBlockType.BranchHeader,
-                    // v5.0: ForLoop blocks stay Basic (LoopHeader type removed); loop structure
-                    // is expressed via Goto back-edges, not dedicated block types.
-                    _ => block.Type
-                };
+                block.Type = lastStmt.Arms.Count >= 2
+                    ? CFGBlockType.BranchHeader : CFGBlockType.Basic;
             }
 
             // v5.0: LoopBody classification removed — loop bodies are plain Basic blocks.
@@ -966,7 +961,7 @@ internal class BP2CFGConverter
         switch (blockStmt)
         {
             case FlowControlStatement flow:
-                cfgStmt.FlowControlShape = flow.ControlType;
+                cfgStmt.FunctionName = flow.FunctionName;
                 cfgStmt.FunctionName = flow.FunctionName;
                 if (string.IsNullOrEmpty(cfgStmt.FunctionName))
                     cfgStmt.FunctionName = null;
@@ -1118,10 +1113,8 @@ internal class BP2CFGConverter
         {
             foreach (var stmt in block.Statements)
             {
-                if (stmt.FlowControlShape is not (FlowControlType.ConditionalJump
-                    or FlowControlType.IterativeCounted or FlowControlType.IndexedDispatch
-                    or FlowControlType.UnconditionalJump))
-                    continue;
+                // v5.0: only flow-control statements have arms to resolve.
+                if (string.IsNullOrEmpty(stmt.FunctionName)) continue;
                 if (stmt.Arms.Count > 0) continue;
 
                 if (!nodeById.TryGetValue(stmt.StatementId, out var node))
@@ -1209,38 +1202,21 @@ internal class BP2CFGConverter
     private static string RegenerateBranchSource(CFGStatement cfStmt)
         // Delegate to the shared renderer on FlowControlStatement so BS↔graph source text stays
         // in sync with the instance RegenerateSourceCode path (single source of truth).
-        // v5.0: Goto (UnconditionalJump) carries its target in Arms[0].TargetBlockName — pass it
-        // v5.0: RenderSource uses Arms[0].TargetBlockName for UnconditionalJump (Goto target).
-        => FlowControlStatement.RenderSource(
-            cfStmt.FlowControlShape ?? FlowControlType.ConditionalJump,
-            cfStmt.ConditionExpression ?? string.Empty,
-            cfStmt.Arms);
+        // v5.0: prefer OriginalExpression (set by CfgStatementBuilder via RenderDefault).
+        => cfStmt.OriginalExpression;
 
-    private static CFGEdgeType GetEdgeType(FlowControlType? shape, BranchArm arm)
-    {
-        // v5.0: loopback arms (v4.0 ToLoopCond) now use Sequential (Goto back-edge).
-        if (arm.IsLoopback) return CFGEdgeType.Sequential;
-
-        // Derive edge semantics from the pin name so the mapping is data-driven rather than
-        // positional. Handles ConditionalJump (True/False), IterativeCounted (ForLoop
-        // LoopBody/LoopEnd), UnconditionalJump (Goto → Sequential), and IndexedDispatch
-        // (Default/0/1/...) uniformly.
-        return (shape, arm.PinName) switch
+    /// <summary>
+    /// v5.0: derive edge type from the arm's pin name alone. No FlowControlType needed.
+    /// </summary>
+    private static CFGEdgeType GetEdgeType(BranchArm arm)
+        => arm.PinName switch
         {
-            // v5.0 Goto: unconditional jump uses a plain Sequential edge (the unified
-            // fall-through/back-edge mechanism, §7.6). Goto's single "Exec" arm lands here.
-            (FlowControlType.UnconditionalJump, _) => CFGEdgeType.Sequential,
-
-            // v5.0 ForLoop: LoopBody/LoopEnd arms.
-            (FlowControlType.IterativeCounted, "LoopBody") => CFGEdgeType.LoopBody,
-            (FlowControlType.IterativeCounted, "LoopEnd") => CFGEdgeType.LoopExit,
-
-            (FlowControlType.IndexedDispatch, _) => CFGEdgeType.Switch,
-            (_, "False") => CFGEdgeType.BranchFalse,
-            (_, "LoopEnd") => CFGEdgeType.LoopExit,
+            "False" => CFGEdgeType.BranchFalse,
+            "LoopBody" => CFGEdgeType.LoopBody,
+            "LoopEnd" => CFGEdgeType.LoopExit,
+            "Exec" => CFGEdgeType.Sequential,
             _ => CFGEdgeType.BranchTrue
         };
-    }
 
     // ─── Node Type Helpers ────────────────────────────────────────────
 

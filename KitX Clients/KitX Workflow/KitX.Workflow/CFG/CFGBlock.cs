@@ -1,3 +1,5 @@
+using KitX.Workflow.BlockScripting;
+
 namespace KitX.Workflow.CFG;
 
 /// <summary>
@@ -75,7 +77,9 @@ public class CFGBlock
     /// UnconditionalJump, IndexedDispatch, ScriptReturn).
     /// </summary>
     public bool EndsWithControlFlow =>
-        Statements.Count > 0 && Statements[^1].FlowControlShape != null;
+        Statements.Count > 0
+        && !string.IsNullOrEmpty(Statements[^1].FunctionName)
+        && BuiltinFunctionRegistry.Instance.Get(Statements[^1].FunctionName)?.IsBlockTerminator == true;
 
     /// <summary>
     /// The effective statement sequence consumers should iterate. PipelineStatement entries are

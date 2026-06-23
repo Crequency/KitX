@@ -34,13 +34,17 @@ public class CfgStatementBuilder
         if (pubVarNames != null && !string.IsNullOrEmpty(PubVarTarget))
             pubVarNames.Add(PubVarTarget);
 
-        var fingerprint = DeriveFingerprint();
-        var originalExpression = SourceText ?? RenderDefault();
+        var def = !string.IsNullOrEmpty(FunctionName)
+            ? BuiltinFunctionRegistry.Instance.Get(FunctionName) : null;
+
+        var fingerprint = DeriveFingerprint(def);
+        var originalExpression = SourceText ?? RenderDefault(def);
 
         return new CFGStatement
         {
             StatementId = string.IsNullOrEmpty(StatementId) ? Guid.NewGuid().ToString() : StatementId!,
             BlockName = BlockName,
+            IsBlockTerminator = def?.IsBlockTerminator ?? false,
             FunctionName = FunctionName,
             FullFunctionName = FullFunctionName,
             Arguments = Arguments,
@@ -54,22 +58,17 @@ public class CfgStatementBuilder
         };
     }
 
-    private string? DeriveFingerprint()
+    private string? DeriveFingerprint(IBuiltinFunctionDefinition? def)
     {
-        // Look up the function in the registry; flow-control functions are never reused.
-        if (!string.IsNullOrEmpty(FunctionName)
-            && BuiltinFunctionRegistry.Instance.Get(FunctionName) is { ArgLayout: not null })
-            return null;
+        if (def is { ArgLayout: not null }) return null; // flow-control
         if (string.IsNullOrEmpty(FunctionName)) return null;
         return ExprUtils.ComputeFingerprint(FunctionName!, Arguments);
     }
 
-    private string RenderDefault()
+    private string RenderDefault(IBuiltinFunctionDefinition? def)
     {
-        // Flow-control: lookup via registry and call RenderSource.
-        if (!string.IsNullOrEmpty(FunctionName)
-            && BuiltinFunctionRegistry.Instance.Get(FunctionName) is { ArgLayout: not null } fcDef)
-            return fcDef.RenderSource(ConditionExpression, Arms, Arguments);
+        if (def is { ArgLayout: not null })
+            return def.RenderSource(ConditionExpression, Arms, Arguments);
 
         // Pure assignment (Expr > var tap).
         if (string.IsNullOrEmpty(FunctionName))

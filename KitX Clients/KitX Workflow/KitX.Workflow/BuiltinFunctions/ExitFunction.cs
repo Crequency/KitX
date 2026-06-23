@@ -29,7 +29,7 @@ public class ExitFunction : IBuiltinFunctionDefinition
         {
             LineNumber = lineNumber,
             SourceCode = exprText ?? "Exit();",
-            ControlType = FlowControlType.ScriptReturn
+            
         };
 
     public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,

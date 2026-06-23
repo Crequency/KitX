@@ -19,8 +19,8 @@ namespace KitX.Workflow.BuiltinFunctions
         public string FunctionName => "Flip";
         public string DisplayName => "Flip";
         public bool IsNonExtractable => true;
-        public bool IsBlockTerminator => true;
-        public FlowControlType? FlowControlShape => FlowControlType.ConditionalJump;
+    public bool IsBlockTerminator => true;
+        public FlowControlArgLayout? ArgLayout => new(0, 2, false);
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 30)
@@ -39,7 +39,7 @@ namespace KitX.Workflow.BuiltinFunctions
             {
                 LineNumber = lineNumber,
                 SourceCode = exprText ?? invoke.SourceText,
-                ControlType = FlowControlType.ConditionalJump // Reuse ConditionalJump shape for cross-block routing
+                FunctionName = "Flip"
             };
             if (args.Count >= 1) stmt.TrueBlockName = args[0].AsStringLiteral() ?? string.Empty;
             if (args.Count >= 2) stmt.FalseBlockName = args[1].AsStringLiteral() ?? string.Empty;

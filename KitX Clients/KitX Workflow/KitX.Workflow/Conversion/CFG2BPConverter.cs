@@ -116,7 +116,7 @@ public class CFG2BPConverter
     private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
         ForwardConversionState context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
-        var funcDef = !string.IsNullOrEmpty(stmt.FunctionName)
+        var funcDef = stmt.IsBlockTerminator
             ? _functionRegistry?.Get(stmt.FunctionName)
             : null;
 
@@ -134,7 +134,7 @@ public class CFG2BPConverter
         // helper/plugin call (Kind = Assignment/Expression). Routing by registration rather
         // than Kind, because builtins like Print/Set carry their own Kind values.
         if (funcDef != null
-            || stmt.FlowControlShape == null)
+            || stmt.FunctionName == null)
         {
             return ProcessCallOrAssignment(stmt, funcDef, context, ref prevNode, ref prevStmtId);
         }

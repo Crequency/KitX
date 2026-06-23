@@ -153,12 +153,13 @@ internal class CFG2BSConverter
     private static BlockStatement? ConvertStatement(CFGStatement cfgStmt)
     {
         // Control flow statements → FlowControlStatement
-        if (cfgStmt.FlowControlShape != null)
+        if (!string.IsNullOrEmpty(cfgStmt.FunctionName)
+            && BuiltinFunctionRegistry.Instance.Get(cfgStmt.FunctionName)?.IsBlockTerminator == true)
         {
             return new FlowControlStatement
             {
                 StatementId = cfgStmt.StatementId,
-                ControlType = cfgStmt.FlowControlShape.Value,
+                FunctionName = cfgStmt.FunctionName,
                 ConditionExpression = cfgStmt.ConditionExpression ?? string.Empty,
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
                 // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), carried by this clone.
@@ -198,7 +199,7 @@ internal class CFG2BSConverter
     private static string RenderStatement(CFGStatement stmt)
     {
         var args = string.Join(", ", stmt.Arguments ?? []);
-        var call = !string.IsNullOrEmpty(stmt.FunctionName)
+        var call = stmt.IsBlockTerminator
             ? $"{stmt.FunctionName}({args})"
             : (stmt.Arguments?.Count > 0 ? stmt.Arguments[0] : "null");
 

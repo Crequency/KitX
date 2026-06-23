@@ -225,7 +225,7 @@ internal class CSCompiler
                 block.Name, block.FallThroughTarget, block.Statements.Count);
             foreach (var stmt in block.GetEffectiveStatements())
                 Log.Debug("[CSCompiler]     FlowCtrl={FlowCtrl} PubVar={PubVar} Fn={Fn} Args=[{Args}] CondExpr={Cond}",
-                    stmt.FlowControlShape, stmt.PubVarTarget, stmt.FunctionName,
+                    stmt.FunctionName, stmt.PubVarTarget, stmt.FunctionName,
                     string.Join(", ", stmt.Arguments), stmt.ConditionExpression);
         }
 

@@ -31,7 +31,7 @@ static class TestPipeline
         if (shouldRun("T25")) { var o = execScript(parser, sp, "#PubVarBlock\nint currentLoop;\n\n#MainBlock\n0 > currentLoop;\ncurrentLoop > Print;\nGoto(\"End\");" + End, h, 5); check("T25", "pure pipeline assignment", o != null && o.Contains("0"), ""); }
         if (shouldRun("T26")) { var pr = parser.Parse("#ConstBlock\nstring data = \"test\";\n\n#MainBlock\ndata\n    > StringConcat(\"p: \", _)\n    > Print;\nGoto(\"End\");" + End); check("T26", "multi-line pipeline", pr.IsSuccess, ""); }
         if (shouldRun("T27")) { var pr = parser.Parse("#PubVarBlock\nbool cond;\n\n#MainBlock\ntrue > cond;\ncond > Branch(_, \"A\", \"B\");\nGoto(\"End\");" + End); check("T27", "control flow not as pipeline target", pr.IsSuccess, ""); }
-        if (shouldRun("T28")) { var pr = parser.Parse("#PubVarBlock\nbool cond;\n\n#MainBlock\ntrue > cond;\nBranch(cond, \"A\", \"B\");\n\n#Block A\nPrint(\"true\");\nGoto(\"End\");\n\n#Block B\nPrint(\"false\");\nGoto(\"End\");" + End); bool ok = pr.IsSuccess && pr.Script!.MainBlock.Statements.Count >= 2 && pr.Script.MainBlock.Statements[1] is FlowControlStatement fcs && fcs.ControlType == FlowControlType.ConditionalJump; check("T28", "control flow bare call", ok, ""); }
+        if (shouldRun("T28")) { var pr = parser.Parse("#PubVarBlock\nbool cond;\n\n#MainBlock\ntrue > cond;\nBranch(cond, \"A\", \"B\");\n\n#Block A\nPrint(\"true\");\nGoto(\"End\");\n\n#Block B\nPrint(\"false\");\nGoto(\"End\");" + End); bool ok = pr.IsSuccess && pr.Script!.MainBlock.Statements.Count >= 2 && pr.Script.MainBlock.Statements[1] is FlowControlStatement fcs && fcs.FunctionName == "Branch"; check("T28", "control flow bare call", ok, ""); }
     }
 }
 

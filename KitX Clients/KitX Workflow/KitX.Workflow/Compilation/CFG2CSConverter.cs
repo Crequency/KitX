@@ -106,7 +106,7 @@ internal static class CFG2CSConverter
                 }
 
                 // Helper function arguments demand specific types
-                if (stmt.FlowControlShape == null && stmt.FunctionName != null
+                if (stmt.FunctionName == null && stmt.IsBlockTerminator
                     && helperMap.TryGetValue(stmt.FunctionName, out var consumerHelper))
                 {
                     for (int i = 0; i < stmt.Arguments.Count && i < consumerHelper.Parameters.Count; i++)
@@ -593,7 +593,7 @@ internal static class CFG2CSConverter
 
             // Route ALL registered builtin functions (value, simple, and flow-control) through
             // their descriptor — eliminates per-function-name hardcoding below.
-            var def = stmt.FunctionName != null ? FunctionRegistry.Get(stmt.FunctionName) : null;
+            var def = stmt.IsBlockTerminator ? FunctionRegistry.Get(stmt.FunctionName) : null;
             if (def != null)
             {
                 caseStatements.AddRange(def.EmitStatements(stmt, ctx));

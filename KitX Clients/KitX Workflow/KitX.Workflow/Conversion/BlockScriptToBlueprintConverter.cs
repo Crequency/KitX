@@ -179,7 +179,7 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             {
                 var fp = stmt.Fingerprint != null ? $" FP={stmt.Fingerprint}" : "";
                 var args = stmt.Arguments != null ? string.Join(", ", stmt.Arguments) : "";
-                sb.AppendLine($"  [{(stmt.FlowControlShape?.ToString() ?? "Expr")}] {stmt.OriginalExpression}" +
+                sb.AppendLine($"  [{(stmt.FunctionName?.ToString() ?? "Expr")}] {stmt.OriginalExpression}" +
                     $" | PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName}" +
                     $" Args=[{args}]" +
                     $" CondExpr={stmt.ConditionExpression} True={stmt.TrueBlockName} False={stmt.FalseBlockName}{fp}");

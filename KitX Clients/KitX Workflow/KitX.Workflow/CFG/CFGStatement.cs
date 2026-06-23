@@ -27,13 +27,10 @@ public class CFGStatement
     public string BlockName { get; set; } = string.Empty;
 
     /// <summary>
-    /// The control-flow graph shape of this statement (null for non-control-flow statements).
-    /// This is the authoritative control-flow classification — consumers should query this
-    /// instead of switching on <see cref="Kind"/>. Populated from the builtin descriptor's
-    /// FlowControlShape during lowering. v5.0 shapes: ConditionalJump (Branch),
-    /// IterativeCounted (ForLoop), UnconditionalJump (Goto), ScriptReturn (Exit), IndexedDispatch (Switch).
+    /// True if this statement terminates the current block (no fall-through).
+    /// Set by CfgStatementBuilder from the function definition's IsBlockTerminator.
     /// </summary>
-    public FlowControlType? FlowControlShape { get; set; }
+    public bool IsBlockTerminator { get; set; }
 
     /// <summary>
     /// The original source expression for this statement.

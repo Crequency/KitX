@@ -135,7 +135,7 @@ namespace KitX.Workflow.BuiltinFunctions
                 stmt.Arms.Add(new BranchArm { PinName = pin.Name, TargetBlockName = target ?? string.Empty });
             }
 
-            stmt.RegenerateSourceCode();
+            stmt.SourceCode = RenderSource(stmt.ConditionExpression, stmt.Arms, []);
             return stmt;
         }
 
