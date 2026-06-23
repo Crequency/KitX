@@ -19,12 +19,13 @@ namespace KitX.Workflow.BuiltinFunctions
     /// 无数据输出引脚（控制流函数通则，§7）。两臂：LoopBody（进入循环体）、LoopEnd（循环结束）。
     /// </para>
     /// </summary>
-    public class ForLoopFunction : IFlowControlFunctionDefinition
+    public class ForLoopFunction : IBuiltinFunctionDefinition
     {
         public string FunctionName => "ForLoop";
         public string DisplayName => "ForLoop";
         public bool IsNonExtractable => false;
-        public FlowControlType FlowControlShape => FlowControlType.IterativeCounted;
+    public bool IsBlockTerminator => true;
+    public bool HasInternalState => true;
         public FlowControlArgLayout ArgLayout => new(3, 3, false);
         public IReadOnlyList<string> ArmPinNames => ["LoopBody", "LoopEnd"];
 

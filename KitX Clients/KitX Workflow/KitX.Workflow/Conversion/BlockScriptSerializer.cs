@@ -116,11 +116,7 @@ internal class BlockScriptSerializer
         var last = block.Statements[^1];
         if (last is FlowControlStatement flow)
         {
-            return flow.ControlType is FlowControlType.ConditionalJump
-                or FlowControlType.IterativeCounted
-                or FlowControlType.UnconditionalJump
-                or FlowControlType.IndexedDispatch
-                or FlowControlType.ScriptReturn;
+            return flow is FlowControlStatement;
         }
         return false;
     }

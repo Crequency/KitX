@@ -12,13 +12,13 @@ namespace KitX.Workflow.BuiltinFunctions;
 /// v5.0 改名自 Break：语义是"退出脚本激活"而非"跳出循环"。
 /// 跳出循环通过 Branch+Goto 组合表达。
 /// </summary>
-public class ExitFunction : IFlowControlFunctionDefinition
+public class ExitFunction : IBuiltinFunctionDefinition
 {
     public string FunctionName => "Exit";
     public string DisplayName => "Exit";
     public bool IsNonExtractable => true;
-    public FlowControlType FlowControlShape => FlowControlType.ScriptReturn;
-    public FlowControlArgLayout ArgLayout => new(0, 0, false);
+    public bool IsBlockTerminator => true;
+    public FlowControlArgLayout? ArgLayout => new(0, 0, false);
     public IReadOnlyList<string> ArmPinNames => [];
 
     public IReadOnlyList<PinDescriptor> InputPins => [new("Exec", PinType.Execution, 20)];
@@ -44,7 +44,7 @@ public class ExitFunction : IFlowControlFunctionDefinition
     public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context) { }
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        => new FlowControlStatement { ControlType = FlowControlType.ScriptReturn, SourceCode = "Exit();", LineNumber = 1 };
+        => new FlowControlStatement {  SourceCode = "Exit();", LineNumber = 1 };
 
     public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
 }

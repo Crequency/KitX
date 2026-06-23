@@ -10,12 +10,12 @@ namespace KitX.Workflow.BuiltinFunctions
     /// <summary>
     /// Branch 内置函数 — 条件分支控制流。
     /// </summary>
-    public class BranchFunction : IFlowControlFunctionDefinition
+    public class BranchFunction : IBuiltinFunctionDefinition
     {
         public string FunctionName => "Branch";
         public string DisplayName => "Branch";
         public bool IsNonExtractable => false;
-        public FlowControlType FlowControlShape => FlowControlType.ConditionalJump;
+    public bool IsBlockTerminator => true;
         public FlowControlArgLayout ArgLayout => new(1, 2, false);
         public IReadOnlyList<string> ArmPinNames => ["True", "False"];
 
@@ -67,7 +67,7 @@ namespace KitX.Workflow.BuiltinFunctions
             var condition = helper.GetInputValue(node, "Condition");
             return new FlowControlStatement
             {
-                ControlType = FlowControlType.ConditionalJump,
+                
                 ConditionExpression = condition,
                 SourceCode = $"Branch({condition}, \"\", \"\");",
                 LineNumber = 1

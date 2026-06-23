@@ -408,7 +408,9 @@ internal class BP2CFGConverter
                 pendingControlFlowNodes.Add(node);
                 // v5.0: ForLoop (IterativeCounted) registers like v4.0 Loop (IterativeJump) did,
                 // so loopback resolution keeps working for ForLoop-bodied blueprints.
-                if (stmt.FlowControlShape == FlowControlType.IterativeCounted)
+                if (!string.IsNullOrEmpty(stmt.FunctionName)
+                    && _builtinFunctionStrategies.TryGetValue(stmt.FunctionName, out var loopDef)
+                    && loopDef.HasInternalState)
                 {
                     loopNodes[node.Id] = node;
                     loopOwnerBlockNames[node.Id] = currentBlock.Name;
@@ -417,7 +419,7 @@ internal class BP2CFGConverter
         }
 
         // v5.0: Goto (UnconditionalJump) ends the exec chain like v4.0 ToLoopCond (LoopBackedge).
-        if (stmt is { FlowControlShape: FlowControlType.UnconditionalJump })
+        if (stmt is { Arms.Count: 1 })
             return;
 
         if (isControlFlow)
@@ -577,7 +579,7 @@ internal class BP2CFGConverter
             // Use registry to determine edge types for control flow statements
             if (!string.IsNullOrEmpty(lastStmt.FunctionName)
                 && _builtinFunctionStrategies.TryGetValue(lastStmt.FunctionName, out var builtinStrat)
-                && builtinStrat.FlowControlShape != null)
+                && builtinStrat.ArgLayout != null)
             {
                 // Edges are derived directly from the statement's resolved Arms, so N-way
                 // Switch (Default/0/1/...) and variadic shapes survive without positional loss.
@@ -596,8 +598,8 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            // v5.0: Goto (UnconditionalJump) uses a Sequential edge to its target.
-            if (lastStmt.FlowControlShape == FlowControlType.UnconditionalJump)
+            // v5.0: Goto-like (single arm) → Sequential edge.
+            if (lastStmt.Arms.Count == 1)
             {
                 if (!string.IsNullOrEmpty(lastStmt.TrueBlockName))
                     block.Successors.Add(new CFGEdge
@@ -609,7 +611,8 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            if (lastStmt.FlowControlShape == FlowControlType.ScriptReturn)
+            // v5.0: Exit-like (no arms) → script termination edge.
+            if (lastStmt.Arms.Count == 0)
             {
                 block.Successors.Add(new CFGEdge
                 {
@@ -834,14 +837,12 @@ internal class BP2CFGConverter
                     // ConvertBlockStatementToCfgStatement sets FlowControlShape and arms get
                     // resolved. Without this, Goto round-tripped as `Goto()` (ExpressionStatement)
                     // with no target (Test D/H/I/K DIFF).
-                    if (bfStrategy.FlowControlShape != null && bfStrategy.FlowControlShape != null)
+                    if (bfStrategy.ArgLayout != null)
                     {
-                        var shape = bfStrategy.FlowControlShape.Value;
                         var fcStmt = new FlowControlStatement
                         {
-                            ControlType = shape,
-                            SourceCode = FlowControlStatement.RenderSource(
-                                shape, string.Empty, new List<BranchArm>(), null),
+                            FunctionName = bfStrategy.FunctionName,
+                            SourceCode = bfStrategy.RenderSource(null, [], []),
                             LineNumber = 1
                         };
                         return fcStmt;
@@ -1036,7 +1037,7 @@ internal class BP2CFGConverter
             // BlockName is set by the caller (WalkNode) after this returns; empty here matches
             // the pre-builder default.
             BlockName = string.Empty,
-            FlowControlShape = FlowControlType.UnconditionalJump,
+            
             // Loopback target carried in Arms[0] (IsLoopback=true) so the builder's default
             // renderer produces Goto("target"); via RenderSource.
             Arms = returnTo != null
@@ -1246,5 +1247,5 @@ internal class BP2CFGConverter
     private bool IsControlFlowNode(BlueprintNode node) =>
         node is BuiltinFunctionNode bfn
         && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var def)
-        && def.FlowControlShape != null;
+        && def.ArgLayout != null;
 }

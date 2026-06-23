@@ -10,8 +10,8 @@ namespace KitX.Workflow.CFG;
 /// </summary>
 public interface IPipelineFlattenContext
 {
-    /// <summary>Lookup a registered builtin's flow-control shape (null if not registered).</summary>
-    FlowControlType? GetFlowControlShape(string functionName);
+    /// <summary>True if the function is registered with ArgLayout != null (flow-control).</summary>
+    bool IsFlowControl(string functionName);
 
     /// <summary>True if <paramref name="name"/> is a known variable (PubVar/ConstBlock/PubVarBlock).</summary>
     bool IsVariableName(string name);
@@ -147,7 +147,6 @@ public static class PipelineFlattener
             var stmt = new CfgStatementBuilder
             {
                 BlockName = blockName,
-                FlowControlShape = ctx.GetFlowControlShape(target.MethodName),
                 FunctionName = target.MethodName,
                 FullFunctionName = target.FullMethodName,
                 PubVarTarget = pubVarTarget,

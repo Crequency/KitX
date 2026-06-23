@@ -493,15 +493,14 @@ public static class BSParser
     /// hand-written ExtractStatement needed.
     /// </summary>
     static FlowControlStatement BuildFlowControlFromArgLayout(
-        IFlowControlFunctionDefinition fcDef, BSCall call, int line)
+        IBuiltinFunctionDefinition fcDef, BSCall call, int line)
     {
-        var layout = fcDef.ArgLayout;
+        var layout = fcDef.ArgLayout!.Value;
         var args = call.Args;
         var stmt = new FlowControlStatement
         {
             LineNumber = line,
             SourceCode = call.SourceText,
-            ControlType = fcDef.FlowControlShape,
             FunctionName = fcDef.FunctionName
         };
 
@@ -512,8 +511,8 @@ public static class BSParser
         {
             for (int i = 0; i < exprCount && i < args.Count; i++)
                 flowArgs.Add(args[i].SourceText);
-            // First expression = condition/selector (if applicable)
-            if (fcDef.FlowControlShape is FlowControlType.ConditionalJump or FlowControlType.IndexedDispatch)
+            // First expression = condition/selector (if there are also arms)
+            if (fcDef.ArmPinNames.Count > 0)
                 stmt.ConditionExpression = args[0].SourceText;
         }
         stmt.FlowArguments = flowArgs;
@@ -524,14 +523,11 @@ public static class BSParser
         var armNames = fcDef.ArmPinNames;
 
         // Extra block names beyond what fits in arms go to FlowArguments as strings.
-        // Example: ForLoop has BlockNameArgs=3 but only 2 arms (LoopBody, LoopEnd);
-        // the first block name (indexName) is appended to FlowArguments, stripped of quotes.
         int armCount = layout.BlockNamesVariadic
-            ? totalBlockNames  // variadic: all block names are arms
+            ? totalBlockNames
             : armNames.Count;
         int extraBlockNames = totalBlockNames - armCount;
 
-        // Append extra block names to FlowArguments (stripped of quotes)
         for (int i = 0; i < extraBlockNames; i++)
             flowArgs.Add(args[blockStart + i].SourceText.Trim('"'));
 
@@ -558,8 +554,8 @@ public static class BSParser
             }
         }
 
-        // ForLoop specific: strip quotes from indexName in FlowArguments
-        if (fcDef.FlowControlShape == FlowControlType.IterativeCounted && flowArgs.Count >= 4)
+        // ForLoop specific: strip quotes from indexName when there are extra block names
+        if (fcDef is { HasInternalState: true } && flowArgs.Count >= 4)
             flowArgs[3] = flowArgs[3].Trim('"');
 
         stmt.FlowArguments = flowArgs;
@@ -609,7 +605,7 @@ public static class BSParser
             // v5.0: unified ArgLayout dispatch for flow-control functions.
             // No more per-function hand-written ExtractStatement — the Parser reads
             // IFlowControlFunctionDefinition.ArgLayout and builds FlowControlStatement directly.
-            if (registry?.Get(call.MethodName) is IFlowControlFunctionDefinition fcDef)
+            if (registry?.Get(call.MethodName) is IBuiltinFunctionDefinition { ArgLayout: not null } fcDef)
             {
                 block.Statements.Add(BuildFlowControlFromArgLayout(fcDef, call, line));
                 return;

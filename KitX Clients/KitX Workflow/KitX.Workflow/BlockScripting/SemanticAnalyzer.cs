@@ -143,7 +143,7 @@ public class SemanticAnalyzer
             foreach (var stmt in block.Statements)
             {
                 if (stmt is FlowControlStatement fc
-                    && fc.ControlType == FlowControlType.IterativeCounted
+                    && fc.FunctionName == "ForLoop"
                     && fc.FlowArguments.Count >= 4)
                 {
                     // FlowArguments[3] is the indexName (already stripped of quotes by ExtractStatement).

@@ -21,14 +21,14 @@ namespace KitX.Workflow.BuiltinFunctions
     /// 见 <see cref="OutputVariadic"/>)。
     /// </para>
     /// </summary>
-    public class SwitchFunction : IFlowControlFunctionDefinition
+    public class SwitchFunction : IBuiltinFunctionDefinition
     {
         private const double PinGap = 20.0;
 
         public string FunctionName => "Switch";
         public string DisplayName => "Switch";
         public bool IsNonExtractable => false;
-        public FlowControlType FlowControlShape => FlowControlType.IndexedDispatch;
+    public bool IsBlockTerminator => true;
         public FlowControlArgLayout ArgLayout => new(1, 1, true);
         public IReadOnlyList<string> ArmPinNames => [Pins.Default];  // variadic; base is just Default
 
@@ -123,7 +123,7 @@ namespace KitX.Workflow.BuiltinFunctions
             var selector = helper.GetInputValue(node, Pins.Selector);
             var stmt = new FlowControlStatement
             {
-                ControlType = FlowControlType.IndexedDispatch,
+                
                 ConditionExpression = selector,
                 LineNumber = 1
             };

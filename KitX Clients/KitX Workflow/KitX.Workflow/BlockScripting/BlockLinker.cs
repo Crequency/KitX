@@ -32,7 +32,7 @@ internal static class BlockLinker
                 // v5.0: any control-flow terminator (Branch/ForLoop/Goto/Switch/Break) blocks
                 // fall-through. IterativeCounted/UnconditionalJump are the v5.0 shapes; the v4.0
                 // shapes (IterativeJump/LoopBackedge) are gone.
-                if (flowStmt.ControlType != FlowControlType.ScriptReturn)
+                if (flowStmt.FunctionName == "Exit")
                     continue;
             }
 

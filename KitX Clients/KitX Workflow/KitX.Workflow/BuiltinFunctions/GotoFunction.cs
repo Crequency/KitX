@@ -12,12 +12,12 @@ namespace KitX.Workflow.BuiltinFunctions
     /// <c>ToLoopCond</c>。作为块的终止语句，直接设置下一块并结束当前块。
     /// 见 BlockScriptGrammarRule §7.6。
     /// </summary>
-    public class GotoFunction : IFlowControlFunctionDefinition
+    public class GotoFunction : IBuiltinFunctionDefinition
     {
         public string FunctionName => "Goto";
         public string DisplayName => "Goto";
         public bool IsNonExtractable => false;
-        public FlowControlType FlowControlShape => FlowControlType.UnconditionalJump;
+    public bool IsBlockTerminator => true;
         public FlowControlArgLayout ArgLayout => new(0, 1, false);
         public IReadOnlyList<string> ArmPinNames => ["Exec"];
 

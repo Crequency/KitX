@@ -248,7 +248,7 @@ public class BlockScriptExecutor : IBlockScriptExecutor
                         if (!string.IsNullOrEmpty(arm.TargetBlockName) &&
                             !allBlockNames.Contains(arm.TargetBlockName))
                         {
-                            result.AddError($"Block '{arm.TargetBlockName}' referenced in {flow.ControlType} (arm '{arm.PinName}') at line {flow.LineNumber} does not exist");
+                            result.AddError($"Block '{arm.TargetBlockName}' referenced in {flow.FunctionName ?? "FlowCtrl"} (arm '{arm.PinName}') at line {flow.LineNumber} does not exist");
                         }
                     }
                 }

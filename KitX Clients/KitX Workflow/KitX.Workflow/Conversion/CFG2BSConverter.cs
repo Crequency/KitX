@@ -224,5 +224,5 @@ internal class CFG2BSConverter
     /// </summary>
     private static bool EndsWithGoto(CFG.CFGBlock cfgBlock) =>
         cfgBlock.Statements.Count > 0
-        && cfgBlock.Statements[^1].FlowControlShape == Models.FlowControlType.UnconditionalJump;
+        && cfgBlock.Statements[^1].Arms.Count == 1;
 }

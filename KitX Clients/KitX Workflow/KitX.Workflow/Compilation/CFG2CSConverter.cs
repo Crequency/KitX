@@ -95,7 +95,7 @@ internal static class CFG2CSConverter
                 // Conditional jump (Branch) condition demands bool. ForLoop's condition is
                 // internalized, so only ConditionalJump needs this. The condition source PubVar
                 // is carried by ConditionExpression (single identifier post-expansion).
-                if (stmt.FlowControlShape == FlowControlType.ConditionalJump)
+                if (stmt.ConditionExpression != null)
                 {
                     var condSrc = stmt.ConditionExpression?.Trim();
                     if (!string.IsNullOrEmpty(condSrc) && pubVarTypes.ContainsKey(condSrc)

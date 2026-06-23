@@ -24,9 +24,9 @@ public class BS2CFGConverter : IPipelineFlattenContext
         _functionRegistry = functionRegistry;
     }
 
-    /// <summary>IPipelineFlattenContext: lookup a builtin's flow-control shape.</summary>
-    FlowControlType? IPipelineFlattenContext.GetFlowControlShape(string functionName)
-        => _functionRegistry?.Get(functionName)?.FlowControlShape;
+    /// <summary>IPipelineFlattenContext: true if the function is flow-control.</summary>
+    bool IPipelineFlattenContext.IsFlowControl(string functionName)
+        => _functionRegistry?.Get(functionName)?.ArgLayout != null;
 
     /// <summary>IPipelineFlattenContext: delegate to the instance IsVariableName.</summary>
     bool IPipelineFlattenContext.IsVariableName(string name) => IsVariableName(name, _currentContext!);
@@ -175,9 +175,8 @@ public class BS2CFGConverter : IPipelineFlattenContext
         // Determine the function name from the source code or control type
         var functionName = GetFunctionNameFromFlowControl(flowCtrl);
         var def = _functionRegistry?.Get(functionName);
-        var shape = def?.FlowControlShape ?? flowCtrl.ControlType;
 
-        // Expand condition for Branch/Loop (nested calls in the condition → temp PubVars).
+        // Expand condition for Branch (nested calls in the condition → temp PubVars).
         // v5.0: when ExpandCondition materialises the condition into a PubVar, we overwrite
         // ConditionExpression with that PubVar name so the field is the single source of truth
         // for the condition source. Consumers (EmitStatements, DataEdgeBuilder, InferPubVarTypes)
@@ -196,7 +195,6 @@ public class BS2CFGConverter : IPipelineFlattenContext
         {
             StatementId = !string.IsNullOrEmpty(flowCtrl.StatementId) ? flowCtrl.StatementId : null,
             BlockName = blockName,
-            FlowControlShape = shape,
             FunctionName = functionName,
             ConditionExpression = effectiveCondition,
             // Variadic control-flow forms (ForLoop) carry from/to/step/indexName as positional args;
@@ -337,7 +335,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
             }
 
             // Skip flow control functions (handled by FlowControlStatement)
-            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.FlowControlShape != null)
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.ArgLayout != null)
                 return result;
 
             var fullFuncName = invoke.FullMethodName;
@@ -449,7 +447,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
 
             // Non-extractable / flow-control functions stay inline (cannot be nested-call results).
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef
-                && (inlineDef.IsNonExtractable || inlineDef.FlowControlShape != null))
+                && (inlineDef.IsNonExtractable || inlineDef.ArgLayout != null))
             {
                 return (new(), invoke.SourceText);
             }
