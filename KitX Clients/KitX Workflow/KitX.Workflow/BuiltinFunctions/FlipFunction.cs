@@ -20,6 +20,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Flip";
         public bool IsNonExtractable => true;
     public bool IsBlockTerminator => true;
+    public bool IsFlowControl => true;
         public FlowControlArgLayout? ArgLayout => new(0, 2, false);
 
         public IReadOnlyList<PinDescriptor> InputPins => [

@@ -29,6 +29,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Switch";
         public bool IsNonExtractable => false;
     public bool IsBlockTerminator => true;
+    public bool IsFlowControl => true;
         public FlowControlArgLayout ArgLayout => new(1, 1, true);
         public IReadOnlyList<string> ArmPinNames => [Pins.Default];  // variadic; base is just Default
 

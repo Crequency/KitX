@@ -26,7 +26,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
 
     /// <summary>IPipelineFlattenContext: true if the function is flow-control.</summary>
     bool IPipelineFlattenContext.IsFlowControl(string functionName)
-        => _functionRegistry?.Get(functionName)?.ArgLayout != null;
+        => _functionRegistry?.Get(functionName)?.IsFlowControl == true;
 
     /// <summary>IPipelineFlattenContext: delegate to the instance IsVariableName.</summary>
     bool IPipelineFlattenContext.IsVariableName(string name) => IsVariableName(name, _currentContext!);
@@ -335,7 +335,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
             }
 
             // Skip flow control functions (handled by FlowControlStatement)
-            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.ArgLayout != null)
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.IsFlowControl)
                 return result;
 
             var fullFuncName = invoke.FullMethodName;
@@ -447,7 +447,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
 
             // Non-extractable / flow-control functions stay inline (cannot be nested-call results).
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef
-                && (inlineDef.IsNonExtractable || inlineDef.ArgLayout != null))
+                && (inlineDef.IsNonExtractable || inlineDef.IsFlowControl))
             {
                 return (new(), invoke.SourceText);
             }

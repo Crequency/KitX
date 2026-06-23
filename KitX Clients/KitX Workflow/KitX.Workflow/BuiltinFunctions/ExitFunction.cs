@@ -18,6 +18,7 @@ public class ExitFunction : IBuiltinFunctionDefinition
     public string DisplayName => "Exit";
     public bool IsNonExtractable => true;
     public bool IsBlockTerminator => true;
+    public bool IsFlowControl => true;
     public FlowControlArgLayout? ArgLayout => new(0, 0, false);
     public IReadOnlyList<string> ArmPinNames => [];
 

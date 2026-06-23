@@ -495,7 +495,7 @@ public static class BSParser
     static FlowControlStatement BuildFlowControlFromArgLayout(
         IBuiltinFunctionDefinition fcDef, BSCall call, int line)
     {
-        var layout = fcDef.ArgLayout!.Value;
+        if (!(fcDef.ArgLayout is { } layout)) return new FlowControlStatement { LineNumber = line, SourceCode = call.SourceText, FunctionName = fcDef.FunctionName };
         var args = call.Args;
         var stmt = new FlowControlStatement
         {
@@ -605,7 +605,7 @@ public static class BSParser
             // v5.0: unified ArgLayout dispatch for flow-control functions.
             // No more per-function hand-written ExtractStatement — the Parser reads
             // IFlowControlFunctionDefinition.ArgLayout and builds FlowControlStatement directly.
-            if (registry?.Get(call.MethodName) is IBuiltinFunctionDefinition fcDef && fcDef.ArgLayout != null)
+            if (registry?.Get(call.MethodName) is IBuiltinFunctionDefinition { IsFlowControl: true } fcDef)
             {
                 block.Statements.Add(BuildFlowControlFromArgLayout(fcDef, call, line));
                 return;

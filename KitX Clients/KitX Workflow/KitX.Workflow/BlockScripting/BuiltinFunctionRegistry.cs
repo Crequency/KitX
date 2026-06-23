@@ -26,7 +26,7 @@ public class BuiltinFunctionRegistry
         // v5.0 §7: control-flow functions must have no data output pins (only Execution pins).
         // A control-flow statement terminates its block, so no later statement can consume a
         // return value. Enforced at registration so future flow-control builtins can't violate it.
-        if (definition.ArgLayout != null)
+        if (definition.IsFlowControl)
         {
             foreach (var pin in definition.OutputPins)
             {
@@ -42,7 +42,7 @@ public class BuiltinFunctionRegistry
 
         _functions[definition.FunctionName] = definition;
         Log.Debug("[BuiltinFunctionRegistry] Registered: {Name} (FlowControl={FC}, NonExtractable={NE})",
-            definition.FunctionName, definition.ArgLayout != null, definition.IsNonExtractable);
+            definition.FunctionName, definition.IsFlowControl, definition.IsNonExtractable);
     }
 
     /// <summary>按函数名查找定义。未找到返回 null。</summary>
@@ -58,7 +58,7 @@ public class BuiltinFunctionRegistry
 
     /// <summary>分类为 FlowControl 的函数名集合</summary>
     public HashSet<string> FlowControlNames =>
-        _functions.Values.Where(f => f.ArgLayout != null).Select(f => f.FunctionName).ToHashSet();
+        _functions.Values.Where(f => f.IsFlowControl).Select(f => f.FunctionName).ToHashSet();
 
     /// <summary>所有已注册的定义</summary>
     public IReadOnlyCollection<IBuiltinFunctionDefinition> AllDefinitions => _functions.Values;

@@ -579,7 +579,7 @@ internal class BP2CFGConverter
             // Use registry to determine edge types for control flow statements
             if (!string.IsNullOrEmpty(lastStmt.FunctionName)
                 && _builtinFunctionStrategies.TryGetValue(lastStmt.FunctionName, out var builtinStrat)
-                && builtinStrat.ArgLayout != null)
+                && builtinStrat.IsFlowControl)
             {
                 // Edges are derived directly from the statement's resolved Arms, so N-way
                 // Switch (Default/0/1/...) and variadic shapes survive without positional loss.
@@ -832,7 +832,7 @@ internal class BP2CFGConverter
                     // ConvertBlockStatementToCfgStatement sets FlowControlShape and arms get
                     // resolved. Without this, Goto round-tripped as `Goto()` (ExpressionStatement)
                     // with no target (Test D/H/I/K DIFF).
-                    if (bfStrategy.ArgLayout != null)
+                    if (bfStrategy.IsFlowControl)
                     {
                         var fcStmt = new FlowControlStatement
                         {
@@ -1223,5 +1223,5 @@ internal class BP2CFGConverter
     private bool IsControlFlowNode(BlueprintNode node) =>
         node is BuiltinFunctionNode bfn
         && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var def)
-        && def.ArgLayout != null;
+        && def.IsFlowControl;
 }

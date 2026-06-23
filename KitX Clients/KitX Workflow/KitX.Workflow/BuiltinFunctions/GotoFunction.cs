@@ -18,6 +18,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Goto";
         public bool IsNonExtractable => false;
     public bool IsBlockTerminator => true;
+    public bool IsFlowControl => true;
         public FlowControlArgLayout ArgLayout => new(0, 1, false);
         public IReadOnlyList<string> ArmPinNames => ["Exec"];
 

@@ -16,6 +16,7 @@ namespace KitX.Workflow.BuiltinFunctions
         public string DisplayName => "Branch";
         public bool IsNonExtractable => false;
     public bool IsBlockTerminator => true;
+    public bool IsFlowControl => true;
         public FlowControlArgLayout ArgLayout => new(1, 2, false);
         public IReadOnlyList<string> ArmPinNames => ["True", "False"];
 
