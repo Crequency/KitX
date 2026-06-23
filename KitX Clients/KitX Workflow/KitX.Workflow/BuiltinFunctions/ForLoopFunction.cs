@@ -28,6 +28,7 @@ namespace KitX.Workflow.BuiltinFunctions
     public bool IsFlowControl => true;
     public bool HasInternalState => true;
         public FlowControlArgLayout ArgLayout => new(3, 3, false);
+        FlowControlArgLayout? IBuiltinFunctionDefinition.ArgLayout => new(3, 3, false);
         public IReadOnlyList<string> ArmPinNames => ["LoopBody", "LoopEnd"];
 
         public IReadOnlyList<PinDescriptor> InputPins =>

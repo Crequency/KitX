@@ -155,13 +155,27 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             }
         }
 
-        // Process PubVarBlock variables → PubVarNames
+        // Process PubVarBlock variables → PubVarNames + declaration-only VariableNodes
+        // for type preservation across round-trip (RC4).
         if (context.Script.PubVarBlock != null)
         {
             foreach (var varDecl in context.Script.PubVarBlock.Variables)
             {
                 if (!context.PubVarNames.Contains(varDecl.Name))
                     context.PubVarNames.Add(varDecl.Name);
+                // Store type metadata for BS→BP→BS round-trip (RC4).
+                // Goes into VariableNodes dict → BlueprintAssembler writes it to
+                // bp.ConstValues. Not added to AllNodes (avoid duplicate with
+                // write-site VariableNodes created later in CFG2BP).
+                if (!context.VariableNodes.ContainsKey(varDecl.Name))
+                {
+                    var varNode = (VariableNode)_nodeRegistry.Create(BlueprintNodeType.Variable);
+                    varNode.VarName = varDecl.Name;
+                    varNode.VarType = varDecl.Type;
+                    varNode.VarKind = VariableKind.PubVar;
+                    context.VariableNodes[varDecl.Name] = varNode;
+                    // Intentionally NOT added to context.AllNodes.
+                }
             }
         }
     }

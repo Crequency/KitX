@@ -199,7 +199,9 @@ internal class CFG2BSConverter
     private static string RenderStatement(CFGStatement stmt)
     {
         var args = string.Join(", ", stmt.Arguments ?? []);
-        var call = stmt.IsBlockTerminator
+        // v5.0: use FuncName(args) for any registered function (flow-control or not).
+        // Pure assignment (no FunctionName) → use Arguments[0] as the RHS expression.
+        var call = !string.IsNullOrEmpty(stmt.FunctionName)
             ? $"{stmt.FunctionName}({args})"
             : (stmt.Arguments?.Count > 0 ? stmt.Arguments[0] : "null");
 

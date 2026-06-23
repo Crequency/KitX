@@ -126,6 +126,15 @@ public class CFG2BPConverter
             var node = CreateAndConfigureNode(stmt, funcDef, context);
             ChainNewNode(node, stmt, context, ref prevNode, ref prevStmtId);
             funcDef.OnNodeCreated(node, stmt, context);
+
+            // v5.0 RC3: persist flow-control metadata on the BP node so the reverse
+            // path (BP→CFG) can recover arguments lost in the pin-only representation.
+            // ForLoop needs Arguments[3] (indexName) which has no corresponding input pin.
+            if (node is BuiltinFunctionNode bfn && stmt.Arguments.Count > 0)
+            {
+                bfn.Properties["FlowArguments"] = string.Join("\x1E", stmt.Arguments);
+            }
+
             return node;
         }
 

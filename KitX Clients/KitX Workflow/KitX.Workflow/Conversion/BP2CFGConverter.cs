@@ -115,6 +115,16 @@ internal class BP2CFGConverter
                 cfg.PubVarTypes[node.VarName] = node.VarType;
         }
 
+        // v5.0 RC4: also recover PubVar types from ConstValues (declaration-only
+        // PubVars stored by BlueprintAssembler from context.VariableNodes).
+        foreach (var cv in blueprint.ConstValues)
+        {
+            if (!string.IsNullOrEmpty(cv.Type)
+                && !cfg.PubVarTypes.ContainsKey(cv.Name)
+                && blueprint.PubVarNames.Contains(cv.Name))
+                cfg.PubVarTypes[cv.Name] = cv.Type;
+        }
+
         // ── Step 9: Transfer const declarations ──
         // Collect ConstNode (initialized variables) and floating VariableNodes (uninitialized
         // declarations from ConstBlock). v5.0: write-site VariableNodes (those with Exec pins,
@@ -962,14 +972,32 @@ internal class BP2CFGConverter
         {
             case FlowControlStatement flow:
                 cfgStmt.FunctionName = flow.FunctionName;
-                cfgStmt.FunctionName = flow.FunctionName;
                 if (string.IsNullOrEmpty(cfgStmt.FunctionName))
                     cfgStmt.FunctionName = null;
                 cfgStmt.ConditionExpression = flow.ConditionExpression;
                 // Copy the full arm list so N-way Switch and any variadic shape survive.
-                // ToLoopCond's loopback target lives in Arms[0] (IsLoopback=true), so it is
-                // carried by this clone — no separate field copy needed.
                 cfgStmt.Arms = flow.Arms.Select(a => a.Clone()).ToList();
+
+                // v5.0 RC3: populate Arguments from the node's Properties["FlowArguments"]
+                // (stored during BS→BP to preserve flow-control arguments that have no
+                // corresponding input pins, e.g. ForLoop's indexName).
+                // Fall back to extracting from non-exec input pins if Properties is empty.
+                if (node is BuiltinFunctionNode { Properties: var props }
+                    && props.TryGetValue("FlowArguments", out var stored))
+                {
+                    cfgStmt.Arguments = stored.Split('\x1E').ToList();
+                }
+                else
+                {
+                    cfgStmt.Arguments = new List<string>();
+                    foreach (var pin in node.InputPins)
+                    {
+                        if (pin.Type != PinType.Execution)
+                            cfgStmt.Arguments.Add(_exportHelper.GetInputValue(node, pin.Name));
+                    }
+                }
+                // Note: OriginalExpression is regenerated later by ResolveControlFlowTargetsForNode
+                // → RegenerateBranchSource after arms are resolved from BP connections.
                 break;
 
             case ExpressionStatement expr:
@@ -1200,10 +1228,21 @@ internal class BP2CFGConverter
     }
 
     private static string RegenerateBranchSource(CFGStatement cfStmt)
-        // Delegate to the shared renderer on FlowControlStatement so BS↔graph source text stays
-        // in sync with the instance RegenerateSourceCode path (single source of truth).
-        // v5.0: prefer OriginalExpression (set by CfgStatementBuilder via RenderDefault).
-        => cfStmt.OriginalExpression;
+    {
+        // v5.0 RC3: regenerate source via the function registry's RenderSource
+        // so round-trip preserves the full function-call text with resolved arms/args.
+        if (!string.IsNullOrEmpty(cfStmt.FunctionName))
+        {
+            var fcDef = BuiltinFunctionRegistry.Instance.Get(cfStmt.FunctionName);
+            if (fcDef != null)
+            {
+                return fcDef.RenderSource(
+                    cfStmt.ConditionExpression, cfStmt.Arms, cfStmt.Arguments ?? []);
+            }
+        }
+        // Fallback: return whatever OriginalExpression we already have.
+        return cfStmt.OriginalExpression;
+    }
 
     /// <summary>
     /// v5.0: derive edge type from the arm's pin name alone. No FlowControlType needed.

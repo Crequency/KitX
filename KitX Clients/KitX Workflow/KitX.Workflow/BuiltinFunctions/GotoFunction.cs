@@ -20,6 +20,7 @@ namespace KitX.Workflow.BuiltinFunctions
     public bool IsBlockTerminator => true;
     public bool IsFlowControl => true;
         public FlowControlArgLayout ArgLayout => new(0, 1, false);
+        FlowControlArgLayout? IBuiltinFunctionDefinition.ArgLayout => new(0, 1, false);
         public IReadOnlyList<string> ArmPinNames => ["Exec"];
 
         public IReadOnlyList<PinDescriptor> InputPins => [new("Exec", PinType.Execution, 30)];

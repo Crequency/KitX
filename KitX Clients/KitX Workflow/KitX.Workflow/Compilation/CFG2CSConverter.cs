@@ -925,7 +925,11 @@ internal static class CFG2CSConverter
     {
         arg = arg.Trim();
 
-        if (pubVarTypes.ContainsKey(arg))
+        // Only treat arg as an identifier reference if it's a valid C# identifier.
+        // Numeric literals ("0"), boolean literals ("true"/"false"), and keyword
+        // literals must go through ParseExpression to produce LiteralExpressionSyntax.
+        if (pubVarTypes.ContainsKey(arg)
+            && SyntaxFactory.ParseToken(arg).IsKind(SyntaxKind.IdentifierToken))
             return IdentifierName(arg);
 
         var parsed = ParseExpression(arg);
