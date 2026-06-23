@@ -121,6 +121,7 @@ public interface IBuiltinFunctionDefinition
     /// <see cref="FlowControlStatement"/> (Branch, ForLoop, ...).
     /// </summary>
     FlowControlArgLayout? ArgLayout => null;
+    bool IsFlowControl => ArgLayout.HasValue; // true = flow-control function
 
     /// <summary>Pin names for block-name target arms.</summary>
     IReadOnlyList<string> ArmPinNames => [];

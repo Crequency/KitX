@@ -60,14 +60,14 @@ public class CfgStatementBuilder
 
     private string? DeriveFingerprint(IBuiltinFunctionDefinition? def)
     {
-        if (def is { ArgLayout: not null }) return null; // flow-control
+        if (def is { IsFlowControl: true }) return null; // flow-control
         if (string.IsNullOrEmpty(FunctionName)) return null;
         return ExprUtils.ComputeFingerprint(FunctionName!, Arguments);
     }
 
     private string RenderDefault(IBuiltinFunctionDefinition? def)
     {
-        if (def is { ArgLayout: not null })
+        if (def is { IsFlowControl: true })
             return def.RenderSource(ConditionExpression, Arms, Arguments);
 
         // Pure assignment (Expr > var tap).

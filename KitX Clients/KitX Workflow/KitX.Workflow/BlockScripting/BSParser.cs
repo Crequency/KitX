@@ -605,7 +605,7 @@ public static class BSParser
             // v5.0: unified ArgLayout dispatch for flow-control functions.
             // No more per-function hand-written ExtractStatement — the Parser reads
             // IFlowControlFunctionDefinition.ArgLayout and builds FlowControlStatement directly.
-            if (registry?.Get(call.MethodName) is IBuiltinFunctionDefinition { ArgLayout: not null } fcDef)
+            if (registry?.Get(call.MethodName) is IBuiltinFunctionDefinition fcDef && fcDef.ArgLayout != null)
             {
                 block.Statements.Add(BuildFlowControlFromArgLayout(fcDef, call, line));
                 return;
