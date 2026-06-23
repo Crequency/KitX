@@ -18,12 +18,9 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "Flip";
         public string DisplayName => "Flip";
-        public bool IsFlowControl => true;
         public bool IsNonExtractable => true;
         public bool IsBlockTerminator => true;
         public FlowControlType? FlowControlShape => FlowControlType.ConditionalJump;
-        public double NodeWidth => 120;
-        public double NodeHeight => 80;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 30)

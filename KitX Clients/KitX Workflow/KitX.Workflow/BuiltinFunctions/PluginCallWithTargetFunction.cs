@@ -18,13 +18,10 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "PluginCallWithTarget";
         public string DisplayName => "PluginCallWithTarget";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
         public BuiltinNodeKind NodeKind => BuiltinNodeKind.Call;
         // Preserve prior early-route behavior: identical cross-device calls dedup to one node.
         public string? GetReuseKey(CFGStatement stmt) => stmt.Fingerprint;
-        public double NodeWidth => 140;
-        public double NodeHeight => 80;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),

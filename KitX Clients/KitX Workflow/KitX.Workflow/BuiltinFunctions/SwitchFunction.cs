@@ -27,12 +27,9 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public string FunctionName => "Switch";
         public string DisplayName => "Switch";
-        public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
         public FlowControlType? FlowControlShape => FlowControlType.IndexedDispatch;
-        public double NodeWidth => 120;
-        public double NodeHeight => 80;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new(Pins.Exec, PinType.Execution, 20),

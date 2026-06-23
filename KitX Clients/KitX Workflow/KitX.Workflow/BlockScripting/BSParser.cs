@@ -406,9 +406,27 @@ public static class BSParser
     static List<VariableDeclaration> ParseDeclarations(
         string text, RecognizedBlock recognized, ConversionDiagnostics diagnostics)
     {
+        // v5.0 §一: `_` is a reserved placeholder and cannot be used as a variable name.
+        // Detect Placeholder token in declaration context (after type keyword, before `;` or `=`).
+        TokenList<BSToken> tokens;
+        try { tokens = Tokenize(text); } catch { return new List<VariableDeclaration>(); }
+
+        // Walk through tokens looking for TypeKeyword followed by Placeholder.
+        var tokenArr = tokens.ToArray();
+        for (int i = 0; i < tokenArr.Length - 1; i++)
+        {
+            if (IsTypeKeyword(tokenArr[i].Kind) && tokenArr[i + 1].Kind == BSToken.Placeholder)
+            {
+                diagnostics.AddError("BS_RESERVED_PLACEHOLDER",
+                    $"[{blockTypeName(recognized)}] `_` is a reserved placeholder and cannot be used as a variable name (§一).",
+                    recognized.StartLine);
+                return new List<VariableDeclaration>();
+            }
+        }
+
         try
         {
-            return VariableDeclarations.Parse(Tokenize(text));
+            return VariableDeclarations.Parse(tokens);
         }
         catch (ParseException ex)
         {
@@ -418,6 +436,10 @@ public static class BSParser
             return new List<VariableDeclaration>();
         }
     }
+
+    static bool IsTypeKeyword(BSToken kind) => kind is BSToken.Int or BSToken.Float
+        or BSToken.Double or BSToken.Bool or BSToken.StringKW or BSToken.CharKW
+        or BSToken.DynamicKW;
 
     static void ParseStatements(
         RecognizedBlock recognized,
@@ -435,6 +457,16 @@ public static class BSParser
             diagnostics.AddError("BS_TOKENIZE",
                 $"[{blockTypeName(recognized)}] {ex.Message}",
                 recognized.StartLine + (ex.ErrorPosition.HasValue ? ex.ErrorPosition.Line - 1 : 0));
+            return;
+        }
+
+        // v5.0 §6.3: `=` is globally disabled for assignment — only `>` is allowed.
+        // Check tokens for BSToken.Assign (the tokenizer only produces it outside string literals).
+        if (tokens.Any(t => t.Kind == BSToken.Assign))
+        {
+            diagnostics.AddError("BS_ILLEGAL_ASSIGNMENT",
+                $"[{blockTypeName(recognized)}] Assignment via `=` is forbidden in v5.0; use the pipeline operator (>) instead (§6.3).",
+                recognized.StartLine);
             return;
         }
 

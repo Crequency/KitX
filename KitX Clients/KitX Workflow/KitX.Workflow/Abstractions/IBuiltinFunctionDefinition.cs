@@ -6,134 +6,95 @@ using KitX.Workflow.Models;
 
 namespace KitX.Workflow.BlockScripting;
 
-/// <summary>
-/// 自描述的内置函数定义接口。实现此接口的类会被 <see cref="BuiltinFunctionRegistry"/>
-/// 通过反射自动发现并注册。新内置函数只需创建一个实现类即可，无需修改其他文件。
-/// </summary>
-public interface IBuiltinFunctionDefinition
-{
-    // ─── 身份 ───────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// v5.0 BuiltinFunction registration contract — split into focused role interfaces
+// per ISP. IBuiltinFunctionDefinition composes all four. Each of the 25 builtins
+// overrides only the members it needs; defaults cover the common cases.
+//
+// Role breakdown:
+//   IBuiltinFunctionSpec      — immutable descriptor (what the function IS)
+//   IBuiltinFunctionLowering  — AST→CFG lowering (how the function maps to CFG)
+//   IBuiltinFunctionEmitter   — CFG→C# code emission (how it compiles)
+//   IBuiltinFunctionExporter  — BP→BS reverse conversion (how it serializes back)
+// ─────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>BlockScript 源码中的函数名（如 "Print"、"Branch"）</summary>
+// ═════════════════════════════════════════════════════════════════════════════
+// Layer A: Immutable spec — "what this function is"
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Immutable descriptor for a builtin function: identity, pins, flow-control shape.
+/// Separate from lowering/emission so that metadata queries (e.g. is this a control-flow
+/// function?) don't require loading the full definition.
+/// </summary>
+public interface IBuiltinFunctionSpec
+{
+    /// <summary>BlockScript source name (e.g. "Print", "Branch").</summary>
     string FunctionName { get; }
 
-    /// <summary>蓝图编辑器中显示的名称</summary>
+    /// <summary>Display name shown in the Blueprint editor.</summary>
     string DisplayName { get; }
 
-    // ─── 分类 ───────────────────────────────────────
-
-    /// <summary>是否为控制流函数（如 Branch/Loop）。影响 BS2CFGConverter 的展开策略和 CFG2BPConverter 的跨块边解析。</summary>
-    bool IsFlowControl { get; }
-
     /// <summary>
-    /// BS2CFGConverter 是否应将其保持内联（不展开嵌套调用）。
-    /// 如 Set、Print、Pause 等直接执行副作用的函数应标记为 true。
+    /// Whether this function is non-extractable — its call must stay inline
+    /// (not hoisted to a PubVar assignment). Typical for side-effecting functions
+    /// (Print, Pause) and control-flow functions.
     /// </summary>
     bool IsNonExtractable { get; }
 
-    // ─── 控制流形态 ─────────────────────────────────
-
     /// <summary>
-    /// 该内置函数产生的 CFG 控制流形态（图结构角色）。非控制流函数返回 null（默认）。
-    /// 这是控制流语义的权威来源——消费端（BP2CFGConverter/CFG2BPConverter/CFGConditionDuplicator/
-    /// CFG2CSConverter 的类型推断等）应查询此属性而非 switch(CFGStatementKind)。
-    /// 新增控制流内置函数只需覆写此属性，无需修改 CFGStatementKind 枚举或散弹式 switch。
+    /// The control-flow graph shape. null = value-producing function (default).
+    /// Non-null = control-flow function (Branch/ForLoop/Switch/Goto/Break).
+    /// Derived: <c>IsFlowControl => FlowControlShape != null</c>.
     /// </summary>
     FlowControlType? FlowControlShape => null;
 
-    // ─── 语句类型映射（派生）─────────────────────────
-
-    /// <summary>
-    /// 对应的 CFGStatementKind。现在由 <see cref="FlowControlShape"/> 派生：
-    /// 控制流形态映射到对应的 Kind；非控制流默认 Expression。
-    /// 保留供尚未迁移的旧消费点使用（见 Phase B.3 清理）。
-    /// </summary>
-    CFGStatementKind StatementKind => FlowControlShape switch
-    {
-        FlowControlType.ConditionalJump => CFGStatementKind.Branch,
-        FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
-        FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
-        FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-        FlowControlType.LoopExit => CFGStatementKind.Break,
-        _ => CFGStatementKind.Expression
-    };
-
-    /// <summary>
-    /// 此内置函数在蓝图中物化为哪种节点类型。默认 <see cref="BuiltinNodeKind.BuiltinFunction"/>；
-    /// 需 <see cref="CallNode"/> 形态（携带 PluginName/TargetDevice 等）的函数（如
-    /// PluginCallWithTarget）覆写为 <see cref="BuiltinNodeKind.Call"/>。
-    /// 使 CFG2BPConverter 的节点创建走单一派发路径，无需按函数名特判。
-    /// </summary>
-    BuiltinNodeKind NodeKind => BuiltinNodeKind.BuiltinFunction;
-
-    /// <summary>
-    /// 反向（BP→CFG）时，若该节点的非 Exec 输出数据连接未带 PubVar（编辑器手建蓝图场景），
-    /// 是否为其自动合成一个 PubVar。默认 false；Get 覆写为 true（其值读取需显式命名承载）。
-    /// 使 BP2CFGConverter 无需按函数名特判 Get。
-    /// </summary>
-    bool AutoSynthesizePubVar => false;
-
-    // ─── 节点布局 ───────────────────────────────────
-
-    /// <summary>
-    /// The canonical node layout descriptor, assembled from <see cref="InputPins"/>,
-    /// <see cref="OutputPins"/>, <see cref="DisplayName"/>, <see cref="InputVariadic"/> and
-    /// <see cref="OutputVariadic"/>. The default implementation builds it on demand so the 26
-    /// builtin implementations need not each declare a Descriptor — they keep providing the
-    /// individual members and <see cref="Blueprint.NodeRegistry"/> consumes this single property,
-    /// eliminating the per-node manual reassembly that used to live there.
-    /// </summary>
-    NodeDescriptor Descriptor => new(InputPins, OutputPins, DisplayName, InputVariadic, OutputVariadic);
-
-    /// <summary>蓝图节点宽度（已不再被任何消费者读取；LayoutService 用节点实例 BlueprintNode.Width/Height。保留以免破坏 26 个实现。）</summary>
-    double NodeWidth { get; }
-
-    /// <summary>蓝图节点高度（同 NodeWidth，已不再被读取。）</summary>
-    double NodeHeight { get; }
-
-    /// <summary>输入引脚描述</summary>
+    /// <summary>Input pin descriptors (includes Exec for control-flow functions).</summary>
     IReadOnlyList<PinDescriptor> InputPins { get; }
 
-    /// <summary>输出引脚描述</summary>
+    /// <summary>Output pin descriptors (only Execution for control-flow functions per §7).</summary>
     IReadOnlyList<PinDescriptor> OutputPins { get; }
 
-    /// <summary>
-    /// 输入侧变长端口配置。非 null 时,蓝图编辑器在该组最后一个输入端口被连接后,
-    /// 自动追加一个 <see cref="VariadicPinSpec.PinType"/> 类型的新输入端口。
-    /// 默认 null(非变长)。StringConcat 覆写为字符串变长输入。
-    /// </summary>
+    /// <summary>Variadic input spec (null = fixed). StringConcat overrides this.</summary>
     VariadicPinSpec? InputVariadic => null;
 
-    /// <summary>
-    /// 输出侧变长端口配置。非 null 时,蓝图编辑器在该组最后一个输出端口被连接后,
-    /// 自动追加一个新输出端口。默认 null(非变长)。Switch 覆写为执行流变长输出。
-    /// </summary>
+    /// <summary>Variadic output spec (null = fixed). Switch overrides this.</summary>
     VariadicPinSpec? OutputVariadic => null;
 
     /// <summary>
-    /// 按本语句的实际情况返回输出 Pin 描述符。默认返回固定 <see cref="OutputPins"/>(旧行为)。
-    /// 变长输出节点(如 Switch,其输出 arm 数随语句而变)覆写此方法,按 <see cref="CFGStatement.Arms"/>
-    /// 数量动态生成 [Default, 0, 1, ..., N-1],使 BS→BP 导入时端口数与 arm 数匹配。
+    /// Per-statement dynamic output pins. Default returns <see cref="OutputPins"/>.
+    /// Switch overrides to emit [Default, 0, 1, ..., N-1] based on <see cref="CFGStatement.Arms"/>.
     /// </summary>
     IReadOnlyList<PinDescriptor> GetOutputPinsFor(CFGStatement stmt) => OutputPins;
+}
 
-    // ─── 解析（BlockScript → AST）─────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Layer B: AST→CFG lowering — "how this function maps to CFG statements"
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// AST→CFG lowering contract. Each builtin describes how its parsed <see cref="BSCall"/>
+/// becomes one or more <see cref="CFGStatement"/>s.
+/// </summary>
+public interface IBuiltinFunctionLowering
+{
+    /// <summary>
+    /// Extract a typed <see cref="BlockStatement"/> from the parsed <see cref="BSCall"/> AST.
+    /// Control-flow functions override this to produce <see cref="FlowControlStatement"/>.
+    /// Value-producing functions return null (default) — the parser wraps as ExpressionStatement.
+    /// </summary>
+    BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
 
     /// <summary>
-    /// 从已解析的 <see cref="BSCall"/>（BS 表达式 AST）提取语句。
-    /// 返回 null 表示使用默认 ExpressionStatement 处理。
+    /// Lower the expanded call into CFG statements. The default implementation builds a single
+    /// generic <see cref="CFGStatement"/> via <see cref="CfgStatementBuilder"/>.
+    /// Override for functions that need custom PubVar synthesis or multi-statement lowering.
     /// </summary>
-    BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText);
-
-    // ─── 格式化（AST → CFGStatement）─────────
-
-    /// <summary>
-    /// 将已展开参数的调用降低为 CFGStatement 列表（AST→CFG 阶段，统一服务顶层与嵌套）。
-    /// 默认实现经 <see cref="CfgStatementBuilder"/> 产出单条通用语句（Kind=StatementKind,
-    /// Arguments=expandedArgs, PubVarTarget=assignedVar）；需要 PubVar 生成等自定义逻辑的
-    /// 函数（如 TryGetDevice）覆写此方法并通过 <c>ctx.Build(...)</c> 构造，使 StatementId/
-    /// Fingerprint/FullFunctionName 由 builder 单一推导，无需 BS2CFGConverter 后处理补丁。
-    /// </summary>
+    /// <param name="invoke">The parsed call AST.</param>
+    /// <param name="expandedArgs">Arguments after nested-call expansion (flat string form).</param>
+    /// <param name="ctx"><see cref="LowerContext"/> with shared lowering services.</param>
+    /// <param name="context">The forward conversion state for the current pass.</param>
+    /// <param name="assignedVar">When non-null, the call's result should be written to this PubVar.</param>
     List<CFGStatement> LowerToCFG(
         BSCall invoke,
         IReadOnlyList<string> expandedArgs,
@@ -144,76 +105,113 @@ public interface IBuiltinFunctionDefinition
         {
             ctx.Build(b =>
             {
-                b.FlowControlShape = FlowControlShape;
-                b.FunctionName = FunctionName;
+                b.FlowControlShape = ((IBuiltinFunctionSpec)this).FlowControlShape;
+                b.FunctionName = ((IBuiltinFunctionSpec)this).FunctionName;
                 b.Arguments = expandedArgs.ToList();
                 b.PubVarTarget = assignedVar;
                 b.SourceText = invoke.SourceText;
             })
         };
+}
 
-    // ─── 节点构建（CFGStatement → BlueprintNode）──
+// ═════════════════════════════════════════════════════════════════════════════
+// Layer C: CFG→C# emission — "how this function compiles to C#"
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// CFG→C# code emission contract. Generates Roslyn <see cref="StatementSyntax"/> nodes
+/// for the compiled script assembly.
+/// </summary>
+public interface IBuiltinFunctionEmitter
+{
+    /// <summary>
+    /// Emit C# statements for this CFG statement. Default uses the generic
+    /// <c>G.{FunctionName}(args)</c> form with optional PubVar assignment wrapper.
+    /// Control-flow functions override with custom emission (Branch/ForLoop/etc.).
+    /// </summary>
+    List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
+        => ctx.EmitDefault(stmt);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Layer D: BP→BS reverse export — "how a blueprint node becomes BS text"
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// BP→BS reverse conversion contract. Converts a Blueprint node back to a BlockScript
+/// statement for round-trip fidelity.
+/// </summary>
+public interface IBuiltinFunctionExporter
+{
+    /// <summary>Convert a Blueprint node to a BlockScript statement (reverse direction).</summary>
+    BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper) => null;
 
     /// <summary>
-    /// 节点复用键（CFG2BPConverter 去重检测）。默认 null —— 每个语句建独立节点
-    /// （对含副作用的调用更安全，避免重复副作用调用被折叠而破坏往返保真）。
-    /// 需按指纹去重的纯值产生函数覆写为 <see cref="CFGStatement.Fingerprint"/> 等。
-    /// 注册时若键为 null 则回落 PubVarTarget 仅为字典索引；DataEdgeBuilder 按 PubVarName
-    /// 字段连接数据边，不受键影响，故值产生函数仍可被正确连线。
+    /// Output arm descriptors for control-flow edges. Non-control-flow functions return empty.
+    /// </summary>
+    IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Composite interface — the registration key for BuiltinFunctionRegistry
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// Composite builtin function registration contract. Composes the four role interfaces
+/// (Spec, Lowering, Emitter, Exporter) plus Blueprint-node behaviour.
+/// Each of the 25 builtin implementations overrides only the members it needs;
+/// defaults cover the common cases.
+/// </summary>
+public interface IBuiltinFunctionDefinition
+    : IBuiltinFunctionSpec, IBuiltinFunctionLowering, IBuiltinFunctionEmitter, IBuiltinFunctionExporter
+{
+    // ─── Blueprint node behaviour ──────────────────────────────────────────
+
+    /// <summary>
+    /// The Blueprint node kind to create for this builtin.
+    /// Default <see cref="BuiltinNodeKind.BuiltinFunction"/>.
+    /// PluginCallWithTarget overrides to <see cref="BuiltinNodeKind.Call"/>.
+    /// </summary>
+    BuiltinNodeKind NodeKind => BuiltinNodeKind.BuiltinFunction;
+
+    /// <summary>
+    /// Whether to auto-synthesize a PubVar for unconsumed output data edges
+    /// (BP→CFG direction, hand-built blueprint scenario). Default false.
+    /// </summary>
+    bool AutoSynthesizePubVar => false;
+
+    /// <summary>
+    /// Node reuse key for CFG2BPConverter dedup. Default null (each statement → own node).
+    /// Pure value-producing functions may override to return <see cref="CFGStatement.Fingerprint"/>.
     /// </summary>
     string? GetReuseKey(CFGStatement stmt) => null;
 
     /// <summary>
-    /// 对新创建的 BuiltinFunctionNode 进行额外配置（如设置 Properties 字典）。
-    /// 返回配置后的节点。
+    /// Post-creation configuration for the Blueprint node. Default: identity pass-through.
     /// </summary>
-    BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt);
-
-    // ─── CS 生成（CFGStatement → C#）────────────
+    BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
     /// <summary>
-    /// 按 <see cref="CFGStatement"/> 生成 C# 语句（CFG→CS 阶段）。由 CFG2CSConverter
-    /// 统一派发调用，使生成器无需针对具体函数名硬编码分支。
-    /// 默认实现走通用 <c>G.{FunctionName}(args)</c> 形式 + 赋值包裹；
-    /// 需要自定义代码生成的函数覆写此方法。
-    /// </summary>
-    /// <param name="stmt">当前 CFG 语句</param>
-    /// <param name="ctx">CS 生成上下文（类型映射 + 共享辅助）</param>
-    List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
-        => ctx.EmitDefault(stmt);
-
-    // ─── 导出（Blueprint → BlockScript）────────────
-
-    /// <summary>将蓝图节点转换回 BlockScript 语句</summary>
-    BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper);
-
-    /// <summary>返回控制流输出臂描述。非控制流函数返回空集合。</summary>
-    IEnumerable<OutputArmDescriptor> GetOutputArms();
-
-    // ─── 控制流（可选，默认实现为无操作）──────────────
-
-    /// <summary>
-    /// 是否终止当前块（如 Branch/Loop/Flip 执行后不应继续顺序执行）。
-    /// 默认 false。设为 true 会使 CFG2BPConverter 标记 blockEndsWithFlowCtrl。
-    /// </summary>
-    bool IsBlockTerminator => false;
-
-    /// <summary>
-    /// 控制流函数：节点创建后的后处理（如记录延迟边定义到 context.DeferredEdges）。
-    /// 仅在 IsFlowControl == true 且 IsBlockTerminator == true 时被调用。
-    /// 默认无操作。
+    /// Post-creation callback for control-flow nodes. Override to register deferred exec edges
+    /// to <see cref="ForwardConversionState.DeferredEdges"/>.
     /// </summary>
     void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context) { }
+
+    /// <summary>
+    /// Whether this statement terminates the current block.
+    /// True for all control-flow functions (Branch/ForLoop/Switch/Goto/Break).
+    /// </summary>
+    bool IsBlockTerminator => false;
 }
 
 /// <summary>
-/// 内置函数在蓝图中物化的节点类型。见 <see cref="IBuiltinFunctionDefinition.NodeKind"/>。
+/// Builtin function's Blueprint node kind. See <see cref="IBuiltinFunctionDefinition.NodeKind"/>.
 /// </summary>
 public enum BuiltinNodeKind
 {
-    /// <summary>常规内置函数节点（由 NodeRegistry.CreateBuiltinFunctionNode 按描述符建引脚）。</summary>
+    /// <summary>Standard builtin function node (pins from spec).</summary>
     BuiltinFunction,
 
-    /// <summary>携带 PluginName/TargetDevice 的调用节点（bare CallNode + AddParamPins）。</summary>
+    /// <summary>Call node carrying PluginName/TargetDevice (PluginCallWithTarget).</summary>
     Call,
 }

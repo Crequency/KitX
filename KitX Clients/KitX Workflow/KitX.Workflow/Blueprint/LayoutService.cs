@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using KitX.Core.Contract.Workflow;
 using Serilog;
 
@@ -490,4 +493,69 @@ public class LayoutService : ILayoutService
     }
 
     #endregion
+
+    // ─── BlockNode Push Layout (v5.0) ──────────────────────────────────
+
+    private const double BlockNodeExpandedHeight = 300;
+    private const double BlockNodeCollapsedHeight = 120;
+    private const double BlockNodeExpandedWidth = 400;
+    private const double BlockNodeCollapsedWidth = 200;
+
+    /// <summary>
+    /// Adjusts node positions when a BlockNode is collapsed or expanded.
+    /// Pushes nodes below the BlockNode down by the height delta,
+    /// and nodes to the right right by the width delta.
+    /// Nodes that are inside the BlockNode's ChildNodeIds are not affected.
+    /// </summary>
+    /// <param name="blueprint">The blueprint to adjust.</param>
+    /// <param name="blockNodeId">The ID of the BlockNode that changed state.</param>
+    /// <param name="isCollapsed">True if the BlockNode is now collapsed.</param>
+    /// <param name="childNodeIds">Child node IDs that should be excluded from push.</param>
+    public void AdjustLayoutForBlockCollapse(KitX.Core.Contract.Workflow.Blueprint blueprint, string blockNodeId, bool isCollapsed,
+        IReadOnlyCollection<string> childNodeIds)
+    {
+        var blockNode = blueprint.Nodes.FirstOrDefault(n => n.Id == blockNodeId);
+        if (blockNode == null) return;
+
+        // Calculate delta (positive when collapsing = shrinking)
+        double deltaHeight, deltaWidth;
+        if (isCollapsed)
+        {
+            deltaHeight = BlockNodeExpandedHeight - BlockNodeCollapsedHeight;
+            deltaWidth = BlockNodeExpandedWidth - BlockNodeCollapsedWidth;
+        }
+        else
+        {
+            deltaHeight = BlockNodeCollapsedHeight - BlockNodeExpandedHeight;
+            deltaWidth = BlockNodeCollapsedWidth - BlockNodeExpandedWidth;
+        }
+
+        if (Math.Abs(deltaHeight) < 1 && Math.Abs(deltaWidth) < 1) return;
+
+        var childSet = new HashSet<string>(childNodeIds);
+        double blockBottom = blockNode.Y + (isCollapsed ? BlockNodeCollapsedHeight : BlockNodeExpandedHeight);
+        double blockRight = blockNode.X + (isCollapsed ? BlockNodeCollapsedWidth : BlockNodeExpandedWidth);
+
+        foreach (var node in blueprint.Nodes)
+        {
+            if (node.Id == blockNodeId) continue;        // skip the BlockNode itself
+            if (childSet.Contains(node.Id)) continue;    // skip internal child nodes
+
+            // Push down: nodes whose Y is below the BlockNode's bottom
+            if (node.Y >= blockBottom - 1) // -1 for tolerance
+            {
+                node.Y -= deltaHeight; // subtract because positive delta = shrinking
+            }
+
+            // Push right: nodes whose X is to the right of the BlockNode's right edge
+            if (node.X >= blockRight - 1)
+            {
+                node.X -= deltaWidth;
+            }
+        }
+
+        Log.Debug("[LayoutService] AdjustLayoutForBlockCollapse: BlockNode={Id}, Collapsed={Collapsed}, " +
+            "DeltaH={DH}, DeltaW={DW}, ChildrenExcluded={ChildCount}",
+            blockNodeId, isCollapsed, deltaHeight, deltaWidth, childSet.Count);
+    }
 }

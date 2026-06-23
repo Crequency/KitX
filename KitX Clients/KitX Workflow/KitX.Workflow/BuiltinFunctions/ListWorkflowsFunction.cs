@@ -12,10 +12,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "ListWorkflows";
         public string DisplayName => "List Workflows";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => false; // Value-producing (has Return pin) — can be nested as an expression
-        public double NodeWidth => 140;
-        public double NodeHeight => 60;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20)

@@ -20,10 +20,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "TryGetDevice";
         public string DisplayName => "TryGetDevice";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => false;
-        public double NodeWidth => 120;
-        public double NodeHeight => 60;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),

@@ -330,7 +330,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
             }
 
             // Skip flow control functions (handled by FlowControlStatement)
-            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.IsFlowControl)
+            if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } fcDef && fcDef.FlowControlShape != null)
                 return result;
 
             var fullFuncName = invoke.FullMethodName;
@@ -442,7 +442,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
 
             // Non-extractable / flow-control functions stay inline (cannot be nested-call results).
             if (_functionRegistry != null && _functionRegistry.Get(funcName) is { } inlineDef
-                && (inlineDef.IsNonExtractable || inlineDef.IsFlowControl))
+                && (inlineDef.IsNonExtractable || inlineDef.FlowControlShape != null))
             {
                 return (new(), invoke.SourceText);
             }

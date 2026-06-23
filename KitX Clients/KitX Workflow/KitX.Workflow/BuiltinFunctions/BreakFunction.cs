@@ -14,12 +14,9 @@ public class BreakFunction : IBuiltinFunctionDefinition
 {
     public string FunctionName => "Break";
     public string DisplayName => "Break";
-    public bool IsFlowControl => true;
         public bool IsBlockTerminator => true;
         public bool IsNonExtractable => true;
         public FlowControlType? FlowControlShape => FlowControlType.LoopExit;
-    public double NodeWidth => 100;
-    public double NodeHeight => 40;
 
     public IReadOnlyList<PinDescriptor> InputPins => [
         new("Exec", PinType.Execution, 20)

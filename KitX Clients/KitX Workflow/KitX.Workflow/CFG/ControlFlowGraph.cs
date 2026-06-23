@@ -66,15 +66,12 @@ public class ControlFlowGraph
 
         foreach (var block in Blocks)
         {
-            sb.AppendLine($"  ── Block \"{block.Name}\" (Type={block.Type}, IsMain={block.IsMainBlock}, FallThrough={block.FallThroughTarget ?? "null"}, ParentLoop={block.ParentLoopBlockName ?? "null"})");
+            sb.AppendLine($"  ── Block \"{block.Name}\" (Type={block.Type}, IsMain={block.IsMainBlock}, FallThrough={block.FallThroughTarget ?? "null"})");
             foreach (var stmt in block.GetEffectiveStatements())
             {
-                var dup = stmt.IsLoopConditionDuplication ? " [COND_DUP]" : "";
-                sb.AppendLine($"    [{stmt.Kind}] {stmt.OriginalExpression}{dup}");
+                sb.AppendLine($"    [{stmt.Kind}] {stmt.OriginalExpression}");
                 if (!string.IsNullOrEmpty(stmt.TrueBlockName))
                     sb.AppendLine($"      → True=\"{stmt.TrueBlockName}\", False=\"{stmt.FalseBlockName}\"");
-                if (!string.IsNullOrEmpty(stmt.LoopbackTarget))
-                    sb.AppendLine($"      → ToLoopCond=\"{stmt.LoopbackTarget}\"");
                 if (!string.IsNullOrEmpty(stmt.PubVarTarget))
                     sb.AppendLine($"      PubVarTarget={stmt.PubVarTarget}");
             }

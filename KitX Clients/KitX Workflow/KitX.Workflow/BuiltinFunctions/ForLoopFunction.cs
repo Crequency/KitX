@@ -23,12 +23,9 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "ForLoop";
         public string DisplayName => "ForLoop";
-        public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
         public FlowControlType? FlowControlShape => FlowControlType.IterativeCounted;
-        public double NodeWidth => 140;
-        public double NodeHeight => 90;
 
         public IReadOnlyList<PinDescriptor> InputPins =>
         [

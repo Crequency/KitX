@@ -15,10 +15,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "Print";
         public string DisplayName => "Print";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public double NodeWidth => 100;
-        public double NodeHeight => 50;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),

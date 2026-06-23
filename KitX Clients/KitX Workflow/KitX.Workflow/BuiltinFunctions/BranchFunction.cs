@@ -14,12 +14,9 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "Branch";
         public string DisplayName => "Branch";
-        public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
         public FlowControlType? FlowControlShape => FlowControlType.ConditionalJump;
-        public double NodeWidth => 120;
-        public double NodeHeight => 80;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 30),

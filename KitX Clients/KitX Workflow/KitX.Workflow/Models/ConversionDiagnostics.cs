@@ -17,8 +17,11 @@ public sealed class ConversionDiagnostics
     /// <summary>All diagnostics in insertion order.</summary>
     public IReadOnlyList<ConversionDiag> Items => _items;
 
+    /// <summary>Number of error diagnostics recorded.</summary>
+    public int ErrorCount => _items.Count(d => d.Severity == ConversionDiagSeverity.Error);
+
     /// <summary>True when at least one <see cref="ConversionDiagSeverity.Error"/> was recorded.</summary>
-    public bool HasErrors => _items.Any(d => d.Severity == ConversionDiagSeverity.Error);
+    public bool HasErrors => ErrorCount > 0;
 
     /// <summary>True when at least one <see cref="ConversionDiagSeverity.Warning"/> was recorded.</summary>
     public bool HasWarnings => _items.Any(d => d.Severity == ConversionDiagSeverity.Warning);

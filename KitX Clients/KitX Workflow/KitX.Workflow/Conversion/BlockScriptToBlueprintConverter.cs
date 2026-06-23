@@ -177,14 +177,12 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             sb.AppendLine($"#Block {block.Name}  (FallThrough={block.FallThroughTarget ?? "null"})");
             foreach (var stmt in block.GetEffectiveStatements())
             {
-                var dup = stmt.IsLoopConditionDuplication ? " [LoopCondDup]" : "";
                 var fp = stmt.Fingerprint != null ? $" FP={stmt.Fingerprint}" : "";
                 var args = stmt.Arguments != null ? string.Join(", ", stmt.Arguments) : "";
                 sb.AppendLine($"  [{stmt.Kind}] {stmt.OriginalExpression}" +
                     $" | PubVarTarget={stmt.PubVarTarget} Func={stmt.FunctionName}" +
                     $" Args=[{args}]" +
-                    $" CondExpr={stmt.ConditionExpression} True={stmt.TrueBlockName} False={stmt.FalseBlockName}" +
-                    $" LoopbackTarget={stmt.LoopbackTarget}{dup}{fp}");
+                    $" CondExpr={stmt.ConditionExpression} True={stmt.TrueBlockName} False={stmt.FalseBlockName}{fp}");
             }
             sb.AppendLine();
         }

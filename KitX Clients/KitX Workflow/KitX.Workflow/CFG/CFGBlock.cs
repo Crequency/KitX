@@ -65,12 +65,6 @@ public class CFGBlock
         Successors.FirstOrDefault(e => e.Type == CFGEdgeType.Sequential)?.ToBlockName;
 
     /// <summary>
-    /// For loop body blocks, the name of the parent loop header block.
-    /// Used to generate correct ToLoopCond arguments. v5.0 transition: retained during migration.
-    /// </summary>
-    public string? ParentLoopBlockName { get; set; }
-
-    /// <summary>
     /// Whether this block is the MainBlock (entry point).
     /// </summary>
     public bool IsMainBlock => Type == CFGBlockType.Entry;

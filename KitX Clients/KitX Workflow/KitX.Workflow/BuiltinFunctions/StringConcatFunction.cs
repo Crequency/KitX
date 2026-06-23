@@ -17,10 +17,7 @@ public class StringConcatFunction : IBuiltinFunctionDefinition
 {
     public string FunctionName => "StringConcat";
     public string DisplayName => "String Concat";
-    public bool IsFlowControl => false;
     public bool IsNonExtractable => false; // value-producing, can be nested
-    public double NodeWidth => 140;
-    public double NodeHeight => 70;
 
     public IReadOnlyList<PinDescriptor> InputPins => [
         new("Exec", PinType.Execution, 20),

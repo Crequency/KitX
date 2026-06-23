@@ -7,4 +7,12 @@ namespace KitX.Workflow.Abstractions;
 public interface ILayoutService
 {
     void LayoutNodes(KitX.Core.Contract.Workflow.Blueprint blueprint);
+
+    /// <summary>
+    /// Adjusts node positions when a BlockNode is collapsed or expanded (v5.0).
+    /// Pushes sibling nodes away to make room for the expanded state or pulls them
+    /// back when collapsed.
+    /// </summary>
+    void AdjustLayoutForBlockCollapse(KitX.Core.Contract.Workflow.Blueprint blueprint,
+        string blockNodeId, bool isCollapsed, IReadOnlyCollection<string> childNodeIds);
 }

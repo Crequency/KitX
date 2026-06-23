@@ -16,12 +16,9 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "Goto";
         public string DisplayName => "Goto";
-        public bool IsFlowControl => true;
         public bool IsNonExtractable => false;
         public bool IsBlockTerminator => true;
         public FlowControlType? FlowControlShape => FlowControlType.UnconditionalJump;
-        public double NodeWidth => 100;
-        public double NodeHeight => 60;
 
         public IReadOnlyList<PinDescriptor> InputPins => [new("Exec", PinType.Execution, 30)];
         public IReadOnlyList<PinDescriptor> OutputPins => [new("Exec", PinType.Execution, 30)];
@@ -35,8 +32,8 @@ namespace KitX.Workflow.BuiltinFunctions
                 SourceCode = exprText ?? invoke.SourceText,
                 ControlType = FlowControlType.UnconditionalJump
             };
-            // Goto("targetBlock") — single string-literal arm.
-            if (args.Count >= 1) stmt.LoopbackTarget = args[0].AsStringLiteral();
+            // Goto("targetBlock") — single string-literal arm (Arms[0] as Exec arm).
+            if (args.Count >= 1) stmt.TrueBlockName = args[0].AsStringLiteral();
             return stmt;
         }
 
@@ -44,7 +41,7 @@ namespace KitX.Workflow.BuiltinFunctions
 
         public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context)
         {
-            var target = stmt.LoopbackTarget;
+            var target = stmt.TrueBlockName;
             if (!string.IsNullOrEmpty(target))
             {
                 context.DeferredEdges.Add(new DeferredControlFlowEdge
@@ -59,7 +56,7 @@ namespace KitX.Workflow.BuiltinFunctions
         {
             // Goto sets NextBlock directly and breaks the switch case. The runtime AdvanceTo
             // path is shared with Branch/ForLoop.
-            return ctx.EmitNextBlockAssignment("Goto", ctx.Literal(stmt.LoopbackTarget ?? ""));
+            return ctx.EmitNextBlockAssignment("Goto", ctx.Literal(stmt.TrueBlockName ?? ""));
         }
 
         public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper) => null;

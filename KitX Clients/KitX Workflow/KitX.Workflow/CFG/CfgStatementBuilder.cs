@@ -149,13 +149,11 @@ public sealed class CfgStatementBuilder
     private string RenderDefault(CFGStatementKind kind)
     {
         // Flow-control: defer to the arms model's canonical renderer. Goto's loopback target
-        // lives in Arms[0] (IsLoopback=true); surface it as the renderer's loopbackTarget arg.
-        // ForLoop carries from/to/step/indexName in Arguments — forward as flowArguments.
+        // v5.0: render control-flow source from shape + condition + arms + flowArguments.
         if (FlowControlShape != null)
         {
-            var loopback = Arms.FirstOrDefault(a => a.IsLoopback)?.TargetBlockName;
             return FlowControlStatement.RenderSource(
-                FlowControlShape.Value, ConditionExpression ?? string.Empty, Arms, loopback, Arguments);
+                FlowControlShape.Value, ConditionExpression ?? string.Empty, Arms, Arguments);
         }
 
         // Pure assignment (Expr > var tap): render the pipeline form when FunctionName is null.

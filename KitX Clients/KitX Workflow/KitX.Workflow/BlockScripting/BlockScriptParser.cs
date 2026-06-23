@@ -96,13 +96,21 @@ public class BlockScriptParser : IBlockScriptParser
             // Phase 4: Link blocks sequentially
             BlockLinker.LinkBlocksSequentially(script);
 
+            // Phase 5 (v5.0): Semantic validation.
+            // Run after parsing is complete, before CFG lowering.
+            // Collects errors/warnings into diagnostics; downstream callers can check
+            // diagnostics.HasErrors to decide whether to proceed.
+            var analyzer = new SemanticAnalyzer(_functionRegistry, diagnostics);
+            analyzer.Validate(script);
+
             script.SourceCode = sourceCode;
 
-            Log.Information("[BlockScriptParser] Successfully parsed {BlockCount} blocks", script.AllBlocks.Count);
+            Log.Information("[BlockScriptParser] Successfully parsed {BlockCount} blocks",
+                script.AllBlocks.Count);
 
             return new BlockScriptParseResult
             {
-                IsSuccess = true,
+                IsSuccess = true, // Semantic errors don't prevent script return; callers check diagnostics.
                 Script = script,
                 Diagnostics = diagnostics
             };

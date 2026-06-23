@@ -126,16 +126,13 @@ public class CFGStatement
     public string? ConditionExpression { get; set; }
 
     /// <summary>
-    /// Shared control-flow arms model (Arms / TrueBlockName / FalseBlockName / LoopbackTarget).
-    /// Embedded once here instead of duplicating the accessors and SetArm across CFGStatement
-    /// and FlowControlStatement. The delegating properties below keep the public surface
-    /// (<c>stmt.Arms</c>, <c>stmt.TrueBlockName</c>, ...) unchanged.
+    /// Shared control-flow arms model (Arms / TrueBlockName / FalseBlockName).
+    /// v5.0: LoopbackTarget removed (ToLoopCond deleted). Goto uses Arms[0] (Exec arm).
     /// </summary>
     private readonly ControlFlowArms _controlFlowArms = new();
 
     /// <summary>
-    /// Outgoing arms of this control-flow statement. Generalised model replacing the former
-    /// fixed <c>TrueBlockName</c>/<c>FalseBlockName</c>/<c>ToLoopCondReturnTo</c> triple.
+    /// Outgoing arms of this control-flow statement.
     /// See <see cref="BranchArm"/> for the per-arm layout of each control-flow kind.
     /// </summary>
     public List<BranchArm> Arms
@@ -158,24 +155,7 @@ public class CFGStatement
         set => _controlFlowArms.FalseBlockName = value;
     }
 
-    /// <summary>
-    /// The ToLoopCond loopback target (v4.0) — unified into <see cref="Arms"/>[0]
-    /// (PinName="Exec", IsLoopback=true). v5.0 Goto uses the same Arms[0] slot with a plain
-    /// Exec arm. Retained during the staged migration.
-    /// </summary>
-    public string? LoopbackTarget
-    {
-        get => _controlFlowArms.LoopbackTarget;
-        set => _controlFlowArms.LoopbackTarget = value;
-    }
-
     // --- Metadata ---
-    /// <summary>
-    /// True if this statement was inserted as a Loop condition duplication
-    /// before a ToLoopCond statement. v5.0 transition: retained while CFGConditionDuplicator
-    /// is being removed; deleted with it (layer 6).
-    /// </summary>
-    public bool IsLoopConditionDuplication { get; set; }
 
     /// <summary>
     /// Expression fingerprint for PubVar reuse detection.

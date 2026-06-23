@@ -508,9 +508,8 @@ internal class BP2CFGConverter
             var block = new CFGBlock
             {
                 Name = blockName,
-                // v5.0: LoopBody block type removed; loop bodies are plain Basic blocks.
+                // v5.0: loop bodies are plain Basic blocks (ForLoop re-entry via Goto).
                 Type = CFGBlockType.Basic,
-                ParentLoopBlockName = isLoopback ? FindContainingBlockName(cfg, cfNode.Id) : null
             };
             cfg.Blocks.Add(block);
 
@@ -568,7 +567,7 @@ internal class BP2CFGConverter
             // Use registry to determine edge types for control flow statements
             if (!string.IsNullOrEmpty(lastStmt.FunctionName)
                 && _builtinFunctionStrategies.TryGetValue(lastStmt.FunctionName, out var builtinStrat)
-                && builtinStrat.IsFlowControl)
+                && builtinStrat.FlowControlShape != null)
             {
                 // Edges are derived directly from the statement's resolved Arms, so N-way
                 // Switch (Default/0/1/...) and variadic shapes survive without positional loss.
@@ -587,15 +586,14 @@ internal class BP2CFGConverter
                 continue;
             }
 
-            // Non-registry control flow handling (fallback). v5.0: Goto (UnconditionalJump)
-            // replaces v4.0 ToLoopCond (LoopBackedge) for back-edges; uses a Sequential edge.
+            // v5.0: Goto (UnconditionalJump) uses a Sequential edge to its target.
             if (lastStmt.FlowControlShape == FlowControlType.UnconditionalJump)
             {
-                if (!string.IsNullOrEmpty(lastStmt.LoopbackTarget))
+                if (!string.IsNullOrEmpty(lastStmt.TrueBlockName))
                     block.Successors.Add(new CFGEdge
                     {
                         FromBlockName = block.Name,
-                        ToBlockName = lastStmt.LoopbackTarget,
+                        ToBlockName = lastStmt.TrueBlockName,
                         Type = CFGEdgeType.Sequential
                     });
                 continue;
@@ -826,7 +824,7 @@ internal class BP2CFGConverter
                     // ConvertBlockStatementToCfgStatement sets FlowControlShape and arms get
                     // resolved. Without this, Goto round-tripped as `Goto()` (ExpressionStatement)
                     // with no target (Test D/H/I/K DIFF).
-                    if (bfStrategy.IsFlowControl && bfStrategy.FlowControlShape != null)
+                    if (bfStrategy.FlowControlShape != null && bfStrategy.FlowControlShape != null)
                     {
                         var shape = bfStrategy.FlowControlShape.Value;
                         var fcStmt = new FlowControlStatement
@@ -976,7 +974,15 @@ internal class BP2CFGConverter
                 if (node is BuiltinFunctionNode bfn
                     && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfDef))
                 {
-                    cfgStmt.Kind = bfDef.StatementKind;
+                    cfgStmt.Kind = bfDef.FlowControlShape switch
+                    {
+                        FlowControlType.ConditionalJump => CFGStatementKind.Branch,
+                        FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
+                        FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
+                        FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
+                        FlowControlType.LoopExit => CFGStatementKind.Break,
+                        _ => CFGStatementKind.Expression
+                    };
                     cfgStmt.FunctionName = bfDef.FunctionName;
                 }
                 else
@@ -1031,7 +1037,7 @@ internal class BP2CFGConverter
 
     /// <summary>
     /// v5.0: synthesises a Goto statement for the WalkNode loopback path (formerly a v4.0
-    /// ToLoopCond statement). The loopback target lives in Arms[0] / LoopbackTarget.
+    /// ToLoopCond statement). The target lives in Arms[0].TargetBlockName.
     /// </summary>
     private static CFGStatement CreateToLoopCondStatement(string? returnTo)
     {
@@ -1213,14 +1219,11 @@ internal class BP2CFGConverter
         // Delegate to the shared renderer on FlowControlStatement so BS↔graph source text stays
         // in sync with the instance RegenerateSourceCode path (single source of truth).
         // v5.0: Goto (UnconditionalJump) carries its target in Arms[0].TargetBlockName — pass it
-        // as loopbackTarget so RenderSource emits `Goto("target")` instead of `Goto()`.
+        // v5.0: RenderSource uses Arms[0].TargetBlockName for UnconditionalJump (Goto target).
         => FlowControlStatement.RenderSource(
             cfStmt.FlowControlShape ?? FlowControlType.ConditionalJump,
             cfStmt.ConditionExpression ?? string.Empty,
-            cfStmt.Arms,
-            loopbackTarget: cfStmt.FlowControlShape == FlowControlType.UnconditionalJump
-                ? cfStmt.Arms.FirstOrDefault()?.TargetBlockName
-                : null);
+            cfStmt.Arms);
 
     private static CFGEdgeType GetEdgeType(FlowControlType? shape, BranchArm arm)
     {
@@ -1253,5 +1256,5 @@ internal class BP2CFGConverter
     private bool IsControlFlowNode(BlueprintNode node) =>
         node is BuiltinFunctionNode bfn
         && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var def)
-        && def.IsFlowControl;
+        && def.FlowControlShape != null;
 }

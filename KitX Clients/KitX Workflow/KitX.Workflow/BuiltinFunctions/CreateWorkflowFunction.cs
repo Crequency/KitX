@@ -11,10 +11,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "CreateWorkflow";
         public string DisplayName => "Create Workflow";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => false; // Value-producing (has Return pin) — can be nested as an expression
-        public double NodeWidth => 180;
-        public double NodeHeight => 80;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),

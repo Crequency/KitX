@@ -12,10 +12,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "StopPlugin";
         public string DisplayName => "Stop Plugin";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public double NodeWidth => 140;
-        public double NodeHeight => 60;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),

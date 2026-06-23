@@ -11,10 +11,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "WriteTextFile";
         public string DisplayName => "Write Text File";
-        public bool IsFlowControl => false;
         public bool IsNonExtractable => true;
-        public double NodeWidth => 160;
-        public double NodeHeight => 80;
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),

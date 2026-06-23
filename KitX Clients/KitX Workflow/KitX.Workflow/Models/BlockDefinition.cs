@@ -37,7 +37,13 @@ public class BlockDefinition
     public bool HasExplicitBlockBody { get; set; }
 
     /// <summary>
-    /// Statements in this block (excluding Loop statements, which are separated)
+    /// Block-level comment (v5.0 §9.3). <c>// ...</c> above or immediately after
+    /// the <c>#Block Name</c> marker. Round-trips BS↔BP↔BS.
+    /// </summary>
+    public string? Comment { get; set; }
+
+    /// <summary>
+    /// Statements in this block
     /// </summary>
     public List<BlockStatement> Statements { get; set; } = [];
 
@@ -55,8 +61,4 @@ public class BlockDefinition
     /// </summary>
     public string? NextBlockName { get; set; }
 
-    /// <summary>
-    /// For LoopBlock: the block name containing this loop (i.e., the parent block)
-    /// </summary>
-    public string? ParentBlockName { get; set; }
 }
