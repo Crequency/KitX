@@ -105,6 +105,16 @@ internal class BP2CFGConverter
         cfg.PubVarDeclarations = allPubVars;
         cfg.PubVarCounter = pubVarCounter;
 
+        // v5.0: preserve PubVar types for round-trip. VariableNodes with VarKind=PubVar
+        // carry the type declared in #PubVarBlock. Capacitor variables (vaaa####) have
+        // VarKind=Temp and are excluded.
+        foreach (var node in blueprint.Nodes.OfType<VariableNode>())
+        {
+            if (node.VarKind == VariableKind.PubVar && !string.IsNullOrEmpty(node.VarType)
+                && !cfg.PubVarTypes.ContainsKey(node.VarName))
+                cfg.PubVarTypes[node.VarName] = node.VarType;
+        }
+
         // ── Step 9: Transfer const declarations ──
         // Collect ConstNode (initialized variables) and floating VariableNodes (uninitialized
         // declarations from ConstBlock). v5.0: write-site VariableNodes (those with Exec pins,

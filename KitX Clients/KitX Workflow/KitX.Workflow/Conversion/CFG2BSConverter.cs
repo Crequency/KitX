@@ -61,10 +61,11 @@ internal class CFG2BSConverter
 
             foreach (var pubVarName in cfg.PubVarDeclarations)
             {
+                var varType = cfg.PubVarTypes.TryGetValue(pubVarName, out var t) ? t : "dynamic";
                 pubVarBlock.Variables.Add(new VariableDeclaration
                 {
                     Name = pubVarName,
-                    Type = "dynamic"
+                    Type = varType
                 });
             }
 

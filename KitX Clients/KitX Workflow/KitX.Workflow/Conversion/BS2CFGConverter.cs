@@ -47,6 +47,16 @@ public class BS2CFGConverter : IPipelineFlattenContext
         var result = new ControlFlowGraph();
         _currentContext = context;
 
+        // v5.0: preserve PubVar types from the parsed script for round-trip.
+        if (script.PubVarBlock != null)
+        {
+            foreach (var decl in script.PubVarBlock.Variables)
+            {
+                if (!string.IsNullOrEmpty(decl.Type))
+                    result.PubVarTypes[decl.Name] = decl.Type;
+            }
+        }
+
         // Initialize counter: find max existing PubVar counter to avoid conflicts
         context.NextPubVarCounter = 1;
         foreach (var name in context.PubVarNames)

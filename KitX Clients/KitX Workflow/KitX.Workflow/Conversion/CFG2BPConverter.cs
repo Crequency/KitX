@@ -226,8 +226,9 @@ public class CFG2BPConverter
             var varNode = (VariableNode)_registry.Create(BlueprintNodeType.Variable);
             varNode.VarName = stmt.PubVarTarget;
             varNode.VarKind = VariableKind.PubVar;
-            // Type is unknown at this layer (typed via ConstValues/PubVarBlock downstream);
-            // leave the default "int" — CFG2CSConverter.InferPubVarTypes resolves the real type.
+            // v5.0: preserve VarType from CFG PubVarTypes (populated during BS2CFG from #PubVarBlock).
+            if (context.FormattedScript?.PubVarTypes.TryGetValue(stmt.PubVarTarget, out var pubVarType) == true)
+                varNode.VarType = pubVarType;
             // Add Exec pins (the descriptor only declares Value in/out).
             varNode.InputPins.Add(new BlueprintPin
             {

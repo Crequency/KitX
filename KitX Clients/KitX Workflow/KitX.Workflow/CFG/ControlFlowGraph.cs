@@ -32,6 +32,13 @@ public class ControlFlowGraph
     public List<string> PubVarDeclarations { get; set; } = [];
 
     /// <summary>
+    /// PubVar types keyed by variable name. Populated from the parsed #PubVarBlock
+    /// (BS→CFG) or from VariableNode.VarType (BP→CFG). Used by CFG2BS to restore
+    /// strong types in round-trip. Capacitor variables (vaaa####) are NOT in this map.
+    /// </summary>
+    public Dictionary<string, string> PubVarTypes { get; set; } = [];
+
+    /// <summary>
     /// Constant declarations from #ConstBlock.
     /// </summary>
     public List<ConstDeclaration> ConstDeclarations { get; set; } = [];
