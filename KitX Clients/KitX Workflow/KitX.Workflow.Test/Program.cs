@@ -1300,7 +1300,7 @@ Print(""Done"");";
     // ──────────────────────────────────────────────
     private static string GetNoConstScript() => @"#MainBlock
 Print(""No constants needed"");
-Set(""x"", 42);
+42 > x;
 Print(""Done"");";
 
     // ──────────────────────────────────────────────
@@ -1561,7 +1561,7 @@ string textResult;
 
 #MainBlock
 Print(""Starting cross-device call"");
-tempResult = PluginCallWithTarget(""WeatherPlugin"", ""GetTemperature"", ""DeviceB"", cityId);
+cityId > PluginCallWithTarget(""WeatherPlugin"", ""GetTemperature"", ""DeviceB"", _) > tempResult;
 Print(tempResult);
 Print(""Cross-device call done"");";
 
@@ -1728,10 +1728,10 @@ string nestedValue;
 
 #MainBlock
 Print(""Testing JsonGetField"");
-urlValue = JsonGetField(jsonData, fieldUrl);
-nameValue = JsonGetField(jsonData, fieldName);
-topLevel = JsonGetField(jsonData, ""url"");
-nestedValue = JsonGetField(jsonData, fieldNested);
+jsonData, fieldUrl > JsonGetField(_, _) > urlValue;
+jsonData, fieldName > JsonGetField(_, _) > nameValue;
+jsonData, ""url"" > JsonGetField(_, _) > topLevel;
+jsonData, fieldNested > JsonGetField(_, _) > nestedValue;
 Print(urlValue);
 Print(nameValue);
 Print(topLevel);
@@ -1855,9 +1855,9 @@ string result = """";
 
 #MainBlock
 Print(""Testing zero-arg builtins"");
-result = ListPluginNames();
+ListPluginNames() > result;
 Print(result);
-result = ListWorkflows();
+ListWorkflows() > result;
 Print(result);
 Print(""Zero-arg test done"");";
 
@@ -1870,11 +1870,11 @@ bool stopOk;
 
 #MainBlock
 Print(""Testing single-arg builtins"");
-installOk = InstallPlugin(pluginPath);
+pluginPath > InstallPlugin(_) > installOk;
 Print(installOk);
-startOk = StartPlugin(pluginName);
+pluginName > StartPlugin(_) > startOk;
 Print(startOk);
-stopOk = StopPlugin(pluginName);
+pluginName > StopPlugin(_) > stopOk;
 Print(stopOk);
 Print(""Single-arg test done"");";
 
@@ -1890,10 +1890,10 @@ string workflowId;
 
 #MainBlock
 Print(""Testing multi-arg builtins"");
-content = ReadTextFile(fileName);
+fileName > ReadTextFile(_) > content;
 Print(content);
 WriteTextFile(fileName, fileContent);
-workflowId = CreateWorkflow(wfName, wfSource);
+wfName, wfSource > CreateWorkflow(_, _) > workflowId;
 Print(workflowId);
 Print(""Multi-arg test done"");";
 
@@ -1921,7 +1921,7 @@ string output;
 Print(""Testing builtins via assembly"");
 WriteTextFile(filePath, ""Hello from builtin test"");
 Print(""File write attempted"");
-output = ReadTextFile(filePath);
+filePath > ReadTextFile(_) > output;
 Print(output);
 Print(""Builtin assembly test done"");";
 
@@ -2244,7 +2244,7 @@ Print(""Done"");";
 dynamic v;
 
 #MainBlock
-v = TestPlugin.WPF.Core.GetInput();
+TestPlugin.WPF.Core.GetInput() > v;
 TestPlugin.WPF.Core.HelloAnything(v);
 ";
 
@@ -2287,7 +2287,7 @@ TestPlugin.WPF.Core.HelloAnything(v);
 dynamic result;
 
 #MainBlock
-result = PluginCall(""TestPlugin"", ""Echo"", ""hello"");
+PluginCall(""TestPlugin"", ""Echo"", ""hello"") > result;
 Print(result);
 ";
 
@@ -2297,7 +2297,7 @@ Print(result);
 dynamic result;
 
 #MainBlock
-result = TestPlugin.Echo(""hello"");
+TestPlugin.Echo(""hello"") > result;
 Print(result);
 ";
 
@@ -2365,7 +2365,7 @@ string b = ""World"";
 dynamic v;
 
 #MainBlock
-v = a + "", "" + b + ""!"";
+a + "", "" + b + ""!"" > v;
 Print(v);
 ";
 
@@ -2379,7 +2379,7 @@ string b = ""World"";
 dynamic v;
 
 #MainBlock
-v = StringConcat(a, "", "", b, ""!"");
+a, "", "", b, ""!"" > StringConcat > v;
 Print(v);
 ";
 

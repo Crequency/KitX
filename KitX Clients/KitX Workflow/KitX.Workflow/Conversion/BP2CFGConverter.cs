@@ -988,6 +988,16 @@ internal class BP2CFGConverter
                         cfgStmt.FunctionName = bsCall.MethodName;
                 }
 
+                // v5.0: if the ExpressionStatement carries an explicit AssignedVariable
+                // (e.g. pure assignment via VariableNode write site, `rhs > var`), surface
+                // it as PubVarTarget so the CFG→BS round-trip preserves the assignment.
+                if (!string.IsNullOrEmpty(expr.AssignedVariable))
+                {
+                    cfgStmt.PubVarTarget = expr.AssignedVariable;
+                    if (cfgStmt.Kind == CFGStatementKind.Expression)
+                        cfgStmt.Kind = CFGStatementKind.Assignment;
+                }
+
                 // Arguments from node input pins (no text parsing)
                 cfgStmt.Arguments = new List<string>();
                 foreach (var pin in node.InputPins)
@@ -996,8 +1006,9 @@ internal class BP2CFGConverter
                         cfgStmt.Arguments.Add(_exportHelper.GetInputValue(node, pin.Name));
                 }
 
-                // PubVarTarget from consumed output lookup
-                if (_currentCtx != null)
+                // PubVarTarget from consumed output lookup (complement to AssignedVariable above;
+                // handles function-call assignments where the PubVar is found via output pin).
+                if (_currentCtx != null && string.IsNullOrEmpty(cfgStmt.PubVarTarget))
                 {
                     var outputPin = node.OutputPins.FirstOrDefault(p => p.Type != PinType.Execution);
                     if (outputPin != null)

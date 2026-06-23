@@ -175,17 +175,37 @@ internal class CFG2BSConverter
         // Everything else → ExpressionStatement
         if (!string.IsNullOrEmpty(cfgStmt.OriginalExpression))
         {
+            // v5.0: render from structural fields in pipeline form (args > Func > target)
+            // so the round-tripped BS is pure v5.0 syntax, not v4.0 `=` assignments.
+            var source = RenderStatement(cfgStmt);
             return new ExpressionStatement
             {
                 StatementId = cfgStmt.StatementId,
-                Expression = ExtractExpression(cfgStmt.OriginalExpression),
-                SourceCode = cfgStmt.OriginalExpression,
+                Expression = ExtractExpression(source),
+                SourceCode = source,
                 LineNumber = cfgStmt.SourceLine,
                 Comment = cfgStmt.Comment
             };
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Renders a non-control-flow CFGStatement into v5.0 pipeline-form source text.
+    /// Assignment (PubVarTarget set) → <c>Func(args) > var;</c>;
+    /// bare call → <c>Func(args);</c>; pure assignment (no function) → <c>arg > var;</c>.
+    /// </summary>
+    private static string RenderStatement(CFGStatement stmt)
+    {
+        var args = string.Join(", ", stmt.Arguments ?? []);
+        var call = !string.IsNullOrEmpty(stmt.FunctionName)
+            ? $"{stmt.FunctionName}({args})"
+            : (stmt.Arguments?.Count > 0 ? stmt.Arguments[0] : "null");
+
+        if (!string.IsNullOrEmpty(stmt.PubVarTarget))
+            return $"{call} > {stmt.PubVarTarget};";
+        return $"{call};";
     }
 
     /// <summary>

@@ -165,10 +165,10 @@ public sealed class CfgStatementBuilder
             return $"{rhs} > {PubVarTarget}";
         }
 
-        // Function call: render as [pubVar = ]Func(args...).
-        var call = $"{FunctionName}({string.Join(", ", Arguments)})";
-        return kind == CFGStatementKind.Assignment && !string.IsNullOrEmpty(PubVarTarget)
-            ? $"{PubVarTarget} = {call}"
-            : call;
+        // Function call: render as [args > ]Func[(args)][ > target] in v5.0 pipeline form.
+        var callText = string.IsNullOrEmpty(FunctionName) ? "" : $"{FunctionName}({string.Join(", ", Arguments)})";
+        if (kind == CFGStatementKind.Assignment && !string.IsNullOrEmpty(PubVarTarget))
+            return $"{callText} > {PubVarTarget}";
+        return string.IsNullOrEmpty(FunctionName) ? "(no function name)" : callText;
     }
 }

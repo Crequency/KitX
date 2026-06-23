@@ -290,22 +290,6 @@ public static class BSParser
     /// followed by <c>;</c>. The builtin registry is consulted downstream in
     /// <see cref="ParseBlock"/> to decide whether a bare call is a control-flow function.
     /// </summary>
-    /// <summary>
-    /// A v4.0 assignment statement: <c>var = Expr ;</c>. v5.0 forbids global <c>=</c> assignment
-    /// (unified into pipeline <c>></c>), but the parser accepts it temporarily so existing
-    /// test scripts that haven't been migrated to v5.0 can still parse. A
-    /// <c>BS_ILLEGAL_ASSIGNMENT</c> warning is emitted; the statement is carried as an
-    /// ExpressionStatement with ParsedExpression = the RHS and AssignedVariable = the target,
-    /// matching the old Roslyn extractor's output shape so downstream converters work unchanged.
-    /// This rule is removed once all test scripts are migrated to v5.0 (Track B.4).
-    /// </summary>
-    static readonly TokenListParser<BSToken, (string Target, BSExpression Value)> AssignmentStatement =
-        from target in Token.EqualTo(BSToken.Identifier)
-        from _eq in Token.EqualTo(BSToken.Assign)
-        from value in Parse.Ref(() => AddSub!)
-        from _semi in Token.EqualTo(BSToken.Semicolon)
-        select (target.ToStringValue(), value);
-
     public static readonly TokenListParser<BSToken, BSExpression> Statement =
         PipelineStatement.Try().Select(p => (BSExpression)p)
         .Or(SourceList.Then(sources => Token.EqualTo(BSToken.Semicolon)
@@ -314,13 +298,7 @@ public static class BSParser
                 Sources = new List<BSExpression>(sources),
                 Targets = new List<BSCall>(),
                 SourceText = RenderPipelineText(new List<BSExpression>(sources), new List<BSCall>()),
-            })).Try())
-        .Or(AssignmentStatement.Select(a => (BSExpression)new BSAssignment
-        {
-            Target = new BSIdentifier { Name = a.Target, SourceText = a.Target },
-            Value = a.Value,
-            SourceText = $"{a.Target} = {a.Value.SourceText}",
-        }));
+            })));
 
     /// <summary>
     /// Zero or more statements ending at end-of-input. Each statement is a pipeline form
@@ -504,27 +482,6 @@ public static class BSParser
                 });
                 return;
             }
-        }
-
-        // v4.0 assignment (var = Expr) — accepted temporarily, emits a warning.
-        // Produces ExpressionStatement{ParsedExpression=BSAssignment.Value, AssignedVariable=target}
-        // so the downstream converter's FormatExpressionStatement handles it via the
-        // `rightExpr is BSCall` / `rightExpr is BSBinary` paths (same as old Roslyn extractor).
-        if (parsed is BSAssignment assign)
-        {
-            diagnostics.AddWarning("BS_ILLEGAL_ASSIGNMENT",
-                $"[{blockTypeName(recognized)}] Global '=' assignment is forbidden in v5.0; use the pipeline operator (>) instead. " +
-                $"Rewrite '{assign.SourceText}' as '{assign.Value.SourceText} > {assign.Target.Name};'.",
-                recognized.StartLine);
-            block.Statements.Add(new ExpressionStatement
-            {
-                Expression = assign.SourceText,
-                ParsedExpression = assign.Value,
-                AssignedVariable = assign.Target.Name,
-                SourceCode = assign.SourceText + ";",
-                LineNumber = recognized.StartLine,
-            });
-            return;
         }
 
         // Bare call (no pipeline): could be a control-flow function (Branch/ForLoop/...) or
