@@ -552,6 +552,24 @@ Print(""f"");";
             allPassed = false;
         }
 
+        // U3: v5.0 nested function calls are forbidden → BS_NESTED_CALL error.
+        // The v5.0 grammar (§14.4) requires the pipeline operator (>) instead of nesting.
+        try
+        {
+            var src = @"#MainBlock
+Print(Get(""x""));";
+            converter.Convert(src, helpers);
+            var diag = converter.LastDiagnostics;
+            bool hasNestedCall = diag != null && diag.Items.Any(d => d.Code == "BS_NESTED_CALL");
+            Console.WriteLine($"  [U3] Nested-call error emitted: {hasNestedCall}");
+            if (!hasNestedCall) allPassed = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  [U3] FAILED: {ex.Message}");
+            allPassed = false;
+        }
+
         Console.WriteLine($"\n[{label}] {(allPassed ? "PASS - diagnostics channel works" : "FAIL - see above")}");
     }
 
