@@ -54,6 +54,7 @@ public enum BSToken
     [Token(Category = "keyword", Example = "bool")] Bool,
     [Token(Category = "keyword", Example = "string")] StringKW,
     [Token(Category = "keyword", Example = "char")] CharKW,
+    [Token(Category = "keyword", Example = "dynamic")] DynamicKW,
     [Token(Category = "keyword", Example = "true")] True,
     [Token(Category = "keyword", Example = "false")] False,
     [Token(Category = "keyword", Example = "null")] Null,
@@ -128,6 +129,7 @@ public static class BSParser
             .Match(Span.EqualTo("bool"), BSToken.Bool, requireDelimiters: true)
             .Match(Span.EqualTo("string"), BSToken.StringKW, requireDelimiters: true)
             .Match(Span.EqualTo("char"), BSToken.CharKW, requireDelimiters: true)
+            .Match(Span.EqualTo("dynamic"), BSToken.DynamicKW, requireDelimiters: true)
             .Match(Span.EqualTo("true"), BSToken.True, requireDelimiters: true)
             .Match(Span.EqualTo("false"), BSToken.False, requireDelimiters: true)
             .Match(Span.EqualTo("null"), BSToken.Null, requireDelimiters: true)
@@ -335,6 +337,7 @@ public static class BSParser
         Token.EqualTo(BSToken.Int).Or(Token.EqualTo(BSToken.Float))
             .Or(Token.EqualTo(BSToken.Double)).Or(Token.EqualTo(BSToken.Bool))
             .Or(Token.EqualTo(BSToken.StringKW)).Or(Token.EqualTo(BSToken.CharKW))
+            .Or(Token.EqualTo(BSToken.DynamicKW))
             .Select(t => t.ToStringValue());
 
     static readonly TokenListParser<BSToken, VariableDeclaration> VariableDeclaration =
