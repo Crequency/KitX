@@ -479,17 +479,28 @@ public static class BSParser
         BuiltinFunctionRegistry? registry, ConversionDiagnostics diagnostics,
         BlockDefinition block)
     {
-        // Pipeline (with or without targets): always an ExpressionStatement.
+        // Pipeline with targets: always an ExpressionStatement carrying the BSPipeline.
+        // A pipeline with zero targets and a single BSCall source is a bare call that the
+        // Statement rule happened to wrap — unwrap it so DispatchStatement can consult the
+        // builtin registry for control-flow functions (Branch/ForLoop/Switch/Goto/Break).
         if (parsed is BSPipeline pipeline)
         {
-            block.Statements.Add(new ExpressionStatement
+            if (pipeline.Targets.Count == 0 && pipeline.Sources.Count == 1
+                && pipeline.Sources[0] is BSCall unwrappedCall)
             {
-                Expression = pipeline.SourceText,
-                ParsedExpression = pipeline,
-                SourceCode = pipeline.SourceText + ";",
-                LineNumber = recognized.StartLine,
-            });
-            return;
+                parsed = unwrappedCall; // fall through to the BSCall branch below
+            }
+            else
+            {
+                block.Statements.Add(new ExpressionStatement
+                {
+                    Expression = pipeline.SourceText,
+                    ParsedExpression = pipeline,
+                    SourceCode = pipeline.SourceText + ";",
+                    LineNumber = recognized.StartLine,
+                });
+                return;
+            }
         }
 
         // v4.0 assignment (var = Expr) — accepted temporarily, emits a warning.
