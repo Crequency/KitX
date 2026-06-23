@@ -134,7 +134,7 @@ public class CFG2BPConverter
         // helper/plugin call (Kind = Assignment/Expression). Routing by registration rather
         // than Kind, because builtins like Print/Set carry their own Kind values.
         if (funcDef != null
-            || stmt.Kind is CFGStatementKind.Assignment or CFGStatementKind.Expression)
+            || stmt.FlowControlShape == null)
         {
             return ProcessCallOrAssignment(stmt, funcDef, context, ref prevNode, ref prevStmtId);
         }

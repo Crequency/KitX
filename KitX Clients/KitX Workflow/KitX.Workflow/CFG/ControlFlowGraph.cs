@@ -76,7 +76,7 @@ public class ControlFlowGraph
             sb.AppendLine($"  ── Block \"{block.Name}\" (Type={block.Type}, IsMain={block.IsMainBlock}, FallThrough={block.FallThroughTarget ?? "null"})");
             foreach (var stmt in block.GetEffectiveStatements())
             {
-                sb.AppendLine($"    [{stmt.Kind}] {stmt.OriginalExpression}");
+                sb.AppendLine($"    [{(stmt.FlowControlShape?.ToString() ?? "Expr")}] {stmt.OriginalExpression}");
                 if (!string.IsNullOrEmpty(stmt.TrueBlockName))
                     sb.AppendLine($"      → True=\"{stmt.TrueBlockName}\", False=\"{stmt.FalseBlockName}\"");
                 if (!string.IsNullOrEmpty(stmt.PubVarTarget))

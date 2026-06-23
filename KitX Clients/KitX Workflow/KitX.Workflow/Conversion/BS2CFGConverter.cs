@@ -219,10 +219,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
     }
 
     private static string GetFunctionNameFromFlowControl(FlowControlStatement flowCtrl)
-        // The ControlType is authoritative for flow-control statements — it was set by the
-        // builtin's ExtractStatement at parse time and uniquely maps to the function name.
-        // No need to re-parse SourceCode.
-        => ControlFlowMapping.ToFunctionName(flowCtrl.ControlType);
+        => flowCtrl.FunctionName ?? string.Empty;
 
     // ──────────────────────────────────────────────
     // Expression statement formatting

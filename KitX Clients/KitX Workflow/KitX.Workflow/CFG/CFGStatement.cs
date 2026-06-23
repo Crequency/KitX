@@ -3,53 +3,16 @@ namespace KitX.Workflow.CFG;
 using KitX.Core.Contract.Workflow;
 
 /// <summary>
-/// Kinds of statements in the CFG — the VALUE-CARRYING classification only.
-/// Control-flow shape is now carried by <see cref="CFGStatement.FlowControlShape"/>
-/// (a <see cref="FlowControlType"/>), queried directly by converters; the control-flow
-/// Kind values below remain only as derived labels for diagnostics
-/// (<see cref="ControlFlowGraph.Dump"/>) and the derived
-/// <see cref="IBuiltinFunctionDefinition.StatementKind"/>.
-/// </summary>
-/// <remarks>
-/// v5.0 transition: <c>Loop</c> and <c>ToLoopCond</c> remain during the staged migration
-/// (removed with their builtin functions in layer 3). <c>ForLoop</c> and <c>Goto</c> are the
-/// v5.0 replacements, added ahead of use.
-/// </remarks>
-public enum CFGStatementKind
-{
-    /// <summary>Unknown or unclassified</summary>
-    Unknown,
-
-    /// <summary>pubVar = FunctionCall(args...) — value assigned to a PubVar</summary>
-    Assignment,
-
-    /// <summary>Conditional two-way jump (derived label; authoritative shape = FlowControlShape.ConditionalJump)</summary>
-    Branch,
-
-    /// <summary>Counted iterative jump (v5.0 ForLoop; derived label; FlowControlShape.IterativeCounted)</summary>
-    ForLoop,
-
-    /// <summary>N-way dispatch (derived label; authoritative shape = FlowControlShape.IndexedDispatch)</summary>
-    Switch,
-
-    /// <summary>Unconditional jump (v5.0 Goto; derived label; FlowControlShape.UnconditionalJump)</summary>
-    Goto,
-
-    /// <summary>Loop exit (derived label; authoritative shape = FlowControlShape.LoopExit)</summary>
-    Break,
-
-    /// <summary>NextBlock = ... (handled internally, no node created)</summary>
-    NextBlockAssignment,
-
-    /// <summary>Plain expression without assignment</summary>
-    Expression,
-}
-
-/// <summary> within a CFG block. All expressions are flat —
+/// A statement within a CFG block. All expressions are flat —
 /// nested calls have been expanded into sequential PubVar assignments.
 /// Carries all information needed to produce a Blueprint node or a
 /// BlockScript statement.
 /// </summary>
+/// <remarks>
+/// v5.0: <see cref="CFGStatementKind"/> has been eliminated.
+/// FlowControlShape (non-null = flow-control) and PubVarTarget (non-null = assignment)
+/// are the authoritative discriminants. Kind was a redundant denormalisation.
+/// </remarks>
 public class CFGStatement
 {
     /// <summary>
@@ -62,11 +25,6 @@ public class CFGStatement
     /// The block this statement belongs to.
     /// </summary>
     public string BlockName { get; set; } = string.Empty;
-
-    /// <summary>
-    /// What kind of statement this is.
-    /// </summary>
-    public CFGStatementKind Kind { get; set; }
 
     /// <summary>
     /// The control-flow graph shape of this statement (null for non-control-flow statements).

@@ -169,9 +169,7 @@ internal class CFG2BSConverter
             };
         }
 
-        // NextBlockAssignment → skip
-        if (cfgStmt.Kind == CFGStatementKind.NextBlockAssignment)
-            return null;
+        // v5.0: NextBlockAssignment concept deleted — all control flow goes through FlowControlShape.
 
         // Everything else → ExpressionStatement
         if (!string.IsNullOrEmpty(cfgStmt.OriginalExpression))

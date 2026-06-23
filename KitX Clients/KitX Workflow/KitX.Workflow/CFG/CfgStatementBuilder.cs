@@ -1,172 +1,111 @@
+using System.Linq;
 using KitX.Core.Contract.Workflow;
+using KitX.Workflow.Models.Statements;
+using KitX.Workflow.Models;
+using KitX.Workflow.BlockScripting;
 
 namespace KitX.Workflow.CFG;
 
 /// <summary>
 /// Single construction point for <see cref="CFGStatement"/>. Absorbs the cross-cutting
 /// bookkeeping that was previously scattered across BS2CFG and BP2CFG (StatementId minting,
-/// Fingerprint derivation, Kind derivation, OriginalExpression rendering, PubVarNames tracking).
+/// Fingerprint derivation, OriginalExpression rendering, PubVarNames tracking).
 /// </summary>
 /// <remarks>
-/// <para><b>Design intent (architecture refactor phase 1):</b> eliminate the "post-processing
-/// patch" anti-pattern where converters built partial statements then looped back to fill
-/// cross-cutting fields. All derived/cache fields are computed once here in <see cref="Build"/>.</para>
-/// <para><b>Field classification:</b>
-/// <list type="bullet">
-///   <item>Structural (authoritative, set by caller): BlockName, FlowControlShape, FunctionName,
-///   FullFunctionName, Arguments, PubVarTarget, ConditionExpression, Arms.</item>
-///   <item>Metadata (optional, set by caller): StatementId, Comment, SourceLine.</item>
-///   <item>Source text (caller-supplied when known verbatim, else auto-rendered): SourceText.</item>
-///   <item>Derived (computed by Build, never set by caller): Kind, Fingerprint, OriginalExpression.</item>
-/// </list>
-/// </para>
+/// <para>v5.0: <see cref="CFGStatementKind"/> has been eliminated. FlowControlShape (non-null
+/// for control-flow) and PubVarTarget (non-null for assignments) are the authoritative
+/// discriminants. See <see cref="IFlowControlFunctionDefinition"/> for the contract.</para>
+/// <para>Caller sets the semantic fields; <see cref="Build"/> derives fingerprint and
+/// OriginalExpression once — no post-processing patches.</para>
 /// </remarks>
-public sealed class CfgStatementBuilder
+public class CfgStatementBuilder
 {
-    // ─── Structural fields ───────────────────────────
-
-    /// <summary>The block this statement belongs to. Mandatory.</summary>
+    // ── Required ──────────────────────────────────────────────────────
     public required string BlockName { get; set; }
 
-    /// <summary>Control-flow shape (null for non-control-flow). Authoritative for Kind derivation.</summary>
+    // ── Semantic fields (set by caller) ───────────────────────────────
     public FlowControlType? FlowControlShape { get; set; }
-
-    /// <summary>Function name (e.g. "HelperFuncCompare", "Print"). Null for pure assignments.</summary>
     public string? FunctionName { get; set; }
-
-    /// <summary>Full dotted method path for plugin calls. Null for builtins/helpers.</summary>
     public string? FullFunctionName { get; set; }
-
-    /// <summary>Resolved argument strings (literals, PubVar names, ConstBlock names).</summary>
     public List<string> Arguments { get; set; } = [];
-
-    /// <summary>The PubVar being assigned, if this is an assignment.</summary>
     public string? PubVarTarget { get; set; }
-
-    /// <summary>Condition/selector expression for flow-control statements.
-    /// Post-expansion this is a single PubVar identifier (the source of the condition value);
-    /// the builder passes it through to <see cref="CFGStatement.ConditionExpression"/> and
-    /// consumers derive bool-ness/selector-ness from the ConditionalJump/IndexedDispatch shape.</summary>
+    public List<BranchArm> Arms { get; set; } = [];
     public string? ConditionExpression { get; set; }
 
-    /// <summary>Control-flow arms (Branch true/false, Switch cases, Goto target).</summary>
-    public List<BranchArm> Arms { get; set; } = [];
-
-    // ─── Metadata ────────────────────────────────────
-
-    /// <summary>Caller-supplied statement id; null → Build mints a fresh Guid.</summary>
+    // ── Metadata (optional) ───────────────────────────────────────────
     public string? StatementId { get; set; }
-
-    /// <summary>Comment anchored to this statement (v5.0 §9 bidirectional retention).</summary>
     public string? Comment { get; set; }
-
-    /// <summary>Source line number.</summary>
     public int SourceLine { get; set; }
 
-    // ─── Source text ─────────────────────────────────
-
-    /// <summary>
-    /// Verbatim source text for <see cref="CFGStatement.OriginalExpression"/>. When non-null,
-    /// used as-is (caller knows the exact rendering, e.g. flow-control SourceCode, pipeline
-    /// verbatim text, or <c>invoke.SourceText</c>). When null, Build auto-renders from the
-    /// structural fields via <see cref="RenderDefault"/>.
-    /// </summary>
+    // ── Source text override ──────────────────────────────────────────
+    /// <summary>Explicit source text used for the OriginalExpression—set for flow-control
+    /// and parsed statements. Omit for pipeline or auto-generated statements.</summary>
     public string? SourceText { get; set; }
 
-    // ─── Build ───────────────────────────────────────
+    // ── Construction ──────────────────────────────────────────────────
 
-    /// <summary>
-    /// Constructs the immutable <see cref="CFGStatement"/>, deriving Kind/Fingerprint/
-    /// OriginalExpression/StatementId and (optionally) tracking the PubVarTarget in
-    /// <paramref name="pubVarNames"/> for downstream resolution.
-    /// </summary>
     public CFGStatement Build(ICollection<string>? pubVarNames = null)
     {
-        // Track the PubVar target before anything else so even auto-named temps are visible
-        // to IsVariableName checks that run later in the same FormatPipeline pass.
-        if (!string.IsNullOrEmpty(PubVarTarget) && pubVarNames != null && !pubVarNames.Contains(PubVarTarget))
+        if (pubVarNames != null && !string.IsNullOrEmpty(PubVarTarget))
             pubVarNames.Add(PubVarTarget);
 
-        var kind = DeriveKind();
-        var fingerprint = DeriveFingerprint(kind);
-        var originalExpression = SourceText ?? RenderDefault(kind);
+        var fingerprint = DeriveFingerprint();
+        var originalExpression = SourceText ?? RenderDefault();
 
         return new CFGStatement
         {
             StatementId = string.IsNullOrEmpty(StatementId) ? Guid.NewGuid().ToString() : StatementId!,
             BlockName = BlockName,
-            Kind = kind,
             FlowControlShape = FlowControlShape,
             FunctionName = FunctionName,
             FullFunctionName = FullFunctionName,
             Arguments = Arguments,
             PubVarTarget = PubVarTarget,
-            ConditionExpression = ConditionExpression,
             Arms = Arms,
-            OriginalExpression = originalExpression,
+            ConditionExpression = ConditionExpression,
             Fingerprint = fingerprint,
+            OriginalExpression = originalExpression,
             Comment = Comment,
-            SourceLine = SourceLine,
+            SourceLine = SourceLine
         };
     }
 
-    /// <summary>
-    /// Derives the Kind from FlowControlShape (authoritative for control flow) or from the
-    /// presence of PubVarTarget (Assignment) vs absence (Expression). Mirrors the mapping in
-    /// <see cref="IBuiltinFunctionDefinition.StatementKind"/> for the control-flow shapes.
-    /// </summary>
-    private CFGStatementKind DeriveKind() => FlowControlShape switch
+    // v5.0: Fingerprint is only meaningful for non-control-flow statements with a function name.
+    // Control-flow statements are never reused (each is unique by its block position).
+    private string? DeriveFingerprint()
     {
-        FlowControlType.ConditionalJump => CFGStatementKind.Branch,
-        FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
-        FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
-        FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-        FlowControlType.ScriptReturn => CFGStatementKind.Break,
-        null => !string.IsNullOrEmpty(PubVarTarget)
-            ? CFGStatementKind.Assignment
-            : CFGStatementKind.Expression,
-        _ => CFGStatementKind.Expression
-    };
-
-    /// <summary>
-    /// Computes the fingerprint for value-carrying statements (Assignment/Expression with a
-    /// non-null FunctionName). Control-flow and pure-assignment (FunctionName null) statements
-    /// get no fingerprint — they are never reused.
-    /// </summary>
-    private string? DeriveFingerprint(CFGStatementKind kind)
-    {
-        if (kind is not (CFGStatementKind.Assignment or CFGStatementKind.Expression)) return null;
+        if (FlowControlShape != null) return null;
         if (string.IsNullOrEmpty(FunctionName)) return null;
         return ExprUtils.ComputeFingerprint(FunctionName!, Arguments);
     }
 
-    /// <summary>
-    /// Default rendering when the caller did not supply <see cref="SourceText"/>. Produces a
-    /// best-effort canonical text from the structural fields. Callers that know the exact
-    /// source rendering (flow-control SourceCode, verbatim pipeline text, invoke.SourceText)
-    /// should set <see cref="SourceText"/> explicitly to preserve round-trip fidelity.
-    /// </summary>
-    private string RenderDefault(CFGStatementKind kind)
+    // v5.0: Render text from FlowControlShape or FunctionName + PubVarTarget.
+    // Control-flow uses the flow-control function's RenderSource (from the registry);
+    // value-producing functions use pipeline form.
+    private string RenderDefault()
     {
-        // Flow-control: defer to the arms model's canonical renderer. Goto's loopback target
-        // v5.0: render control-flow source from shape + condition + arms + flowArguments.
+        // Flow-control: render via the builtin registry's flow-control function.
         if (FlowControlShape != null)
         {
-            return FlowControlStatement.RenderSource(
-                FlowControlShape.Value, ConditionExpression ?? string.Empty, Arms, Arguments);
+            var fcDef = BuiltinFunctionRegistry.Instance.AllDefinitions
+                .OfType<IFlowControlFunctionDefinition>()
+                .FirstOrDefault(f => f.FlowControlShape == FlowControlShape);
+            if (fcDef != null)
+                return fcDef.RenderSource(ConditionExpression, Arms, Arguments);
+            return $"{FlowControlShape}(...)";
         }
 
-        // Pure assignment (Expr > var tap): render the pipeline form when FunctionName is null.
-        if (kind == CFGStatementKind.Assignment && string.IsNullOrEmpty(FunctionName))
+        // Pure assignment (Expr > var tap) — no function call, just the source expression.
+        if (string.IsNullOrEmpty(FunctionName))
         {
             var rhs = Arguments.Count > 0 ? Arguments[0] : "null";
-            return $"{rhs} > {PubVarTarget}";
+            return !string.IsNullOrEmpty(PubVarTarget) ? $"{rhs} > {PubVarTarget}" : rhs;
         }
 
-        // Function call: render as [args > ]Func[(args)][ > target] in v5.0 pipeline form.
-        var callText = string.IsNullOrEmpty(FunctionName) ? "" : $"{FunctionName}({string.Join(", ", Arguments)})";
-        if (kind == CFGStatementKind.Assignment && !string.IsNullOrEmpty(PubVarTarget))
+        // Function call: render as args > Func(args) or Func(args) > target.
+        var callText = $"{FunctionName}({string.Join(", ", Arguments)})";
+        if (!string.IsNullOrEmpty(PubVarTarget))
             return $"{callText} > {PubVarTarget}";
-        return string.IsNullOrEmpty(FunctionName) ? "(no function name)" : callText;
+        return callText;
     }
 }

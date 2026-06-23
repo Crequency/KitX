@@ -51,9 +51,10 @@ static class TestCompileConsistency
             var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
             if (rt == null) { fail("T71", "round-trip BS compiles", "round-trip returned null"); }
             else { var pr2 = parser.Parse(rt);
-            pr2.Script!.HelperFunctions = h;
+            if (pr2.Script == null) { fail("T71", "round-trip BS compiles", "pr2.Script null"); }
+            else { pr2.Script.HelperFunctions = h;
             var compiled = new CSCompiler().CompileScript(pr2.Script, workflowId: null, out var errors);
-            check("T71", "round-trip BS compiles", compiled != null, string.Join("\n", errors.Take(3))); }
+            check("T71", "round-trip BS compiles", compiled != null, string.Join("\n", errors.Take(3))); } }
         }
         if (shouldRun("T72")) {
             var template = KitX.Workflow.Services.WorkflowStorageService.GetDefaultBlockScriptTemplate();

@@ -13,6 +13,12 @@ public class FlowControlStatement : BlockStatement
     public FlowControlType ControlType { get; set; }
 
     /// <summary>
+    /// Function name in BS source (e.g. "Branch", "ForLoop", "Exit").
+    /// Set during parsing; converters read this instead of inferring from ControlType.
+    /// </summary>
+    public string? FunctionName { get; set; }
+
+    /// <summary>
     /// Condition expression (for Branch/Loop)
     /// </summary>
     public string ConditionExpression { get; set; } = string.Empty;

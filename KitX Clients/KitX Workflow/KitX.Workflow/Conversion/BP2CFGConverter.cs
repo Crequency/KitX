@@ -965,9 +965,8 @@ internal class BP2CFGConverter
         switch (blockStmt)
         {
             case FlowControlStatement flow:
-                cfgStmt.Kind = ControlFlowMapping.ToKind(flow.ControlType);
                 cfgStmt.FlowControlShape = flow.ControlType;
-                cfgStmt.FunctionName = ControlFlowMapping.ToFunctionName(flow.ControlType);
+                cfgStmt.FunctionName = flow.FunctionName;
                 if (string.IsNullOrEmpty(cfgStmt.FunctionName))
                     cfgStmt.FunctionName = null;
                 cfgStmt.ConditionExpression = flow.ConditionExpression;
@@ -980,39 +979,21 @@ internal class BP2CFGConverter
             case ExpressionStatement expr:
                 cfgStmt.OriginalExpression = expr.SourceCode;
 
-                // Kind & FunctionName from builtin function metadata (data-driven, no adapter layer)
+                // v5.0: Kind eliminated. FunctionName from builtin metadata or parsed expression.
                 if (node is BuiltinFunctionNode bfn
                     && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var bfDef))
                 {
-                    cfgStmt.Kind = bfDef.FlowControlShape switch
-                    {
-                        FlowControlType.ConditionalJump => CFGStatementKind.Branch,
-                        FlowControlType.IterativeCounted => CFGStatementKind.ForLoop,
-                        FlowControlType.UnconditionalJump => CFGStatementKind.Goto,
-                        FlowControlType.IndexedDispatch => CFGStatementKind.Switch,
-                        FlowControlType.ScriptReturn => CFGStatementKind.Break,
-                        _ => CFGStatementKind.Expression
-                    };
                     cfgStmt.FunctionName = bfDef.FunctionName;
                 }
                 else
                 {
-                    cfgStmt.Kind = CFGStatementKind.Expression;
-                    // FunctionName from the pre-built BS call attached by GenerateBlockStatement
-                    // (Call/CallHelper nodes carry a BSCall in ParsedExpression).
                     if (expr.ParsedExpression is BSCall bsCall)
                         cfgStmt.FunctionName = bsCall.MethodName;
                 }
 
-                // v5.0: if the ExpressionStatement carries an explicit AssignedVariable
-                // (e.g. pure assignment via VariableNode write site, `rhs > var`), surface
-                // it as PubVarTarget so the CFG→BS round-trip preserves the assignment.
+                // v5.0: surface AssignedVariable as PubVarTarget for round-trip.
                 if (!string.IsNullOrEmpty(expr.AssignedVariable))
-                {
                     cfgStmt.PubVarTarget = expr.AssignedVariable;
-                    if (cfgStmt.Kind == CFGStatementKind.Expression)
-                        cfgStmt.Kind = CFGStatementKind.Assignment;
-                }
 
                 // Arguments from node input pins (no text parsing)
                 cfgStmt.Arguments = new List<string>();
@@ -1038,7 +1019,6 @@ internal class BP2CFGConverter
                 break;
 
             default:
-                cfgStmt.Kind = CFGStatementKind.Unknown;
                 break;
         }
 

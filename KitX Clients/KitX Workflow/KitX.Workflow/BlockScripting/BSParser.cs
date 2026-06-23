@@ -501,7 +501,8 @@ public static class BSParser
         {
             LineNumber = line,
             SourceCode = call.SourceText,
-            ControlType = fcDef.FlowControlShape
+            ControlType = fcDef.FlowControlShape,
+            FunctionName = fcDef.FunctionName
         };
 
         // expressionArgs: leading expression arguments

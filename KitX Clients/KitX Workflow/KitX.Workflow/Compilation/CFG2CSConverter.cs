@@ -106,8 +106,7 @@ internal static class CFG2CSConverter
                 }
 
                 // Helper function arguments demand specific types
-                if ((stmt.Kind == CFGStatementKind.Assignment || stmt.Kind == CFGStatementKind.Expression)
-                    && stmt.FunctionName != null
+                if (stmt.FlowControlShape == null && stmt.FunctionName != null
                     && helperMap.TryGetValue(stmt.FunctionName, out var consumerHelper))
                 {
                     for (int i = 0; i < stmt.Arguments.Count && i < consumerHelper.Parameters.Count; i++)
@@ -602,25 +601,17 @@ internal static class CFG2CSConverter
                 continue;
             }
 
-            switch (stmt.Kind)
+            // v5.0: Kind eliminated — dispatch on structural fields.
             {
-                case CFGStatementKind.Assignment:
+                bool isPureAssignment = string.IsNullOrEmpty(stmt.FunctionName) && !string.IsNullOrEmpty(stmt.PubVarTarget);
+                if (isPureAssignment)
                 {
-                    // v5.0: a pure variable assignment (Expr > var) carries FunctionName=null and
-                    // PubVarTarget=varName. The RHS is the single argument value. Emit a direct
-                    // typed assignment + G.Set sync — NOT a function call (which would hit the
-                    // "unknown bare call" fallback and produce an empty-identifier CS0103).
-                    if (string.IsNullOrEmpty(stmt.FunctionName) && !string.IsNullOrEmpty(stmt.PubVarTarget))
-                    {
-                        var rhsArg = stmt.Arguments.FirstOrDefault() ?? "null";
-                        var rawExpr = ResolveArgumentExpression(rhsArg, pubVarTypes);
-                        caseStatements.AddRange(
-                            BuildValueAssignment(stmt.PubVarTarget, rawExpr, "object", pubVarTypes));
-                        break;
-                    }
-                    goto case CFGStatementKind.Expression;
+                    var rhsArg = stmt.Arguments.FirstOrDefault() ?? "null";
+                    var rawExpr = ResolveArgumentExpression(rhsArg, pubVarTypes);
+                    caseStatements.AddRange(
+                        BuildValueAssignment(stmt.PubVarTarget, rawExpr, "object", pubVarTypes));
                 }
-                case CFGStatementKind.Expression:
+                else
                 {
                     ExpressionSyntax rawExpr;
                     string sourceType = "object";
@@ -660,12 +651,7 @@ internal static class CFG2CSConverter
 
                     caseStatements.AddRange(
                         BuildValueAssignment(stmt.PubVarTarget, rawExpr, sourceType, pubVarTypes));
-
-                    break;
                 }
-
-                default:
-                    break;
             }
         }
 
