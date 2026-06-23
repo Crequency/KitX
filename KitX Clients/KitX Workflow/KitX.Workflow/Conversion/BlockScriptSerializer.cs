@@ -101,9 +101,9 @@ internal class BlockScriptSerializer
         }
 
         // If the block has a fall-through NextBlockName and the last statement
-        // isn't already a control flow statement, add a NextBlock assignment.
+        // isn't already a control flow statement, emit a v5.0 Goto directive.
         if (!string.IsNullOrEmpty(block.NextBlockName) && !EndsWithControlFlow(block))
-            sb.AppendLine($"NextBlock = \"{block.NextBlockName}\";");
+            sb.AppendLine($"Goto(\"{block.NextBlockName}\");");
     }
 
     /// <summary>
