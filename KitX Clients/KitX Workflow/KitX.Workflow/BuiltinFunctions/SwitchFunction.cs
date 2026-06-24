@@ -31,7 +31,6 @@ namespace KitX.Workflow.BuiltinFunctions
     public bool IsBlockTerminator => true;
     public bool IsFlowControl => true;
         public FlowControlArgLayout ArgLayout => new(1, 1, true);
-        FlowControlArgLayout? IBuiltinFunctionDefinition.ArgLayout => new(1, 1, true);
         public IReadOnlyList<string> ArmPinNames => [Pins.Default];  // variadic; base is just Default
 
         public IReadOnlyList<PinDescriptor> InputPins => [
@@ -49,6 +48,30 @@ namespace KitX.Workflow.BuiltinFunctions
 
         // ArgLayout dispatch obsoletes hand-written ExtractStatement.
         public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        FlowControlStatement? IBuiltinFunctionDefinition.ParseInvocation(BSCall invoke, int lineNumber)
+        {
+            var args = invoke.Args;
+            var selector = args.ElementAtOrDefault(0)?.SourceText;
+            var stmt = new FlowControlStatement
+            {
+                LineNumber = lineNumber,
+                SourceCode = invoke.SourceText,
+                FunctionName = "Switch",
+                ConditionExpression = selector,
+                FlowArguments = selector is not null ? [selector] : [],
+            };
+            // Arms: first arg after selector is default, then 0, 1, ..., N-1
+            for (int i = 1; i < args.Count; i++)
+            {
+                var blockName = args[i]?.AsStringLiteral() ?? "";
+                var pinName = i == 1 ? "Default" : (i - 2).ToString();
+                stmt.Arms.Add(new BranchArm { PinName = pinName, TargetBlockName = blockName });
+            }
+            if (stmt.Arms.Count == 0)
+                stmt.Arms.Add(new BranchArm { PinName = "Default", TargetBlockName = "" });
+            return stmt;
+        }
 
         public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
                                    IReadOnlyList<string> flowArguments)

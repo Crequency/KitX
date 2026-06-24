@@ -11,9 +11,9 @@ namespace KitX.Workflow.BlockScripting;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Declarative argument layout. When non-null on a <see cref="IBuiltinFunctionDefinition"/>,
-/// the Parser splits <see cref="BSCall.Args"/> per this layout and produces a
-/// <see cref="FlowControlStatement"/> — no per-function hand-written ExtractStatement needed.
+/// Declarative argument layout (for Dashboard UI signature rendering).
+/// Parser dispatch now goes through <see cref="IBuiltinFunctionDefinition.ParseInvocation"/>
+/// (v5.1 self-describing invocation); each flow-control function parses its own call.
 /// null = standard Func(args) call (value-producing functions).
 /// </summary>
 /// <param name="ExpressionArgs">Number of leading expression arguments.</param>
@@ -125,6 +125,16 @@ public interface IBuiltinFunctionDefinition
 
     /// <summary>Pin names for block-name target arms.</summary>
     IReadOnlyList<string> ArmPinNames => [];
+
+    // ── Parser dispatch (v5.1: self-describing invocation) ───────────
+
+    /// <summary>
+    /// Parse a bare call into a <see cref="FlowControlStatement"/>.
+    /// Each flow-control function knows its own argument layout and
+    /// parses its invocation — no centralised ArgLayout dispatch needed.
+    /// Returns null for non-flow-control functions (standard Func(args) call).
+    /// </summary>
+    FlowControlStatement? ParseInvocation(BSCall invoke, int lineNumber) => null;
 
     // ── Behaviour flags ─────────────────────────────────────────────────
 

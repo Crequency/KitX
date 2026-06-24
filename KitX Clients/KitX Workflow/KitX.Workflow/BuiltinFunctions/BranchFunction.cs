@@ -18,7 +18,6 @@ namespace KitX.Workflow.BuiltinFunctions
     public bool IsBlockTerminator => true;
     public bool IsFlowControl => true;
         public FlowControlArgLayout ArgLayout => new(1, 2, false);
-        FlowControlArgLayout? IBuiltinFunctionDefinition.ArgLayout => new(1, 2, false);
         public IReadOnlyList<string> ArmPinNames => ["True", "False"];
 
         public IReadOnlyList<PinDescriptor> InputPins => [
@@ -33,6 +32,25 @@ namespace KitX.Workflow.BuiltinFunctions
 
         // ArgLayout dispatch obsoletes hand-written ExtractStatement.
         public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        FlowControlStatement? IBuiltinFunctionDefinition.ParseInvocation(BSCall invoke, int lineNumber)
+        {
+            var args = invoke.Args;
+            var cond = args.ElementAtOrDefault(0)?.SourceText;
+            return new FlowControlStatement
+            {
+                LineNumber = lineNumber,
+                SourceCode = invoke.SourceText,
+                FunctionName = "Branch",
+                ConditionExpression = cond,
+                FlowArguments = cond is not null ? [cond] : [],
+                Arms =
+                [
+                    new() { PinName = "True",  TargetBlockName = args.ElementAtOrDefault(1)?.AsStringLiteral() ?? "" },
+                    new() { PinName = "False", TargetBlockName = args.ElementAtOrDefault(2)?.AsStringLiteral() ?? "" }
+                ]
+            };
+        }
 
         public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
                                    IReadOnlyList<string> flowArguments)

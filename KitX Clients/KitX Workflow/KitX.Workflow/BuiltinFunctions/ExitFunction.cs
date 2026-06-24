@@ -30,7 +30,15 @@ public class ExitFunction : IBuiltinFunctionDefinition
         {
             LineNumber = lineNumber,
             SourceCode = exprText ?? "Exit();",
-            
+
+        };
+
+    FlowControlStatement? IBuiltinFunctionDefinition.ParseInvocation(BSCall invoke, int lineNumber)
+        => new()
+        {
+            LineNumber = lineNumber,
+            SourceCode = invoke.SourceText,
+            FunctionName = "Exit",
         };
 
     public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,

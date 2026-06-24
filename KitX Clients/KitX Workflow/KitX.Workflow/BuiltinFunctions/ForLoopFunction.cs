@@ -28,7 +28,6 @@ namespace KitX.Workflow.BuiltinFunctions
     public bool IsFlowControl => true;
     public bool HasInternalState => true;
         public FlowControlArgLayout ArgLayout => new(3, 3, false);
-        FlowControlArgLayout? IBuiltinFunctionDefinition.ArgLayout => new(3, 3, false);
         public IReadOnlyList<string> ArmPinNames => ["LoopBody", "LoopEnd"];
 
         public IReadOnlyList<PinDescriptor> InputPins =>
@@ -48,6 +47,30 @@ namespace KitX.Workflow.BuiltinFunctions
 
         // ArgLayout dispatch obsoletes hand-written ExtractStatement.
         public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
+
+        FlowControlStatement? IBuiltinFunctionDefinition.ParseInvocation(BSCall invoke, int lineNumber)
+        {
+            var args = invoke.Args;
+            var from = args.ElementAtOrDefault(0)?.SourceText ?? "0";
+            var to   = args.ElementAtOrDefault(1)?.SourceText ?? "0";
+            var step = args.ElementAtOrDefault(2)?.SourceText ?? "1";
+            var indexName = args.ElementAtOrDefault(3)?.AsStringLiteral() ?? "i";
+            var bodyBlock = args.ElementAtOrDefault(4)?.AsStringLiteral() ?? "";
+            var endBlock  = args.ElementAtOrDefault(5)?.AsStringLiteral() ?? "";
+            return new FlowControlStatement
+            {
+                LineNumber = lineNumber,
+                SourceCode = invoke.SourceText,
+                FunctionName = "ForLoop",
+                ConditionExpression = from,
+                FlowArguments = [from, to, step, indexName],
+                Arms =
+                [
+                    new() { PinName = "LoopBody", TargetBlockName = bodyBlock },
+                    new() { PinName = "LoopEnd",  TargetBlockName = endBlock }
+                ]
+            };
+        }
 
         public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
                                    IReadOnlyList<string> flowArguments)

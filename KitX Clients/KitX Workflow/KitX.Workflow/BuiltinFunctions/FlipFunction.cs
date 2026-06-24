@@ -47,6 +47,25 @@ namespace KitX.Workflow.BuiltinFunctions
             return stmt;
         }
 
+        FlowControlStatement? IBuiltinFunctionDefinition.ParseInvocation(BSCall invoke, int lineNumber)
+        {
+            var args = invoke.Args;
+            var blockA = args.ElementAtOrDefault(0)?.AsStringLiteral() ?? "";
+            var blockB = args.ElementAtOrDefault(1)?.AsStringLiteral() ?? "";
+            return new FlowControlStatement
+            {
+                LineNumber = lineNumber,
+                SourceCode = invoke.SourceText,
+                FunctionName = "Flip",
+                FlowArguments = [blockA, blockB],
+                Arms =
+                [
+                    new() { PinName = "A", TargetBlockName = blockA },
+                    new() { PinName = "B", TargetBlockName = blockB }
+                ]
+            };
+        }
+
         public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
 
         public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context)
