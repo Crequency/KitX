@@ -1,6 +1,7 @@
 using KitX.Workflow.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,12 @@ public partial class Program
         {
             bool withRT = Array.IndexOf(args, "--roundtrip") >= 0 || Array.IndexOf(args, "-r") >= 0;
             RunKcsCompileTest(args[kcsIdx + 1], withRT);
+            return;
+        }
+        var migrateIdx = Array.IndexOf(args, "--migrate-kcs");
+        if (migrateIdx >= 0 && migrateIdx + 1 < args.Length)
+        {
+            RunMigrateKcs(args[migrateIdx + 1]);
             return;
         }
         Console.WriteLine("=== KitX BlockScript v5.0 Test Suite ===\n");
@@ -55,6 +62,15 @@ public partial class Program
         TestBuiltins.RunAll(ShouldRunTest, parser, sp, ExecuteScript, GetExecutionHelpers, Check);
 
         Console.WriteLine($"\n=== Summary: {_passCount} PASS, {_failCount} FAIL ===");
+    }
+
+    private static void RunMigrateKcs(string path)
+    {
+        var services = new ServiceCollection();
+        services.AddCoreServices();
+        var sp = services.BuildServiceProvider();
+        var parser = sp.GetRequiredService<IBlockScriptParser>();
+        MigrateKcs.Run(path, parser, sp, ExecuteScript);
     }
 
     private static void ParseArgs(string[] args)
