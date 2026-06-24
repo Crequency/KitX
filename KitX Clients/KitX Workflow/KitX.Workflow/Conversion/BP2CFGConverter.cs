@@ -335,6 +335,10 @@ internal class BP2CFGConverter
             {
                 Name = scope.Name,
                 Type = scope.IsMainBlock ? CFGBlockType.Entry : CFGBlockType.Basic,
+                BlockVars = scope.BlockVars?
+                    .Select(v => new VariableDeclaration { Name = v.Name, Type = v.Type ?? "dynamic", DefaultValue = v.DefaultValue })
+                    .ToList() ?? [],
+                HasExplicitBlockBody = scope.HasExplicitBlockBody,
             };
 
             foreach (var nodeId in scope.NodeIds)

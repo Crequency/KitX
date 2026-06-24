@@ -193,6 +193,10 @@ public class BlueprintAssembler
                 IsMainBlock = block.Name == mainBlockName,
                 NextBlockName = block.FallThroughTarget,
                 NodeIds = nodeIds,
+                BlockVars = block.BlockVars?
+                    .Select(v => new BlockVarEntry(v.Name, v.Type, v.DefaultValue?.ToString()))
+                    .ToList() ?? [],
+                HasExplicitBlockBody = block.HasExplicitBlockBody,
             });
         }
 

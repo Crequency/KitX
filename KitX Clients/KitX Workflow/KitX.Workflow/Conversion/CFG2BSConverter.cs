@@ -83,7 +83,10 @@ internal class CFG2BSConverter
                 // Goto statement itself — do NOT also emit NextBlockName (which produced the
                 // duplicate `Goto(); NextBlock = "X"` in round-trip, Test D/H/I/K DIFF).
                 // NextBlockName is only for v4.0-style implicit fall-through (no control-flow end).
-                NextBlockName = EndsWithGoto(cfgBlock) ? null : cfgBlock.FallThroughTarget
+                NextBlockName = EndsWithGoto(cfgBlock) ? null : cfgBlock.FallThroughTarget,
+                // v5.1: preserve block-local variable declarations across round-trip.
+                BlockVars = cfgBlock.BlockVars?.ToList() ?? [],
+                HasExplicitBlockBody = cfgBlock.HasExplicitBlockBody
             };
 
             // v5.0: iterate the raw Statements storage. PipelineStatement entries (first-class

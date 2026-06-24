@@ -78,11 +78,36 @@ internal class BlockScriptSerializer
         foreach (var kvp in script.NamedBlocks)
         {
             sb.AppendLine($"{MarkerBlockPrefix}{kvp.Key}");
-            AppendBlockStatements(sb, kvp.Value);
+            AppendBlockDefinition(sb, kvp.Value);
             sb.AppendLine();
         }
 
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// v5.1: renders a full block definition — ##BlockVars (if any), ##BlockBody, statements,
+    /// and optional ##BlockEnd marker.
+    /// </summary>
+    private static void AppendBlockDefinition(StringBuilder sb, BlockDefinition block)
+    {
+        // ##BlockVars section (v5.0 §3.3)
+        if (block.BlockVars is { Count: > 0 })
+        {
+            sb.AppendLine("##BlockVars");
+            foreach (var v in block.BlockVars)
+            {
+                var init = !string.IsNullOrEmpty(v.DefaultValue?.ToString()) ? $" = {v.DefaultValue}" : "";
+                sb.AppendLine($"{v.Type ?? "dynamic"} {v.Name}{init};");
+            }
+            sb.AppendLine("##BlockBody");
+        }
+        else if (block.HasExplicitBlockBody)
+        {
+            sb.AppendLine("##BlockBody");
+        }
+
+        AppendBlockStatements(sb, block);
     }
 
     /// <summary>

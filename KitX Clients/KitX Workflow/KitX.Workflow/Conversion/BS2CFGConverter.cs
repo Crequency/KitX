@@ -95,7 +95,12 @@ public class BS2CFGConverter : IPipelineFlattenContext
 
     private CFGBlock FormatBlock(BlockDefinition blockDef, ForwardConversionState context)
     {
-        var result = new CFGBlock { Name = blockDef.Name };
+        var result = new CFGBlock
+        {
+            Name = blockDef.Name,
+            BlockVars = blockDef.BlockVars?.ToList() ?? [],
+            HasExplicitBlockBody = blockDef.HasExplicitBlockBody
+        };
         // BlockScript §6: a flow-control statement (Branch/Loop/ToLoopCond/Break) terminates
         // the block; any statement after it is unreachable dead code. Track the terminator and
         // warn (non-fatal) on subsequent statements instead of silently formatting them.

@@ -1,4 +1,5 @@
 using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Models;
 
 namespace KitX.Workflow.CFG;
 
@@ -45,6 +46,18 @@ public class CFGBlock
     /// no nested calls, all expressions are either simple or PubVar assignments.
     /// </summary>
     public List<CFGStatement> Statements { get; set; } = [];
+
+    /// <summary>
+    /// Block-local variable declarations (##BlockVars, v5.0 §3.3).
+    /// Survives BS↔CFG round-trip. Rendered by BlockScriptSerializer.
+    /// </summary>
+    public List<VariableDeclaration> BlockVars { get; set; } = [];
+
+    /// <summary>
+    /// True when the block uses the explicit ##BlockBody marker
+    /// (required when BlockVars is non-empty, optional otherwise).
+    /// </summary>
+    public bool HasExplicitBlockBody { get; set; }
 
     /// <summary>
     /// Typed edges from this block to its successors.
