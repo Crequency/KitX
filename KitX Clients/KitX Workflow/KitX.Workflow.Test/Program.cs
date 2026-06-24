@@ -34,6 +34,15 @@ public partial class Program
             RunMigrateKcs(args[migrateIdx + 1]);
             return;
         }
+        if (Array.IndexOf(args, "--test-renderer") >= 0)
+        {
+            var services2 = new ServiceCollection();
+            services2.AddCoreServices();
+            var sp2 = services2.BuildServiceProvider();
+            var parser2 = sp2.GetRequiredService<IBlockScriptParser>();
+            MigrateKcs.TestRenderer(parser2, sp2, ExecuteScript);
+            return;
+        }
         Console.WriteLine("=== KitX BlockScript v5.0 Test Suite ===\n");
         if (_selectedTests.Contains("ALL")) Console.WriteLine("Running all tests.\n");
         else Console.WriteLine($"Running tests: {string.Join(", ", _selectedTests)}\n");

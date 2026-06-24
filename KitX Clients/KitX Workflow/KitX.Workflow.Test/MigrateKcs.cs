@@ -143,9 +143,44 @@ public static class MigrateKcs
         pr.Script.HelperFunctions = kcs.HelperFunctions ?? [];
 
         var context = new ForwardConversionState { Script = pr.Script };
-        foreach (var name in ((ForwardConversionState)context).PubVarNames) { } // init
+
+        // Populate PubVarNames from script's PubVarBlock
+        if (pr.Script.PubVarBlock != null)
+        {
+            foreach (var v in pr.Script.PubVarBlock.Variables)
+                if (!context.PubVarNames.Contains(v.Name))
+                    context.PubVarNames.Add(v.Name);
+        }
+
         var formattedScript = ConversionPaths.BS2CFG(pr.Script, kcs.HelperFunctions ?? [],
             BuiltinFunctionRegistry.Instance, context);
+
+        // Populate CFG declarations from script (normally done by BS→BP pipeline)
+        if (pr.Script.ConstBlock != null)
+        {
+            foreach (var v in pr.Script.ConstBlock.Variables)
+            {
+                formattedScript.ConstDeclarations.Add(new ConstDeclaration
+                {
+                    Name = v.Name,
+                    Type = v.Type,
+                    DefaultValue = v.DefaultValue,
+                });
+            }
+        }
+        if (pr.Script.PubVarBlock != null)
+        {
+            foreach (var v in pr.Script.PubVarBlock.Variables)
+            {
+                if (!formattedScript.PubVarDeclarations.Contains(v.Name))
+                    formattedScript.PubVarDeclarations.Add(v.Name);
+                if (!string.IsNullOrEmpty(v.Type) && !formattedScript.PubVarTypes.ContainsKey(v.Name))
+                    formattedScript.PubVarTypes[v.Name] = v.Type;
+            }
+        }
+        Console.WriteLine($"  CFG: {formattedScript.Blocks.Count} blocks, {formattedScript.ConstDeclarations.Count} consts, {formattedScript.PubVarDeclarations.Count} pubvars");
+        foreach (var block in formattedScript.Blocks)
+            Console.WriteLine($"    Block '{block.Name}': {block.Statements.Count} stmts");
 
         // 3. Execute and capture output
         var output = execScript(parser, sp, kcs.BlockScriptSource, kcs.HelperFunctions ?? [], 10);
@@ -328,21 +363,74 @@ public static class MigrateKcs
         return s;
     }
 
+    public static void TestRenderer(IBlockScriptParser parser, IServiceProvider sp,
+        Func<IBlockScriptParser, IServiceProvider, string, List<HelperFunction>, int, List<string>> execScript)
+    {
+        // Use a known-good BS source from the test suite
+        var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");\n\n#Block End\nPrint(\"done\");\nExit();";
+        var h = new List<HelperFunction>();
+        var pr = parser.Parse(src);
+        if (!pr.IsSuccess || pr.Script == null) { Console.WriteLine("Parse failed"); return; }
+        pr.Script.HelperFunctions = h;
+
+        var context = new ForwardConversionState { Script = pr.Script };
+        if (pr.Script.ConstBlock != null)
+            foreach (var v in pr.Script.ConstBlock.Variables)
+                if (!context.PubVarNames.Contains(v.Name)) context.PubVarNames.Add(v.Name);
+        if (pr.Script.PubVarBlock != null)
+            foreach (var v in pr.Script.PubVarBlock.Variables)
+                if (!context.PubVarNames.Contains(v.Name)) context.PubVarNames.Add(v.Name);
+
+        var cfg = ConversionPaths.BS2CFG(pr.Script, h, BuiltinFunctionRegistry.Instance, context);
+        // Populate declarations
+        if (pr.Script.ConstBlock != null)
+            foreach (var v in pr.Script.ConstBlock.Variables)
+                cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
+        if (pr.Script.PubVarBlock != null)
+            foreach (var v in pr.Script.PubVarBlock.Variables)
+            { if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name); if (!string.IsNullOrEmpty(v.Type)) cfg.PubVarTypes[v.Name] = v.Type; }
+
+        Console.WriteLine($"CFG: {cfg.Blocks.Count} blocks");
+        foreach (var b in cfg.Blocks) Console.WriteLine($"  {b.Name}: {b.Statements.Count} stmts");
+
+        var converter = new CFG2BSConverter();
+        var rendered = converter.Render(cfg);
+        Console.WriteLine($"\n=== RENDERED ({rendered.Length} chars) ===");
+        Console.WriteLine(rendered);
+        Console.WriteLine("=== END ===\n");
+
+        var output = execScript(parser, sp, src, h, 5);
+        Console.WriteLine($"Original execute: {(output != null ? string.Join(", ", output) : "NULL")}");
+
+        // Re-parse rendered and execute
+        var pr2 = parser.Parse(rendered);
+        if (pr2.IsSuccess && pr2.Script != null)
+        {
+            pr2.Script.HelperFunctions = h;
+            var executor = sp.GetRequiredService<IBlockScriptExecutor>();
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var result = executor.ExecuteAsync(pr2.Script, null, cts.Token).GetAwaiter().GetResult();
+            Console.WriteLine($"Render execute: {(result != null ? string.Join(", ", result.Output) : "NULL")}");
+        }
+        else Console.WriteLine($"Render parse failed: {pr2.ErrorMessage}");
+    }
+
     private static List<string>? ExecuteCfg(ControlFlowGraph cfg, BlockScript originalScript, IServiceProvider sp,
         IBlockScriptParser parser)
     {
         try
         {
-            // Generate BS text from CFG
-            var generator = new CFG2BSConverter();
-            var script = generator.Generate(cfg);
-            script.HelperFunctions = cfg.HelperFunctions;
-            var serializer = new BlockScriptSerializer();
-            var bsText = serializer.Serialize(script);
+            // v5.1: use CFG2BSConverter.Render — direct CFG → text
+            var converter = new CFG2BSConverter();
+            var bsText = converter.Render(cfg);
 
             // Re-parse and execute
             var pr = parser.Parse(bsText);
-            if (!pr.IsSuccess || pr.Script == null) return null;
+            if (!pr.IsSuccess || pr.Script == null)
+            {
+                Console.WriteLine($"  Parse failed: {pr.ErrorMessage}");
+                return null;
+            }
             pr.Script.HelperFunctions = cfg.HelperFunctions ?? [];
 
             var executor = sp.GetRequiredService<IBlockScriptExecutor>();
