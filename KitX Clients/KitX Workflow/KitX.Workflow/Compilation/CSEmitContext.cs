@@ -20,6 +20,12 @@ public sealed class CSEmitContext
     /// <summary>Return type per helper function name.</summary>
     public Dictionary<string, string> HelperReturnTypes { get; }
 
+    /// <summary>
+    /// v5.1: variable names injected at runtime via G.Set (e.g. ForLoop indexName).
+    /// References to these names resolve to <c>G.Get("name")</c> instead of bare identifiers.
+    /// </summary>
+    public HashSet<string> InjectedVariableNames { get; set; } = new();
+
     public CSEmitContext(Dictionary<string, string> pubVarTypes, Dictionary<string, string> helperReturnTypes)
     {
         PubVarTypes = pubVarTypes;
@@ -34,7 +40,15 @@ public sealed class CSEmitContext
 
     /// <summary>Resolves a formatted argument string into a Roslyn expression.</summary>
     public ExpressionSyntax ResolveArgument(string arg)
-        => CFG2CSConverter.ResolveArgumentExpression(arg, PubVarTypes);
+    {
+        arg = arg.Trim();
+        // v5.1: injected variables (e.g. ForLoop indexName) live in the runtime
+        // _variables dictionary, populated by G.Set at runtime. Emit G.Get("name")
+        // instead of a bare C# identifier that would fail with CS0103.
+        if (InjectedVariableNames.Contains(arg))
+            return CFG2CSConverter.BuildGetInvocation(arg, "object");
+        return CFG2CSConverter.ResolveArgumentExpression(arg, PubVarTypes);
+    }
 
     /// <summary>Wraps an expression in <c>ConvertTo&lt;T&gt;(...)</c> for typed PubVar assignment.</summary>
     public ExpressionSyntax ConvertTo(string typeName, ExpressionSyntax expr)

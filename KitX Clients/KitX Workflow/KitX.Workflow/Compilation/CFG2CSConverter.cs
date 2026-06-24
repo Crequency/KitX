@@ -164,7 +164,8 @@ internal static class CFG2CSConverter
         if (helperMembers.Count > 0)
             classDecl = classDecl.AddMembers(helperMembers.ToArray());
 
-        var runMethod = GenerateRunMethod(script, formattedScript, pubVarTypes);
+        var injectedVariableNames = CollectInjectedVariables(formattedScript);
+        var runMethod = GenerateRunMethod(script, formattedScript, pubVarTypes, injectedVariableNames);
         classDecl = classDecl.AddMembers(runMethod);
 
         var nsDecl = NamespaceDeclaration(
@@ -302,10 +303,33 @@ internal static class CFG2CSConverter
     /// <summary>
     /// Generates the Run method with while-switch dispatcher.
     /// </summary>
+    /// <summary>
+    /// v5.1: collects variable names that functions inject into runtime scope via G.Set.
+    /// The codegen emits G.Get("name") for these instead of bare C# identifiers.
+    /// Registry-driven — zero knowledge of specific function names.
+    /// </summary>
+    private static HashSet<string> CollectInjectedVariables(ControlFlowGraph cfg)
+    {
+        var names = new HashSet<string>();
+        foreach (var block in cfg.Blocks)
+        {
+            foreach (var stmt in block.GetEffectiveStatements())
+            {
+                var def = !string.IsNullOrEmpty(stmt.FunctionName)
+                    ? FunctionRegistry.Get(stmt.FunctionName) : null;
+                if (def == null) continue;
+                foreach (var v in def.GetInjectedVariables(stmt))
+                    names.Add(v);
+            }
+        }
+        return names;
+    }
+
     internal static MethodDeclarationSyntax GenerateRunMethod(
         BlockScript script,
         ControlFlowGraph formattedScript,
-        Dictionary<string, string> pubVarTypes)
+        Dictionary<string, string> pubVarTypes,
+        HashSet<string> injectedVariableNames)
     {
         var statements = new List<StatementSyntax>();
 
@@ -363,7 +387,7 @@ internal static class CFG2CSConverter
                 }))),
             ReturnStatement()));
 
-        var switchSections = GenerateSwitchSections(formattedScript, pubVarTypes, script.HelperFunctions);
+        var switchSections = GenerateSwitchSections(formattedScript, pubVarTypes, script.HelperFunctions, injectedVariableNames);
         whileBody.Add(SwitchStatement(
             MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                 IdentifierName("G"), IdentifierName("NextBlock")),
@@ -535,7 +559,8 @@ internal static class CFG2CSConverter
     internal static List<SwitchSectionSyntax> GenerateSwitchSections(
         ControlFlowGraph formattedScript,
         Dictionary<string, string> pubVarTypes,
-        List<HelperFunction>? helperFunctions)
+        List<HelperFunction>? helperFunctions,
+        HashSet<string> injectedVariableNames)
     {
         var sections = new List<SwitchSectionSyntax>();
         var helperReturnTypes = (helperFunctions ?? [])
@@ -544,7 +569,7 @@ internal static class CFG2CSConverter
 
         foreach (var block in formattedScript.Blocks)
         {
-            sections.Add(GenerateFormattedBlockCase(block, pubVarTypes, helperFunctions, helperReturnTypes));
+            sections.Add(GenerateFormattedBlockCase(block, pubVarTypes, helperFunctions, helperReturnTypes, injectedVariableNames));
         }
 
         sections.Add(SwitchSection()
@@ -561,7 +586,8 @@ internal static class CFG2CSConverter
         CFGBlock block,
         Dictionary<string, string> pubVarTypes,
         List<HelperFunction>? helperFunctions,
-        Dictionary<string, string> helperReturnTypes)
+        Dictionary<string, string> helperReturnTypes,
+        HashSet<string> injectedVariableNames)
     {
         var caseStatements = new List<StatementSyntax>();
 
@@ -582,7 +608,10 @@ internal static class CFG2CSConverter
 
         var hasNextBlockAssignment = false;
         var stmtIndex = 0;
-        var ctx = new CSEmitContext(pubVarTypes, helperReturnTypes);
+        var ctx = new CSEmitContext(pubVarTypes, helperReturnTypes)
+        {
+            InjectedVariableNames = injectedVariableNames
+        };
 
         foreach (var stmt in block.GetEffectiveStatements())
         {

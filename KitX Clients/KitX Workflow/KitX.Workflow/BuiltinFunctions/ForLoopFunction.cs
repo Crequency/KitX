@@ -72,6 +72,11 @@ namespace KitX.Workflow.BuiltinFunctions
             };
         }
 
+        IReadOnlySet<string> IBuiltinFunctionDefinition.GetInjectedVariables(CFGStatement stmt)
+            => stmt.Arguments.Count > 3
+                ? new HashSet<string> { stmt.Arguments[3].Trim('"') }
+                : new HashSet<string>();
+
         public string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
                                    IReadOnlyList<string> flowArguments)
         {

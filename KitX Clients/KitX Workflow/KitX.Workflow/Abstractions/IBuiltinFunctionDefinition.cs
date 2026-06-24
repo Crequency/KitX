@@ -144,6 +144,16 @@ public interface IBuiltinFunctionDefinition
     /// <summary>True: this function holds persistent state across activations (ForLoop counter).</summary>
     bool HasInternalState => false;
 
+    // ── Scope injection (v5.1) ───────────────────────────────────────
+
+    /// <summary>
+    /// Returns the set of variable names that this function injects into the
+    /// execution scope at runtime via <c>G.Set(name, value)</c>.
+    /// The C# codegen emits <c>G.Get("name")</c> for references to these names
+    /// instead of bare C# identifiers (which would fail with CS0103).
+    /// </summary>
+    IReadOnlySet<string> GetInjectedVariables(CFGStatement stmt) => new HashSet<string>();
+
     // ── Self-describing ─────────────────────────────────────────────────
 
     /// <summary>
