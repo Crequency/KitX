@@ -116,7 +116,9 @@ public class CFG2BPConverter
     private BlueprintNode? ProcessStatement(CFGStatement stmt, string blockName,
         ForwardConversionState context, ref BlueprintNode? prevNode, ref string? prevStmtId)
     {
-        var funcDef = stmt.IsBlockTerminator
+        // v5.1: resolve the function definition for ALL statements that have a function name.
+        // Non-terminator builtins (Print, StringConcat, ...) need funcDef for ProcessCallOrAssignment.
+        var funcDef = !string.IsNullOrEmpty(stmt.FunctionName)
             ? _functionRegistry?.Get(stmt.FunctionName)
             : null;
 

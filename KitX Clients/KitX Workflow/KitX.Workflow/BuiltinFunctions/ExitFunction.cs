@@ -53,7 +53,7 @@ public class ExitFunction : IBuiltinFunctionDefinition
     public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context) { }
 
     public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        => new FlowControlStatement {  SourceCode = "Exit();", LineNumber = 1 };
+        => new FlowControlStatement { FunctionName = "Exit", SourceCode = "Exit();", LineNumber = 1 };
 
     public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
 }

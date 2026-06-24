@@ -102,7 +102,11 @@ internal class BP2CFGConverter
         foreach (var name in blueprint.PubVarNames)
             if (!allPubVars.Contains(name))
                 allPubVars.Add(name);
-        cfg.PubVarDeclarations = allPubVars;
+        // v5.1: filter out capacitor variables (vaaa####) — auto-generated temps
+        // from pipeline expansion that should not leak into the PubVarBlock.
+        cfg.PubVarDeclarations = allPubVars
+            .Where(v => ExprUtils.TryExtractPubVarCounter(v) == null)
+            .ToList();
         cfg.PubVarCounter = pubVarCounter;
 
         // v5.0: preserve PubVar types for round-trip. VariableNodes with VarKind=PubVar
