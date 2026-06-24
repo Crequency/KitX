@@ -38,6 +38,12 @@ internal class ConversionContext
     public Dictionary<string, string> LoopOwnerBlockNames { get; set; } = new();
 
     /// <summary>
+    /// v5.1: variable names injected at runtime (e.g. ForLoop indexName).
+    /// Used by FormatLiteralValue to avoid quoting these identifiers.
+    /// </summary>
+    public HashSet<string> InjectedVariableNames { get; set; } = new();
+
+    /// <summary>
     /// User-facing diagnostics accumulated across BP→CFG→BS phases.
     /// </summary>
     public ConversionDiagnostics Diagnostics { get; set; } = new();

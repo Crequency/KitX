@@ -75,6 +75,13 @@ public class ForwardConversionState
     /// to the definition reaching the consumer's program point, instead of first-match-wins.
     /// </summary>
     public Analysis.ReachingDefinitionsAnalysis? ReachingDefinitions { get; set; }
+
+    /// <summary>
+    /// v5.1: variable names injected at runtime by flow-control functions
+    /// (e.g. ForLoop indexName). Populated after Phase 2 (CFG is available),
+    /// consumed by DataEdgeBuilder to avoid treating them as string literals.
+    /// </summary>
+    public HashSet<string> InjectedVariableNames { get; set; } = new();
 }
 
 /// <summary>

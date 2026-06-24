@@ -140,12 +140,12 @@ public class CFG2BPConverter
             return node;
         }
 
-        // Calls / assignments: any registered non-terminator builtin (Get/Set/Print/...,
-        // including PluginCallWithTarget whose Kind is its own enum value) OR an unregistered
-        // helper/plugin call (Kind = Assignment/Expression). Routing by registration rather
-        // than Kind, because builtins like Print/Set carry their own Kind values.
-        if (funcDef != null
-            || stmt.FunctionName == null)
+        // Calls / assignments: any registered non-terminator builtin (Print/StringConcat/...),
+        // helper functions (HelperFuncCompare/HelperFuncAdd), unregistered plugin calls, OR
+        // pure variable assignments (Expr > var, where FunctionName is null).
+        if (funcDef != null                           // registered builtin (Print, StringConcat, ...)
+            || !string.IsNullOrEmpty(stmt.FunctionName)  // unregistered helper/plugin call
+            || stmt.FunctionName == null)                // pure assignment (Expr > var)
         {
             return ProcessCallOrAssignment(stmt, funcDef, context, ref prevNode, ref prevStmtId);
         }

@@ -31,7 +31,8 @@ internal class NodeExportHelper : INodeExportHelper
         if (pin == null) return string.Empty;
 
         var dataConn = Blueprint.Connections.FirstOrDefault(c => c.TargetPinId == pin.Id);
-        if (dataConn == null) return FormatLiteralValue(pin.DefaultValue ?? string.Empty, _currentCtx);
+        if (dataConn == null)
+            return FormatLiteralValue(pin.DefaultValue ?? string.Empty, _currentCtx);
 
         var sourceNode = Blueprint.GetNodeById(dataConn.SourceNodeId);
         if (sourceNode is ConstNode constNode)
@@ -83,6 +84,7 @@ internal class NodeExportHelper : INodeExportHelper
         if (value.StartsWith("\"")) return value;
         if (BSExpressionExtensions.IsCharacterLiteral(value)) return value;  // char literal — pass through
         if (ctx != null && ctx.AllPubVars.Contains(value)) return value;
+        if (ctx != null && ctx.InjectedVariableNames.Contains(value)) return value;
         if (int.TryParse(value, out _) || double.TryParse(value, out _)) return value;
         if (value == "true" || value == "false") return value;
         if (value.Contains("(")) return value;

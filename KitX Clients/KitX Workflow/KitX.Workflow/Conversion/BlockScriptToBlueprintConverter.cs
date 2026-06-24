@@ -87,6 +87,19 @@ public class BlockScriptToBlueprintConverter : IBlockScriptToBlueprintConverter
             cfg.Blocks.Count,
             cfg.Blocks.Sum(b => b.Statements.Count));
 
+        // ── Phase 2.5: Collect injected variable names ──
+        foreach (var block in context.FormattedScript.Blocks)
+        {
+            foreach (var stmt in block.GetEffectiveStatements())
+            {
+                var def = !string.IsNullOrEmpty(stmt.FunctionName)
+                    ? _functionRegistry?.Get(stmt.FunctionName) : null;
+                if (def == null) continue;
+                foreach (var v in def.GetInjectedVariables(stmt))
+                    context.InjectedVariableNames.Add(v);
+            }
+        }
+
         // ── Phase 3: CFG → BP via pipeline ──
         ConversionPaths.CFG2BP(context.FormattedScript, context, _nodeRegistry, helpers, _functionRegistry);
         Log.Debug("[Converter] Phase 3: {NodeCount} nodes, {ExecEdgeCount} exec edges",

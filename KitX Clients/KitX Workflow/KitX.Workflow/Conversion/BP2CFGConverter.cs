@@ -68,6 +68,27 @@ internal class BP2CFGConverter
             _currentCtx.PubVarCounter = pubVarCounter;
         }
 
+        // ── Step 1.5: Collect injected variable names from BP nodes ──
+        // Must run BEFORE Step 3 (BuildBlocks) because FormatLiteralValue is called
+        // during ToStatement → GetInputValue, and needs InjectedVariableNames populated.
+        foreach (var node in blueprint.Nodes)
+        {
+            if (node is BuiltinFunctionNode bfn
+                && _builtinFunctionStrategies.TryGetValue(bfn.FunctionName, out var def))
+            {
+                if (bfn.Properties.TryGetValue("FlowArguments", out var stored))
+                {
+                    var flowArgs = stored.Split('\x1E');
+                    foreach (var v in def.GetInjectedVariables(
+                        new CFGStatement { FunctionName = bfn.FunctionName, Arguments = flowArgs.ToList() }))
+                    {
+                        if (_currentCtx != null)
+                            _currentCtx.InjectedVariableNames.Add(v);
+                    }
+                }
+            }
+        }
+
         // ── Step 2: Compute reachability from Entry ──
         var reachableNodeIds = FindReachableNodeIds(blueprint, nodeById, execConns);
 

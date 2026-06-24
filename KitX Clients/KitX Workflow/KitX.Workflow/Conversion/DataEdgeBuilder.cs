@@ -166,9 +166,15 @@ public class DataEdgeBuilder
         // real data edge. Fall back to DefaultValue only for variables never written in this pass.
         if (context.VariableNodes.ContainsKey(trimmed))
         {
-            // Phase 4: delegate to ConnectPubVarSource which now uses reaching-definitions
-            // to resolve the correct writer for multi-writer variables.
             ConnectPubVarSource(trimmed, targetNode, targetPinName, context);
+            return;
+        }
+
+        // v5.1: injected variable (e.g. ForLoop indexName) — set as identifier reference,
+        // not as string literal. FormatLiteralValue will preserve the bare name.
+        if (context.InjectedVariableNames.Contains(trimmed))
+        {
+            SetDefaultValue(targetNode, targetPinName, trimmed);
             return;
         }
 

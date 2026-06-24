@@ -87,7 +87,7 @@ namespace KitX.Workflow.BuiltinFunctions
             var condition = helper.GetInputValue(node, "Condition");
             return new FlowControlStatement
             {
-                
+                FunctionName = "Branch",
                 ConditionExpression = condition,
                 SourceCode = $"Branch({condition}, \"\", \"\");",
                 LineNumber = 1
