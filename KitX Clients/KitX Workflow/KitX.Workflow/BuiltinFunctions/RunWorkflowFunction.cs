@@ -11,7 +11,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "RunWorkflow";
         public string DisplayName => "Run Workflow";
-        public bool IsNonExtractable => false; // Value-producing (has Return pin) â€” can be nested as an expression
+        public bool IsNonExtractable => false; // Value-producing (has Return pin) â€?can be nested as an expression
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),
@@ -22,25 +22,6 @@ namespace KitX.Workflow.BuiltinFunctions
             new("Exec", PinType.Execution, 20),
             new("Return", PinType.Boolean, 40)
         ];
-
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        {
-            var value = helper.GetInputValue(node, "WorkflowId");
-            var expr = $"{FunctionName}({value})";
-            var pubVar = helper.GetOutputPubVar(node, "Return");
-            return new ExpressionStatement
-            {
-                Expression = expr,
-                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
-                LineNumber = 1
-            };
-        }
-
-        public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
     }
 }
 

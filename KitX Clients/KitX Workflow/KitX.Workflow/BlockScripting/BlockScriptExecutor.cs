@@ -229,12 +229,6 @@ public class BlockScriptExecutor : IBlockScriptExecutor
         if (script.PubVarBlock != null)
             allBlockNames.Add(script.PubVarBlock.Name);
 
-        // Add LoopBlocks to the set of known blocks
-        foreach (var loopBlock in script.LoopBlocks.Values)
-        {
-            allBlockNames.Add(loopBlock.Name);
-        }
-
         foreach (var block in script.AllBlocks)
         {
             foreach (var statement in block.Statements)

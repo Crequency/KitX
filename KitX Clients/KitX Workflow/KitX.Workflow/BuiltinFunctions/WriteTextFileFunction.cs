@@ -22,24 +22,6 @@ namespace KitX.Workflow.BuiltinFunctions
         public IReadOnlyList<PinDescriptor> OutputPins => [
             new("Exec", PinType.Execution, 20)
         ];
-
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        {
-            var path = helper.GetInputValue(node, "Path");
-            var content = helper.GetInputValue(node, "Content");
-            return new ExpressionStatement
-            {
-                Expression = $"{FunctionName}({path}, {content})",
-                SourceCode = $"{FunctionName}({path}, {content});",
-                LineNumber = 1
-            };
-        }
-
-        public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
     }
 }
 

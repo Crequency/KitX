@@ -23,25 +23,6 @@ namespace KitX.Workflow.BuiltinFunctions
             new("Exec", PinType.Execution, 20),
             new("Return", PinType.Boolean, 40)
         ];
-
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        {
-            var value = helper.GetInputValue(node, "PluginName");
-            var expr = $"{FunctionName}({value})";
-            var pubVar = helper.GetOutputPubVar(node, "Return");
-            return new ExpressionStatement
-            {
-                Expression = expr,
-                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
-                LineNumber = 1
-            };
-        }
-
-        public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
     }
 }
 

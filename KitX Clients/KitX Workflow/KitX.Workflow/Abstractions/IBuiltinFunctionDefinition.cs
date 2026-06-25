@@ -16,6 +16,10 @@ namespace KitX.Workflow.BlockScripting;
 /// (v5.1 self-describing invocation); each flow-control function parses its own call.
 /// null = standard Func(args) call (value-producing functions).
 /// </summary>
+// NOTE: The former "Layer D" BP→BS reverse-export surface (ToStatement / GetOutputArms /
+// OnNodeCreated / ConfigureNode / GetOutputPinsFor / GetReuseKey / ExtractStatement) was removed
+// in the v5.1 cleanup: the BP round-trip path is gone (BP is a rendered view), so these members
+// had zero callers. The BP-node rendering will be rebuilt around CFGGraphRenderer (G-3) instead.
 /// <param name="ExpressionArgs">Number of leading expression arguments.</param>
 /// <param name="BlockNameArgs">Number of string-literal block-name arguments (min for variadic).</param>
 /// <param name="BlockNamesVariadic">True when block-name list is variadic (Switch).</param>
@@ -57,7 +61,6 @@ public interface IBuiltinFunctionSpec
     IReadOnlyList<PinDescriptor> OutputPins { get; }
     VariadicPinSpec? InputVariadic => null;
     VariadicPinSpec? OutputVariadic => null;
-    IReadOnlyList<PinDescriptor> GetOutputPinsFor(CFGStatement stmt) => OutputPins;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -66,8 +69,6 @@ public interface IBuiltinFunctionSpec
 
 public interface IBuiltinFunctionLowering
 {
-    BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
     List<CFGStatement> LowerToCFG(
         BSCall invoke, IReadOnlyList<string> expandedArgs,
         LowerContext ctx, ForwardConversionState context, string? assignedVar)
@@ -91,16 +92,6 @@ public interface IBuiltinFunctionEmitter
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Layer D: BP→BS reverse export
-// ═════════════════════════════════════════════════════════════════════════════
-
-public interface IBuiltinFunctionExporter
-{
-    BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper) => null;
-    IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
 // Composite — the single registration key
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -111,7 +102,7 @@ public interface IBuiltinFunctionExporter
 /// = true — no enum or separate interface needed.
 /// </summary>
 public interface IBuiltinFunctionDefinition
-    : IBuiltinFunctionSpec, IBuiltinFunctionLowering, IBuiltinFunctionEmitter, IBuiltinFunctionExporter
+    : IBuiltinFunctionSpec, IBuiltinFunctionLowering, IBuiltinFunctionEmitter
 {
     // ── Parser-visible argument layout ──────────────────────────────────
 
@@ -122,9 +113,6 @@ public interface IBuiltinFunctionDefinition
     /// </summary>
     FlowControlArgLayout? ArgLayout => null;
     bool IsFlowControl => false;             // OVERRIDE to true on flow-control functions
-
-    /// <summary>Pin names for block-name target arms.</summary>
-    IReadOnlyList<string> ArmPinNames => [];
 
     // ── Parser dispatch (v5.1: self-describing invocation) ───────────
 
@@ -140,9 +128,6 @@ public interface IBuiltinFunctionDefinition
 
     /// <summary>True: this statement terminates its block (no fall-through).</summary>
     bool IsBlockTerminator => false;
-
-    /// <summary>True: this function holds persistent state across activations (ForLoop counter).</summary>
-    bool HasInternalState => false;
 
     // ── Scope injection (v5.1) ───────────────────────────────────────
 
@@ -163,28 +148,4 @@ public interface IBuiltinFunctionDefinition
     string RenderSource(string? condition, IReadOnlyList<BranchArm> arms,
                         IReadOnlyList<string> flowArgs)
         => $"{FunctionName}({string.Join(", ", flowArgs)})";
-
-    // ── BP node ─────────────────────────────────────────────────────────
-
-    BuiltinNodeKind NodeKind => BuiltinNodeKind.BuiltinFunction;
-    bool AutoSynthesizePubVar => false;
-    string? GetReuseKey(CFGStatement stmt) => null;
-    BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-    /// <summary>Register deferred edges after node creation (flow-control functions override).</summary>
-    void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context) { }
-
-    // ── CFG edge type ───────────────────────────────────────────────────
-
-    /// <summary>Map an arm pin name to its CFG edge type.</summary>
-    CFGEdgeType GetEdgeType(string armPinName) => CFGEdgeType.Sequential;
-}
-
-/// <summary>
-/// Builtin function's Blueprint node kind. See <see cref="IBuiltinFunctionDefinition.NodeKind"/>.
-/// </summary>
-public enum BuiltinNodeKind
-{
-    BuiltinFunction,
-    Call,
 }

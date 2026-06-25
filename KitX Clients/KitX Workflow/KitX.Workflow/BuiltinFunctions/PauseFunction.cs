@@ -8,8 +8,7 @@ using KitX.Workflow.Models;
 namespace KitX.Workflow.BuiltinFunctions
 {
     /// <summary>
-    /// Pause 内置函数 — 暂停执行指定毫秒数。
-    /// </summary>
+    /// Pause 内置函数 �?暂停执行指定毫秒数�?    /// </summary>
     public class PauseFunction : IBuiltinFunctionDefinition
     {
         public string FunctionName => "Pause";
@@ -24,29 +23,11 @@ namespace KitX.Workflow.BuiltinFunctions
         public IReadOnlyList<PinDescriptor> OutputPins => [
             new("Exec", PinType.Execution, 25)
         ];
-
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
     {
         if (stmt.Arguments.Count == 0) return new();
         return new() { ctx.GInvokeStatement(FunctionName, ctx.ResolveArgument(stmt.Arguments[0])) };
     }
-
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        {
-            var ms = helper.GetInputValue(node, "Milliseconds");
-            return new ExpressionStatement
-            {
-                Expression = $"{FunctionName}({ms})",
-                SourceCode = $"{FunctionName}({ms});",
-                LineNumber = 1
-            };
-        }
-
-        public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
     }
 }
 

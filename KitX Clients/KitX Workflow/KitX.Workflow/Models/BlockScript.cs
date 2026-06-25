@@ -34,12 +34,6 @@ public class BlockScript
     public List<BlockDefinition> AllBlocks { get; set; } = [];
 
     /// <summary>
-    /// Loop blocks dictionary by parent block name
-    /// (e.g., "MainBlock" -> LoopBlock for MainBlock's Loop statement)
-    /// </summary>
-    public Dictionary<string, BlockDefinition> LoopBlocks { get; set; } = [];
-
-    /// <summary>
     /// Raw source code (parsed input, may not include helper functions)
     /// </summary>
     public string SourceCode { get; set; } = string.Empty;
@@ -62,22 +56,12 @@ public class BlockScript
 
 
     /// <summary>
-    /// Gets a block by name (checks LoopBlocks first by block name, then NamedBlocks, then standard blocks)
-    /// IMPORTANT: LoopBlocks are checked FIRST because LoopBlock names (like "LoopBody") should NOT be
-    /// shadowed by user-defined NamedBlocks with the same name.
+    /// Gets a block by name (NamedBlocks first, then the standard blocks).
+    /// v5.0 removed LoopBlock, so the former LoopBlocks-first lookup is gone.
     /// </summary>
     public BlockDefinition? GetBlockByName(string name)
     {
-        // First check LoopBlocks by the block's own name (not parent block name)
-        // This is critical because LoopBlocks are created for "NextBlock = Loop(...)" statements
-        // and their names (like "LoopBody") should take precedence over user-defined blocks
-        foreach (var kvp in LoopBlocks)
-        {
-            if (kvp.Value.Name == name)
-                return kvp.Value;
-        }
-
-        // Then check NamedBlocks (user-defined blocks)
+        // First check NamedBlocks (user-defined blocks)
         if (NamedBlocks.TryGetValue(name, out var namedBlock))
             return namedBlock;
 

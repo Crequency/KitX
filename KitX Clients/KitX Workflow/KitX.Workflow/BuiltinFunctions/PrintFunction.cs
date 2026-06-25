@@ -9,8 +9,7 @@ using KitX.Workflow.Services;
 namespace KitX.Workflow.BuiltinFunctions
 {
     /// <summary>
-    /// Print 内置函数 — 输出值到控制台。
-    /// </summary>
+    /// Print 内置函数 �?输出值到控制台�?    /// </summary>
     public class PrintFunction : IBuiltinFunctionDefinition
     {
         public string FunctionName => "Print";
@@ -25,29 +24,11 @@ namespace KitX.Workflow.BuiltinFunctions
         public IReadOnlyList<PinDescriptor> OutputPins => [
             new("Exec", PinType.Execution, 25)
         ];
-
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
     {
         if (stmt.Arguments.Count == 0) return new();
         return new() { ctx.GInvokeStatement(FunctionName, ctx.ResolveArgument(stmt.Arguments[0])) };
     }
-
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        {
-            var value = helper.GetInputValue(node, "Value");
-            return new ExpressionStatement
-            {
-                Expression = $"{FunctionName}({value})",
-                SourceCode = $"{FunctionName}({value});",
-                LineNumber = 1
-            };
-        }
-
-        public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
     }
 }
 

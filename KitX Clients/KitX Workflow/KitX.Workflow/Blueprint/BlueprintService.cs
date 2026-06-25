@@ -31,43 +31,29 @@ public class BlueprintService : IBlueprintService
     }
 
     /// <summary>
-    /// v5.1: Import from BS text. BS → CFG → BS (CFG is the canonical form).
-    /// BP graph is rendered separately by CFGGraphRenderer (G-3).
+    /// v5.1: Import from BS text. BS → CFG → BP graph (BP is a rendered view of CFG).
+    /// NOT YET IMPLEMENTED — the CFG→BP renderer (CFGGraphRenderer, G-3) is unimplemented.
+    /// Throws <see cref="NotImplementedException"/> rather than silently returning an empty
+    /// blueprint, so callers fail loudly instead of receiving a graph with no nodes/connections.
     /// </summary>
     public KitX.Core.Contract.Workflow.Blueprint? ImportFromBlockScript(string sourceCode, List<HelperFunction>? helperFunctions = null)
     {
-        try
-        {
-            Log.Information("Importing Blueprint from BlockScript");
-            // v5.1: since BP is now a rendered view, import just returns a basic blueprint
-            // with the BS source stored. CFG-based rendering will replace this in G-3.
-            var bp = CreateBlueprint();
-            bp.Name = "Imported from BlockScript";
-            bp.HelperFunctions = helperFunctions ?? [];
-            bp.ModifiedAt = DateTime.Now;
-            return bp;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to import Blueprint from BlockScript");
-            return null;
-        }
+        throw new NotImplementedException(
+            "BS→BP conversion (ImportFromBlockScript) is not implemented in v5.1. " +
+            "BP is now a rendered view of CFG; the CFG→BP renderer (CFGGraphRenderer / G-3) " +
+            "is the planned replacement and is not yet built.");
     }
 
+    /// <summary>
+    /// v5.1: Export BP graph to BS text. NOT YET IMPLEMENTED — BP→BS is deferred to the
+    /// BP→CFG reverse path. Throws <see cref="NotImplementedException"/> rather than silently
+    /// returning an empty string, so callers fail loudly.
+    /// </summary>
     public string ExportToBlockScript(KitX.Core.Contract.Workflow.Blueprint blueprint)
     {
-        try
-        {
-            Log.Information("Exporting Blueprint to BlockScript");
-            // v5.1: BP is a view — no export needed.
-            // BS text is generated from CFG by CFGRenderer.
-            return string.Empty;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to export Blueprint to BlockScript");
-            throw;
-        }
+        throw new NotImplementedException(
+            "BP→BS conversion (ExportToBlockScript) is not implemented in v5.1. " +
+            "BP→CFG reverse conversion is the planned replacement and is not yet built.");
     }
 
     public async Task<BlockScriptExecutionResult> ExecuteBlueprintAsync(KitX.Core.Contract.Workflow.Blueprint blueprint)

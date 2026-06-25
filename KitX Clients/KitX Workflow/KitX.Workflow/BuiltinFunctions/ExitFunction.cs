@@ -8,9 +8,9 @@ using KitX.Workflow.Models;
 namespace KitX.Workflow.BuiltinFunctions;
 
 /// <summary>
-/// Exit å†…ç½®å‡½æ•° â€” ç»“æŸæ•´ä¸ªå·¥ä½œæµçš„æœ¬æ¬¡æ¿€æ´»ï¼ˆè¿è¡Œæ—¶ returnï¼ŒÂ§7.4ï¼‰ã€‚
-/// v5.0 æ”¹åè‡ª Breakï¼šè¯­ä¹‰æ˜¯"é€€å‡ºè„šæœ¬æ¿€æ´»"è€Œé"è·³å‡ºå¾ªç¯"ã€‚
-/// è·³å‡ºå¾ªç¯é€šè¿‡ Branch+Goto ç»„åˆè¡¨è¾¾ã€‚
+/// Exit ÄÚÖÃº¯Êı ¡ª ½áÊøÕû¸ö¹¤×÷Á÷µÄ±¾´Î¼¤»î£¨ÔËĞĞÊ± return£¬¡ì7.4£©¡£
+/// v5.0 ¸ÄÃû×Ô Break£ºÓïÒåÊÇ"ÍË³ö½Å±¾±¾´Î¼¤»î"¶ø·Ç"Ìø³öÑ­»·"¡£
+/// Ìø³öÑ­»·Í¨¹ı Branch+Goto ×éºÏ±í´ï¡£
 /// </summary>
 public class ExitFunction : IBuiltinFunctionDefinition
 {
@@ -20,18 +20,9 @@ public class ExitFunction : IBuiltinFunctionDefinition
     public bool IsBlockTerminator => true;
     public bool IsFlowControl => true;
     public FlowControlArgLayout? ArgLayout => new(0, 0, false);
-    public IReadOnlyList<string> ArmPinNames => [];
 
     public IReadOnlyList<PinDescriptor> InputPins => [new("Exec", PinType.Execution, 20)];
     public IReadOnlyList<PinDescriptor> OutputPins => [];
-
-    public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) =>
-        new FlowControlStatement
-        {
-            LineNumber = lineNumber,
-            SourceCode = exprText ?? "Exit();",
-
-        };
 
     FlowControlStatement? IBuiltinFunctionDefinition.ParseInvocation(BSCall invoke, int lineNumber)
         => new()
@@ -47,13 +38,4 @@ public class ExitFunction : IBuiltinFunctionDefinition
 
     public List<StatementSyntax> EmitStatements(CFGStatement stmt, CSEmitContext ctx)
         => new() { ctx.Return() };
-
-    public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt) => node;
-
-    public void OnNodeCreated(BlueprintNode node, CFGStatement stmt, ForwardConversionState context) { }
-
-    public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        => new FlowControlStatement { FunctionName = "Exit", SourceCode = "Exit();", LineNumber = 1 };
-
-    public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
 }

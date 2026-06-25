@@ -12,7 +12,7 @@ namespace KitX.Workflow.BuiltinFunctions
     {
         public string FunctionName => "JsonGetField";
         public string DisplayName => "JSON Get Field";
-        public bool IsNonExtractable => false; // Value-producing (has Return pin) â€” can be nested as an expression
+        public bool IsNonExtractable => false; // Value-producing (has Return pin) â€?can be nested as an expression
 
         public IReadOnlyList<PinDescriptor> InputPins => [
             new("Exec", PinType.Execution, 20),
@@ -24,41 +24,6 @@ namespace KitX.Workflow.BuiltinFunctions
             new("Exec", PinType.Execution, 20),
             new("Return", PinType.String, 40)
         ];
-
-        public BlockStatement? ExtractStatement(BSCall invoke, int lineNumber, string? exprText) => null;
-
-        public BlueprintNode ConfigureNode(BlueprintNode node, CFGStatement stmt)
-        {
-            if (node is BuiltinFunctionNode bfn && stmt.Arguments?.Count > 1)
-                bfn.Properties["FieldPath"] = StripQuotes(stmt.Arguments[1]);
-            return node;
-        }
-
-        public BlockStatement? ToStatement(BlueprintNode node, INodeExportHelper helper)
-        {
-            var jsonValue = helper.GetInputValue(node, "Json");
-            var fieldPath = node is BuiltinFunctionNode bfn
-                ? bfn.Properties.GetValueOrDefault("FieldPath", "") ?? ""
-                : "";
-            var expr = $"{FunctionName}({jsonValue}, \"{fieldPath}\")";
-            var pubVar = helper.GetOutputPubVar(node, "Return");
-            return new ExpressionStatement
-            {
-                Expression = expr,
-                SourceCode = string.IsNullOrEmpty(pubVar) ? $"{expr};" : $"{pubVar} = {expr};",
-                LineNumber = 1
-            };
-        }
-
-        public IEnumerable<OutputArmDescriptor> GetOutputArms() => [];
-
-        private static string StripQuotes(string s)
-        {
-            s = s?.Trim() ?? "";
-            if (s.Length >= 2 && s[0] == '"' && s[^1] == '"')
-                return s[1..^1];
-            return s;
-        }
     }
 }
 
