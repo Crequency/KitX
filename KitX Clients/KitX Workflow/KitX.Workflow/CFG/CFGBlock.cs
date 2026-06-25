@@ -60,6 +60,11 @@ public class CFGBlock
     public bool HasExplicitBlockBody { get; set; }
 
     /// <summary>
+    /// v5.1: block-level comment (// line(s) above the #Block marker).
+    /// </summary>
+    public string? BlockComment { get; set; }
+
+    /// <summary>
     /// Typed edges from this block to its successors.
     /// A block can have multiple successors (e.g., BranchHeader → True/False).
     /// Sequential fall-through is represented as a <see cref="CFGEdgeType.Sequential"/>

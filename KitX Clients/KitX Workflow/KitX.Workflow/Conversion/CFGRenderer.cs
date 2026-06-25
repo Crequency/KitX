@@ -75,6 +75,10 @@ public class CFGRenderer
 
     private void RenderBlock(StringBuilder sb, CFGBlock block, string mainBlockName)
     {
+        // v5.1: block-level comment above the #Block marker
+        if (!string.IsNullOrEmpty(block.BlockComment))
+            sb.AppendLine($"// {block.BlockComment}");
+
         var marker = block.Name == mainBlockName ? "#MainBlock" : $"#Block {block.Name}";
         sb.AppendLine(marker);
 
@@ -282,7 +286,8 @@ public class CFGRenderer
                 Name = cfgBlock.Name,
                 NextBlockName = EndsWithGoto(cfgBlock) ? null : cfgBlock.FallThroughTarget,
                 BlockVars = cfgBlock.BlockVars?.ToList() ?? [],
-                HasExplicitBlockBody = cfgBlock.HasExplicitBlockBody
+                HasExplicitBlockBody = cfgBlock.HasExplicitBlockBody,
+                Comment = cfgBlock.BlockComment
             };
 
             foreach (var cfgStmt in cfgBlock.Statements)

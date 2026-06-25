@@ -42,4 +42,9 @@ internal class RecognizedBlock
     /// v5.0: whether the block ended with an explicit <c>##BlockEnd</c> marker (optional, §2.1).
     /// </summary>
     public bool HasBlockEnd { get; set; }
+
+    /// <summary>
+    /// v5.1: block-level comment (// line(s) immediately preceding the #Block marker).
+    /// </summary>
+    public string? BlockComment { get; set; }
 }

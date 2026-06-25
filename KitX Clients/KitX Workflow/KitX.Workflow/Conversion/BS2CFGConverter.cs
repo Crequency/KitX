@@ -99,7 +99,8 @@ public class BS2CFGConverter : IPipelineFlattenContext
         {
             Name = blockDef.Name,
             BlockVars = blockDef.BlockVars?.ToList() ?? [],
-            HasExplicitBlockBody = blockDef.HasExplicitBlockBody
+            HasExplicitBlockBody = blockDef.HasExplicitBlockBody,
+            BlockComment = blockDef.Comment,
         };
         // BlockScript §6: a flow-control statement (Branch/Loop/ToLoopCond/Break) terminates
         // the block; any statement after it is unreachable dead code. Track the terminator and
@@ -212,6 +213,7 @@ public class BS2CFGConverter : IPipelineFlattenContext
             Arms = flowCtrl.Arms.Select(a => a.Clone()).ToList(),
             SourceText = flowCtrl.SourceCode,
             SourceLine = flowCtrl.LineNumber,
+            Comment = flowCtrl.Comment,
         }.Build();
         result.Add(stmt);
 

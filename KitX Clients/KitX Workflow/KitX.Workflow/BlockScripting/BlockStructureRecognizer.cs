@@ -75,6 +75,15 @@ internal class BlockStructureRecognizer
                     _blocks.Add(currentBlock);
                 }
 
+                // v5.1: capture block-level comment from lines immediately preceding #Block
+                string? blockComment = null;
+                if (i > 0)
+                {
+                    var prevTrimmed = lines[i - 1].Trim();
+                    if (prevTrimmed.StartsWith("//"))
+                        blockComment = prevTrimmed[2..].Trim();
+                }
+
                 // Extract block name for NamedBlock
                 var blockName = string.Empty;
                 if (blockType == BlockType.NamedBlock)
@@ -89,7 +98,8 @@ internal class BlockStructureRecognizer
                     BlockName = blockName,
                     StartLine = i + 1,
                     ContentStart = GetLineStartPosition(i + 1), // Next line
-                    ContentEnd = -1
+                    ContentEnd = -1,
+                    BlockComment = blockComment
                 };
                 currentBlockContentStart = currentBlock.ContentStart;
             }

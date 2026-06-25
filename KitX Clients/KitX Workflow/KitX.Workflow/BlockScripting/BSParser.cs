@@ -380,6 +380,7 @@ public static class BSParser
                 : recognized.BlockName,
             LineNumber = recognized.StartLine,
             HasExplicitBlockBody = recognized.HasExplicitBlockBody,
+            Comment = recognized.BlockComment,
         };
 
         // BlockVars sub-section (##BlockVars) — declarations only.
@@ -412,50 +413,51 @@ public static class BSParser
     /// </summary>
     static void ExtractComments(string content, BlockDefinition block, int blockStartLine)
     {
-        if (string.IsNullOrEmpty(content) || block.Statements.Count == 0) return;
+        if (string.IsNullOrEmpty(content)) return;
         var lines = content.Split('\n');
+
+        // Collect standalone comments and inline comment positions
+        var standaloneComments = new List<(int line, string text)>();
+        var inlineComments = new List<(int line, string text)>();
 
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i].TrimEnd('\r');
-            var trimmed = line.TrimStart();
             int commentIdx = line.IndexOf("//");
             if (commentIdx < 0) continue;
 
             var commentText = line[(commentIdx + 2)..].Trim();
             if (string.IsNullOrEmpty(commentText)) continue;
 
-            // Inline comment: code before // on the same line
             bool isInline = commentIdx > 0 && line[..commentIdx].Trim().Length > 0;
-            // Statement-above: // is the only thing on the line (may have leading whitespace)
-            bool isStandalone = !isInline;
-
             int absLine = blockStartLine + i;
 
-            if (isStandalone)
-            {
-                // Find the next statement at or after this comment line
-                foreach (var stmt in block.Statements)
-                {
-                    if (stmt.LineNumber >= absLine)
-                    {
-                        if (string.IsNullOrEmpty(stmt.Comment))
-                            stmt.Comment = commentText;
-                        break;
-                    }
-                }
-            }
+            if (isInline)
+                inlineComments.Add((absLine, commentText));
             else
+                standaloneComments.Add((absLine, commentText));
+        }
+
+        // v5.1: sequential matching — standalone comments above each statement assigned in order
+        if (block.Statements.Count > 0)
+        {
+            int si = 0; // statement index
+            foreach (var (_, text) in standaloneComments)
             {
-                // Inline: attach to statement on this line
-                foreach (var stmt in block.Statements)
+                if (si < block.Statements.Count)
+                    block.Statements[si++].Comment = text;
+            }
+        }
+
+        // Inline comments override statement-above for their target statement
+        foreach (var (absLine, text) in inlineComments)
+        {
+            foreach (var stmt in block.Statements)
+            {
+                if (stmt.LineNumber == absLine || stmt.LineNumber == absLine - 1)
                 {
-                    if (stmt.LineNumber == absLine)
-                    {
-                        if (string.IsNullOrEmpty(stmt.Comment))
-                            stmt.Comment = commentText;
-                        break;
-                    }
+                    stmt.Comment = text;
+                    break;
                 }
             }
         }
