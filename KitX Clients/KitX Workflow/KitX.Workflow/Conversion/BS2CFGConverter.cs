@@ -57,6 +57,36 @@ public class BS2CFGConverter : IPipelineFlattenContext
             }
         }
 
+        // v5.1: lift ConstBlock + PubVarBlock declarations into the CFG so the graph is
+        // self-contained and CFGRenderer can emit the #ConstBlock/#PubVarBlock headers
+        // without callers having to re-populate them (the old WorkflowFixture/CfgRoundTrip
+        // post-fill). This is the fix for the round-trip identity bug: without these the
+        // rendered BS drops the #PubVarBlock header, so the re-parsed cfg2 no longer knows
+        // currentLoop/cond are variables, and the pipeline flattener treats them as calls
+        // (e.g. "0 > currentLoop" → "currentLoop(0)").
+        // Idempotent (Contains/ContainsKey guards) so legacy callers that still post-fill
+        // the same fields don't introduce duplicates.
+        if (script.ConstBlock != null)
+        {
+            foreach (var v in script.ConstBlock.Variables)
+                if (!result.ConstDeclarations.Any(c => c.Name == v.Name))
+                    result.ConstDeclarations.Add(new ConstDeclaration
+                    {
+                        Name = v.Name,
+                        Type = v.Type ?? "object",
+                        DefaultValue = v.DefaultValue,
+                        InitialValueExpression = v.InitialValueExpression,
+                    });
+        }
+        if (script.PubVarBlock != null)
+        {
+            foreach (var v in script.PubVarBlock.Variables)
+            {
+                if (!result.PubVarDeclarations.Contains(v.Name))
+                    result.PubVarDeclarations.Add(v.Name);
+            }
+        }
+
         // Initialize counter: find max existing PubVar counter to avoid conflicts
         context.NextPubVarCounter = 1;
         foreach (var name in context.PubVarNames)

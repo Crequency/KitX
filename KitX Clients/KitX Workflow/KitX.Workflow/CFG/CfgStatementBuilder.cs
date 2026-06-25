@@ -61,7 +61,14 @@ public class CfgStatementBuilder
     private string? DeriveFingerprint(IBuiltinFunctionDefinition? def)
     {
         if (def is { IsFlowControl: true }) return null; // flow-control
-        if (string.IsNullOrEmpty(FunctionName)) return null;
+        if (string.IsNullOrEmpty(FunctionName))
+        {
+            // Pure assignment (Expr > var tap) — render to the same form as RenderDefault's
+            // pure-assignment branch so Fingerprint == OriginalExpression (no fallback divergence)
+            // and the diff engine gets a stable identity for tap statements (e.g. "0 > currentLoop").
+            var rhs = Arguments.Count > 0 ? Arguments[0] : "null";
+            return !string.IsNullOrEmpty(PubVarTarget) ? $"{rhs} > {PubVarTarget}" : rhs;
+        }
         return ExprUtils.ComputeFingerprint(FunctionName!, Arguments);
     }
 

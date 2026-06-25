@@ -130,17 +130,8 @@ public partial class Program
 
         var cfg = ConversionPaths.BS2CFG(pr.Script, helpers ?? [], BuiltinFunctionRegistry.Instance, context);
 
-        // Populate declarations from script
-        if (pr.Script.ConstBlock != null)
-            foreach (var v in pr.Script.ConstBlock.Variables)
-                cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
-        if (pr.Script.PubVarBlock != null)
-            foreach (var v in pr.Script.PubVarBlock.Variables)
-            {
-                if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name);
-                if (!string.IsNullOrEmpty(v.Type) && !cfg.PubVarTypes.ContainsKey(v.Name)) cfg.PubVarTypes[v.Name] = v.Type;
-            }
-
+        // v5.1: ConstBlock/PubVarBlock declarations are now lifted into the CFG by
+        // BS2CFGConverter.Format itself, so the manual post-fill below is no longer needed.
         var rendered = new CFGRenderer().Render(cfg);
         return rendered;
     }

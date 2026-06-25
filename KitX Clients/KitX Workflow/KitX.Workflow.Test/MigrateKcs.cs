@@ -73,16 +73,7 @@ public static class MigrateKcs
         var cfg = ConversionPaths.BS2CFG(pr.Script, kcs.HelperFunctions ?? [],
             BuiltinFunctionRegistry.Instance, context);
 
-        // Populate declarations
-        if (pr.Script.ConstBlock != null)
-            foreach (var v in pr.Script.ConstBlock.Variables)
-                cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
-        if (pr.Script.PubVarBlock != null)
-            foreach (var v in pr.Script.PubVarBlock.Variables)
-            {
-                if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name);
-                if (!string.IsNullOrEmpty(v.Type) && !cfg.PubVarTypes.ContainsKey(v.Name)) cfg.PubVarTypes[v.Name] = v.Type;
-            }
+        // v5.1: declarations are now lifted into the CFG by BS2CFGConverter.Format itself.
 
         // 3. Execute before migration
         var outputBefore = execScript(parser, sp, kcs.BlockScriptSource, kcs.HelperFunctions ?? [], 10);
@@ -299,12 +290,7 @@ public static class MigrateKcs
                 if (!context.PubVarNames.Contains(v.Name)) context.PubVarNames.Add(v.Name);
 
         var cfg = ConversionPaths.BS2CFG(pr.Script, h, BuiltinFunctionRegistry.Instance, context);
-        if (pr.Script.ConstBlock != null)
-            foreach (var v in pr.Script.ConstBlock.Variables)
-                cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
-        if (pr.Script.PubVarBlock != null)
-            foreach (var v in pr.Script.PubVarBlock.Variables)
-            { if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name); if (!string.IsNullOrEmpty(v.Type)) cfg.PubVarTypes[v.Name] = v.Type; }
+        // v5.1: declarations now lifted by BS2CFGConverter.Format.
 
         var renderer = new CFGRenderer();
         var rendered = renderer.Render(cfg);
