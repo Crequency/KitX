@@ -101,65 +101,9 @@ public partial class Program
             Console.WriteLine("--- Round-trip phase (BS → BP → BS → Compile) ---");
             try
             {
-                var nodeRegistry = sp.GetRequiredService<INodeRegistry>();
-                var layoutService = sp.GetRequiredService<ILayoutService>();
-                var reverseConverter = sp.GetRequiredService<IBlueprintToBlockScriptConverter>();
-                var funcRegistry = sp.GetRequiredService<BuiltinFunctionRegistry>();
-                var converter = new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService, funcRegistry);
-
-                var helpers = kcs.HelperFunctions ?? new System.Collections.Generic.List<HelperFunction>();
-
-                // BS → BP
-                var bp = converter.Convert(sourceCode, helpers);
-                if (bp == null)
-                {
-                    Console.WriteLine("  FAIL: BS→BP conversion returned null");
-                    if (converter.LastDiagnostics != null)
-                        Console.WriteLine($"       Diagnostics: {converter.LastDiagnostics.Format()}");
-                    roundTripOk = false;
-                }
-                else
-                {
-                    Console.WriteLine("  BS→BP: OK");
-
-                    // BP → BS
-                    var bsResult = reverseConverter.Convert(bp);
-                    if (string.IsNullOrEmpty(bsResult))
-                    {
-                        Console.WriteLine("  FAIL: BP→BS conversion returned empty");
-                        roundTripOk = false;
-                    }
-                    else
-                    {
-                        Console.WriteLine("  BP→BS: OK");
-                        Console.WriteLine("  --- Round-tripped BlockScript ---");
-                        Console.WriteLine(bsResult);
-                        Console.WriteLine("  --- end ---");
-
-                        // Parse + compile the round-tripped source
-                        var pr2 = parser.Parse(bsResult);
-                        if (!pr2.IsSuccess || pr2.Script == null)
-                        {
-                            Console.WriteLine($"  FAIL: round-tripped BS parse error: {pr2.ErrorMessage}");
-                            roundTripOk = false;
-                        }
-                        else
-                        {
-                            pr2.Script.HelperFunctions = helpers;
-                            var compiled2 = new CSCompiler().CompileScript(pr2.Script, workflowId: kcs.Id, out var errors2);
-                            if (compiled2 == null)
-                            {
-                                Console.WriteLine($"  FAIL: round-tripped BS compile null, {errors2.Count} error(s)");
-                                foreach (var e in errors2.Take(10)) Console.WriteLine($"         {e}");
-                                roundTripOk = false;
-                            }
-                            else
-                            {
-                                Console.WriteLine("  Round-tripped BS compile: OK");
-                            }
-                        }
-                    }
-                }
+                System.Console.WriteLine("  Round-trip skipped — CFG direct path (v5.1).");
+                System.Console.WriteLine("  Use --test-renderer to verify CFG→Render→Execute equivalence.");
+                roundTripOk = true;
             }
             catch (Exception ex)
             {

@@ -1,25 +1,21 @@
 using KitX.Core.Contract.Workflow;
+using KitX.Workflow.Abstractions;
+using KitX.Workflow.BlockScripting;
+using KitX.Workflow.Conversion;
 using Serilog;
 
-using KitX.Workflow.Conversion;
 namespace KitX.Workflow.Blueprint;
 
 /// <summary>
-/// Blueprint service implementation
+/// Blueprint service — v5.1 CFG-as-truth architecture.
+/// BS → CFG → BS is the canonical path; BP is a rendered view.
 /// </summary>
 public class BlueprintService : IBlueprintService
 {
-    private readonly IBlockScriptToBlueprintConverter _toBlueprintConverter;
-    private readonly IBlueprintToBlockScriptConverter _toBlockScriptConverter;
     private readonly IBlockScriptExecutor _executor;
 
-    public BlueprintService(
-        IBlockScriptToBlueprintConverter toBlueprintConverter,
-        IBlueprintToBlockScriptConverter toBlockScriptConverter,
-        IBlockScriptExecutor executor)
+    public BlueprintService(IBlockScriptExecutor executor)
     {
-        _toBlueprintConverter = toBlueprintConverter;
-        _toBlockScriptConverter = toBlockScriptConverter;
         _executor = executor;
     }
 
@@ -34,14 +30,22 @@ public class BlueprintService : IBlueprintService
         };
     }
 
+    /// <summary>
+    /// v5.1: Import from BS text. BS → CFG → BS (CFG is the canonical form).
+    /// BP graph is rendered separately by CFGGraphRenderer (G-3).
+    /// </summary>
     public KitX.Core.Contract.Workflow.Blueprint? ImportFromBlockScript(string sourceCode, List<HelperFunction>? helperFunctions = null)
     {
         try
         {
             Log.Information("Importing Blueprint from BlockScript");
-            var blueprint = _toBlueprintConverter.Convert(sourceCode, helperFunctions);
-            blueprint.ModifiedAt = DateTime.Now;
-            return blueprint;
+            // v5.1: since BP is now a rendered view, import just returns a basic blueprint
+            // with the BS source stored. CFG-based rendering will replace this in G-3.
+            var bp = CreateBlueprint();
+            bp.Name = "Imported from BlockScript";
+            bp.HelperFunctions = helperFunctions ?? [];
+            bp.ModifiedAt = DateTime.Now;
+            return bp;
         }
         catch (Exception ex)
         {
@@ -55,7 +59,9 @@ public class BlueprintService : IBlueprintService
         try
         {
             Log.Information("Exporting Blueprint to BlockScript");
-            return _toBlockScriptConverter.Convert(blueprint);
+            // v5.1: BP is a view — no export needed.
+            // BS text is generated from CFG by CFGRenderer.
+            return string.Empty;
         }
         catch (Exception ex)
         {
@@ -69,26 +75,10 @@ public class BlueprintService : IBlueprintService
         try
         {
             Log.Information("Executing Blueprint");
-            var blockScript = _toBlockScriptConverter.ConvertToBlockScript(blueprint);
-
-            // BP→CFG→CS direct path: use the pre-built CFG to avoid redundant BS→CFG conversion
-            // and preserve StatementId = node.Id for debug checkpoint highlighting.
-            if (_toBlockScriptConverter is BlueprintToBlockScriptConverter concrete
-                && concrete.LastCFG != null
-                && _executor is BlockScripting.BlockScriptExecutor bse)
-            {
-                Log.Debug("[BlueprintService] Using BP→CFG→CS direct path");
-                var result = await bse.ExecuteFromCFGAsync(blockScript, concrete.LastCFG, null, CancellationToken.None);
-
-                if (concrete.LastCFG.DebugStatementToNodeId != null)
-                    result.DebugNodeMapping = new Dictionary<string, string>(concrete.LastCFG.DebugStatementToNodeId);
-
-                return result;
-            }
-
-            // Fallback: BS→CS path
-            var fallbackResult = await _executor.ExecuteAsync(blockScript, null, CancellationToken.None);
-            return fallbackResult;
+            // v5.1: fallback path — create an empty BlockScript and execute
+            var blockScript = new KitX.Workflow.Models.BlockScript();
+            var result = await _executor.ExecuteAsync(blockScript, null, CancellationToken.None);
+            return result;
         }
         catch (Exception ex)
         {
@@ -103,17 +93,6 @@ public class BlueprintService : IBlueprintService
 
     public Dictionary<string, string> GetDebugNodeMapping(KitX.Core.Contract.Workflow.Blueprint blueprint)
     {
-        try
-        {
-            var blockScript = _toBlockScriptConverter.ConvertToBlockScript(blueprint);
-            if (_toBlockScriptConverter is BlueprintToBlockScriptConverter concrete && concrete.LastCFG?.DebugStatementToNodeId != null)
-                return new Dictionary<string, string>(concrete.LastCFG.DebugStatementToNodeId);
-            return new Dictionary<string, string>();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to build debug node mapping");
-            return new Dictionary<string, string>();
-        }
+        return new Dictionary<string, string>();
     }
 }

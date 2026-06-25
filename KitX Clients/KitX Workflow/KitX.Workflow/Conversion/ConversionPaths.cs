@@ -1,39 +1,25 @@
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.BlockScripting;
-using KitX.Workflow.Blueprint;
-
 using KitX.Workflow.CFG;
+
 namespace KitX.Workflow.Conversion;
 
 /// <summary>
-/// Canonical CFG pipeline: five sub-path functions that compose into four main paths.
+/// Canonical conversion paths for the CFG-as-truth architecture (v5.1).
 ///
-/// Sub-paths:
-///   BS2CFG(BlockScript)        → ControlFlowGraph    (parse, expand syntax sugar, allocate IDs)
-///   BP2CFG(Blueprint)          → ControlFlowGraph    (build from nodes, StatementId = node.Id)
-///   CFG2BS(ControlFlowGraph)   → BlockScript         (serialize, preserve StatementId)
-///   CFG2BP(ControlFlowGraph)   → (via ForwardConversionState) (build visual nodes)
-///   CFG2CS(ControlFlowGraph, …) → CompilationUnitSyntax (generate C#, emit debug checkpoints)
+/// Paths:
+///   BS2CFG(BlockScript) → ControlFlowGraph   (parse BS, build CFG)
+///   CFG2BS(ControlFlowGraph) → BlockScript   (render CFG to BS text)
+///   CFG2CS(ControlFlowGraph, …) → CompilationUnitSyntax (codegen)
 ///
-/// Main paths:
-///   BS→BP  =  CFG2BP(BS2CFG(bs))
-///   BP→BS  =  CFG2BS(BP2CFG(bp))
-///   BS→CS  =  compile(CFG2CS(BS2CFG(bs)))
-///   BP→CS  =  compile(CFG2CS(BP2CFG(bp)))
-///
-/// StatementId flow:
-///   BS2CFG — empty BlockStatement.StatementId → generates new Guid
-///   BP2CFG — sets StatementId = node.Id ✓
-///   CFG2BS — copies StatementId to BlockStatement ✓
-///   BS2CFG (from BP→BS) — preserves non-empty StatementId ✓
-///   CFG2CS — uses stmt.StatementId for debug checkpoints ✓
-///   CFG2BP — uses stmt.StatementId for NodeByStatementId mapping ✓
+/// Removed (v5.1): CFG2BP, BP2CFG — BP is now a rendered view,
+/// not a separate persistence model. See CFGGraphRenderer (G-3) for
+/// CFG → BP graph rendering.
 /// </summary>
 internal static class ConversionPaths
 {
     /// <summary>
     /// BS → CFG: parse source code, expand syntax sugar, allocate IDs.
-    /// Equivalent to BS2CFGConverter.Format().
     /// </summary>
     internal static ControlFlowGraph BS2CFG(
         BlockScript script,
@@ -44,55 +30,15 @@ internal static class ConversionPaths
         var ctx = context ?? new ForwardConversionState { Script = script };
         var formatter = new BS2CFGConverter(helpers, functionRegistry);
         var cfg = formatter.Format(script, ctx);
-        cfg.DebugStatementToNodeId = new Dictionary<string, string>();
         return cfg;
     }
 
     /// <summary>
-    /// BP → CFG: build from Blueprint nodes, StatementId = node.Id.
-    /// Equivalent to BP2CFGConverter.Build().
-    /// </summary>
-    internal static ControlFlowGraph BP2CFG(
-        KitX.Core.Contract.Workflow.Blueprint blueprint,
-        Dictionary<string, IBuiltinFunctionDefinition> builtinMap,
-        NodeExportHelper exportHelper,
-        BP2CFGConverter? prebuiltBuilder = null)
-    {
-        var builder = prebuiltBuilder ?? new BP2CFGConverter(builtinMap, exportHelper);
-        if (prebuiltBuilder == null)
-        {
-            builder.SetContext(blueprint, new ConversionContext
-            {
-                Blueprint = blueprint,
-                Script = new BlockScript()
-            });
-        }
-        return builder.Build(blueprint);
-    }
-
-    /// <summary>
-    /// CFG → BS: serialize to BlockScript, preserving StatementId.
-    /// Equivalent to CFG2BSConverter.Generate().
+    /// CFG → BS: render to BlockScript text.
     /// </summary>
     internal static BlockScript CFG2BS(ControlFlowGraph cfg)
     {
-        var generator = new CFG2BSConverter();
-        var script = generator.Generate(cfg);
-        return script;
-    }
-
-    /// <summary>
-    /// CFG → BP: build visual Blueprint nodes.
-    /// Equivalent to CFG2BPConverter.Build().
-    /// </summary>
-    internal static void CFG2BP(
-        ControlFlowGraph cfg,
-        ForwardConversionState context,
-        INodeRegistry registry,
-        List<HelperFunction> helpers,
-        BuiltinFunctionRegistry? functionRegistry = null)
-    {
-        var builder = new CFG2BPConverter(registry, helpers, functionRegistry);
-        builder.Build(cfg, context);
+        var renderer = new CFGRenderer();
+        return renderer.Generate(cfg);
     }
 }

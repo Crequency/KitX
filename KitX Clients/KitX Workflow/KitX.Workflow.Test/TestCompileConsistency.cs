@@ -13,13 +13,10 @@ namespace KitX.Workflow.Test;
 static class TestCompileConsistency
 {
     public static void RunAll(Func<string, bool> shouldRun, IBlockScriptParser parser,
-        BlockScriptToBlueprintConverter converter, IBlueprintToBlockScriptConverter reverseConverter,
         IServiceProvider sp,
         Func<IBlockScriptParser, IServiceProvider, string, List<HelperFunction>, int, List<string>> execScript,
         Func<List<HelperFunction>> getExecHelpers,
-        Func<IBlockScriptParser, BlockScriptToBlueprintConverter, IBlueprintToBlockScriptConverter, string, List<HelperFunction>, string> roundTrip,
         Func<IBlockScriptParser, string, List<HelperFunction>, string> cfgRoundTrip,
-        Action<string, string, string, string> _unused,
         Action<string, string> pass, Action<string, string, string> fail,
         Action<string, string, bool, string> check)
     {
@@ -75,12 +72,5 @@ static class TestCompileConsistency
             }
             check("T72", "default template end-to-end", ok, ""); }
         }
-    }
-
-    static string roundTrip(IBlockScriptParser parser, BlockScriptToBlueprintConverter converter,
-        IBlueprintToBlockScriptConverter reverseConverter, string source, List<HelperFunction> helpers)
-    {
-        var bp = converter.Convert(source, helpers ?? new());
-        return bp == null ? null! : reverseConverter.Convert(bp);
     }
 }

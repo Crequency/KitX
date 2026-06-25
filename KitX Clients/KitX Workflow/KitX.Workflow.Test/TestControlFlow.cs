@@ -11,7 +11,7 @@ namespace KitX.Workflow.Test;
 static class TestControlFlow
 {
     public static void RunAll(Func<string, bool> shouldRun, IBlockScriptParser parser,
-        BlockScriptToBlueprintConverter converter, IServiceProvider sp,
+        IServiceProvider sp,
         Func<IBlockScriptParser, IServiceProvider, string, List<HelperFunction>, int, List<string>> execScript,
         Action<string, string> pass, Action<string, string, string> fail,
         Action<string, string, bool, string> check)

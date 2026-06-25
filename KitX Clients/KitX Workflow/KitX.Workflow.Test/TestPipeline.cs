@@ -13,7 +13,6 @@ namespace KitX.Workflow.Test;
 static class TestPipeline
 {
     public static void RunAll(Func<string, bool> shouldRun, IBlockScriptParser parser,
-        BlockScriptToBlueprintConverter converter, IBlueprintToBlockScriptConverter reverseConverter,
         IServiceProvider sp,
         Func<IBlockScriptParser, IServiceProvider, string, List<HelperFunction>, int, List<string>> execScript,
         Action<string, string, bool, string> check)

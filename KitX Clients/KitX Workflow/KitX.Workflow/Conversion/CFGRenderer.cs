@@ -22,7 +22,7 @@ namespace KitX.Workflow.Conversion;
 /// whose output is consumed by the next statement are folded back into
 /// <c>source > Func > target</c> pipeline form using <c>_</c> placeholders.</para>
 /// </summary>
-internal class CFG2BSConverter
+public class CFGRenderer
 {
     private readonly BuiltinFunctionRegistry _registry = BuiltinFunctionRegistry.Instance;
 
@@ -117,7 +117,8 @@ internal class CFG2BSConverter
             // PipelineStatement → render directly from AST
             if (statements[i] is PipelineStatement ps)
             {
-                result.Add($"{ps.Pipeline.RenderPipelineSource()};");
+                var comment = !string.IsNullOrEmpty(ps.Comment) ? $"// {ps.Comment}\n" : "";
+                result.Add($"{comment}{ps.Pipeline.RenderPipelineSource()};");
                 i++;
                 continue;
             }

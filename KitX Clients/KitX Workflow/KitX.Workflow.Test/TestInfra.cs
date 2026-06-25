@@ -10,8 +10,7 @@ static class TestInfra
     public static void RunAll(
         Func<string, bool> shouldRun,
         IBlockScriptParser parser,
-        BlockScriptToBlueprintConverter converter,
-        IBlueprintToBlockScriptConverter reverseConverter,
+        BuiltinFunctionRegistry funcRegistry,
         IServiceProvider sp,
         Action<string, string> pass,
         Action<string, string, string> fail,
@@ -20,7 +19,7 @@ static class TestInfra
         // T00: Verify registry data
         if (shouldRun("T00"))
         {
-            var registry = BlockScripting.BuiltinFunctionRegistry.Instance;
+            var registry = funcRegistry;
             foreach (var name in new[] { "Branch", "Goto", "Exit", "ForLoop", "Switch", "Flip" })
             {
                 var def = registry.Get(name);

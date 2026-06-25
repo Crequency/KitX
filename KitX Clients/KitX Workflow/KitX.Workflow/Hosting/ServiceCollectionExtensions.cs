@@ -104,22 +104,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<IBlueprintRenderDataService, BlueprintRenderDataService>();
 
-        // Blueprint Converters
-        services.AddSingleton<IBlockScriptToBlueprintConverter>(provider =>
-        {
-            var parser = provider.GetRequiredService<IBlockScriptParser>();
-            var nodeRegistry = provider.GetRequiredService<INodeRegistry>();
-            var layoutService = provider.GetRequiredService<ILayoutService>();
-            var funcRegistry = provider.GetService<BuiltinFunctionRegistry>();
-            return new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService, funcRegistry!);
-        });
-        services.AddSingleton<IBlueprintToBlockScriptConverter, BlueprintToBlockScriptConverter>();
-
-        // Built-in function definitions feed BlueprintToBlockScriptConverter directly (the
-        // former INodeExportStrategy + BuiltinFunctionExportStrategyAdapter indirection was a
-        // strict-subset forwarder removed in this refactor). The registry remains the single
-        // source of truth for builtins; expose it as IEnumerable<IBuiltinFunctionDefinition>.
-        services.AddSingleton<IEnumerable<IBuiltinFunctionDefinition>>(functionRegistry.AllDefinitions);
+        // v5.1: BP converters removed. BS → CFG → C# is the canonical path.
+        // BP graph rendering is handled by CFGGraphRenderer (G-3).
+        // Keep interfaces for Dashboard compatibility (stub implementations).
 
         // Blueprint Services
         services.AddSingleton<IBlueprintService, BlueprintService>();

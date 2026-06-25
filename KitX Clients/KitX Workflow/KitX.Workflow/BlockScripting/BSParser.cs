@@ -398,7 +398,67 @@ public static class BSParser
         if (!string.IsNullOrEmpty(recognized.Content))
             ParseStatements(recognized, registry, diagnostics, block);
 
+        // v5.1: extract comments from source and attach to statements
+        ExtractComments(recognized.Content, block, recognized.StartLine);
+
         return block;
+    }
+
+    // ─── Comment Extraction (v5.1) ────────────────────────────────────────
+
+    /// <summary>
+    /// Scans block content for // comments and attaches them to the nearest
+    /// statement. Supports statement-above (§9.1) and inline (§9.2) forms.
+    /// </summary>
+    static void ExtractComments(string content, BlockDefinition block, int blockStartLine)
+    {
+        if (string.IsNullOrEmpty(content) || block.Statements.Count == 0) return;
+        var lines = content.Split('\n');
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].TrimEnd('\r');
+            var trimmed = line.TrimStart();
+            int commentIdx = line.IndexOf("//");
+            if (commentIdx < 0) continue;
+
+            var commentText = line[(commentIdx + 2)..].Trim();
+            if (string.IsNullOrEmpty(commentText)) continue;
+
+            // Inline comment: code before // on the same line
+            bool isInline = commentIdx > 0 && line[..commentIdx].Trim().Length > 0;
+            // Statement-above: // is the only thing on the line (may have leading whitespace)
+            bool isStandalone = !isInline;
+
+            int absLine = blockStartLine + i;
+
+            if (isStandalone)
+            {
+                // Find the next statement at or after this comment line
+                foreach (var stmt in block.Statements)
+                {
+                    if (stmt.LineNumber >= absLine)
+                    {
+                        if (string.IsNullOrEmpty(stmt.Comment))
+                            stmt.Comment = commentText;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // Inline: attach to statement on this line
+                foreach (var stmt in block.Statements)
+                {
+                    if (stmt.LineNumber == absLine)
+                    {
+                        if (string.IsNullOrEmpty(stmt.Comment))
+                            stmt.Comment = commentText;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────

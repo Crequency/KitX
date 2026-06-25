@@ -393,7 +393,7 @@ public static class MigrateKcs
         Console.WriteLine($"CFG: {cfg.Blocks.Count} blocks");
         foreach (var b in cfg.Blocks) Console.WriteLine($"  {b.Name}: {b.Statements.Count} stmts");
 
-        var converter = new CFG2BSConverter();
+        var converter = new CFGRenderer();
         var rendered = converter.Render(cfg);
         Console.WriteLine($"\n=== RENDERED ({rendered.Length} chars) ===");
         Console.WriteLine(rendered);
@@ -420,8 +420,8 @@ public static class MigrateKcs
     {
         try
         {
-            // v5.1: use CFG2BSConverter.Render — direct CFG → text
-            var converter = new CFG2BSConverter();
+            // v5.1: use CFGRenderer.Render — direct CFG → text
+            var converter = new CFGRenderer();
             var bsText = converter.Render(cfg);
 
             // Re-parse and execute

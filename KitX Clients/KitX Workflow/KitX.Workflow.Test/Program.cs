@@ -52,23 +52,19 @@ public partial class Program
         services.AddCoreServices();
         var sp = services.BuildServiceProvider();
         var parser = sp.GetRequiredService<IBlockScriptParser>();
-        var nodeRegistry = sp.GetRequiredService<INodeRegistry>();
-        var layoutService = sp.GetRequiredService<ILayoutService>();
-        var reverseConverter = sp.GetRequiredService<IBlueprintToBlockScriptConverter>();
         var funcRegistry = sp.GetRequiredService<BuiltinFunctionRegistry>();
-        var converter = new BlockScriptToBlueprintConverter(parser, nodeRegistry, layoutService, funcRegistry);
         Console.WriteLine("DI initialized.\n");
 
-        TestInfra.RunAll(ShouldRunTest, parser, converter, reverseConverter, sp, Pass, Fail, Check);
+        TestInfra.RunAll(ShouldRunTest, parser, funcRegistry, sp, Pass, Fail, Check);
         TestParsing.RunAll(ShouldRunTest, parser, Check);
         TestBlocks.RunAll(ShouldRunTest, parser, Pass, Fail, Check);
-        TestPipeline.RunAll(ShouldRunTest, parser, converter, reverseConverter, sp, ExecuteScript, Check);
-        TestControlFlow.RunAll(ShouldRunTest, parser, converter, sp, ExecuteScript, Pass, Fail, Check);
-        TestRoundTrip.RunAll(ShouldRunTest, parser, converter, reverseConverter, GetDeclHelpers, RoundTrip, CfgRoundTrip, TextEquals, Pass, Fail, Check);
-        TestComments.RunAll(ShouldRunTest, parser, converter, reverseConverter, GetDeclHelpers, RoundTrip, Pass, Fail);
-        TestDiagnostics.RunAll(ShouldRunTest, parser, converter, GetDeclHelpers, Pass, Fail, Check);
+        TestPipeline.RunAll(ShouldRunTest, parser, sp, ExecuteScript, Check);
+        TestControlFlow.RunAll(ShouldRunTest, parser, sp, ExecuteScript, Pass, Fail, Check);
+        TestRoundTrip.RunAll(ShouldRunTest, parser, GetDeclHelpers, CfgRoundTrip, TextEquals, Pass, Fail, Check);
+        TestComments.RunAll(ShouldRunTest, parser, GetDeclHelpers, CfgRoundTrip, Pass, Fail);
+        TestDiagnostics.RunAll(ShouldRunTest, parser, GetDeclHelpers, Pass, Fail, Check);
         TestExecution.RunAll(ShouldRunTest, parser, sp, ExecuteScript, GetExecutionHelpers, Check);
-        TestCompileConsistency.RunAll(ShouldRunTest, parser, converter, reverseConverter, sp, ExecuteScript, GetExecutionHelpers, RoundTrip, CfgRoundTrip, null, Pass, Fail, Check);
+        TestCompileConsistency.RunAll(ShouldRunTest, parser, sp, ExecuteScript, GetExecutionHelpers, CfgRoundTrip, Pass, Fail, Check);
         TestBuiltins.RunAll(ShouldRunTest, parser, sp, ExecuteScript, GetExecutionHelpers, Check);
 
         Console.WriteLine($"\n=== Summary: {_passCount} PASS, {_failCount} FAIL ===");
@@ -114,14 +110,8 @@ public partial class Program
         try { return executor.ExecuteAsync(pr.Script, cancellationToken: cts.Token).GetAwaiter().GetResult().Output; }
         catch { return null!; }
     }
-    private static string RoundTrip(IBlockScriptParser parser, BlockScriptToBlueprintConverter converter, IBlueprintToBlockScriptConverter reverseConverter, string source, List<HelperFunction> helpers)
-    {
-        var bp = converter.Convert(source, helpers ?? new());
-        return bp == null ? null! : reverseConverter.Convert(bp);
-    }
-
     /// <summary>
-    /// v5.1: CFG-based round-trip without BP. Uses CFG2BSConverter.Render()
+    /// v5.1: CFG-based round-trip without BP. Uses CFGRenderer.Render()
     /// to go directly from CFG to BS text, proving the CFG-as-truth rendering path.
     /// </summary>
     private static string CfgRoundTrip(IBlockScriptParser parser, string source, List<HelperFunction> helpers)
@@ -151,7 +141,8 @@ public partial class Program
                 if (!string.IsNullOrEmpty(v.Type) && !cfg.PubVarTypes.ContainsKey(v.Name)) cfg.PubVarTypes[v.Name] = v.Type;
             }
 
-        return new CFG2BSConverter().Render(cfg);
+        var rendered = new CFGRenderer().Render(cfg);
+        return rendered;
     }
     private static bool TextEquals(string a, string b)
     {
