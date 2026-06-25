@@ -14,90 +14,8 @@ using KitX.Workflow.Models;
 namespace KitX.Workflow.Test;
 
 /// <summary>
-/// CFG DTO for JSON serialization — mirrors ControlFlowGraph structure
-/// without behavior dependencies.
-/// </summary>
-public class CfgDto
-{
-    public string Version { get; set; } = "5.1";
-    public string MainBlockName { get; set; } = "MainBlock";
-    public List<CfgBlockDto> Blocks { get; set; } = [];
-    public List<string> PubVarDeclarations { get; set; } = [];
-    public Dictionary<string, string> PubVarTypes { get; set; } = [];
-    public List<CfgConstDto> ConstDeclarations { get; set; } = [];
-    public List<HelperFunction> HelperFunctions { get; set; } = [];
-    public int PubVarCounter { get; set; } = 1;
-    public CfgViewportDto? Viewport { get; set; }
-}
-
-public class CfgBlockDto
-{
-    public string Name { get; set; } = "";
-    public string Type { get; set; } = "Basic";
-    public List<CfgStmtDto> Statements { get; set; } = [];
-    public List<CfgEdgeDto> Successors { get; set; } = [];
-    public List<CfgVarDeclDto> BlockVars { get; set; } = [];
-    public bool HasExplicitBlockBody { get; set; }
-    public double? LayoutX { get; set; }
-    public double? LayoutY { get; set; }
-}
-
-public class CfgStmtDto
-{
-    public string StatementId { get; set; } = "";
-    public string? Kind { get; set; } // null=CFGStatement, "Pipeline"=PipelineStatement
-    public bool IsBlockTerminator { get; set; }
-    public string? OriginalExpression { get; set; }
-    public int SourceLine { get; set; }
-    public string? PubVarTarget { get; set; }
-    public string? FunctionName { get; set; }
-    public string? FullFunctionName { get; set; }
-    public List<string> Arguments { get; set; } = [];
-    public string? ConditionExpression { get; set; }
-    public List<CfgArmDto> Arms { get; set; } = [];
-    public string? Comment { get; set; }
-    // PipelineStatement-specific:
-    public string? PipelineSource { get; set; }
-}
-
-public class CfgEdgeDto
-{
-    public string Type { get; set; } = "Sequential";
-    public string FromBlockName { get; set; } = "";
-    public string ToBlockName { get; set; } = "";
-    public string? PinName { get; set; }
-}
-
-public class CfgArmDto
-{
-    public string PinName { get; set; } = "";
-    public string? TargetBlockName { get; set; }
-}
-
-public class CfgConstDto
-{
-    public string Name { get; set; } = "";
-    public string? Type { get; set; }
-    public object? DefaultValue { get; set; }
-    public string? InitialValueExpression { get; set; }
-}
-
-public class CfgVarDeclDto
-{
-    public string Name { get; set; } = "";
-    public string Type { get; set; } = "dynamic";
-    public object? DefaultValue { get; set; }
-}
-
-public class CfgViewportDto
-{
-    public double ZoomLevel { get; set; } = 1.0;
-    public double PanX { get; set; }
-    public double PanY { get; set; }
-}
-
-/// <summary>
-/// CFG ↔ DTO mapper and migration logic.
+/// CFG ↔ DTO mapper and migration logic (v5.1).
+/// DTO classes are in KitX.Core.Contract.Workflow (CfgDto, etc.).
 /// </summary>
 public static class MigrateKcs
 {
@@ -137,77 +55,78 @@ public static class MigrateKcs
         if (kcs == null || string.IsNullOrEmpty(kcs.BlockScriptSource))
         { Console.WriteLine("  SKIP: no BlockScriptSource"); return; }
 
+        // Skip if already migrated
+        if (kcs.CfgData != null)
+        { Console.WriteLine("  SKIP: already has CfgData"); return; }
+
         // 2. Parse BS → CFG
         var pr = parser.Parse(kcs.BlockScriptSource);
         if (!pr.IsSuccess || pr.Script == null) { Console.WriteLine($"  FAIL parse: {pr.ErrorMessage}"); return; }
         pr.Script.HelperFunctions = kcs.HelperFunctions ?? [];
 
         var context = new ForwardConversionState { Script = pr.Script };
-
-        // Populate PubVarNames from script's PubVarBlock
         if (pr.Script.PubVarBlock != null)
-        {
             foreach (var v in pr.Script.PubVarBlock.Variables)
                 if (!context.PubVarNames.Contains(v.Name))
                     context.PubVarNames.Add(v.Name);
-        }
 
-        var formattedScript = ConversionPaths.BS2CFG(pr.Script, kcs.HelperFunctions ?? [],
+        var cfg = ConversionPaths.BS2CFG(pr.Script, kcs.HelperFunctions ?? [],
             BuiltinFunctionRegistry.Instance, context);
 
-        // Populate CFG declarations from script (normally done by BS→BP pipeline)
+        // Populate declarations
         if (pr.Script.ConstBlock != null)
-        {
             foreach (var v in pr.Script.ConstBlock.Variables)
-            {
-                formattedScript.ConstDeclarations.Add(new ConstDeclaration
-                {
-                    Name = v.Name,
-                    Type = v.Type,
-                    DefaultValue = v.DefaultValue,
-                });
-            }
-        }
+                cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
         if (pr.Script.PubVarBlock != null)
-        {
             foreach (var v in pr.Script.PubVarBlock.Variables)
             {
-                if (!formattedScript.PubVarDeclarations.Contains(v.Name))
-                    formattedScript.PubVarDeclarations.Add(v.Name);
-                if (!string.IsNullOrEmpty(v.Type) && !formattedScript.PubVarTypes.ContainsKey(v.Name))
-                    formattedScript.PubVarTypes[v.Name] = v.Type;
+                if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name);
+                if (!string.IsNullOrEmpty(v.Type) && !cfg.PubVarTypes.ContainsKey(v.Name)) cfg.PubVarTypes[v.Name] = v.Type;
             }
-        }
-        Console.WriteLine($"  CFG: {formattedScript.Blocks.Count} blocks, {formattedScript.ConstDeclarations.Count} consts, {formattedScript.PubVarDeclarations.Count} pubvars");
-        foreach (var block in formattedScript.Blocks)
-            Console.WriteLine($"    Block '{block.Name}': {block.Statements.Count} stmts");
 
-        // 3. Execute and capture output
-        var output = execScript(parser, sp, kcs.BlockScriptSource, kcs.HelperFunctions ?? [], 10);
-        Console.WriteLine($"  Execute: {(output != null ? $"{output.Count} lines" : "NULL (compile fail)")}");
+        // 3. Execute before migration
+        var outputBefore = execScript(parser, sp, kcs.BlockScriptSource, kcs.HelperFunctions ?? [], 10);
+        Console.WriteLine($"  Execute (before): {(outputBefore != null ? $"{outputBefore.Count} lines" : "FAIL")}");
 
-        // 4. Map CFG → DTO
-        var dto = ToDto(formattedScript, kcs);
+        // 4. Map CFG → CfgDto
+        kcs.CfgData = ToDto(cfg, kcs);
 
-        // 5. Serialize DTO to JSON (write to .cfg.json alongside original for comparison)
-        var cfgJson = JsonSerializer.Serialize(dto, JsonOpts);
-        var cfgPath = Path.ChangeExtension(filePath, ".cfg.json");
-        File.WriteAllText(cfgPath, cfgJson);
-        Console.WriteLine($"  CFG written: {cfgPath} ({cfgJson.Length} chars)");
+        // 5. Serialize and verify
+        var cfgJson = JsonSerializer.Serialize(kcs.CfgData, JsonOpts);
 
-        // 6. Verify: deserialize DTO → CFG → execute → same output
-        var dto2 = JsonSerializer.Deserialize<CfgDto>(cfgJson);
-        if (dto2 != null)
+        // Verify: deserialize → CFG → Render → Parse → Execute
+        var restoredCfg = ToCfg(kcs.CfgData);
+        var renderer = new CFGRenderer();
+        var bsText = renderer.Render(restoredCfg);
+        var pr2 = parser.Parse(bsText);
+        if (!pr2.IsSuccess || pr2.Script == null)
+        { Console.WriteLine("  FAIL: round-trip parse failed"); return; }
+        pr2.Script.HelperFunctions = kcs.HelperFunctions ?? [];
+
+        var executor = sp.GetRequiredService<IBlockScriptExecutor>();
+        List<string>? outputAfter;
+        try
         {
-            var restoredCfg = ToCfg(dto2);
-            var restoredOutput = ExecuteCfg(restoredCfg, pr.Script, sp, parser);
-            Console.WriteLine($"  Round-trip execute: {(restoredOutput != null ? $"{restoredOutput.Count} lines" : "NULL")}");
-            if (output != null && restoredOutput != null
-                && output.SequenceEqual(restoredOutput))
-                Console.WriteLine($"  ✅ PASS: execution output matches");
-            else
-                Console.WriteLine($"  ❌ FAIL: execution output differs");
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var result = executor.ExecuteAsync(pr2.Script, null, cts.Token).GetAwaiter().GetResult();
+            outputAfter = result?.Output;
         }
+        catch { outputAfter = null; }
+
+        bool sameOutput = outputBefore != null && outputAfter != null
+            && outputBefore.SequenceEqual(outputAfter);
+        Console.WriteLine($"  Execute (after): {(outputAfter != null ? $"{outputAfter.Count} lines" : "FAIL")} — {(sameOutput ? "MATCH" : "DIFFER")}");
+
+        if (!sameOutput)
+        { Console.WriteLine("  FAIL: execution output differs after migration"); return; }
+
+        // 6. Write new .kcs (backup original)
+        var backupPath = filePath + ".bak";
+        if (!File.Exists(backupPath))
+            File.Copy(filePath, backupPath);
+        var newJson = JsonSerializer.Serialize(kcs, JsonOpts);
+        File.WriteAllText(filePath, newJson);
+        Console.WriteLine($"  ✅ Migrated: {filePath} ({newJson.Length} bytes, backup at {backupPath})");
     }
 
     public static CfgDto ToDto(ControlFlowGraph cfg, KcsFileFormat kcs)
@@ -233,6 +152,7 @@ public static class MigrateKcs
                     Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue
                 }).ToList() ?? [],
                 HasExplicitBlockBody = b.HasExplicitBlockBody,
+                BlockComment = b.BlockComment,
             }).ToList(),
             PubVarDeclarations = cfg.PubVarDeclarations?.ToList() ?? [],
             PubVarTypes = cfg.PubVarTypes != null ? new Dictionary<string, string>(cfg.PubVarTypes) : [],
@@ -298,11 +218,12 @@ public static class MigrateKcs
             {
                 Name = b.Name,
                 Type = Enum.TryParse<CFGBlockType>(b.Type, out var t) ? t : CFGBlockType.Basic,
-                BlockVars = b.BlockVars.Select(v => new KitX.Workflow.Models.VariableDeclaration
+                BlockVars = b.BlockVars.Select(v => new VariableDeclaration
                 {
                     Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue
                 }).ToList(),
                 HasExplicitBlockBody = b.HasExplicitBlockBody,
+                BlockComment = b.BlockComment,
             };
 
             block.Statements = b.Statements.Select(ToStmt).ToList();
@@ -325,9 +246,6 @@ public static class MigrateKcs
     {
         if (dto.Kind == "Pipeline")
         {
-            // Reconstruct PipelineStatement — for round-trip verification,
-            // we store the rendered source and re-parse it. In production,
-            // the BSPipeline AST would be stored directly in the DTO.
             var ps = new PipelineStatement
             {
                 StatementId = dto.StatementId,
@@ -340,7 +258,7 @@ public static class MigrateKcs
                 Arguments = dto.Arguments,
                 ConditionExpression = dto.ConditionExpression,
                 Comment = dto.Comment,
-                Pipeline = new KitX.Workflow.Models.BSPipeline() // placeholder — needs proper reconstruction
+                Pipeline = new BSPipeline()
             };
             ps.Arms = dto.Arms.Select(a => new BranchArm { PinName = a.PinName, TargetBlockName = a.TargetBlockName }).ToList();
             return ps;
@@ -366,7 +284,6 @@ public static class MigrateKcs
     public static void TestRenderer(IBlockScriptParser parser, IServiceProvider sp,
         Func<IBlockScriptParser, IServiceProvider, string, List<HelperFunction>, int, List<string>> execScript)
     {
-        // Use a known-good BS source from the test suite
         var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");\n\n#Block End\nPrint(\"done\");\nExit();";
         var h = new List<HelperFunction>();
         var pr = parser.Parse(src);
@@ -382,7 +299,6 @@ public static class MigrateKcs
                 if (!context.PubVarNames.Contains(v.Name)) context.PubVarNames.Add(v.Name);
 
         var cfg = ConversionPaths.BS2CFG(pr.Script, h, BuiltinFunctionRegistry.Instance, context);
-        // Populate declarations
         if (pr.Script.ConstBlock != null)
             foreach (var v in pr.Script.ConstBlock.Variables)
                 cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
@@ -390,19 +306,15 @@ public static class MigrateKcs
             foreach (var v in pr.Script.PubVarBlock.Variables)
             { if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name); if (!string.IsNullOrEmpty(v.Type)) cfg.PubVarTypes[v.Name] = v.Type; }
 
-        Console.WriteLine($"CFG: {cfg.Blocks.Count} blocks");
-        foreach (var b in cfg.Blocks) Console.WriteLine($"  {b.Name}: {b.Statements.Count} stmts");
-
-        var converter = new CFGRenderer();
-        var rendered = converter.Render(cfg);
-        Console.WriteLine($"\n=== RENDERED ({rendered.Length} chars) ===");
+        var renderer = new CFGRenderer();
+        var rendered = renderer.Render(cfg);
+        Console.WriteLine($"=== RENDERED ({rendered.Length} chars) ===");
         Console.WriteLine(rendered);
         Console.WriteLine("=== END ===\n");
 
         var output = execScript(parser, sp, src, h, 5);
         Console.WriteLine($"Original execute: {(output != null ? string.Join(", ", output) : "NULL")}");
 
-        // Re-parse rendered and execute
         var pr2 = parser.Parse(rendered);
         if (pr2.IsSuccess && pr2.Script != null)
         {
@@ -413,35 +325,5 @@ public static class MigrateKcs
             Console.WriteLine($"Render execute: {(result != null ? string.Join(", ", result.Output) : "NULL")}");
         }
         else Console.WriteLine($"Render parse failed: {pr2.ErrorMessage}");
-    }
-
-    private static List<string>? ExecuteCfg(ControlFlowGraph cfg, BlockScript originalScript, IServiceProvider sp,
-        IBlockScriptParser parser)
-    {
-        try
-        {
-            // v5.1: use CFGRenderer.Render — direct CFG → text
-            var converter = new CFGRenderer();
-            var bsText = converter.Render(cfg);
-
-            // Re-parse and execute
-            var pr = parser.Parse(bsText);
-            if (!pr.IsSuccess || pr.Script == null)
-            {
-                Console.WriteLine($"  Parse failed: {pr.ErrorMessage}");
-                return null;
-            }
-            pr.Script.HelperFunctions = cfg.HelperFunctions ?? [];
-
-            var executor = sp.GetRequiredService<IBlockScriptExecutor>();
-            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var result = executor.ExecuteAsync(pr.Script, null, cts.Token).GetAwaiter().GetResult();
-            return result?.Output;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  ExecuteCfg error: {ex.Message}");
-            return null;
-        }
     }
 }
