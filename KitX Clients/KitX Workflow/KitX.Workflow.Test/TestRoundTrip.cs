@@ -14,6 +14,7 @@ static class TestRoundTrip
         BlockScriptToBlueprintConverter converter, IBlueprintToBlockScriptConverter reverseConverter,
         Func<List<HelperFunction>> getDeclHelpers,
         Func<IBlockScriptParser, BlockScriptToBlueprintConverter, IBlueprintToBlockScriptConverter, string, List<HelperFunction>, string> roundTrip,
+        Func<IBlockScriptParser, string, List<HelperFunction>, string> cfgRoundTrip,
         Func<string, string, bool> textEquals,
         Action<string, string> pass, Action<string, string, string> fail,
         Action<string, string, bool, string> check)
@@ -86,15 +87,15 @@ Goto(""LoopCond"");
 Print(""条件循环结束"");
 Exit();";
 
-        if (shouldRun("T39")) { var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");" + End; var rt = roundTrip(parser, converter, reverseConverter, src, h); if (rt != null && textEquals(src, rt)) pass("T39", "basic round-trip"); else fail("T39", "basic round-trip", "not text-stable yet"); }
+        if (shouldRun("T39")) { var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");" + End; var rt = cfgRoundTrip(parser, src, h); if (rt != null && textEquals(src, rt)) pass("T39", "basic round-trip"); else fail("T39", "basic round-trip", "not text-stable yet"); }
         if (shouldRun("T40")) { var src = "#PubVarBlock\nint currentLoop;\nstring userInput;\n\n#MainBlock\n0 > currentLoop;\nGoto(\"End\");" + End; var rt = roundTrip(parser, converter, reverseConverter, src, h); bool ok = rt != null && rt.Contains("int currentLoop") && rt.Contains("string userInput"); if (ok) pass("T40", "strong type PubVar"); else fail("T40", "strong type PubVar", "lost types"); }
         if (shouldRun("T41")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); bool ok = rt != null && !rt.Contains("vaaa"); if (ok) pass("T41", "no capacitor leak"); else fail("T41", "no capacitor leak", "vaaa leaked"); }
         if (shouldRun("T42")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); check("T42", "ConstBlock preserved", rt != null && rt.Contains("int guessNum = 5;") && rt.Contains("int targetNum = 7;"), ""); }
         if (shouldRun("T43")) { var src = "#ConstBlock\nstring name = \"World\";\n\n#MainBlock\nname > StringConcat(\"Hi \", _) > Print;\nGoto(\"End\");" + End; var rt = roundTrip(parser, converter, reverseConverter, src, h); var afterMain = rt?.IndexOf("#MainBlock") is >= 0 and int i ? rt[i..] : ""; bool ok = rt != null && rt.Contains(">") && !afterMain.Contains(" = "); if (ok) pass("T43", "pipeline form preserved"); else fail("T43", "pipeline form preserved", "contains ="); }
         if (shouldRun("T44")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); check("T44", "control flow form preserved", rt != null && rt.Contains("Branch(") && !rt.Contains("NextBlock = Branch("), ""); }
         if (shouldRun("T45")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); check("T45", "Goto form preserved", rt != null && rt.Contains("Goto(") && !rt.Contains("NextBlock = \""), ""); }
-        if (shouldRun("T46")) { var rt = roundTrip(parser, converter, reverseConverter, guessingGame, h); if (rt != null && textEquals(guessingGame, rt)) pass("T46", "guessing game round-trip"); else fail("T46", "guessing game round-trip", "not text-stable yet"); }
-        if (shouldRun("T47")) { var rt = roundTrip(parser, converter, reverseConverter, whileDo, h); if (rt != null && textEquals(whileDo, rt)) pass("T47", "while-do round-trip"); else fail("T47", "while-do round-trip", "not text-stable yet"); }
-        if (shouldRun("T48")) { var bvSrc = "#Block ProcessBatch\n##BlockVars\nint processedCount = 0;\nstring currentItem;\n##BlockBody\n\"item1\" > currentItem;\ncurrentItem > Print;\nprocessedCount > HelperFuncAdd(_, 1) > processedCount;\nprocessedCount > Print;\nGoto(\"NextStage\");\n\n#MainBlock\nGoto(\"ProcessBatch\");\n\n#Block NextStage\nPrint(\"done\");\nExit();"; var rt = roundTrip(parser, converter, reverseConverter, bvSrc, h); if (rt != null && textEquals(bvSrc, rt)) pass("T48", "BlockVar round-trip"); else fail("T48", "BlockVar round-trip", "not text-stable yet"); }
+        if (shouldRun("T46")) { var rt = cfgRoundTrip(parser, guessingGame, h); if (rt != null && textEquals(guessingGame, rt)) pass("T46", "guessing game round-trip"); else fail("T46", "guessing game round-trip", "not text-stable yet"); }
+        if (shouldRun("T47")) { var rt = cfgRoundTrip(parser, whileDo, h); if (rt != null && textEquals(whileDo, rt)) pass("T47", "while-do round-trip"); else fail("T47", "while-do round-trip", "not text-stable yet"); }
+        if (shouldRun("T48")) { var bvSrc = "#Block ProcessBatch\n##BlockVars\nint processedCount = 0;\nstring currentItem;\n##BlockBody\n\"item1\" > currentItem;\ncurrentItem > Print;\nprocessedCount > HelperFuncAdd(_, 1) > processedCount;\nprocessedCount > Print;\nGoto(\"NextStage\");\n\n#MainBlock\nGoto(\"ProcessBatch\");\n\n#Block NextStage\nPrint(\"done\");\nExit();"; var rt = cfgRoundTrip(parser, bvSrc, h); if (rt != null && textEquals(bvSrc, rt)) pass("T48", "BlockVar round-trip"); else fail("T48", "BlockVar round-trip", "not text-stable yet"); }
     }
 }

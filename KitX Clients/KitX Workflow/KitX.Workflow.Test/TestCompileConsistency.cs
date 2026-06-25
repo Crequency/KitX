@@ -17,6 +17,8 @@ static class TestCompileConsistency
         IServiceProvider sp,
         Func<IBlockScriptParser, IServiceProvider, string, List<HelperFunction>, int, List<string>> execScript,
         Func<List<HelperFunction>> getExecHelpers,
+        Func<IBlockScriptParser, BlockScriptToBlueprintConverter, IBlueprintToBlockScriptConverter, string, List<HelperFunction>, string> roundTrip,
+        Func<IBlockScriptParser, string, List<HelperFunction>, string> cfgRoundTrip,
         Action<string, string, string, string> _unused,
         Action<string, string> pass, Action<string, string, string> fail,
         Action<string, string, bool, string> check)
@@ -31,7 +33,7 @@ static class TestCompileConsistency
             if (pr1.Script == null) { fail("T69", "ScriptHash consistent", "pr1.Script null"); }
             else { pr1.Script.HelperFunctions = h;
             var hash1 = ScriptCompilationBackend.ComputeScriptHash(pr1.Script);
-            var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
+            var rt = cfgRoundTrip(parser, src, new List<HelperFunction>());
             if (rt == null) { fail("T69", "ScriptHash consistent", "round-trip returned null"); }
             else { var pr2 = parser.Parse(rt);
             if (pr2.Script == null) { fail("T69", "ScriptHash consistent", "pr2.Script null after round-trip parse"); }
@@ -41,14 +43,14 @@ static class TestCompileConsistency
             else fail("T69", "ScriptHash consistent", "Round-trip changes CFG structure"); } } } }
         if (shouldRun("T70")) {
             var origOutput = execScript(parser, sp, src, h, 5);
-            var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
+            var rt = cfgRoundTrip(parser, src, new List<HelperFunction>());
             if (rt == null) { fail("T70", "execution output consistent", "round-trip returned null"); }
             else { var rtOutput = execScript(parser, sp, rt, h, 5);
             bool ok = origOutput != null && rtOutput != null && origOutput.Count == rtOutput.Count && origOutput.Zip(rtOutput).All(p => p.First == p.Second);
             check("T70", "execution output consistent", ok, ""); }
         }
         if (shouldRun("T71")) {
-            var rt = roundTrip(parser, converter, reverseConverter, src, new List<HelperFunction>());
+            var rt = cfgRoundTrip(parser, src, new List<HelperFunction>());
             if (rt == null) { fail("T71", "round-trip BS compiles", "round-trip returned null"); }
             else { var pr2 = parser.Parse(rt);
             if (pr2.Script == null) { fail("T71", "round-trip BS compiles", "pr2.Script null"); }

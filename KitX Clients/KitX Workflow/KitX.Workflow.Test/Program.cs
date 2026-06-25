@@ -9,6 +9,7 @@ using KitX.Core.DI;
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.BlockScripting;
 using KitX.Workflow.Compilation;
+using KitX.Workflow.CFG;
 using KitX.Workflow.Conversion;
 
 namespace KitX.Workflow.Test;
@@ -63,11 +64,11 @@ public partial class Program
         TestBlocks.RunAll(ShouldRunTest, parser, Pass, Fail, Check);
         TestPipeline.RunAll(ShouldRunTest, parser, converter, reverseConverter, sp, ExecuteScript, Check);
         TestControlFlow.RunAll(ShouldRunTest, parser, converter, sp, ExecuteScript, Pass, Fail, Check);
-        TestRoundTrip.RunAll(ShouldRunTest, parser, converter, reverseConverter, GetDeclHelpers, RoundTrip, TextEquals, Pass, Fail, Check);
+        TestRoundTrip.RunAll(ShouldRunTest, parser, converter, reverseConverter, GetDeclHelpers, RoundTrip, CfgRoundTrip, TextEquals, Pass, Fail, Check);
         TestComments.RunAll(ShouldRunTest, parser, converter, reverseConverter, GetDeclHelpers, RoundTrip, Pass, Fail);
         TestDiagnostics.RunAll(ShouldRunTest, parser, converter, GetDeclHelpers, Pass, Fail, Check);
         TestExecution.RunAll(ShouldRunTest, parser, sp, ExecuteScript, GetExecutionHelpers, Check);
-        TestCompileConsistency.RunAll(ShouldRunTest, parser, converter, reverseConverter, sp, ExecuteScript, GetExecutionHelpers, null, Pass, Fail, Check);
+        TestCompileConsistency.RunAll(ShouldRunTest, parser, converter, reverseConverter, sp, ExecuteScript, GetExecutionHelpers, RoundTrip, CfgRoundTrip, null, Pass, Fail, Check);
         TestBuiltins.RunAll(ShouldRunTest, parser, sp, ExecuteScript, GetExecutionHelpers, Check);
 
         Console.WriteLine($"\n=== Summary: {_passCount} PASS, {_failCount} FAIL ===");
@@ -117,6 +118,40 @@ public partial class Program
     {
         var bp = converter.Convert(source, helpers ?? new());
         return bp == null ? null! : reverseConverter.Convert(bp);
+    }
+
+    /// <summary>
+    /// v5.1: CFG-based round-trip without BP. Uses CFG2BSConverter.Render()
+    /// to go directly from CFG to BS text, proving the CFG-as-truth rendering path.
+    /// </summary>
+    private static string CfgRoundTrip(IBlockScriptParser parser, string source, List<HelperFunction> helpers)
+    {
+        var pr = parser.Parse(source);
+        if (!pr.IsSuccess || pr.Script == null) return null!;
+        pr.Script.HelperFunctions = helpers ?? [];
+
+        var context = new ForwardConversionState { Script = pr.Script };
+        if (pr.Script.ConstBlock != null)
+            foreach (var v in pr.Script.ConstBlock.Variables)
+                if (!context.PubVarNames.Contains(v.Name)) context.PubVarNames.Add(v.Name);
+        if (pr.Script.PubVarBlock != null)
+            foreach (var v in pr.Script.PubVarBlock.Variables)
+                if (!context.PubVarNames.Contains(v.Name)) context.PubVarNames.Add(v.Name);
+
+        var cfg = ConversionPaths.BS2CFG(pr.Script, helpers ?? [], BuiltinFunctionRegistry.Instance, context);
+
+        // Populate declarations from script
+        if (pr.Script.ConstBlock != null)
+            foreach (var v in pr.Script.ConstBlock.Variables)
+                cfg.ConstDeclarations.Add(new ConstDeclaration { Name = v.Name, Type = v.Type, DefaultValue = v.DefaultValue });
+        if (pr.Script.PubVarBlock != null)
+            foreach (var v in pr.Script.PubVarBlock.Variables)
+            {
+                if (!cfg.PubVarDeclarations.Contains(v.Name)) cfg.PubVarDeclarations.Add(v.Name);
+                if (!string.IsNullOrEmpty(v.Type) && !cfg.PubVarTypes.ContainsKey(v.Name)) cfg.PubVarTypes[v.Name] = v.Type;
+            }
+
+        return new CFG2BSConverter().Render(cfg);
     }
     private static bool TextEquals(string a, string b)
     {
