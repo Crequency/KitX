@@ -208,25 +208,26 @@ Goto("End");
         Assert.Contains(worker.OutputPins, p => p.Type == PinType.Execution);
     }
 
-    /// <summary>§11.1 (ref §9.3): a block-level BS comment populates the BlockNode.Comment field.</summary>
+    /// <summary>§11.1 (ref §9.3): a block-level BS comment populates the BlockNode.Comment field.
+    /// The block comment is the <c>//</c> line immediately <b>above</b> the <c>#Block</c> marker
+    /// (BlockStructureRecognizer.cs:78-85).</summary>
     [Fact]
     public void Render_BlockNode_CommentFromBlockComment()
     {
         var bp = Render("""
 #MainBlock
-// this is the entry
 Goto("Worker");
+// the worker block
 #Block Worker
-// processes the payload
 Print("hi");
 Goto("End");
 """ + TestData.End);
 
-        // The MainBlock carries a block comment → the Entry/Block node should reflect it.
-        var mainNode = bp.Nodes.FirstOrDefault(n => n.NodeType != BlueprintNodeType.Variable);
-        Assert.NotNull(mainNode);
-        Assert.False(string.IsNullOrEmpty(mainNode!.Comment),
-            "Block-level comment should populate the node's Comment field");
+        // The Worker block carries a block comment → its BlockNode.Comment should reflect it.
+        var worker = BlockByName(bp, "Worker");
+        Assert.NotNull(worker);
+        Assert.False(string.IsNullOrEmpty(worker!.Comment),
+            "Block-level comment (the // line above #Block) should populate the node's Comment field");
     }
 
     /// <summary>§11.1 + §11.3: a BlockNode's Exec output pin count matches its terminator's arm count
