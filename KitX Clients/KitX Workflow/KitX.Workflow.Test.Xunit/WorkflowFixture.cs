@@ -82,4 +82,34 @@ public sealed class WorkflowFixture
 
         return ConversionPaths.BS2CFG(pr.Script, helpers ?? [], FunctionRegistry, context);
     }
+
+    /// <summary>
+    /// Parses, compiles (via DI executor) and runs a BlockScript, returning its output lines.
+    /// Returns null on parse failure or execution exception. Migration of the old console
+    /// harness's ExecuteScript helper (Program.cs:103) so execution tests work in xUnit.
+    /// </summary>
+    public List<string>? ExecuteScript(string source, List<HelperFunction>? helpers = null, int timeoutSec = 5)
+    {
+        var pr = Parser.Parse(source);
+        if (!pr.IsSuccess || pr.Script == null) return null;
+        pr.Script.HelperFunctions = helpers ?? [];
+        var executor = GetService<KitX.Workflow.Abstractions.IBlockScriptExecutor>();
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec));
+        try { return executor.ExecuteAsync(pr.Script, cancellationToken: cts.Token).GetAwaiter().GetResult().Output; }
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// Line-by-line text equality that ignores blank/whitespace-only lines and trims each line.
+    /// Migration of the old console harness's TextEquals helper (Program.cs:138), used by the
+    /// round-trip text-stability tests.
+    /// </summary>
+    public static bool TextEquals(string a, string b)
+    {
+        var la = a.Split('\n', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
+                  .Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        var lb = b.Split('\n', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
+                  .Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        return la.Count == lb.Count && la.Zip(lb).All(p => p.First == p.Second);
+    }
 }

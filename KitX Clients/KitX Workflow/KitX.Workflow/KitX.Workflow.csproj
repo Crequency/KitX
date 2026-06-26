@@ -13,16 +13,16 @@
     <Version>24.10.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2024-02-07"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
   </PropertyGroup>
 
-  <!-- Allow test projects to access internal members (CSCompiler, BlockScriptExecutor internals, ...) -->
+  <!-- Allow test/tools projects to access internal members (CSCompiler, BlockScriptExecutor internals, ...) -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>KitX.Core.DI.Tests</_Parameter1>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>KitX.Workflow.Test</_Parameter1>
+      <_Parameter1>KitX.Workflow.Test.Xunit</_Parameter1>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>KitX.Workflow.Test.Xunit</_Parameter1>
+      <_Parameter1>KitX.Workflow.Tools</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
 
