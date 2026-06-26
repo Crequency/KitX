@@ -75,6 +75,24 @@ internal static class CFG2CSConverter
                 {
                     pubVarTypes[stmt.PubVarTarget] = helper.ReturnType;
                 }
+                // v5.2 (List-Port design): registered builtin value-producers infer their PubVar
+                // C# type from the descriptor's Return pin. Without this, every builtin return
+                // (PluginCall, JsonGetField, ...) stays "object" and JsonElement-returning builtins
+                // can't be assigned to a JsonElement-typed local. Map PinType → C# type name.
+                else if (!string.IsNullOrEmpty(stmt.FunctionName)
+                         && FunctionRegistry.Get(stmt.FunctionName) is { } builtin
+                         && builtin.OutputPins.FirstOrDefault(p => p.Name != "Exec" && p.Type != PinType.Execution) is { } retPin)
+                {
+                    pubVarTypes[stmt.PubVarTarget] = retPin.Type switch
+                    {
+                        PinType.Json => "JsonElement",
+                        PinType.String => "string",
+                        PinType.Integer => "int",
+                        PinType.Double => "double",
+                        PinType.Boolean => "bool",
+                        _ => "object"
+                    };
+                }
                 // Get("varName") returns the same type as the ConstBlock variable it reads.
                 // Without this, Get's temp PubVar defaults to "object", causing CS1503 when
                 // passed to functions expecting typed arguments (e.g. InstallPlugin(string)).
@@ -177,6 +195,7 @@ internal static class CFG2CSConverter
             UsingDirective(ParseName("System")),
             UsingDirective(ParseName("System.Threading")),
             UsingDirective(ParseName("System.Threading.Tasks")),
+            UsingDirective(ParseName("System.Text.Json")),  // v5.2: JsonElement-typed locals (JSON functions)
             UsingDirective(ParseName("KitX.Core.Contract.Workflow")),
             UsingDirective(ParseName("KitX.Workflow.Compilation")),
             UsingDirective(ParseName("KitX.Workflow.BlockScripting"))

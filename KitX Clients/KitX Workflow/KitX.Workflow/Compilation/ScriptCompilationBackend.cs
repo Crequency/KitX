@@ -93,6 +93,9 @@ internal static class ScriptCompilationBackend
             typeof(object).Assembly,
             typeof(System.Collections.Generic.List<>).Assembly,
             typeof(System.Linq.Enumerable).Assembly,
+            // v5.2: JSON functions emit JsonElement-typed locals; the compiled script references
+            // System.Text.Json.JsonElement directly, so the assembly must be in the reference set.
+            typeof(System.Text.Json.JsonElement).Assembly,
         };
 
         foreach (var assembly in seedAssemblies)

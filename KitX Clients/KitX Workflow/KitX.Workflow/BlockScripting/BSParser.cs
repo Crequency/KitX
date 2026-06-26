@@ -167,7 +167,10 @@ public static class BSParser
         {
             Kind = BSLiteralKind.String,
             Value = s,
-            SourceText = $"\"{s}\"",
+            // Re-escape the decoded string value into a valid C# string-literal source form
+            // (escape backslash + double-quote). The naive $"\"{s}\"" left embedded quotes
+            // unescaped, corrupting JSON-in-string-literal consts (e.g. "{\"a\":1}").
+            SourceText = "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"",
         })
         .Or(Token.EqualTo(BSToken.IntegerLiteral).Select(t => (BSExpression)new BSLiteral
         {

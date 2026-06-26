@@ -482,20 +482,51 @@ public class RealPluginManager : IPluginManager, IRealPluginManagerBridge
     /// </summary>
     private static Type? MapReturnType(string? typeName)
     {
-        return typeName?.ToLowerInvariant() switch
+        if (string.IsNullOrEmpty(typeName)) return null;
+        var lower = typeName.ToLowerInvariant();
+
+        // Primitives (unchanged).
+        switch (lower)
         {
-            null or "" => null,
-            "void" => typeof(void),
-            "string" => typeof(string),
-            "int" => typeof(int),
-            "long" => typeof(long),
-            "float" => typeof(float),
-            "double" => typeof(double),
-            "bool" => typeof(bool),
-            "object" => typeof(object),
-            _ => Type.GetType(typeName) ?? typeof(object)
-        };
+            case "void": return typeof(void);
+            case "string": return typeof(string);
+            case "int": return typeof(int);
+            case "long": return typeof(long);
+            case "float": return typeof(float);
+            case "double": return typeof(double);
+            case "bool": return typeof(bool);
+            case "object": return typeof(object);
+        }
+
+        // v5.2 (List-Port design §2.3): explicit JSON / JsonElement declarations resolve to
+        // System.Text.Json.JsonElement so ParseResult<JsonElement> deserializes correctly.
+        if (lower == "json" || lower == "jsonelement" || lower == "system.text.json.jsonelement")
+            return typeof(System.Text.Json.JsonElement);
+
+        // Collection/object return types (e.g. "List<SearchResultItem>", "Dictionary<string,bool>",
+        // plugin-local POCO names) cannot be resolved via Type.GetType (generics + plugin assembly
+        // scope) and previously fell back to typeof(object), silently losing the collection shape.
+        // Map them to JsonElement: the plugin's JSON wire payload deserializes into a JsonElement
+        // tree that JSON functions (JsonGetField/JsonArrayAt/...) can then navigate.
+        if (IsStructuredReturnType(lower))
+            return typeof(System.Text.Json.JsonElement);
+
+        return Type.GetType(typeName) ?? typeof(object);
     }
+
+    /// <summary>Heuristic: does a declared return-type name denote a structured/collection value
+    /// (List/Dict/array/map/object) rather than a resolvable primitive or local type? Used by
+    /// MapReturnType to route these to JsonElement (Package/List-Port design §2.3).</summary>
+    private static bool IsStructuredReturnType(string lowerTypeName) =>
+        lowerTypeName.StartsWith("list<")
+        || lowerTypeName.StartsWith("dictionary<")
+        || lowerTypeName.StartsWith("dict<")
+        || lowerTypeName.StartsWith("map<")
+        || lowerTypeName.StartsWith("ienumerable<")
+        || lowerTypeName.StartsWith("icollection<")
+        || lowerTypeName.EndsWith("[]")
+        || lowerTypeName == "array"
+        || lowerTypeName == "object[]";
 
     /// <summary>
     /// 检查插件是否存在
