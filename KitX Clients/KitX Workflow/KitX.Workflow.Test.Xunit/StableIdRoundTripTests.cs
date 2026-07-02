@@ -101,4 +101,42 @@ public class StableIdRoundTripTests : IClassFixture<WorkflowFixture>
         Assert.Contains("LoopBody", names);
         Assert.Contains("EndLogic", names);
     }
+
+    /// <summary>G4: Same BS parsed twice must produce identical StatementIds (content-derived, not random).</summary>
+    [Fact]
+    public void StatementId_StableAcrossReparse()
+    {
+        var cfg1 = _fx.BS2CFG(WhileDo, TestData.DeclHelpers);
+        var cfg2 = _fx.BS2CFG(WhileDo, TestData.DeclHelpers);
+
+        Assert.NotNull(cfg1);
+        Assert.NotNull(cfg2);
+
+        foreach (var (b1, b2) in cfg1.Blocks.Zip(cfg2.Blocks))
+        {
+            Assert.Equal(b1.Name, b2.Name);
+            var ids1 = b1.GetEffectiveStatements().Select(s => s.StatementId).ToList();
+            var ids2 = b2.GetEffectiveStatements().Select(s => s.StatementId).ToList();
+            Assert.Equal(ids1, ids2);
+        }
+    }
+
+    /// <summary>G4: StatementIds survive BS→CFG→BS→CFG round-trip for unchanged statements.</summary>
+    [Fact]
+    public void StatementId_StableAcrossRoundTrip()
+    {
+        var cfg1 = _fx.BS2CFG(WhileDo, TestData.DeclHelpers);
+        Assert.NotNull(cfg1);
+        var rendered = new KitX.Workflow.Conversion.CFGRenderer().Render(cfg1);
+        var cfg2 = _fx.BS2CFG(rendered, TestData.DeclHelpers);
+        Assert.NotNull(cfg2);
+
+        foreach (var (b1, b2) in cfg1.Blocks.Zip(cfg2.Blocks))
+        {
+            Assert.Equal(b1.Name, b2.Name);
+            var ids1 = b1.GetEffectiveStatements().Select(s => s.StatementId).ToList();
+            var ids2 = b2.GetEffectiveStatements().Select(s => s.StatementId).ToList();
+            Assert.Equal(ids1, ids2);
+        }
+    }
 }

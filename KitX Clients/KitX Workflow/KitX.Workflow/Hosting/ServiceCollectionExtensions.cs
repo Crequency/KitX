@@ -108,12 +108,21 @@ public static class ServiceCollectionExtensions
         // BP graph rendering is handled by CFGGraphRenderer (G-3); CFG → BP minimal-change
         // sync is driven by CfgDiffer. Both are implemented and registered below.
 
-        // Blueprint Services
-        services.AddSingleton<IBlueprintService, BlueprintService>();
+        // v5.2: IBlueprintService removed — replaced by IWorkflowSession / IBsSyncService / IBpEditApplier / ICfgBpRenderer / ICfgBsRenderer / ICfgExecutor.
 
         // v5.1 G-3 + minimal-change sync: render CFG → Blueprint graph and diff two CFGs.
         services.AddSingleton<ICFGGraphRenderer, CFGGraphRenderer>();
         services.AddSingleton<ICFGDiffer, CfgDiffer>();
+
+        // v5.2 sync engine (G1-G8): new session-based interfaces — registered as stubs
+        // until their implementations land in subsequent batches.
+        services.AddSingleton<ICfgDiffApplier, CfgDiffApplier>();
+        services.AddSingleton<IBsSyncService, BsSyncService>();
+        services.AddSingleton<IBpEditApplier, BpEditApplier>();
+        services.AddSingleton<ICfgBsRenderer, CfgBsRenderer>();
+        services.AddSingleton<ICfgBpRenderer, CfgBpRenderer>();
+        services.AddSingleton<ICfgExecutor>(_ =>
+            throw new NotImplementedException("ICfgExecutor not yet implemented"));
 
         // Workflow Storage Service
         services.AddSingleton<IWorkflowStorageService, WorkflowStorageService>();

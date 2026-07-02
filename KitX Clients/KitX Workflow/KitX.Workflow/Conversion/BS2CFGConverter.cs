@@ -153,6 +153,10 @@ public class BS2CFGConverter : IPipelineFlattenContext
                 seenTerminator = true;
         }
 
+        // v5.2 G4: derive stable StatementIds from content (Hash(BlockName:Fingerprint:ordinal))
+        // so that re-parsing the same BS produces the same StatementIds for unchanged statements.
+        DeriveStatementIds(result.Statements, blockDef.Name);
+
         // Sequential fall-through: represent BlockDefinition.NextBlockName as a Sequential edge
         // in Successors (single source of truth) instead of a parallel CFGBlock.NextBlockName
         // field. Only non-control-flow blocks fall through; control-flow blocks already carry
@@ -169,6 +173,31 @@ public class BS2CFGConverter : IPipelineFlattenContext
         }
 
         return result;
+    }
+
+    private static void DeriveStatementIds(List<CFGStatement> statements, string blockName)
+    {
+        var fpCounts = new Dictionary<string, int>();
+        foreach (var stmt in statements)
+        {
+            if (stmt is PipelineStatement ps && ps.Flattener != null)
+            {
+                foreach (var flat in ps.FlattenedStatements)
+                    DeriveSingle(flat, blockName, fpCounts);
+            }
+            else
+            {
+                DeriveSingle(stmt, blockName, fpCounts);
+            }
+        }
+    }
+
+    private static void DeriveSingle(CFGStatement stmt, string blockName, Dictionary<string, int> fpCounts)
+    {
+        var identity = stmt.Fingerprint ?? stmt.OriginalExpression;
+        var ordinal = fpCounts.GetValueOrDefault(identity, 0);
+        fpCounts[identity] = ordinal + 1;
+        stmt.StatementId = CfgStatementBuilder.DeriveStatementId(blockName, identity, ordinal);
     }
 
     /// <summary>Returns a list of FormattedStatements (may be multiple when expansion occurs).</summary>

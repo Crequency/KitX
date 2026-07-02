@@ -1,4 +1,6 @@
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Models.Statements;
 using KitX.Workflow.Models;
@@ -89,5 +91,12 @@ public class CfgStatementBuilder
         if (!string.IsNullOrEmpty(PubVarTarget))
             return $"{callText} > {PubVarTarget}";
         return callText;
+    }
+
+    public static string DeriveStatementId(string blockName, string fingerprint, int ordinal)
+    {
+        var input = $"{blockName}:{fingerprint}:{ordinal}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexStringLower(hash);
     }
 }

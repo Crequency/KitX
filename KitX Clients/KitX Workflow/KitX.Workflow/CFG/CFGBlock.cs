@@ -54,6 +54,21 @@ public class CFGBlock
     public List<VariableDeclaration> BlockVars { get; set; } = [];
 
     /// <summary>
+    /// v5.2 G5: block-level layout anchor position (BP canvas coordinates).
+    /// </summary>
+    public double? LayoutX { get; set; }
+
+    /// <summary>
+    /// v5.2 G5: block-level layout anchor position (BP canvas coordinates).
+    /// </summary>
+    public double? LayoutY { get; set; }
+
+    /// <summary>
+    /// v5.2 G5: per-node positions keyed by StatementId, relative to block origin.
+    /// </summary>
+    public Dictionary<string, (double X, double Y)> NodePositions { get; set; } = [];
+
+    /// <summary>
     /// True when the block uses the explicit ##BlockBody marker
     /// (required when BlockVars is non-empty, optional otherwise).
     /// </summary>

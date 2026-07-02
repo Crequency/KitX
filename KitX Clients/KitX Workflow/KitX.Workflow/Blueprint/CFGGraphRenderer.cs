@@ -46,6 +46,7 @@ public class CFGGraphRenderer : ICFGGraphRenderer
                 VarKind = VariableKind.PubVar,
                 VarType = cfg.PubVarTypes.TryGetValue(pubVar, out var t) ? t : "dynamic",
                 Name = pubVar,
+                Id = "var:" + pubVar,
             };
             bp.AddNode(node);
             varNodes[pubVar] = node;
@@ -58,7 +59,7 @@ public class CFGGraphRenderer : ICFGGraphRenderer
             bool isMain = block.Name == cfg.MainBlockName;
             if (isMain)
             {
-                node = new EntryNode { Name = block.Name };
+                node = new EntryNode { Name = block.Name, Id = "block:" + block.Name };
             }
             else
             {
@@ -67,9 +68,12 @@ public class CFGGraphRenderer : ICFGGraphRenderer
                     BlockName = block.Name,
                     Name = block.Name,
                     IsMainBlock = false,
+                    Id = "block:" + block.Name,
                 };
             }
             node.Comment = block.BlockComment;
+            node.X = block.LayoutX ?? 0;
+            node.Y = block.LayoutY ?? 0;
             bp.AddNode(node);
             blockNodes[block.Name] = node;
         }
@@ -147,6 +151,7 @@ public class CFGGraphRenderer : ICFGGraphRenderer
                         VarName = stmt.PubVarTarget,
                         VarKind = VariableKind.PubVar,
                         Name = stmt.PubVarTarget,
+                        Id = "var:" + stmt.PubVarTarget,
                     };
                     bp.AddNode(targetVar);
                     varNodes[stmt.PubVarTarget] = targetVar;

@@ -123,7 +123,7 @@ public class SemanticDiffTests : IClassFixture<WorkflowFixture>
         var b = _fx.BS2CFG(renamed, TestData.DeclHelpers)!;
 
         var diff = differ.Diff(a, b);
-        Assert.Contains("End", diff.BlocksRemoved);
-        Assert.Contains("Finale", diff.BlocksAdded);
+        Assert.Contains(diff.BlocksRemoved, bc => bc.Name == "End");
+        Assert.Contains(diff.BlocksAdded, bc => bc.Name == "Finale");
     }
 }

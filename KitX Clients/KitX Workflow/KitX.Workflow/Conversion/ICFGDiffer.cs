@@ -45,11 +45,11 @@ public sealed class CfgDiff
     /// <summary>Statements that moved to a different position/block but kept their fingerprint.</summary>
     public IReadOnlyList<StatementMove> Moved { get; init; } = [];
 
-    /// <summary>Blocks added (by name) in the new CFG.</summary>
-    public IReadOnlyList<string> BlocksAdded { get; init; } = [];
+    /// <summary>Blocks added (by name + new block object) in the new CFG.</summary>
+    public IReadOnlyList<BlockChange> BlocksAdded { get; init; } = [];
 
     /// <summary>Blocks removed (by name) from the old CFG.</summary>
-    public IReadOnlyList<string> BlocksRemoved { get; init; } = [];
+    public IReadOnlyList<BlockChange> BlocksRemoved { get; init; } = [];
 
     /// <summary>True when the two CFGs are structurally identical (all lists empty).</summary>
     public bool IsEmpty =>
@@ -61,10 +61,21 @@ public sealed class CfgDiff
 /// <param name="BlockName">Block containing the statement.</param>
 /// <param name="Fingerprint">The statement's fingerprint (identity).</param>
 /// <param name="StatementId">The CFG statement id (for node correlation), if available.</param>
-public sealed record StatementChange(string BlockName, string Fingerprint, string? StatementId = null);
+/// <param name="NewStatement">The new statement object (for Added/Modified).</param>
+/// <param name="Index">Insertion position in the new/fresh CFG block (for Added).</param>
+public sealed record StatementChange(string BlockName, string Fingerprint, string? StatementId = null,
+    CFGStatement? NewStatement = null, int? Index = null);
 
 /// <summary>A statement that moved between two positions (same fingerprint, different location).</summary>
 /// <param name="Fingerprint">The statement's fingerprint (unchanged).</param>
 /// <param name="FromBlock">Original block.</param>
 /// <param name="ToBlock">New block (may equal <paramref name="FromBlock"/> for intra-block reordering).</param>
-public sealed record StatementMove(string Fingerprint, string FromBlock, string ToBlock);
+/// <param name="FromIndex">Old position in the source block.</param>
+/// <param name="ToIndex">New position in the target block.</param>
+public sealed record StatementMove(string Fingerprint, string FromBlock, string ToBlock,
+    int? FromIndex = null, int? ToIndex = null);
+
+/// <summary>A block-level change (added or removed).</summary>
+/// <param name="Name">Block name.</param>
+/// <param name="NewBlock">The new block object (for BlocksAdded), null for BlocksRemoved.</param>
+public sealed record BlockChange(string Name, CFGBlock? NewBlock = null);

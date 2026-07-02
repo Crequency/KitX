@@ -28,19 +28,20 @@ public class CfgDiffer : ICFGDiffer
         var newBlocks = newCfg.Blocks;
 
         // ── Block-level diff (identity = name) ──
+        var oldByBlock = oldBlocks.ToDictionary(b => b.Name);
+        var newByBlock = newBlocks.ToDictionary(b => b.Name);
         var oldNames = oldBlocks.Select(b => b.Name).ToHashSet();
         var newNames = newBlocks.Select(b => b.Name).ToHashSet();
-        var blocksRemoved = oldNames.Except(newNames).ToList();
-        var blocksAdded = newNames.Except(oldNames).ToList();
+        var blocksRemoved = oldNames.Except(newNames)
+            .Select(n => new BlockChange(n, null)).ToList();
+        var blocksAdded = newNames.Except(oldNames)
+            .Select(n => new BlockChange(n, newByBlock.GetValueOrDefault(n))).ToList();
 
         // ── Per-block statement diff (only for common blocks) ──
         var added = new List<StatementChange>();
         var removed = new List<StatementChange>();
         var modified = new List<StatementChange>();
         var moved = new List<StatementMove>();
-
-        var oldByBlock = oldBlocks.ToDictionary(b => b.Name);
-        var newByBlock = newBlocks.ToDictionary(b => b.Name);
 
         foreach (var name in oldNames.Intersect(newNames))
         {
@@ -68,15 +69,19 @@ public class CfgDiffer : ICFGDiffer
             int pairs = System.Math.Min(delIdx.Count, insIdx.Count);
             for (int k = 0; k < pairs; k++)
             {
-                var oldId = oldIds[delIdx[k]];
-                var newId = newIds[insIdx[k]];
+                var oldIdxPos = delIdx[k];
+                var newIdxPos = insIdx[k];
+                var oldId = oldIds[oldIdxPos];
+                var newId = newIds[newIdxPos];
                 if (oldId == newId)
                 {
-                    moved.Add(new StatementMove(oldId, name, name));
+                    moved.Add(new StatementMove(oldId, name, name, oldIdxPos, newIdxPos));
                 }
                 else
                 {
-                    modified.Add(new StatementChange(name, newId, newStmts[insIdx[k]].StatementId));
+                    modified.Add(new StatementChange(name, newId,
+                        StatementId: newStmts[newIdxPos].StatementId,
+                        NewStatement: newStmts[newIdxPos]));
                 }
                 delConsumed[k] = true;
                 insConsumed[k] = true;
@@ -85,11 +90,20 @@ public class CfgDiffer : ICFGDiffer
             // Remaining deletes → Remove.
             for (int i = 0; i < delIdx.Count; i++)
                 if (!delConsumed[i])
-                    removed.Add(new StatementChange(name, oldIds[delIdx[i]], oldStmts[delIdx[i]].StatementId));
+                {
+                    var idx = delIdx[i];
+                    removed.Add(new StatementChange(name, oldIds[idx], oldStmts[idx].StatementId));
+                }
             // Remaining inserts → Add.
             for (int j = 0; j < insIdx.Count; j++)
                 if (!insConsumed[j])
-                    added.Add(new StatementChange(name, newIds[insIdx[j]], newStmts[insIdx[j]].StatementId));
+                {
+                    var idx = insIdx[j];
+                    added.Add(new StatementChange(name, newIds[idx],
+                        StatementId: newStmts[idx].StatementId,
+                        NewStatement: newStmts[idx],
+                        Index: idx));
+                }
         }
 
         return new CfgDiff
