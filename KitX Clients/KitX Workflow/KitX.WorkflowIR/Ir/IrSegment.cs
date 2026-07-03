@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Ir;
+namespace KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrSegment — one atomic segment of a pipeline AST.

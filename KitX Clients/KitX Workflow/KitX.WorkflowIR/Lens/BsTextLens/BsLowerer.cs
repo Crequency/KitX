@@ -1,10 +1,10 @@
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Ast;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Ast;
+using KitX.Workflow.Ir.Lowering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BsLowerer — BS AST (BlockScript) → immutable IrWorkflow.

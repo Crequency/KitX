@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Builtin;
+namespace KitX.Workflow.Builtin;
 
 using KitX.Core.Contract.Workflow;
 using Microsoft.CodeAnalysis.CSharp.Syntax;

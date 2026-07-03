@@ -1,4 +1,4 @@
-// Global usings for KitX.WorkflowIR.
+// Global usings for KitX.Workflow.
 //
 // The library is the greenfield successor to the mutable CFG model in KitX.Workflow.
 // Its entire IR is immutable (records + ImmutableArray/Dictionary); annotations are

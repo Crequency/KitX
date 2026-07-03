@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Ir;
+namespace KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrBlock — an immutable basic block, with view state exiled to Annotations.

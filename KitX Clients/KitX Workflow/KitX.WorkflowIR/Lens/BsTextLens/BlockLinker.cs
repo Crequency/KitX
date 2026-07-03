@@ -1,6 +1,6 @@
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Ir.Ast;
 
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Migrated from KitX.Workflow.BlockScripting.BlockLinker.

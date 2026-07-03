@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Ir;
+namespace KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrStatement — the discriminated union replacing legacy CFGStatement.

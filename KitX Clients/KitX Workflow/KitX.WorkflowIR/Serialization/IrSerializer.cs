@@ -1,7 +1,7 @@
 using System.Text.Json;
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
-namespace KitX.WorkflowIR.Serialization;
+namespace KitX.Workflow.Serialization;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrSerializer — bidirectional IR ↔ JSON via the IrDto layer.

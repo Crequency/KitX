@@ -1,9 +1,9 @@
-namespace KitX.WorkflowIR.Builtin.Functions;
+namespace KitX.Workflow.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Ast;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────

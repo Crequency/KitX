@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Backend.Runtime;
+namespace KitX.Workflow.Backend.Runtime;
 
 using System.Text.Json;
 using KitX.Core.Contract.Workflow;

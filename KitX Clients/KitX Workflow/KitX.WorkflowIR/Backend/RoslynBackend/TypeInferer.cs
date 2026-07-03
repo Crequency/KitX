@@ -1,9 +1,9 @@
-namespace KitX.WorkflowIR.Backend.RoslynBackend;
+namespace KitX.Workflow.Backend.RoslynBackend;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Lowering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TypeInferer — the two-pass PubVar type inference, ported from the legacy

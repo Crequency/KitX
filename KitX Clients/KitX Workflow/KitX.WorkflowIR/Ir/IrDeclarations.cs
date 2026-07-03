@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Ir;
+namespace KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ir declarations — constants, globals (PubVars), and block-local variables.

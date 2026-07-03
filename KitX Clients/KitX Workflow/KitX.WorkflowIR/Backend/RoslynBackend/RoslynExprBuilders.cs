@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Backend.RoslynBackend;
+namespace KitX.Workflow.Backend.RoslynBackend;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;

@@ -1,8 +1,8 @@
-namespace KitX.WorkflowIR.Backend;
+namespace KitX.Workflow.Backend;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Lowering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IExecutionBackend — pluggable execution backend.

@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Backend.Runtime;
+namespace KitX.Workflow.Backend.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BlockScopeManager — manages variable scoping for a script run.

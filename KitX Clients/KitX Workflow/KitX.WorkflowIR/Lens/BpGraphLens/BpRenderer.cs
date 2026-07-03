@@ -1,8 +1,8 @@
-namespace KitX.WorkflowIR.Lens.BpGraphLens;
+namespace KitX.Workflow.Lens.BpGraphLens;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BpRenderer — projects an immutable IrWorkflow into a mutable Blueprint graph.

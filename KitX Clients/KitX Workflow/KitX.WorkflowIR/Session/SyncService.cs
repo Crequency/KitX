@@ -1,11 +1,11 @@
-namespace KitX.WorkflowIR.Session;
+namespace KitX.Workflow.Session;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Diff;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Lens.BsTextLens;
-using KitX.WorkflowIR.Lens.BpGraphLens;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Diff;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Lens.BsTextLens;
+using KitX.Workflow.Lens.BpGraphLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SyncService — the top-level coordinator that turns BS/BP edits into IR updates.

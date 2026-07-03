@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Session;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Session;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the Session/SyncService bidirectional-edit flow: BS edits and BP edits

@@ -1,10 +1,10 @@
 using System.Reflection;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Builtin.Functions;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Builtin.Functions;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the builtin function registry: reflection discovery of all migrated

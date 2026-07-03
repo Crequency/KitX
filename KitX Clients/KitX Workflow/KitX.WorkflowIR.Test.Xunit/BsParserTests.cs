@@ -1,10 +1,10 @@
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir.Ast;
-using KitX.WorkflowIR.Ir.Lowering;
-using KitX.WorkflowIR.Lens.BsTextLens;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir.Ast;
+using KitX.Workflow.Ir.Lowering;
+using KitX.Workflow.Lens.BsTextLens;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BsParserTests — BS text → BlockScript AST parse + diagnostics coverage.

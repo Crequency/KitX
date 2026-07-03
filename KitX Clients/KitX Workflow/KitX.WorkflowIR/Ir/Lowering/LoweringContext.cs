@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Ir.Lowering;
+namespace KitX.Workflow.Ir.Lowering;
 
-using KitX.WorkflowIR.Util;
+using KitX.Workflow.Util;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PubVarAllocator + LoweringContext — controlled, locally-scoped mutable helpers

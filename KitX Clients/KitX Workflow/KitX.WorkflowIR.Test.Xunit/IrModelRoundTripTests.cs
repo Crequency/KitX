@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Serialization;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Serialization;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the IR JSON serialization layer (IrDto + IrSerializer) round-trips a

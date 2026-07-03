@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Backend.RoslynBackend;
+namespace KitX.Workflow.Backend.RoslynBackend;
 
-using KitX.WorkflowIR.Builtin;
+using KitX.Workflow.Builtin;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenContextFactory — wires the CodeGenContext delegate hooks to the

@@ -5,18 +5,18 @@ using Superpower.Model;
 using Superpower.Parsers;
 using Superpower.Tokenizers;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir.Ast;
 
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BsParser — migrated from KitX.Workflow.BlockScripting.BSParser.
 //
 // This is A-grade code: a near-pure-functional Superpower combinator parser.
 // The migration is essentially a copy with three classes of adaptation:
-//   1. namespace → KitX.WorkflowIR.Lens.BsTextLens
-//   2. AST types → KitX.WorkflowIR.Ir.Ast records (BSExpression/BSLiteral/…).
+//   1. namespace → KitX.Workflow.Lens.BsTextLens
+//   2. AST types → KitX.Workflow.Ir.Ast records (BSExpression/BSLiteral/…).
 //      The object-initialiser syntax is identical (records and the old mutable
 //      classes both use init-only setters), so the combinator bodies are
 //      unchanged. The only structural difference: collection members are now

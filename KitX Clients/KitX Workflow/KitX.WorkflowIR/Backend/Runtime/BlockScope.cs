@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Backend.Runtime;
+namespace KitX.Workflow.Backend.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BlockScope — a single variable scope (one block activation, or the global scope).

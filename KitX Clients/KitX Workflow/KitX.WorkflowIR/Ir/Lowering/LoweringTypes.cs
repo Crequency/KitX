@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Ir.Lowering;
+namespace KitX.Workflow.Ir.Lowering;
 
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lowering input / result — the explicit-parameter replacement for the legacy

@@ -29,7 +29,11 @@
     <ProjectReference Include="..\..\..\KitX Standard\KitX Script\Kscript.CSharp.Parser\Kscript.CSharp.Parser.csproj" Condition="false" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj" />
-    <ProjectReference Include="..\..\KitX Workflow\KitX.Workflow\KitX.Workflow.csproj" />
+    <!-- Phase 12-prep: legacy KitX.Workflow archived to Package\Archive\KitX.Workflow.
+         KitX.Core no longer depends on the old workflow library. The new
+         KitX.WorkflowIR library provides its own DI entry point (AddKitXWorkflowIR)
+         and is wired separately by the host once the front-end is migrated. -->
+    <!-- <ProjectReference Include="..\..\KitX Workflow\KitX.Workflow\KitX.Workflow.csproj" /> -->
   </ItemGroup>
 
   <ItemGroup>

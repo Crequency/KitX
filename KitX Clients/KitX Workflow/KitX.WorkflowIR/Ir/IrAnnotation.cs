@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Ir;
+namespace KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrAnnotation — view/render metadata, deliberately separated from semantic fields.

@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Builtin;
+namespace KitX.Workflow.Builtin;
 
 using System.Reflection;
 using Serilog;

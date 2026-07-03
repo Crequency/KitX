@@ -1,7 +1,7 @@
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Ir.Lowering;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the lowering-layer type invariants: immutability of input/result,
@@ -104,23 +104,23 @@ public class LoweringTypesTests
 
     // ── Helpers ──
 
-    private static KitX.WorkflowIR.Ir.Ast.BlockScript MakeEmptyScript() => new()
+    private static KitX.Workflow.Ir.Ast.BlockScript MakeEmptyScript() => new()
     {
         AllBlocks = [],
-        NamedBlocks = new Dictionary<string, KitX.WorkflowIR.Ir.Ast.BlockDefinition>(),
+        NamedBlocks = new Dictionary<string, KitX.Workflow.Ir.Ast.BlockDefinition>(),
     };
 
     private static LoweringResult MakeSimpleResult() => new()
     {
-        Ir = new KitX.WorkflowIR.Ir.IrWorkflow
+        Ir = new KitX.Workflow.Ir.IrWorkflow
         {
             MainBlockName = "#MainBlock",
             Blocks =
             [
-                new KitX.WorkflowIR.Ir.IrBlock
+                new KitX.Workflow.Ir.IrBlock
                 {
                     Name = "#MainBlock",
-                    Kind = KitX.WorkflowIR.Ir.IrBlockKind.Entry,
+                    Kind = KitX.Workflow.Ir.IrBlockKind.Entry,
                 },
             ],
         },

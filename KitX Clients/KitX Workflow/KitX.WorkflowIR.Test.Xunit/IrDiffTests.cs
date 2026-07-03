@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using System.Linq;
-using KitX.WorkflowIR.Diff;
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Diff;
+using KitX.Workflow.Ir;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the immutable IR semantic diff engine: <see cref="IrDiffer"/> (the

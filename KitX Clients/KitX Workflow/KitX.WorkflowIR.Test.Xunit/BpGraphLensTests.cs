@@ -1,14 +1,14 @@
 using System.Collections.Immutable;
 using System.Linq;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Diff;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Lens.BpGraphLens;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Diff;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Lens.BpGraphLens;
 using Xunit;
 using BP = KitX.Core.Contract.Workflow.Blueprint;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the BpGraphLens: the IR → Blueprint renderer (§11) and the BP-edit →

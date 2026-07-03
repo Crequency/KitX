@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Backend.RoslynBackend;
+namespace KitX.Workflow.Backend.RoslynBackend;
 
-using KitX.WorkflowIR.Backend.Runtime;
+using KitX.Workflow.Backend.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ICompiledBlockScript — the contract a Roslyn-compiled workflow assembly

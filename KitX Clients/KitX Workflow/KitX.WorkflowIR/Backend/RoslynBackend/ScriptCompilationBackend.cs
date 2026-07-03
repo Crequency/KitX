@@ -1,8 +1,8 @@
-namespace KitX.WorkflowIR.Backend.RoslynBackend;
+namespace KitX.Workflow.Backend.RoslynBackend;
 
 using System.Reflection;
 using System.Runtime.Loader;
-using KitX.WorkflowIR.Backend.Runtime;
+using KitX.Workflow.Backend.Runtime;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -88,7 +88,7 @@ internal static class ScriptCompilationBackend
         // and the BCL assemblies the generated code touches (JsonElement, dynamic, LINQ).
         var seedAssemblies = new Assembly[]
         {
-            typeof(ExecutionGlobals).Assembly,                          // KitX.WorkflowIR (IR + runtime + backend)
+            typeof(ExecutionGlobals).Assembly,                          // KitX.Workflow (IR + runtime + backend)
             typeof(KitX.Core.Contract.Workflow.BlockScriptExecutionResult).Assembly, // KitX.Core.Contract
             typeof(Microsoft.CSharp.RuntimeBinder.Binder).Assembly,     // dynamic support
             typeof(object).Assembly,
@@ -120,7 +120,7 @@ internal static class ScriptCompilationBackend
     /// content (blocks + statement fingerprints + helpers + constants). Used as the
     /// cache key for compiled assemblies.
     /// </summary>
-    internal static string ComputeIrHash(KitX.WorkflowIR.Ir.IrWorkflow ir)
+    internal static string ComputeIrHash(KitX.Workflow.Ir.IrWorkflow ir)
     {
         var sb = new System.Text.StringBuilder();
         foreach (var block in ir.Blocks)

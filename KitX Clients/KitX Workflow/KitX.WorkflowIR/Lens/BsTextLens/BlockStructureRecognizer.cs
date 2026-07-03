@@ -2,19 +2,19 @@ using Microsoft.CodeAnalysis.Text;
 using Serilog;
 using System.Linq;
 
-using static KitX.WorkflowIR.Lens.BsTextLens.BlockScriptWellKnown.Blocks;
+using static KitX.Workflow.Lens.BsTextLens.BlockScriptWellKnown.Blocks;
 
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Ir.Ast;
 
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Migrated from KitX.Workflow.BlockScripting.BlockStructureRecognizer.
 //
 // Phase-1 source-text block scanner (pure text, no parser). A-grade code:
 // the only adaptation is the namespace, the BlockType reference (now
-// KitX.WorkflowIR.Ir.Ast.BlockType, same members), and the BlockScriptWellKnown
-// using-static (now KitX.WorkflowIR.Lens.BsTextLens). Serilog retained.
+// KitX.Workflow.Ir.Ast.BlockType, same members), and the BlockScriptWellKnown
+// using-static (now KitX.Workflow.Lens.BsTextLens). Serilog retained.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

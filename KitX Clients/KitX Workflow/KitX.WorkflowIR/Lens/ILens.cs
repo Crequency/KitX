@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Lens;
+namespace KitX.Workflow.Lens;
 
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ILens — the projection/absorption contract for an IR view.

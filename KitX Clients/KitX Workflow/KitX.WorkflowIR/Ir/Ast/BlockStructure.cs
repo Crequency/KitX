@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Ir.Ast;
+namespace KitX.Workflow.Ir.Ast;
 
 using KitX.Core.Contract.Workflow;
 

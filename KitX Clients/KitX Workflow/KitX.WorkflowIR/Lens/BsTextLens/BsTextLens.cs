@@ -1,10 +1,10 @@
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Diff;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Diff;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Lowering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BsTextLens — the bidirectional bridge between the IR and BlockScript text.

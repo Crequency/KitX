@@ -1,6 +1,6 @@
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Ir.Lowering;
 
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DiagnosticSink — the parse-layer accumulator.

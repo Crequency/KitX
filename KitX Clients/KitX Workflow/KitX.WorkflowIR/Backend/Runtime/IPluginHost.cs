@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Backend.Runtime;
+namespace KitX.Workflow.Backend.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IPluginHost — the runtime abstraction over the host's plugin / service layer.

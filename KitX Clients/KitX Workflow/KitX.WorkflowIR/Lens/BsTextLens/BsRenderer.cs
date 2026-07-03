@@ -1,7 +1,7 @@
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 using System.Text;
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BsRenderer — immutable IrWorkflow → BlockScript source text.

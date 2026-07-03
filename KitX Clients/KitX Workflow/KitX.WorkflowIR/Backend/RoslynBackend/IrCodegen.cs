@@ -1,9 +1,9 @@
-namespace KitX.WorkflowIR.Backend.RoslynBackend;
+namespace KitX.Workflow.Backend.RoslynBackend;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Lowering;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -30,7 +30,7 @@ using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 //
 // Generated shape
 // ───────────────
-//   namespace KitX.WorkflowIR.Backend.RoslynBackend.Generated {
+//   namespace KitX.Workflow.Backend.RoslynBackend.Generated {
 //       public class CompiledScript_<hash> : ICompiledBlockScript {
 //           public static T ConvertTo<T>(object? value) { ... }
 //           // helper functions as public static methods
@@ -57,16 +57,16 @@ using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 public static class IrCodegen
 {
     /// <summary>The fully-qualified runtime globals type the generated RunAsync accepts.</summary>
-    private const string GlobalsTypeName = "KitX.WorkflowIR.Backend.Runtime.ExecutionGlobals";
+    private const string GlobalsTypeName = "KitX.Workflow.Backend.Runtime.ExecutionGlobals";
 
     /// <summary>The fully-qualified generated-class namespace.</summary>
-    public const string GeneratedNamespaceFullName = "KitX.WorkflowIR.Backend.RoslynBackend.Generated";
+    public const string GeneratedNamespaceFullName = "KitX.Workflow.Backend.RoslynBackend.Generated";
 
     /// <summary>The fully-qualified generated-class namespace (alias kept for readability inside this file).</summary>
     private const string GeneratedNamespace = GeneratedNamespaceFullName;
 
     /// <summary>The interface the generated class implements.</summary>
-    private const string CompiledInterfaceName = "KitX.WorkflowIR.Backend.RoslynBackend.ICompiledBlockScript";
+    private const string CompiledInterfaceName = "KitX.Workflow.Backend.RoslynBackend.ICompiledBlockScript";
 
     /// <summary>
     /// Generates the complete CompilationUnitSyntax for the workflow IR.
@@ -108,8 +108,8 @@ public static class IrCodegen
             UsingDirective(ParseName("System.Threading.Tasks")),
             UsingDirective(ParseName("System.Text.Json")),
             UsingDirective(ParseName("KitX.Core.Contract.Workflow")),
-            UsingDirective(ParseName("KitX.WorkflowIR.Backend.RoslynBackend")),
-            UsingDirective(ParseName("KitX.WorkflowIR.Backend.Runtime")),
+            UsingDirective(ParseName("KitX.Workflow.Backend.RoslynBackend")),
+            UsingDirective(ParseName("KitX.Workflow.Backend.Runtime")),
         };
 
         return CompilationUnit()

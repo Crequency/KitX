@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Session;
+namespace KitX.Workflow.Session;
 
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrChangeSet — the session-level description of one IR change, surfaced to

@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Diff;
+namespace KitX.Workflow.Diff;
 
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrDiffApply — applies an IrDiff to an immutable IrWorkflow, PURELY.

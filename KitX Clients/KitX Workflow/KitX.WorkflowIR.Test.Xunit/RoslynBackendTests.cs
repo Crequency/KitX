@@ -1,14 +1,14 @@
 using System.Collections.Immutable;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Backend.RoslynBackend;
-using KitX.WorkflowIR.Backend.Runtime;
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Builtin.Functions;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Backend.RoslynBackend;
+using KitX.Workflow.Backend.Runtime;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Builtin.Functions;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Lowering;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Roslyn-backend tests: IR → C# codegen, FlattenPipeline, TypeInferer,

@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Lens.BpGraphLens;
+namespace KitX.Workflow.Lens.BpGraphLens;
 
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BpNodeIds — the single, shared deterministic scheme for Blueprint node ids.

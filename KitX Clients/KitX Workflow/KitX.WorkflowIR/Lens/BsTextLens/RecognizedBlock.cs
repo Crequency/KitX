@@ -1,6 +1,6 @@
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Ir.Ast;
 
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Migrated from KitX.Workflow.BlockScripting.RecognizedBlock.
@@ -10,7 +10,7 @@ namespace KitX.WorkflowIR.Lens.BsTextLens;
 // FinalizeBlockContent splits the content region. It never escapes the parse
 // boundary as a public model; the immutable BlockDefinition record is what the
 // recognizer's output is lowered into. BlockType now references the IR AST enum
-// (KitX.WorkflowIR.Ir.Ast.BlockType), which has identical members.
+// (KitX.Workflow.Ir.Ast.BlockType), which has identical members.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

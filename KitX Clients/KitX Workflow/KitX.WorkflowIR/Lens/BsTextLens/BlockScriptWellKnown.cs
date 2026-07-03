@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Migrated verbatim from KitX.Workflow.Abstractions.BlockScriptWellKnown.

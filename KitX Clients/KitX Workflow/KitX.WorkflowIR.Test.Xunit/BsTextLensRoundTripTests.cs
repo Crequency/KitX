@@ -1,10 +1,10 @@
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Lowering;
-using KitX.WorkflowIR.Lens.BsTextLens;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Lowering;
+using KitX.Workflow.Lens.BsTextLens;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BsTextLensRoundTripTests — BS text ⇄ IR round-trip equivalence.

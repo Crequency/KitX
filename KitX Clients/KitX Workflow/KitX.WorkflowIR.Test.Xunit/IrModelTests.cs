@@ -1,9 +1,9 @@
 using System.Collections.Immutable;
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Util;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Util;
 using Xunit;
 
-namespace KitX.WorkflowIR.Test.Xunit;
+namespace KitX.Workflow.Test.Xunit;
 
 /// <summary>
 /// Verifies the invariants of the immutable IR model: record equality, immutability,

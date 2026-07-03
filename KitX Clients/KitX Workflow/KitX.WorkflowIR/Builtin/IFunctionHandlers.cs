@@ -1,8 +1,8 @@
-namespace KitX.WorkflowIR.Builtin;
+namespace KitX.Workflow.Builtin;
 
-using KitX.WorkflowIR.Ir;
-using KitX.WorkflowIR.Ir.Ast;
-using KitX.WorkflowIR.Ir.Lowering;
+using KitX.Workflow.Ir;
+using KitX.Workflow.Ir.Ast;
+using KitX.Workflow.Ir.Lowering;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────

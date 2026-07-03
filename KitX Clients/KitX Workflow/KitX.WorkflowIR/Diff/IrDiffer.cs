@@ -1,6 +1,6 @@
-namespace KitX.WorkflowIR.Diff;
+namespace KitX.Workflow.Diff;
 
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrDiffer — the semantic diff engine for the immutable IR.

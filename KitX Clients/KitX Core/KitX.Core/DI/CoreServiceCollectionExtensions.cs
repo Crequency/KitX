@@ -22,7 +22,9 @@ using KitX.Core.Security;
 using KitX.Core.Statistics;
 using KitX.Core.Tasks;
 using KitX.Core.Event;
-using KitX.Workflow.Hosting;
+// Phase 12-prep: legacy KitX.Workflow.Hosting archived. Workflow DI registration is
+// now provided by the new KitX.WorkflowIR library via AddKitXWorkflowIR().
+// using KitX.Workflow.Hosting;
 using Serilog;
 
 namespace KitX.Core.DI;
@@ -106,7 +108,13 @@ public static class CoreServiceCollectionExtensions
         // This includes RealPluginManager (registered as a singleton so PluginsServer and
         // WorkflowScriptService share the same instance and receive plugin connection events;
         // the caller pre-resolves it after BuildServiceProvider()).
-        services.AddKitXWorkflow();
+        //
+        // Phase 12-prep: legacy KitX.Workflow archived to Package\Archive. The new
+        // KitX.WorkflowIR library exposes its own DI entry (AddKitXWorkflowIR), wired by
+        // the host once the front-end migration lands. Workflow services are intentionally
+        // NOT registered here for now — the solution compiles, but workflow features are
+        // disconnected (TODO: re-enable via AddKitXWorkflowIR when Dashboard migrates).
+        // services.AddKitXWorkflow();
 
         // IMPORTANT: Do NOT call BuildServiceProvider() here.
         // The caller is responsible for building the single IServiceProvider and passing it

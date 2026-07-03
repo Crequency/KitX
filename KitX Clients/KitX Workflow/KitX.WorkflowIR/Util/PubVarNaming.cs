@@ -1,4 +1,4 @@
-namespace KitX.WorkflowIR.Util;
+namespace KitX.Workflow.Util;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PubVarNaming — PubVar capacitor name generation / parsing.

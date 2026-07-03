@@ -1,7 +1,7 @@
-namespace KitX.WorkflowIR.Session;
+namespace KitX.Workflow.Session;
 
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkflowSession — one live editing session for one workflow document.

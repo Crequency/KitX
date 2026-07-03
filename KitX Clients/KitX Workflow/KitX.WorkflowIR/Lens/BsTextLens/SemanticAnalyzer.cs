@@ -1,16 +1,16 @@
-using KitX.WorkflowIR.Builtin;
-using KitX.WorkflowIR.Builtin.Functions;
-using KitX.WorkflowIR.Ir.Ast;
+using KitX.Workflow.Builtin;
+using KitX.Workflow.Builtin.Functions;
+using KitX.Workflow.Ir.Ast;
 
-namespace KitX.WorkflowIR.Lens.BsTextLens;
+namespace KitX.Workflow.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Migrated from KitX.Workflow.BlockScripting.SemanticAnalyzer.
 //
 // v5.0 semantic validation pass (V1–V7). The validation logic is preserved 1:1;
 // the only adaptations are:
-//   • namespace → KitX.WorkflowIR.Lens.BsTextLens
-//   • BlockScript/BlockDefinition/Statements now reference KitX.WorkflowIR.Ir.Ast
+//   • namespace → KitX.Workflow.Lens.BsTextLens
+//   • BlockScript/BlockDefinition/Statements now reference KitX.Workflow.Ir.Ast
 //     records (the legacy Models.Statements types are gone). Read-only traversal
 //     is unchanged.
 //   • ConversionDiagnostics → DiagnosticSink (List<LoweringDiagnostic>).

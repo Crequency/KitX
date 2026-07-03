@@ -1,7 +1,7 @@
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowIR.Ir;
+using KitX.Workflow.Ir;
 
-namespace KitX.WorkflowIR.Serialization;
+namespace KitX.Workflow.Serialization;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IrDto — JSON serialization DTO for the immutable WorkflowIR.
