@@ -28,4 +28,30 @@ public sealed record IrPipelineStatement : IrStatement
 
     /// <summary>The ordered pipeline segments (each `> Target`).</summary>
     public required ImmutableArray<IrSegment> Segments { get; init; }
+
+    // ── Equality: ImmutableArray defaults to reference equality, so override to
+    // compare Sources/Segments by content. Inherits Fingerprint/Comment/SourceLine
+    // comparison from the base record's synthesized equality via the manual checks.
+
+    public bool Equals(IrPipelineStatement? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Fingerprint.Equals(other.Fingerprint)
+            && Comment == other.Comment
+            && SourceLine == other.SourceLine
+            && Sources.SequenceEqual(other.Sources)
+            && Segments.SequenceEqual(other.Segments);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Fingerprint);
+        hash.Add(Comment);
+        hash.Add(SourceLine);
+        foreach (var s in Sources) hash.Add(s);
+        foreach (var s in Segments) hash.Add(s);
+        return hash.ToHashCode();
+    }
 }

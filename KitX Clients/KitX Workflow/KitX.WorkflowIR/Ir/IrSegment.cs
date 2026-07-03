@@ -56,6 +56,31 @@ public sealed record IrSegment
     /// argument string).
     /// </summary>
     public ImmutableArray<IrPipelineArgument> Arguments { get; init; } = [];
+
+    // ── Equality: ImmutableArray defaults to reference equality, so override to
+    // compare Arguments by content. The other fields are scalar.
+
+    public bool Equals(IrSegment? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Kind == other.Kind
+            && FunctionName == other.FunctionName
+            && FullFunctionName == other.FullFunctionName
+            && VariableName == other.VariableName
+            && Arguments.SequenceEqual(other.Arguments);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Kind);
+        hash.Add(FunctionName);
+        hash.Add(FullFunctionName);
+        hash.Add(VariableName);
+        foreach (var a in Arguments) hash.Add(a);
+        return hash.ToHashCode();
+    }
 }
 
 /// <summary>

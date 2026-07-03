@@ -75,4 +75,35 @@ public sealed record IrControlFlowStatement : IrStatement
     /// layout. Empty for Break/Exit.
     /// </summary>
     public ImmutableArray<IrControlFlowTarget> Targets { get; init; } = [];
+
+    // ── Equality: ImmutableArray defaults to reference equality, so override to
+    // compare Arguments/Targets by content.
+
+    public bool Equals(IrControlFlowStatement? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Fingerprint.Equals(other.Fingerprint)
+            && Comment == other.Comment
+            && SourceLine == other.SourceLine
+            && Op == other.Op
+            && FunctionName == other.FunctionName
+            && FullFunctionName == other.FullFunctionName
+            && Arguments.SequenceEqual(other.Arguments)
+            && Targets.SequenceEqual(other.Targets);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Fingerprint);
+        hash.Add(Comment);
+        hash.Add(SourceLine);
+        hash.Add(Op);
+        hash.Add(FunctionName);
+        hash.Add(FullFunctionName);
+        foreach (var a in Arguments) hash.Add(a);
+        foreach (var t in Targets) hash.Add(t);
+        return hash.ToHashCode();
+    }
 }
