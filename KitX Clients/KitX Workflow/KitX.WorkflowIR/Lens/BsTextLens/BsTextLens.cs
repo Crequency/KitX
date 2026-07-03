@@ -2,6 +2,7 @@ namespace KitX.WorkflowIR.Lens.BsTextLens;
 
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowIR.Builtin;
+using KitX.WorkflowIR.Diff;
 using KitX.WorkflowIR.Ir;
 using KitX.WorkflowIR.Ir.Lowering;
 
@@ -14,7 +15,7 @@ using KitX.WorkflowIR.Ir.Lowering;
 //
 //   • Project(ir)  → BsRenderer.Render(ir): IR → canonical BS text (a pure read).
 //   • Parse(text)  → BsTextLensParser + BsLowerer: BS text → immutable IrWorkflow.
-//   • Diff(...)    → Phase 6 (placeholder returns an empty IrDiff for now).
+//   • Diff(...)    → re-parse the edited text, then IrDiffer.Compute for the delta.
 //
 // The registry is constructor-injected (NOT a static singleton — that was a legacy
 // smell in CFGRenderer.BuiltinFunctionRegistry.Instance). One lens per DI scope.
@@ -46,14 +47,28 @@ public sealed class BsTextLens : ILens<string, string>
 
     /// <summary>
     /// Folds an edited-text delta back into an <see cref="IrDiff"/> against the
-    /// baseline IR. Phase 6 implements the diff engine; this returns an empty
-    /// placeholder so the lens compiles today.
+    /// baseline IR. Re-parses the edited BS text into a fresh IR, then diffs it
+    /// against <paramref name="baseline"/> via <see cref="IrDiffer.Compute"/> — a
+    /// content-addressed (IrFingerprint-keyed) delta that survives a re-parse.
     /// </summary>
+    /// <param name="baseline">The IR the editor is currently projecting from.</param>
+    /// <param name="delta">The edited BS source text.</param>
     public IrDiff Diff(IrWorkflow baseline, string delta)
+        => Diff(baseline, delta, helperFunctions: null);
+
+    /// <summary>
+    /// Folds an edited-text delta back into an <see cref="IrDiff"/> against the
+    /// baseline IR, with an explicit helper-function set for the re-parse. Re-parses
+    /// the edited BS text into a fresh IR, then diffs it against
+    /// <paramref name="baseline"/> via <see cref="IrDiffer.Compute"/>.
+    /// </summary>
+    /// <param name="baseline">The IR the editor is currently projecting from.</param>
+    /// <param name="delta">The edited BS source text.</param>
+    /// <param name="helperFunctions">Helper functions available to the re-parse.</param>
+    public IrDiff Diff(IrWorkflow baseline, string delta, IReadOnlyList<HelperFunction>? helperFunctions)
     {
-        // Phase 6: re-parse `delta`, diff against `baseline` by IrFingerprint, return ops.
-        _ = baseline; _ = delta;
-        return new IrDiff();
+        var newIr = Parse(delta, helperFunctions);
+        return IrDiffer.Compute(baseline, newIr);
     }
 
     // ── Parse convenience (text → IR) ──────────────────────────────────────────

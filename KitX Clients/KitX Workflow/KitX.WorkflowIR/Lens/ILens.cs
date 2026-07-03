@@ -12,7 +12,7 @@ using KitX.WorkflowIR.Ir;
 //
 //   • Project(ir)         — IR → view: a pure read of the IR into the view's shape.
 //   • Diff(baseline,delta)— view delta → IR diff: fold the view's user edit back into
-//                           the IR as a content-addressed IrDiff (Phase 6).
+//                           the IR as a content-addressed IrDiff (IrFingerprint-keyed).
 //
 // Why this cures the legacy mess: the old architecture had parallel mutable models
 // (CFG, BP, generated C#) that each owned a private copy of the truth and were kept
@@ -21,9 +21,8 @@ using KitX.WorkflowIR.Ir;
 // and N pure projections — no bidirectional sync hazard.
 //
 // The delta type TDelta is view-specific: for BS text it is the edited text (or a
-// structural delta); for BP it is the node edit stream. Phase 6 implements Diff for
-// the lenses that need edit-apply; the BS text lens implements Project now and
-// leaves Diff as a placeholder.
+// structural delta); for BP it is the node edit stream. Each lens' Diff
+// re-derives a fresh IR from the delta and computes a content-addressed IrDiff.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -47,8 +46,11 @@ public interface ILens<TView, TDelta>
     /// unchanged statements are never needlessly rewritten.
     /// </summary>
     /// <remarks>
-    /// Phase 6 implements the diff engine. Until then, lenses may return an empty
-    /// <see cref="IrDiff"/> placeholder.
+    /// Implementations re-derive a fresh IR from <paramref name="delta"/> (e.g. a BS
+    /// lens re-parses the edited text) and delegate to <see cref="IrDiffer.Compute"/>
+    /// for the alignment. The resulting <see cref="IrDiff"/> is applied to the
+    /// baseline by <c>IrDiffApply.Apply</c> to yield the next IR (with Layout
+    /// annotations reconciled so unchanged nodes keep their canvas positions).
     /// </remarks>
     IrDiff Diff(IrWorkflow baseline, TDelta delta);
 }
