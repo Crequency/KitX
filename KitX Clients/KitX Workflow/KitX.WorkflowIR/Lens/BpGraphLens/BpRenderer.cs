@@ -457,6 +457,10 @@ public sealed class BpRenderer
         IReadOnlyDictionary<string, VariableNode> varNodes,
         IReadOnlyDictionary<(string Block, int Ordinal), string> stmtNodeByOrdinal)
     {
+        // §2.2 fix: track (sourceId, targetId, pubVar) triples already drawn so the
+        // consumption scan below does not duplicate a wire the tap loop drew.
+        var drawn = new HashSet<(string Src, string Tgt, string Var)>();
+
         foreach (var block in ir.Blocks)
         {
             int ordinal = 0;
@@ -464,22 +468,49 @@ public sealed class BpRenderer
             {
                 if (stmt is IrPipelineStatement pipe)
                 {
-                    // The terminal Variable segment (if any) is the assignment target.
+                    stmtNodeByOrdinal.TryGetValue((block.Name, ordinal), out var stmtId);
+
+                    // (a) Output tap: the terminal Variable segment (if any) is the
+                    // assignment target — draw a wire stmt → PubVar.
                     var tap = pipe.Segments.LastOrDefault(s => s.Kind == IrSegmentKind.Variable);
-                    if (tap?.VariableName is { Length: > 0 } varName)
+                    if (tap?.VariableName is { Length: > 0 } varName
+                        && varNodes.TryGetValue(varName, out var targetVar))
                     {
-                        if (varNodes.TryGetValue(varName, out var targetVar))
+                        bp.Connections.Add(new BlueprintConnection
                         {
-                            // Source = the statement node (real, not a placeholder).
-                            // Falls back to empty only when the statement somehow has no
-                            // rendered node (e.g. an unknown statement shape).
-                            stmtNodeByOrdinal.TryGetValue((block.Name, ordinal), out var srcId);
-                            bp.Connections.Add(new BlueprintConnection
+                            SourceNodeId = stmtId ?? string.Empty,
+                            TargetNodeId = targetVar.Id,
+                            PubVarName = varName,
+                        });
+                        drawn.Add((stmtId ?? string.Empty, targetVar.Id, varName));
+                    }
+
+                    // (b) Consumption: any head FunctionCall argument whose literal
+                    // names a known PubVar draws the reverse wire PubVar → stmt. This
+                    // makes the data wire a user dragged from a variable node to an
+                    // input pin visible on re-render (§2.2).
+                    var head = pipe.Segments.FirstOrDefault(s => s.Kind == IrSegmentKind.FunctionCall);
+                    if (head is not null && stmtId is { Length: > 0 })
+                    {
+                        foreach (var arg in head.Arguments)
+                        {
+                            var lit = arg.Literal;
+                            if (lit is null or { Length: 0 }) continue;
+                            // The arg literal may be a bare var name or a quoted string.
+                            // Only a bare identifier matching a PubVar is a consumption wire.
+                            if (varNodes.TryGetValue(lit, out var srcVar))
                             {
-                                SourceNodeId = srcId ?? string.Empty,
-                                TargetNodeId = targetVar.Id,
-                                PubVarName = varName,
-                            });
+                                var key = (srcVar.Id, stmtId, lit);
+                                if (drawn.Add(key))
+                                {
+                                    bp.Connections.Add(new BlueprintConnection
+                                    {
+                                        SourceNodeId = srcVar.Id,
+                                        TargetNodeId = stmtId,
+                                        PubVarName = lit,
+                                    });
+                                }
+                            }
                         }
                     }
                 }

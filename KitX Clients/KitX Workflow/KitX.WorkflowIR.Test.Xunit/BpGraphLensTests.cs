@@ -355,6 +355,83 @@ public class BpGraphLensTests
         Assert.NotNull(modified.NewValue);
     }
 
+    // ── BpEditTranslator: ConnectData (§2.2 fix) ──────────────────────────
+
+    /// <summary>
+    /// §2.2 fix: ConnectData from a PubVar node to a statement's data pin sets
+    /// that argument to the variable name. Print's "Value" pin is data arg 0
+    /// (the Exec pin at index 0 does not count as a data argument).
+    /// </summary>
+    [Fact]
+    public void Translate_ConnectData_SetsArgumentToVarName()
+    {
+        var translator = new BpEditTranslator(BuildRegistry());
+        var call = MakeCall("Print", "hello");
+        var ir = MakeWorkflow(
+            [new("X", new IrGlobalVar("X", "string", null, null))],
+            MakeEntry(call, MakeExit()));
+        var stmtNodeId = StmtNodeId("#MainBlock", 0, call);
+        var varNodeId = "var:X";
+
+        var diff = translator.Translate(ir, new ConnectData(varNodeId, "Value", stmtNodeId, "Value"));
+
+        var modified = diff.StatementChanges.Single(c => c.Kind == DiffKind.Modified);
+        var pipe = Assert.IsType<IrPipelineStatement>(modified.NewValue);
+        // The head FunctionCall segment's argument 0 is now the bare variable name.
+        Assert.Equal("X", pipe.Segments[0].Arguments[0].Literal);
+    }
+
+    /// <summary>
+    /// §2.2 fix: ConnectData targeting a non-existent pin is a no-op (empty diff),
+    /// preserving the pre-fix behaviour for unknown functions / pins.
+    /// </summary>
+    [Fact]
+    public void Translate_ConnectData_UnknownPin_IsNoOp()
+    {
+        var translator = new BpEditTranslator(BuildRegistry());
+        var call = MakeCall("Print", "hello");
+        var ir = MakeWorkflow(MakeEntry(call, MakeExit()));
+        var stmtNodeId = StmtNodeId("#MainBlock", 0, call);
+
+        var diff = translator.Translate(ir, new ConnectData("var:X", "Value", stmtNodeId, "NonExistentPin"));
+
+        Assert.True(diff.IsEmpty);
+    }
+
+    /// <summary>
+    /// §2.2 fix: RenderDataEdges draws a consumption wire (PubVar → stmt) when a
+    /// statement's argument literal names a known PubVar.
+    /// </summary>
+    [Fact]
+    public void Render_DrawsConsumptionEdge_WhenArgumentNamesPubVar()
+    {
+        var lens = NewLens();
+        // A Print statement whose argument is the bare PubVar name "X".
+        var printWithVarArg = new IrPipelineStatement
+        {
+            Fingerprint = IrFingerprint.Compute("Print", ["X"]),
+            Sources = ["Print(X)"],
+            Segments =
+            [
+                new IrSegment
+                {
+                    Kind = IrSegmentKind.FunctionCall,
+                    FunctionName = "Print",
+                    Arguments = [IrPipelineArgument.Lit("X")],
+                },
+            ],
+        };
+        var ir = MakeWorkflow(
+            [new("X", new IrGlobalVar("X", "string", null, null))],
+            MakeEntry(printWithVarArg, MakeExit()));
+
+        var bp = lens.Project(ir);
+
+        // Expect a connection from the PubVar node (var:X) to the statement node.
+        Assert.Contains(bp.Connections, c =>
+            c.SourceNodeId == "var:X" && c.TargetNodeId.StartsWith("stmt:"));
+    }
+
     // ── BpEditTranslator: SetControlFlowArm ────────────────────────────────
 
     /// <summary>SetControlFlowArm → StatementChange(Modified) with the arm's target updated.</summary>

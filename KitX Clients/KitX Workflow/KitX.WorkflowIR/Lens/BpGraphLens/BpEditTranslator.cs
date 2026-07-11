@@ -89,12 +89,18 @@ public sealed class BpEditTranslator
                 case SetNodeArgument sa:
                     TranslateSetArgument(stmtLocById, sa, statementChanges);
                     break;
-                case ConnectData:
+                case ConnectData cd:
+                    // §2.2 fix: a data wire (e.g. dragging from a PubVar node to a
+                    // node's input pin) is modelled in the IR as setting that input
+                    // argument to the variable name — data flow is encoded in argument
+                    // literals, not in edge state. We translate ConnectData into the
+                    // same StatementChange(Modified) path SetNodeArgument uses.
+                    TranslateConnectData(stmtLocById, cd, statementChanges);
+                    break;
                 case Disconnect:
-                    // TODO(Phase 9+): IrDiff currently has no edge-level ops. BP data
-                    // wires re-derive from the statement diff on re-render, so an empty
-                    // contribution here is correct for now; a future IrDiff extension
-                    // would carry an explicit EdgeChange for these.
+                    // No producer in the VM today (the canvas auto-removes wires without
+                    // emitting Disconnect). Kept as a no-op until a disconnect handler is
+                    // added to the VM; then it should translate to clearing the argument.
                     break;
                 case SetControlFlowArm scf:
                     TranslateSetControlFlowArm(stmtLocById, scf, statementChanges);
@@ -231,6 +237,100 @@ public sealed class BpEditTranslator
             NewValue = modified,
             FromIndex = loc.Ordinal,
         });
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // ConnectData → StatementChange(Modified, argument set to the variable name).
+    //
+    // A data wire on the canvas connects a producing node (PubVar / BlockVar /
+    // Const) to a consuming statement's input pin. In the IR there is no edge
+    // state — data flow is encoded as the argument literal naming the variable.
+    // So a ConnectData is equivalent to SetNodeArgument(argIndex, varName), with
+    // the extra step of resolving the pin TITLE → argIndex via the registry.
+    // ───────────────────────────────────────────────────────────────────────
+    private void TranslateConnectData(
+        Dictionary<string, (string Block, int Ordinal, IrStatement Stmt)> locs,
+        ConnectData cd,
+        ImmutableArray<StatementChange>.Builder statementChanges)
+    {
+        if (!locs.TryGetValue(cd.TargetNodeId, out var loc)) return;
+        if (loc.Stmt is not IrPipelineStatement pipe) return;
+
+        // Resolve the variable name carried by the wire's source node.
+        var varName = ExtractVariableName(cd.SourceNodeId);
+        if (varName is null) return;
+
+        // Resolve the target pin title → argument index via the function's port spec.
+        // Uses the HEAD FunctionCall segment's function name, matching how
+        // BpRenderer.BuildStatementNode derives the node's port identity.
+        var argIndex = ResolvePinIndex(pipe, cd.TargetPin);
+        if (argIndex < 0) return;  // unknown function / pin → skip (stays no-op)
+
+        var modified = WithArgument(loc.Stmt, argIndex, varName);
+        statementChanges.Add(new StatementChange
+        {
+            BlockName = loc.Block,
+            Fingerprint = modified.Fingerprint,
+            Kind = DiffKind.Modified,
+            NewValue = modified,
+            FromIndex = loc.Ordinal,
+        });
+    }
+
+    /// <summary>
+    /// Strips the BpNodeIds prefix to recover the variable / constant name carried
+    /// by a producing node id. Returns null for prefixes that don't carry a value
+    /// name (e.g. block: / stmt:).
+    /// </summary>
+    private static string? ExtractVariableName(string nodeId)
+    {
+        if (nodeId.StartsWith("var:", StringComparison.Ordinal))
+            return nodeId["var:".Length..];
+        if (nodeId.StartsWith("const:", StringComparison.Ordinal))
+            return nodeId["const:".Length..];
+        if (nodeId.StartsWith("blockvar:", StringComparison.Ordinal))
+        {
+            // "blockvar:blockName:varName" → take the part after the second colon.
+            var rest = nodeId["blockvar:".Length..];
+            var idx = rest.IndexOf(':');
+            return idx >= 0 ? rest[(idx + 1)..] : rest;
+        }
+        if (nodeId.StartsWith("loopindex:", StringComparison.Ordinal))
+        {
+            var rest = nodeId["loopindex:".Length..];
+            var idx = rest.IndexOf(':');
+            return idx >= 0 ? rest[(idx + 1)..] : rest;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves a canvas pin title (the connector's display name) to its
+    /// zero-based DATA-argument index, by looking up the statement's head function
+    /// in the registry and matching <see cref="IBuiltinFunction.InputPorts"/> by name.
+    /// Execution pins (Exec) are skipped — they have no corresponding argument
+    /// literal in the IR (the data/Exec split mirrors SetNodeArgument's indexing).
+    /// Returns -1 when the function or pin cannot be resolved (the caller treats
+    /// this as a no-op, preserving the pre-fix behaviour).
+    /// </summary>
+    private int ResolvePinIndex(IrPipelineStatement pipe, string pinTitle)
+    {
+        var head = pipe.Segments.FirstOrDefault(s => s.Kind == IrSegmentKind.FunctionCall);
+        var funcName = head?.FunctionName;
+        if (funcName is null or { Length: 0 }) return -1;
+
+        var fn = _registry.Get(funcName);
+        if (fn is null) return -1;
+
+        int dataIndex = 0;
+        foreach (var port in fn.InputPorts)
+        {
+            if (port.Type == PinType.Execution) continue;
+            if (port.Name == pinTitle)
+                return dataIndex;
+            dataIndex++;
+        }
+        return -1;
     }
 
     // ───────────────────────────────────────────────────────────────────────
