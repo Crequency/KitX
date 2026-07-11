@@ -25,16 +25,28 @@ internal static class BuiltinEmitHelpers
 {
     /// <summary>
     /// The flat argument strings for a statement. For a value call these are the
-    /// terminal segment's literal/placeholder arguments; for control flow they are
-    /// <see cref="IrControlFlowStatement.Arguments"/>. Empty when not applicable.
+    /// producing FunctionCall segment's literal/placeholder arguments; for control
+    /// flow they are <see cref="IrControlFlowStatement.Arguments"/>. Empty when not
+    /// applicable.
+    ///
+    /// For assignment pipelines (<c>[FunctionCall, Variable-tap]</c>) the last segment
+    /// is the Variable tap, so we look at the preceding FunctionCall segment — this is
+    /// the segment whose result the tap binds. For bare-call pipelines (FunctionCall is
+    /// the last segment) we read it directly.
     /// </summary>
     public static IReadOnlyList<string> FlatArguments(IrStatement stmt)
     {
         if (stmt is IrPipelineStatement pipe && pipe.Segments.Length > 0)
         {
-            var last = pipe.Segments[^1];
-            if (last.Kind == IrSegmentKind.FunctionCall)
-                return last.Arguments
+            // Find the producing FunctionCall segment: the last FunctionCall in the
+            // pipeline (immediately before the terminal Variable tap when one is present).
+            IrSegment? producingCall = null;
+            foreach (var seg in pipe.Segments)
+                if (seg.Kind == IrSegmentKind.FunctionCall)
+                    producingCall = seg;
+
+            if (producingCall is { } call)
+                return call.Arguments
                     .Select(a => a.Kind == IrPipelineArgumentKind.Literal ? (a.Literal ?? "") : "")
                     .Where(s => s.Length > 0)
                     .ToList();

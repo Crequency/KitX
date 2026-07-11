@@ -2,6 +2,7 @@ namespace KitX.Workflow.Backend.Runtime;
 
 using System.Text.Json;
 using KitX.Core.Contract.Workflow;
+using KitX.Workflow.Conversion;
 using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -323,7 +324,9 @@ public sealed class ExecutionGlobals
 
     // ── Plugin / device ──
 
-    /// <summary>PluginCall: invoke a local plugin method via the injected host.</summary>
+    /// <summary>PluginCall: invoke a local plugin method via the injected host.
+    /// The host's return (object?) is normalized to a <see cref="JsonElement"/> so the
+    /// JSON builtin family can consume it uniformly (List-Port-And-Json-Functions-Design §1).</summary>
     public object? PluginCall(string pluginName, string methodName, params object[] args)
     {
         if (_pluginHost is null)
@@ -332,7 +335,7 @@ public sealed class ExecutionGlobals
                 pluginName, methodName);
             return null;
         }
-        try { return _pluginHost.Call(pluginName, methodName, args ?? []); }
+        try { return _pluginHost.Call(pluginName, methodName, args ?? []).AsJsonElement(); }
         catch (Exception ex)
         {
             Log.Error(ex, "[ExecutionGlobals] PluginCall failed: {Plugin}.{Method}", pluginName, methodName);
@@ -340,7 +343,8 @@ public sealed class ExecutionGlobals
         }
     }
 
-    /// <summary>PluginCallWithTarget: invoke a plugin method on a remote device.</summary>
+    /// <summary>PluginCallWithTarget: invoke a plugin method on a remote device.
+    /// The host's return (object?) is normalized to a <see cref="JsonElement"/>.</summary>
     public object? PluginCallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
     {
         if (_pluginHost is null)
@@ -349,7 +353,7 @@ public sealed class ExecutionGlobals
                 pluginName, methodName, targetDevice);
             return null;
         }
-        try { return _pluginHost.CallWithTarget(pluginName, methodName, targetDevice, args ?? []); }
+        try { return _pluginHost.CallWithTarget(pluginName, methodName, targetDevice, args ?? []).AsJsonElement(); }
         catch (Exception ex)
         {
             Log.Error(ex, "[ExecutionGlobals] PluginCallWithTarget failed: {Plugin}.{Method} on {Device}",

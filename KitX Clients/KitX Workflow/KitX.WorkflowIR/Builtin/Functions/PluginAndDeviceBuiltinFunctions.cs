@@ -42,7 +42,13 @@ public sealed class PluginCallFunction : IBuiltinFunction, ICodeGenHandler
     public IReadOnlyList<PortSpec> OutputPorts =>
     [
         new("Exec", PinType.Execution, 20),
-        new("Return", PinType.Any, 40),
+        // Return is PinType.Json (not Any): plugin methods return JSON payloads that
+        // arrive as System.Text.Json.JsonElement (normalized by ExecutionGlobals.PluginCall
+        // via AsJsonElement). This gives the return value a first-class type identity so
+        // TypeInferer types the target PubVar as JsonElement, enabling the JSON builtin
+        // family (JsonArrayAt/JsonGetField/...) to consume it without ad-hoc casts.
+        // (List-Port-And-Json-Functions-Design.md §2.1, §3.1)
+        new("Return", PinType.Json, 40),
     ];
 
     public IEnumerable<StatementSyntax> EmitCSharp(IrStatement stmt, CodeGenContext ctx)
@@ -56,6 +62,10 @@ public sealed class PluginCallFunction : IBuiltinFunction, ICodeGenHandler
         if (ctx.PluginCallExpression is { } build)
         {
             var call = build(pluginName, methodName, rest);
+            // sourceType is "object": the runtime PluginCall returns object? (a boxed
+            // JsonElement). When the target PubVar is typed JsonElement (via the return
+            // pin's PinType.Json above), BuildValueAssignment emits ConvertTo<JsonElement>,
+            // whose AsJsonElement branch normalizes the boxed value.
             foreach (var s in ctx.EmitValueAssignment(assignedVar, call, "object"))
                 yield return s;
         }
@@ -84,7 +94,8 @@ public sealed class PluginCallWithTargetFunction : IBuiltinFunction, ICodeGenHan
     public IReadOnlyList<PortSpec> OutputPorts =>
     [
         new("Exec", PinType.Execution, 20),
-        new("Return", PinType.Any, 40),
+        // Return is PinType.Json — see PluginCallFunction.OutputPorts for rationale.
+        new("Return", PinType.Json, 40),
     ];
 
     public IEnumerable<StatementSyntax> EmitCSharp(IrStatement stmt, CodeGenContext ctx)

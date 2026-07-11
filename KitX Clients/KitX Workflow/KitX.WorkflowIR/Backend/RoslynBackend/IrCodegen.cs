@@ -110,6 +110,9 @@ public static class IrCodegen
             UsingDirective(ParseName("KitX.Core.Contract.Workflow")),
             UsingDirective(ParseName("KitX.Workflow.Backend.RoslynBackend")),
             UsingDirective(ParseName("KitX.Workflow.Backend.Runtime")),
+            // Conversion: AsJsonElement extension, used by ConvertTo<JsonElement> to normalize
+            // object-typed plugin returns into JsonElement (List-Port-And-Json-Functions-Design §4.8).
+            UsingDirective(ParseName("KitX.Workflow.Conversion")),
         };
 
         return CompilationUnit()
@@ -138,6 +141,21 @@ public static class IrCodegen
                 ReturnStatement(
                     PostfixUnaryExpression(SyntaxKind.SuppressNullableWarningExpression,
                         LiteralExpression(SyntaxKind.DefaultLiteralExpression)))),
+            // JsonElement is not IConvertible — Convert.ChangeType throws for it. Normalize
+            // object-typed values (plugin returns, JSON strings) to JsonElement via AsJsonElement
+            // so PinType.Json PubVars can receive boxed object values. (List-Port design §4.8)
+            // The (object) intermediate cast boxes the JsonElement struct so (T) can unify it.
+            IfStatement(
+                BinaryExpression(SyntaxKind.EqualsExpression,
+                    TypeOfExpression(IdentifierName("T")),
+                    TypeOfExpression(IdentifierName("JsonElement"))),
+                ReturnStatement(
+                    CastExpression(IdentifierName("T"),
+                        CastExpression(PredefinedType(Token(SyntaxKind.ObjectKeyword)),
+                            InvocationExpression(
+                                MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                                    IdentifierName("value"),
+                                    IdentifierName("AsJsonElement"))))))),
             ReturnStatement(
                 CastExpression(IdentifierName("T"),
                     InvocationExpression(
