@@ -36,4 +36,17 @@ public interface IExecutionBackend
         IrWorkflow ir,
         LoweringResult? lowering,
         CancellationToken ct);
+
+    /// <summary>
+    /// Executes the workflow IR with a debug controller attached. The backend
+    /// sets <see cref="Backend.Runtime.ExecutionGlobals.Debugger"/> so the generated
+    /// code's checkpoint calls fire breakpoints / step / pause. When
+    /// <paramref name="debugger"/> is null, behaves identically to the 3-arg overload.
+    /// (Dashboard-Frontend-Refactor-Handoff.md §F1.5)
+    /// </summary>
+    Task<BlockScriptExecutionResult> ExecuteAsync(
+        IrWorkflow ir,
+        LoweringResult? lowering,
+        CancellationToken ct,
+        IBlueprintDebugController? debugger);
 }

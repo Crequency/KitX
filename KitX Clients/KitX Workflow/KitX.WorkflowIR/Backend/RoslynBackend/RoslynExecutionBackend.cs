@@ -59,11 +59,23 @@ public sealed class RoslynExecutionBackend : IExecutionBackend
         IrWorkflow ir,
         LoweringResult? lowering,
         CancellationToken ct)
+        => await ExecuteAsync(ir, lowering, ct, null).ConfigureAwait(false);
+
+    /// <summary>
+    /// Executes with an optional debug controller. When <paramref name="debugger"/> is
+    /// non-null, it is set on <see cref="ExecutionGlobals.Debugger"/> so the generated
+    /// code's checkpoint calls fire breakpoints / step / pause.
+    /// </summary>
+    public async Task<BlockScriptExecutionResult> ExecuteAsync(
+        IrWorkflow ir,
+        LoweringResult? lowering,
+        CancellationToken ct,
+        IBlueprintDebugController? debugger)
     {
         var started = DateTimeOffset.UtcNow;
 
-        // ── Compile (cached by IR hash). ──
-        var script = _compiler.Compile(ir, out var compileErrors, lowering);
+        // ── Compile (cached by IR hash, with debug checkpoints when debugger attached). ──
+        var script = _compiler.Compile(ir, out var compileErrors, lowering, null, isDebug: debugger != null);
         if (script is null)
         {
             return new BlockScriptExecutionResult
@@ -77,7 +89,10 @@ public sealed class RoslynExecutionBackend : IExecutionBackend
         // ── Construct fresh per-run globals. ──
         var output = new List<string>();
         var scopeManager = new BlockScopeManager();
-        var globals = new ExecutionGlobals(scopeManager, output, _pluginHost);
+        var globals = new ExecutionGlobals(scopeManager, output, _pluginHost)
+        {
+            Debugger = debugger  // F1.5: attach the debug controller for checkpoint calls.
+        };
 
         // Seed global scope with constants + globals so reads resolve.
         if (lowering is not null)
