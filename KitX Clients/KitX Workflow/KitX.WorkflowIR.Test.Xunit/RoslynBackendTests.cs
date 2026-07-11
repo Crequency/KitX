@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using KitX.Core.Contract.Workflow;
 using KitX.Workflow.Backend.RoslynBackend;
 using KitX.Workflow.Backend.Runtime;
@@ -358,5 +359,51 @@ public class RoslynBackendTests
         Assert.Equal(2, result.Output.Count);
         Assert.Equal("entry", result.Output[0]);
         Assert.Equal("target", result.Output[1]);
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // §2.1 fix: debug checkpoint id == canvas node id ("stmt:" + DeriveStableId).
+    // ───────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void GenerateSource_DebugCheckpoint_EmitsCanvasNodeId()
+    {
+        var compiler = new ScriptCompiler(NewRegistry());
+        var ir = SingleBlockWorkflow(PrintCall("\"hello\""));
+
+        var source = compiler.GenerateSource(ir, isDebug: true);
+
+        // The expected checkpoint id matches what BpRenderer assigns: the statement
+        // at ordinal 0 in "#MainBlock".
+        var expectedId = "stmt:" + IrFingerprint.DeriveStableId(
+            MainBlock, IrFingerprint.Compute("Print", new[] { "\"hello\"" }), 0);
+
+        Assert.Contains($"\"{expectedId}\"", source);
+    }
+
+    [Fact]
+    public void GenerateSource_DebugCheckpoint_MatchesNodeIdRegex()
+    {
+        var compiler = new ScriptCompiler(NewRegistry());
+        var ir = SingleBlockWorkflow(
+            PrintCall("\"first\""),
+            AssignmentCall("StringConcat", "out", "\"a\"", "\"b\""));
+
+        var source = compiler.GenerateSource(ir, isDebug: true);
+
+        // Every debug checkpoint statement id must look like "stmt:" + 12 hex chars.
+        var matches = Regex.Matches(source, @"""stmt:([0-9A-F]{12})""");
+        Assert.True(matches.Count >= 2, $"Expected >=2 stmt: checkpoint ids, found {matches.Count}");
+    }
+
+    [Fact]
+    public void GenerateSource_NonDebug_OmitsCheckpoints()
+    {
+        var compiler = new ScriptCompiler(NewRegistry());
+        var ir = SingleBlockWorkflow(PrintCall("\"x\""));
+
+        var source = compiler.GenerateSource(ir, isDebug: false);
+
+        Assert.DoesNotContain("CheckpointAsync", source);
     }
 }

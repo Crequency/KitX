@@ -467,11 +467,17 @@ public static class IrCodegen
         var builtinNames = new HashSet<string>(registry.AllNames, StringComparer.Ordinal);
         var hasNextBlockAssignment = false;
 
+        // §2.1 fix: ordinal mirrors BpRenderer.RenderStatementNodes exactly —
+        // declared per block, incremented for EVERY statement (control-flow
+        // included). The debug checkpoint id is the canvas node id
+        // ("stmt:" + DeriveStableId), so OnDebugNodeExecuting can look the node
+        // up directly without a mapping table.
+        int ordinal = 0;
         foreach (var stmt in block.Statements)
         {
             if (isDebug)
                 caseStatements.Add(RoslynExprBuilders.GenerateDebugCheckpoint(
-                    stmt.Fingerprint.Value, null));
+                    "stmt:" + IrFingerprint.DeriveStableId(block.Name, stmt.Fingerprint, ordinal), null));
 
             // Route control-flow statements through their descriptor (Branch/ForLoop/etc.).
             if (stmt is IrControlFlowStatement cf)
@@ -489,6 +495,7 @@ public static class IrCodegen
                     caseStatements.Add(ReturnStatement());
                     hasNextBlockAssignment = true;
                 }
+                ordinal++;
                 continue;
             }
 
@@ -501,6 +508,7 @@ public static class IrCodegen
                 if (handler is not null)
                 {
                     caseStatements.AddRange(handler.EmitCSharp(stmt, ctx));
+                    ordinal++;
                     continue;
                 }
 
@@ -513,6 +521,7 @@ public static class IrCodegen
                         step.AssignedVar, pubVarTypes, builtinNames));
                 }
             }
+            ordinal++;
         }
 
         // Auto-complete NextBlock from the Sequential fall-through edge when the block
