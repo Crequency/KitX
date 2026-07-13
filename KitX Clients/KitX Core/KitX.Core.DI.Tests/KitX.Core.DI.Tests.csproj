@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,6 +11,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\KitX Standard\KitX Core Contracts\KitX.Core.Contract\KitX.Core.Contract.csproj" />
     <ProjectReference Include="..\KitX.Core\KitX.Core.csproj" />
+    <!-- Dashboard + WorkflowIR: needed to verify the full host DI graph -->
+    <ProjectReference Include="..\..\KitX Dashboard\KitX Dashboard\KitX.Dashboard.csproj" />
+    <ProjectReference Include="..\..\KitX Workflow\KitX.WorkflowIR\KitX.WorkflowIR.csproj" />
   </ItemGroup>
 
   <ItemGroup>
