@@ -1,8 +1,13 @@
 # ScriptVM 退役交接文档（S5）
 
-> 状态：**待实施**。前置 S1–S4 + S6 已完成（2026-07-13）。
-> 阻塞项：工作流编辑窗口无法打开——`WorkflowEditorWindow` 构造时解析 `WorkflowScriptEditorWindowViewModel` 失败（依赖已退役的 `IBlockScriptService`/`IWorkflowPluginService`）。
+> 状态：**已完成**（2026-07-13）。ScriptVM 已删除，功能并入 `WorkflowEditorViewModel`。
+> 验证：WorkflowIR 193 测试 + Dashboard 5 测试全绿。
+> 提交：`3443209`（Dashboard 子模块）+ `87cd816`（父仓库指针）。
 > 上游计划：[`Workflow-Storage-Refactor-Handoff.md`](./Workflow-Storage-Refactor-Handoff.md)（S1–S6 总计划）
+
+---
+
+> ⚠️ **以下内容为实施前的规划文档，保留作为历史参考。实际实施细节见上述提交。**
 
 ---
 
