@@ -154,6 +154,12 @@ public class Program
 
         // Dashboard-specific services
         services.AddSingleton<KitX.Dashboard.Services.IFileDialogService, KitX.Dashboard.Services.FileDialogService>();
+        // S2: WorkflowStorageService (IWorkflowStorageService)
+        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowStorageService,
+            KitX.Dashboard.Services.WorkflowStorageService>();
+        // S4: WorkflowSessionManager (IWorkflowManagementService)
+        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowManagementService,
+            KitX.Dashboard.Services.WorkflowSessionManager>();
         services.AddTransient<KitX.Dashboard.ViewModels.BlueprintEditorViewModel>();
 
         var sp = services.BuildServiceProvider();
@@ -179,10 +185,11 @@ public class Program
         Console.WriteLine();
         // The VM itself (constructed by DI inside WorkflowEditorWindow):
         TestResolve(sp, "BlueprintEditorViewModel (DI)", typeof(KitX.Dashboard.ViewModels.BlueprintEditorViewModel));
-        // WorkflowScriptEditorWindowViewModel is internal — skipped here; its ctor deps
-        // (IBlockScriptService / IWorkflowPluginService) are checked below as raw services.
-        TestResolve(sp, "IBlockScriptService", typeof(KitX.Core.Contract.Workflow.IBlockScriptService));
-        TestResolve(sp, "IWorkflowPluginService", typeof(KitX.Core.Contract.Workflow.IWorkflowPluginService));
+        // Legacy interfaces — intentionally NOT registered (retired with the old KitX.Workflow library).
+        // ScriptVM retirement (S5) removes the last consumers. Showing them here documents the retirement.
+        Console.WriteLine("  --- Legacy (retired, expected NOT REGISTERED) ---");
+        TestResolve(sp, "IBlockScriptService (retired)", typeof(KitX.Core.Contract.Workflow.IBlockScriptService));
+        TestResolve(sp, "IWorkflowPluginService (retired)", typeof(KitX.Core.Contract.Workflow.IWorkflowPluginService));
 
         Console.WriteLine("\n✅ Test 3 Passed: Full host workflow graph resolved\n");
     }
