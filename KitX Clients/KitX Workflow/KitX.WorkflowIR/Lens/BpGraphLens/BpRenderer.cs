@@ -133,7 +133,9 @@ public sealed class BpRenderer
         // Each non-control-flow statement becomes a node inside its block (so §11.4
         // data edges have a real source). Control-flow terminators emit NO node —
         // their arms are rendered as Exec output pins on the block node (§11.3).
-        RenderStatementNodes(bp, ir, stmtNodeByOrdinal);
+        // The node is registered in the owning BlockNode's ChildNodeIds so the
+        // collapsed/expanded sub-graph (§11.2) can locate its inner nodes.
+        RenderStatementNodes(bp, ir, stmtNodeByOrdinal, blockNodes);
 
         // ── Phase 4 (§11.3): Exec output pins + Exec wires from terminators ──
         RenderExecEdges(bp, ir, blockNodes);
@@ -142,9 +144,37 @@ public sealed class BpRenderer
         RenderDataEdges(bp, ir, varNodes, stmtNodeByOrdinal);
 
         // ── Phase 6: BlueprintBlockScope metadata (for reverse conversion) ──
-        RenderBlockScopes(bp, ir);
+        // Captures block boundaries, fall-through, the BlockVars manifest, and the
+        // inner-node id list + owner block-node id (consumed by the Dashboard to
+        // rebuild ScopeBlocks and collapse/expand sub-graphs — §11.2).
+        RenderBlockScopes(bp, ir, blockNodes);
+
+        // ── Phase 7: Auto-layout ──
+        // When no block carries a saved "BlockPos" annotation (i.e. the workflow was
+        // never laid out by the user), run the layout engine to produce a readable
+        // default arrangement. If any block already has coordinates, the user has
+        // edited the layout and we preserve their arrangement.
+        if (!HasSavedLayout(ir))
+        {
+            var layoutService = new LayoutService();
+            layoutService.LayoutNodes(bp);
+        }
 
         return bp;
+    }
+
+    /// <summary>
+    /// Returns true when at least one block in <paramref name="ir"/> carries a
+    /// Layout annotation with key "BlockPos" — the signal that the user (or a
+    //  prior render) has already placed the block nodes. Used to gate auto-layout.
+    /// </summary>
+    private static bool HasSavedLayout(IrWorkflow ir)
+    {
+        foreach (var block in ir.Blocks)
+            foreach (var ann in block.Annotations)
+                if (ann.IsLayout && ann.Key == "BlockPos")
+                    return true;
+        return false;
     }
 
     // ───────────────────────────────────────────────────────────────────────
@@ -244,7 +274,8 @@ public sealed class BpRenderer
     private void RenderStatementNodes(
         Blueprint bp,
         IrWorkflow ir,
-        Dictionary<(string Block, int Ordinal), string> stmtNodeByOrdinal)
+        Dictionary<(string Block, int Ordinal), string> stmtNodeByOrdinal,
+        IReadOnlyDictionary<string, BlueprintNode> blockNodes)
     {
         foreach (var block in ir.Blocks)
         {
@@ -270,6 +301,11 @@ public sealed class BpRenderer
                 node.Comment = stmt.Comment;
                 ApplyStatementLayout(node, block, stmt.Fingerprint);
                 bp.AddNode(node);
+
+                // §11.2: register the statement node in its owning BlockNode's
+                // ChildNodeIds so the collapsed/expanded sub-graph can find it.
+                if (blockNodes.TryGetValue(block.Name, out var owner) && owner is BlockNode bn)
+                    bn.ChildNodeIds.Add(node.Id);
 
                 stmtNodeByOrdinal[(block.Name, ordinal)] = id;
                 ordinal++;
@@ -523,7 +559,10 @@ public sealed class BpRenderer
     // Phase 6: BlueprintBlockScope metadata (for reverse conversion). Captures
     // block boundaries, fall-through, and the BlockVars manifest.
     // ───────────────────────────────────────────────────────────────────────
-    private static void RenderBlockScopes(Blueprint bp, IrWorkflow ir)
+    private static void RenderBlockScopes(
+        Blueprint bp,
+        IrWorkflow ir,
+        IReadOnlyDictionary<string, BlueprintNode> blockNodes)
     {
         foreach (var block in ir.Blocks)
         {
@@ -536,6 +575,21 @@ public sealed class BpRenderer
             };
             foreach (var bv in block.BlockVars)
                 scope.BlockVars.Add(new BlockVarEntry(bv.Name, bv.Type, bv.InitialValueExpression));
+
+            // §11.2: populate the inner-node id list and owner block-node id so
+            // the Dashboard can rebuild ScopeBlocks and collapse/expand sub-graphs.
+            // The ChildNodeIds were filled in Phase 2 (boundary nodes) and Phase 3
+            // (statement nodes); here we surface them into the BlockScope metadata.
+            if (blockNodes.TryGetValue(block.Name, out var node))
+            {
+                scope.OwnerNodeId = node.Id;
+                if (node is BlockNode bn)
+                {
+                    foreach (var childId in bn.ChildNodeIds)
+                        scope.NodeIds.Add(childId);
+                }
+            }
+
             bp.BlockScopes.Add(scope);
         }
     }

@@ -235,6 +235,97 @@ public class BpGraphLensTests
         Assert.Contains(bv.Id, worker.ChildNodeIds);
     }
 
+    // ── §11.2 statement nodes in ChildNodeIds + BlockScope metadata ─────────
+
+    /// <summary>§11.2: a non-control-flow statement node is registered in its
+    /// owning BlockNode's ChildNodeIds (the gap that caused all statement nodes
+    /// to appear flat on the outer canvas instead of inside their block).</summary>
+    [Fact]
+    public void Render_StatementNodes_AreInBlockNodeChildNodeIds()
+    {
+        var lens = NewLens();
+        // Worker block has one Print statement + Exit terminator.
+        var print = MakeCall("Print", "hello");
+        var ir = MakeWorkflow(
+            MakeEntry(MakeGoto("Worker")),
+            MakeBasic("Worker", print, MakeExit()));
+
+        var bp = lens.Project(ir);
+
+        var worker = bp.Nodes.OfType<BlockNode>().Single(b => b.BlockName == "Worker");
+        // The Print statement node id should be in Worker's ChildNodeIds.
+        var printNode = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .Single(n => n.FunctionName == "Print");
+        Assert.Contains(printNode.Id, worker.ChildNodeIds);
+        // The Exit terminator should NOT be in ChildNodeIds (it emits no node).
+        Assert.DoesNotContain(bp.Nodes, n => n.Name == "Exit");
+    }
+
+    /// <summary>§11.2: the BlueprintBlockScope for a named block carries the
+    /// inner-node id list (NodeIds) and the owner block-node id (OwnerNodeId),
+    /// so the Dashboard can rebuild ScopeBlocks and collapse/expand sub-graphs.</summary>
+    [Fact]
+    public void Render_BlockScope_HasNodeIdsAndOwnerNodeId()
+    {
+        var lens = NewLens();
+        var print = MakeCall("Print", "hello");
+        var ir = MakeWorkflow(
+            MakeEntry(MakeGoto("Worker")),
+            MakeBasicWithBlockVars("Worker",
+                [new IrBlockVar("count", "int", "0")],
+                print, MakeExit()));
+
+        var bp = lens.Project(ir);
+
+        var workerScope = bp.BlockScopes.Single(s => s.Name == "Worker");
+        var workerNode = bp.Nodes.OfType<BlockNode>().Single(b => b.BlockName == "Worker");
+        Assert.Equal(workerNode.Id, workerScope.OwnerNodeId);
+        Assert.NotEmpty(workerScope.NodeIds);
+        // The scope should contain at least the BlockVar node and the Print node.
+        Assert.All(workerScope.NodeIds, id => Assert.Contains(id, workerNode.ChildNodeIds));
+    }
+
+    /// <summary>§11 layout: when no block has a saved "BlockPos" annotation, the
+    /// auto-layout engine runs and positions block nodes at non-zero coordinates
+    /// (the fix for the "all nodes at (0,0)" symptom).</summary>
+    [Fact]
+    public void Render_AutoLayout_PositionsBlockNodesWhenNoAnnotation()
+    {
+        var lens = NewLens();
+        var ir = MakeWorkflow(
+            MakeEntry(MakeGoto("Worker")),
+            MakeBasic("Worker", MakeExit()));
+
+        var bp = lens.Project(ir);
+
+        var entry = bp.Nodes.Single(n => n.NodeType == BlueprintNodeType.Entry);
+        var worker = bp.Nodes.OfType<BlockNode>().Single(b => b.BlockName == "Worker");
+        // At least one node should have a non-zero coordinate after auto-layout.
+        Assert.True(entry.X != 0 || entry.Y != 0,
+            "Entry node should be positioned by auto-layout.");
+        Assert.True(worker.X != 0 || worker.Y != 0,
+            "Worker block node should be positioned by auto-layout.");
+    }
+
+    /// <summary>§11 layout: when a block already has a saved "BlockPos" annotation,
+    /// the auto-layout engine is skipped and the user's coordinates are preserved.</summary>
+    [Fact]
+    public void Render_AutoLayout_PreservesUserLayoutWhenAnnotationExists()
+    {
+        var lens = NewLens();
+        var ir = MakeWorkflow(
+            MakeEntry(
+                statements: [MakeGoto("Worker")],
+                annotations: [new IrAnnotation(AnnotationKind.Layout, "BlockPos", new IrLayout(500, 700))]),
+            MakeBasic("Worker", MakeExit()));
+
+        var bp = lens.Project(ir);
+
+        var entry = bp.Nodes.Single(n => n.NodeType == BlueprintNodeType.Entry);
+        Assert.Equal(500.0, entry.X);
+        Assert.Equal(700.0, entry.Y);
+    }
+
     // ── §11.4 data edges (the SourceNodeId hack fix) ───────────────────────
 
     /// <summary>§11.4: a data edge into a PubVar variable node is sourced to the statement node

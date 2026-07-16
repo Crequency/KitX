@@ -75,22 +75,46 @@ public sealed class SyncService
     /// it, and fires <see cref="WorkflowSession.IrChanged"/>. BP-name → IR-name
     /// resolution goes through the registry's IBpReverseHandler table (no
     /// hardcoded dictionary).
+    ///
+    /// Coordinate persistence: <see cref="MoveNodePosition"/> actions are pure
+    /// view state and produce no semantic diff, so <see cref="BpEditTranslator"/>
+    /// deliberately leaves them out of the IrDiff. This method persists them
+    /// out-of-band via <see cref="BpEditTranslator.ApplyPosition"/>, writing the
+    /// new coordinates into the IR's Layout annotations so they survive a
+    /// re-render and a save/load round-trip.
     /// </summary>
     public IrChangeSet ApplyBpEdits(WorkflowSession session, IReadOnlyList<BpEditAction> actions)
     {
         var translator = new BpEditTranslator(_registry);
         var diff = translator.Translate(session.Ir, actions);
-        if (diff.IsEmpty)
+
+        // Apply the semantic diff first (if any), then persist coordinates on
+        // the result. This ordering ensures ApplyPosition writes to the final IR
+        // (so the Layout annotation survives IrDiffApply's annotation carry-over).
+        IrWorkflow ir = diff.IsEmpty
+            ? session.Ir
+            : IrDiffApply.Apply(session.Ir, diff);
+
+        bool positionsChanged = false;
+        foreach (var action in actions)
+        {
+            if (action is MoveNodePosition m)
+            {
+                ir = BpEditTranslator.ApplyPosition(ir, m.NodeId, m.X, m.Y);
+                positionsChanged = true;
+            }
+        }
+
+        if (diff.IsEmpty && !positionsChanged)
             return new IrChangeSet { StatementDiff = diff, AffectedBlocks = [] };
 
-        var mergedIr = IrDiffApply.Apply(session.Ir, diff);
         var changeSet = new IrChangeSet
         {
             StatementDiff = diff,
-            AffectedBlocks = IrChangeSet.CollectAffectedBlocks(diff),
-            PositionsChanged = diff.PositionsChanged,
+            AffectedBlocks = diff.IsEmpty ? [] : IrChangeSet.CollectAffectedBlocks(diff),
+            PositionsChanged = diff.PositionsChanged || positionsChanged,
         };
-        session.ApplyChange(mergedIr, changeSet);
+        session.ApplyChange(ir, changeSet);
         return changeSet;
     }
 }
