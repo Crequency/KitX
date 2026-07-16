@@ -505,7 +505,16 @@ public static class IrCodegen
                 // The producing function name (for dispatch) is the terminal FunctionCall segment's name.
                 var fnName = GetPipelineFunctionName(pipe);
                 var handler = fnName is { Length: > 0 } ? registry.GetCodeGen(fnName) : null;
-                if (handler is not null)
+
+                // The handler path (handler.EmitCSharp) reads arguments via FlatArguments,
+                // which does NOT resolve pipeline placeholders — it filters them out. So a
+                // pipeline with Sources (e.g. `vaaa0001 > Print(_)` or `a, b > StringConcat`)
+                // must go through the default FlattenPipeline path, which resolves
+                // placeholders from the source stream. The handler path is only safe for
+                // zero-source bare calls (e.g. `Print("hello")`) where all args are literals.
+                bool hasPipelineSources = pipe.Sources.Length > 0;
+
+                if (handler is not null && !hasPipelineSources)
                 {
                     caseStatements.AddRange(handler.EmitCSharp(stmt, ctx));
                     ordinal++;

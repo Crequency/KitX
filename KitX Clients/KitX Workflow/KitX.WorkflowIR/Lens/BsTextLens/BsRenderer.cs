@@ -194,13 +194,29 @@ public sealed class BsRenderer
         if (pipe.Sources.Length > 0)
             sb.Append(string.Join(", ", pipe.Sources));
 
+        // A zero-source, single-segment pipeline is a bare call (e.g. `Print("hello")`):
+        // the segment IS the call, no leading `>`. Multi-segment or sourced pipelines
+        // join with ` > ` between sources and each segment.
+        bool firstSegment = true;
         foreach (var seg in pipe.Segments)
         {
+            // Bare-call form: no sources and this is the first (only) segment → no `>`.
+            if (pipe.Sources.Length == 0 && firstSegment)
+            {
+                if (seg.Kind == IrSegmentKind.Variable)
+                    sb.Append(seg.VariableName);
+                else
+                    sb.Append(RenderFunctionSegment(seg));
+                firstSegment = false;
+                continue;
+            }
+
             sb.Append(" > ");
             if (seg.Kind == IrSegmentKind.Variable)
                 sb.Append(seg.VariableName);
             else
                 sb.Append(RenderFunctionSegment(seg));
+            firstSegment = false;
         }
 
         return sb.ToString();

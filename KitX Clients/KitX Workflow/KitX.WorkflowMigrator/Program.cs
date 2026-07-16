@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
+using KitX.Workflow.Backend.RoslynBackend;
 using KitX.Workflow.Builtin;
 using KitX.Workflow.Ir;
 using KitX.Workflow.Lens.BsTextLens;
@@ -46,6 +47,16 @@ internal static class Program
         if (args.Length > 0 && args[0] == "--from-bs")
         {
             await RunFromBsAsync(args);
+            return;
+        }
+
+        // Mode: --test-run <kcsFile>
+        // Loads a v2 .kcs, renders BS (BsTextLens.Project), re-parses to IR, executes via
+        // RoslynExecutionBackend, and prints output. Used to verify migrated workflows
+        // render + execute correctly end-to-end.
+        if (args.Length > 0 && args[0] == "--test-run")
+        {
+            await RunTestRunAsync(args);
             return;
         }
 
@@ -185,6 +196,96 @@ internal static class Program
         Log.Information("✅ Wrote v2 .kcs: {Path} ({Blocks} blocks, {Stmts} statements, {Helpers} helpers)",
             outPath, lowering.Ir.Blocks.Length,
             lowering.Ir.Blocks.Sum(b => b.Statements.Length), helpers.Count);
+    }
+
+    /// <summary>
+    /// --test-run mode: loads a v2 .kcs, renders it to BS (proving the IR round-trips
+    /// through BsTextLens.Project), re-parses the rendered BS back to IR (proving the
+    /// rendered BS is itself valid v5.0), executes via RoslynExecutionBackend, and
+    /// prints the captured Print() output. This exercises the exact path the Dashboard
+    /// editor + runner uses, minus the plugin host (so plugin-calling workflows will
+    /// fail at the PluginCall site — that's expected, not a migration defect).
+    /// Usage: --test-run &lt;kcsFile&gt;
+    /// </summary>
+    private static async Task RunTestRunAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Log.Error("Usage: --test-run <kcsFile>");
+            return;
+        }
+        var kcsPath = args[1];
+
+        var json = await File.ReadAllTextAsync(kcsPath);
+        var kcs = JsonSerializer.Deserialize<KcsFileFormat>(json)
+            ?? throw new InvalidOperationException("Failed to deserialize KcsFileFormat");
+
+        Log.Information("=== test-run: {Name} ({Id}) ===", kcs.Name, kcs.Id);
+
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        var bsTextLens = new BsTextLens(registry);
+
+        // 1. Deserialize IR from stored IrData.
+        var ir = IrSerializer.Deserialize(kcs.IrData);
+        Log.Information("  IR: {Blocks} blocks, {Stmts} statements, {Consts} constants, {Vars} global vars, {Helpers} helpers",
+            ir.Blocks.Length, ir.Blocks.Sum(b => b.Statements.Length),
+            ir.Constants.Count, ir.GlobalVars.Count, ir.HelperFunctions.Length);
+
+        // 2. Render BS (IR → text). This is what the BS editor displays.
+        var renderedBs = bsTextLens.Project(ir);
+        Log.Information("  Rendered BS ({Len} chars):", renderedBs.Length);
+        foreach (var line in renderedBs.Replace("\r\n", "\n").Split('\n'))
+            Log.Information("    | {Line}", line);
+
+        // 3. Re-parse the rendered BS (text → IR). If this fails, the rendered BS is not
+        //    valid v5.0 — a round-trip regression.
+        KitX.Workflow.Ir.Lowering.LoweringResult lowering;
+        try { lowering = bsTextLens.ParseLowering(renderedBs, ir.HelperFunctions); }
+        catch (Exception ex)
+        {
+            Log.Error("  ❌ Re-parse of rendered BS failed: {Msg}", ex.Message);
+            return;
+        }
+        var repErrs = lowering.Diagnostics
+            .Where(d => d.Severity == KitX.Workflow.Ir.Lowering.LoweringDiagnosticSeverity.Error).ToList();
+        if (repErrs.Count > 0)
+        {
+            Log.Error("  ❌ Re-parse produced {Count} error(s):", repErrs.Count);
+            foreach (var e in repErrs)
+                Log.Error("     [{Code}] {Msg}{Line}", e.Code, e.Message, e.Line is { } ln ? $" (line {ln})" : "");
+            return;
+        }
+        Log.Information("  Re-parse OK: {Blocks} blocks, {Stmts} statements", lowering.Ir.Blocks.Length,
+            lowering.Ir.Blocks.Sum(b => b.Statements.Length));
+
+        // 4. Execute via RoslynExecutionBackend. Pass the lowering so the backend seeds
+        //    constants/global-vars (RoslynExecutionBackend seeds only when lowering != null).
+        var backend = new RoslynExecutionBackend(registry, pluginHost: null);
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Log.Information("  Executing (15s timeout)...");
+        var result = await backend.ExecuteAsync(lowering.Ir, lowering, cts.Token);
+
+        if (result.IsSuccess)
+        {
+            Log.Information("  ✅ Execution succeeded: {Blocks} blocks, {Ms}ms",
+                result.ExecutedBlockCount, result.ExecutionTimeMs);
+            Log.Information("  Output ({Lines} line(s)):", result.Output.Count);
+            if (result.Output.Count == 0)
+                Log.Information("    (no output)");
+            else
+                foreach (var line in result.Output)
+                    Log.Information("    > {Line}", line);
+        }
+        else
+        {
+            Log.Error("  ❌ Execution failed: {Error}", result.ErrorMessage);
+            if (result.Output.Count > 0)
+            {
+                Log.Information("  Partial output before failure ({Lines} line(s)):", result.Output.Count);
+                foreach (var line in result.Output)
+                    Log.Information("    > {Line}", line);
+            }
+        }
     }
 
     /// <summary>Splits a .bs file into (source, helpers). Helpers are optional and

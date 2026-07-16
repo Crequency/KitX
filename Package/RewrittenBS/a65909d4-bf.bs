@@ -21,7 +21,11 @@ bool cond;
 #MainBlock
 "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++." > bfCode;
 memorySize > HelperFuncCreateMemory(_) > memory;
-PluginCall("TestPlugin.WPF.Core", "GetInput") > inputBuffer;
+// The HelloWorld BF program contains no `,` (input) instructions, so inputBuffer is
+// never read. The PluginCall is commented out so this workflow runs without a live
+// plugin host. Re-enable it for workflows whose BF program actually reads input.
+// PluginCall("TestPlugin.WPF.Core", "GetInput") > inputBuffer;
+"" > inputBuffer;
 0 > ip;
 0 > pointer;
 0 > inputIndex;

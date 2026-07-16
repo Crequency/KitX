@@ -47,6 +47,14 @@ public sealed class BsLowerer
 {
     private readonly BuiltinFunctionRegistry? _registry;
 
+    /// <summary>
+    /// Names known to be callables (builtins + declared helpers) during the current
+    /// LowerCore pass. A bare pipeline target matching one of these is a function call
+    /// (consuming the pipeline value as its implicit argument), not a variable tap.
+    /// Populated fresh per LowerCore so the lowerer stays stateless across calls.
+    /// </summary>
+    private HashSet<string>? _knownCallables;
+
     /// <summary>Creates a lowerer that consults <paramref name="registry"/> for
     /// control-flow builtin dispatch (e.g. Branch/ForLoop custom lowering).</summary>
     public BsLowerer(BuiltinFunctionRegistry? registry = null) => _registry = registry;
@@ -74,6 +82,22 @@ public sealed class BsLowerer
     {
         var allocator = new PubVarAllocator();
         var diagnostics = new List<LoweringDiagnostic>();
+
+        // Build the known-callables set for this pass: builtin function names (from the
+        // registry) + declared helper function names. A bare pipeline target matching one
+        // of these is a function call, not a variable tap (see LowerSegment).
+        var knownCallables = new HashSet<string>(StringComparer.Ordinal);
+        if (_registry is not null)
+        {
+            foreach (var name in _registry.AllNames)
+                knownCallables.Add(name);
+        }
+        foreach (var hf in input.HelperFunctions)
+        {
+            if (!string.IsNullOrEmpty(hf.Name))
+                knownCallables.Add(hf.Name);
+        }
+        _knownCallables = knownCallables;
 
         // ── Phase-1 output: lift PubVar/Const declarations into the IR. ──
         var constants = ImmutableDictionary.CreateBuilder<string, IrConstant>();
@@ -241,16 +265,19 @@ public sealed class BsLowerer
             return LowerPipeline(pipeline, exprStmt, blockName);
         }
 
-        // A bare call (no pipeline operator) wrapped as a single-source, single-target
-        // pipeline. ParsedExpression was a BSCall here before the parser normalised it.
+        // A bare call (no pipeline operator) lowered as a zero-source, single-target
+        // pipeline so the call becomes a FunctionCall segment (not a Source string).
+        // Codegen walks segments to emit G.<Name>(...) — a Source-only pipeline (the old
+        // shape) produced zero segments and silently emitted nothing.
         if (exprStmt.ParsedExpression is BSCall call)
         {
             return LowerPipeline(
-                new BSPipeline { Sources = [call], Targets = [], SourceText = call.SourceText },
+                new BSPipeline { Sources = [], Targets = [call], SourceText = call.SourceText },
                 exprStmt, blockName);
         }
 
-        // Fallback: an identifier/literal-only expression. Render as a trivial pipeline.
+        // Fallback: an identifier/literal-only expression. Render as a trivial pipeline
+        // with the expression as the sole source (no function call to emit).
         if (exprStmt.ParsedExpression is { } expr)
         {
             return LowerPipeline(
@@ -281,7 +308,7 @@ public sealed class BsLowerer
 
         var segments = ImmutableArray.CreateBuilder<IrSegment>(pipeline.Targets.Count);
         foreach (var target in pipeline.Targets)
-            segments.Add(LowerSegment(target));
+            segments.Add(LowerSegment(target, pipeline.Sources.Count));
 
         var segmentsArray = segments.MoveToImmutable();
 
@@ -310,17 +337,28 @@ public sealed class BsLowerer
     /// variable. Otherwise it is a FunctionCall whose arguments may contain `_`
     /// placeholders (positions where pipeline values insert) and literal args.
     /// </summary>
-    private IrSegment LowerSegment(BSCall target)
+    /// <summary>
+    /// True when <paramref name="name"/> is a registered builtin or a declared helper
+    /// function in the current lowering pass. Used to disambiguate a bare pipeline
+    /// target: `x > Print` is a function call (Print is a builtin), while `x > cond`
+    /// is a variable tap (cond is a PubVar, not a callable).
+    /// </summary>
+    private bool IsKnownCallable(string name)
+        => _knownCallables is not null && _knownCallables.Contains(name);
+
+    private IrSegment LowerSegment(BSCall target, int sourceCount)
     {
         // Variable tap: a bare identifier used as a pipeline target (e.g. `> x` or
         // `> cond`). The parser produced a BSCall with zero args whose MethodName
         // equals the FullMethodName (no dotted receiver). This is an assignment, not
-        // a function call.
-        bool isVariableTap = target.Args.Count == 0
+        // a function call — BUT only when the name is not a known callable. A bare
+        // builtin/helper name (e.g. `> Print`) is a function call consuming the
+        // pipeline value as its implicit argument, not a variable assignment.
+        bool looksLikeVariableTap = target.Args.Count == 0
             && target.MethodName == target.FullMethodName
             && !target.SourceText.EndsWith(')');
 
-        if (isVariableTap)
+        if (looksLikeVariableTap && !IsKnownCallable(target.MethodName))
         {
             return new IrSegment
             {
@@ -330,7 +368,7 @@ public sealed class BsLowerer
         }
 
         // Function call: walk arguments, mapping each to Placeholder or Literal.
-        var args = ImmutableArray.CreateBuilder<IrPipelineArgument>(target.Args.Count);
+        var args = new List<IrPipelineArgument>(target.Args.Count);
         int placeholderOrdinal = 0;
         foreach (var arg in target.Args)
         {
@@ -346,13 +384,29 @@ public sealed class BsLowerer
             }
         }
 
+        // §6.2 rule 2: "若 Target 是函数且无 `_`：N 个值按位置填满所有参数位".
+        // When a target has no explicit `_` placeholders but the pipeline carries sources,
+        // the sources fill the parameter positions NOT already taken by literal arguments.
+        // Two cases:
+        //   (a) Zero literal args (e.g. `vaaa0001 > Print`): all N sources → N placeholders.
+        //   (b) Some literal args (e.g. `guessNum, targetNum > HelperFuncCompare("BEQ")`):
+        //       literal "BEQ" takes position 0; the 2 sources fill positions 1 and 2.
+        // We synthesise N placeholders AFTER the literals so FlattenPipeline resolves them
+        // from the source stream. The codegen's EmitDefault emits G.Fn(lit, src0, src1, ...).
+        bool hasExplicitPlaceholder = args.Count > 0 && args.Any(a => a.Kind == IrPipelineArgumentKind.Placeholder);
+        if (!hasExplicitPlaceholder && sourceCount > 0)
+        {
+            for (int i = 0; i < sourceCount; i++)
+                args.Add(IrPipelineArgument.Placeholder(i));
+        }
+
         return new IrSegment
         {
             Kind = IrSegmentKind.FunctionCall,
             FunctionName = target.MethodName,
             FullFunctionName = string.IsNullOrEmpty(target.FullMethodName)
                 ? target.MethodName : target.FullMethodName,
-            Arguments = args.MoveToImmutable(),
+            Arguments = args.ToImmutableArray(),
         };
     }
 
