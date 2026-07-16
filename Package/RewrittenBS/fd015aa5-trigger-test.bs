@@ -1,0 +1,7 @@
+#PubVarBlock
+dynamic vaaa0001;
+
+#MainBlock
+PluginCall("TestPlugin.WPF.Core", "GetInput") > vaaa0001;
+vaaa0001 > PluginCall("TestPlugin.WPF.Core", "HelloAnything", _);
+Exit();

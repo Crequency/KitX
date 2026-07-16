@@ -80,6 +80,42 @@ public class BsParserTests
         Assert.Equal(true, boolLit.Value);
     }
 
+    [Fact]
+    public void Parse_NegativeNumericLiterals_TypedCorrectly()
+    {
+        // BS v5.0 supports negative integer/double literals: a leading `-` before a
+        // number is unambiguous (no binary subtraction operator exists), so `-42`
+        // and `-3.14` parse as single negative BSLiteral nodes. This covers both the
+        // pipeline-source position and the function-argument position.
+        var pr = BuildParser().Parse(
+            "#MainBlock\n-42 > Print;\n-3.14 > Print;\n0 > HelperFuncAdd(_, -1) > Print;\nGoto(\"End\");" + End);
+        Assert.True(pr.IsSuccess, pr.ErrorMessage ?? "negative literals should parse");
+        Assert.False(pr.HasErrors, $"unexpected diagnostics: {string.Join("; ", pr.Diagnostics.Select(d => $"[{d.Code}] {d.Message}"))}");
+
+        var stmts = pr.Script!.MainBlock!.Statements;
+        Assert.True(stmts.Count >= 3, $"expected ≥3 statements, got {stmts.Count}: {string.Join(", ", stmts.Select(s => s.GetType().Name))}");
+
+        // Source position: -42
+        var negInt = (BSLiteral)((BSPipeline)((ExpressionStatement)stmts[0]).ParsedExpression!).Sources[0];
+        Assert.Equal(BSLiteralKind.Integer, negInt.Kind);
+        Assert.Equal(-42, negInt.Value);
+        Assert.Equal("-42", negInt.SourceText);
+
+        // Source position: -3.14
+        var negDbl = (BSLiteral)((BSPipeline)((ExpressionStatement)stmts[1]).ParsedExpression!).Sources[0];
+        Assert.Equal(BSLiteralKind.Double, negDbl.Kind);
+        Assert.Equal(-3.14, negDbl.Value);
+
+        // Argument position: HelperFuncAdd(_, -1) — the second arg is a negative literal.
+        var addPipe = (BSPipeline)((ExpressionStatement)stmts[2]).ParsedExpression!;
+        Assert.NotEmpty(addPipe.Targets);
+        var call = (BSCall)addPipe.Targets[0];
+        Assert.True(call.Args.Count >= 2, $"HelperFuncAdd should have 2 args, got {call.Args.Count}");
+        var negArg = (BSLiteral)call.Args[1];
+        Assert.Equal(BSLiteralKind.Integer, negArg.Kind);
+        Assert.Equal(-1, negArg.Value);
+    }
+
     // ── Pipeline `>` syntax (multi-target chain) ──
 
     [Fact]

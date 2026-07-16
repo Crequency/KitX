@@ -40,6 +40,15 @@ internal static class Program
             .WriteTo.Console(outputTemplate: "[{Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
+        // Mode: --from-bs <bsFile> <outKcs> [name] [description]
+        // Reads a hand-rewritten v5.0 BS source file and writes a self-contained v2 .kcs.
+        // Used to repair workflows whose original v3.0/v4.0 syntax was rejected by the v5.0 parser.
+        if (args.Length > 0 && args[0] == "--from-bs")
+        {
+            await RunFromBsAsync(args);
+            return;
+        }
+
         var workflowsDir = args.Length > 0 ? args[0] : "./Data/Workflows";
         var oldKcsDir = args.Length > 1 ? args[1] : "./Package/OldKcs";
 
@@ -94,6 +103,167 @@ internal static class Program
 
     private enum MigrateResult { Migrated, AlreadyV2, Failed }
 
+    /// <summary>
+    /// --from-bs mode: reads a hand-rewritten v5.0 BS file and writes a v2 .kcs.
+    /// Usage: --from-bs &lt;bsFile&gt; &lt;outKcs&gt; [name] [description] [--id &lt;guid&gt;]
+    /// The BS file may carry helper functions in a trailing `#HelperFunctions` section,
+    /// one per block, formatted as:
+    ///   //helper: ReturnType Name(Type p1, Type p2)
+    ///   &lt;C# body, indented or raw&gt;
+    ///   //end-helper
+    /// Anything before `#HelperFunctions` is the BS source verbatim.
+    /// When --id is given, the workflow keeps that id (used to repair an existing file
+    /// in place while preserving its management-panel identity). Otherwise a new GUID.
+    /// </summary>
+    private static async Task RunFromBsAsync(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            Log.Error("Usage: --from-bs <bsFile> <outKcs> [name] [description] [--id <guid>]");
+            return;
+        }
+        var bsPath = args[1];
+        var outPath = args[2];
+        // Collect positional [name] [description], then an optional --id <guid> flag.
+        var positional = new List<string>();
+        string? explicitId = null;
+        for (int i = 3; i < args.Length; i++)
+        {
+            if (args[i] == "--id" && i + 1 < args.Length) { explicitId = args[++i]; continue; }
+            positional.Add(args[i]);
+        }
+        var name = positional.Count > 0 ? positional[0] : Path.GetFileNameWithoutExtension(outPath);
+        var desc = positional.Count > 1 ? positional[1] : "";
+
+        var raw = await File.ReadAllTextAsync(bsPath);
+        var (bsSource, helpers) = SplitBsAndHelpers(raw);
+
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        var bsTextLens = new BsTextLens(registry);
+
+        // Parse + strict diagnostic check (same guard as MigrateFileAsync).
+        KitX.Workflow.Ir.Lowering.LoweringResult lowering;
+        try { lowering = bsTextLens.ParseLowering(bsSource, helpers); }
+        catch (Exception ex)
+        {
+            Log.Error("BS parse threw: {Msg}", ex.Message);
+            return;
+        }
+        var errs = lowering.Diagnostics
+            .Where(d => d.Severity == KitX.Workflow.Ir.Lowering.LoweringDiagnosticSeverity.Error).ToList();
+        if (errs.Count > 0)
+        {
+            foreach (var e in errs)
+                Log.Error("  [{Code}] {Msg}{Line}", e.Code, e.Message, e.Line is { } ln ? $" (line {ln})" : "");
+            Log.Error("{Count} parse error(s) — fix the BS source and retry", errs.Count);
+            return;
+        }
+
+        // Sanity: every non-declaration block must have ≥1 statement (a v3.0 script
+        // with a silently-gutted block would produce zero-statement blocks).
+        var gutted = lowering.Ir.Blocks.Where(b => b.Statements.Length == 0).ToList();
+        if (gutted.Count > 0)
+        {
+            Log.Warning("Warning: {Count} block(s) with zero statements: {Names}",
+                gutted.Count, string.Join(", ", gutted.Select(b => b.Name)));
+        }
+
+        var v2 = new KcsFileFormat
+        {
+            Id = explicitId ?? Guid.NewGuid().ToString(),
+            Name = name,
+            Description = desc,
+            Author = "",
+            CreatedTime = DateTime.UtcNow,
+            LastModifiedTime = DateTime.UtcNow,
+            VariableConstants = new Dictionary<string, object?>(),
+            IrData = IrSerializer.Serialize(lowering.Ir),
+            TriggerConfig = new TriggerConfig { TriggerType = "Manual" },
+        };
+        var json = JsonSerializer.Serialize(v2, new JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(outPath, json);
+        Log.Information("✅ Wrote v2 .kcs: {Path} ({Blocks} blocks, {Stmts} statements, {Helpers} helpers)",
+            outPath, lowering.Ir.Blocks.Length,
+            lowering.Ir.Blocks.Sum(b => b.Statements.Length), helpers.Count);
+    }
+
+    /// <summary>Splits a .bs file into (source, helpers). Helpers are optional and
+    /// live after a `#HelperFunctions` marker, delimited by //helper / //end-helper.</summary>
+    private static (string bs, List<HelperFunction> helpers) SplitBsAndHelpers(string raw)
+    {
+        var marker = raw.IndexOf("#HelperFunctions", StringComparison.Ordinal);
+        if (marker < 0) return (raw, new List<HelperFunction>());
+
+        var bsSource = raw[..marker].TrimEnd();
+        var rest = raw[(marker + "#HelperFunctions".Length)..];
+
+        var helpers = new List<HelperFunction>();
+        var lines = rest.Replace("\r\n", "\n").Split('\n');
+        int i = 0;
+        while (i < lines.Length)
+        {
+            var line = lines[i].Trim();
+            if (!line.StartsWith("//helper"))
+            { i++; continue; }
+
+            // Signature: //helper: ReturnType Name(Type p1, Type p2)
+            var sig = line["//helper".Length..].TrimStart(':', ' ');
+            var (hf, bodyEnd) = ParseHelperBlock(sig, lines, i + 1);
+            helpers.Add(hf);
+            i = bodyEnd + 1;
+        }
+        return (bsSource, helpers);
+    }
+
+    /// <summary>Parses one helper block (signature line already extracted). Reads body
+    /// lines until //end-helper. Returns the helper and the index of the closing line.</summary>
+    private static (HelperFunction hf, int endLine) ParseHelperBlock(
+        string signature, string[] lines, int bodyStart)
+    {
+        // Signature: "ReturnType Name(Type p1, Type p2)"
+        var openParen = signature.IndexOf('(');
+        var closeParen = signature.LastIndexOf(')');
+        string returnType = "object", name = "";
+        var parameters = new List<HelperFunctionParameter>();
+
+        if (openParen > 0 && closeParen > openParen)
+        {
+            var head = signature[..openParen].Trim();
+            var lastSpace = head.LastIndexOf(' ');
+            if (lastSpace > 0) { returnType = head[..lastSpace].Trim(); name = head[(lastSpace + 1)..].Trim(); }
+            else name = head;
+
+            var paramText = signature[(openParen + 1)..closeParen];
+            if (!string.IsNullOrWhiteSpace(paramText))
+            {
+                foreach (var p in paramText.Split(',', StringSplitOptions.TrimEntries))
+                {
+                    if (string.IsNullOrEmpty(p)) continue;
+                    var ps = p.LastIndexOf(' ');
+                    if (ps > 0)
+                        parameters.Add(new HelperFunctionParameter { Type = p[..ps].Trim(), Name = p[(ps + 1)..].Trim() });
+                    else
+                        parameters.Add(new HelperFunctionParameter { Type = "object", Name = p });
+                }
+            }
+        }
+
+        var body = new StringBuilder();
+        int j = bodyStart;
+        for (; j < lines.Length; j++)
+        {
+            if (lines[j].Trim() == "//end-helper") break;
+            body.AppendLine(lines[j]);
+        }
+        return (new HelperFunction
+        {
+            Name = name,
+            ReturnType = returnType,
+            Parameters = parameters,
+            Code = body.ToString().TrimEnd(),
+        }, j < lines.Length ? j : lines.Length - 1);
+    }
+
     private static async Task<(MigrateResult, string)> MigrateFileAsync(
         string filePath, string oldKcsDir, BsTextLens bsTextLens)
     {
@@ -137,10 +307,29 @@ internal static class Program
             helpers = JsonSerializer.Deserialize<List<HelperFunction>>(hfEl.GetRawText()) ?? new();
         }
 
-        // BS → IR
-        IrWorkflow ir;
-        try { ir = bsTextLens.Parse(bsSource, helpers); }
-        catch (Exception ex) { return (MigrateResult.Failed, $"BS parse failed: {ex.Message}"); }
+        // BS → IR. Use ParseLowering so we can inspect diagnostics: a v3.0/v4.0
+        // script will parse "successfully" (no hard recognition failure) but carry
+        // Error-severity diagnostics (BS_ILLEGAL_ASSIGNMENT, BS_NESTED_CALL, ...) and
+        // a silently-truncated IR (offending blocks end up with zero statements).
+        // Treat any Error diagnostic as a hard failure so we never serialize a
+        // gutted IR.
+        KitX.Workflow.Ir.Lowering.LoweringResult lowering;
+        try { lowering = bsTextLens.ParseLowering(bsSource, helpers); }
+        catch (Exception ex) { return (MigrateResult.Failed, $"BS parse threw: {ex.Message}"); }
+
+        var errors = lowering.Diagnostics
+            .Where(d => d.Severity == KitX.Workflow.Ir.Lowering.LoweringDiagnosticSeverity.Error)
+            .ToList();
+        if (errors.Count > 0)
+        {
+            var first = errors[0];
+            return (MigrateResult.Failed,
+                $"BS has {errors.Count} parse error(s); first: [{first.Code}] {first.Message}" +
+                (first.Line is { } ln ? $" (line {ln})" : "") +
+                ". The source likely uses pre-v5.0 syntax (e.g. `=` assignment, Set/Get, NextBlock, Loop). Rewrite in v5.0 syntax and re-migrate.");
+        }
+
+        var ir = lowering.Ir;
 
         // --- build v2 KcsFileFormat JSON ---
         var v2 = new KcsFileFormat

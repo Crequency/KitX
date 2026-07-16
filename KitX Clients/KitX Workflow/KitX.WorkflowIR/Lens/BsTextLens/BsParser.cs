@@ -63,6 +63,7 @@ public enum BSToken
 
     [Token(Category = "operator", Example = ">")] Pipe,
     [Token(Category = "operator", Example = "+")] Plus,
+    [Token(Category = "operator", Example = "-")] Minus,
     [Token(Category = "punctuation", Example = ",")] Comma,
     [Token(Category = "punctuation", Example = ";")] Semicolon,
     [Token(Category = "punctuation", Example = "(")] LParen,
@@ -145,6 +146,7 @@ public static class BsParser
             .Match(Span.MatchedBy(CharLiteralText), BSToken.CharLiteral)
             .Match(Character.EqualTo('>'), BSToken.Pipe)
             .Match(Character.EqualTo('+'), BSToken.Plus)
+            .Match(Character.EqualTo('-'), BSToken.Minus)
             .Match(Character.EqualTo(','), BSToken.Comma)
             .Match(Character.EqualTo(';'), BSToken.Semicolon)
             .Match(Character.EqualTo('('), BSToken.LParen)
@@ -164,6 +166,45 @@ public static class BsParser
     // A lone dotted receiver without "(" (rare) falls back to BSIdentifier carrying
     // the full dotted path, matching BSExpressionAdapter's MemberAccess handling.
 
+    // ── Signed numeric literals ───────────────────────────────────────────────
+    // BS v5.0 has no binary subtraction (only the `+` concatenation operator), so a
+    // leading `-` before a number is unambiguously a negative literal. The sign is
+    // consumed once, then EITHER an IntegerLiteral or a DoubleLiteral may follow —
+    // the two cases are tried in order so `-3.14` does not mis-match `-3` first.
+
+    static readonly TokenListParser<BSToken, BSExpression> NumericLiteral =
+        (from minus in Token.EqualTo(BSToken.Minus).Optional()
+         // Try double first when a sign is present, so `-3.14` doesn't bind `-3` as int
+         // then choke on `.14`. When no sign, the original order (int before double) is
+         // preserved for compatibility with existing token-stream expectations.
+         from lit in (minus.HasValue
+                ? Token.EqualTo(BSToken.DoubleLiteral).Apply(DoubleWithDot)
+                    .Select(d => (BSExpression)new BSLiteral
+                    {
+                        Kind = BSLiteralKind.Double,
+                        Value = -d,
+                        SourceText = "-" + d.ToString(CultureInfo.InvariantCulture),
+                    })
+                    .Or(Token.EqualTo(BSToken.IntegerLiteral).Select(t => (BSExpression)new BSLiteral
+                    {
+                        Kind = BSLiteralKind.Integer,
+                        Value = int.Parse("-" + t.ToStringValue(), CultureInfo.InvariantCulture),
+                        SourceText = "-" + t.ToStringValue(),
+                    }))
+                : Token.EqualTo(BSToken.IntegerLiteral).Select(t => (BSExpression)new BSLiteral
+                    {
+                        Kind = BSLiteralKind.Integer,
+                        Value = int.Parse(t.ToStringValue(), CultureInfo.InvariantCulture),
+                        SourceText = t.ToStringValue(),
+                    })
+                    .Or(Token.EqualTo(BSToken.DoubleLiteral).Apply(DoubleWithDot).Select(d => (BSExpression)new BSLiteral
+                    {
+                        Kind = BSLiteralKind.Double,
+                        Value = d,
+                        SourceText = d.ToString(CultureInfo.InvariantCulture),
+                    })))
+         select lit).Named("number");
+
     static readonly TokenListParser<BSToken, BSExpression> Literal =
         Token.EqualTo(BSToken.StringLiteral).Apply(QuotedString.CStyle).Select(s => (BSExpression)new BSLiteral
         {
@@ -174,18 +215,7 @@ public static class BsParser
             // unescaped, corrupting JSON-in-string-literal consts (e.g. "{\"a\":1}").
             SourceText = "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"",
         })
-        .Or(Token.EqualTo(BSToken.IntegerLiteral).Select(t => (BSExpression)new BSLiteral
-        {
-            Kind = BSLiteralKind.Integer,
-            Value = int.Parse(t.ToStringValue(), CultureInfo.InvariantCulture),
-            SourceText = t.Span.ToStringValue(),
-        }))
-        .Or(Token.EqualTo(BSToken.DoubleLiteral).Apply(DoubleWithDot).Select(d => (BSExpression)new BSLiteral
-        {
-            Kind = BSLiteralKind.Double,
-            Value = d,
-            SourceText = d.ToString(CultureInfo.InvariantCulture),
-        }))
+        .Or(NumericLiteral)
         .Or(Token.EqualTo(BSToken.CharLiteral).Select(t => (BSExpression)new BSLiteral
         {
             Kind = BSLiteralKind.Char,
