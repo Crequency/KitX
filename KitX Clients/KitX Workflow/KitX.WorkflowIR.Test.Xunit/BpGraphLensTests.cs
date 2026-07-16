@@ -38,9 +38,11 @@ public class BpGraphLensTests
 
     // ── §11.1 ──────────────────────────────────────────────────────────────
 
-    /// <summary>§11.1: the entry block renders as an EntryNode; a named block as a BlockNode.</summary>
+    /// <summary>§11.1: a synthetic EntryNode is always present; every IrBlock
+    /// (including the entry block) renders as a BlockNode. The EntryNode's Exec
+    /// output connects to the entry block's BlockNode.</summary>
     [Fact]
-    public void Render_EntryBlock_IsEntryNode_NamedBlock_IsBlockNode()
+    public void Render_EntryNode_IsSynthetic_EntryBlock_IsBlockNode()
     {
         var lens = NewLens();
         var ir = MakeWorkflow(
@@ -49,13 +51,23 @@ public class BpGraphLensTests
 
         var bp = lens.Project(ir);
 
-        Assert.Contains(bp.Nodes, n => n.NodeType == BlueprintNodeType.Entry);
-        Assert.Contains(bp.Nodes, n => n.NodeType == BlueprintNodeType.Block);
+        // Exactly one EntryNode (the synthetic entry marker).
+        var entry = Assert.Single(bp.Nodes.Where(n => n.NodeType == BlueprintNodeType.Entry));
+        Assert.Equal("entry:__synthetic__", entry.Id);
+
+        // Both the entry block and Worker are BlockNodes.
+        var mainBlock = bp.Nodes.OfType<BlockNode>().Single(b => b.BlockName == "#MainBlock");
+        Assert.True(mainBlock.IsMainBlock);
         var worker = bp.Nodes.OfType<BlockNode>().Single(b => b.BlockName == "Worker");
         Assert.Equal("Worker", worker.Name);
+
+        // EntryNode → entry block BlockNode Exec connection exists.
+        Assert.Contains(bp.Connections, c =>
+            c.SourceNodeId == entry.Id && c.TargetNodeId == mainBlock.Id);
     }
 
-    /// <summary>§11.1: a block-level IrAnnotation(Comment) populates the BlockNode.Comment.</summary>
+    /// <summary>§11.1: a block-level IrAnnotation(Comment) populates the BlockNode.Comment
+    /// (on the entry block's BlockNode, not the synthetic EntryNode).</summary>
     [Fact]
     public void Render_BlockComment_PopulatesNodeComment()
     {
@@ -66,8 +78,8 @@ public class BpGraphLensTests
 
         var bp = lens.Project(ir);
 
-        var entry = bp.Nodes.Single(n => n.NodeType == BlueprintNodeType.Entry);
-        Assert.Equal("the main block", entry.Comment);
+        var mainBlock = bp.Nodes.OfType<BlockNode>().Single(b => b.IsMainBlock);
+        Assert.Equal("the main block", mainBlock.Comment);
     }
 
     /// <summary>§11.1: a BlockNode carries a standard Exec input pin.</summary>
@@ -321,9 +333,9 @@ public class BpGraphLensTests
 
         var bp = lens.Project(ir);
 
-        var entry = bp.Nodes.Single(n => n.NodeType == BlueprintNodeType.Entry);
-        Assert.Equal(500.0, entry.X);
-        Assert.Equal(700.0, entry.Y);
+        var mainBlock = bp.Nodes.OfType<BlockNode>().Single(b => b.IsMainBlock);
+        Assert.Equal(500.0, mainBlock.X);
+        Assert.Equal(700.0, mainBlock.Y);
     }
 
     // ── §11.4 data edges (the SourceNodeId hack fix) ───────────────────────
@@ -356,7 +368,9 @@ public class BpGraphLensTests
 
     // ── layout coordinates ─────────────────────────────────────────────────
 
-    /// <summary>Block-anchor annotation ("BlockPos") → the block node's X/Y.</summary>
+    /// <summary>Block-anchor annotation ("BlockPos") → the entry block's BlockNode X/Y
+    /// (the annotation is on the IrBlock, which now maps to a BlockNode, not the
+    /// synthetic EntryNode).</summary>
     [Fact]
     public void Render_BlockAnchorAnnotation_PopulatesNodeLocation()
     {
@@ -369,9 +383,9 @@ public class BpGraphLensTests
 
         var bp = lens.Project(ir);
 
-        var entry = bp.Nodes.Single(n => n.NodeType == BlueprintNodeType.Entry);
-        Assert.Equal(120.5, entry.X);
-        Assert.Equal(240.0, entry.Y);
+        var mainBlock = bp.Nodes.OfType<BlockNode>().Single(b => b.IsMainBlock);
+        Assert.Equal(120.5, mainBlock.X);
+        Assert.Equal(240.0, mainBlock.Y);
     }
 
     /// <summary>Per-statement layout annotation (keyed by fingerprint) → the statement node's X/Y.</summary>

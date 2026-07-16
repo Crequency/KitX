@@ -189,7 +189,11 @@ public sealed class BsLowerer
                 if (irStmt is IrControlFlowStatement)
                 {
                     seenTerminator = true;
-                    kind = IrBlockKind.BranchHeader;
+                    // Entry kind takes precedence: the MainBlock is always the entry
+                    // point regardless of how it terminates. Only non-entry blocks
+                    // are promoted to BranchHeader.
+                    if (kind != IrBlockKind.Entry)
+                        kind = IrBlockKind.BranchHeader;
                 }
             }
         }

@@ -25,6 +25,13 @@ using KitX.Workflow.Ir;
 
 internal static class BpNodeIds
 {
+    /// <summary>
+    /// The synthetic EntryNode id — a pure BP-side construct, not backed by any
+    /// IrBlock. The EntryNode is the outer-layer entry marker; its Exec output
+    /// connects to the entry block's BlockNode. See §11.1.
+    /// </summary>
+    public static string Entry => "entry:__synthetic__";
+
     /// <summary>The outer-layer node id for the block named <paramref name="blockName"/>.</summary>
     public static string Block(string blockName) => "block:" + blockName;
 

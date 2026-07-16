@@ -72,11 +72,14 @@ public class LayoutService : ILayoutService
         // BlockNode/EntryNode carry Exec output pins).
         var execMap = BuildExecAdjacencyMap(blueprint);
 
-        // Phase 2: Find entry node
-        var entry = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
+        // Phase 2: Find entry node — either a regular EntryNode or a
+        // PluginTriggerNode (which replaces EntryNode when TriggerType=PluginEvent).
+        var entry = blueprint.Nodes.FirstOrDefault(n =>
+            n.NodeType == BlueprintNodeType.Entry ||
+            n.NodeType == BlueprintNodeType.PluginTrigger);
         if (entry == null)
         {
-            Log.Warning("[Layout] No Entry node found, skipping outer layout");
+            Log.Warning("[Layout] No Entry/PluginTrigger node found, skipping outer layout");
             return;
         }
 

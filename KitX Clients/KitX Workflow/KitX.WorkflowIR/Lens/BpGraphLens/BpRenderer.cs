@@ -100,30 +100,55 @@ public sealed class BpRenderer
             bp.AddNode(cnode);
         }
 
-        // ── Phase 1 (§11.1): one BlockNode per IrBlock, entry → EntryNode ──
+        // ── Phase 1 (§11.1): synthetic EntryNode + one BlockNode per IrBlock ──
+        // The EntryNode is a pure BP-side construct — it does NOT correspond to any
+        // IrBlock. It is the outer-layer entry marker whose Exec output connects to
+        // the entry block's BlockNode. The entry block (Kind == Entry) is rendered
+        // as a regular BlockNode (with ChildNodeIds + sub-graph), NOT as the EntryNode.
+        // This means every IrBlock — including the entry block — becomes a foldable
+        // BlockNode; the EntryNode is the sole non-BlockNode exception on the outer
+        // canvas (§11.1: "外层只有入口节点和 Block 节点").
+        var entryNode = new EntryNode
+        {
+            Name = "Entry",
+            Id = BpNodeIds.Entry,
+        };
+        bp.AddNode(entryNode);
+
         foreach (var block in ir.Blocks)
         {
-            BlueprintNode node;
-            bool isEntry = block.Kind == IrBlockKind.Entry;
-            if (isEntry)
+            var node = new BlockNode
             {
-                node = new EntryNode { Name = block.Name, Id = BpNodeIds.Block(block.Name) };
-            }
-            else
-            {
-                node = new BlockNode
-                {
-                    BlockName = block.Name,
-                    Name = block.Name,
-                    IsMainBlock = false,
-                    Id = BpNodeIds.Block(block.Name),
-                };
-            }
+                BlockName = block.Name,
+                Name = block.Name,
+                IsMainBlock = block.Kind == IrBlockKind.Entry,
+                Id = BpNodeIds.Block(block.Name),
+            };
 
             node.Comment = BlockComment(block);
             ApplyBlockLayout(node, block);
             bp.AddNode(node);
             blockNodes[block.Name] = node;
+        }
+
+        // Wire the synthetic EntryNode → entry block's BlockNode via Exec.
+        {
+            var entryBlock = blockNodes.TryGetValue(ir.EntryBlock.Name, out var eb) ? eb : null;
+            if (entryBlock is not null)
+            {
+                var srcPin = entryNode.OutputPins.FirstOrDefault(p => p.Type == PinType.Execution);
+                var tgtPin = entryBlock.InputPins.FirstOrDefault(p => p.Type == PinType.Execution);
+                if (srcPin is not null && tgtPin is not null)
+                {
+                    bp.AddConnection(new BlueprintConnection
+                    {
+                        SourceNodeId = entryNode.Id,
+                        SourcePinId = srcPin.Id,
+                        TargetNodeId = entryBlock.Id,
+                        TargetPinId = tgtPin.Id,
+                    });
+                }
+            }
         }
 
         // ── Phase 2 (§11.2): inner boundary/variable nodes per block ──
