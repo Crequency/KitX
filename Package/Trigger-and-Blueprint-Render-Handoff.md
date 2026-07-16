@@ -212,7 +212,55 @@ Phase 5: BlockScope 元数据
 - [ ] 数据流以节点间数据连线呈现
 - [ ] 节点有合理布局坐标（不堆在 0,0）
 - [ ] 编辑蓝图后通过 `BpEditTranslator` → `SyncService` 正确回写 IR
+- [ ] **用户拖动节点位置后，save→load round-trip 保留坐标**（见下文 §坐标持久化）
 - [ ] BlueprintEditorViewModel 现有测试不回归
+
+### 坐标持久化：数据结构已就绪，回写链路缺一个接线点
+
+**需求**："尊重用户对蓝图节点位置的编排"——不能每次渲染蓝图都是默认位置，而是先匹配并应用用户设置/编排的位置。
+
+**调查结论**：IR 数据结构、序列化、渲染读取三条链路完整；坐标回写方法存在且正确；但 `SyncService` 未调用它，导致生产环境拖动坐标无法 round-trip。
+
+#### 已就绪的链路
+
+| 链路环节 | 状态 | 说明 |
+|---|---|---|
+| IR 模型坐标存储 | ✅ 有 | `IrAnnotation(AnnotationKind.Layout, key, IrLayout(X, Y))` 挂在 `IrBlock.Annotations`。块级 `Key="BlockPos"`，语句级 `Key=<fingerprint.Value>`。`IrBlock.Equals` 显式排除 Annotations，保证坐标不影响语义相等性。 |
+| .kcs DTO 序列化 | ✅ 完整 | `AnnotationDto` 有 `LayoutX`/`LayoutY` 字段，`IrSerializer` 双向映射完整。 |
+| BpRenderer 读取坐标 | ✅ 有 | `ApplyBlockLayout`/`ApplyStatementLayout` 从 IR Annotations 读取坐标写入 `BlueprintNode.X/Y`。无 annotation 时默认 (0,0)。 |
+| BpEditTranslator 回写方法 | ✅ 有 | `ApplyPosition(IrWorkflow, nodeId, x, y)` 静态方法存在且正确：`"block:"` 前缀写块级，`"stmt:"` 前缀通过 `DeriveStableId` 匹配语句写语句级。返回新 `IrWorkflow`（结构性共享）。 |
+
+#### 缺失的接线点
+
+| 链路环节 | 状态 | 说明 |
+|---|---|---|
+| **SyncService 调用 ApplyPosition** | ❌ 断点 | `SyncService.ApplyBpEdits` 处理 `MoveNodePosition` 时，`BpEditTranslator.Translate` 产生空 IrDiff（坐标是纯视图状态，不产生语义 diff），`SyncService` 在 `diff.IsEmpty` 时直接 return，**从不调用 `ApplyPosition`**。导致 `session.Ir` 的 Annotations 不更新 → 序列化时不带新坐标 → 重新加载后节点落回 (0,0)。 |
+
+#### 修复方案
+
+在 `SyncService.ApplyBpEdits` 中，`Translate` 之后检查 `IrChangeSet.PositionsChanged`（或遍历原始 actions 中的 `MoveNodePosition`），对每个坐标变更调用 `BpEditTranslator.ApplyPosition` 累积更新 `session.Ir`：
+
+```csharp
+// 伪代码（SyncService.ApplyBpEdits 内）
+var (diff, changeSet) = BpEditTranslator.Translate(session.Ir, actions);
+
+// 坐标回写：MoveNodePosition 不产生语义 diff，但需要把坐标写回 IR Annotations
+if (changeSet.PositionsChanged)
+{
+    var ir = session.Ir;
+    foreach (var action in actions.OfType<MoveNodePositionAction>())
+        ir = BpEditTranslator.ApplyPosition(ir, action.NodeId, action.X, action.Y);
+    session.UpdateIr(ir);  // 或等价的 session.Ir = ir
+}
+```
+
+**关键文件**：
+- `KitX.WorkflowIR/Session/SyncService.cs`（`ApplyBpEdits` 方法，缺 `ApplyPosition` 调用）
+- `KitX.WorkflowIR/Lens/BpGraphLens/BpEditTranslator.cs`（`ApplyPosition` 方法，行 570-616，已实现）
+- `KitX.WorkflowIR/Ir/IrAnnotation.cs`（`IrLayout(X, Y)` record）
+- `KitX.WorkflowIR/Serialization/IrSerializer.cs`（`AnnotationDto.LayoutX/Y` 双向映射）
+
+**与 BpRenderer 重写的关系**：坐标持久化修复独立于 BpRenderer 重写。即使 BpRenderer 重写后改变了节点 id 命名规则，`ApplyPosition` 的 `"block:"`/`"stmt:"` 前缀匹配逻辑仍适用（只要新 BpRenderer 保持 `DeriveStableId` 一致的节点 id）。建议先修复坐标回写接线点（小改动），再重写 BpRenderer（大改动）。
 
 ---
 
