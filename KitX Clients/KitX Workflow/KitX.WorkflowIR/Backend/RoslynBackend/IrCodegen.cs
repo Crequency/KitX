@@ -521,6 +521,24 @@ public static class IrCodegen
                     continue;
                 }
 
+                // Pure-assignment pipeline: Source(s) > Variable, no FunctionCall segment.
+                // FlattenPipeline only walks FunctionCall segments, so it returns an empty
+                // step list for this shape — we must emit the assignment directly.
+                //   `"hello" > bfCode`  →  bfCode = "hello"; G.Set("bfCode", bfCode);
+                //   `0 > ip`            →  ip = 0; G.Set("ip", ip);
+                if (hasPipelineSources
+                    && pipe.Segments.Length > 0
+                    && pipe.Segments[^1].Kind == IrSegmentKind.Variable
+                    && fnName is null)
+                {
+                    var target = pipe.Segments[^1].VariableName!;
+                    var srcExpr = RoslynExprBuilders.ResolveArgumentExpression(pipe.Sources[0], pubVarTypes);
+                    caseStatements.AddRange(RoslynExprBuilders.BuildValueAssignment(
+                        target, srcExpr, "object", pubVarTypes));
+                    ordinal++;
+                    continue;
+                }
+
                 // Default path: flatten the pipeline and emit each step.
                 foreach (var step in FlattenPipeline.Flatten(pipe))
                 {

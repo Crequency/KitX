@@ -211,10 +211,11 @@ internal static class Program
     {
         if (args.Length < 2)
         {
-            Log.Error("Usage: --test-run <kcsFile>");
+            Log.Error("Usage: --test-run <kcsFile> [--dump-source]");
             return;
         }
         var kcsPath = args[1];
+        var dumpSource = args.Contains("--dump-source");
 
         var json = await File.ReadAllTextAsync(kcsPath);
         var kcs = JsonSerializer.Deserialize<KcsFileFormat>(json)
@@ -257,6 +258,18 @@ internal static class Program
         }
         Log.Information("  Re-parse OK: {Blocks} blocks, {Stmts} statements", lowering.Ir.Blocks.Length,
             lowering.Ir.Blocks.Sum(b => b.Statements.Length));
+
+        // 3b. Optionally dump the generated C# source for diagnosis.
+        if (dumpSource)
+        {
+            var compiler = new ScriptCompiler(registry);
+            var source = compiler.GenerateSource(lowering.Ir);
+            Log.Information("  Generated C# source ({Len} chars):", source.Length);
+            // Write to a file next to the .kcs for easy inspection.
+            var srcPath = System.IO.Path.ChangeExtension(kcsPath, ".generated.cs");
+            await System.IO.File.WriteAllTextAsync(srcPath, source);
+            Log.Information("    Written to: {Path}", srcPath);
+        }
 
         // 4. Execute via RoslynExecutionBackend. Pass the lowering so the backend seeds
         //    constants/global-vars (RoslynExecutionBackend seeds only when lowering != null).
