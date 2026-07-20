@@ -40,4 +40,11 @@ public class Config_App : IAppConf
     public ulong RanTime { get; set; } = 0;
 
     public int LastBreakAfterExit { get; set; } = 2000;
+
+    /// <summary>
+    /// Default expand mode for blueprint nested (Block) nodes.
+    /// "Embedded" (default) = Picture-in-Picture inner editor inside the
+    /// NestedNode body; "SubEditor" = modal overlay with breadcrumb.
+    /// </summary>
+    public string BlueprintNestedNodeExpandMode { get; set; } = "Embedded";
 }
