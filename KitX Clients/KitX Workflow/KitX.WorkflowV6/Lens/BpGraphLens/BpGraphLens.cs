@@ -46,8 +46,22 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     /// Folds a stream of BP edits back into the IR as a WorkflowDiff. Edit-time
     /// structured-reduction rejection (§7.2) happens inside this entry.
     /// </summary>
-    public WorkflowDiff Diff(Workflow baseline, IReadOnlyList<BpEditAction> delta) =>
-        throw new NotImplementedException("BpGraphLens.Diff: v6 structured-reduction check not implemented.");
+    public WorkflowDiff Diff(Workflow baseline, IReadOnlyList<BpEditAction> delta)
+    {
+        ArgumentNullException.ThrowIfNull(baseline);
+        ArgumentNullException.ThrowIfNull(delta);
+
+        // Project the baseline IR to a Blueprint so the translator can validate structure.
+        var bp = new BpRenderer(_registry).Render(baseline);
+        var translator = new BpEditTranslator(_registry);
+        var (diff, error) = translator.Translate(bp, delta);
+        if (error is not null)
+        {
+            // The structured-reduction check rejected the edit; surface the error.
+            throw new InvalidOperationException(error);
+        }
+        return diff!;
+    }
 }
 
 /// <summary>
