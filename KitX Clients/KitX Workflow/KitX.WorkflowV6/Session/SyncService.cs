@@ -26,9 +26,6 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 // layout lives in Annotations (excluded from equality) and the applier copies
 // Layout annotations from the old IR for unchanged statements. This is the central
 // UX requirement (discussion notes §7).
-//
-// Method bodies are NotImplemented pending the implementation plan; signatures match
-// the v5 contract so DI wiring works from day one.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -50,13 +47,41 @@ public sealed class SyncService
     /// Applies a BS text edit: re-parses the new source, diffs against the live IR,
     /// applies the diff, and fires <see cref="WorkflowSession.IrChanged"/>.
     /// </summary>
-    public WorkflowChangeSet ApplyBsEdit(WorkflowSession session, string newBsSource) =>
-        throw new NotImplementedException("SyncService.ApplyBsEdit: v6 BS lens not implemented.");
+    public WorkflowChangeSet ApplyBsEdit(WorkflowSession session, string newBsSource)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(newBsSource);
+
+        // Parse the new BS source into a fresh IR.
+        var newIr = _bsLens.Parse(newBsSource, session.HelperFunctions);
+
+        // If the new IR equals the current IR, nothing changed — don't fire event.
+        if (session.Ir.Equals(newIr))
+            return new WorkflowChangeSet { StatementDiff = null, AffectedPaths = [] };
+
+        // Compute the content-addressed diff.
+        var diff = WorkflowDiffer.Compute(session.Ir, newIr);
+        if (diff.IsEmpty)
+            return new WorkflowChangeSet { StatementDiff = null, AffectedPaths = [] };
+
+        // Apply the diff to produce the new IR (with Layout preserved for unchanged
+        // statements).
+        var appliedIr = WorkflowDiffApply.Apply(session.Ir, diff);
+
+        // Build the change set and update the session.
+        var changeSet = new WorkflowChangeSet
+        {
+            StatementDiff = diff,
+            AffectedPaths = WorkflowChangeSet.CollectAffectedPaths(diff),
+        };
+        session.ApplyChange(appliedIr, changeSet);
+        return changeSet;
+    }
 
     /// <summary>
     /// Applies a batch of BP edits: translates them into a WorkflowDiff, applies the
     /// diff, and fires <see cref="WorkflowSession.IrChanged"/>.
     /// </summary>
     public WorkflowChangeSet ApplyBpEdits(WorkflowSession session, IReadOnlyList<BpEditAction> edits) =>
-        throw new NotImplementedException("SyncService.ApplyBpEdits: v6 BP lens not implemented.");
+        throw new NotImplementedException("SyncService.ApplyBpEdits: v6 BP lens not implemented (Phase 9).");
 }
