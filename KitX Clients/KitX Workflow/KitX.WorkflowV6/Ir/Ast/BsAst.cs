@@ -8,33 +8,80 @@ namespace KitX.WorkflowV6.Ir.Ast;
 // while the IR is the canonical lowered form. Lowering is a one-way transform
 // (AST → IR); rendering IR → BS text does not need the AST.
 //
-// The v6 BS grammar (indented, Python-style, see discussion notes §4.1) is the
-// open design surface. The placeholder types here keep the parser/lowering/codegen
-// handler interfaces (see Builtin.IFunctionHandlers) well-typed from day one; their
-// concrete shape will be refined by the implementation plan.
+// The v6 BS grammar (indented, Python-style, see discussion notes §4.1 + §十二-A:
+// 4-space indent, no tabs, +4 per level) is parsed into the node types below. Every
+// node remembers its verbatim source text so the renderer never re-parses.
 //
-// Two near-certain types are stubbed now:
-//   • BsCall — a function invocation (covers bare calls, member calls, nested calls
-//     used as arguments). The v6 pipeline form <c>a, b > F > G > x</c> parses into a
-//     BsPipeline rooted on BsCalls; control-flow keywords (<c>if</c>, <c>forEach</c>,
-//     <c>while</c>, ...) parse into BsControlFlow nodes that carry BsCall bodies.
-//   • BsPipeline — the functional <c>&gt;</c> / <c>=</c> data-flow syntax tree.
+// Node family overview (closed set, mirrors the 9 control-flow primitives in §3.3 +
+// the const/var declaration blocks in §十二-C):
+//
+//   Expression nodes (BsNode subclasses, reusable as args / sources / conditions):
+//     BsLiteral       — string/int/double/bool/char/null literal
+//     BsIdentifier    — variable / PubVar / ConstBlock name reference
+//     BsCall          — function invocation (bare, member, or nested-as-arg)
+//     BsPipeline       — the `>` / `=` data-flow syntax tree
+//     BsPipelineSegment — one `> Target` of a BsPipeline (call OR variable tap)
+//     BsPlaceholder    — `_`, the pipeline-value insertion marker
+//
+//   Declaration nodes (top-level only, from `const { ... }` / `var { ... }` blocks):
+//     BsConstDecl     — one row inside a const block
+//     BsVarDecl       — one row inside a var block
+//     BsConstBlock    — the `const { ... }` block (list of BsConstDecl)
+//     BsVarBlock      — the `var { ... }` block (list of BsVarDecl)
+//
+//   Control-flow nodes (statement-level; bodies are child BsStatement lists):
+//     BsIf            — `if cond { body } else { body }` (else-if nests via BsIf in else body)
+//     BsSwitch        — `switch sel { 0: A; 1: B; default: C }`
+//     BsForEach       — `forEach source as item { body }`
+//     BsWhile         — `while cond { body }`
+//     BsBreak         — `break`
+//     BsContinue      — `continue`
+//     BsExit          — `exit()` (may carry reason arg)
+//
+//   Program root:
+//     BsProgram       — the whole document (optional const/var blocks + top-level body)
+//
+// Per discussion notes §十二-K, control-flow keywords do NOT route through
+// IBuiltinFunction — they are parsed directly into their own AST node kinds by the
+// indented parser, and lowered into their own IR Statement kinds (IfStatement,
+// ForEachStatement, ...) by BsLowerer.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>Root of the BS source AST. Every node may carry verbatim source text for lossless rendering.</summary>
 public abstract record BsNode
 {
-    /// <summary>Verbatim source text this node was parsed from.</summary>
+    /// <summary>Verbatim source text this node was parsed from. Set at the parse boundary.</summary>
     public string SourceText { get; init; } = string.Empty;
 
     /// <summary>1-based source line where this node starts.</summary>
     public int SourceLine { get; init; }
 }
 
+// ── Expression nodes ──
+
+/// <summary>Discriminated literal kinds mirroring BlockScript's supported types.</summary>
+public enum BsLiteralKind { String, Integer, Double, Boolean, Char, Null }
+
+/// <summary>A literal value (string/int/bool/double/char/null) with its typed value.</summary>
+public sealed record BsLiteral : BsNode
+{
+    public required BsLiteralKind Kind { get; init; }
+    public object? Value { get; init; }
+}
+
+/// <summary>An identifier reference (variable / PubVar / ConstBlock name).</summary>
+public sealed record BsIdentifier : BsNode
+{
+    public required string Name { get; init; }
+}
+
 /// <summary>
-/// A function invocation. Placeholder shape; refined when the v6 indented parser is
-/// designed. Will cover bare calls (<c>Print(x)</c>), member calls (<c>Plugin.Method(args)</c>),
-/// and nested calls used as arguments.
+/// A function invocation. Covers bare calls (<c>Print(x)</c>), member-access calls
+/// (<c>Plugin.Method(args)</c>), and nested calls used as arguments.
+/// <see cref="MethodName"/> is the short name (last segment);
+/// <see cref="FullMethodName"/> the full dotted path. Args are the structured argument
+/// expressions (may themselves be BsCalls); RawArgs preserves each argument's source
+/// text for string-based lowering paths that haven't been migrated yet.
 /// </summary>
 public sealed record BsCall : BsNode
 {
@@ -45,20 +92,219 @@ public sealed record BsCall : BsNode
 }
 
 /// <summary>
-/// A pipeline expression (<c>a, b > F > G > x</c>). Placeholder shape. The structured
-/// IR's <c>PipelineStatement</c> is lowered from this; control-flow lowering is the
-/// responsibility of the per-role handlers (see Builtin.IFunctionHandlers).
+/// A pipeline expression (<c>a, b &gt; F > G > x</c>). <see cref="Sources"/> is the
+/// comma-separated LHS; <see cref="Segments"/> is the ordered list of
+/// <see cref="BsPipelineSegment"/> (each a call or a variable tap).
+/// Lowered to a <see cref="KitX.WorkflowV6.Ir.Statements.PipelineStatement"/>.
 /// </summary>
 public sealed record BsPipeline : BsNode
 {
     public required IReadOnlyList<BsNode> Sources { get; init; }
     public required IReadOnlyList<BsPipelineSegment> Segments { get; init; }
+
+    /// <summary>
+    /// Renders the pipeline back to its <c>&gt;</c> source form from the structured AST.
+    /// Each Source/Segment renders its own <see cref="BsNode.SourceText"/>, which is set
+    /// losslessly at the parse boundary — so this never needs to re-format.
+    /// </summary>
+    public string RenderPipelineSource()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append(string.Join(", ", Sources.Select(s => s.SourceText)));
+        foreach (var seg in Segments)
+            sb.Append(" > ").Append(seg.SourceText);
+        return sb.ToString();
+    }
 }
 
-/// <summary>One segment of a <see cref="BsPipeline"/> (one <c>&gt; Target</c>).</summary>
+/// <summary>
+/// One segment of a <see cref="BsPipeline"/> (one <c>&gt; Target</c>). Either a function
+/// call (with optional arguments, which may include <see cref="BsPlaceholder"/>s for
+/// pipeline-value insertion) or a variable tap (<c>&gt; x</c> with no parens).
+/// </summary>
 public sealed record BsPipelineSegment : BsNode
 {
+    /// <summary>The target name — function name (for a call) or variable name (for a tap).</summary>
     public required string Target { get; init; }
+
+    /// <summary>
+    /// Structured arguments for a call segment. Empty for a variable tap.
+    /// May contain <see cref="BsPlaceholder"/> nodes marking pipeline-value insertion slots.
+    /// </summary>
     public IReadOnlyList<BsNode> Args { get; init; } = [];
+
+    /// <summary>
+    /// Raw argument source strings, preserved for any lowering path that still operates
+    /// on text (will be retired as the lowering migrates fully to the AST).
+    /// </summary>
+    public IReadOnlyList<string> RawArgs { get; init; } = [];
+
+    /// <summary>True when this segment is a variable assignment tap rather than a call.</summary>
     public bool IsVariableTap { get; init; }
+}
+
+/// <summary>
+/// A pipeline placeholder (<c>_</c>) — marks where a pipeline value inserts during
+/// lowering. <see cref="Index"/> is the ordinal among multiple placeholders in the
+/// same call (0-based).
+/// </summary>
+public sealed record BsPlaceholder : BsNode
+{
+    public int Index { get; init; }
+}
+
+// ── Declaration nodes (top-level only) ──
+
+/// <summary>A single constant declaration row inside a <see cref="BsConstBlock"/>.</summary>
+public sealed record BsConstDecl : BsNode
+{
+    public required string Name { get; init; }
+    /// <summary>Declared C# type (e.g. "int", "string"). Open: may become a typed enum later.</summary>
+    public string Type { get; init; } = "object";
+    /// <summary>Verbatim initialiser expression source text (e.g. <c>42</c>, <c>"hi"</c>).</summary>
+    public string? InitialValueExpression { get; init; }
+}
+
+/// <summary>A single mutable variable declaration row inside a <see cref="BsVarBlock"/>.</summary>
+public sealed record BsVarDecl : BsNode
+{
+    public required string Name { get; init; }
+    public string Type { get; init; } = "object";
+    public string? InitialValueExpression { get; init; }
+}
+
+/// <summary>
+/// The <c>const { ... }</c> block (discussion notes §十二-C). Top-level only; a list of
+/// <see cref="BsConstDecl"/> rows. Lowered to the <see cref="KitX.WorkflowV6.Ir.Workflow.Constants"/>
+/// dictionary.
+/// </summary>
+public sealed record BsConstBlock : BsNode
+{
+    public IReadOnlyList<BsConstDecl> Declarations { get; init; } = [];
+}
+
+/// <summary>
+/// The <c>var { ... }</c> block (discussion notes §十二-C). Top-level only; a list of
+/// <see cref="BsVarDecl"/> rows. Lowered to the <see cref="KitX.WorkflowV6.Ir.Workflow.GlobalVars"/>
+/// dictionary.
+/// </summary>
+public sealed record BsVarBlock : BsNode
+{
+    public IReadOnlyList<BsVarDecl> Declarations { get; init; } = [];
+}
+
+// ── Control-flow statement nodes ──
+
+/// <summary>Base of statement-level BS AST nodes (anything that can sit in a body).</summary>
+public abstract record BsStatement : BsNode;
+
+/// <summary>
+/// An <c>if &lt;condition&gt; { then-body } else { else-body }</c> statement.
+/// <see cref="Condition"/> is a <see cref="BsNode"/> expression (typically a BsCall to
+/// <c>HelperFuncCompare</c>, or a BsIdentifier referencing a bool PubVar — comparison
+/// operators are disabled per §十二-B so conditions are always function calls or ids).
+/// <c>else if</c> nests a <see cref="BsIf"/> inside <see cref="ElseBody"/>.
+/// </summary>
+public sealed record BsIf : BsStatement
+{
+    public required BsNode Condition { get; init; }
+    public required IReadOnlyList<BsStatement> ThenBody { get; init; } = [];
+    public IReadOnlyList<BsStatement> ElseBody { get; init; } = [];
+}
+
+/// <summary>
+/// A <c>switch &lt;selector&gt; { 0: A; 1: B; default: C }</c> statement.
+/// <see cref="Selector"/> is a <see cref="BsNode"/> expression yielding an integer index.
+/// <see cref="Arms"/> carries arms 0..N-1 in source order; <see cref="Default"/> is the
+/// fallback body (may be empty).
+/// </summary>
+public sealed record BsSwitch : BsStatement
+{
+    public required BsNode Selector { get; init; }
+    public required IReadOnlyList<IReadOnlyList<BsStatement>> Arms { get; init; } = [];
+    public IReadOnlyList<BsStatement> Default { get; init; } = [];
+}
+
+/// <summary>
+/// A <c>forEach &lt;source&gt; as &lt;item&gt; { body }</c> statement (discussion notes
+/// §3.3 #4, §十二-G). The source is a <see cref="BsNode"/> expression producing a
+/// collection (typically <c>Range(...)</c> or a Json array). The body sees the current
+/// element bound to <see cref="ItemName"/> as a real input — NOT the v5.1 string-name
+/// injection anti-pattern.
+/// </summary>
+public sealed record BsForEach : BsStatement
+{
+    public required BsNode Source { get; init; }
+    public required string ItemName { get; init; }
+    public required IReadOnlyList<BsStatement> Body { get; init; } = [];
+}
+
+/// <summary>A <c>while &lt;condition&gt; { body }</c> statement (discussion notes §3.3 #5, §十二-E).</summary>
+public sealed record BsWhile : BsStatement
+{
+    public required BsNode Condition { get; init; }
+    public required IReadOnlyList<BsStatement> Body { get; init; } = [];
+}
+
+/// <summary>
+/// A <c>break</c> statement (discussion notes §3.3 #6, §十二-D: no label — escapes the
+/// nearest enclosing loop only).
+/// </summary>
+public sealed record BsBreak : BsStatement;
+
+/// <summary>
+/// A <c>continue</c> statement (§3.3 #7, §十二-D: no label — continues the nearest
+/// enclosing loop only).
+/// </summary>
+public sealed record BsContinue : BsStatement;
+
+/// <summary>
+/// An <c>exit()</c> statement (§3.3 #8). Terminates the workflow (maps to <c>return</c>
+/// in the generated structured C#). The v5 "Break" builtin renamed to avoid the
+/// loop-break name clash. May carry an optional reason argument.
+/// </summary>
+public sealed record BsExit : BsStatement
+{
+    public BsNode? Reason { get; init; }
+}
+
+// ── Program root ──
+
+/// <summary>
+/// The root of a BS document: optional <see cref="BsConstBlock"/> + optional
+/// <see cref="BsVarBlock"/> + an ordered top-level <see cref="Body"/> of statements.
+/// Produced by the indented parser; lowered to a <see cref="KitX.WorkflowV6.Ir.Workflow"/>.
+/// </summary>
+public sealed record BsProgram : BsNode
+{
+    public BsConstBlock? ConstBlock { get; init; }
+    public BsVarBlock? VarBlock { get; init; }
+    public required IReadOnlyList<BsStatement> Body { get; init; } = [];
+}
+
+// ── Extension helpers over BsNode (replaces the old ExprUtils Roslyn helpers) ──
+
+/// <summary>Extension helpers over <see cref="BsNode"/>.</summary>
+public static class BsNodeExtensions
+{
+    /// <summary>The string value when the node is a string literal, else null.</summary>
+    public static string? AsStringLiteral(this BsNode? node)
+        => node is BsLiteral { Kind: BsLiteralKind.String } lit ? lit.Value as string : null;
+
+    /// <summary>The typed literal value (string/int/double/bool/char/null), else null.</summary>
+    public static object? LiteralValue(this BsNode? node)
+        => node is BsLiteral lit ? lit.Value : null;
+
+    /// <summary>
+    /// True when the source text is a C# character literal (e.g. <c>'\0'</c>, <c>'a'</c>).
+    /// Lightweight structural test: char literals start/end with single quote, content is
+    /// either one char or a backslash-escape pair. Inherited from v5.
+    /// </summary>
+    public static bool IsCharacterLiteral(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return false;
+        if (value.Length < 3 || value[0] != '\'' || value[^1] != '\'') return false;
+        var inner = value[1..^1];
+        return inner.Length == 1 || (inner.Length == 2 && inner[0] == '\\');
+    }
 }

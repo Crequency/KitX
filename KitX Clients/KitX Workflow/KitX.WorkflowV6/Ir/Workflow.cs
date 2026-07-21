@@ -81,17 +81,38 @@ public sealed record Workflow
     }
 }
 
-/// <summary>Immutable constant declaration (name + typed value). Refined during implementation.</summary>
+/// <summary>
+/// A constant from a <c>const { ... }</c> block (discussion notes §十二-C). Preserves
+/// both the raw C# initialiser expression (for lossless BS round-trip, keeping quoting
+/// /escaping) and the evaluated default value (for execution). Shape inherited from
+/// v5.1 <c>KitX.Workflow.Ir.IrConstant</c>, re-typed as a record with required fields.
+/// </summary>
 public sealed record Constant
 {
     public required string Name { get; init; }
-    public required string Type { get; init; }
-    public required string Value { get; init; }
+    /// <summary>C# type name (e.g. "int", "string", "double"). Carried into codegen for typed emission.</summary>
+    public string Type { get; init; } = "object";
+    /// <summary>Verbatim initialiser expression source text (e.g. <c>42</c>, <c>"hi"</c>). Null when unset.</summary>
+    public string? InitialValueExpression { get; init; }
+    /// <summary>Evaluated default value, when known at lowering time. Null when dynamic.</summary>
+    public object? DefaultValue { get; init; }
+
+    /// <summary>True when the constant has any kind of initial value.</summary>
+    public bool HasInitialValue =>
+        DefaultValue is not null || !string.IsNullOrEmpty(InitialValueExpression);
 }
 
-/// <summary>Immutable global mutable variable declaration (name + type). Refined during implementation.</summary>
+/// <summary>
+/// A global mutable variable from a <c>var { ... }</c> block (discussion notes §十二-C).
+/// Carries its declared C# type so the codegen backend can emit a strongly-typed field
+/// on the <c>G</c> class (discussion notes §十二-F: PubVar strong typing, replacing the
+/// v5.1 dictionary + boxing with direct field reads/writes — 10-100x on tight loops).
+/// Shape inherited from v5.1 <c>KitX.Workflow.Ir.IrGlobalVar</c>.
+/// </summary>
 public sealed record GlobalVar
 {
     public required string Name { get; init; }
-    public required string Type { get; init; }
+    public string Type { get; init; } = "object";
+    public string? InitialValueExpression { get; init; }
+    public object? DefaultValue { get; init; }
 }

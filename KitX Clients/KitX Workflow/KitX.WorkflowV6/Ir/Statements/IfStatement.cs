@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Ir.Statements;
 
+using KitX.WorkflowV6.Ir.Ast;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // IfStatement — the structured if/else primitive (BlockScript discussion notes §3.3 #2).
 //
@@ -10,8 +12,10 @@ namespace KitX.WorkflowV6.Ir.Statements;
 // whose True/False output pins each connect to the subgraph for the corresponding
 // body, and both bodies rejoin at the implicit continuation point.
 //
-// The condition is a pipeline expression (PipelineStatement with no assignment) or a
-// single identifier — kept as raw text pending AST refinement.
+// Per discussion notes §十二-B, comparison operators (`>`/`<`/`==`/...) are fully
+// disabled — conditions are always a function call (e.g. `HelperFuncCompare("BEQ", a, b)`)
+// or an identifier referencing a bool PubVar. So <see cref="Condition"/> is a
+/// <see cref="BsNode"/> (typically a BsCall or BsIdentifier), never a binary expression.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -21,15 +25,23 @@ namespace KitX.WorkflowV6.Ir.Statements;
 /// </summary>
 public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
 {
-    /// <summary>The condition expression (raw BS text form, refined during implementation).</summary>
-    public required string Condition { get; init; }
+    /// <inheritdoc/>
+    public override KitX.WorkflowV6.Ir.StatementKind Kind =>
+        KitX.WorkflowV6.Ir.StatementKind.If;
+
+    /// <summary>
+    /// The condition expression. A <see cref="BsNode"/> — typically a <see cref="BsCall"/>
+    /// to <c>HelperFuncCompare</c> (comparisons are function-call-only per §十二-B) or a
+    /// <see cref="BsIdentifier"/> referencing a bool PubVar.
+    /// </summary>
+    public required BsNode Condition { get; init; }
 
     /// <summary>Body executed when <see cref="Condition"/> is true.</summary>
     public required ImmutableArray<Statement> ThenBody { get; init; } = [];
 
     /// <summary>
     /// Body executed when <see cref="Condition"/> is false. Empty when the source had
-    /// no <c>else</c> clause.
+    /// no <c>else</c> clause. <c>else if</c> nests an <see cref="IfStatement"/> here.
     /// </summary>
     public ImmutableArray<Statement> ElseBody { get; init; } = [];
 
@@ -39,7 +51,7 @@ public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
         if (ReferenceEquals(this, other)) return true;
         if (Fingerprint.Equals(other.Fingerprint) == false) return false;
         if (Comment != other.Comment || SourceLine != other.SourceLine) return false;
-        if (Condition != other.Condition) return false;
+        if (!Condition.Equals(other.Condition)) return false;
         if (!ThenBody.SequenceEqual(other.ThenBody)) return false;
         if (!ElseBody.SequenceEqual(other.ElseBody)) return false;
         return true;

@@ -7,28 +7,48 @@ namespace KitX.WorkflowV6.Ir.Statements;
 // enclosing loop (forEach / while) lexically; exit terminates the workflow (the v5
 // "Break" builtin, renamed because "Break" was already overloaded by loop-break).
 //
-// Whether break/continue take a label (for breaking out of nested loops, discussion
-// notes §10.2) is open. The Label field is reserved here so the implementation phase
-// has a concrete place to add it.
+// Per discussion notes §十二-D: break/continue do NOT take a label (no labeled-break
+// / labeled-continue). Escaping an outer loop requires refactoring (extract to a
+// helper, or use a flag). This keeps the language firmly structured — no goto-in-
+// disguise. The <see cref="BreakStatement.Label"/> / <see cref="ContinueStatement.Label"/>
+// fields are reserved here only so the IR shape is forward-compatible if a future
+// revision reverses §十二-D; they default to null and the v6 parser will reject any
+// non-null value until such a revision.
+//
+// These three are first-class IR statement kinds per §十二-K (NOT IBuiltinFunction):
+// the indented parser builds them directly, and Phase 4 codegen lowers them to the
+// C# <c>break;</c> / <c>continue;</c> / <c>return;</c> keywords.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
 /// Breaks out of the enclosing loop (forEach / while). Targets the nearest enclosing
-/// loop unless <see cref="Label"/> names an outer loop (open design point, §10.2).
+/// loop (§十二-D: no labeled break — <see cref="Label"/> is reserved for a future
+/// revision and must be null today).
 /// </summary>
 public sealed record BreakStatement : KitX.WorkflowV6.Ir.Statement
 {
-    /// <summary>Optional label of the loop to break out of (nested-loop break, §10.2).</summary>
+    /// <inheritdoc/>
+    public override KitX.WorkflowV6.Ir.StatementKind Kind =>
+        KitX.WorkflowV6.Ir.StatementKind.Break;
+
+    /// <summary>
+    /// Optional label of the loop to break out of. Reserved for a future labeled-break
+    /// feature (§十二-D); must be null today — the v6 parser rejects any non-null value.
+    /// </summary>
     public string? Label { get; init; }
 }
 
 /// <summary>
 /// Skips to the next iteration of the enclosing loop (forEach / while). Targets the
-/// nearest enclosing loop unless <see cref="Label"/> names an outer loop.
+/// nearest enclosing loop (§十二-D: no labeled continue).
 /// </summary>
 public sealed record ContinueStatement : KitX.WorkflowV6.Ir.Statement
 {
-    /// <summary>Optional label of the loop to continue (nested-loop continue, §10.2).</summary>
+    /// <inheritdoc/>
+    public override KitX.WorkflowV6.Ir.StatementKind Kind =>
+        KitX.WorkflowV6.Ir.StatementKind.Continue;
+
+    /// <summary>Optional label of the loop to continue. Reserved (§十二-D); must be null today.</summary>
     public string? Label { get; init; }
 }
 
@@ -39,6 +59,10 @@ public sealed record ContinueStatement : KitX.WorkflowV6.Ir.Statement
 /// </summary>
 public sealed record ExitStatement : KitX.WorkflowV6.Ir.Statement
 {
-    /// <summary>Optional exit code / status payload (refined during implementation).</summary>
+    /// <inheritdoc/>
+    public override KitX.WorkflowV6.Ir.StatementKind Kind =>
+        KitX.WorkflowV6.Ir.StatementKind.Exit;
+
+    /// <summary>Optional exit reason payload (refined during implementation).</summary>
     public string? Reason { get; init; }
 }
