@@ -76,8 +76,9 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
             InjectedVariableNames = new HashSet<string>(),
         };
 
-        var codegen = new StructuredCodegen(_registry);
-        var source = codegen.Generate(ir, effectiveLowering);
+        var hasDebugger = debugger is not null;
+        var codegen = new Debugging.DebugCodegen(_registry);
+        var source = codegen.Generate(ir, effectiveLowering, hasDebugger);
 
         var (assembly, loadContext, compileErrors) = Compile(source);
         if (assembly is null)

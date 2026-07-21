@@ -41,6 +41,40 @@ public class ExecutionGlobals
     public IBlueprintDebugController? Debugger { get; set; }
 
     /// <summary>
+    /// Called before each statement in debug mode. Forwards to the debug controller
+    /// to enable pause/step/breakpoint. When debugger is null, this is a no-op.
+    /// </summary>
+    public void Checkpoint(string stmtId, string lexicalPath)
+    {
+        Debugger?.CheckpointAsync(stmtId, lexicalPath, CancellationToken.None).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Records a data value flowing on a wire, enabling the "wire data tooltip"
+    /// feature (§十二-M). The frontend queries these cached values when the user
+    /// hovers over a connection.
+    /// </summary>
+    public Dictionary<string, object?> WireValues { get; } = new();
+
+    /// <summary>Records a wire value for the debugger tooltip.</summary>
+    public void RecordWireValue(string wireId, object? value)
+    {
+        WireValues[wireId] = value;
+    }
+
+    /// <summary>
+    /// Returns a snapshot of all current PubVar values for the debugger variable panel.
+    /// Uses the discovery dictionary Vars by default; strong-typed generated G subclasses
+    /// override this to include their fields.
+    /// </summary>
+    public virtual Dictionary<string, object?> GetVariableSnapshot()
+    {
+        var snap = new Dictionary<string, object?>();
+        foreach (var (k, v) in Vars) snap[k] = v;
+        return snap;
+    }
+
+    /// <summary>
     /// Captures every <see cref="Print"/> call's value as a string line. Tests read this
     /// instead of stdout; the dashboard wires a writer to the output panel.
     /// </summary>
