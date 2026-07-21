@@ -59,7 +59,7 @@ public abstract record BsNode
     /// Same for <see cref="SourceLine"/>. Two ASTs differing only in source text/line
     /// are semantically equal (the structured content is identical).
     /// </remarks>
-    public string SourceText;
+    public string SourceText = string.Empty;
     public int SourceLine;
 }
 
