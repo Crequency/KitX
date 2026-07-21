@@ -50,7 +50,7 @@ public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Fingerprint.Equals(other.Fingerprint) == false) return false;
-        if (Comment != other.Comment || SourceLine != other.SourceLine) return false;
+        if (Comment != other.Comment) return false;
         if (!Condition.Equals(other.Condition)) return false;
         if (!ThenBody.SequenceEqual(other.ThenBody)) return false;
         if (!ElseBody.SequenceEqual(other.ElseBody)) return false;
@@ -62,8 +62,7 @@ public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
         var hash = new HashCode();
         hash.Add(Fingerprint);
         hash.Add(Comment);
-        hash.Add(SourceLine);
-        hash.Add(Condition);
+                hash.Add(Condition);
         foreach (var s in ThenBody) hash.Add(s);
         foreach (var s in ElseBody) hash.Add(s);
         return hash.ToHashCode();

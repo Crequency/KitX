@@ -63,7 +63,7 @@ public sealed record ForEachStatement : KitX.WorkflowV6.Ir.Statement
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Fingerprint.Equals(other.Fingerprint) == false) return false;
-        if (Comment != other.Comment || SourceLine != other.SourceLine) return false;
+        if (Comment != other.Comment) return false;
         if (!Source.Equals(other.Source)) return false;
         if (ItemName != other.ItemName) return false;
         if (ItemType != other.ItemType) return false;
@@ -76,8 +76,7 @@ public sealed record ForEachStatement : KitX.WorkflowV6.Ir.Statement
         var hash = new HashCode();
         hash.Add(Fingerprint);
         hash.Add(Comment);
-        hash.Add(SourceLine);
-        hash.Add(Source);
+                hash.Add(Source);
         hash.Add(ItemName);
         hash.Add(ItemType);
         foreach (var s in Body) hash.Add(s);

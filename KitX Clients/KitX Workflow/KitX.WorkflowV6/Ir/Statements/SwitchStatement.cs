@@ -47,7 +47,7 @@ public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Fingerprint.Equals(other.Fingerprint) == false) return false;
-        if (Comment != other.Comment || SourceLine != other.SourceLine) return false;
+        if (Comment != other.Comment) return false;
         if (!Selector.Equals(other.Selector)) return false;
         if (Arms.Length != other.Arms.Length) return false;
         for (int i = 0; i < Arms.Length; i++)
@@ -61,8 +61,7 @@ public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
         var hash = new HashCode();
         hash.Add(Fingerprint);
         hash.Add(Comment);
-        hash.Add(SourceLine);
-        hash.Add(Selector);
+                hash.Add(Selector);
         foreach (var arm in Arms)
             foreach (var s in arm) hash.Add(s);
         foreach (var s in Default) hash.Add(s);

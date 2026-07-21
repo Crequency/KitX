@@ -48,7 +48,7 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Fingerprint.Equals(other.Fingerprint) == false) return false;
-        if (Comment != other.Comment || SourceLine != other.SourceLine) return false;
+        if (Comment != other.Comment) return false;
         if (Sources.Length != other.Sources.Length) return false;
         for (int i = 0; i < Sources.Length; i++)
             if (!Sources[i].Equals(other.Sources[i])) return false;
@@ -63,8 +63,7 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
         var hash = new HashCode();
         hash.Add(Fingerprint);
         hash.Add(Comment);
-        hash.Add(SourceLine);
-        foreach (var s in Sources) hash.Add(s);
+                foreach (var s in Sources) hash.Add(s);
         foreach (var s in Segments) hash.Add(s);
         return hash.ToHashCode();
     }

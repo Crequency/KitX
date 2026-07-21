@@ -50,11 +50,17 @@ namespace KitX.WorkflowV6.Ir.Ast;
 /// <summary>Root of the BS source AST. Every node may carry verbatim source text for lossless rendering.</summary>
 public abstract record BsNode
 {
-    /// <summary>Verbatim source text this node was parsed from. Set at the parse boundary.</summary>
-    public string SourceText { get; init; } = string.Empty;
-
-    /// <summary>1-based source line where this node starts.</summary>
-    public int SourceLine { get; init; }
+    /// <summary>
+    /// Verbatim source text this node was parsed from. Set at the parse boundary.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately a plain mutable FIELD (not a record property): the auto-generated
+    /// record equality only includes properties, so this is excluded from equality.
+    /// Same for <see cref="SourceLine"/>. Two ASTs differing only in source text/line
+    /// are semantically equal (the structured content is identical).
+    /// </remarks>
+    public string SourceText;
+    public int SourceLine;
 }
 
 // ── Expression nodes ──
@@ -87,8 +93,34 @@ public sealed record BsCall : BsNode
 {
     public required string MethodName { get; init; }
     public string FullMethodName { get; init; } = string.Empty;
-    public IReadOnlyList<BsNode> Args { get; init; } = [];
-    public IReadOnlyList<string> RawArgs { get; init; } = [];
+    public ImmutableArray<BsNode> Args { get; init; } = [];
+    /// <summary>
+    /// Raw argument source strings. Deliberately EXCLUDED from equality (it is a
+    /// derived cache of <see cref="Args"/>' SourceText). The record's auto-generated
+    /// Equals would compare ImmutableArray&lt;string&gt; by reference, breaking
+    /// round-trip equality; the custom Equals below excludes it.
+    /// </summary>
+    public ImmutableArray<string> RawArgs { get; init; } = [];
+
+    public bool Equals(BsCall? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (MethodName != other.MethodName) return false;
+        if (FullMethodName != other.FullMethodName) return false;
+        if (!Args.SequenceEqual(other.Args)) return false;
+        // RawArgs deliberately excluded (derived cache).
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(MethodName);
+        h.Add(FullMethodName);
+        foreach (var a in Args) h.Add(a);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -96,11 +128,14 @@ public sealed record BsCall : BsNode
 /// comma-separated LHS; <see cref="Segments"/> is the ordered list of
 /// <see cref="BsPipelineSegment"/> (each a call or a variable tap).
 /// Lowered to a <see cref="KitX.WorkflowV6.Ir.Statements.PipelineStatement"/>.
+/// Inherits from <see cref="BsStatement"/> so it can sit in a statement body (the
+/// pipeline is the only data-flow construct, and at the statement level it IS the
+/// statement — there's no separate "expression statement" wrapper).
 /// </summary>
-public sealed record BsPipeline : BsNode
+public sealed record BsPipeline : BsStatement
 {
-    public required IReadOnlyList<BsNode> Sources { get; init; }
-    public required IReadOnlyList<BsPipelineSegment> Segments { get; init; }
+    public required ImmutableArray<BsNode> Sources { get; init; }
+    public required ImmutableArray<BsPipelineSegment> Segments { get; init; }
 
     /// <summary>
     /// Renders the pipeline back to its <c>&gt;</c> source form from the structured AST.
@@ -131,16 +166,35 @@ public sealed record BsPipelineSegment : BsNode
     /// Structured arguments for a call segment. Empty for a variable tap.
     /// May contain <see cref="BsPlaceholder"/> nodes marking pipeline-value insertion slots.
     /// </summary>
-    public IReadOnlyList<BsNode> Args { get; init; } = [];
+    public ImmutableArray<BsNode> Args { get; init; } = [];
 
     /// <summary>
-    /// Raw argument source strings, preserved for any lowering path that still operates
-    /// on text (will be retired as the lowering migrates fully to the AST).
+    /// Raw argument source strings. Deliberately EXCLUDED from equality (derived cache).
     /// </summary>
-    public IReadOnlyList<string> RawArgs { get; init; } = [];
+    public ImmutableArray<string> RawArgs { get; init; } = [];
 
     /// <summary>True when this segment is a variable assignment tap rather than a call.</summary>
     public bool IsVariableTap { get; init; }
+
+    public bool Equals(BsPipelineSegment? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (Target != other.Target) return false;
+        if (IsVariableTap != other.IsVariableTap) return false;
+        if (!Args.SequenceEqual(other.Args)) return false;
+        // RawArgs deliberately excluded (derived cache).
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Target);
+        h.Add(IsVariableTap);
+        foreach (var a in Args) h.Add(a);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -180,7 +234,7 @@ public sealed record BsVarDecl : BsNode
 /// </summary>
 public sealed record BsConstBlock : BsNode
 {
-    public IReadOnlyList<BsConstDecl> Declarations { get; init; } = [];
+    public ImmutableArray<BsConstDecl> Declarations { get; init; } = [];
 }
 
 /// <summary>
@@ -190,7 +244,7 @@ public sealed record BsConstBlock : BsNode
 /// </summary>
 public sealed record BsVarBlock : BsNode
 {
-    public IReadOnlyList<BsVarDecl> Declarations { get; init; } = [];
+    public ImmutableArray<BsVarDecl> Declarations { get; init; } = [];
 }
 
 // ── Control-flow statement nodes ──
@@ -208,8 +262,8 @@ public abstract record BsStatement : BsNode;
 public sealed record BsIf : BsStatement
 {
     public required BsNode Condition { get; init; }
-    public required IReadOnlyList<BsStatement> ThenBody { get; init; } = [];
-    public IReadOnlyList<BsStatement> ElseBody { get; init; } = [];
+    public required ImmutableArray<BsStatement> ThenBody { get; init; } = [];
+    public ImmutableArray<BsStatement> ElseBody { get; init; } = [];
 }
 
 /// <summary>
@@ -221,8 +275,8 @@ public sealed record BsIf : BsStatement
 public sealed record BsSwitch : BsStatement
 {
     public required BsNode Selector { get; init; }
-    public required IReadOnlyList<IReadOnlyList<BsStatement>> Arms { get; init; } = [];
-    public IReadOnlyList<BsStatement> Default { get; init; } = [];
+    public required ImmutableArray<ImmutableArray<BsStatement>> Arms { get; init; } = [];
+    public ImmutableArray<BsStatement> Default { get; init; } = [];
 }
 
 /// <summary>
@@ -236,14 +290,14 @@ public sealed record BsForEach : BsStatement
 {
     public required BsNode Source { get; init; }
     public required string ItemName { get; init; }
-    public required IReadOnlyList<BsStatement> Body { get; init; } = [];
+    public required ImmutableArray<BsStatement> Body { get; init; } = [];
 }
 
 /// <summary>A <c>while &lt;condition&gt; { body }</c> statement (discussion notes §3.3 #5, §十二-E).</summary>
 public sealed record BsWhile : BsStatement
 {
     public required BsNode Condition { get; init; }
-    public required IReadOnlyList<BsStatement> Body { get; init; } = [];
+    public required ImmutableArray<BsStatement> Body { get; init; } = [];
 }
 
 /// <summary>
@@ -279,7 +333,7 @@ public sealed record BsProgram : BsNode
 {
     public BsConstBlock? ConstBlock { get; init; }
     public BsVarBlock? VarBlock { get; init; }
-    public required IReadOnlyList<BsStatement> Body { get; init; } = [];
+    public required ImmutableArray<BsStatement> Body { get; init; } = [];
 }
 
 // ── Extension helpers over BsNode (replaces the old ExprUtils Roslyn helpers) ──

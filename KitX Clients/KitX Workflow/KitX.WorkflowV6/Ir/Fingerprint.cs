@@ -55,7 +55,9 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         var accum = new HashAccum();
         accum.AddKind(stmt.Kind);
         accum.AddOptional(stmt.Comment);
-        accum.AddInt(stmt.SourceLine);
+        // SourceLine deliberately excluded: it's source-location metadata, not
+        // semantic content. Two statements with the same content but on different
+        // lines (e.g. after re-formatting) must produce the same fingerprint.
 
         switch (stmt)
         {
@@ -131,7 +133,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         ArgumentNullException.ThrowIfNull(node);
         var accum = new HashAccum();
         accum.AddString(node.GetType().Name);
-        accum.AddInt(node.SourceLine);
+        // SourceLine deliberately excluded: not semantic content (see Compute(Statement)).
         AccumulateBsNode(accum, node);
         return new Fingerprint(accum.ToHex());
     }
@@ -150,25 +152,25 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             case BsCall call:
                 accum.AddString(call.MethodName);
                 accum.AddString(call.FullMethodName);
-                accum.AddInt(call.Args.Count);
+                accum.AddInt(call.Args.Length);
                 foreach (var a in call.Args) accum.AddBsNode(a);
                 break;
             case BsPipeline pipe:
-                accum.AddInt(pipe.Sources.Count);
+                accum.AddInt(pipe.Sources.Length);
                 foreach (var s in pipe.Sources) accum.AddBsNode(s);
-                accum.AddInt(pipe.Segments.Count);
+                accum.AddInt(pipe.Segments.Length);
                 foreach (var seg in pipe.Segments)
                 {
                     accum.AddString(seg.Target);
                     accum.AddBool(seg.IsVariableTap);
-                    accum.AddInt(seg.Args.Count);
+                    accum.AddInt(seg.Args.Length);
                     foreach (var a in seg.Args) accum.AddBsNode(a);
                 }
                 break;
             case BsPipelineSegment seg:
                 accum.AddString(seg.Target);
                 accum.AddBool(seg.IsVariableTap);
-                accum.AddInt(seg.Args.Count);
+                accum.AddInt(seg.Args.Length);
                 foreach (var a in seg.Args) accum.AddBsNode(a);
                 break;
             case BsPlaceholder ph:
@@ -185,11 +187,11 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 accum.AddOptional(vd.InitialValueExpression);
                 break;
             case BsConstBlock cb:
-                accum.AddInt(cb.Declarations.Count);
+                accum.AddInt(cb.Declarations.Length);
                 foreach (var d in cb.Declarations) accum.AddBsNode(d);
                 break;
             case BsVarBlock vb:
-                accum.AddInt(vb.Declarations.Count);
+                accum.AddInt(vb.Declarations.Length);
                 foreach (var d in vb.Declarations) accum.AddBsNode(d);
                 break;
             case BsIf iff:
@@ -199,7 +201,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 break;
             case BsSwitch sw:
                 accum.AddBsNode(sw.Selector);
-                accum.AddInt(sw.Arms.Count);
+                accum.AddInt(sw.Arms.Length);
                 foreach (var arm in sw.Arms) accum.AddChildAstFingerprints(arm);
                 accum.AddChildAstFingerprints(sw.Default);
                 break;
