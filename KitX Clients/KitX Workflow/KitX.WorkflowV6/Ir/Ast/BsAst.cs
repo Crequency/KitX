@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Ir.Ast;
 
+using System.Text.Json.Serialization;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BS AST — BlockScript source tree (lossless), distinct from the structured IR.
 //
@@ -48,19 +50,31 @@ namespace KitX.WorkflowV6.Ir.Ast;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>Root of the BS source AST. Every node may carry verbatim source text for lossless rendering.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$bsNodeKind")]
+[JsonDerivedType(typeof(BsLiteral), "Literal")]
+[JsonDerivedType(typeof(BsIdentifier), "Identifier")]
+[JsonDerivedType(typeof(BsCall), "Call")]
+[JsonDerivedType(typeof(BsPipeline), "Pipeline")]
+[JsonDerivedType(typeof(BsPipelineSegment), "PipelineSegment")]
+[JsonDerivedType(typeof(BsPlaceholder), "Placeholder")]
 public abstract record BsNode
 {
     /// <summary>
     /// Verbatim source text this node was parsed from. Set at the parse boundary.
     /// </summary>
     /// <remarks>
-    /// Deliberately a plain mutable FIELD (not a record property): the auto-generated
-    /// record equality only includes properties, so this is excluded from equality.
-    /// Same for <see cref="SourceLine"/>. Two ASTs differing only in source text/line
-    /// are semantically equal (the structured content is identical).
+    /// Kept as a property (not excluded from record equality) so JSON serialisation
+    /// round-trips it correctly. Two ASTs that differ only in SourceText/SourceLine
+    /// are semantically equal WHEN those values are the same — which is always true
+    /// in the parse-to-render-to-reparse path (the same source text produces the same
+    /// SourceText values). The field-vs-property distinction would only matter if we
+    /// expected two structurally identical ASTs with different SourceText to be equal,
+    /// which is not a goal: the canonical source of truth is the structured IR, and
+    /// SourceText is a lossless round-trip aid that happens to be deterministic from
+    /// the source.
     /// </remarks>
-    public string SourceText = string.Empty;
-    public int SourceLine;
+    public string SourceText { get; set; } = string.Empty;
+    public int SourceLine { get; set; }
 }
 
 // ── Expression nodes ──
@@ -72,6 +86,14 @@ public enum BsLiteralKind { String, Integer, Double, Boolean, Char, Null }
 public sealed record BsLiteral : BsNode
 {
     public required BsLiteralKind Kind { get; init; }
+
+    /// <summary>
+    /// The literal value (string/int/bool/double/char/null). Stored as object? so the
+    /// AST carries the typed value (not just source text). The JsonConverter attribute
+    /// ensures System.Text.Json round-trips the boxed value as its runtime type (string
+    /// stays string, int stays int) rather than collapsing to JsonElement.
+    /// </summary>
+    [property: System.Text.Json.Serialization.JsonConverter(typeof(Serialization.BsLiteralValueConverter))]
     public object? Value { get; init; }
 }
 
@@ -94,23 +116,18 @@ public sealed record BsCall : BsNode
     public required string MethodName { get; init; }
     public string FullMethodName { get; init; } = string.Empty;
     public ImmutableArray<BsNode> Args { get; init; } = [];
-    /// <summary>
-    /// Raw argument source strings. Deliberately EXCLUDED from equality (it is a
-    /// derived cache of <see cref="Args"/>' SourceText). The record's auto-generated
-    /// Equals would compare ImmutableArray&lt;string&gt; by reference, breaking
-    /// round-trip equality; the custom Equals below excludes it.
-    /// </summary>
     public ImmutableArray<string> RawArgs { get; init; } = [];
 
     public bool Equals(BsCall? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        if (MethodName != other.MethodName) return false;
-        if (FullMethodName != other.FullMethodName) return false;
-        if (!Args.SequenceEqual(other.Args)) return false;
-        // RawArgs deliberately excluded (derived cache).
-        return true;
+        return MethodName == other.MethodName
+            && FullMethodName == other.FullMethodName
+            && SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Args.SequenceEqual(other.Args)
+            && RawArgs.SequenceEqual(other.RawArgs);
     }
 
     public override int GetHashCode()
@@ -118,6 +135,8 @@ public sealed record BsCall : BsNode
         var h = new HashCode();
         h.Add(MethodName);
         h.Add(FullMethodName);
+        h.Add(SourceText);
+        h.Add(SourceLine);
         foreach (var a in Args) h.Add(a);
         return h.ToHashCode();
     }
@@ -137,11 +156,6 @@ public sealed record BsPipeline : BsStatement
     public required ImmutableArray<BsNode> Sources { get; init; }
     public required ImmutableArray<BsPipelineSegment> Segments { get; init; }
 
-    /// <summary>
-    /// Renders the pipeline back to its <c>&gt;</c> source form from the structured AST.
-    /// Each Source/Segment renders its own <see cref="BsNode.SourceText"/>, which is set
-    /// losslessly at the parse boundary — so this never needs to re-format.
-    /// </summary>
     public string RenderPipelineSource()
     {
         var sb = new System.Text.StringBuilder();
@@ -149,6 +163,26 @@ public sealed record BsPipeline : BsStatement
         foreach (var seg in Segments)
             sb.Append(" > ").Append(seg.SourceText);
         return sb.ToString();
+    }
+
+    public bool Equals(BsPipeline? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Sources.SequenceEqual(other.Sources)
+            && Segments.SequenceEqual(other.Segments);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText);
+        h.Add(SourceLine);
+        foreach (var s in Sources) h.Add(s);
+        foreach (var s in Segments) h.Add(s);
+        return h.ToHashCode();
     }
 }
 
@@ -159,32 +193,21 @@ public sealed record BsPipeline : BsStatement
 /// </summary>
 public sealed record BsPipelineSegment : BsNode
 {
-    /// <summary>The target name — function name (for a call) or variable name (for a tap).</summary>
     public required string Target { get; init; }
-
-    /// <summary>
-    /// Structured arguments for a call segment. Empty for a variable tap.
-    /// May contain <see cref="BsPlaceholder"/> nodes marking pipeline-value insertion slots.
-    /// </summary>
     public ImmutableArray<BsNode> Args { get; init; } = [];
-
-    /// <summary>
-    /// Raw argument source strings. Deliberately EXCLUDED from equality (derived cache).
-    /// </summary>
     public ImmutableArray<string> RawArgs { get; init; } = [];
-
-    /// <summary>True when this segment is a variable assignment tap rather than a call.</summary>
     public bool IsVariableTap { get; init; }
 
     public bool Equals(BsPipelineSegment? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        if (Target != other.Target) return false;
-        if (IsVariableTap != other.IsVariableTap) return false;
-        if (!Args.SequenceEqual(other.Args)) return false;
-        // RawArgs deliberately excluded (derived cache).
-        return true;
+        return Target == other.Target
+            && IsVariableTap == other.IsVariableTap
+            && SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Args.SequenceEqual(other.Args)
+            && RawArgs.SequenceEqual(other.RawArgs);
     }
 
     public override int GetHashCode()
@@ -192,6 +215,8 @@ public sealed record BsPipelineSegment : BsNode
         var h = new HashCode();
         h.Add(Target);
         h.Add(IsVariableTap);
+        h.Add(SourceText);
+        h.Add(SourceLine);
         foreach (var a in Args) h.Add(a);
         return h.ToHashCode();
     }
@@ -235,6 +260,24 @@ public sealed record BsVarDecl : BsNode
 public sealed record BsConstBlock : BsNode
 {
     public ImmutableArray<BsConstDecl> Declarations { get; init; } = [];
+
+    public bool Equals(BsConstBlock? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Declarations.SequenceEqual(other.Declarations);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText);
+        h.Add(SourceLine);
+        foreach (var d in Declarations) h.Add(d);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -245,6 +288,24 @@ public sealed record BsConstBlock : BsNode
 public sealed record BsVarBlock : BsNode
 {
     public ImmutableArray<BsVarDecl> Declarations { get; init; } = [];
+
+    public bool Equals(BsVarBlock? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Declarations.SequenceEqual(other.Declarations);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText);
+        h.Add(SourceLine);
+        foreach (var d in Declarations) h.Add(d);
+        return h.ToHashCode();
+    }
 }
 
 // ── Control-flow statement nodes ──
@@ -264,6 +325,28 @@ public sealed record BsIf : BsStatement
     public required BsNode Condition { get; init; }
     public required ImmutableArray<BsStatement> ThenBody { get; init; } = [];
     public ImmutableArray<BsStatement> ElseBody { get; init; } = [];
+
+    public bool Equals(BsIf? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Condition == other.Condition
+            && ThenBody.SequenceEqual(other.ThenBody)
+            && ElseBody.SequenceEqual(other.ElseBody);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText);
+        h.Add(SourceLine);
+        h.Add(Condition);
+        foreach (var s in ThenBody) h.Add(s);
+        foreach (var s in ElseBody) h.Add(s);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -277,6 +360,27 @@ public sealed record BsSwitch : BsStatement
     public required BsNode Selector { get; init; }
     public required ImmutableArray<ImmutableArray<BsStatement>> Arms { get; init; } = [];
     public ImmutableArray<BsStatement> Default { get; init; } = [];
+
+    public bool Equals(BsSwitch? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (SourceText != other.SourceText || SourceLine != other.SourceLine) return false;
+        if (Selector != other.Selector) return false;
+        if (Arms.Length != other.Arms.Length) return false;
+        for (int i = 0; i < Arms.Length; i++)
+            if (!Arms[i].SequenceEqual(other.Arms[i])) return false;
+        return Default.SequenceEqual(other.Default);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText); h.Add(SourceLine); h.Add(Selector);
+        foreach (var a in Arms) foreach (var s in a) h.Add(s);
+        foreach (var s in Default) h.Add(s);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -291,6 +395,25 @@ public sealed record BsForEach : BsStatement
     public required BsNode Source { get; init; }
     public required string ItemName { get; init; }
     public required ImmutableArray<BsStatement> Body { get; init; } = [];
+
+    public bool Equals(BsForEach? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Source == other.Source
+            && ItemName == other.ItemName
+            && Body.SequenceEqual(other.Body);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText); h.Add(SourceLine); h.Add(Source); h.Add(ItemName);
+        foreach (var s in Body) h.Add(s);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>A <c>while &lt;condition&gt; { body }</c> statement (discussion notes §3.3 #5, §十二-E).</summary>
@@ -298,6 +421,24 @@ public sealed record BsWhile : BsStatement
 {
     public required BsNode Condition { get; init; }
     public required ImmutableArray<BsStatement> Body { get; init; } = [];
+
+    public bool Equals(BsWhile? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Condition == other.Condition
+            && Body.SequenceEqual(other.Body);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText); h.Add(SourceLine); h.Add(Condition);
+        foreach (var s in Body) h.Add(s);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -334,6 +475,26 @@ public sealed record BsProgram : BsNode
     public BsConstBlock? ConstBlock { get; init; }
     public BsVarBlock? VarBlock { get; init; }
     public required ImmutableArray<BsStatement> Body { get; init; } = [];
+
+    public bool Equals(BsProgram? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return SourceText == other.SourceText
+            && SourceLine == other.SourceLine
+            && Equals(ConstBlock, other.ConstBlock)
+            && Equals(VarBlock, other.VarBlock)
+            && Body.SequenceEqual(other.Body);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(SourceText); h.Add(SourceLine);
+        h.Add(ConstBlock); h.Add(VarBlock);
+        foreach (var s in Body) h.Add(s);
+        return h.ToHashCode();
+    }
 }
 
 // ── Extension helpers over BsNode (replaces the old ExprUtils Roslyn helpers) ──

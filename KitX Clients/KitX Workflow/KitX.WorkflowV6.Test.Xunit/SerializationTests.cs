@@ -1,0 +1,68 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 7 acceptance tests for WorkflowSerializer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+using KitX.WorkflowV6.Builtin;
+using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Serialization;
+using Xunit;
+
+namespace KitX.WorkflowV6.Test.Xunit;
+
+public class SerializationTests
+{
+    private static Workflow Parse(params string[] lines)
+    {
+        var src = string.Join('\n', lines) + '\n';
+        return new BsTextLens(new BuiltinFunctionRegistry()).Parse(src, []);
+    }
+
+    [Fact]
+    public void Serialize_Empty_Workflow() => Assert.Contains("\"v6.0\"", WorkflowSerializer.Serialize(new Workflow()));
+
+    [Fact]
+    public void Serialize_Version_Field_Present()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(WorkflowSerializer.Serialize(Parse("Print(\"a\")")));
+        Assert.Equal("v6.0", doc.RootElement.GetProperty("Version").GetString());
+    }
+
+    [Fact]
+    public void Serialize_Deserialize_Idempotent_Empty()
+        => Assert.Equal(new Workflow(), WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(new Workflow())));
+
+    [Fact]
+    public void Serialize_Deserialize_Idempotent_Simple_Print()
+        => Assert.Equal(Parse("Print(\"hello\")"), WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("Print(\"hello\")"))));
+
+    [Fact]
+    public void Serialize_Deserialize_Idempotent_Nested_If()
+        => Assert.Equal(
+            Parse("if HelperFuncCompare(\"BEQ\", 1, 1)", "    Print(\"yes\")"),
+            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("if HelperFuncCompare(\"BEQ\", 1, 1)", "    Print(\"yes\")"))));
+
+    [Fact]
+    public void Serialize_Deserialize_Idempotent_ForEach()
+        => Assert.Equal(
+            Parse("forEach Range(0, 5, 1) as i", "    i > Print"),
+            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("forEach Range(0, 5, 1) as i", "    i > Print"))));
+
+    [Fact]
+    public void Serialize_Fingerprint_As_String()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(WorkflowSerializer.Serialize(Parse("Print(\"a\")")));
+        Assert.Equal(System.Text.Json.JsonValueKind.String,
+            doc.RootElement.GetProperty("Body")[0].GetProperty("Fingerprint").ValueKind);
+    }
+
+    [Fact]
+    public void Serialize_Deserialize_Const_Var_Blocks()
+    {
+        var ir = Parse("const {", "    int x = 5", "}", "var {", "    int counter", "}", "Print(x)");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Single(result.Constants);
+        Assert.Single(result.GlobalVars);
+    }
+}

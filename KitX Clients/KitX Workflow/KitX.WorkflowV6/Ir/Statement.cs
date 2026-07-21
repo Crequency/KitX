@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Ir;
 
+using System.Text.Json.Serialization;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Statement — the common base of every node in the structured IR tree.
 //
@@ -70,6 +72,15 @@ public enum StatementKind
 /// the <c>Ir.Statements</c> folder (IfStatement / ForEachStatement / PipelineStatement / ...).
 /// Each concrete record overrides <see cref="Kind"/> to return its discriminant.
 /// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$statementKind")]
+[JsonDerivedType(typeof(Statements.PipelineStatement), "Pipeline")]
+[JsonDerivedType(typeof(Statements.IfStatement), "If")]
+[JsonDerivedType(typeof(Statements.SwitchStatement), "Switch")]
+[JsonDerivedType(typeof(Statements.ForEachStatement), "ForEach")]
+[JsonDerivedType(typeof(Statements.WhileStatement), "While")]
+[JsonDerivedType(typeof(Statements.BreakStatement), "Break")]
+[JsonDerivedType(typeof(Statements.ContinueStatement), "Continue")]
+[JsonDerivedType(typeof(Statements.ExitStatement), "Exit")]
 public abstract record Statement
 {
     /// <summary>
