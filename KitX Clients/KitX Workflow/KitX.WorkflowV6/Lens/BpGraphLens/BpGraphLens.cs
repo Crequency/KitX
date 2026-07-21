@@ -35,8 +35,12 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     }
 
     /// <summary>Renders the structured IR as a Blueprint graph.</summary>
-    public Blueprint Project(Workflow ir) =>
-        throw new NotImplementedException("BpGraphLens.Project: v6 structured BP renderer not implemented.");
+    public Blueprint Project(Workflow ir)
+    {
+        ArgumentNullException.ThrowIfNull(ir);
+        var renderer = new BpRenderer(_registry);
+        return renderer.Render(ir);
+    }
 
     /// <summary>
     /// Folds a stream of BP edits back into the IR as a WorkflowDiff. Edit-time
