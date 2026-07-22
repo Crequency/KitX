@@ -1,6 +1,7 @@
 namespace KitX.WorkflowV6.Backend.RoslynBackend;
 
 using System.Text;
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
@@ -38,6 +39,7 @@ internal sealed class StructuredCodegen
     private int _indent;
     private int _tempCounter;
     private Workflow _ir = null!;
+    private HashSet<string> _helperNames = new(StringComparer.Ordinal);
     /// <summary>
     /// Names bound as local variables in the current scope (forEach item bindings,
     /// while-loop counters when allocated by codegen). These render as bare identifiers,
@@ -72,6 +74,9 @@ internal sealed class StructuredCodegen
     public string Generate(Workflow ir, LoweringResult? lowering)
     {
         _ir = ir;
+        _helperNames = new HashSet<string>(
+            ir.HelperFunctions.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name!),
+            StringComparer.Ordinal);
         _sb.Clear();
         _indent = 0;
         _tempCounter = 0;
@@ -105,9 +110,45 @@ internal sealed class StructuredCodegen
         _indent--;
         EmitLine("}");
 
+        // ── User-defined helper functions (§11.3) ──
+        EmitHelperFunctions(ir);
+
         _indent--;
         EmitLine("}");
         return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits user-defined HelperFunction methods onto the G class. Each helper becomes
+    /// a public instance method: <c>public ReturnType Name(params) { Code }</c>.
+    /// The helper's Code string is embedded verbatim (it is C# code written by the
+    /// workflow author). Adapted from v5.1 WorkflowIR's IrCodegen.GenerateHelperFunctions.
+    /// </summary>
+    private void EmitHelperFunctions(Workflow ir)
+    {
+        if (ir.HelperFunctions.IsDefault || ir.HelperFunctions.Length == 0) return;
+        EmitLine("");
+        foreach (var func in ir.HelperFunctions)
+        {
+            var paramList = string.Join(", ",
+                func.Parameters.Select(p => $"{p.Type} {p.Name}"));
+            EmitLine($"public {func.ReturnType} {func.Name}({paramList})");
+            EmitLine("{");
+            _indent++;
+            // Embed the user's code verbatim, line by line, at the current indent.
+            if (!string.IsNullOrWhiteSpace(func.Code))
+            {
+                foreach (var codeLine in func.Code.Split('\n'))
+                    EmitLine(codeLine.TrimEnd());
+            }
+            else
+            {
+                EmitLine($"return default({func.ReturnType});");
+            }
+            _indent--;
+            EmitLine("}");
+            EmitLine("");
+        }
     }
 
     private void EmitBody(ImmutableArray<Statement> body)
@@ -226,7 +267,7 @@ internal sealed class StructuredCodegen
 
             // Variable tap: assign current value to PubVar, then continue processing.
             bool isVarTap = seg.IsVariableTap
-                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target));
+                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target));
 
             if (isVarTap)
             {

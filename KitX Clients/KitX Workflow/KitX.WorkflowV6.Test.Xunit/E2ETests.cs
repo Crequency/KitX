@@ -308,4 +308,31 @@ public class E2ETests
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(new[] { "one" }, result.Output);
     }
+
+    [Fact]
+    public async Task E2E_User_Helper_Function()
+    {
+        // Define a user helper function `int Double(int x) { return x * 2; }`
+        // and call it from KS: `5 > Double > Print` → output "10".
+        var helpers = new List<KitX.Core.Contract.Workflow.HelperFunction>
+        {
+            new()
+            {
+                Name = "Double",
+                ReturnType = "int",
+                Parameters =
+                [
+                    new() { Name = "x", Type = "int" },
+                ],
+                Code = "return x * 2;",
+            },
+        };
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        var lens = new BsTextLens(registry);
+        var ir = lens.Parse("5 > Double > Print\n", helpers);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("10", result.Output);
+    }
 }

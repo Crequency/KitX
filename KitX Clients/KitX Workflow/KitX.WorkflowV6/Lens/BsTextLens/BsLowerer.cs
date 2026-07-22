@@ -35,6 +35,7 @@ using KitX.WorkflowV6.Ir.Statements;
 internal sealed class BsLowerer
 {
     private readonly BuiltinFunctionRegistry? _registry;
+    private HashSet<string> _helperNames = new(StringComparer.Ordinal);
 
     public BsLowerer(BuiltinFunctionRegistry? registry = null) => _registry = registry;
 
@@ -47,6 +48,10 @@ internal sealed class BsLowerer
         BsProgram program,
         IReadOnlyList<HelperFunction> helpers)
     {
+        // Build a set of helper function names for segment-tap disambiguation:
+        // `5 > Double > Print` — "Double" has no parens but is a helper, not a variable.
+        var helperNames = new HashSet<string>(helpers.Select(h => h.Name), StringComparer.Ordinal);
+        _helperNames = helperNames;
         // ── Declarations ──
         var constants = ImmutableDictionary.CreateBuilder<string, Constant>();
         var globalVars = ImmutableDictionary.CreateBuilder<string, GlobalVar>();
@@ -214,12 +219,15 @@ internal sealed class BsLowerer
     {
         var args = ImmutableArray.CreateRange(seg.Args);
         var rawArgs = ImmutableArray.CreateRange(seg.RawArgs);
+        // Disambiguate: a bare name without parens is a variable tap UNLESS it's a
+        // known helper function (helpers are passed externally; Parser can't know).
+        bool isVarTap = seg.IsVariableTap && !_helperNames.Contains(seg.Target);
         return new Segment
         {
             Target = seg.Target,
             Arguments = args,
             RawArguments = rawArgs,
-            IsVariableTap = seg.IsVariableTap,
+            IsVariableTap = isVarTap,
         };
     }
 
