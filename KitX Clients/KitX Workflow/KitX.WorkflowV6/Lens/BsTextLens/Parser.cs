@@ -19,16 +19,22 @@ using KitX.WorkflowV6.Ir.Ast;
 //   statement      ::= ifStmt | switchStmt | forEachStmt | whileStmt
 //                    | break | continue | exit ('(' ')')?
 //                    | pipeline
-//   ifStmt         ::= 'if' expr INDENT statement+ DEDENT
+//   ifStmt         ::= 'if' condition INDENT statement+ DEDENT
 //                      ('else' (ifStmt | INDENT statement+ DEDENT))?
 //   switchStmt     ::= 'switch' expr INDENT arm+ DEDENT
 //   arm            ::= (integer | 'default') ':' statement+ (inline or block)
 //   forEachStmt    ::= 'forEach' expr 'as' name INDENT statement+ DEDENT
-//   whileStmt      ::= 'while' expr INDENT statement+ DEDENT
-//   pipeline       ::= expr (',' expr)* ('>' call)* ('=' name)? ';'?
-//   call           ::= name '(' (expr (',' expr)*)? ')' | name
-//   expr           ::= literal | identifier | call
-//   literal        ::= string | integer | double | char | true | false | null | '_'
+//   whileStmt      ::= 'while' condition INDENT statement+ DEDENT
+//   pipeline       ::= expr (',' expr)* ('>' segment)* ('=' name)? ';'?
+//   segment        ::= name '(' (funcArg (',' funcArg)*)? ')' | name
+//   condition      ::= expr (',' expr)* ('>' segment)*
+//                      // simple form 'if cond' returns expr directly;
+//                      // pipeline form 'if a, b > Func(...)' returns BsPipeline
+//   expr           ::= literal | '_' | identifier | name '(' (funcArg (',' funcArg)*)? ')'
+//   funcArg        ::= literal | '_'    // v6.0 rule: parens may only contain
+//                                        // literals/placeholders; non-literal values
+//                                        // MUST use pipeline sources
+//   literal        ::= string | integer | double | char | true | false | null
 //
 // INDENT/DEDENT are not real tokens — the parser tracks the indent level of the
 // current line and treats a higher level as "enter body", a lower level as "exit
@@ -278,7 +284,7 @@ internal sealed class Parser
     private BsIf ParseIf()
     {
         var ifTok = Advance();  // 'if'
-        var cond = ParseExpression();
+        var cond = ParsePipelineCondition();
         int keywordIndent = LastConsumedIndentLevel();
         var thenBody = ParseBody(keywordIndent + 1, $"if on line {ifTok.Line}");
         ImmutableArray<BsStatement> elseBody = [];
@@ -396,7 +402,7 @@ internal sealed class Parser
     private BsWhile ParseWhile()
     {
         var whTok = Advance();  // 'while'
-        var cond = ParseExpression();
+        var cond = ParsePipelineCondition();
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"while on line {whTok.Line}");
         return new BsWhile
@@ -507,8 +513,8 @@ internal sealed class Parser
     private BsPipelineSegment ParseSegment()
     {
         // A segment is either:
-        //   name '(' args ')'  — a call (args may include `_` placeholders)
-        //   name                — a variable tap
+        //   name '(' funcArgs ')'  — a call (args must be literals/placeholders per v6.0)
+        //   name                    — a variable tap
         if (Current.Kind != BsTokenKind.Identifier)
         {
             Error("BS041", "Expected segment name after '>'");
@@ -524,11 +530,11 @@ internal sealed class Parser
             isCall = true;
             if (Current.Kind != BsTokenKind.RParen)
             {
-                args.Add(ParseExpression());
+                args.Add(ParseLiteralOrPlaceholder());
                 rawArgs.Add(args[^1].SourceText);
                 while (Match(BsTokenKind.Comma))
                 {
-                    args.Add(ParseExpression());
+                    args.Add(ParseLiteralOrPlaceholder());
                     rawArgs.Add(args[^1].SourceText);
                 }
             }
@@ -536,65 +542,80 @@ internal sealed class Parser
                 Error("BS042", "Expected ')' to close call arguments");
         }
 
+        var rawArgsArray = rawArgs.ToImmutable();
         return new BsPipelineSegment
         {
             Target = nameTok.Text,
             Args = args.ToImmutable(),
-            RawArgs = rawArgs.ToImmutable(),
+            RawArgs = rawArgsArray,
             IsVariableTap = !isCall && args.Count == 0 && false,
             // ^ never mark a `> name` as a tap here — only `= name` becomes a tap.
             // A bare `> name` is a call with no args (the pipeline value is the
             // implicit single arg via `_`). The renderer/codegen handle this.
             SourceLine = nameTok.Line,
-            SourceText = nameTok.Text,
+            SourceText = isCall
+                ? $"{nameTok.Text}({string.Join(", ", rawArgsArray)})"
+                : nameTok.Text,
         };
     }
 
     // ── Expressions ──
 
+    /// <summary>
+    /// Parses a function argument inside parentheses. Per the v6.0 syntax rule,
+    /// only literals and '_' placeholders are allowed inside function parens;
+    /// non-literal values MUST flow through pipeline sources. Use
+    /// <see cref="ParseExpression"/> for pipeline sources and conditions where
+    /// identifiers are valid.
+    /// </summary>
+    private BsNode ParseLiteralOrPlaceholder()
+    {
+        switch (Current.Kind)
+        {
+            case BsTokenKind.StringLiteral:
+                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.String, Value = t.Value, SourceText = $"\"{t.Value}\"", SourceLine = t.Line }; }
+            case BsTokenKind.IntegerLiteral:
+                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Integer, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
+            case BsTokenKind.DoubleLiteral:
+                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Double, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
+            case BsTokenKind.CharLiteral:
+                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Char, Value = t.Value, SourceText = $"'{t.Value}'", SourceLine = t.Line }; }
+            case BsTokenKind.BooleanLiteral:
+                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Boolean, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
+            case BsTokenKind.NullLiteral:
+                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = t.Line }; }
+            case BsTokenKind.Placeholder:
+                { var t = Advance(); return new BsPlaceholder { Index = 0, SourceText = "_", SourceLine = t.Line }; }
+            default:
+                Error("BS051", $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
+                Advance();
+                return new BsLiteral { Kind = BsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = Current.Line };
+        }
+    }
+
+    /// <summary>
+    /// Parses a general expression: literal, placeholder, identifier, or a call
+    /// whose arguments are literals/placeholders only (v6.0 rule). Used for
+    /// pipeline sources, forEach sources, and switch selectors where identifiers
+    /// are valid.
+    /// </summary>
     private BsNode ParseExpression()
     {
         switch (Current.Kind)
         {
             case BsTokenKind.StringLiteral:
-                {
-                    var t = Advance();
-                    return new BsLiteral { Kind = BsLiteralKind.String, Value = t.Value, SourceText = $"\"{t.Value}\"", SourceLine = t.Line };
-                }
             case BsTokenKind.IntegerLiteral:
-                {
-                    var t = Advance();
-                    return new BsLiteral { Kind = BsLiteralKind.Integer, Value = t.Value, SourceText = t.Text, SourceLine = t.Line };
-                }
             case BsTokenKind.DoubleLiteral:
-                {
-                    var t = Advance();
-                    return new BsLiteral { Kind = BsLiteralKind.Double, Value = t.Value, SourceText = t.Text, SourceLine = t.Line };
-                }
             case BsTokenKind.CharLiteral:
-                {
-                    var t = Advance();
-                    return new BsLiteral { Kind = BsLiteralKind.Char, Value = t.Value, SourceText = $"'{t.Value}'", SourceLine = t.Line };
-                }
             case BsTokenKind.BooleanLiteral:
-                {
-                    var t = Advance();
-                    return new BsLiteral { Kind = BsLiteralKind.Boolean, Value = t.Value, SourceText = t.Text, SourceLine = t.Line };
-                }
             case BsTokenKind.NullLiteral:
-                {
-                    var t = Advance();
-                    return new BsLiteral { Kind = BsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = t.Line };
-                }
             case BsTokenKind.Placeholder:
-                {
-                    var t = Advance();
-                    return new BsPlaceholder { Index = 0, SourceText = "_", SourceLine = t.Line };
-                }
+                return ParseLiteralOrPlaceholder();
             case BsTokenKind.Identifier:
                 {
                     var t = Advance();
-                    // `name(args)` — a call as a primary expression (e.g. Range(0, 10, 1)).
+                    // `name(funcArg*)` — a call as a primary expression (e.g. Range(0, 10, 1)).
+                    // Per v6.0 rule, call args may only be literals/placeholders.
                     if (Current.Kind == BsTokenKind.LParen)
                     {
                         Advance();  // consume '('
@@ -602,11 +623,11 @@ internal sealed class Parser
                         var rawArgs = ImmutableArray.CreateBuilder<string>();
                         if (Current.Kind != BsTokenKind.RParen)
                         {
-                            args.Add(ParseExpression());
+                            args.Add(ParseLiteralOrPlaceholder());
                             rawArgs.Add(args[^1].SourceText);
                             while (Match(BsTokenKind.Comma))
                             {
-                                args.Add(ParseExpression());
+                                args.Add(ParseLiteralOrPlaceholder());
                                 rawArgs.Add(args[^1].SourceText);
                             }
                         }
@@ -630,6 +651,50 @@ internal sealed class Parser
                 Advance();
                 return new BsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
         }
+    }
+
+    /// <summary>
+    /// Parses an if/while condition. May be:
+    ///   (a) A simple expression: <c>if cond</c> — returns the BsNode directly.
+    ///   (b) A pipeline expression: <c>if src1, src2 &gt; Func(args)</c> — returns a
+    ///       <see cref="BsPipeline"/> whose final segment output is the condition value.
+    /// Per v6.0 rule, conditions support pipeline expressions so variable values can
+    /// flow into comparison functions without appearing inside function parens.
+    /// </summary>
+    private BsNode ParsePipelineCondition()
+    {
+        var firstSource = ParseExpression();
+
+        // Simple condition: no comma, no pipe → return the expression directly.
+        if (Current.Kind != BsTokenKind.Comma && Current.Kind != BsTokenKind.Pipe)
+            return firstSource;
+
+        // Pipeline condition: build sources + segments.
+        var sources = ImmutableArray.CreateBuilder<BsNode>();
+        sources.Add(firstSource);
+        while (Match(BsTokenKind.Comma))
+            sources.Add(ParseExpression());
+
+        var segments = ImmutableArray.CreateBuilder<BsPipelineSegment>();
+        while (Match(BsTokenKind.Pipe))
+        {
+            if (IsKeyword("forEach"))
+            {
+                Error("BS061", "'forEach' is not valid in a condition pipeline");
+                break;
+            }
+            segments.Add(ParseSegment());
+        }
+
+        if (segments.Count == 0)
+            Error("BS060", "Multiple sources in condition require a '>' pipeline segment");
+
+        return new BsPipeline
+        {
+            Sources = sources.ToImmutable(),
+            Segments = segments.ToImmutable(),
+            SourceLine = sources[0].SourceLine,
+        };
     }
 
     // ── Body parsing ──

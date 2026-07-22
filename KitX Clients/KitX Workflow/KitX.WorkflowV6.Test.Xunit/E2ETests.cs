@@ -54,7 +54,7 @@ public class E2ETests
     public async Task E2E_If_Else_True_Branch()
     {
         var src = """
-            if HelperFuncCompare("BEQ", 1, 1)
+            if 1, 1 > HelperFuncCompare("BEQ")
                 Print("yes")
             else
                 Print("no")
@@ -75,8 +75,8 @@ public class E2ETests
             }
 
             0 > counter
-            while HelperFuncCompare("BLT", counter, 3)
-                HelperFuncAdd(counter, 1) > counter
+            while counter, 3 > HelperFuncCompare("BLT")
+                counter, 1 > HelperFuncAdd > counter
                 Print("tick")
             """;
         var ir = ParseToIr(src);
@@ -91,7 +91,7 @@ public class E2ETests
     {
         var src = """
             forEach Range(0, 10, 1) as i
-                if HelperFuncCompare("BEQ", i, 2)
+                if i, 2 > HelperFuncCompare("BEQ")
                     break
                 i > Print
             """;
@@ -108,7 +108,7 @@ public class E2ETests
     {
         var src = """
             forEach Range(0, 5, 1) as i
-                if HelperFuncCompare("BEQ", i, 2)
+                if i, 2 > HelperFuncCompare("BEQ")
                     continue
                 i > Print
             """;
@@ -164,5 +164,103 @@ public class E2ETests
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("hello, world", result.Output);
+    }
+
+    // ── Phase 3.3: E2E tests for pipeline conditions and new syntax ──
+
+    [Fact]
+    public async Task E2E_Pipeline_Condition_Direct()
+    {
+        // Pipeline condition directly in if — no intermediate variable needed.
+        var src = """
+            if 1, 1 > HelperFuncCompare("BEQ")
+                Print("equal")
+            else
+                Print("not equal")
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("equal", result.Output);
+        Assert.DoesNotContain("not equal", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Pipeline_Condition_With_Variables()
+    {
+        var src = """
+            var {
+                int a
+                int b
+            }
+
+            3 > a
+            5 > b
+            if a, b > HelperFuncCompare("BLT")
+                Print("a less than b")
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("a less than b", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Variable_Tap_Pipeline()
+    {
+        // `0 > counter > Print` — counter is both written and read in one chain.
+        var src = """
+            var {
+                int counter
+            }
+
+            0 > counter > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("0", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Nested_Control_Flow()
+    {
+        // Nested forEach + if/else + if/else (mini guess-number).
+        // target=3, range 0..5: i=0,1,2 → "too low", i=3 → "found it!", break.
+        var src = """
+            const {
+                int target = 3
+            }
+
+            var {
+                int guess
+                int hit
+            }
+
+            0 > hit
+            forEach Range(0, 5, 1) as i
+                i > guess
+                if guess, target > HelperFuncCompare("BEQ")
+                    1 > hit
+                    Print("found it!")
+                    break
+                else
+                    if guess, target > HelperFuncCompare("BLT")
+                        Print("too low")
+                    else
+                        Print("too high")
+            hit > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        // i=0,1,2 are too low; i=3 matches.
+        Assert.Equal(3, result.Output.Count(x => x == "too low"));
+        Assert.Contains("found it!", result.Output);
+        Assert.Contains("1", result.Output);  // hit = 1
     }
 }

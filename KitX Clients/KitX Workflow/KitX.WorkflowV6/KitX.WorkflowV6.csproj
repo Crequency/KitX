@@ -32,18 +32,12 @@
 
   <ItemGroup>
     <!--
-      Roslyn is used by the future structured-C# execution backend (Phase: Runtime Compilation).
+      Roslyn is used by the structured-C# execution backend (Phase 4: Runtime Compilation).
       Pinned to match KitX.WorkflowIR so both libraries can coexist in the Dashboard bin directory
       without assembly-version binding redirects.
     -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
-    <!--
-      Superpower is retained tentatively: the v6 indented parser may or may not be built on it
-      (see discussion notes §10.8 "BS 解析器的选型"). Pulling it now keeps the experimental space
-      unconstrained; if a custom indented parser is chosen later, the dependency can be dropped.
-    -->
-    <PackageReference Include="Superpower" Version="3.2.1" />
   </ItemGroup>
 
 </Project>

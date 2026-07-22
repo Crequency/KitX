@@ -37,6 +37,7 @@ internal sealed class StructuredCodegen
     private readonly StringBuilder _sb = new();
     private int _indent;
     private int _tempCounter;
+    private Workflow _ir = null!;
     /// <summary>
     /// Names bound as local variables in the current scope (forEach item bindings,
     /// while-loop counters when allocated by codegen). These render as bare identifiers,
@@ -47,16 +48,14 @@ internal sealed class StructuredCodegen
 
     /// <summary>
     /// Maps a BS builtin function name to the C# method name on the G class (ExecutionGlobals).
-    /// Most builtins keep their BS name (Print, Range); a few are renamed to keep the C# side
-    /// terse (HelperFuncCompare → Compare, HelperFuncAdd → Add). Add to this map when a new
-    /// builtin's BS name differs from its C# method name.
+    /// Most builtins keep their BS name verbatim. StringConcat gets a suffix to avoid a
+    /// name clash with static string.Concat. User helper functions (HelperFuncCompare,
+    /// HelperFuncAdd, ...) keep their exact BS names — they are not renamed.
     /// </summary>
     private static readonly Dictionary<string, string> BuiltinToGMethod = new(StringComparer.Ordinal)
     {
         ["Print"] = "Print",
         ["Range"] = "Range",
-        ["HelperFuncCompare"] = "Compare",
-        ["HelperFuncAdd"] = "Add",
         ["StringConcat"] = "StringConcatMethod",  // avoid string.Concat static name clash
     };
 
@@ -72,6 +71,7 @@ internal sealed class StructuredCodegen
     /// </summary>
     public string Generate(Workflow ir, LoweringResult? lowering)
     {
+        _ir = ir;
         _sb.Clear();
         _indent = 0;
         _tempCounter = 0;
@@ -173,65 +173,53 @@ internal sealed class StructuredCodegen
 
     private void EmitPipeline(PipelineStatement p)
     {
-        // For MVP: emit the pipeline as a sequence of G.<Name>(args) calls.
-        // Pure segments produce intermediate temp variables; the last segment's value
-        // (if any) goes into a variable-tap target.
-        // The simplest MVP path: emit `G.Print(value)` for bare Print pipelines, and
-        // `var tmp = G.Range(...)` for pure-producing pipelines whose value is consumed
-        // downstream (e.g. as the forEach source — but in that case the forEach wraps
-        // the pipeline and emits its own source expression directly).
-        //
-        // For a bare call `Print(x)`: Sources=[BsCall Print, args=[x]], Segments=[]
-        // → emit G.Print(x).
-        // For `Range(0,10,1) > forEach as i`: handled by ForEachStatement which emits
-        //   `foreach (var i in G.Range(0,10,1))` directly (see RenderForEachSource).
-        // For `value > Print`: Sources=[value], Segments=[Print] → emit G.Print(value).
-
         if (p.Segments.Length == 0)
         {
-            // Bare call: the source is a BsCall (e.g. Print("hello")). Emit G.Print(arg).
             if (p.Sources.Length == 1 && p.Sources[0] is BsCall call)
             {
                 EmitLine($"{RenderCallStatement(call)};");
                 return;
             }
-            // Bare expression with no call: emit nothing (or a comment).
             EmitLine($"/* bare expression: {RenderBsNode(p.Sources[0])} */");
             return;
         }
 
-        // Pipeline with segments: walk the chain.
         string? currentExpr = null;
-        if (p.Sources.Length == 1)
-            currentExpr = RenderBsNode(p.Sources[0]);
-        else
-            currentExpr = $"/* multi-source pipeline */ {string.Join(", ", p.Sources.Select(RenderBsNode))}";
+        bool lastWasAssignment = false;
 
-        foreach (var seg in p.Segments)
+        for (int segIdx = 0; segIdx < p.Segments.Length; segIdx++)
         {
-            if (seg.IsVariableTap)
+            var seg = p.Segments[segIdx];
+            lastWasAssignment = false;
+
+            // Variable tap: assign current value to PubVar, then continue processing.
+            bool isVarTap = seg.IsVariableTap
+                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target));
+
+            if (isVarTap)
             {
-                // `= name` explicit assignment: assign the current expression to a PubVar.
-                EmitLine($"this.{seg.Target} = {currentExpr};");
-                return;
+                var tapValue = currentExpr
+                    ?? (p.Sources.Length > 0 ? RenderBsNode(p.Sources[0]) : "null");
+                EmitLine($"this.{seg.Target} = {tapValue};");
+                currentExpr = $"this.{seg.Target}";
+                lastWasAssignment = true;
+                continue;
             }
-            // A bare `> name` (no parens) is ambiguous: could be a builtin call OR a
-            // variable tap. Resolve by checking the registry.
-            if (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target))
-            {
-                // Not a known builtin → treat as a variable tap assignment.
-                EmitLine($"this.{seg.Target} = {currentExpr};");
-                return;
-            }
-            // Call segment: invoke the builtin on the current pipeline value.
-            var argList = seg.Arguments.Length == 0
-                ? currentExpr  // bare `> Func`: the pipeline value is the implicit single arg.
-                : string.Join(", ", seg.Arguments.Select(a => a is BsPlaceholder ? currentExpr : RenderBsNode(a)));
-            currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({argList})";
+
+            // Function call segment: build arg list from explicit args + input.
+            // First segment uses pipeline sources as implicit inputs.
+            // Subsequent segments use the previous segment's output as sole input.
+            IEnumerable<string> inputArgs = segIdx == 0
+                ? p.Sources.Select(RenderBsNode)
+                : new[] { currentExpr ?? "null" };
+            var allArgs = string.Join(", ", seg.Arguments.Select(RenderBsNode).Concat(inputArgs));
+            currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({allArgs})";
         }
-        // The final expression is a side-effect or pure result; if it's a side-effect
-        // (Print), emit it as a statement. If it's pure, assign to a temp or discard.
-        EmitLine($"{currentExpr};");
+
+        // Emit final expression as statement only if it's a function call,
+        // not if the last segment was a variable assignment (already emitted).
+        if (!lastWasAssignment && currentExpr is not null)
+            EmitLine($"{currentExpr};");
     }
 
     private string RenderCallStatement(BsCall call)
@@ -244,17 +232,60 @@ internal sealed class StructuredCodegen
     private string RenderBsNode(BsNode node) => node switch
     {
         BsLiteral lit => RenderLiteral(lit),
-        BsIdentifier id => _localNames.Contains(id.Name) ? id.Name : $"this.{id.Name}",
+        BsIdentifier id => RenderIdentifier(id),
         BsCall call => call.Args.Length == 0
             ? $"this.{MapBuiltinToGMethod(call.MethodName)}()"
             : $"this.{MapBuiltinToGMethod(call.MethodName)}({string.Join(", ", call.Args.Select(RenderBsNode))})",
-        BsPipeline pipe => pipe.RenderPipelineSource(),  // fallback — should be pre-lowered
+        BsPipeline pipe => RenderPipelineAsExpression(pipe),
         BsPipelineSegment seg => seg.IsVariableTap
             ? seg.Target
             : $"this.{MapBuiltinToGMethod(seg.Target)}({string.Join(", ", seg.Args.Select(RenderBsNode))})",
         BsPlaceholder => "_placeholder_",
         _ => $"/* {node.GetType().Name} */",
     };
+
+    /// <summary>
+    /// Renders a <see cref="BsPipeline"/> as a C# expression (for if/while condition
+    /// positions). Chains segments as nested C# calls:
+    ///   <c>a, b &gt; Compare("BEQ")</c> → <c>this.Compare("BEQ", this.a, this.b)</c>
+    ///   <c>a &gt; Func1 &gt; Func2</c> → <c>this.Func2(this.Func1(this.a))</c>
+    /// Each segment's explicit args come first, then pipeline sources are appended
+    /// (matching <see cref="EmitPipeline"/>'s argument-building convention).
+    /// </summary>
+    private string RenderPipelineAsExpression(BsPipeline pipe)
+    {
+        if (pipe.Segments.Length == 0)
+        {
+            // No segments — degenerate pipeline, just return the first source.
+            return pipe.Sources.Length > 0 ? RenderBsNode(pipe.Sources[0]) : "true";
+        }
+
+        string currentExpr = "";
+        for (int i = 0; i < pipe.Segments.Length; i++)
+        {
+            var seg = pipe.Segments[i];
+            // For the first segment, pipeline sources are the inputs.
+            // For subsequent segments, the previous segment's output is the sole input.
+            IEnumerable<string> inputArgs = i == 0
+                ? pipe.Sources.Select(RenderBsNode)
+                : new[] { currentExpr };
+            var allArgs = string.Join(", ", seg.Args.Select(RenderBsNode).Concat(inputArgs));
+            currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({allArgs})";
+        }
+        return currentExpr;
+    }
+
+    /// <summary>
+    /// Renders a BsIdentifier. If the name matches a constant declared in the IR,
+    /// inlines its initial-value expression (e.g. loopMax → 3). Otherwise emits
+    /// <c>this.&lt;name&gt;</c> (a PubVar field access).
+    /// </summary>
+    private string RenderIdentifier(BsIdentifier id)
+    {
+        if (_ir.Constants.TryGetValue(id.Name, out var c) && c.InitialValueExpression is not null)
+            return c.InitialValueExpression;
+        return _localNames.Contains(id.Name) ? id.Name : $"this.{id.Name}";
+    }
 
     /// <summary>
     /// Renders a forEach source expression. If the source is a Range call, emit

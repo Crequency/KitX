@@ -8,6 +8,19 @@ using KitX.WorkflowV6.Ir.Statements;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BpRenderer — structured IR → Blueprint graph data.
+//
+// v6.0 design (discussion notes §十二, refactoring plan Phase 2):
+//   • ExecTail tracking — each statement consumes incoming exec tails and produces
+//     new tails for the next statement. if/else merge both branches' tails.
+//   • Single Entry — only top-level has an EntryNode; sub-scopes receive entry
+//     tails from control-flow nodes' named output pins (True/False/Body).
+//   • Variable def/use separation — const/var declarations produce standalone
+//     definition nodes; pipeline usages produce separate VariableNode instances.
+//   • Literal → DefaultValue — literal args inside function parens set the input
+//     pin's DefaultValue instead of creating separate ConstNode + connection.
+//   • Condition data input — Branch and While nodes get a Condition input pin;
+//     the condition BsNode renders as a data source connected to this pin.
+//   • NodeID = FNV-1a hash of path → short, deterministic, nesting-independent.
 // ─────────────────────────────────────────────────────────────────────────────
 
 internal sealed class BpRenderer
@@ -15,6 +28,11 @@ internal sealed class BpRenderer
     private readonly BuiltinFunctionRegistry _registry;
     private readonly ILayoutService _layout;
     private Blueprint _bp = null!;
+
+    private readonly Stack<(BlueprintNode loopNode, string endPin)> _loopStack = new();
+
+    /// <summary>Tracks which node + output pin is the current exec chain tail.</summary>
+    private readonly record struct ExecTail(BlueprintNode Node, string OutputPin);
 
     public BpRenderer(BuiltinFunctionRegistry registry, ILayoutService? layout = null)
     {
@@ -25,128 +43,391 @@ internal sealed class BpRenderer
     public Blueprint Render(Workflow ir)
     {
         _bp = new Blueprint { Name = "Workflow" };
-        RenderScope(ir.Body, "/top", null);
+
+        RenderDefinitions(ir);
+
+        if (ir.Body.Length > 0)
+        {
+            var entry = Add(new EntryNode { Name = "Entry" }, "/entry");
+            RenderScope(ir.Body, "/top", [new ExecTail(entry, "Exec")]);
+        }
+
         _layout.Layout(_bp);
         return _bp;
     }
 
-    private void RenderScope(ImmutableArray<Statement> body, string scopePath, BlueprintNode? parentEntry)
+    // ── Definitions (standalone nodes, no connections) ──
+
+    private void RenderDefinitions(Workflow ir)
     {
-        if (body.IsEmpty && parentEntry is null) return;
-        var entry = Add(new EntryNode { Name = "Start" }, $"{scopePath}/entry");
-        if (parentEntry is not null) ConnectExec(parentEntry, entry);
-        BlueprintNode? last = entry;
-        for (int i = 0; i < body.Length; i++)
-            last = RenderStatement(body[i], $"{scopePath}/stmt/{i}", last);
-        var exit = Add(new ExitPointNode { Name = "End" }, $"{scopePath}/exit");
-        if (last is not null) ConnectExec(last, exit);
+        foreach (var (name, c) in ir.Constants)
+            Add(new ConstNode
+            {
+                Name = name,
+                ConstName = name,
+                ConstType = c.Type,
+                ConstValue = c.InitialValueExpression,
+            }, $"/def/const/{name}");
+
+        foreach (var (name, g) in ir.GlobalVars)
+            Add(new VariableNode
+            {
+                Name = name,
+                VarName = name,
+                VarType = g.Type,
+                VarKind = VariableKind.PubVar,
+            }, $"/def/var/{name}");
     }
 
-    private BlueprintNode? RenderStatement(Statement stmt, string path, BlueprintNode? prev)
+    // ── Scope rendering ──
+
+    private void RenderScope(ImmutableArray<Statement> body, string scopePath, List<ExecTail> entryTails)
+    {
+        var tails = entryTails;
+        for (int i = 0; i < body.Length; i++)
+            tails = RenderStatement(body[i], $"{scopePath}/stmt/{i}", tails);
+    }
+
+    /// <summary>Renders a sub-scope (if-then/else body, loop body). No Entry node.</summary>
+    private List<ExecTail> RenderSubScope(ImmutableArray<Statement> body, string scopePath, List<ExecTail> entryTails)
+    {
+        var tails = entryTails;
+        for (int i = 0; i < body.Length; i++)
+            tails = RenderStatement(body[i], $"{scopePath}/stmt/{i}", tails);
+        return tails;
+    }
+
+    private List<ExecTail> RenderStatement(Statement stmt, string path, List<ExecTail> prevTails)
     {
         return stmt switch
         {
-            PipelineStatement p => RenderPipeline(p, path),
-            IfStatement iff => RenderIfElse(iff, path),
-            ForEachStatement fe => RenderForEach(fe, path),
-            WhileStatement ws => RenderWhile(ws, path),
-            SwitchStatement sw => RenderSwitch(sw, path),
-            BreakStatement => AddCtrlNode("break", path),
-            ContinueStatement => AddCtrlNode("continue", path),
-            ExitStatement => AddCtrlNode("exit", path),
-            _ => prev,
+            PipelineStatement p => RenderPipelineStmt(p, path, prevTails),
+            IfStatement iff => RenderIfElse(iff, path, prevTails),
+            ForEachStatement fe => RenderForEach(fe, path, prevTails),
+            WhileStatement ws => RenderWhile(ws, path, prevTails),
+            SwitchStatement sw => RenderSwitch(sw, path, prevTails),
+            BreakStatement => RenderCtrlNode("break", path, prevTails),
+            ContinueStatement => RenderCtrlNode("continue", path, prevTails),
+            ExitStatement => RenderCtrlNode("exit", path, prevTails),
+            _ => prevTails,
         };
     }
 
-    private BuiltinFunctionNode RenderPipeline(PipelineStatement p, string path)
+    private List<ExecTail> RenderCtrlNode(string name, string path, List<ExecTail> prevTails)
     {
-        string fn = "?"; ImmutableArray<BsNode> args = [];
-        if (p.Sources.Length == 1 && p.Sources[0] is BsCall c) { fn = c.MethodName; args = c.Args; }
-        else if (p.Segments.Length > 0) { var s = p.Segments[^1]; fn = s.Target; args = s.Arguments; }
-        var func = AddBuiltin(fn, path);
-        if (args.Length > 0) WireFuncArgs(func, args, $"{path}/args");
-        if (p.Segments.Length > 0 && p.Segments[^1].IsVariableTap)
-        {
-            var tap = Add(new VariableNode { Name = p.Segments[^1].Target, VarName = p.Segments[^1].Target }, $"{path}/tap");
-            ConnectValue(func, tap);
-        }
-        return func;
+        var node = AddCtrlNode(name, path);
+        ConnectExecTails(prevTails, node);
+        return [];
     }
 
-    private BuiltinFunctionNode RenderIfElse(IfStatement iff, string path)
+    // ── Pipeline rendering ──
+
+    private List<ExecTail> RenderPipelineStmt(PipelineStatement p, string path, List<ExecTail> prevTails)
     {
-        var br = AddBranch("Branch", path);
-        br.OutputPins.Add(MakePin("True", PinDirection.Output));
-        br.OutputPins.Add(MakePin("False", PinDirection.Output));
-        var thenE = Add(new EntryNode { Name = "Start" }, $"{path}/then"); ConnectNamedExec(br, "True", thenE);
-        RenderScope(iff.ThenBody, $"{path}/then", thenE);
+        // Bare call: Print("hello") — one source that is a BsCall, no segments.
+        if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is BsCall call)
+        {
+            var func = AddBuiltin(call.MethodName, path);
+            WireCallArgs(func, call.Args, $"{path}/args");
+            ConnectExecTails(prevTails, func);
+            return [new ExecTail(func, "Exec")];
+        }
+
+        // General pipeline: sources → segment1 → segment2 → ... → variable tap.
+        BlueprintNode? lastFunc = null;
+        var sourceNodes = new List<BlueprintNode>();
+
+        for (int i = 0; i < p.Sources.Length; i++)
+            sourceNodes.Add(RenderSourceAsNode(p.Sources[i], $"{path}/src/{i}"));
+
+        for (int i = 0; i < p.Segments.Length; i++)
+        {
+            var seg = p.Segments[i];
+            bool isVarTap = seg.IsVariableTap
+                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target));
+
+            if (isVarTap)
+            {
+                var vn = Add(new VariableNode
+                {
+                    Name = seg.Target, VarName = seg.Target,
+                    VarKind = VariableKind.PubVar,
+                }, $"{path}/seg/{i}");
+                var dataSource = lastFunc ?? (sourceNodes.Count > 0 ? sourceNodes[^1] : null);
+                if (dataSource is not null) ConnectValue(dataSource, vn);
+            }
+            else
+            {
+                var fn = AddBuiltin(seg.Target, $"{path}/seg/{i}");
+                WireCallArgs(fn, seg.Arguments, $"{path}/seg/{i}/args");
+                if (i == 0)
+                {
+                    foreach (var sn in sourceNodes)
+                        ConnectValue(sn, fn);
+                }
+                else if (lastFunc is not null)
+                {
+                    ConnectValue(lastFunc, fn);
+                }
+                lastFunc = fn;
+            }
+        }
+
+        if (lastFunc is not null)
+        {
+            ConnectExecTails(prevTails, lastFunc);
+            return [new ExecTail(lastFunc, "Exec")];
+        }
+
+        // Pure data assignment (no function call) — exec chain passes through.
+        return prevTails;
+    }
+
+    /// <summary>
+    /// Wires literal/identifier args from a function call's parens to the function
+    /// node's input pins. Per v6.0 rule, parens may only contain literals/placeholders.
+    /// Literals → input pin DefaultValue; identifiers → usage VariableNode + Connect.
+    /// </summary>
+    private void WireCallArgs(BuiltinFunctionNode func, ImmutableArray<BsNode> args, string path)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case BsLiteral lit:
+                    var pin = func.InputPins.Find(p => p.Name == "Value");
+                    if (pin is not null)
+                        pin.DefaultValue = lit.Value?.ToString() ?? "null";
+                    break;
+                case BsIdentifier id:
+                    var vn = Add(new VariableNode
+                    {
+                        Name = id.Name, VarName = id.Name,
+                        VarKind = VariableKind.PubVar,
+                    }, $"{path}/{i}");
+                    ConnectValue(vn, func);
+                    break;
+            }
+        }
+    }
+
+    // ── If/Else ──
+
+    private List<ExecTail> RenderIfElse(IfStatement iff, string path, List<ExecTail> prevTails)
+    {
+        var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
+        br.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
+        br.InputPins.Add(MakePin("Condition", PinDirection.Input, PinType.Boolean));
+        br.OutputPins.Add(MakePin("True", PinDirection.Output, PinType.Execution));
+        br.OutputPins.Add(MakePin("False", PinDirection.Output, PinType.Execution));
+
+        ConnectExecTails(prevTails, br);
+
+        var condNode = RenderCondition(iff.Condition, $"{path}/cond");
+        ConnectToInput(condNode, br, "Condition");
+
+        var thenTails = RenderSubScope(iff.ThenBody, $"{path}/then",
+            [new ExecTail(br, "True")]);
+
+        List<ExecTail> elseTails;
         if (iff.ElseBody.Length > 0)
         {
-            var elseE = Add(new EntryNode { Name = "Start" }, $"{path}/else"); ConnectNamedExec(br, "False", elseE);
-            RenderScope(iff.ElseBody, $"{path}/else", elseE);
+            elseTails = RenderSubScope(iff.ElseBody, $"{path}/else",
+                [new ExecTail(br, "False")]);
         }
-        return br;
+        else
+        {
+            elseTails = [new ExecTail(br, "False")];
+        }
+
+        return thenTails.Concat(elseTails).ToList();
     }
 
-    private BuiltinFunctionNode RenderForEach(ForEachStatement fe, string path)
+    // ── ForEach ──
+
+    private List<ExecTail> RenderForEach(ForEachStatement fe, string path, List<ExecTail> prevTails)
     {
-        var each = AddLoop("Each", path);
-        each.OutputPins.Add(MakePin("Body", PinDirection.Output));
-        each.OutputPins.Add(MakePin("End", PinDirection.Output));
-        each.OutputPins.Add(MakePin("Current", PinDirection.Output));
-        var bodyE = Add(new EntryNode { Name = "Start" }, $"{path}/body"); ConnectNamedExec(each, "Body", bodyE);
-        RenderScope(fe.Body, $"{path}/body", bodyE);
-        return each;
+        var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
+        each.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
+        each.InputPins.Add(MakePin("List", PinDirection.Input, PinType.Any));
+        each.OutputPins.Add(MakePin("Body", PinDirection.Output, PinType.Execution));
+        each.OutputPins.Add(MakePin("End", PinDirection.Output, PinType.Execution));
+        each.OutputPins.Add(MakePin("Current", PinDirection.Output, PinType.Any));
+
+        ConnectExecTails(prevTails, each);
+
+        var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src");
+        ConnectToInput(sourceNode, each, "List");
+
+        _loopStack.Push((each, "End"));
+        RenderSubScope(fe.Body, $"{path}/body", [new ExecTail(each, "Body")]);
+        _loopStack.Pop();
+
+        return [new ExecTail(each, "End")];
     }
 
-    private BuiltinFunctionNode RenderWhile(WhileStatement ws, string path)
+    // ── While ──
+
+    private List<ExecTail> RenderWhile(WhileStatement ws, string path, List<ExecTail> prevTails)
     {
-        var wh = AddLoop("While", path);
-        wh.OutputPins.Add(MakePin("Body", PinDirection.Output));
-        wh.OutputPins.Add(MakePin("End", PinDirection.Output));
-        var bodyE = Add(new EntryNode { Name = "Start" }, $"{path}/body"); ConnectNamedExec(wh, "Body", bodyE);
-        RenderScope(ws.Body, $"{path}/body", bodyE);
-        return wh;
+        var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
+        wh.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
+        wh.InputPins.Add(MakePin("Condition", PinDirection.Input, PinType.Boolean));
+        wh.OutputPins.Add(MakePin("Body", PinDirection.Output, PinType.Execution));
+        wh.OutputPins.Add(MakePin("End", PinDirection.Output, PinType.Execution));
+
+        ConnectExecTails(prevTails, wh);
+
+        var condNode = RenderCondition(ws.Condition, $"{path}/cond");
+        ConnectToInput(condNode, wh, "Condition");
+
+        _loopStack.Push((wh, "End"));
+        RenderSubScope(ws.Body, $"{path}/body", [new ExecTail(wh, "Body")]);
+        _loopStack.Pop();
+
+        return [new ExecTail(wh, "End")];
     }
 
-    private BuiltinFunctionNode RenderSwitch(SwitchStatement sw, string path)
+    // ── Switch ──
+
+    private List<ExecTail> RenderSwitch(SwitchStatement sw, string path, List<ExecTail> prevTails)
     {
-        var sn = AddBranch("Switch", path);
+        var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
+        sn.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
+        sn.InputPins.Add(MakePin("Selector", PinDirection.Input, PinType.Integer));
+
+        ConnectExecTails(prevTails, sn);
+
+        var selNode = RenderCondition(sw.Selector, $"{path}/sel");
+        ConnectToInput(selNode, sn, "Selector");
+
+        var allTails = new List<ExecTail>();
         for (int i = 0; i < sw.Arms.Length; i++)
         {
-            sn.OutputPins.Add(MakePin($"{i}", PinDirection.Output));
-            var ae = Add(new EntryNode { Name = "Start" }, $"{path}/arm/{i}"); ConnectNamedExec(sn, $"{i}", ae);
-            RenderScope(sw.Arms[i], $"{path}/arm/{i}", ae);
+            sn.OutputPins.Add(MakePin($"{i}", PinDirection.Output, PinType.Execution));
+            var armTails = RenderSubScope(sw.Arms[i], $"{path}/arm/{i}",
+                [new ExecTail(sn, $"{i}")]);
+            allTails.AddRange(armTails);
         }
         if (sw.Default.Length > 0)
         {
-            sn.OutputPins.Add(MakePin("Default", PinDirection.Output));
-            var de = Add(new EntryNode { Name = "Start" }, $"{path}/default"); ConnectNamedExec(sn, "Default", de);
-            RenderScope(sw.Default, $"{path}/default", de);
+            sn.OutputPins.Add(MakePin("Default", PinDirection.Output, PinType.Execution));
+            var defTails = RenderSubScope(sw.Default, $"{path}/default",
+                [new ExecTail(sn, "Default")]);
+            allTails.AddRange(defTails);
         }
-        return sn;
+        return allTails;
     }
 
-    private void WireFuncArgs(BuiltinFunctionNode func, ImmutableArray<BsNode> sources, string path)
+    // ── Condition / source rendering ──
+
+    /// <summary>
+    /// Renders a condition BsNode as a data-source node whose output is the condition value.
+    /// Handles BsIdentifier (variable read), BsCall (function call), and BsPipeline
+    /// (pipeline condition like `a, b > Compare("BEQ")`).
+    /// </summary>
+    private BlueprintNode RenderCondition(BsNode cond, string path)
     {
-        for (int i = 0; i < sources.Length; i++)
+        switch (cond)
         {
-            switch (sources[i])
+            case BsIdentifier id:
+                return Add(new VariableNode
+                {
+                    Name = id.Name, VarName = id.Name,
+                    VarKind = VariableKind.PubVar,
+                }, path);
+            case BsLiteral lit:
+                return Add(new ConstNode
+                {
+                    Name = lit.Value?.ToString() ?? "null",
+                    ConstName = lit.Value?.ToString() ?? "null",
+                    ConstValue = lit.Value?.ToString(),
+                }, path);
+            case BsCall call:
+                {
+                    var fn = AddBuiltin(call.MethodName, path);
+                    WireCallArgs(fn, call.Args, $"{path}/args");
+                    return fn;
+                }
+            case BsPipeline pipe:
+                return RenderPipelineAsCondition(pipe, path);
+            default:
+                throw new InvalidOperationException($"Unexpected condition node: {cond.GetType().Name}");
+        }
+    }
+
+    /// <summary>
+    /// Renders a BsPipeline condition as a chain of data nodes and returns the last
+    /// function node whose output is the condition value.
+    /// </summary>
+    private BlueprintNode RenderPipelineAsCondition(BsPipeline pipe, string path)
+    {
+        BlueprintNode? lastFunc = null;
+        var sourceNodes = new List<BlueprintNode>();
+
+        for (int i = 0; i < pipe.Sources.Length; i++)
+            sourceNodes.Add(RenderSourceAsNode(pipe.Sources[i], $"{path}/src/{i}"));
+
+        for (int i = 0; i < pipe.Segments.Length; i++)
+        {
+            var seg = pipe.Segments[i];
+            if (seg.Args.Length == 0 && !_registry.Contains(seg.Target))
             {
-                case BsLiteral lit:
-                    var cn = Add(new ConstNode { Name = lit.Value?.ToString() ?? "null", ConstName = lit.Value?.ToString() ?? "null", ConstValue = lit.Value?.ToString() }, $"{path}/{i}");
-                    ConnectValue(cn, func);
-                    break;
-                case BsIdentifier id:
-                    var vn = Add(new VariableNode { Name = id.Name, VarName = id.Name }, $"{path}/{i}");
-                    ConnectValue(vn, func);
-                    break;
-                case BsCall nested:
-                    var nf = AddBuiltin(nested.MethodName, $"{path}/{i}");
-                    WireFuncArgs(nf, nested.Args, $"{path}/{i}/args");
-                    ConnectValue(nf, func);
-                    break;
+                var vn = Add(new VariableNode
+                {
+                    Name = seg.Target, VarName = seg.Target,
+                    VarKind = VariableKind.PubVar,
+                }, $"{path}/seg/{i}");
+                if (lastFunc is not null) ConnectValue(lastFunc, vn);
+                lastFunc = vn;
             }
+            else
+            {
+                var fn = AddBuiltin(seg.Target, $"{path}/seg/{i}");
+                WireCallArgs(fn, seg.Args, $"{path}/seg/{i}/args");
+                if (lastFunc is null)
+                {
+                    foreach (var sn in sourceNodes) ConnectValue(sn, fn);
+                }
+                else
+                {
+                    ConnectValue(lastFunc, fn);
+                }
+                lastFunc = fn;
+            }
+        }
+
+        return lastFunc ?? (sourceNodes.Count > 0
+            ? sourceNodes[0]
+            : Add(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback"));
+    }
+
+    /// <summary>Renders a single BsNode as a data-source BP node.</summary>
+    private BlueprintNode RenderSourceAsNode(BsNode node, string path)
+    {
+        switch (node)
+        {
+            case BsLiteral lit:
+                return Add(new ConstNode
+                {
+                    Name = lit.Value?.ToString() ?? "null",
+                    ConstName = lit.Value?.ToString() ?? "null",
+                    ConstValue = lit.Value?.ToString(),
+                }, path);
+            case BsIdentifier id:
+                return Add(new VariableNode
+                {
+                    Name = id.Name, VarName = id.Name,
+                    VarKind = VariableKind.PubVar,
+                }, path);
+            case BsCall call:
+                {
+                    var fn = AddBuiltin(call.MethodName, path);
+                    WireCallArgs(fn, call.Args, $"{path}/args");
+                    return fn;
+                }
+            default:
+                throw new InvalidOperationException($"Unexpected pipeline source: {node.GetType().Name}");
         }
     }
 
@@ -155,67 +436,83 @@ internal sealed class BpRenderer
     private BuiltinFunctionNode AddBuiltin(string name, string path)
     {
         var n = new BuiltinFunctionNode { Name = name, FunctionName = name };
-        n.InputPins.Add(MakePin("Exec", PinDirection.Input));
-        n.OutputPins.Add(MakePin("Exec", PinDirection.Output));
+        n.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
+        n.OutputPins.Add(MakePin("Exec", PinDirection.Output, PinType.Execution));
         var bi = _registry.Get(name);
         if (bi?.Kind is FunctionKind.Pure or FunctionKind.SideEffect)
-            n.InputPins.Add(MakePin("Value", PinDirection.Input));
+            n.InputPins.Add(MakePin("Value", PinDirection.Input, PinType.Any));
         if (bi?.Kind == FunctionKind.Pure)
-            n.OutputPins.Add(MakePin("Value", PinDirection.Output));
-        return Add(n, path);
-    }
-
-    private BuiltinFunctionNode AddBranch(string name, string path)
-    {
-        var n = new BuiltinFunctionNode { Name = name, FunctionName = name };
-        n.InputPins.Add(MakePin("Exec", PinDirection.Input));
-        return Add(n, path);
-    }
-
-    private BuiltinFunctionNode AddLoop(string name, string path)
-    {
-        var n = new BuiltinFunctionNode { Name = name, FunctionName = name };
-        n.InputPins.Add(MakePin("Exec", PinDirection.Input));
-        n.InputPins.Add(MakePin("List", PinDirection.Input));
+            n.OutputPins.Add(MakePin("Value", PinDirection.Output, PinType.Any));
         return Add(n, path);
     }
 
     private BuiltinFunctionNode AddCtrlNode(string name, string path)
     {
         var n = new BuiltinFunctionNode { Name = name, FunctionName = name };
+        n.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         return Add(n, path);
     }
 
-    // ── Helpers ──
+    // ── ID + pin helpers ──
 
-    private T Add<T>(T node, string path) where T : BlueprintNode { node.Id = StableId(path); _bp.Nodes.Add(node); return node; }
-
-    private static string StableId(string path) => $"v6-{path}";
-
-    private static BlueprintPin MakePin(string name, PinDirection dir)
-        => new() { Id = Guid.NewGuid().ToString(), Name = name, Direction = dir, Type = PinType.Execution };
-
-    private void ConnectExec(BlueprintNode f, BlueprintNode t)
+    private T Add<T>(T node, string path) where T : BlueprintNode
     {
-        var fp = f.OutputPins.Find(p => p.Name == "Exec");
-        var tp = t.InputPins.Find(p => p.Name == "Exec");
-        if (fp is not null && tp is not null) Connect(f, fp, t, tp);
+        node.Id = StableId(path);
+        _bp.Nodes.Add(node);
+        return node;
     }
 
-    private void ConnectNamedExec(BlueprintNode f, string pin, BlueprintNode t)
+    /// <summary>FNV-1a hash of path → short, deterministic, nesting-independent ID.</summary>
+    private static string StableId(string path)
     {
-        var fp = f.OutputPins.Find(p => p.Name == pin);
-        var tp = t.InputPins.Find(p => p.Name == "Exec");
-        if (fp is not null && tp is not null) Connect(f, fp, t, tp);
+        ulong hash = 0xcbf29ce484222325UL;
+        foreach (var c in path)
+            hash = (hash ^ (byte)c) * 0x100000001b3UL;
+        return $"n_{hash:X8}";
     }
 
-    private void ConnectValue(BlueprintNode f, BlueprintNode t)
+    private static BlueprintPin MakePin(string name, PinDirection dir, PinType type = PinType.Any)
+        => new() { Id = Guid.NewGuid().ToString(), Name = name, Direction = dir, Type = type };
+
+    // ── Connection helpers ──
+
+    private void ConnectExecTails(List<ExecTail> tails, BlueprintNode target)
     {
-        var fp = f.OutputPins.Find(p => p.Name == "Value");
-        var tp = t.InputPins.Find(p => p.Name == "Value");
-        if (fp is not null && tp is not null) Connect(f, fp, t, tp);
+        var tp = target.InputPins.Find(p => p.Name == "Exec");
+        if (tp is null) return;
+        foreach (var tail in tails)
+        {
+            var fp = tail.Node.OutputPins.Find(p => p.Name == tail.OutputPin);
+            if (fp is not null)
+                _bp.Connections.Add(new BlueprintConnection
+                {
+                    SourceNodeId = tail.Node.Id, SourcePinId = fp.Id,
+                    TargetNodeId = target.Id, TargetPinId = tp.Id,
+                });
+        }
     }
 
-    private void Connect(BlueprintNode fn, BlueprintPin fp, BlueprintNode tn, BlueprintPin tp)
-        => _bp.Connections.Add(new BlueprintConnection { SourceNodeId = fn.Id, SourcePinId = fp.Id, TargetNodeId = tn.Id, TargetPinId = tp.Id });
+    private void ConnectValue(BlueprintNode from, BlueprintNode to)
+    {
+        var fp = from.OutputPins.Find(p => p.Name == "Value");
+        var tp = to.InputPins.Find(p => p.Name == "Value");
+        if (fp is not null && tp is not null)
+            _bp.Connections.Add(new BlueprintConnection
+            {
+                SourceNodeId = from.Id, SourcePinId = fp.Id,
+                TargetNodeId = to.Id, TargetPinId = tp.Id,
+            });
+    }
+
+    private void ConnectToInput(BlueprintNode from, BlueprintNode to, string inputPinName)
+    {
+        var fp = from.OutputPins.Find(p => p.Name == "Value");
+        var tp = to.InputPins.Find(p => p.Name == inputPinName);
+        if (fp is not null && tp is not null)
+            _bp.Connections.Add(new BlueprintConnection
+            {
+                SourceNodeId = from.Id, SourcePinId = fp.Id,
+                TargetNodeId = to.Id, TargetPinId = tp.Id,
+            });
+    }
 }

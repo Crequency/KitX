@@ -23,8 +23,8 @@ using KitX.Core.Contract.Workflow;
 //     Discussion notes §十二-F: the strong-typing path emits <c>G.&lt;FieldName&gt;</c>
 //     instead of these dictionary calls (zero boxing, 10-100x on tight loops); the
 //     dictionary is retained for the untyped fallback / debug paths.
-//   • <see cref="Compare"/> — the HelperFuncCompare dispatcher (one of 6 op codes).
-//   • <see cref="Add"/> — the HelperFuncAdd dispatcher.
+//   • <see cref="HelperFuncCompare"/> — the comparison dispatcher (one of 6 op codes).
+//   • <see cref="HelperFuncAdd"/> — the addition dispatcher.
 //   • <see cref="Range"/> — the Range producer, returning a strongly-typed int[].
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -107,7 +107,7 @@ public class ExecutionGlobals
     /// types can be int / double / string. Strong-typed codegen (Phase 4 future) inlines
     /// the comparison directly; this path is for the dynamic fallback.
     /// </summary>
-    public bool Compare(string op, object? a, object? b)
+    public bool HelperFuncCompare(string op, object? a, object? b)
     {
         // Try numeric comparison first (int/double).
         if (a is IConvertible && b is IConvertible)
@@ -135,7 +135,7 @@ public class ExecutionGlobals
     }
 
     /// <summary>HelperFuncAdd dispatcher: adds two integers.</summary>
-    public int Add(int a, int b) => a + b;
+    public int HelperFuncAdd(int a, int b) => a + b;
 
     /// <summary>StringConcat dispatcher: concatenates N string arguments.</summary>
     public string StringConcatMethod(params object?[] args)
