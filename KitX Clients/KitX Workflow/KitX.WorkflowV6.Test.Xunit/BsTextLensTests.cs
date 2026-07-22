@@ -328,4 +328,111 @@ public class BsTextLensTests
         Assert.Single(program.Body);
         Assert.IsType<BsPipeline>(program.Body[0]);
     }
+
+    // ── Error scenario coverage (BS0xx codes) ──
+
+    [Fact]
+    public void Error_BS051_Identifier_In_Function_Parens()
+    {
+        // v6.0 rule: function parens may only contain literals/placeholders.
+        // `Print(myVar)` — myVar is an identifier inside parens → BS051.
+        var src = "Print(myVar)\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS051");
+    }
+
+    [Fact]
+    public void Error_BS051_Identifier_In_Segment_Parens()
+    {
+        // `1 > HelperFuncAdd(x, _)` — x is an identifier inside segment parens → BS051.
+        var src = "1 > HelperFuncAdd(x, _)\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS051");
+    }
+
+    [Fact]
+    public void Error_BS051_Not_Raised_For_Literal_Args()
+    {
+        // `Print("hello")` — all-literal args → no BS051.
+        var src = "Print(\"hello\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.False(diag.HasErrors);
+    }
+
+    [Fact]
+    public void Error_BS051_Not_Raised_For_Placeholder()
+    {
+        // `1 > Range(0, _, 1)` — _ is a placeholder, not an identifier → no BS051.
+        var src = "1 > Range(0, _, 1)\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.False(diag.HasErrors);
+    }
+
+    [Fact]
+    public void Error_BS030_Missing_As_After_ForEach()
+    {
+        var src = "forEach Range(0, 3, 1)\n    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS030");
+    }
+
+    [Fact]
+    public void Error_BS042_Unterminated_Call_Args()
+    {
+        var src = "Print(\"hello\"\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS042" || d.Code == "BS052");
+    }
+
+    [Fact]
+    public void Error_BS062_Empty_If_Body()
+    {
+        var src = "if cond\nPrint(\"not indented\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS062");
+    }
+
+    [Fact]
+    public void Error_BS010_Top_Level_Not_Indent_Zero()
+    {
+        // Statement at indent 2 (not 0) at top level.
+        var src = "    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS010");
+    }
+
+    [Fact]
+    public void Error_BS011_Duplicate_Const_Block()
+    {
+        var src = """
+            const {
+                int a = 1
+            }
+
+            const {
+                int b = 2
+            }
+            """;
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "BS011");
+    }
+
+    [Fact]
+    public void Error_Collection_Contains_All_Error_Codes()
+    {
+        // Multiple errors in one source — all should be collected (error recovery).
+        var src = "Print(myVar)\nPrint(otherVar)\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        // Both lines should produce BS051.
+        var bs051Count = diag.Items.Count(d => d.Code == "BS051");
+        Assert.True(bs051Count >= 2, $"Expected >=2 BS051 errors, got {bs051Count}");
+    }
 }

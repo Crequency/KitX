@@ -123,6 +123,7 @@ internal sealed class Parser
             if (indent != 0)
             {
                 Error("BS010", $"Top-level statement must be at indent 0 (got {indent})");
+                Advance();  // consume the wrong-level Indent to avoid infinite loop
                 while (!AtEnd && Current.Kind != BsTokenKind.Indent) Advance();
                 continue;
             }
