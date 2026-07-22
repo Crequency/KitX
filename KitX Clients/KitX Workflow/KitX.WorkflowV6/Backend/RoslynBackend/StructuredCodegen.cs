@@ -206,13 +206,13 @@ internal sealed class StructuredCodegen
                 continue;
             }
 
-            // Function call segment: build arg list from explicit args + input.
+            // Function call segment: build arg list respecting `_` placeholder positions.
             // First segment uses pipeline sources as implicit inputs.
             // Subsequent segments use the previous segment's output as sole input.
             IEnumerable<string> inputArgs = segIdx == 0
                 ? p.Sources.Select(RenderBsNode)
                 : new[] { currentExpr ?? "null" };
-            var allArgs = string.Join(", ", seg.Arguments.Select(RenderBsNode).Concat(inputArgs));
+            var allArgs = BuildArgList(seg.Arguments, inputArgs);
             currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({allArgs})";
         }
 
@@ -246,17 +246,14 @@ internal sealed class StructuredCodegen
 
     /// <summary>
     /// Renders a <see cref="BsPipeline"/> as a C# expression (for if/while condition
-    /// positions). Chains segments as nested C# calls:
-    ///   <c>a, b &gt; Compare("BEQ")</c> → <c>this.Compare("BEQ", this.a, this.b)</c>
-    ///   <c>a &gt; Func1 &gt; Func2</c> → <c>this.Func2(this.Func1(this.a))</c>
-    /// Each segment's explicit args come first, then pipeline sources are appended
-    /// (matching <see cref="EmitPipeline"/>'s argument-building convention).
+    /// positions and forEach sources). Chains segments as nested C# calls, respecting
+    /// `_` placeholder positions: placeholders are replaced by pipeline inputs in order;
+    /// remaining inputs are appended after explicit args.
     /// </summary>
     private string RenderPipelineAsExpression(BsPipeline pipe)
     {
         if (pipe.Segments.Length == 0)
         {
-            // No segments — degenerate pipeline, just return the first source.
             return pipe.Sources.Length > 0 ? RenderBsNode(pipe.Sources[0]) : "true";
         }
 
@@ -264,15 +261,36 @@ internal sealed class StructuredCodegen
         for (int i = 0; i < pipe.Segments.Length; i++)
         {
             var seg = pipe.Segments[i];
-            // For the first segment, pipeline sources are the inputs.
-            // For subsequent segments, the previous segment's output is the sole input.
             IEnumerable<string> inputArgs = i == 0
                 ? pipe.Sources.Select(RenderBsNode)
                 : new[] { currentExpr };
-            var allArgs = string.Join(", ", seg.Args.Select(RenderBsNode).Concat(inputArgs));
+            var allArgs = BuildArgList(seg.Args, inputArgs);
             currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({allArgs})";
         }
         return currentExpr;
+    }
+
+    /// <summary>
+    /// Builds a C# argument list from explicit args + pipeline inputs. Placeholder (`_`)
+    /// positions in the explicit args are replaced by pipeline inputs (in order); remaining
+    /// inputs are appended after the explicit args. This correctly handles both:
+    ///   <c>a, b &gt; Compare("BEQ")</c>  → Compare("BEQ", a, b)  (no placeholders, appended)
+    ///   <c>x &gt; Range(0, _, 1)</c>     → Range(0, x, 1)        (placeholder replaced)
+    /// </summary>
+    private string BuildArgList(ImmutableArray<BsNode> args, IEnumerable<string> inputs)
+    {
+        var queue = new Queue<string>(inputs);
+        var result = new List<string>();
+        foreach (var arg in args)
+        {
+            if (arg is BsPlaceholder)
+                result.Add(queue.Count > 0 ? queue.Dequeue() : "null");
+            else
+                result.Add(RenderBsNode(arg));
+        }
+        while (queue.Count > 0)
+            result.Add(queue.Dequeue());
+        return string.Join(", ", result);
     }
 
     /// <summary>

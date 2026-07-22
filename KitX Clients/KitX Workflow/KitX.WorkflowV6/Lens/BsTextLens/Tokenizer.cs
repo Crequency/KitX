@@ -274,6 +274,7 @@ internal static class Tokenizer
     {
         "true" or "false" => BsTokenKind.BooleanLiteral,
         "null" => BsTokenKind.NullLiteral,
+        "_" => BsTokenKind.Placeholder,
         _ => BsTokenKind.Identifier,
     };
 

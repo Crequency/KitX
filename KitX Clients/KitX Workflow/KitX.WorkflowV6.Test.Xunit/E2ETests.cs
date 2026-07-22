@@ -263,4 +263,24 @@ public class E2ETests
         Assert.Contains("found it!", result.Output);
         Assert.Contains("1", result.Output);  // hit = 1
     }
+
+    [Fact]
+    public async Task E2E_Placeholder_Pipeline_ForEach()
+    {
+        // `loopMax > Range(0, _, 1) > forEach as i` — the `_` placeholder is replaced
+        // by the pipeline source `loopMax`, producing Range(0, 3, 1).
+        var src = """
+            const {
+                int loopMax = 3
+            }
+
+            loopMax > Range(0, _, 1) > forEach as i
+                i > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "0", "1", "2" }, result.Output);
+    }
 }

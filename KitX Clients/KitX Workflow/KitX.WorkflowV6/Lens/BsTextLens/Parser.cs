@@ -472,8 +472,10 @@ internal sealed class Parser
                     var body = ParseBody(keywordIndent + 1, "forEach");
                     return new BsForEach
                     {
-                        Source = sources.Count == 1 ? sources[0]
-                              : new BsPipeline { Sources = sources.ToImmutable(), Segments = [], SourceLine = sources[0].SourceLine },
+                        Source = segments.Count == 0
+                            ? (sources.Count == 1 ? sources[0]
+                               : new BsPipeline { Sources = sources.ToImmutable(), Segments = [], SourceLine = sources[0].SourceLine })
+                            : new BsPipeline { Sources = sources.ToImmutable(), Segments = segments.ToImmutable(), SourceLine = sources[0].SourceLine },
                         ItemName = itemName,
                         Body = body,
                         SourceLine = sources[0].SourceLine,

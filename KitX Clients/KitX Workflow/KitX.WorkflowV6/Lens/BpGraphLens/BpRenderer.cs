@@ -207,6 +207,8 @@ internal sealed class BpRenderer
                     }, $"{path}/{i}");
                     ConnectValue(vn, func);
                     break;
+                // BsPlaceholder: skip — pipeline sources fill these positions separately
+                // via ConnectValue in RenderPipelineStmt / RenderPipelineAsCondition.
             }
         }
     }
@@ -426,6 +428,9 @@ internal sealed class BpRenderer
                     WireCallArgs(fn, call.Args, $"{path}/args");
                     return fn;
                 }
+            case BsPipeline pipe:
+                // forEach source that is itself a pipeline (e.g. `loopMax > Range(0, _, 1) > forEach as i`).
+                return RenderPipelineAsCondition(pipe, path);
             default:
                 throw new InvalidOperationException($"Unexpected pipeline source: {node.GetType().Name}");
         }
