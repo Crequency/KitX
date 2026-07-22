@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 2 acceptance tests for BsTextLens (BS indented parser + lowerer + renderer).
+// Phase 2 acceptance tests for BsTextLens (KS indented parser + lowerer + renderer).
 //
-// Covers the BS text round-trip pipeline:
+// Covers the KS text round-trip pipeline:
 //   • Parse empty program
 //   • Parse const/var blocks
 //   • Parse if/else, forEach, while, switch, nested control flow
@@ -180,7 +180,7 @@ public class BsTextLensTests
         var src = "if cond\n\tPrint(\"x\")\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS001");
+        Assert.Contains(diag.Items, d => d.Code == "KS001");
     }
 
     // ── Indent error ──
@@ -192,7 +192,7 @@ public class BsTextLensTests
         var src = "if cond\n   Print(\"x\")\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS002");
+        Assert.Contains(diag.Items, d => d.Code == "KS002");
     }
 
     // ── Round-trip idempotence ──
@@ -329,7 +329,7 @@ public class BsTextLensTests
         Assert.IsType<BsPipeline>(program.Body[0]);
     }
 
-    // ── Error scenario coverage (BS0xx codes) ──
+    // ── Error scenario coverage (KS0xx codes) ──
 
     [Fact]
     public void Error_BS051_Identifier_In_Function_Parens()
@@ -339,7 +339,7 @@ public class BsTextLensTests
         var src = "Print(myVar)\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS051");
+        Assert.Contains(diag.Items, d => d.Code == "KS051");
     }
 
     [Fact]
@@ -349,7 +349,7 @@ public class BsTextLensTests
         var src = "1 > HelperFuncAdd(x, _)\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS051");
+        Assert.Contains(diag.Items, d => d.Code == "KS051");
     }
 
     [Fact]
@@ -376,7 +376,7 @@ public class BsTextLensTests
         var src = "forEach Range(0, 3, 1)\n    Print(\"x\")\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS030");
+        Assert.Contains(diag.Items, d => d.Code == "KS030");
     }
 
     [Fact]
@@ -385,7 +385,7 @@ public class BsTextLensTests
         var src = "Print(\"hello\"\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS042" || d.Code == "BS052");
+        Assert.Contains(diag.Items, d => d.Code == "KS042" || d.Code == "KS052");
     }
 
     [Fact]
@@ -394,7 +394,7 @@ public class BsTextLensTests
         var src = "if cond\nPrint(\"not indented\")\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS062");
+        Assert.Contains(diag.Items, d => d.Code == "KS062");
     }
 
     [Fact]
@@ -404,7 +404,7 @@ public class BsTextLensTests
         var src = "    Print(\"x\")\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS010");
+        Assert.Contains(diag.Items, d => d.Code == "KS010");
     }
 
     [Fact]
@@ -421,7 +421,7 @@ public class BsTextLensTests
             """;
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
-        Assert.Contains(diag.Items, d => d.Code == "BS011");
+        Assert.Contains(diag.Items, d => d.Code == "KS011");
     }
 
     [Fact]
@@ -432,7 +432,7 @@ public class BsTextLensTests
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         // Both lines should produce BS051.
-        var bs051Count = diag.Items.Count(d => d.Code == "BS051");
+        var bs051Count = diag.Items.Count(d => d.Code == "KS051");
         Assert.True(bs051Count >= 2, $"Expected >=2 BS051 errors, got {bs051Count}");
     }
 }
