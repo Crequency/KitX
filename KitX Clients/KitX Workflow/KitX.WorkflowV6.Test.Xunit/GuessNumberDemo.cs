@@ -33,7 +33,7 @@ public class GuessNumberDemo
 
             Print("开始执行工作流")
 
-            loopMax > Range(0, _, 1) > forEach as i
+            forEach loopMax > Range(0, _, 1) as i
                 guessNum, targetNum > Compare("BEQ") > cond
                 if cond
                     Print("猜对啦！")

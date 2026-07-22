@@ -104,20 +104,49 @@ public class KsTextLensTests
     }
 
     [Fact]
-    public void Parse_ForEach_Pipeline_Form()
+    public void Parse_ForEach_Pipeline_Source()
     {
-        // The §4.3 example form: Range(0, loopMax, 1) > forEach as i.
-        // Should desugar to the same ForEachStatement as the prefix form.
+        // forEach accepts pipeline expressions as source (like if/while conditions):
+        // `forEach loopMax > Range(0, _, 1) as i` — loopMax flows into Range via pipeline.
         var src = """
-            Range(0, 10, 1) > forEach as i
+            const {
+                int loopMax = 10
+            }
+
+            forEach loopMax > Range(0, _, 1) as i
                 i > Print
             """;
         var ir = _lens.Parse(src, []);
-        Assert.Single(ir.Body);
-        var fe = Assert.IsType<ForEachStatement>(ir.Body[0]);
+        var fe = ir.Body.OfType<ForEachStatement>().Single();
         Assert.Equal("i", fe.ItemName);
+        // Source should be a KsPipeline (loopMax > Range(0, _, 1)).
+        Assert.IsType<KsPipeline>(fe.Source);
         Assert.Single(fe.Body);
-        Assert.IsType<PipelineStatement>(fe.Body[0]);
+    }
+
+    [Fact]
+    public void RoundTrip_ForEach_Pipeline_Source()
+    {
+        // Verify the pipeline-source forEach form round-trips: KS → IR → KS → re-parseable.
+        var src = """
+            const {
+                int loopMax = 3
+            }
+
+            forEach loopMax > Range(0, _, 1) as i
+                i > Print
+            """;
+        var ir = _lens.Parse(src, []);
+        var rendered = _lens.Project(ir);
+        // The rendered output must be re-parseable (no round-trip breakage).
+        var reIr = _lens.Parse(rendered, []);
+        // Compare the forEach source type and item name explicitly.
+        var origFe = ir.Body.OfType<ForEachStatement>().Single();
+        var reFe = reIr.Body.OfType<ForEachStatement>().Single();
+        Assert.Equal(origFe.ItemName, reFe.ItemName);
+        Assert.Equal(origFe.Source.GetType(), reFe.Source.GetType());
+        // Compare fingerprints (structural equality, excludes SourceText/SourceLine).
+        Assert.Equal(origFe.Fingerprint, reFe.Fingerprint);
     }
 
     // ── Parse while ──

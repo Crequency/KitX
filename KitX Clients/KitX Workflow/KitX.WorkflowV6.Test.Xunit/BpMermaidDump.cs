@@ -29,7 +29,7 @@ public class BpMermaidDump
 
             Print("start")
 
-            loopMax > Range(0, _, 1) > forEach as i
+            forEach loopMax > Range(0, _, 1) as i
                 guessNum, targetNum > Compare("BEQ") > cond
                 if cond
                     Print("correct!")

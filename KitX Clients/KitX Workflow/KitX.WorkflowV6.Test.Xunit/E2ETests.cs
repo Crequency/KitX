@@ -267,14 +267,14 @@ public class E2ETests
     [Fact]
     public async Task E2E_Placeholder_Pipeline_ForEach()
     {
-        // `loopMax > Range(0, _, 1) > forEach as i` — the `_` placeholder is replaced
+        // `forEach loopMax > Range(0, _, 1) as i` — the `_` placeholder is replaced
         // by the pipeline source `loopMax`, producing Range(0, 3, 1).
         var src = """
             const {
                 int loopMax = 3
             }
 
-            loopMax > Range(0, _, 1) > forEach as i
+            forEach loopMax > Range(0, _, 1) as i
                 i > Print
             """;
         var ir = ParseToIr(src);

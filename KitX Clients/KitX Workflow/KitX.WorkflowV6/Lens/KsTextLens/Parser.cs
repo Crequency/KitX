@@ -285,7 +285,7 @@ internal sealed class Parser
     private KsIf ParseIf()
     {
         var ifTok = Advance();  // 'if'
-        var cond = ParsePipelineCondition();
+        var cond = ParsePipelineExpression();
         int keywordIndent = LastConsumedIndentLevel();
         var thenBody = ParseBody(keywordIndent + 1, $"if on line {ifTok.Line}");
         ImmutableArray<KsStatement> elseBody = [];
@@ -383,7 +383,10 @@ internal sealed class Parser
     private KsForEach ParseForEach()
     {
         var feTok = Advance();  // 'forEach'
-        var source = ParseExpression();
+        // Source accepts pipeline expressions (like if/while conditions), so
+        // `forEach loopMax > Range(0, _, 1) as i` is valid — the entire pipeline
+        // between `forEach` and `as` is the source expression.
+        var source = ParsePipelineExpression();
         if (!MatchKeyword("as"))
             Error("KS030", "Expected 'as' after forEach source");
         if (Current.Kind != KsTokenKind.Identifier)
@@ -403,7 +406,7 @@ internal sealed class Parser
     private KsWhile ParseWhile()
     {
         var whTok = Advance();  // 'while'
-        var cond = ParsePipelineCondition();
+        var cond = ParsePipelineExpression();
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"while on line {whTok.Line}");
         return new KsWhile
@@ -444,12 +447,8 @@ internal sealed class Parser
         // A pipeline line: <src> (',' <src>)* ('>' <segment>)* ('=' <name>)? ';'?
         // A bare call:    <call>   (lowered to a one-source pipeline with one call segment)
         //
-        // Special case: when a segment target is the keyword `forEach`, the pipeline
-        // is actually a forEach statement — `source > forEach as item` desugars to
-        // `forEach source as item`. This is the form used in the discussion-notes
-        // §4.3 example (Range(0, loopMax, 1) > forEach as i). Both forms produce the
-        // same ForEachStatement; the §3.3 #4 form `forEach list as item` is the
-        // canonical one, and the pipeline form is sugar.
+        // forEach is NOT a valid pipeline segment target — it is a prefix keyword
+        // statement: `forEach <source> as <item>`. Use that form instead.
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         sources.Add(ParseExpression());
         while (Match(KsTokenKind.Comma))
@@ -458,30 +457,10 @@ internal sealed class Parser
         var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
         while (Match(KsTokenKind.Pipe))
         {
-            // Intercept `forEach` as a pipeline segment: desugar to ForEachStatement.
             if (IsKeyword("forEach"))
             {
-                Advance();  // consume 'forEach'
-                if (!MatchKeyword("as"))
-                    Error("KS030", "Expected 'as' after forEach");
-                if (Current.Kind != KsTokenKind.Identifier)
-            Error("KS031", "Expected item name after 'as'");
-                else
-                {
-                    var itemName = Advance().Text;
-                    int keywordIndent = LastConsumedIndentLevel();
-                    var body = ParseBody(keywordIndent + 1, "forEach");
-                    return new KsForEach
-                    {
-                        Source = segments.Count == 0
-                            ? (sources.Count == 1 ? sources[0]
-                               : new KsPipeline { Sources = sources.ToImmutable(), Segments = [], SourceLine = sources[0].SourceLine })
-                            : new KsPipeline { Sources = sources.ToImmutable(), Segments = segments.ToImmutable(), SourceLine = sources[0].SourceLine },
-                        ItemName = itemName,
-                        Body = body,
-                        SourceLine = sources[0].SourceLine,
-                    };
-                }
+                Error("KS061", "'forEach' is not valid as a pipeline segment. Use prefix form: 'forEach <source> as <item>'");
+                break;
             }
             segments.Add(ParseSegment());
         }
@@ -657,14 +636,13 @@ internal sealed class Parser
     }
 
     /// <summary>
-    /// Parses an if/while condition. May be:
-    ///   (a) A simple expression: <c>if cond</c> — returns the KsNode directly.
-    ///   (b) A pipeline expression: <c>if src1, src2 &gt; Func(args)</c> — returns a
-    ///       <see cref="KsPipeline"/> whose final segment output is the condition value.
-    /// Per v6.0 rule, conditions support pipeline expressions so variable values can
-    /// flow into comparison functions without appearing inside function parens.
+    /// Parses a pipeline expression: a simple expression, or a multi-source pipeline
+    /// (<c>src1, src2 &gt; Func(args) &gt; ...</c>). Used for if/while conditions and
+    /// forEach sources — any position where a value-producing expression is needed and
+    /// pipeline syntax (variable sources flowing into function calls) is valid.
+    /// Returns a single KsNode (simple expression) or a KsPipeline (multi-source/segment).
     /// </summary>
-    private KsNode ParsePipelineCondition()
+    private KsNode ParsePipelineExpression()
     {
         var firstSource = ParseExpression();
 
@@ -683,7 +661,7 @@ internal sealed class Parser
         {
             if (IsKeyword("forEach"))
             {
-                Error("KS061", "'forEach' is not valid in a condition pipeline");
+                Error("KS061", "'forEach' is not valid in a pipeline expression. Use prefix form: 'forEach <source> as <item>'");
                 break;
             }
             segments.Add(ParseSegment());
