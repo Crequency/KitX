@@ -435,4 +435,116 @@ public class BsTextLensTests
         var bs051Count = diag.Items.Count(d => d.Code == "KS051");
         Assert.True(bs051Count >= 2, $"Expected >=2 BS051 errors, got {bs051Count}");
     }
+
+    // ── Systematic KS0xx error code coverage (remaining 11 codes) ──
+
+    [Fact]
+    public void Error_KS012_Declaration_Missing_Type_Name()
+    {
+        // const row missing type identifier: "5" is IntegerLiteral, not Identifier.
+        var src = "const {\n    5\n}\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS012");
+    }
+
+    [Fact]
+    public void Error_KS013_Missing_LBrace_After_Const()
+    {
+        // "const int x = 5" — const followed by identifier, not "{".
+        var src = "const int x = 5\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS013");
+    }
+
+    [Fact]
+    public void Error_KS020_Switch_Case_Missing_Colon()
+    {
+        // Case label without ":" separator.
+        var src = "switch sel\n    0 Print(\"zero\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS020");
+    }
+
+    [Fact]
+    public void Error_KS021_Switch_Arm_Invalid_Label()
+    {
+        // Arm label must be integer or "default"; "x" is an identifier.
+        var src = "switch sel\n    x:\n        Print(\"zero\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS021");
+    }
+
+    [Fact]
+    public void Error_KS022_Duplicate_Default_Arm()
+    {
+        var src = "switch sel\n    default:\n        Print(\"a\")\n    default:\n        Print(\"b\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS022");
+    }
+
+    [Fact]
+    public void Error_KS040_Assignment_Missing_Variable_Name()
+    {
+        // Pipeline ending with "=" but no identifier follows.
+        var src = "var {\n    int x\n}\n1 > x =\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS040");
+    }
+
+    [Fact]
+    public void Error_KS041_Segment_Missing_Name()
+    {
+        // ">" at end of line with no identifier following.
+        var src = "1 >\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS041");
+    }
+
+    [Fact]
+    public void Error_KS050_Unexpected_Token_In_Expression()
+    {
+        // "@" is not in the grammar alphabet → unexpected token in expression.
+        var src = "if @\n    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS050");
+    }
+
+    [Fact]
+    public void Error_KS052_Segment_Call_Unterminated()
+    {
+        // Call in expression position (if condition) missing closing ")".
+        // ParseSegment uses KS042; ParseExpression call branch uses KS052.
+        var src = "if Foo(\n    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS052");
+    }
+
+    [Fact]
+    public void Error_KS060_Multi_Source_Condition_Missing_Pipe()
+    {
+        // Multiple sources in condition but no ">" pipeline segment.
+        var src = "if a, b\n    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS060");
+    }
+
+    [Fact]
+    public void Error_KS061_ForEach_In_Condition_Pipeline()
+    {
+        // forEach is not valid inside a condition pipeline.
+        var src = "if 1 > forEach as i\n    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS061");
+    }
 }
