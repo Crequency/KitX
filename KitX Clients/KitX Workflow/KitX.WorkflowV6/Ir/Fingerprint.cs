@@ -9,7 +9,7 @@ namespace KitX.WorkflowV6.Ir;
 // Fingerprint — content-derived stable identity for IR statements.
 //
 // Inherited concept from KitX.WorkflowIR's IrFingerprint: identity is derived from
-// semantic content, not from a random Guid. This makes re-parsing the same BS text
+// semantic content, not from a random Guid. This makes re-parsing the same KS text
 // produce the same identities, which is the precondition for diff alignment and
 // stable BP node correlation.
 //
@@ -25,13 +25,13 @@ namespace KitX.WorkflowV6.Ir;
 //   • whitespace-robust — content is compared as the structured AST, not as text, so
 //                          formatting drift never changes identity
 //
-// <see cref="Compute(BsNode)"/> does the same for BS AST nodes (used while lowering,
+// <see cref="Compute(BsNode)"/> does the same for KS AST nodes (used while lowering,
 // so a statement's IR fingerprint can be derived from its pre-lowered AST form and
 // match the post-lowering IR fingerprint).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// A content-derived, re-parse-stable identity for a structured IR statement or a BS
+/// A content-derived, re-parse-stable identity for a structured IR statement or a KS
 /// AST node. Equality is string equality on <see cref="Value"/>.
 /// </summary>
 public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint>
@@ -121,7 +121,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         return new Fingerprint(accum.ToHex());
     }
 
-    // ── BS AST-level fingerprinting ──
+    // ── KS AST-level fingerprinting ──
 
     /// <summary>
     /// Computes the structural fingerprint of a <see cref="BsNode"/> — used during
@@ -247,7 +247,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
     /// Derives a short, stable correlation id for a statement living at
     /// <paramref name="lexicalPath"/> (a "/"-separated scope path inside the
     /// structured AST) at <paramref name="ordinal"/>. Used as the BP-node-id and
-    /// the per-node-layout key. Stable across BS re-parse because it only depends
+    /// the per-node-layout key. Stable across KS re-parse because it only depends
     /// on (lexical path, statement fingerprint, in-scope position).
     /// </summary>
     public static string DeriveStableId(string lexicalPath, Fingerprint fingerprint, int ordinal)

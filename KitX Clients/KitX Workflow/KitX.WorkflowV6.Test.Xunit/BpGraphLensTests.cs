@@ -357,7 +357,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Repeated_Project_Stable_NodeIds()
     {
-        // Same BS projected 5 times → identical node IDs each time.
+        // Same KS projected 5 times → identical node IDs each time.
         var src = """
             forEach Range(0, 3, 1) as i
                 i, 2 > HelperFuncCompare("BEQ")
@@ -378,7 +378,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Round_Trip_BS_IR_BS()
     {
-        // BS → parse → IR → render → BS → parse → IR: should be idempotent.
+        // KS → parse → IR → render → KS → parse → IR: should be idempotent.
         var src = """
             if 1, 1 > HelperFuncCompare("BEQ")
                 Print("yes")

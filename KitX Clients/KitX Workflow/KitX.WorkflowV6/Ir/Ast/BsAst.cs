@@ -3,14 +3,14 @@ namespace KitX.WorkflowV6.Ir.Ast;
 using System.Text.Json.Serialization;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BS AST — BlockScript source tree (lossless), distinct from the structured IR.
+// KS AST — KScript source tree (lossless), distinct from the structured IR.
 //
-// Inherited split from KitX.WorkflowIR: the AST mirrors BS source 1:1 (so BS round-
+// Inherited split from KitX.WorkflowIR: the AST mirrors KS source 1:1 (so KS round-
 // trip is lossless and the indented parser can carry verbatim text on every node),
 // while the IR is the canonical lowered form. Lowering is a one-way transform
-// (AST → IR); rendering IR → BS text does not need the AST.
+// (AST → IR); rendering IR → KS text does not need the AST.
 //
-// The v6 BS grammar (indented, Python-style, see discussion notes §4.1 + §十二-A:
+// The v6 KS grammar (indented, Python-style, see discussion notes §4.1 + §十二-A:
 // 4-space indent, no tabs, +4 per level) is parsed into the node types below. Every
 // node remembers its verbatim source text so the renderer never re-parses.
 //
@@ -49,7 +49,7 @@ using System.Text.Json.Serialization;
 // ForEachStatement, ...) by BsLowerer.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>Root of the BS source AST. Every node may carry verbatim source text for lossless rendering.</summary>
+/// <summary>Root of the KS source AST. Every node may carry verbatim source text for lossless rendering.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$bsNodeKind")]
 [JsonDerivedType(typeof(BsLiteral), "Literal")]
 [JsonDerivedType(typeof(BsIdentifier), "Identifier")]
@@ -79,7 +79,7 @@ public abstract record BsNode
 
 // ── Expression nodes ──
 
-/// <summary>Discriminated literal kinds mirroring BlockScript's supported types.</summary>
+/// <summary>Discriminated literal kinds mirroring KScript's supported types.</summary>
 public enum BsLiteralKind { String, Integer, Double, Boolean, Char, Null }
 
 /// <summary>A literal value (string/int/bool/double/char/null) with its typed value.</summary>
@@ -310,7 +310,7 @@ public sealed record BsVarBlock : BsNode
 
 // ── Control-flow statement nodes ──
 
-/// <summary>Base of statement-level BS AST nodes (anything that can sit in a body).</summary>
+/// <summary>Base of statement-level KS AST nodes (anything that can sit in a body).</summary>
 public abstract record BsStatement : BsNode;
 
 /// <summary>
@@ -466,7 +466,7 @@ public sealed record BsExit : BsStatement
 // ── Program root ──
 
 /// <summary>
-/// The root of a BS document: optional <see cref="BsConstBlock"/> + optional
+/// The root of a KS document: optional <see cref="BsConstBlock"/> + optional
 /// <see cref="BsVarBlock"/> + an ordered top-level <see cref="Body"/> of statements.
 /// Produced by the indented parser; lowered to a <see cref="KitX.WorkflowV6.Ir.Workflow"/>.
 /// </summary>

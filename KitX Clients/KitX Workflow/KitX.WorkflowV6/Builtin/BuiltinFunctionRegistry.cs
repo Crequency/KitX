@@ -33,7 +33,7 @@ public sealed class BuiltinFunctionRegistry
     private readonly Dictionary<string, ICodeGenHandler> _codeGens = new();
     private readonly Dictionary<string, IBpRenderHandler> _bpRenderers = new();
 
-    // BP-reverse is keyed by BP canvas name (not BS name).
+    // BP-reverse is keyed by BP canvas name (not KS name).
     private readonly Dictionary<string, IBpReverseHandler> _bpReverseByBpName = new();
 
     /// <summary>
@@ -90,7 +90,7 @@ public sealed class BuiltinFunctionRegistry
         }
     }
 
-    // ── Primary lookups (by BS function name). ──
+    // ── Primary lookups (by KS function name). ──
 
     public IBuiltinFunction? Get(string name) => _byName.GetValueOrDefault(name);
     public bool Contains(string name) => _byName.ContainsKey(name);

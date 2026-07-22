@@ -3,7 +3,7 @@ namespace KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SwitchStatement — structured N-way dispatch (BlockScript discussion notes §3.3 #3,
+// SwitchStatement — structured N-way dispatch (KScript discussion notes §3.3 #3,
 // §十二-H for BP pin layout).
 //
 // Replaces the v5 Switch(selector, "0", "1", ..., "Default") control-flow terminator

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // ─────────────────────────────────────────────────────────────────────────────
 // RangeFunction — the Pure producer for forEach iteration (discussion notes §3.3 #9).
 //
-// BlockScript: <c>Range(from, to, step)</c>.
+// KScript: <c>Range(from, to, step)</c>.
 // BP node: 3 data inputs (int from, int to, int step), 1 data output (Json — array
 // of integers, the first-class type for collection values per
 // List-Port-And-Json-Functions-Design.md §2.1).

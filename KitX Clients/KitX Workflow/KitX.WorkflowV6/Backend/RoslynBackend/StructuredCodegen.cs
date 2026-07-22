@@ -10,7 +10,7 @@ using KitX.WorkflowV6.Ir.Statements;
 // ─────────────────────────────────────────────────────────────────────────────
 // StructuredCodegen — IR → structured C# source string (discussion notes §5.3).
 //
-// Walks the structured Statement tree and emits C# that mirrors the v6 BS exactly:
+// Walks the structured Statement tree and emits C# that mirrors the v6 KS exactly:
 //   IfStatement      →  if (cond) { thenBody } else { elseBody }
 //   ForEachStatement →  foreach (var item in source) { body }
 //   WhileStatement   →  while (cond) { body }
@@ -47,10 +47,10 @@ internal sealed class StructuredCodegen
     private readonly HashSet<string> _localNames = new();
 
     /// <summary>
-    /// Maps a BS builtin function name to the C# method name on the G class (ExecutionGlobals).
-    /// Most builtins keep their BS name verbatim. StringConcat gets a suffix to avoid a
+    /// Maps a KS builtin function name to the C# method name on the G class (ExecutionGlobals).
+    /// Most builtins keep their KS name verbatim. StringConcat gets a suffix to avoid a
     /// name clash with static string.Concat. User helper functions (HelperFuncCompare,
-    /// HelperFuncAdd, ...) keep their exact BS names — they are not renamed.
+    /// HelperFuncAdd, ...) keep their exact KS names — they are not renamed.
     /// </summary>
     private static readonly Dictionary<string, string> BuiltinToGMethod = new(StringComparer.Ordinal)
     {

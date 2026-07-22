@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 6 acceptance tests for SyncService + WorkflowSession.
 //
-// Covers the BS edit round-trip:
-//   • BS edit round-trip: session initial IR → BS edit → session.Ir updated
+// Covers the KS edit round-trip:
+//   • KS edit round-trip: session initial IR → KS edit → session.Ir updated
 //   • Layout preservation: editing one Print doesn't disturb other node coordinates
 //   • IrChanged fires on edit with correct AffectedPaths
 //   • Empty edit (same text) does NOT fire IrChanged
@@ -61,7 +61,7 @@ public class SessionTests
         int fireCount = 0;
         session.IrChanged += _ => fireCount++;
 
-        // Same BS text → no change → no event.
+        // Same KS text → no change → no event.
         svc.ApplyBsEdit(session, "Print(\"a\")\n");
 
         Assert.Equal(0, fireCount);

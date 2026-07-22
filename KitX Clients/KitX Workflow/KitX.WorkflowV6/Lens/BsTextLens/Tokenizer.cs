@@ -1,7 +1,7 @@
 namespace KitX.WorkflowV6.Lens.BsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tokenizer — indent-aware BS lexer (discussion notes §十二-A: 4 spaces per level,
+// Tokenizer — indent-aware KS lexer (discussion notes §十二-A: 4 spaces per level,
 // Tab forbidden).
 //
 // Unlike v5's Superpower token combinator, the v6 tokenizer is line-oriented: it
@@ -29,14 +29,14 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 //                          they would be illegal and surface as Identifier-or-Error)
 //
 // Errors emitted into the DiagnosticSink:
-//   • BS001 Tab character in indentation — at the offending line/column
-//   • BS002 Indent not a multiple of 4 — at the offending line/column
-//   • BS003 Unterminated string literal
-//   • BS004 Unterminated char literal
-//   • BS005 Unexpected character (anything not in the grammar's alphabet)
+//   • KS001 Tab character in indentation — at the offending line/column
+//   • KS002 Indent not a multiple of 4 — at the offending line/column
+//   • KS003 Unterminated string literal
+//   • KS004 Unterminated char literal
+//   • KS005 Unexpected character (anything not in the grammar's alphabet)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>A token produced by the v6 BS tokenizer.</summary>
+/// <summary>A token produced by the v6 KS tokenizer.</summary>
 internal readonly record struct BsToken
 {
     public BsTokenKind Kind { get; init; }
@@ -72,7 +72,7 @@ internal enum BsTokenKind
 }
 
 /// <summary>
-/// Indent-aware tokenizer for the v6 BlockScript grammar. Produces a flat token list
+/// Indent-aware tokenizer for the v6 KScript grammar. Produces a flat token list
 /// (with Indent markers at line starts) consumed by the recursive-descent parser.
 /// Pure: the same input always yields the same tokens + diagnostics.
 /// </summary>
@@ -103,7 +103,7 @@ internal static class Tokenizer
                 if (line[idx] == '\t')
                 {
                     sawTab = true;
-                    break;  // reject immediately — Tab anywhere in indent is BS001
+                    break;  // reject immediately — Tab anywhere in indent is KS001
                 }
                 indentSpaces++;
                 idx++;
@@ -111,7 +111,7 @@ internal static class Tokenizer
 
             if (sawTab)
             {
-                sink.AddError("BS001", "Tab character is not allowed in indentation; use 4 spaces per level", lineNo, indentSpaces + 1);
+                sink.AddError("KS001", "Tab character is not allowed in indentation; use 4 spaces per level", lineNo, indentSpaces + 1);
                 // Skip the whole line — there's no point tokenising past an indent error.
                 continue;
             }
@@ -124,7 +124,7 @@ internal static class Tokenizer
             // Indent must be a multiple of 4 (§十二-A).
             if (indentSpaces % 4 != 0)
             {
-                sink.AddError("BS002",
+                sink.AddError("KS002",
                     $"Indentation must be a multiple of 4 spaces (got {indentSpaces})", lineNo, 1);
                 continue;
             }
@@ -157,7 +157,7 @@ internal static class Tokenizer
             if (c == ' ') { i++; continue; }
             if (c == '\t')
             {
-                sink.AddError("BS001", "Tab character is not allowed; use spaces", lineNo, columnBase + i);
+                sink.AddError("KS001", "Tab character is not allowed; use spaces", lineNo, columnBase + i);
                 i++;
                 continue;
             }
@@ -263,7 +263,7 @@ internal static class Tokenizer
                     i++;
                     continue;
                 default:
-                    sink.AddError("BS005", $"Unexpected character '{c}'", lineNo, col);
+                    sink.AddError("KS005", $"Unexpected character '{c}'", lineNo, col);
                     i++;
                     continue;
             }
@@ -290,7 +290,7 @@ internal static class Tokenizer
             {
                 if (j + 1 >= line.Length)
                 {
-                    sink.AddError("BS003", "Unterminated string literal", lineNo, col);
+                    sink.AddError("KS003", "Unterminated string literal", lineNo, col);
                     return (null, line.Length);
                 }
                 // Decode common C# escapes.
@@ -316,7 +316,7 @@ internal static class Tokenizer
             sb.Append(c);
             j++;
         }
-        sink.AddError("BS003", "Unterminated string literal", lineNo, col);
+        sink.AddError("KS003", "Unterminated string literal", lineNo, col);
         return (null, line.Length);
     }
 
@@ -326,7 +326,7 @@ internal static class Tokenizer
         int j = i + 1;
         if (j >= line.Length)
         {
-            sink.AddError("BS004", "Unterminated char literal", lineNo, col);
+            sink.AddError("KS004", "Unterminated char literal", lineNo, col);
             return (null, line.Length);
         }
         char first = line[j];
@@ -334,7 +334,7 @@ internal static class Tokenizer
         {
             if (j + 2 >= line.Length || line[j + 2] != '\'')
             {
-                sink.AddError("BS004", "Unterminated char literal", lineNo, col);
+                sink.AddError("KS004", "Unterminated char literal", lineNo, col);
                 return (null, line.Length);
             }
             char esc = line[j + 1];
@@ -353,7 +353,7 @@ internal static class Tokenizer
         }
         if (j + 1 >= line.Length || line[j + 1] != '\'')
         {
-            sink.AddError("BS004", "Unterminated char literal", lineNo, col);
+            sink.AddError("KS004", "Unterminated char literal", lineNo, col);
             return (null, line.Length);
         }
         return (first, j + 2);
@@ -377,14 +377,14 @@ internal static class Tokenizer
             {
                 return (new BsToken { Kind = BsTokenKind.DoubleLiteral, Text = text, Value = d, Line = lineNo, Column = col }, i);
             }
-            sink.AddError("BS006", $"Malformed double literal: {text}", lineNo, col);
+            sink.AddError("KS006", $"Malformed double literal: {text}", lineNo, col);
             return (new BsToken { Kind = BsTokenKind.DoubleLiteral, Text = text, Value = 0.0, Line = lineNo, Column = col }, i);
         }
         if (int.TryParse(text, out var n))
         {
             return (new BsToken { Kind = BsTokenKind.IntegerLiteral, Text = text, Value = n, Line = lineNo, Column = col }, i);
         }
-        sink.AddError("BS006", $"Malformed integer literal: {text}", lineNo, col);
+        sink.AddError("KS006", $"Malformed integer literal: {text}", lineNo, col);
         return (new BsToken { Kind = BsTokenKind.IntegerLiteral, Text = text, Value = 0, Line = lineNo, Column = col }, i);
     }
 }

@@ -13,7 +13,7 @@ using KitX.WorkflowV6.Ir.Statements;
 // the same LCS-over-fingerprint logic per enclosing scope.
 //
 // Identity is the Fingerprint (content-derived, re-parse-stable), so a diff survives
-// a BS re-parse unchanged. Layout annotations are NOT compared here — they are
+// a KS re-parse unchanged. Layout annotations are NOT compared here — they are
 // reconciled by the applier which copies Layout from the baseline for unchanged
 // statements.
 //

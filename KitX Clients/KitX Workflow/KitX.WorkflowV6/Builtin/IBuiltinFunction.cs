@@ -9,7 +9,7 @@ using KitX.Core.Contract.Workflow;
 //
 // The split:
 //   IBuiltinFunction        — always: identity + ports (the spec)
-//   IParserHandler          — if it customises BS parse (control-flow forms)
+//   IParserHandler          — if it customises KS parse (control-flow forms)
 //   ILoweringHandler        — if it customises AST→IR lowering (default = plain call)
 //   ICodeGenHandler         — if it customises IR→structured-C# emission
 //   IBpRenderHandler        — if it customises IR→BP-node template
@@ -55,7 +55,7 @@ public enum FunctionKind
 public interface IBuiltinFunction
 {
     /// <summary>
-    /// The registration key — the function name as it appears in BS source
+    /// The registration key — the function name as it appears in KS source
     /// (e.g. "Print", "Range", "StringConcat").
     /// </summary>
     string Name { get; }

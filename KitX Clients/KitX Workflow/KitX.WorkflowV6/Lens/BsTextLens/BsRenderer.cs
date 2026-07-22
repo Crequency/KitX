@@ -6,7 +6,7 @@ using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsRenderer — immutable Workflow → indented BS source text.
+// BsRenderer — immutable Workflow → indented KS source text.
 //
 // The v6 indented renderer walks the structured Statement tree and emits text with
 // 4-space indentation per level (discussion notes §十二-A). Control-flow
@@ -20,14 +20,14 @@ using KitX.WorkflowV6.Ir.Statements;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Renders an immutable <see cref="Workflow"/> to indented BS source text. Pure:
+/// Renders an immutable <see cref="Workflow"/> to indented KS source text. Pure:
 /// the same IR always yields the same text, and the IR is not mutated.
 /// </summary>
 internal sealed class BsRenderer
 {
     private const int IndentWidth = 4;
 
-    /// <summary>Renders the full BS document: const/var blocks then the top-level body.</summary>
+    /// <summary>Renders the full KS document: const/var blocks then the top-level body.</summary>
     public string Render(Workflow ir)
     {
         var sb = new StringBuilder();

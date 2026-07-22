@@ -4,7 +4,7 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 // BsDiagnostic — parse / lower time diagnostic message.
 //
 // Inherited shape from KitX.WorkflowIR.Ir.Lowering.LoweringDiagnostic, re-namespaced
-// to the v6 BS text lens so the parser, lowerer, and lens can all emit diagnostics
+// to the v6 KS text lens so the parser, lowerer, and lens can all emit diagnostics
 // without pulling in the lowering namespace at every call site.
 //
 // Carries: severity (Info/Warning/Error), a short machine-readable Code, a
@@ -13,12 +13,12 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 // diagnostic at column 1 of line 3 points exactly at the offending Tab.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>One diagnostic message from BS parsing or lowering.</summary>
+/// <summary>One diagnostic message from KS parsing or lowering.</summary>
 public sealed record BsDiagnostic
 {
     public required BsDiagnosticSeverity Severity { get; init; }
 
-    /// <summary>Short machine-readable code (e.g. "BS001" for Tab rejected).</summary>
+    /// <summary>Short machine-readable code (e.g. "KS001" for Tab rejected).</summary>
     public required string Code { get; init; }
 
     /// <summary>Human-readable message.</summary>
@@ -35,7 +35,7 @@ public sealed record BsDiagnostic
 public enum BsDiagnosticSeverity { Info, Warning, Error }
 
 /// <summary>
-/// Mutable accumulator for BS diagnostics, mirroring v5's DiagnosticSink. The
+/// Mutable accumulator for KS diagnostics, mirroring v5's DiagnosticSink. The
 /// tokenizer, parser, and lowerer all write into one of these; the lens surfaces
 /// the collected list to the caller as part of the parse result.
 /// </summary>

@@ -1,7 +1,7 @@
 // Global usings for KitX.WorkflowV6.
 //
 // This library is the experimental successor to KitX.WorkflowIR on the dev=v6-grammar
-// branch. It is the test bed for the structured BlockScript grammar proposal captured
+// branch. It is the test bed for the structured KScript grammar proposal captured
 // in `Package/Structured-BS-Discussion-Notes.md`: indented (Python-style) blocks,
 // removal of Goto, structured control flow (if/switch/forEach/while/break/continue/exit),
 // IR as a structured AST (not block + Goto), and structured C# as the compile target.

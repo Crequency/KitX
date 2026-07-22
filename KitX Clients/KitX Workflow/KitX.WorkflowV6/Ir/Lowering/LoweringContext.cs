@@ -3,7 +3,7 @@ namespace KitX.WorkflowV6.Ir.Lowering;
 // ─────────────────────────────────────────────────────────────────────────────
 // LoweringContext — the controlled channel for lowering-time mutation.
 //
-// Inherited concept from KitX.WorkflowIR.Ir.Lowering.LoweringContext: lowering a BS
+// Inherited concept from KitX.WorkflowIR.Ir.Lowering.LoweringContext: lowering a KS
 // AST into the structured IR sometimes needs to allocate side resources (runtime-bound
 // variable names, PubVar capacitors, ...). Rather than passing the whole mutable
 // lowering's state to every builtin, the LoweringContext exposes only the operations

@@ -4,7 +4,7 @@ namespace KitX.WorkflowV6.Ir;
 // Workflow — the top-level immutable container. The single source of truth.
 //
 // Inherited concept from KitX.WorkflowIR.IrWorkflow: the IR is the canonical
-// representation that BS text, BP graph, and the execution backend all project from
+// representation that KS text, BP graph, and the execution backend all project from
 // or write back to. Equality is structural; canvas layout (in Annotations) does not
 // affect equality.
 //
@@ -21,7 +21,7 @@ namespace KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// The immutable workflow IR — the canonical representation that BS, BP, and the
+/// The immutable workflow IR — the canonical representation that KS, BP, and the
 /// execution backend all project from / write back to. Equality is structural:
 /// two workflows with the same body / constants / globals / helpers are equal, and
 /// canvas layout (in <see cref="Annotations"/>) does not affect equality.
@@ -34,7 +34,7 @@ public sealed record Workflow
     /// </summary>
     public ImmutableArray<Statement> Body { get; init; } = [];
 
-    /// <summary>Constants from the BS source, keyed by name.</summary>
+    /// <summary>Constants from the KS source, keyed by name.</summary>
     public ImmutableDictionary<string, Constant> Constants { get; init; }
         = ImmutableDictionary<string, Constant>.Empty;
 
@@ -83,7 +83,7 @@ public sealed record Workflow
 
 /// <summary>
 /// A constant from a <c>const { ... }</c> block (discussion notes §十二-C). Preserves
-/// both the raw C# initialiser expression (for lossless BS round-trip, keeping quoting
+/// both the raw C# initialiser expression (for lossless KS round-trip, keeping quoting
 /// /escaping) and the evaluated default value (for execution). Shape inherited from
 /// v5.1 <c>KitX.Workflow.Ir.IrConstant</c>, re-typed as a record with required fields.
 /// </summary>

@@ -14,7 +14,7 @@ using System.Text.Json.Serialization;
 // This mirrors the design captured in `Structured-BS-Discussion-Notes.md` §3–§4:
 // 9 control-flow primitives (Sequence / if/else / switch / forEach / while / break /
 // continue / exit / Range-as-function), indentation expressing scope, and 1:1 mapping
-// to both BS text and BP node graph.
+// to both KS text and BP node graph.
 //
 // Per discussion notes §十二-K, control-flow primitives (if/switch/forEach/while/
 // break/continue/exit) are first-class IR statement kinds — they do NOT route through
@@ -94,10 +94,10 @@ public abstract record Statement
     /// <summary>Content-derived, re-parse-stable identity. See <see cref="Fingerprint"/>.</summary>
     public required Fingerprint Fingerprint { get; init; }
 
-    /// <summary>Free-form comment attached to this statement (round-trips through BS text).</summary>
+    /// <summary>Free-form comment attached to this statement (round-trips through KS text).</summary>
     public string? Comment { get; init; }
 
-    /// <summary>1-based source line in the original BS text, if known.</summary>
+    /// <summary>1-based source line in the original KS text, if known.</summary>
     public int SourceLine { get; init; }
 
     /// <summary>

@@ -8,7 +8,7 @@ using KitX.WorkflowV6.Ir.Lowering;
 using KitX.WorkflowV6.Ir.Statements;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsLowerer — BsProgram (BS AST) → immutable Workflow (IR).
+// BsLowerer — BsProgram (KS AST) → immutable Workflow (IR).
 //
 // Mostly a 1:1 structural transform: BsConstBlock/BsVarBlock → Workflow.Constants/
 // GlobalVars; BsIf → IfStatement; BsForEach → ForEachStatement; BsWhile →
@@ -178,7 +178,7 @@ internal sealed class BsLowerer
                 SourceLine = stmt.SourceLine,
                 Comment = null,
             }),
-            _ => throw new InvalidOperationException($"Unknown BS statement kind: {stmt.GetType().Name}"),
+            _ => throw new InvalidOperationException($"Unknown KS statement kind: {stmt.GetType().Name}"),
         };
         return ir;
     }

@@ -18,7 +18,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Customises BS parse for control-flow forms (if/switch/forEach/while/break/continue/
+/// Customises KS parse for control-flow forms (if/switch/forEach/while/break/continue/
 /// exit). Pure functions do NOT implement this — the default parser dispatches their
 /// call verbatim. Whether v6 control-flow keywords even route through this handler or
 /// are special-cased by the indented parser is open (discussion notes §10.8).
@@ -36,7 +36,7 @@ public interface IParserHandler
 /// </summary>
 public interface ILoweringHandler
 {
-    /// <summary>Lowers a BS call into IR statement(s). Signature refined during implementation.</summary>
+    /// <summary>Lowers a KS call into IR statement(s). Signature refined during implementation.</summary>
     IReadOnlyList<Statement> LowerToIr(
         BsCall call,
         IReadOnlyList<string> expandedArgs,

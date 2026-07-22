@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
-    /// (reflection-discovered, currently empty), the two lenses (BS text + BP graph),
+    /// (reflection-discovered, currently empty), the two lenses (KS text + BP graph),
     /// the session sync service, and an IExecutionBackend slot (no default impl yet).
     /// </summary>
     public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
@@ -45,7 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILens<Blueprint, IReadOnlyList<BpEditAction>>>(
             sp => sp.GetRequiredService<BpGraphLens>());
 
-        // SyncService — applies BS/BP edits to a WorkflowSession, producing a
+        // SyncService — applies KS/BP edits to a WorkflowSession, producing a
         // WorkflowChangeSet.
         services.AddSingleton<SyncService>();
 

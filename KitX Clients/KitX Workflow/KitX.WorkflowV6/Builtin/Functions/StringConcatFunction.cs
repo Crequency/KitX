@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // StringConcatFunction — the Pure string concatenation builtin (discussion notes
 // §十二-B: arithmetic operators disabled, replaced by builtins).
 //
-// BlockScript: <c>StringConcat(a, b, c, ...)</c>.
+// KScript: <c>StringConcat(a, b, c, ...)</c>.
 // BP node: 2 fixed data inputs (string, string) + a variadic input group ("Input 3",
 // "Input 4", ... — uses VariadicPinSpec, the v5.1 frontend auto-expansion mechanism
 // discussed in §十二-N). 1 data output (string).

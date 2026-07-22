@@ -8,7 +8,7 @@ using KitX.WorkflowV6.Diff;
 //
 // Inherited concept from KitX.WorkflowIR.Lens.ILens, unchanged in shape: the
 // immutable <see cref="Workflow"/> IR is the single source of truth, and every
-// external representation (BS text, BP graph, C# source) is a *view* projected from
+// external representation (KS text, BP graph, C# source) is a *view* projected from
 // it. A lens is the bidirectional bridge between the IR and one view:
 //
 ///   • Project(ir)         — IR → view: a pure read of the IR into the view's shape.

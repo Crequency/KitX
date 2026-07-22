@@ -3,7 +3,7 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Parser — recursive-descent parser for the v6 indented BS grammar.
+// Parser — recursive-descent parser for the v6 indented KS grammar.
 //
 // Replaces the v5 Superpower token-combinator parser. Indented grammars (Python
 // style) don't compose well with token combinators — the combinator library wants
@@ -11,7 +11,7 @@ using KitX.WorkflowV6.Ir.Ast;
 // recursive-descent parser with an indent stack is the standard solution and is
 // what the implementation plan §Phase 2 prescribes.
 //
-// Grammar (informal — full grammar in BlockScriptGrammarRule.md v6.0):
+// Grammar (informal — full grammar in KScriptGrammarRule.md v6.0):
 //
 //   program        ::= declBlock* statement*
 //   declBlock      ::= ('const' | 'var') '{' declRow* '}'
@@ -47,7 +47,7 @@ using KitX.WorkflowV6.Ir.Ast;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Recursive-descent parser for the v6 indented BS grammar. Produces a
+/// Recursive-descent parser for the v6 indented KS grammar. Produces a
 /// <see cref="BsProgram"/> AST. Pure: the same tokens always yield the same AST.
 /// </summary>
 internal sealed class Parser
@@ -122,7 +122,7 @@ internal sealed class Parser
             var indent = Current.IndentLevel;
             if (indent != 0)
             {
-                Error("BS010", $"Top-level statement must be at indent 0 (got {indent})");
+                Error("KS010", $"Top-level statement must be at indent 0 (got {indent})");
                 Advance();  // consume the wrong-level Indent to avoid infinite loop
                 while (!AtEnd && Current.Kind != BsTokenKind.Indent) Advance();
                 continue;
@@ -132,14 +132,14 @@ internal sealed class Parser
             if (MatchKeyword("const"))
             {
                 if (constBlock is not null)
-                    Error("BS011", "Duplicate const block");
+                    Error("KS011", "Duplicate const block");
                 constBlock = ParseConstBlock();
                 continue;
             }
             if (MatchKeyword("var"))
             {
                 if (varBlock is not null)
-                    Error("BS011", "Duplicate var block");
+                    Error("KS011", "Duplicate var block");
                 varBlock = ParseVarBlock();
                 continue;
             }
@@ -223,9 +223,9 @@ internal sealed class Parser
         var typeTok = Current.Kind == BsTokenKind.Identifier ? Advance() : Current;
         var nameTok = Current.Kind == BsTokenKind.Identifier ? Advance() : Current;
         if (typeTok.Kind != BsTokenKind.Identifier)
-            Error("BS012", "Declaration must start with a type name", typeTok);
+            Error("KS012", "Declaration must start with a type name", typeTok);
         if (nameTok.Kind != BsTokenKind.Identifier)
-            Error("BS012", "Declaration must have a name after the type", nameTok);
+            Error("KS012", "Declaration must have a name after the type", nameTok);
 
         string? initExpr = null;
         if (Match(BsTokenKind.Assign))
@@ -244,7 +244,7 @@ internal sealed class Parser
     private void ExpectLBrace()
     {
         if (!Match(BsTokenKind.LBrace))
-            Error("BS013", "Expected '{' after const/var");
+            Error("KS013", "Expected '{' after const/var");
     }
 
     private static string ReconstructText(List<BsToken> tokens, int from, int toExclusive)
@@ -337,22 +337,22 @@ internal sealed class Parser
             Advance();  // consume Indent(armIndent)
             if (MatchKeyword("default"))
             {
-                if (sawDefault) Error("BS022", "Duplicate default arm");
+                if (sawDefault) Error("KS022", "Duplicate default arm");
                 sawDefault = true;
                 if (!Match(BsTokenKind.Colon))
-                    Error("BS020", "Expected ':' after 'default'");
+                    Error("KS020", "Expected ':' after 'default'");
                 defaultBody = ParseArmBody(armIndent);
             }
             else if (Current.Kind == BsTokenKind.IntegerLiteral)
             {
                 Advance();
                 if (!Match(BsTokenKind.Colon))
-                    Error("BS020", "Expected ':' after case label");
+                    Error("KS020", "Expected ':' after case label");
                 arms.Add(ParseArmBody(armIndent));
             }
             else
             {
-                Error("BS021", "Expected case label or 'default' in switch arm");
+                Error("KS021", "Expected case label or 'default' in switch arm");
                 while (!AtEnd && Current.Kind != BsTokenKind.Indent) Advance();
             }
         }
@@ -385,9 +385,9 @@ internal sealed class Parser
         var feTok = Advance();  // 'forEach'
         var source = ParseExpression();
         if (!MatchKeyword("as"))
-            Error("BS030", "Expected 'as' after forEach source");
+            Error("KS030", "Expected 'as' after forEach source");
         if (Current.Kind != BsTokenKind.Identifier)
-            Error("BS031", "Expected item name after 'as'");
+            Error("KS031", "Expected item name after 'as'");
         var itemName = Advance().Text;
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"forEach on line {feTok.Line}");
@@ -463,9 +463,9 @@ internal sealed class Parser
             {
                 Advance();  // consume 'forEach'
                 if (!MatchKeyword("as"))
-                    Error("BS030", "Expected 'as' after forEach");
+                    Error("KS030", "Expected 'as' after forEach");
                 if (Current.Kind != BsTokenKind.Identifier)
-                    Error("BS031", "Expected item name after 'as'");
+            Error("KS031", "Expected item name after 'as'");
                 else
                 {
                     var itemName = Advance().Text;
@@ -490,7 +490,7 @@ internal sealed class Parser
         if (Match(BsTokenKind.Assign))
         {
             if (Current.Kind != BsTokenKind.Identifier)
-                Error("BS040", "Expected variable name after '='");
+                Error("KS040", "Expected variable name after '='");
             else
             {
                 var nameTok = Advance();
@@ -520,7 +520,7 @@ internal sealed class Parser
         //   name                    — a variable tap
         if (Current.Kind != BsTokenKind.Identifier)
         {
-            Error("BS041", "Expected segment name after '>'");
+            Error("KS041", "Expected segment name after '>'");
             return new BsPipelineSegment { Target = "?", SourceLine = Current.Line };
         }
         var nameTok = Advance();
@@ -542,7 +542,7 @@ internal sealed class Parser
                 }
             }
             if (!Match(BsTokenKind.RParen))
-                Error("BS042", "Expected ')' to close call arguments");
+                Error("KS042", "Expected ')' to close call arguments");
         }
 
         var rawArgsArray = rawArgs.ToImmutable();
@@ -590,7 +590,7 @@ internal sealed class Parser
             case BsTokenKind.Placeholder:
                 { var t = Advance(); return new BsPlaceholder { Index = 0, SourceText = "_", SourceLine = t.Line }; }
             default:
-                Error("BS051", $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
+                Error("KS051", $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
                 Advance();
                 return new BsLiteral { Kind = BsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = Current.Line };
         }
@@ -635,7 +635,7 @@ internal sealed class Parser
                             }
                         }
                         if (!Match(BsTokenKind.RParen))
-                            Error("BS052", "Expected ')' to close call arguments");
+                            Error("KS052", "Expected ')' to close call arguments");
                         var rawArgsArray = rawArgs.ToImmutable();
                         return new BsCall
                         {
@@ -650,7 +650,7 @@ internal sealed class Parser
                     return new BsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
                 }
             default:
-                Error("BS050", $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
+                Error("KS050", $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
                 Advance();
                 return new BsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
         }
@@ -683,14 +683,14 @@ internal sealed class Parser
         {
             if (IsKeyword("forEach"))
             {
-                Error("BS061", "'forEach' is not valid in a condition pipeline");
+                Error("KS061", "'forEach' is not valid in a condition pipeline");
                 break;
             }
             segments.Add(ParseSegment());
         }
 
         if (segments.Count == 0)
-            Error("BS060", "Multiple sources in condition require a '>' pipeline segment");
+            Error("KS060", "Multiple sources in condition require a '>' pipeline segment");
 
         return new BsPipeline
         {
@@ -739,7 +739,7 @@ internal sealed class Parser
             body.Add(ParseStatement());
         }
         if (body.Count == 0)
-            Error("BS062", $"{context} body is empty");
+            Error("KS062", $"{context} body is empty");
         return body.ToImmutable();
     }
 }

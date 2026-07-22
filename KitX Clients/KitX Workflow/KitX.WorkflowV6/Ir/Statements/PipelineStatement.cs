@@ -18,13 +18,13 @@ using KitX.WorkflowV6.Ir.Ast;
 // v6 refinement over v5: <see cref="Sources"/> and <see cref="Segment.Arguments"/>
 // are now <see cref="BsNode"/> trees (not raw strings). This makes fingerprinting,
 // diffing, serialisation, and BP rendering all operate on structured content — so
-// re-parsing the same BS text produces the same fingerprint, and whitespace-only
+// re-parsing the same KS text produces the same fingerprint, and whitespace-only
 // drift never changes identity.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
 /// A pipeline statement: one or more source expressions feeding an ordered chain of
-/// segments. Carries the structured AST so BS round-trip is lossless and the file
+/// segments. Carries the structured AST so KS round-trip is lossless and the file
 /// format can serialise pipeline structure (not just flattened text).
 /// </summary>
 public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement

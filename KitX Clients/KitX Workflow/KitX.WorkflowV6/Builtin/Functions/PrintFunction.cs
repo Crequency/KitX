@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // §十二-K: pure/side-effect functions go through IBuiltinFunction, control flow
 // does not).
 //
-// BlockScript: <c>Print(value)</c>.
+// KScript: <c>Print(value)</c>.
 // BP node: 1 data input (Any), no data output, Exec-in/Exec-out pins implicit.
 // Codegen: <c>G.Print(args[0]);</c> — the value is passed to the runtime's Print
 // dispatcher which routes to the dashboard's output panel.

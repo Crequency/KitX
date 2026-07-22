@@ -8,14 +8,14 @@ using KitX.WorkflowV6.Lens.BsTextLens;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SyncService — the top-level coordinator that turns BS/BP edits into IR updates.
+// SyncService — the top-level coordinator that turns KS/BP edits into IR updates.
 //
 // Inherited concept from KitX.WorkflowIR.Session.SyncService, re-typed for the
-// structured IR. Both BS edits and BP edits go through the same shape: produce a
+// structured IR. Both KS edits and BP edits go through the same shape: produce a
 // WorkflowDiff, apply it via the pure applier, replace the session's IR, fire
 // IrChanged.
 //
-//   BS edit path:  new BS text → BsTextLens (re-parse + lower) → new IR →
+//   KS edit path:  new KS text → BsTextLens (re-parse + lower) → new IR →
 //                  WorkflowDiffer.Compute(old, new) → WorkflowDiff
 //   BP edit path:  BpEditAction[] → BpGraphLens → WorkflowDiff
 //
@@ -29,7 +29,7 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Coordinates BS/BP edits into IR updates. One instance per workflow session;
+/// Coordinates KS/BP edits into IR updates. One instance per workflow session;
 /// constructed with the registries/lenses the session needs.
 /// </summary>
 public sealed class SyncService
@@ -44,7 +44,7 @@ public sealed class SyncService
     }
 
     /// <summary>
-    /// Applies a BS text edit: re-parses the new source, diffs against the live IR,
+    /// Applies a KS text edit: re-parses the new source, diffs against the live IR,
     /// applies the diff, and fires <see cref="WorkflowSession.IrChanged"/>.
     /// </summary>
     public WorkflowChangeSet ApplyBsEdit(WorkflowSession session, string newBsSource)
@@ -52,7 +52,7 @@ public sealed class SyncService
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(newBsSource);
 
-        // Parse the new BS source into a fresh IR.
+        // Parse the new KS source into a fresh IR.
         var newIr = _bsLens.Parse(newBsSource, session.HelperFunctions);
 
         // If the new IR equals the current IR, nothing changed — don't fire event.

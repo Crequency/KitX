@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // HelperFuncCompareFunction — the comparison builtin (discussion notes §十二-B:
 // comparison operators fully disabled; comparisons expressed as function calls).
 //
-// BlockScript: <c>HelperFuncCompare(op, a, b)</c> where op is one of:
+// KScript: <c>HelperFuncCompare(op, a, b)</c> where op is one of:
 //   "BEQ" (==), "BNE" (!=), "BLT" (&lt;), "BLE" (&lt;=), "BGT" (&gt;), "BGE" (&gt;=)
 // BP node: 3 data inputs (string op, Any a, Any b), 1 data output (Boolean).
 // Codegen: <c>G.Compare(op, a, b)</c> — the runtime dispatcher interprets the op
@@ -15,7 +15,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // known at codegen time.)
 //
 // This is the v6 replacement for v5.1's disabled `>`/`<`/`==` operators: every
-// comparison is a function call node, so the BS↔BP 1:1 mapping stays exact (§十二-B
+// comparison is a function call node, so the KS↔BP 1:1 mapping stays exact (§十二-B
 // BP-side constraint: a comparison is always one node, not an inline expression).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// </summary>
 public sealed class HelperFuncCompareFunction : IBuiltinFunction, ICodeGenHandler
 {
-    /// <summary>The supported comparison operator codes (BlockScript forms).</summary>
+    /// <summary>The supported comparison operator codes (KScript forms).</summary>
     public static readonly IReadOnlySet<string> SupportedOps = new HashSet<string>
     {
         "BEQ", "BNE", "BLT", "BLE", "BGT", "BGE",

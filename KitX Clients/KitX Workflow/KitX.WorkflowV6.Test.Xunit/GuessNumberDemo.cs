@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Guess Number Demo — shows all 4 representations of a v6 BS guess-number workflow.
+// Guess Number Demo — shows all 4 representations of a v6 KS guess-number workflow.
 // Writes output to %TEMP%\v6demo\guess_number_demo.txt for inspection.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ public class GuessNumberDemo
         var ir = lens.Parse(bsSource, []);
         Assert.NotEmpty(ir.Body);
 
-        // 1. BS round-trip
+        // 1. KS round-trip
         var renderedBs = lens.Project(ir);
 
         // 2. IR as JSON
@@ -105,7 +105,7 @@ public class GuessNumberDemo
             sb.AppendLine();
         }
         sb.AppendLine(new string('=', 72));
-        sb.AppendLine("  1. BS (BlockScript) — v6 Source + Round-trip Rendered");
+        sb.AppendLine("  1. KS (KScript) — v6 Source + Round-trip Rendered");
         sb.AppendLine(new string('=', 72));
         sb.AppendLine(bsSource);
         sb.AppendLine();

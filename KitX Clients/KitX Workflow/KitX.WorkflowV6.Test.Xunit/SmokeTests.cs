@@ -12,7 +12,7 @@
 //   • Fingerprint is re-parse-stable: same content → same fingerprint.
 //   • Fingerprint differs for different content (including nested-body differences).
 //
-// Real per-component tests (BS lens round-trip, BP structural reduction, diff alignment,
+// Real per-component tests (KS lens round-trip, BP structural reduction, diff alignment,
 // structured-C# backend, ...) ship with the later implementation phases.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ public class SmokeTests
     {
         // Same content → same fingerprint. Build the same IfStatement twice (two separate
         // C# object identities) and verify the fingerprint value is identical — this is
-        // the precondition for diff alignment and BP-node correlation across BS re-parse.
+        // the precondition for diff alignment and BP-node correlation across KS re-parse.
         var cond = MakeIdentifier("cond");
         var body1 = MakePrintPipeline("\"hello\"");
         var body2 = MakePrintPipeline("\"hello\"");

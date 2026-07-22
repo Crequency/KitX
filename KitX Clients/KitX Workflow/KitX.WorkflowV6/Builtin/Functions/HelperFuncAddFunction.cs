@@ -7,13 +7,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // HelperFuncAddFunction — the integer addition builtin (discussion notes §十二-B:
 // arithmetic operators disabled, replaced by builtins).
 //
-// BlockScript: <c>HelperFuncAdd(a, b)</c>.
+// KScript: <c>HelperFuncAdd(a, b)</c>.
 // BP node: 2 data inputs (int, int), 1 data output (int).
 // Codegen: <c>(a + b)</c> once types are known (strong-typed per §十二-F), or
 // <c>G.Add(a, b)</c> when dynamic.
 //
 // Replaces the disabled `+` operator: every addition is a function call node, so the
-// BS↔BP 1:1 mapping stays exact (§十二-B).
+// KS↔BP 1:1 mapping stays exact (§十二-B).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

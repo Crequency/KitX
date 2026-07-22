@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 4 E2E tests for StructuredRoslynBackend.
 //
-// Compiles BS source → IR → C# → runs → asserts on captured OutputLines.
+// Compiles KS source → IR → C# → runs → asserts on captured OutputLines.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.WorkflowV6.Backend.RoslynBackend;

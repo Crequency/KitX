@@ -3,7 +3,7 @@ namespace KitX.WorkflowV6.Ir.Lowering;
 // ─────────────────────────────────────────────────────────────────────────────
 // LoweringResult — the post-lowering artefacts the execution backend reuses.
 //
-// Inherited concept from KitX.WorkflowIR: lowering the BS source to IR produces not
+// Inherited concept from KitX.WorkflowIR: lowering the KS source to IR produces not
 // just the IR tree but also a set of by-products (PubVar type inference map, helper
 // return-type map, names of variables injected at runtime like the ForEach element
 // binding). These flow into the backend so generated C# can resolve typed reads and

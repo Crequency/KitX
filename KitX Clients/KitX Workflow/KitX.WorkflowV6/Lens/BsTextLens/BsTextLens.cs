@@ -7,14 +7,14 @@ using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsTextLens — BS text ↔ structured IR (v6).
+// BsTextLens — KS text ↔ structured IR (v6).
 //
 // Inherited contract from KitX.WorkflowIR.Lens.BsTextLens.BsTextLens: this is the
-// bidirectional bridge between the structured IR and the BS source text. The two
+// bidirectional bridge between the structured IR and the KS source text. The two
 // hard responsibilities are:
 //
-//   • Project(ir)  → BS text     : render the IR back as indented BS source.
-//   • Diff(base,δ) → WorkflowDiff: re-parse a BS edit, diff against the baseline IR,
+//   • Project(ir)  → KS text     : render the IR back as indented KS source.
+//   • Diff(base,δ) → WorkflowDiff: re-parse a KS edit, diff against the baseline IR,
 //                                  return a content-addressed diff the SyncService
 //                                  applies via the pure WorkflowDiffer.
 //
@@ -28,7 +28,7 @@ using KitX.WorkflowV6.Ir.Ast;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// BS text ↔ structured-IR lens for the v6 indented grammar. Combines the tokenizer,
+/// KS text ↔ structured-IR lens for the v6 indented grammar. Combines the tokenizer,
 /// parser, lowerer, and renderer into the lens contract.
 /// </summary>
 public sealed class BsTextLens : ILens<string, string>
@@ -40,7 +40,7 @@ public sealed class BsTextLens : ILens<string, string>
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
     }
 
-    /// <summary>Renders the structured IR as indented BS source text.</summary>
+    /// <summary>Renders the structured IR as indented KS source text.</summary>
     public string Project(Workflow ir)
     {
         ArgumentNullException.ThrowIfNull(ir);
@@ -48,7 +48,7 @@ public sealed class BsTextLens : ILens<string, string>
     }
 
     /// <summary>
-    /// Re-parses the edited BS text and diffs against <paramref name="baseline"/>.
+    /// Re-parses the edited KS text and diffs against <paramref name="baseline"/>.
     /// Returns the content-addressed diff for the SyncService to apply. The actual
     /// WorkflowDiffer.Compute is Phase 5; for now we round-trip via re-parse +
     /// structural equality so the SyncService contract compiles end-to-end.
@@ -62,7 +62,7 @@ public sealed class BsTextLens : ILens<string, string>
     }
 
     /// <summary>
-    /// Parses BS source into a structured IR. Convenience entry that combines
+    /// Parses KS source into a structured IR. Convenience entry that combines
     /// tokenize + parse + lower. Returns the IR even when there are diagnostics —
     /// the caller can inspect <see cref="ParseResult.Diagnostics"/>.
     /// </summary>
@@ -74,7 +74,7 @@ public sealed class BsTextLens : ILens<string, string>
         return ir;
     }
 
-    /// <summary>Parses BS source into the lossless BS AST (pre-lowering).</summary>
+    /// <summary>Parses KS source into the lossless KS AST (pre-lowering).</summary>
     public BsNode ParseAst(string source)
     {
         var (ast, _) = ParseAstWithDiagnostics(source);
@@ -82,7 +82,7 @@ public sealed class BsTextLens : ILens<string, string>
     }
 
     /// <summary>
-    /// Parses BS source and returns both the AST and the collected diagnostics.
+    /// Parses KS source and returns both the AST and the collected diagnostics.
     /// Internal — the public surface is <see cref="Parse"/> / <see cref="ParseAst"/>;
     /// diagnostics are surfaced via <see cref="ParseResult"/> once Phase 5 wires the
     /// SyncService to use them. For now the API is exposed as a low-level hook for
@@ -96,7 +96,7 @@ public sealed class BsTextLens : ILens<string, string>
     }
 }
 
-/// <summary>Result of a BS parse (AST + diagnostics). Used internally + by tests.</summary>
+/// <summary>Result of a KS parse (AST + diagnostics). Used internally + by tests.</summary>
 internal sealed record ParseResult
 {
     public required BsProgram Ast { get; init; }

@@ -3,12 +3,12 @@ namespace KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IfStatement — the structured if/else primitive (BlockScript discussion notes §3.3 #2).
+// IfStatement — the structured if/else primitive (KScript discussion notes §3.3 #2).
 //
 // Replaces the v5 Branch(cond, "True", "False") control-flow terminator + the named
 // "True"/"False" blocks it transferred to. In v6 the branches are *children* of the
 // IfStatement, lexically nested. There is no block-name addressing, no Goto, no
-// trampoline case. The 1:1 BP↔BS↔IR mapping holds: an IfStatement is one Branch node
+// trampoline case. The 1:1 BP↔KS↔IR mapping holds: an IfStatement is one Branch node
 // whose True/False output pins each connect to the subgraph for the corresponding
 // body, and both bodies rejoin at the implicit continuation point.
 //
