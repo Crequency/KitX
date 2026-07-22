@@ -114,6 +114,48 @@ public class BpGraphLensTests
     }
 
     [Fact]
+    public void Project_Multi_Arg_Function_Has_Named_Pins()
+    {
+        // Range(From, To, Step) should create 3 named input pins, not a single "Value".
+        var bp = ProjectBS("forEach Range(0, 3, 1) as i\n    i > Print\n");
+        var range = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Range");
+        Assert.NotNull(range);
+        Assert.Contains(range!.InputPins, p => p.Name == "From");
+        Assert.Contains(range.InputPins, p => p.Name == "To");
+        Assert.Contains(range.InputPins, p => p.Name == "Step");
+        // Literals 0/3/1 should be on the From/To/Step pins' DefaultValues.
+        var fromPin = range.InputPins.Find(p => p.Name == "From");
+        Assert.NotNull(fromPin);
+        Assert.Equal("0", fromPin!.DefaultValue);
+        var toPin = range.InputPins.Find(p => p.Name == "To");
+        Assert.NotNull(toPin);
+        Assert.Equal("3", toPin!.DefaultValue);
+        var stepPin = range.InputPins.Find(p => p.Name == "Step");
+        Assert.NotNull(stepPin);
+        Assert.Equal("1", stepPin!.DefaultValue);
+        // Range output pin should be named "Range" (from PortSpec), not "Value".
+        Assert.Contains(range.OutputPins, p => p.Name == "Range");
+    }
+
+    [Fact]
+    public void Project_Compare_Has_Op_A_B_Pins()
+    {
+        // HelperFuncCompare(Op, A, B) should create 3 named input pins.
+        var bp = ProjectBS("var {\n    int a\n    int b\n}\n\na, b > HelperFuncCompare(\"BEQ\") > Print\n");
+        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "HelperFuncCompare");
+        Assert.NotNull(compare);
+        Assert.Contains(compare!.InputPins, p => p.Name == "Op");
+        Assert.Contains(compare.InputPins, p => p.Name == "A");
+        Assert.Contains(compare.InputPins, p => p.Name == "B");
+        // "BEQ" literal should be on the Op pin's DefaultValue.
+        var opPin = compare.InputPins.Find(p => p.Name == "Op");
+        Assert.NotNull(opPin);
+        Assert.Equal("BEQ", opPin!.DefaultValue);
+        // Output pin should be named "Result" (from PortSpec).
+        Assert.Contains(compare.OutputPins, p => p.Name == "Result");
+    }
+
+    [Fact]
     public void Node_Ids_Stable_Across_Project()
     {
         // Two projections of the same source should produce identical node IDs.

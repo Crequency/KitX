@@ -283,15 +283,59 @@ internal sealed class BpReverseTranslator
 
     private Statement ReversePipelineCall(BuiltinFunctionNode fn)
     {
-        // Reconstruct a BsCall from the function node's wired Value inputs and pin DefaultValues.
         var call = BuildBsCallFromFunctionNode(fn);
-        var pipe = new PipelineStatement
+
+        // Distinguish bare call (Print("hello")) from pipeline form (i > Print).
+        // Bare call: the function's data inputs are all DefaultValues (no wired sources).
+        // Pipeline form: at least one data input is wired from another node.
+        bool hasWiredInputs = false;
+        foreach (var pin in fn.InputPins)
+        {
+            if (pin.Name == "Exec") continue;
+            foreach (var conn in _bp.Connections)
+                if (conn.TargetNodeId == fn.Id && conn.TargetPinId == pin.Id)
+                { hasWiredInputs = true; break; }
+            if (hasWiredInputs) break;
+        }
+
+        if (!hasWiredInputs)
+        {
+            // Bare call form: Sources=[BsCall], Segments=[].
+            var pipe = new PipelineStatement
+            {
+                Fingerprint = Fingerprint.Compute("placeholder"),
+                Sources = [call],
+                Segments = [],
+            };
+            return WithFingerprint(pipe);
+        }
+
+        // Pipeline form: Sources=[wired sources], Segments=[Segment(Target)].
+        // Collect wired source BsNodes in pin order.
+        var sources = ImmutableArray.CreateBuilder<BsNode>();
+        foreach (var pin in fn.InputPins)
+        {
+            if (pin.Name == "Exec") continue;
+            foreach (var conn in _bp.Connections)
+            {
+                if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
+                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
+                if (src is not null) sources.Add(NodeToBsNode(src));
+                break;
+            }
+        }
+        var pipelineSeg = new Segment
+        {
+            Target = fn.FunctionName,
+            IsVariableTap = false,
+        };
+        var pipeStmt = new PipelineStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
-            Sources = [call],
-            Segments = [],
+            Sources = sources.ToImmutable(),
+            Segments = [pipelineSeg],
         };
-        return WithFingerprint(pipe);
+        return WithFingerprint(pipeStmt);
     }
 
     /// <summary>Replaces the placeholder fingerprint with the real structural one.</summary>
@@ -347,15 +391,19 @@ internal sealed class BpReverseTranslator
         }
     }
 
-    /// <summary>Builds a BsCall from a function node's literal/identifier arguments.</summary>
+    /// <summary>
+    /// Builds a BsCall from a function node's named data input pins. Each pin is either
+    /// wired (→ VariableNode/ConstNode/FunctionNode source) or carries a DefaultValue.
+    /// Pins are read in order to reconstruct the original argument list.
+    /// </summary>
     private BsCall BuildBsCallFromFunctionNode(BuiltinFunctionNode fn)
     {
         var args = ImmutableArray.CreateBuilder<BsNode>();
-        // Value input pins carry literal DefaultValues or are wired from VariableNodes.
+        // Read data input pins in order (exclude Exec), matching the InputPorts order
+        // that BpRenderer used when creating the node.
         foreach (var pin in fn.InputPins)
         {
             if (pin.Name == "Exec") continue;
-            if (pin.Name != "Value") continue;
             // Check for a wired data source first.
             BsNode? wired = null;
             foreach (var conn in _bp.Connections)

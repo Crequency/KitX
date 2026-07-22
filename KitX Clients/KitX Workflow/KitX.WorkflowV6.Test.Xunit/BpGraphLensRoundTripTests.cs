@@ -57,18 +57,16 @@ public class BpGraphLensRoundTripTests
     }
 
     [Fact]
-    public void IR_To_BP_To_IR_Preserves_ForEach_Structure()
+    public void IR_To_BP_To_IR_Is_Equivalent_ForEach()
     {
-        // forEach with Range(0, 3, 1) — Range is a multi-arg function whose pin layout
-        // is collapsed by BpRenderer (P2-8 limitation). Full diff-equality is therefore
-        // not achievable until multi-input pins land; we verify structural preservation.
+        // forEach with Range(0, 3, 1) — now with named pins (From/To/Step) the
+        // round-trip should be fully diff-empty.
         var ir = ParseBS("forEach Range(0, 3, 1) as i\n    i > Print\n");
         var lens = Lens();
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
-        var fe = Assert.Single(reversed.Body.OfType<ForEachStatement>());
-        Assert.Equal("i", fe.ItemName);
-        Assert.Single(fe.Body);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: {string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
     }
 
     [Fact]

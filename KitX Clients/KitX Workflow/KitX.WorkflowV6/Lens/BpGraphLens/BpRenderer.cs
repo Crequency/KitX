@@ -162,12 +162,11 @@ internal sealed class BpRenderer
                 WireCallArgs(fn, seg.Arguments, $"{path}/seg/{i}/args");
                 if (i == 0)
                 {
-                    foreach (var sn in sourceNodes)
-                        ConnectValue(sn, fn);
+                    ConnectPipelineSources(fn, seg.Arguments, sourceNodes);
                 }
                 else if (lastFunc is not null)
                 {
-                    ConnectValue(lastFunc, fn);
+                    ConnectToInput(lastFunc, fn, FirstDataOutputPinName(lastFunc));
                 }
                 lastFunc = fn;
             }
@@ -187,17 +186,24 @@ internal sealed class BpRenderer
     /// Wires literal/identifier args from a function call's parens to the function
     /// node's input pins. Per v6.0 rule, parens may only contain literals/placeholders.
     /// Literals → input pin DefaultValue; identifiers → usage VariableNode + Connect.
+    /// Args are matched to pins by position: arg[i] → the i-th non-Exec data input pin.
     /// </summary>
     private void WireCallArgs(BuiltinFunctionNode func, ImmutableArray<BsNode> args, string path)
     {
+        // Collect data input pins (exclude Exec) in order.
+        var dataPins = func.InputPins.Where(p => p.Name != "Exec").ToList();
         for (int i = 0; i < args.Length; i++)
         {
+            // Skip placeholders — pipeline sources fill these positions separately.
+            if (args[i] is BsPlaceholder) continue;
+
+            var pin = i < dataPins.Count ? dataPins[i] : null;
+            if (pin is null) continue;
+
             switch (args[i])
             {
                 case BsLiteral lit:
-                    var pin = func.InputPins.Find(p => p.Name == "Value");
-                    if (pin is not null)
-                        pin.DefaultValue = lit.Value?.ToString() ?? "null";
+                    pin.DefaultValue = lit.Value?.ToString() ?? "null";
                     break;
                 case BsIdentifier id:
                     var vn = Add(new VariableNode
@@ -205,12 +211,61 @@ internal sealed class BpRenderer
                         Name = id.Name, VarName = id.Name,
                         VarKind = VariableKind.PubVar,
                     }, $"{path}/{i}");
-                    ConnectValue(vn, func);
+                    ConnectToInput(vn, func, pin.Name);
                     break;
-                // BsPlaceholder: skip — pipeline sources fill these positions separately
-                // via ConnectValue in RenderPipelineStmt / RenderPipelineAsCondition.
             }
         }
+    }
+
+    /// <summary>
+    /// Connects pipeline source nodes to the first segment function's data input pins.
+    /// Placeholder positions in the segment's Arguments determine which pin each source
+    /// connects to; sources without an explicit placeholder are appended to remaining
+    /// pins in order (v6 rule: no-placeholder → sources fill remaining arg slots).
+    /// </summary>
+    private void ConnectPipelineSources(BuiltinFunctionNode fn, ImmutableArray<BsNode> segArgs, List<BlueprintNode> sourceNodes)
+    {
+        var dataPins = fn.InputPins.Where(p => p.Name != "Exec").ToList();
+        if (dataPins.Count == 0 || sourceNodes.Count == 0) return;
+
+        // Map: arg index → pin index. Placeholders mark where pipeline sources insert.
+        // Non-placeholder args (literals/identifiers) are already wired by WireCallArgs
+        // and occupy their positional pin. Sources fill placeholder slots first, then
+        // any remaining pins (the append rule for no-placeholder pipelines).
+        var placeholderPinIndices = new List<int>();
+        var occupiedPinIndices = new HashSet<int>();
+        for (int i = 0; i < segArgs.Length; i++)
+        {
+            if (i >= dataPins.Count) break;
+            if (segArgs[i] is BsPlaceholder)
+                placeholderPinIndices.Add(i);
+            else
+                occupiedPinIndices.Add(i);
+        }
+
+        int sourceIdx = 0;
+        // Fill placeholder positions first.
+        foreach (var pinIdx in placeholderPinIndices)
+        {
+            if (sourceIdx >= sourceNodes.Count) break;
+            ConnectToInput(sourceNodes[sourceIdx], fn, dataPins[pinIdx].Name);
+            sourceIdx++;
+        }
+        // Append remaining sources to unoccupied pins in order.
+        for (int pinIdx = 0; pinIdx < dataPins.Count && sourceIdx < sourceNodes.Count; pinIdx++)
+        {
+            if (occupiedPinIndices.Contains(pinIdx)) continue;
+            if (placeholderPinIndices.Contains(pinIdx)) continue;
+            ConnectToInput(sourceNodes[sourceIdx], fn, dataPins[pinIdx].Name);
+            sourceIdx++;
+        }
+    }
+
+    /// <summary>Returns the name of the first non-Exec output data pin, or "Value" as fallback.</summary>
+    private static string FirstDataOutputPinName(BlueprintNode node)
+    {
+        var dataOut = node.OutputPins.Find(p => p.Name != "Exec");
+        return dataOut?.Name ?? "Value";
     }
 
     // ── If/Else ──
@@ -390,11 +445,11 @@ internal sealed class BpRenderer
                 WireCallArgs(fn, seg.Args, $"{path}/seg/{i}/args");
                 if (lastFunc is null)
                 {
-                    foreach (var sn in sourceNodes) ConnectValue(sn, fn);
+                    ConnectPipelineSources(fn, seg.Args, sourceNodes);
                 }
                 else
                 {
-                    ConnectValue(lastFunc, fn);
+                    ConnectToInput(lastFunc, fn, FirstDataOutputPinName(lastFunc));
                 }
                 lastFunc = fn;
             }
@@ -445,10 +500,21 @@ internal sealed class BpRenderer
         n.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         n.OutputPins.Add(MakePin("Exec", PinDirection.Output, PinType.Execution));
         var bi = _registry.Get(name);
-        if (bi?.Kind is FunctionKind.Pure or FunctionKind.SideEffect)
+        if (bi is not null)
+        {
+            // Create named data pins from the function's PortSpec (v5.1 pattern).
+            foreach (var port in bi.InputPorts)
+                n.InputPins.Add(MakePin(port.Name, PinDirection.Input, port.Type));
+            foreach (var port in bi.OutputPorts)
+                n.OutputPins.Add(MakePin(port.Name, PinDirection.Output, port.Type));
+        }
+        else
+        {
+            // Fallback for unknown functions (e.g. user helpers not in registry):
+            // single generic Value pin, as before.
             n.InputPins.Add(MakePin("Value", PinDirection.Input, PinType.Any));
-        if (bi?.Kind == FunctionKind.Pure)
             n.OutputPins.Add(MakePin("Value", PinDirection.Output, PinType.Any));
+        }
         return Add(n, path);
     }
 
@@ -500,8 +566,8 @@ internal sealed class BpRenderer
 
     private void ConnectValue(BlueprintNode from, BlueprintNode to)
     {
-        var fp = from.OutputPins.Find(p => p.Name == "Value");
-        var tp = to.InputPins.Find(p => p.Name == "Value");
+        var fp = from.OutputPins.Find(p => p.Name != "Exec");
+        var tp = to.InputPins.Find(p => p.Name != "Exec");
         if (fp is not null && tp is not null)
             _bp.Connections.Add(new BlueprintConnection
             {
@@ -512,7 +578,7 @@ internal sealed class BpRenderer
 
     private void ConnectToInput(BlueprintNode from, BlueprintNode to, string inputPinName)
     {
-        var fp = from.OutputPins.Find(p => p.Name == "Value");
+        var fp = from.OutputPins.Find(p => p.Name != "Exec");
         var tp = to.InputPins.Find(p => p.Name == inputPinName);
         if (fp is not null && tp is not null)
             _bp.Connections.Add(new BlueprintConnection
