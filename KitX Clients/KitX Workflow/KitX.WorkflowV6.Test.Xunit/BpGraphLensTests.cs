@@ -90,6 +90,36 @@ public class BpGraphLensTests
     }
 
     [Fact]
+    public void Project_While_Statement_Body_And_End_Connections()
+    {
+        // while node should have Body exec output → Print node, End exec output → subsequent Print.
+        var bp = ProjectBS("""
+            var {
+                int counter
+            }
+
+            0 > counter
+            while counter, 3 > Compare("BLT")
+                counter, 1 > Add > counter
+                Print("tick")
+            Print("done")
+            """);
+        var whileNodes = bp.Nodes.OfType<BuiltinFunctionNode>().Where(n => n.FunctionName == "While").ToList();
+        Assert.Single(whileNodes);
+        var wh = whileNodes[0];
+        // While must have Condition data input, Body + End exec outputs.
+        Assert.Contains(wh.InputPins, p => p.Name == "Condition");
+        Assert.Contains(wh.OutputPins, p => p.Name == "Body");
+        Assert.Contains(wh.OutputPins, p => p.Name == "End");
+        // Body exec output should connect to a node inside the loop body.
+        var bodyPin = wh.OutputPins.Find(p => p.Name == "Body")!;
+        Assert.Contains(bp.Connections, c => c.SourceNodeId == wh.Id && c.SourcePinId == bodyPin.Id);
+        // End exec output should connect to a node after the loop.
+        var endPin = wh.OutputPins.Find(p => p.Name == "End")!;
+        Assert.Contains(bp.Connections, c => c.SourceNodeId == wh.Id && c.SourcePinId == endPin.Id);
+    }
+
+    [Fact]
     public void Project_Switch_Statement()
     {
         var bp = ProjectBS("""

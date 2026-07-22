@@ -87,8 +87,16 @@ internal sealed class KsLowerer
         // ── Body ──
         var body = LowerStatements(program.Body);
 
-        // ── Type inference: override PubVar types from pipeline assignments ──
-        InferVarTypesFromPipelines(body, pubVarTypes);
+        // ── Type inference: two-pass (Source + Demand) via TypeInferer. ──
+        // Seeds from declared types, then refines from pipeline assignments and
+        // if/while conditions. Supersedes the old one-pass InferVarTypesFromPipelines.
+        var seedTypes = new Dictionary<string, string>(pubVarTypes, StringComparer.Ordinal);
+        var inferredTypes = TypeInferer.Infer(
+            new Workflow { Body = body, Constants = constants.ToImmutable(), GlobalVars = globalVars.ToImmutable(), HelperFunctions = helpers.ToImmutableArray() },
+            new LoweringResult { PubVarTypes = seedTypes, HelperReturnTypes = new Dictionary<string, string>(), InjectedVariableNames = new HashSet<string>() },
+            _registry,
+            helpers);
+        pubVarTypes = inferredTypes;
 
         // Propagate inferred types back into the IR's GlobalVars so that downstream
         // consumers (StructuredRoslynBackend) pick up the corrected types.
@@ -228,69 +236,6 @@ internal sealed class KsLowerer
             Arguments = args,
             RawArguments = rawArgs,
             IsVariableTap = isVarTap,
-        };
-    }
-
-    /// <summary>
-    /// Walking the body tree, inspects pipeline statements for variable-tap assignments.
-    /// When a pipeline like <c>... > Func > varName</c> assigns to a PubVar, and the
-    /// function's return type is known from the registry, overrides the variable's
-    /// declared type (e.g. int → bool for Compare).
-    /// </summary>
-    private void InferVarTypesFromPipelines(ImmutableArray<Statement> body, Dictionary<string, string> pubVarTypes)
-    {
-        foreach (var stmt in body)
-            InferVarTypes(stmt, pubVarTypes);
-    }
-
-    private void InferVarTypes(Statement stmt, Dictionary<string, string> pubVarTypes)
-    {
-        if (_registry is null) return;
-        if (stmt is PipelineStatement p && p.Segments.Length >= 2)
-        {
-            // Look for pattern: Segment_N-1 is a function call, Segment_N is a variable tap.
-            var lastSeg = p.Segments[^1];
-            var prevSeg = p.Segments[^2];
-            if (!_registry.Contains(lastSeg.Target) && lastSeg.Arguments.Length == 0
-                && pubVarTypes.ContainsKey(lastSeg.Target))
-            {
-                // lastSeg.Target is a PubVar name, prevSeg is a function call.
-                var funcName = prevSeg.Target;
-                var func = _registry.Get(funcName);
-                if (func is not null)
-                {
-                    var csharpType = MapBuiltinReturnTypeToCSharp(func);
-                    if (csharpType is not null)
-                        pubVarTypes[lastSeg.Target] = csharpType;
-                }
-            }
-        }
-        // Recurse into structured bodies.
-        switch (stmt)
-        {
-            case IfStatement iff:
-                InferVarTypesFromPipelines(iff.ThenBody, pubVarTypes);
-                InferVarTypesFromPipelines(iff.ElseBody, pubVarTypes);
-                break;
-            case ForEachStatement fe:
-                InferVarTypesFromPipelines(fe.Body, pubVarTypes);
-                break;
-            case WhileStatement ws:
-                InferVarTypesFromPipelines(ws.Body, pubVarTypes);
-                break;
-        }
-    }
-
-    private static string? MapBuiltinReturnTypeToCSharp(IBuiltinFunction func)
-    {
-        if (func.OutputPorts.Count == 0) return null;
-        return func.OutputPorts[0].Type switch
-        {
-            global::KitX.Core.Contract.Workflow.PinType.Boolean => "bool",
-            global::KitX.Core.Contract.Workflow.PinType.Integer => "int",
-            global::KitX.Core.Contract.Workflow.PinType.Double => "double",
-            global::KitX.Core.Contract.Workflow.PinType.String => "string",
-            _ => null,
         };
     }
 }

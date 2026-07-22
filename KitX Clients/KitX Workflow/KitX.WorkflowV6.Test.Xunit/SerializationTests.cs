@@ -122,4 +122,21 @@ public class SerializationTests
         Assert.Equal(ir, result);
         Assert.Contains(result.Body, s => s is KitX.WorkflowV6.Ir.Statements.ExitStatement);
     }
+
+    [Fact]
+    public void Serialize_Type_Inference_Result()
+    {
+        // PubVar declared as object but inferred to bool by type inference — the
+        // inferred type should survive JSON round-trip (stored in GlobalVar.Type).
+        var ir = Parse("var {", "    object flag", "}", "true > flag", "if flag", "    Print(\"yes\")");
+        // Verify inference happened: flag should be bool, not object.
+        Assert.True(ir.GlobalVars.TryGetValue("flag", out var gv));
+        Assert.Equal("bool", gv.Type);
+        // Round-trip the IR through JSON.
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        // The inferred type should be preserved.
+        Assert.True(result.GlobalVars.TryGetValue("flag", out var rtGv));
+        Assert.Equal("bool", rtGv.Type);
+    }
 }

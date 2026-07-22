@@ -335,4 +335,96 @@ public class E2ETests
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("10", result.Output);
     }
+
+    [Fact]
+    public async Task E2E_Helper_Return_Type_Inference()
+    {
+        // Helper returns int → PubVar assigned from helper should be strongly typed as int.
+        // `5 > Double > result > Print(result)` — result inferred as int, not object.
+        var helpers = new List<KitX.Core.Contract.Workflow.HelperFunction>
+        {
+            new()
+            {
+                Name = "Double",
+                ReturnType = "int",
+                Parameters = [new() { Name = "x", Type = "int" }],
+                Code = "return x * 2;",
+            },
+        };
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        var lens = new KsTextLens(registry);
+        var ir = lens.Parse("""
+            var {
+                int result
+            }
+
+            5 > Double > result
+            result > Print
+            """, helpers);
+        // Verify the PubVar type was inferred as int (not object).
+        Assert.True(ir.GlobalVars.TryGetValue("result", out var gv));
+        Assert.Equal("int", gv.Type);
+        // Execute to verify strong-typed field works.
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("10", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Branch_Condition_Type_Inference()
+    {
+        // var { object flag } + true > flag + if flag → flag should be inferred as bool.
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        var lens = new KsTextLens(registry);
+        var ir = lens.Parse("""
+            var {
+                object flag
+            }
+
+            true > flag
+            if flag
+                Print("yes")
+            """, []);
+        // Verify the PubVar type was refined to bool by the Demand pass.
+        Assert.True(ir.GlobalVars.TryGetValue("flag", out var gv));
+        Assert.Equal("bool", gv.Type);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("yes", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Helper_Param_Type_Inference()
+    {
+        // Helper Greet(string name) — PubVar passed as arg should be inferred as string.
+        var helpers = new List<KitX.Core.Contract.Workflow.HelperFunction>
+        {
+            new()
+            {
+                Name = "Greet",
+                ReturnType = "string",
+                Parameters = [new() { Name = "name", Type = "string" }],
+                Code = "return \"hello, \" + name;",
+            },
+        };
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        var lens = new KsTextLens(registry);
+        var ir = lens.Parse("""
+            var {
+                object who
+            }
+
+            "world" > who
+            who > Greet > Print
+            """, helpers);
+        // The Demand pass should refine `who` from object to string.
+        Assert.True(ir.GlobalVars.TryGetValue("who", out var gv));
+        Assert.Equal("string", gv.Type);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("hello, world", result.Output);
+    }
 }
