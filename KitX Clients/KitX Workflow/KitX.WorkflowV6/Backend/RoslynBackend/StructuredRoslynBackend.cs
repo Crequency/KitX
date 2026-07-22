@@ -1,14 +1,11 @@
 namespace KitX.WorkflowV6.Backend.RoslynBackend;
 
 using System.Reflection;
-using System.Runtime.Loader;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Lowering;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,7 +19,6 @@ using Serilog;
 // What's gone vs v5's RoslynExecutionBackend:
 //   • No NextBlock trampoline (the generated C# is structured if/foreach/while).
 //   • No block-name addressing.
-//   • No script cache / disk persistence (deferred — Phase 4 MVP just needs to run).
 //   • No plugin host (MVP scope).
 //
 // What's preserved:
@@ -30,6 +26,7 @@ using Serilog;
 //   • LoweringResult-driven strong-typed PubVar fields on the generated G subclass
 //     (§十二-F).
 //   • Collectible ALC for unload.
+//   • In-memory + disk compilation cache (ScriptCompiler + ScriptPersistenceManager).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -40,10 +37,12 @@ using Serilog;
 public sealed class StructuredRoslynBackend : IExecutionBackend
 {
     private readonly BuiltinFunctionRegistry _registry;
+    private readonly ScriptCompiler _compiler;
 
     public StructuredRoslynBackend(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _compiler = new ScriptCompiler(_registry);
     }
 
     /// <summary>Creates the backend with the default (auto-discovered) registry.</summary>
@@ -51,6 +50,12 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         : this(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly)) { }
 
     public string Name => "StructuredRoslyn";
+
+    /// <summary>Unloads and drops all cached compiled assemblies.</summary>
+    public void ClearCache() => _compiler.ClearCache();
+
+    /// <summary>Preloads persisted compiled scripts for a workflow from disk.</summary>
+    public int PreloadFromDisk(string workflowId) => _compiler.PreloadFromDisk(workflowId);
 
     public Task<BlockScriptExecutionResult> ExecuteAsync(
         Workflow ir,
@@ -67,20 +72,10 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         ArgumentNullException.ThrowIfNull(ir);
         ct.ThrowIfCancellationRequested();
 
-        // If the caller didn't supply a lowering result, derive PubVar types from the
-        // IR's GlobalVars declarations so the generated G class has strong-typed fields.
-        var effectiveLowering = lowering ?? new LoweringResult
-        {
-            PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type),
-            HelperReturnTypes = new Dictionary<string, string>(),
-            InjectedVariableNames = new HashSet<string>(),
-        };
-
         var hasDebugger = debugger is not null;
-        var codegen = new Debugging.DebugCodegen(_registry);
-        var source = codegen.Generate(ir, effectiveLowering, hasDebugger);
 
-        var (assembly, loadContext, compileErrors) = Compile(source);
+        // Use ScriptCompiler for cached compilation (memory + disk).
+        var (assembly, loadContext, compileErrors) = _compiler.Compile(ir, lowering, null, hasDebugger);
         if (assembly is null)
         {
             Log.Error("StructuredRoslynBackend: compilation failed. Errors: {Errors}",
@@ -94,14 +89,11 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
 
         try
         {
-            // Instantiate the generated G class (named "G" so generated G.<Method>() calls
-            // resolve to its inherited ExecutionGlobals methods).
             var gType = assembly.GetType("KitX.WorkflowV6.Generated.G")
                 ?? throw new InvalidOperationException("Generated G type not found.");
             var g = (ExecutionGlobals)Activator.CreateInstance(gType)!;
             g.Debugger = debugger;
 
-            // Invoke RunAsync (the generated method is named "RunAsync" but is void-returning).
             var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Generated RunAsync method not found.");
             runMethod.Invoke(g, null);
@@ -110,7 +102,7 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
             {
                 IsSuccess = true,
                 Output = g.OutputLines,
-                ExecutedBlockCount = 0,  // Phase 4 MVP doesn't track block count.
+                ExecutedBlockCount = 0,
             };
         }
         catch (Exception ex)
@@ -124,80 +116,9 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         }
         finally
         {
-            loadContext.Unload();
+            // Only unload if we created a fresh load context (cache miss).
+            // Cache hits return null loadContext — the assembly stays loaded for reuse.
+            loadContext?.Unload();
         }
-    }
-
-    /// <summary>
-    /// Compiles the C# source string via Roslyn, loads the result into a collectible
-    /// ALC, and returns the assembly (or null + diagnostics on failure).
-    /// </summary>
-    private (Assembly?, CollectibleAssemblyLoadContext, IReadOnlyList<string>) Compile(string source)
-    {
-        var tree = CSharpSyntaxTree.ParseText(source);
-        var compilation = CSharpCompilation.Create(
-            "KitXWorkflowV6_Generated",
-            [tree],
-            references: GetReferenceList(),
-            options: new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                optimizationLevel: OptimizationLevel.Debug,
-                assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default));
-
-        var diagnostics = compilation.GetDiagnostics();
-        var errors = diagnostics
-            .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => d.ToString())
-            .ToList();
-        if (errors.Count > 0)
-            return (null, new CollectibleAssemblyLoadContext("failed"), errors);
-
-        var alc = new CollectibleAssemblyLoadContext("KitXWorkflowV6_Generated");
-        using var peStream = new MemoryStream();
-        var emitResult = compilation.Emit(peStream);
-        if (!emitResult.Success)
-        {
-            var emitErrors = emitResult.Diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .Select(d => d.ToString())
-                .ToList();
-            return (null, alc, emitErrors);
-        }
-        peStream.Seek(0, SeekOrigin.Begin);
-        var assembly = alc.LoadFromStream(peStream);
-        return (assembly, alc, Array.Empty<string>());
-    }
-
-    /// <summary>
-    /// Builds the list of MetadataReferences the compilation needs: the runtime (this
-    /// library, for ExecutionGlobals), .NET runtime, and System.Collections etc.
-    /// </summary>
-    private static List<MetadataReference> GetReferenceList()
-    {
-        var refs = new List<MetadataReference>();
-        // The .NET 10 reference path — load System.Runtime + the core assemblies from
-        // the runtime pack. This is the standard pattern for Roslyn Emit in .NET 10.
-        var coreDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var coreAssemblies = new[]
-        {
-            "System.Runtime.dll",
-            "System.Console.dll",
-            "System.Collections.dll",
-            "System.Linq.dll",
-            "System.Private.CoreLib.dll",
-            "System.Runtime.Extensions.dll",
-            "System.Runtime.InteropServices.dll",
-            "System.Text.Json.dll",
-        };
-        foreach (var asm in coreAssemblies)
-        {
-            var path = Path.Combine(coreDir, asm);
-            if (File.Exists(path)) refs.Add(MetadataReference.CreateFromFile(path));
-        }
-        // Reference to the KitX.WorkflowV6 assembly (for ExecutionGlobals base class).
-        refs.Add(MetadataReference.CreateFromFile(typeof(ExecutionGlobals).Assembly.Location));
-        // Contract reference (for IBlueprintDebugController etc.).
-        refs.Add(MetadataReference.CreateFromFile(typeof(KitX.Core.Contract.Workflow.IBlueprintDebugController).Assembly.Location));
-        return refs;
     }
 }

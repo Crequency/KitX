@@ -427,4 +427,33 @@ public class E2ETests
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("hello, world", result.Output);
     }
+
+    [Fact]
+    public async Task E2E_Cache_Hit_On_Second_Execution()
+    {
+        // Same IR executed twice — second call should hit the in-memory cache
+        // (assembly reuse). Verify output is identical.
+        var ir = ParseToIr("Print(\"cached\")\n");
+        var backend = MakeBackend();
+        var result1 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        var result2 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result1.IsSuccess, $"First execution failed: {result1.ErrorMessage}");
+        Assert.True(result2.IsSuccess, $"Second execution failed: {result2.ErrorMessage}");
+        Assert.Equal(result1.Output, result2.Output);
+        Assert.Contains("cached", result2.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Cache_Invalidation_On_IR_Change()
+    {
+        // Different IR should produce different output (no stale cache hit).
+        var ir1 = ParseToIr("Print(\"first\")\n");
+        var ir2 = ParseToIr("Print(\"second\")\n");
+        var backend = MakeBackend();
+        var result1 = await backend.ExecuteAsync(ir1, null, CancellationToken.None);
+        var result2 = await backend.ExecuteAsync(ir2, null, CancellationToken.None);
+        Assert.Contains("first", result1.Output);
+        Assert.Contains("second", result2.Output);
+        Assert.DoesNotContain("second", result1.Output);
+    }
 }
