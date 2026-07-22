@@ -77,4 +77,49 @@ public class SerializationTests
         Assert.Equal(ir, result);
         Assert.Single(result.Body.OfType<KitX.WorkflowV6.Ir.Statements.SwitchStatement>());
     }
+
+    [Fact]
+    public void Serialize_Deserialize_While()
+    {
+        var ir = Parse("var {", "    int counter", "}", "0 > counter",
+            "while counter, 3 > HelperFuncCompare(\"BLT\")",
+            "    counter, 1 > HelperFuncAdd > counter",
+            "    Print(\"tick\")");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Single(result.Body.OfType<KitX.WorkflowV6.Ir.Statements.WhileStatement>());
+    }
+
+    [Fact]
+    public void Serialize_Deserialize_Break()
+    {
+        var ir = Parse("forEach Range(0, 10, 1) as i",
+            "    if i, 2 > HelperFuncCompare(\"BEQ\")",
+            "        break",
+            "    i > Print");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Contains(result.Body, s => s is KitX.WorkflowV6.Ir.Statements.ForEachStatement);
+    }
+
+    [Fact]
+    public void Serialize_Deserialize_Continue()
+    {
+        var ir = Parse("forEach Range(0, 5, 1) as i",
+            "    if i, 2 > HelperFuncCompare(\"BEQ\")",
+            "        continue",
+            "    i > Print");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Contains(result.Body, s => s is KitX.WorkflowV6.Ir.Statements.ForEachStatement);
+    }
+
+    [Fact]
+    public void Serialize_Deserialize_Exit()
+    {
+        var ir = Parse("Print(\"before\")", "exit()", "Print(\"after\")");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Contains(result.Body, s => s is KitX.WorkflowV6.Ir.Statements.ExitStatement);
+    }
 }
