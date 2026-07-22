@@ -61,6 +61,7 @@ internal sealed class DebugCodegen
             case IfStatement iff: GenIf(sb, iff, pad, depth); break;
             case ForEachStatement fe: GenForEach(sb, fe, pad, depth); break;
             case WhileStatement ws: GenWhile(sb, ws, pad, depth); break;
+            case SwitchStatement sw: GenSwitch(sb, sw, pad, depth); break;
             case BreakStatement: sb.AppendLine($"{pad}break;"); break;
             case ContinueStatement: sb.AppendLine($"{pad}continue;"); break;
             case ExitStatement: sb.AppendLine($"{pad}return;"); break;
@@ -103,6 +104,29 @@ internal sealed class DebugCodegen
         sb.AppendLine($"{pad}while ({RenderExpr(ws.Condition)})");
         sb.AppendLine($"{pad}{{");
         GenBody(sb, ws.Body, pad.Length + 4, depth + 1);
+        sb.AppendLine($"{pad}}}");
+    }
+
+    private void GenSwitch(StringBuilder sb, SwitchStatement sw, string pad, int depth)
+    {
+        sb.AppendLine($"{pad}switch ({RenderExpr(sw.Selector)})");
+        sb.AppendLine($"{pad}{{");
+        for (int i = 0; i < sw.Arms.Length; i++)
+        {
+            sb.AppendLine($"{pad}case {i}:");
+            sb.AppendLine($"{pad}{{");
+            GenBody(sb, sw.Arms[i], pad.Length + 4, depth + 1);
+            sb.AppendLine($"{pad}    break;");
+            sb.AppendLine($"{pad}}}");
+        }
+        if (sw.Default.Length > 0)
+        {
+            sb.AppendLine($"{pad}default:");
+            sb.AppendLine($"{pad}{{");
+            GenBody(sb, sw.Default, pad.Length + 4, depth + 1);
+            sb.AppendLine($"{pad}    break;");
+            sb.AppendLine($"{pad}}}");
+        }
         sb.AppendLine($"{pad}}}");
     }
 

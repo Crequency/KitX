@@ -90,6 +90,30 @@ public class BpGraphLensTests
     }
 
     [Fact]
+    public void Project_Switch_Statement()
+    {
+        var bp = ProjectBS("""
+            switch sel
+                0:
+                    Print("zero")
+                1:
+                    Print("one")
+                default:
+                    Print("other")
+            """);
+        var sw = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Switch");
+        Assert.NotNull(sw);
+        // Selector data input pin.
+        Assert.Contains(sw!.InputPins, p => p.Name == "Selector");
+        // Two arm Exec output pins (0, 1) + Default.
+        Assert.Contains(sw.OutputPins, p => p.Name == "0");
+        Assert.Contains(sw.OutputPins, p => p.Name == "1");
+        Assert.Contains(sw.OutputPins, p => p.Name == "Default");
+        // Each arm body contains a Print node.
+        Assert.Equal(3, bp.Nodes.OfType<BuiltinFunctionNode>().Count(n => n.FunctionName == "Print"));
+    }
+
+    [Fact]
     public void Node_Ids_Stable_Across_Project()
     {
         // Two projections of the same source should produce identical node IDs.

@@ -283,4 +283,29 @@ public class E2ETests
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(new[] { "0", "1", "2" }, result.Output);
     }
+
+    [Fact]
+    public async Task E2E_Switch_Statement()
+    {
+        // selector=1 → arm 1 prints "one"; arms 0 and default not taken.
+        var src = """
+            var {
+                int sel
+            }
+
+            1 > sel
+            switch sel
+                0:
+                    Print("zero")
+                1:
+                    Print("one")
+                default:
+                    Print("other")
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "one" }, result.Output);
+    }
 }

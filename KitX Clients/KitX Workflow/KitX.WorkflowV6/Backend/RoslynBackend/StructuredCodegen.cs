@@ -156,6 +156,9 @@ internal sealed class StructuredCodegen
                 _indent--;
                 EmitLine("}");
                 break;
+            case SwitchStatement sw:
+                EmitSwitch(sw);
+                break;
             case BreakStatement:
                 EmitLine("break;");
                 break;
@@ -169,6 +172,35 @@ internal sealed class StructuredCodegen
                 EmitLine($"/* unknown statement kind: {stmt.Kind} */");
                 break;
         }
+    }
+
+    private void EmitSwitch(SwitchStatement sw)
+    {
+        EmitLine($"switch ({RenderBsNode(sw.Selector)})");
+        EmitLine("{");
+        _indent++;
+        for (int i = 0; i < sw.Arms.Length; i++)
+        {
+            EmitLine($"case {i}:");
+            EmitLine("{");
+            _indent++;
+            EmitBody(sw.Arms[i]);
+            EmitLine("break;");
+            _indent--;
+            EmitLine("}");
+        }
+        if (sw.Default.Length > 0)
+        {
+            EmitLine("default:");
+            EmitLine("{");
+            _indent++;
+            EmitBody(sw.Default);
+            EmitLine("break;");
+            _indent--;
+            EmitLine("}");
+        }
+        _indent--;
+        EmitLine("}");
     }
 
     private void EmitPipeline(PipelineStatement p)

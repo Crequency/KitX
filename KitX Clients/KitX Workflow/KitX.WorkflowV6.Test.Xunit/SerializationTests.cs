@@ -65,4 +65,16 @@ public class SerializationTests
         Assert.Single(result.Constants);
         Assert.Single(result.GlobalVars);
     }
+
+    [Fact]
+    public void Serialize_Deserialize_Switch()
+    {
+        var ir = Parse("var {", "    int sel", "}", "1 > sel", "switch sel",
+            "    0:", "        Print(\"zero\")",
+            "    1:", "        Print(\"one\")",
+            "    default:", "        Print(\"other\")");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Single(result.Body.OfType<KitX.WorkflowV6.Ir.Statements.SwitchStatement>());
+    }
 }
