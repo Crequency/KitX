@@ -5,7 +5,7 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Lowering;
 using KitX.WorkflowV6.Lens.BpGraphLens;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -30,12 +30,12 @@ public class BpMermaidDump
             Print("start")
 
             loopMax > Range(0, _, 1) > forEach as i
-                guessNum, targetNum > HelperFuncCompare("BEQ") > cond
+                guessNum, targetNum > Compare("BEQ") > cond
                 if cond
                     Print("correct!")
                     break
                 else
-                    guessNum, targetNum > HelperFuncCompare("BLT") > cond2
+                    guessNum, targetNum > Compare("BLT") > cond2
                     if cond2
                         Print("too small")
                     else
@@ -46,7 +46,7 @@ public class BpMermaidDump
             """;
 
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new BsTextLens(registry);
+        var lens = new KsTextLens(registry);
         var ir = lens.Parse(bsSource, []);
         var bpLens = new BpGraphLens(registry);
         var bp = bpLens.Project(ir);

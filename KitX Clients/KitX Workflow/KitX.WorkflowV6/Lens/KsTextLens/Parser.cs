@@ -1,4 +1,4 @@
-namespace KitX.WorkflowV6.Lens.BsTextLens;
+namespace KitX.WorkflowV6.Lens.KsTextLens;
 
 using KitX.WorkflowV6.Ir.Ast;
 
@@ -29,7 +29,7 @@ using KitX.WorkflowV6.Ir.Ast;
 //   segment        ::= name '(' (funcArg (',' funcArg)*)? ')' | name
 //   condition      ::= expr (',' expr)* ('>' segment)*
 //                      // simple form 'if cond' returns expr directly;
-//                      // pipeline form 'if a, b > Func(...)' returns BsPipeline
+//                      // pipeline form 'if a, b > Func(...)' returns KsPipeline
 //   expr           ::= literal | '_' | identifier | name '(' (funcArg (',' funcArg)*)? ')'
 //   funcArg        ::= literal | '_'    // v6.0 rule: parens may only contain
 //                                        // literals/placeholders; non-literal values
@@ -42,29 +42,29 @@ using KitX.WorkflowV6.Ir.Ast;
 // greater than currentLevel.
 //
 // The parser is recursive descent with no backtracking (each lookahead token
-// unambiguously picks a rule). Errors are collected into the DiagnosticSink and
+// unambiguously picks a rule). Errors are collected into the KsDiagnosticSink and
 // the parser recovers as best it can.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
 /// Recursive-descent parser for the v6 indented KS grammar. Produces a
-/// <see cref="BsProgram"/> AST. Pure: the same tokens always yield the same AST.
+/// <see cref="KsProgram"/> AST. Pure: the same tokens always yield the same AST.
 /// </summary>
 internal sealed class Parser
 {
-    private readonly List<BsToken> _tokens;
-    private readonly DiagnosticSink _sink;
+    private readonly List<KsToken> _tokens;
+    private readonly KsDiagnosticSink _sink;
     private int _pos;
 
-    private Parser(List<BsToken> tokens, DiagnosticSink sink)
+    private Parser(List<KsToken> tokens, KsDiagnosticSink sink)
     {
         _tokens = tokens;
         _sink = sink;
         _pos = 0;
     }
 
-    /// <summary>Parses a token list into a <see cref="BsProgram"/> AST.</summary>
-    public static (BsProgram Program, DiagnosticSink Diagnostics) Parse(List<BsToken> tokens, DiagnosticSink sink)
+    /// <summary>Parses a token list into a <see cref="KsProgram"/> AST.</summary>
+    public static (KsProgram Program, KsDiagnosticSink Diagnostics) Parse(List<KsToken> tokens, KsDiagnosticSink sink)
     {
         var parser = new Parser(tokens, sink);
         var program = parser.ParseProgram();
@@ -73,27 +73,27 @@ internal sealed class Parser
 
     // ── Token helpers ──
 
-    private BsToken Current => _tokens[_pos];
-    private BsToken Peek(int offset = 0) =>
+    private KsToken Current => _tokens[_pos];
+    private KsToken Peek(int offset = 0) =>
         _pos + offset < _tokens.Count ? _tokens[_pos + offset] : _tokens[^1];
 
-    private bool AtEnd => Current.Kind == BsTokenKind.EndOfInput;
+    private bool AtEnd => Current.Kind == KsTokenKind.EndOfInput;
 
-    private BsToken Advance()
+    private KsToken Advance()
     {
         var t = Current;
         if (!AtEnd) _pos++;
         return t;
     }
 
-    private bool Match(BsTokenKind kind)
+    private bool Match(KsTokenKind kind)
     {
         if (Current.Kind == kind) { Advance(); return true; }
         return false;
     }
 
     private bool IsKeyword(string word) =>
-        Current.Kind == BsTokenKind.Identifier && Current.Text == word;
+        Current.Kind == KsTokenKind.Identifier && Current.Text == word;
 
     private bool MatchKeyword(string word)
     {
@@ -101,7 +101,7 @@ internal sealed class Parser
         return false;
     }
 
-    private void Error(string code, string message, BsToken? at = null)
+    private void Error(string code, string message, KsToken? at = null)
     {
         var t = at ?? Current;
         _sink.AddError(code, message, t.Line, t.Column);
@@ -109,22 +109,22 @@ internal sealed class Parser
 
     // ── Program ──
 
-    private BsProgram ParseProgram()
+    private KsProgram ParseProgram()
     {
-        var body = ImmutableArray.CreateBuilder<BsStatement>();
-        BsConstBlock? constBlock = null;
-        BsVarBlock? varBlock = null;
+        var body = ImmutableArray.CreateBuilder<KsStatement>();
+        KsConstBlock? constBlock = null;
+        KsVarBlock? varBlock = null;
 
         while (!AtEnd)
         {
             // Find the next Indent token at level 0.
-            if (Current.Kind != BsTokenKind.Indent) { Advance(); continue; }
+            if (Current.Kind != KsTokenKind.Indent) { Advance(); continue; }
             var indent = Current.IndentLevel;
             if (indent != 0)
             {
                 Error("KS010", $"Top-level statement must be at indent 0 (got {indent})");
                 Advance();  // consume the wrong-level Indent to avoid infinite loop
-                while (!AtEnd && Current.Kind != BsTokenKind.Indent) Advance();
+                while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
                 continue;
             }
             Advance();  // consume Indent(0)
@@ -146,7 +146,7 @@ internal sealed class Parser
             body.Add(ParseStatement());
         }
 
-        return new BsProgram
+        return new KsProgram
         {
             ConstBlock = constBlock,
             VarBlock = varBlock,
@@ -157,44 +157,44 @@ internal sealed class Parser
 
     // ── Decl blocks ──
 
-    private BsConstBlock ParseConstBlock()
+    private KsConstBlock ParseConstBlock()
     {
-        var decls = ImmutableArray.CreateBuilder<BsConstDecl>();
+        var decls = ImmutableArray.CreateBuilder<KsConstDecl>();
         ExpectLBrace();
-        while (!AtEnd && Current.Kind != BsTokenKind.RBrace)
+        while (!AtEnd && Current.Kind != KsTokenKind.RBrace)
         {
             // Each decl row lives on its own line, prefixed by an Indent token.
-            if (Current.Kind == BsTokenKind.Indent) Advance();
-            if (Current.Kind == BsTokenKind.RBrace) break;
+            if (Current.Kind == KsTokenKind.Indent) Advance();
+            if (Current.Kind == KsTokenKind.RBrace) break;
             decls.Add(ParseConstRow());
             // Skip any remaining tokens on this line.
-            while (!AtEnd && Current.Kind != BsTokenKind.Indent
-                          && Current.Kind != BsTokenKind.RBrace) Advance();
+            while (!AtEnd && Current.Kind != KsTokenKind.Indent
+                          && Current.Kind != KsTokenKind.RBrace) Advance();
         }
-        Match(BsTokenKind.RBrace);
-        return new BsConstBlock { Declarations = decls.ToImmutable() };
+        Match(KsTokenKind.RBrace);
+        return new KsConstBlock { Declarations = decls.ToImmutable() };
     }
 
-    private BsVarBlock ParseVarBlock()
+    private KsVarBlock ParseVarBlock()
     {
-        var decls = ImmutableArray.CreateBuilder<BsVarDecl>();
+        var decls = ImmutableArray.CreateBuilder<KsVarDecl>();
         ExpectLBrace();
-        while (!AtEnd && Current.Kind != BsTokenKind.RBrace)
+        while (!AtEnd && Current.Kind != KsTokenKind.RBrace)
         {
-            if (Current.Kind == BsTokenKind.Indent) Advance();
-            if (Current.Kind == BsTokenKind.RBrace) break;
+            if (Current.Kind == KsTokenKind.Indent) Advance();
+            if (Current.Kind == KsTokenKind.RBrace) break;
             decls.Add(ParseVarRow());
-            while (!AtEnd && Current.Kind != BsTokenKind.Indent
-                          && Current.Kind != BsTokenKind.RBrace) Advance();
+            while (!AtEnd && Current.Kind != KsTokenKind.Indent
+                          && Current.Kind != KsTokenKind.RBrace) Advance();
         }
-        Match(BsTokenKind.RBrace);
-        return new BsVarBlock { Declarations = decls.ToImmutable() };
+        Match(KsTokenKind.RBrace);
+        return new KsVarBlock { Declarations = decls.ToImmutable() };
     }
 
-    private BsConstDecl ParseConstRow()
+    private KsConstDecl ParseConstRow()
     {
         var (typeTok, nameTok, initExpr, src) = ParseDeclRowCore();
-        return new BsConstDecl
+        return new KsConstDecl
         {
             Name = nameTok.Text,
             Type = typeTok.Text,
@@ -204,10 +204,10 @@ internal sealed class Parser
         };
     }
 
-    private BsVarDecl ParseVarRow()
+    private KsVarDecl ParseVarRow()
     {
         var (typeTok, nameTok, initExpr, src) = ParseDeclRowCore();
-        return new BsVarDecl
+        return new KsVarDecl
         {
             Name = nameTok.Text,
             Type = typeTok.Text,
@@ -217,23 +217,23 @@ internal sealed class Parser
         };
     }
 
-    private (BsToken typeTok, BsToken nameTok, string? initExpr, string src) ParseDeclRowCore()
+    private (KsToken typeTok, KsToken nameTok, string? initExpr, string src) ParseDeclRowCore()
     {
         // Form: <type> <name> ['=' <expr-text>]
-        var typeTok = Current.Kind == BsTokenKind.Identifier ? Advance() : Current;
-        var nameTok = Current.Kind == BsTokenKind.Identifier ? Advance() : Current;
-        if (typeTok.Kind != BsTokenKind.Identifier)
+        var typeTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
+        var nameTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
+        if (typeTok.Kind != KsTokenKind.Identifier)
             Error("KS012", "Declaration must start with a type name", typeTok);
-        if (nameTok.Kind != BsTokenKind.Identifier)
+        if (nameTok.Kind != KsTokenKind.Identifier)
             Error("KS012", "Declaration must have a name after the type", nameTok);
 
         string? initExpr = null;
-        if (Match(BsTokenKind.Assign))
+        if (Match(KsTokenKind.Assign))
         {
             // Capture the rest of the line as the initialiser expression text.
             int start = _pos;
-            while (!AtEnd && Current.Kind != BsTokenKind.Indent
-                          && Current.Kind != BsTokenKind.RBrace) Advance();
+            while (!AtEnd && Current.Kind != KsTokenKind.Indent
+                          && Current.Kind != KsTokenKind.RBrace) Advance();
             initExpr = ReconstructText(_tokens, start, _pos).Trim();
         }
 
@@ -243,11 +243,11 @@ internal sealed class Parser
 
     private void ExpectLBrace()
     {
-        if (!Match(BsTokenKind.LBrace))
+        if (!Match(KsTokenKind.LBrace))
             Error("KS013", "Expected '{' after const/var");
     }
 
-    private static string ReconstructText(List<BsToken> tokens, int from, int toExclusive)
+    private static string ReconstructText(List<KsToken> tokens, int from, int toExclusive)
     {
         var sb = new System.Text.StringBuilder();
         for (int i = from; i < toExclusive && i < tokens.Count; i++)
@@ -260,12 +260,12 @@ internal sealed class Parser
 
     // ── Statements ──
 
-    private BsStatement ParseStatement()
+    private KsStatement ParseStatement()
     {
         // Current is the first token of the statement (the Indent was consumed).
         switch (Current.Kind)
         {
-            case BsTokenKind.Identifier:
+            case KsTokenKind.Identifier:
                 return Current.Text switch
                 {
                     "if" => ParseIf(),
@@ -282,22 +282,22 @@ internal sealed class Parser
         }
     }
 
-    private BsIf ParseIf()
+    private KsIf ParseIf()
     {
         var ifTok = Advance();  // 'if'
         var cond = ParsePipelineCondition();
         int keywordIndent = LastConsumedIndentLevel();
         var thenBody = ParseBody(keywordIndent + 1, $"if on line {ifTok.Line}");
-        ImmutableArray<BsStatement> elseBody = [];
+        ImmutableArray<KsStatement> elseBody = [];
 
         // `else` should sit at the same indent level as the `if`. After ParseBody
         // returns, the current token should be an Indent at keywordIndent (because
         // ParseBody stops when it sees a lower indent). Check whether that Indent
         // is followed by the `else` keyword.
-        if (Current.Kind == BsTokenKind.Indent && Current.IndentLevel == keywordIndent)
+        if (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == keywordIndent)
         {
             // Peek one token ahead: is it `else`?
-            if (Peek(1).Kind == BsTokenKind.Identifier && Peek(1).Text == "else")
+            if (Peek(1).Kind == KsTokenKind.Identifier && Peek(1).Text == "else")
             {
                 Advance();  // consume Indent(keywordIndent)
                 var elseTok = Advance();  // consume 'else'
@@ -313,7 +313,7 @@ internal sealed class Parser
             }
         }
 
-        return new BsIf
+        return new KsIf
         {
             Condition = cond,
             ThenBody = thenBody,
@@ -322,42 +322,42 @@ internal sealed class Parser
         };
     }
 
-    private BsSwitch ParseSwitch()
+    private KsSwitch ParseSwitch()
     {
         var swTok = Advance();  // 'switch'
         var selector = ParseExpression();
         int keywordIndent = LastConsumedIndentLevel();
         int armIndent = keywordIndent + 1;
-        var arms = ImmutableArray.CreateBuilder<ImmutableArray<BsStatement>>();
-        ImmutableArray<BsStatement> defaultBody = [];
+        var arms = ImmutableArray.CreateBuilder<ImmutableArray<KsStatement>>();
+        ImmutableArray<KsStatement> defaultBody = [];
         bool sawDefault = false;
 
-        while (Current.Kind == BsTokenKind.Indent && Current.IndentLevel == armIndent)
+        while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == armIndent)
         {
             Advance();  // consume Indent(armIndent)
             if (MatchKeyword("default"))
             {
                 if (sawDefault) Error("KS022", "Duplicate default arm");
                 sawDefault = true;
-                if (!Match(BsTokenKind.Colon))
+                if (!Match(KsTokenKind.Colon))
                     Error("KS020", "Expected ':' after 'default'");
                 defaultBody = ParseArmBody(armIndent);
             }
-            else if (Current.Kind == BsTokenKind.IntegerLiteral)
+            else if (Current.Kind == KsTokenKind.IntegerLiteral)
             {
                 Advance();
-                if (!Match(BsTokenKind.Colon))
+                if (!Match(KsTokenKind.Colon))
                     Error("KS020", "Expected ':' after case label");
                 arms.Add(ParseArmBody(armIndent));
             }
             else
             {
                 Error("KS021", "Expected case label or 'default' in switch arm");
-                while (!AtEnd && Current.Kind != BsTokenKind.Indent) Advance();
+                while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
             }
         }
 
-        return new BsSwitch
+        return new KsSwitch
         {
             Selector = selector,
             Arms = arms.ToImmutable(),
@@ -366,12 +366,12 @@ internal sealed class Parser
         };
     }
 
-    private ImmutableArray<BsStatement> ParseArmBody(int armIndent)
+    private ImmutableArray<KsStatement> ParseArmBody(int armIndent)
     {
         // An arm body is either:
         //   (a) inline — more tokens follow the ':' on the same line
         //   (b) a block — statements at armIndent + 1
-        if (Current.Kind != BsTokenKind.Indent && Current.Kind != BsTokenKind.EndOfInput)
+        if (Current.Kind != KsTokenKind.Indent && Current.Kind != KsTokenKind.EndOfInput)
         {
             // Inline: parse the rest of the line as one statement.
             return [ParseStatement()];
@@ -380,18 +380,18 @@ internal sealed class Parser
         return ParseBody(armIndent + 1, "switch arm");
     }
 
-    private BsForEach ParseForEach()
+    private KsForEach ParseForEach()
     {
         var feTok = Advance();  // 'forEach'
         var source = ParseExpression();
         if (!MatchKeyword("as"))
             Error("KS030", "Expected 'as' after forEach source");
-        if (Current.Kind != BsTokenKind.Identifier)
+        if (Current.Kind != KsTokenKind.Identifier)
             Error("KS031", "Expected item name after 'as'");
         var itemName = Advance().Text;
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"forEach on line {feTok.Line}");
-        return new BsForEach
+        return new KsForEach
         {
             Source = source,
             ItemName = itemName,
@@ -400,13 +400,13 @@ internal sealed class Parser
         };
     }
 
-    private BsWhile ParseWhile()
+    private KsWhile ParseWhile()
     {
         var whTok = Advance();  // 'while'
         var cond = ParsePipelineCondition();
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"while on line {whTok.Line}");
-        return new BsWhile
+        return new KsWhile
         {
             Condition = cond,
             Body = body,
@@ -414,32 +414,32 @@ internal sealed class Parser
         };
     }
 
-    private BsBreak ParseBreak()
+    private KsBreak ParseBreak()
     {
         var t = Advance();
-        Match(BsTokenKind.Semicolon);
-        return new BsBreak { SourceLine = t.Line, SourceText = "break" };
+        Match(KsTokenKind.Semicolon);
+        return new KsBreak { SourceLine = t.Line, SourceText = "break" };
     }
 
-    private BsContinue ParseContinue()
+    private KsContinue ParseContinue()
     {
         var t = Advance();
-        Match(BsTokenKind.Semicolon);
-        return new BsContinue { SourceLine = t.Line, SourceText = "continue" };
+        Match(KsTokenKind.Semicolon);
+        return new KsContinue { SourceLine = t.Line, SourceText = "continue" };
     }
 
-    private BsExit ParseExit()
+    private KsExit ParseExit()
     {
         var t = Advance();
         // Tolerate `exit()` — consume the parens if present.
-        if (Match(BsTokenKind.LParen)) Match(BsTokenKind.RParen);
-        Match(BsTokenKind.Semicolon);
-        return new BsExit { SourceLine = t.Line, SourceText = "exit" };
+        if (Match(KsTokenKind.LParen)) Match(KsTokenKind.RParen);
+        Match(KsTokenKind.Semicolon);
+        return new KsExit { SourceLine = t.Line, SourceText = "exit" };
     }
 
     // ── Pipelines and expressions ──
 
-    private BsStatement ParsePipelineOrAssignment()
+    private KsStatement ParsePipelineOrAssignment()
     {
         // A pipeline line: <src> (',' <src>)* ('>' <segment>)* ('=' <name>)? ';'?
         // A bare call:    <call>   (lowered to a one-source pipeline with one call segment)
@@ -450,13 +450,13 @@ internal sealed class Parser
         // §4.3 example (Range(0, loopMax, 1) > forEach as i). Both forms produce the
         // same ForEachStatement; the §3.3 #4 form `forEach list as item` is the
         // canonical one, and the pipeline form is sugar.
-        var sources = ImmutableArray.CreateBuilder<BsNode>();
+        var sources = ImmutableArray.CreateBuilder<KsNode>();
         sources.Add(ParseExpression());
-        while (Match(BsTokenKind.Comma))
+        while (Match(KsTokenKind.Comma))
             sources.Add(ParseExpression());
 
-        var segments = ImmutableArray.CreateBuilder<BsPipelineSegment>();
-        while (Match(BsTokenKind.Pipe))
+        var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
+        while (Match(KsTokenKind.Pipe))
         {
             // Intercept `forEach` as a pipeline segment: desugar to ForEachStatement.
             if (IsKeyword("forEach"))
@@ -464,19 +464,19 @@ internal sealed class Parser
                 Advance();  // consume 'forEach'
                 if (!MatchKeyword("as"))
                     Error("KS030", "Expected 'as' after forEach");
-                if (Current.Kind != BsTokenKind.Identifier)
+                if (Current.Kind != KsTokenKind.Identifier)
             Error("KS031", "Expected item name after 'as'");
                 else
                 {
                     var itemName = Advance().Text;
                     int keywordIndent = LastConsumedIndentLevel();
                     var body = ParseBody(keywordIndent + 1, "forEach");
-                    return new BsForEach
+                    return new KsForEach
                     {
                         Source = segments.Count == 0
                             ? (sources.Count == 1 ? sources[0]
-                               : new BsPipeline { Sources = sources.ToImmutable(), Segments = [], SourceLine = sources[0].SourceLine })
-                            : new BsPipeline { Sources = sources.ToImmutable(), Segments = segments.ToImmutable(), SourceLine = sources[0].SourceLine },
+                               : new KsPipeline { Sources = sources.ToImmutable(), Segments = [], SourceLine = sources[0].SourceLine })
+                            : new KsPipeline { Sources = sources.ToImmutable(), Segments = segments.ToImmutable(), SourceLine = sources[0].SourceLine },
                         ItemName = itemName,
                         Body = body,
                         SourceLine = sources[0].SourceLine,
@@ -487,14 +487,14 @@ internal sealed class Parser
         }
 
         // Terminal assignment `= name` becomes a variable-tap segment.
-        if (Match(BsTokenKind.Assign))
+        if (Match(KsTokenKind.Assign))
         {
-            if (Current.Kind != BsTokenKind.Identifier)
+            if (Current.Kind != KsTokenKind.Identifier)
                 Error("KS040", "Expected variable name after '='");
             else
             {
                 var nameTok = Advance();
-                segments.Add(new BsPipelineSegment
+                segments.Add(new KsPipelineSegment
                 {
                     Target = nameTok.Text,
                     IsVariableTap = true,
@@ -503,9 +503,9 @@ internal sealed class Parser
                 });
             }
         }
-        Match(BsTokenKind.Semicolon);
+        Match(KsTokenKind.Semicolon);
 
-        return new BsPipeline
+        return new KsPipeline
         {
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
@@ -513,40 +513,40 @@ internal sealed class Parser
         };
     }
 
-    private BsPipelineSegment ParseSegment()
+    private KsPipelineSegment ParseSegment()
     {
         // A segment is either:
         //   name '(' funcArgs ')'  — a call (args must be literals/placeholders per v6.0)
         //   name                    — a variable tap
-        if (Current.Kind != BsTokenKind.Identifier)
+        if (Current.Kind != KsTokenKind.Identifier)
         {
             Error("KS041", "Expected segment name after '>'");
-            return new BsPipelineSegment { Target = "?", SourceLine = Current.Line };
+            return new KsPipelineSegment { Target = "?", SourceLine = Current.Line };
         }
         var nameTok = Advance();
-        var args = ImmutableArray.CreateBuilder<BsNode>();
+        var args = ImmutableArray.CreateBuilder<KsNode>();
         var rawArgs = ImmutableArray.CreateBuilder<string>();
         bool isCall = false;
 
-        if (Match(BsTokenKind.LParen))
+        if (Match(KsTokenKind.LParen))
         {
             isCall = true;
-            if (Current.Kind != BsTokenKind.RParen)
+            if (Current.Kind != KsTokenKind.RParen)
             {
                 args.Add(ParseLiteralOrPlaceholder());
                 rawArgs.Add(args[^1].SourceText);
-                while (Match(BsTokenKind.Comma))
+                while (Match(KsTokenKind.Comma))
                 {
                     args.Add(ParseLiteralOrPlaceholder());
                     rawArgs.Add(args[^1].SourceText);
                 }
             }
-            if (!Match(BsTokenKind.RParen))
+            if (!Match(KsTokenKind.RParen))
                 Error("KS042", "Expected ')' to close call arguments");
         }
 
         var rawArgsArray = rawArgs.ToImmutable();
-        return new BsPipelineSegment
+        return new KsPipelineSegment
         {
             Target = nameTok.Text,
             Args = args.ToImmutable(),
@@ -571,28 +571,28 @@ internal sealed class Parser
     /// <see cref="ParseExpression"/> for pipeline sources and conditions where
     /// identifiers are valid.
     /// </summary>
-    private BsNode ParseLiteralOrPlaceholder()
+    private KsNode ParseLiteralOrPlaceholder()
     {
         switch (Current.Kind)
         {
-            case BsTokenKind.StringLiteral:
-                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.String, Value = t.Value, SourceText = $"\"{t.Value}\"", SourceLine = t.Line }; }
-            case BsTokenKind.IntegerLiteral:
-                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Integer, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
-            case BsTokenKind.DoubleLiteral:
-                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Double, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
-            case BsTokenKind.CharLiteral:
-                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Char, Value = t.Value, SourceText = $"'{t.Value}'", SourceLine = t.Line }; }
-            case BsTokenKind.BooleanLiteral:
-                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Boolean, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
-            case BsTokenKind.NullLiteral:
-                { var t = Advance(); return new BsLiteral { Kind = BsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = t.Line }; }
-            case BsTokenKind.Placeholder:
-                { var t = Advance(); return new BsPlaceholder { Index = 0, SourceText = "_", SourceLine = t.Line }; }
+            case KsTokenKind.StringLiteral:
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Value, SourceText = $"\"{t.Value}\"", SourceLine = t.Line }; }
+            case KsTokenKind.IntegerLiteral:
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Integer, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
+            case KsTokenKind.DoubleLiteral:
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Double, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
+            case KsTokenKind.CharLiteral:
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Char, Value = t.Value, SourceText = $"'{t.Value}'", SourceLine = t.Line }; }
+            case KsTokenKind.BooleanLiteral:
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Boolean, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
+            case KsTokenKind.NullLiteral:
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = t.Line }; }
+            case KsTokenKind.Placeholder:
+                { var t = Advance(); return new KsPlaceholder { Index = 0, SourceText = "_", SourceLine = t.Line }; }
             default:
                 Error("KS051", $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
                 Advance();
-                return new BsLiteral { Kind = BsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = Current.Line };
+                return new KsLiteral { Kind = KsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = Current.Line };
         }
     }
 
@@ -602,42 +602,42 @@ internal sealed class Parser
     /// pipeline sources, forEach sources, and switch selectors where identifiers
     /// are valid.
     /// </summary>
-    private BsNode ParseExpression()
+    private KsNode ParseExpression()
     {
         switch (Current.Kind)
         {
-            case BsTokenKind.StringLiteral:
-            case BsTokenKind.IntegerLiteral:
-            case BsTokenKind.DoubleLiteral:
-            case BsTokenKind.CharLiteral:
-            case BsTokenKind.BooleanLiteral:
-            case BsTokenKind.NullLiteral:
-            case BsTokenKind.Placeholder:
+            case KsTokenKind.StringLiteral:
+            case KsTokenKind.IntegerLiteral:
+            case KsTokenKind.DoubleLiteral:
+            case KsTokenKind.CharLiteral:
+            case KsTokenKind.BooleanLiteral:
+            case KsTokenKind.NullLiteral:
+            case KsTokenKind.Placeholder:
                 return ParseLiteralOrPlaceholder();
-            case BsTokenKind.Identifier:
+            case KsTokenKind.Identifier:
                 {
                     var t = Advance();
                     // `name(funcArg*)` — a call as a primary expression (e.g. Range(0, 10, 1)).
                     // Per v6.0 rule, call args may only be literals/placeholders.
-                    if (Current.Kind == BsTokenKind.LParen)
+                    if (Current.Kind == KsTokenKind.LParen)
                     {
                         Advance();  // consume '('
-                        var args = ImmutableArray.CreateBuilder<BsNode>();
+                        var args = ImmutableArray.CreateBuilder<KsNode>();
                         var rawArgs = ImmutableArray.CreateBuilder<string>();
-                        if (Current.Kind != BsTokenKind.RParen)
+                        if (Current.Kind != KsTokenKind.RParen)
                         {
                             args.Add(ParseLiteralOrPlaceholder());
                             rawArgs.Add(args[^1].SourceText);
-                            while (Match(BsTokenKind.Comma))
+                            while (Match(KsTokenKind.Comma))
                             {
                                 args.Add(ParseLiteralOrPlaceholder());
                                 rawArgs.Add(args[^1].SourceText);
                             }
                         }
-                        if (!Match(BsTokenKind.RParen))
+                        if (!Match(KsTokenKind.RParen))
                             Error("KS052", "Expected ')' to close call arguments");
                         var rawArgsArray = rawArgs.ToImmutable();
-                        return new BsCall
+                        return new KsCall
                         {
                             MethodName = t.Text,
                             FullMethodName = t.Text,
@@ -647,39 +647,39 @@ internal sealed class Parser
                             SourceLine = t.Line,
                         };
                     }
-                    return new BsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
+                    return new KsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
                 }
             default:
                 Error("KS050", $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
                 Advance();
-                return new BsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
+                return new KsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
         }
     }
 
     /// <summary>
     /// Parses an if/while condition. May be:
-    ///   (a) A simple expression: <c>if cond</c> — returns the BsNode directly.
+    ///   (a) A simple expression: <c>if cond</c> — returns the KsNode directly.
     ///   (b) A pipeline expression: <c>if src1, src2 &gt; Func(args)</c> — returns a
-    ///       <see cref="BsPipeline"/> whose final segment output is the condition value.
+    ///       <see cref="KsPipeline"/> whose final segment output is the condition value.
     /// Per v6.0 rule, conditions support pipeline expressions so variable values can
     /// flow into comparison functions without appearing inside function parens.
     /// </summary>
-    private BsNode ParsePipelineCondition()
+    private KsNode ParsePipelineCondition()
     {
         var firstSource = ParseExpression();
 
         // Simple condition: no comma, no pipe → return the expression directly.
-        if (Current.Kind != BsTokenKind.Comma && Current.Kind != BsTokenKind.Pipe)
+        if (Current.Kind != KsTokenKind.Comma && Current.Kind != KsTokenKind.Pipe)
             return firstSource;
 
         // Pipeline condition: build sources + segments.
-        var sources = ImmutableArray.CreateBuilder<BsNode>();
+        var sources = ImmutableArray.CreateBuilder<KsNode>();
         sources.Add(firstSource);
-        while (Match(BsTokenKind.Comma))
+        while (Match(KsTokenKind.Comma))
             sources.Add(ParseExpression());
 
-        var segments = ImmutableArray.CreateBuilder<BsPipelineSegment>();
-        while (Match(BsTokenKind.Pipe))
+        var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
+        while (Match(KsTokenKind.Pipe))
         {
             if (IsKeyword("forEach"))
             {
@@ -692,7 +692,7 @@ internal sealed class Parser
         if (segments.Count == 0)
             Error("KS060", "Multiple sources in condition require a '>' pipeline segment");
 
-        return new BsPipeline
+        return new KsPipeline
         {
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
@@ -712,7 +712,7 @@ internal sealed class Parser
         // Walk backwards through consumed tokens to find the most recent Indent.
         for (int i = _pos - 1; i >= 0; i--)
         {
-            if (_tokens[i].Kind == BsTokenKind.Indent)
+            if (_tokens[i].Kind == KsTokenKind.Indent)
                 return _tokens[i].IndentLevel;
         }
         return 0;
@@ -723,10 +723,10 @@ internal sealed class Parser
     /// when it encounters a line at a lower indent (the body has ended) or a higher
     /// indent that's not equal to bodyIndent (reports an error and skips).
     /// </summary>
-    private ImmutableArray<BsStatement> ParseBody(int bodyIndent, string context)
+    private ImmutableArray<KsStatement> ParseBody(int bodyIndent, string context)
     {
-        var body = ImmutableArray.CreateBuilder<BsStatement>();
-        while (Current.Kind == BsTokenKind.Indent && Current.IndentLevel == bodyIndent)
+        var body = ImmutableArray.CreateBuilder<KsStatement>();
+        while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == bodyIndent)
         {
             Advance();  // consume Indent(bodyIndent)
             // If the next token is `else` at bodyIndent, it belongs to the enclosing

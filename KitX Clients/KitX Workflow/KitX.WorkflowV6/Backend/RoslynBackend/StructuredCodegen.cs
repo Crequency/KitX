@@ -51,8 +51,8 @@ internal sealed class StructuredCodegen
     /// <summary>
     /// Maps a KS builtin function name to the C# method name on the G class (ExecutionGlobals).
     /// Most builtins keep their KS name verbatim. StringConcat gets a suffix to avoid a
-    /// name clash with static string.Concat. User helper functions (HelperFuncCompare,
-    /// HelperFuncAdd, ...) keep their exact KS names — they are not renamed.
+    /// name clash with static string.Concat. User helper functions (Compare,
+    /// Add, ...) keep their exact KS names — they are not renamed.
     /// </summary>
     private static readonly Dictionary<string, string> BuiltinToGMethod = new(StringComparer.Ordinal)
     {
@@ -248,7 +248,7 @@ internal sealed class StructuredCodegen
     {
         if (p.Segments.Length == 0)
         {
-            if (p.Sources.Length == 1 && p.Sources[0] is BsCall call)
+            if (p.Sources.Length == 1 && p.Sources[0] is KsCall call)
             {
                 EmitLine($"{RenderCallStatement(call)};");
                 return;
@@ -295,35 +295,35 @@ internal sealed class StructuredCodegen
             EmitLine($"{currentExpr};");
     }
 
-    private string RenderCallStatement(BsCall call)
+    private string RenderCallStatement(KsCall call)
     {
         var args = string.Join(", ", call.Args.Select(RenderBsNode));
         return $"this.{MapBuiltinToGMethod(call.MethodName)}({args})";
     }
 
-    /// <summary>Renders a BsNode as a C# expression string.</summary>
-    private string RenderBsNode(BsNode node) => node switch
+    /// <summary>Renders a KsNode as a C# expression string.</summary>
+    private string RenderBsNode(KsNode node) => node switch
     {
-        BsLiteral lit => RenderLiteral(lit),
-        BsIdentifier id => RenderIdentifier(id),
-        BsCall call => call.Args.Length == 0
+        KsLiteral lit => RenderLiteral(lit),
+        KsIdentifier id => RenderIdentifier(id),
+        KsCall call => call.Args.Length == 0
             ? $"this.{MapBuiltinToGMethod(call.MethodName)}()"
             : $"this.{MapBuiltinToGMethod(call.MethodName)}({string.Join(", ", call.Args.Select(RenderBsNode))})",
-        BsPipeline pipe => RenderPipelineAsExpression(pipe),
-        BsPipelineSegment seg => seg.IsVariableTap
+        KsPipeline pipe => RenderPipelineAsExpression(pipe),
+        KsPipelineSegment seg => seg.IsVariableTap
             ? seg.Target
             : $"this.{MapBuiltinToGMethod(seg.Target)}({string.Join(", ", seg.Args.Select(RenderBsNode))})",
-        BsPlaceholder => "_placeholder_",
+        KsPlaceholder => "_placeholder_",
         _ => $"/* {node.GetType().Name} */",
     };
 
     /// <summary>
-    /// Renders a <see cref="BsPipeline"/> as a C# expression (for if/while condition
+    /// Renders a <see cref="KsPipeline"/> as a C# expression (for if/while condition
     /// positions and forEach sources). Chains segments as nested C# calls, respecting
     /// `_` placeholder positions: placeholders are replaced by pipeline inputs in order;
     /// remaining inputs are appended after explicit args.
     /// </summary>
-    private string RenderPipelineAsExpression(BsPipeline pipe)
+    private string RenderPipelineAsExpression(KsPipeline pipe)
     {
         if (pipe.Segments.Length == 0)
         {
@@ -350,13 +350,13 @@ internal sealed class StructuredCodegen
     ///   <c>a, b &gt; Compare("BEQ")</c>  → Compare("BEQ", a, b)  (no placeholders, appended)
     ///   <c>x &gt; Range(0, _, 1)</c>     → Range(0, x, 1)        (placeholder replaced)
     /// </summary>
-    private string BuildArgList(ImmutableArray<BsNode> args, IEnumerable<string> inputs)
+    private string BuildArgList(ImmutableArray<KsNode> args, IEnumerable<string> inputs)
     {
         var queue = new Queue<string>(inputs);
         var result = new List<string>();
         foreach (var arg in args)
         {
-            if (arg is BsPlaceholder)
+            if (arg is KsPlaceholder)
                 result.Add(queue.Count > 0 ? queue.Dequeue() : "null");
             else
                 result.Add(RenderBsNode(arg));
@@ -367,11 +367,11 @@ internal sealed class StructuredCodegen
     }
 
     /// <summary>
-    /// Renders a BsIdentifier. If the name matches a constant declared in the IR,
+    /// Renders a KsIdentifier. If the name matches a constant declared in the IR,
     /// inlines its initial-value expression (e.g. loopMax → 3). Otherwise emits
     /// <c>this.&lt;name&gt;</c> (a PubVar field access).
     /// </summary>
-    private string RenderIdentifier(BsIdentifier id)
+    private string RenderIdentifier(KsIdentifier id)
     {
         if (_ir.Constants.TryGetValue(id.Name, out var c) && c.InitialValueExpression is not null)
             return c.InitialValueExpression;
@@ -383,23 +383,23 @@ internal sealed class StructuredCodegen
     /// `G.Range(from, to, step)` directly so the foreach binds a real int. Otherwise
     /// fall back to the general RenderBsNode.
     /// </summary>
-    private string RenderForEachSource(BsNode source)
+    private string RenderForEachSource(KsNode source)
     {
-        if (source is BsCall call && call.MethodName == "Range")
+        if (source is KsCall call && call.MethodName == "Range")
         {
             return $"this.Range({string.Join(", ", call.Args.Select(RenderBsNode))})";
         }
         return RenderBsNode(source);
     }
 
-    private string RenderLiteral(BsLiteral lit) => lit.Kind switch
+    private string RenderLiteral(KsLiteral lit) => lit.Kind switch
     {
-        BsLiteralKind.String => $"\"{lit.Value?.ToString()?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"",
-        BsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
-        BsLiteralKind.Double => (lit.Value?.ToString() ?? "0.0") + "d",
-        BsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
-        BsLiteralKind.Char => $"'{lit.Value}'",
-        BsLiteralKind.Null => "null",
+        KsLiteralKind.String => $"\"{lit.Value?.ToString()?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"",
+        KsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
+        KsLiteralKind.Double => (lit.Value?.ToString() ?? "0.0") + "d",
+        KsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
+        KsLiteralKind.Char => $"'{lit.Value}'",
+        KsLiteralKind.Null => "null",
         _ => "null",
     };
 

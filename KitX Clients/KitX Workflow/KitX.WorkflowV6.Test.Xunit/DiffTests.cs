@@ -15,7 +15,7 @@ using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -27,7 +27,7 @@ public class DiffTests
     private static Workflow Parse(params string[] lines)
     {
         var src = string.Join('\n', lines) + '\n';
-        var lens = new BsTextLens(_registry);
+        var lens = new KsTextLens(_registry);
         return lens.Parse(src, []);
     }
 
@@ -115,8 +115,8 @@ public class DiffTests
     {
         // Two Print statements; the first has a Layout annotation. Modify the second;
         // the first's Layout must survive the diff+apply round-trip.
-        var lit = new BsLiteral { Kind = BsLiteralKind.String, Value = "a", SourceText = "\"a\"" };
-        var lit2 = new BsLiteral { Kind = BsLiteralKind.String, Value = "b", SourceText = "\"b\"" };
+        var lit = new KsLiteral { Kind = KsLiteralKind.String, Value = "a", SourceText = "\"a\"" };
+        var lit2 = new KsLiteral { Kind = KsLiteralKind.String, Value = "b", SourceText = "\"b\"" };
         var layoutAnn = new Annotation
         {
             Kind = "Layout",
@@ -135,7 +135,7 @@ public class DiffTests
         var stmt2Old = new PipelineStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
-            Sources = [new BsLiteral { Kind = BsLiteralKind.String, Value = "b", SourceText = "\"b\"" }],
+            Sources = [new KsLiteral { Kind = KsLiteralKind.String, Value = "b", SourceText = "\"b\"" }],
             Segments = [new Segment { Target = "Print" }],
         };
         stmt2Old = stmt2Old with { Fingerprint = Fingerprint.Compute(stmt2Old) };
@@ -146,7 +146,7 @@ public class DiffTests
         var stmt2New = new PipelineStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
-            Sources = [new BsLiteral { Kind = BsLiteralKind.String, Value = "c", SourceText = "\"c\"" }],
+            Sources = [new KsLiteral { Kind = KsLiteralKind.String, Value = "c", SourceText = "\"c\"" }],
             Segments = [new Segment { Target = "Print" }],
         };
         stmt2New = stmt2New with { Fingerprint = Fingerprint.Compute(stmt2New) };

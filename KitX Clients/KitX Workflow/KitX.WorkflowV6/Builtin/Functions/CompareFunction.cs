@@ -4,10 +4,10 @@ using KitX.Core.Contract.Workflow;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HelperFuncCompareFunction — the comparison builtin (discussion notes §十二-B:
+// CompareFunction — the comparison builtin (discussion notes §十二-B:
 // comparison operators fully disabled; comparisons expressed as function calls).
 //
-// KScript: <c>HelperFuncCompare(op, a, b)</c> where op is one of:
+// KScript: <c>Compare(op, a, b)</c> where op is one of:
 //   "BEQ" (==), "BNE" (!=), "BLT" (&lt;), "BLE" (&lt;=), "BGT" (&gt;), "BGE" (&gt;=)
 // BP node: 3 data inputs (string op, Any a, Any b), 1 data output (Boolean).
 // Codegen: <c>G.Compare(op, a, b)</c> — the runtime dispatcher interprets the op
@@ -20,10 +20,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// The HelperFuncCompare builtin — compares two values with a named operator. Pure:
+/// The Compare builtin — compares two values with a named operator. Pure:
 /// returns a Boolean. Replaces the disabled comparison operators per §十二-B.
 /// </summary>
-public sealed class HelperFuncCompareFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class CompareFunction : IBuiltinFunction, ICodeGenHandler
 {
     /// <summary>The supported comparison operator codes (KScript forms).</summary>
     public static readonly IReadOnlySet<string> SupportedOps = new HashSet<string>
@@ -31,7 +31,7 @@ public sealed class HelperFuncCompareFunction : IBuiltinFunction, ICodeGenHandle
         "BEQ", "BNE", "BLT", "BLE", "BGT", "BGE",
     };
 
-    public string Name => "HelperFuncCompare";
+    public string Name => "Compare";
     public FunctionKind Kind => FunctionKind.Pure;
 
     public IReadOnlyList<PortSpec> InputPorts =>

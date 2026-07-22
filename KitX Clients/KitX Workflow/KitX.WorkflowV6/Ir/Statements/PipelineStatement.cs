@@ -16,7 +16,7 @@ using KitX.WorkflowV6.Ir.Ast;
 // etc.). Pipelines are pure data transforms and live *inside* control-flow bodies.
 //
 // v6 refinement over v5: <see cref="Sources"/> and <see cref="Segment.Arguments"/>
-// are now <see cref="BsNode"/> trees (not raw strings). This makes fingerprinting,
+// are now <see cref="KsNode"/> trees (not raw strings). This makes fingerprinting,
 // diffing, serialisation, and BP rendering all operate on structured content — so
 // re-parsing the same KS text produces the same fingerprint, and whitespace-only
 // drift never changes identity.
@@ -35,10 +35,10 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
 
     /// <summary>
     /// The structured source expressions (left side of the first <c>&gt;</c>). Each entry
-    /// is a <see cref="BsNode"/> — typically a <see cref="BsLiteral"/>, <see cref="BsIdentifier"/>,
-    /// or a nested <see cref="BsCall"/>. Replaces the v5 raw-string form.
+    /// is a <see cref="KsNode"/> — typically a <see cref="KsLiteral"/>, <see cref="KsIdentifier"/>,
+    /// or a nested <see cref="KsCall"/>. Replaces the v5 raw-string form.
     /// </summary>
-    public required ImmutableArray<BsNode> Sources { get; init; }
+    public required ImmutableArray<KsNode> Sources { get; init; }
 
     /// <summary>The ordered pipeline segments (each <c>&gt; Target</c>).</summary>
     public required ImmutableArray<Segment> Segments { get; init; }
@@ -71,11 +71,11 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
 
 /// <summary>
 /// A single segment of a pipeline (one <c>&gt; Target</c>). Either a function call
-/// (with optional arguments, which may include <see cref="BsPlaceholder"/>s for
+/// (with optional arguments, which may include <see cref="KsPlaceholder"/>s for
 /// pipeline-value insertion) or a variable tap (<c>&gt; x</c> with no arguments).
 /// </summary>
 /// <remarks>
-/// The v6 shape uses <see cref="BsNode"/> for <see cref="Arguments"/> (not raw strings)
+/// The v6 shape uses <see cref="KsNode"/> for <see cref="Arguments"/> (not raw strings)
 /// so the structured fingerprint, diff, and serialiser all operate on the AST. The
 /// <see cref="RawArguments"/> field is preserved for any lowering path that still
 /// operates on text, and will be retired as lowering migrates fully to the AST.
@@ -87,9 +87,9 @@ public sealed record Segment
 
     /// <summary>
     /// Structured argument expressions for a call segment. Empty for a variable tap.
-    /// May contain <see cref="BsPlaceholder"/> nodes marking pipeline-value insertion slots.
+    /// May contain <see cref="KsPlaceholder"/> nodes marking pipeline-value insertion slots.
     /// </summary>
-    public ImmutableArray<BsNode> Arguments { get; init; } = [];
+    public ImmutableArray<KsNode> Arguments { get; init; } = [];
 
     /// <summary>
     /// Raw argument source strings (post nested-call expansion), preserved for any

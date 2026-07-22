@@ -7,7 +7,7 @@
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -22,7 +22,7 @@ public class E2ETests
 
     private static Workflow ParseToIr(string src)
     {
-        var lens = new BsTextLens(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
+        var lens = new KsTextLens(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
         return lens.Parse(src, []);
     }
 
@@ -54,7 +54,7 @@ public class E2ETests
     public async Task E2E_If_Else_True_Branch()
     {
         var src = """
-            if 1, 1 > HelperFuncCompare("BEQ")
+            if 1, 1 > Compare("BEQ")
                 Print("yes")
             else
                 Print("no")
@@ -75,8 +75,8 @@ public class E2ETests
             }
 
             0 > counter
-            while counter, 3 > HelperFuncCompare("BLT")
-                counter, 1 > HelperFuncAdd > counter
+            while counter, 3 > Compare("BLT")
+                counter, 1 > Add > counter
                 Print("tick")
             """;
         var ir = ParseToIr(src);
@@ -91,7 +91,7 @@ public class E2ETests
     {
         var src = """
             forEach Range(0, 10, 1) as i
-                if i, 2 > HelperFuncCompare("BEQ")
+                if i, 2 > Compare("BEQ")
                     break
                 i > Print
             """;
@@ -108,7 +108,7 @@ public class E2ETests
     {
         var src = """
             forEach Range(0, 5, 1) as i
-                if i, 2 > HelperFuncCompare("BEQ")
+                if i, 2 > Compare("BEQ")
                     continue
                 i > Print
             """;
@@ -144,7 +144,7 @@ public class E2ETests
                 int counter
             }
 
-            HelperFuncAdd(2, 3) > counter
+            Add(2, 3) > counter
             counter > Print
             """;        var ir = ParseToIr(src);
         var backend = MakeBackend();
@@ -173,7 +173,7 @@ public class E2ETests
     {
         // Pipeline condition directly in if — no intermediate variable needed.
         var src = """
-            if 1, 1 > HelperFuncCompare("BEQ")
+            if 1, 1 > Compare("BEQ")
                 Print("equal")
             else
                 Print("not equal")
@@ -197,7 +197,7 @@ public class E2ETests
 
             3 > a
             5 > b
-            if a, b > HelperFuncCompare("BLT")
+            if a, b > Compare("BLT")
                 Print("a less than b")
             """;
         var ir = ParseToIr(src);
@@ -243,12 +243,12 @@ public class E2ETests
             0 > hit
             forEach Range(0, 5, 1) as i
                 i > guess
-                if guess, target > HelperFuncCompare("BEQ")
+                if guess, target > Compare("BEQ")
                     1 > hit
                     Print("found it!")
                     break
                 else
-                    if guess, target > HelperFuncCompare("BLT")
+                    if guess, target > Compare("BLT")
                         Print("too low")
                     else
                         Print("too high")
@@ -328,7 +328,7 @@ public class E2ETests
             },
         };
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new BsTextLens(registry);
+        var lens = new KsTextLens(registry);
         var ir = lens.Parse("5 > Double > Print\n", helpers);
         var backend = MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);

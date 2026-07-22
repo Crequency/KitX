@@ -16,10 +16,10 @@ using KitX.WorkflowV6.Ir.Statements;
 // define sub-bodies that become ThenBody/ElseBody/Body/Arms/Default on the
 // corresponding IR statement.
 //
-// Data edges reconstruct BsNode expressions for conditions and sources:
-//   • VariableNode → BsIdentifier
-//   • ConstNode → BsLiteral
-//   • BuiltinFunctionNode (data role) → BsCall, args from wired Value inputs
+// Data edges reconstruct KsNode expressions for conditions and sources:
+//   • VariableNode → KsIdentifier
+//   • ConstNode → KsLiteral
+//   • BuiltinFunctionNode (data role) → KsCall, args from wired Value inputs
 //     or pin DefaultValues
 //
 // Scope: closes the BP→IR→BP round-trip so that Project→Reverse yields an IR
@@ -300,7 +300,7 @@ internal sealed class BpReverseTranslator
 
         if (!hasWiredInputs)
         {
-            // Bare call form: Sources=[BsCall], Segments=[].
+            // Bare call form: Sources=[KsCall], Segments=[].
             var pipe = new PipelineStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
@@ -311,8 +311,8 @@ internal sealed class BpReverseTranslator
         }
 
         // Pipeline form: Sources=[wired sources], Segments=[Segment(Target)].
-        // Collect wired source BsNodes in pin order.
-        var sources = ImmutableArray.CreateBuilder<BsNode>();
+        // Collect wired source KsNodes in pin order.
+        var sources = ImmutableArray.CreateBuilder<KsNode>();
         foreach (var pin in fn.InputPins)
         {
             if (pin.Name == "Exec") continue;
@@ -345,11 +345,11 @@ internal sealed class BpReverseTranslator
     // ── Data input reconstruction ──
 
     /// <summary>
-    /// Reads the BsNode expression feeding a named data input pin on <paramref name="node"/>.
-    /// Returns a BsIdentifier("true") fallback when the pin is unwired (e.g. literal condition
+    /// Reads the KsNode expression feeding a named data input pin on <paramref name="node"/>.
+    /// Returns a KsIdentifier("true") fallback when the pin is unwired (e.g. literal condition
     /// collapsed to DefaultValue by BpRenderer).
     /// </summary>
-    private BsNode ReadDataInput(BlueprintNode node, string pinName)
+    private KsNode ReadDataInput(BlueprintNode node, string pinName)
     {
         var pin = node.InputPins.Find(p => p.Name == pinName);
         if (pin is null) return MakeBoolLiteral(true);
@@ -375,13 +375,13 @@ internal sealed class BpReverseTranslator
         return MakeBoolLiteral(true);
     }
 
-    /// <summary>Converts a data-source BP node into the corresponding BsNode expression.</summary>
-    private BsNode NodeToBsNode(BlueprintNode node)
+    /// <summary>Converts a data-source BP node into the corresponding KsNode expression.</summary>
+    private KsNode NodeToBsNode(BlueprintNode node)
     {
         switch (node)
         {
             case VariableNode vn:
-                return new BsIdentifier { Name = vn.VarName ?? vn.Name, SourceText = vn.VarName ?? vn.Name };
+                return new KsIdentifier { Name = vn.VarName ?? vn.Name, SourceText = vn.VarName ?? vn.Name };
             case ConstNode cn:
                 return ParseDefaultValue(cn.ConstValue ?? cn.ConstName ?? "null");
             case BuiltinFunctionNode fn:
@@ -392,20 +392,20 @@ internal sealed class BpReverseTranslator
     }
 
     /// <summary>
-    /// Builds a BsCall from a function node's named data input pins. Each pin is either
+    /// Builds a KsCall from a function node's named data input pins. Each pin is either
     /// wired (→ VariableNode/ConstNode/FunctionNode source) or carries a DefaultValue.
     /// Pins are read in order to reconstruct the original argument list.
     /// </summary>
-    private BsCall BuildBsCallFromFunctionNode(BuiltinFunctionNode fn)
+    private KsCall BuildBsCallFromFunctionNode(BuiltinFunctionNode fn)
     {
-        var args = ImmutableArray.CreateBuilder<BsNode>();
+        var args = ImmutableArray.CreateBuilder<KsNode>();
         // Read data input pins in order (exclude Exec), matching the InputPorts order
         // that BpRenderer used when creating the node.
         foreach (var pin in fn.InputPins)
         {
             if (pin.Name == "Exec") continue;
             // Check for a wired data source first.
-            BsNode? wired = null;
+            KsNode? wired = null;
             foreach (var conn in _bp.Connections)
             {
                 if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
@@ -414,7 +414,7 @@ internal sealed class BpReverseTranslator
             }
             args.Add(wired ?? ParseDefaultValue(pin.DefaultValue ?? "null"));
         }
-        return new BsCall
+        return new KsCall
         {
             MethodName = fn.FunctionName,
             FullMethodName = fn.FunctionName,
@@ -424,16 +424,16 @@ internal sealed class BpReverseTranslator
         };
     }
 
-    private static BsLiteral ParseDefaultValue(string value)
+    private static KsLiteral ParseDefaultValue(string value)
     {
         if (value is null) return MakeBoolLiteral(true);
         if (bool.TryParse(value, out var b)) return MakeBoolLiteral(b);
-        if (int.TryParse(value, out var i)) return new BsLiteral { Kind = BsLiteralKind.Integer, Value = i, SourceText = value };
-        if (double.TryParse(value, out var d)) return new BsLiteral { Kind = BsLiteralKind.Double, Value = d, SourceText = value };
+        if (int.TryParse(value, out var i)) return new KsLiteral { Kind = KsLiteralKind.Integer, Value = i, SourceText = value };
+        if (double.TryParse(value, out var d)) return new KsLiteral { Kind = KsLiteralKind.Double, Value = d, SourceText = value };
         // String literal: BpRenderer stores raw value (without quotes); wrap as string.
-        return new BsLiteral { Kind = BsLiteralKind.String, Value = value, SourceText = $"\"{value}\"" };
+        return new KsLiteral { Kind = KsLiteralKind.String, Value = value, SourceText = $"\"{value}\"" };
     }
 
-    private static BsLiteral MakeBoolLiteral(bool value)
-        => new() { Kind = BsLiteralKind.Boolean, Value = value, SourceText = value ? "true" : "false" };
+    private static KsLiteral MakeBoolLiteral(bool value)
+        => new() { Kind = KsLiteralKind.Boolean, Value = value, SourceText = value ? "true" : "false" };
 }

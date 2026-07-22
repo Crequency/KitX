@@ -12,7 +12,7 @@ using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Lens.BpGraphLens;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -22,16 +22,16 @@ public class BpGraphLensRoundTripTests
     private static BuiltinFunctionRegistry Registry()
         => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
 
-    private static BsTextLens BsLens() => new(Registry());
+    private static KsTextLens KsLens() => new(Registry());
 
-    private static Workflow ParseBS(string src) => BsLens().Parse(src, []);
+    private static Workflow ParseKS(string src) => KsLens().Parse(src, []);
 
     private static BpGraphLens Lens() => new(Registry());
 
     [Fact]
     public void IR_To_BP_To_IR_Is_Equivalent_Simple_Print()
     {
-        var ir = ParseBS("Print(\"hello\")\n");
+        var ir = ParseKS("Print(\"hello\")\n");
         var lens = Lens();
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
@@ -43,7 +43,7 @@ public class BpGraphLensRoundTripTests
     public void IR_To_BP_To_IR_Is_Equivalent_If_Else()
     {
         // Simple literal condition avoids multi-arg function pin limitation (P2-8).
-        var ir = ParseBS("""
+        var ir = ParseKS("""
             if true
                 Print("yes")
             else
@@ -61,7 +61,7 @@ public class BpGraphLensRoundTripTests
     {
         // forEach with Range(0, 3, 1) — now with named pins (From/To/Step) the
         // round-trip should be fully diff-empty.
-        var ir = ParseBS("forEach Range(0, 3, 1) as i\n    i > Print\n");
+        var ir = ParseKS("forEach Range(0, 3, 1) as i\n    i > Print\n");
         var lens = Lens();
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
@@ -74,7 +74,7 @@ public class BpGraphLensRoundTripTests
     {
         // Literal selector (no pre-assignment) to avoid pure-data-assignment
         // nodes that don't participate in the exec chain.
-        var ir = ParseBS("""
+        var ir = ParseKS("""
             switch 1
                 0:
                     Print("zero")
@@ -94,7 +94,7 @@ public class BpGraphLensRoundTripTests
     [Fact]
     public void Reverse_Produces_NonEmpty_IR_From_NonEmpty_Blueprint()
     {
-        var ir = ParseBS("Print(\"a\")\nPrint(\"b\")\n");
+        var ir = ParseKS("Print(\"a\")\nPrint(\"b\")\n");
         var lens = Lens();
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
@@ -106,7 +106,7 @@ public class BpGraphLensRoundTripTests
     public void BP_Edit_Delete_Produces_IR_Diff()
     {
         // BP-first edit (DeleteNode) should produce a WorkflowDiff with a Removed change.
-        var ir = ParseBS("Print(\"a\")\nPrint(\"b\")\n");
+        var ir = ParseKS("Print(\"a\")\nPrint(\"b\")\n");
         var lens = Lens();
         var bp = lens.Project(ir);
         // Delete the second Print node (find it by FunctionName).
@@ -122,7 +122,7 @@ public class BpGraphLensRoundTripTests
     public void BP_Edit_Add_Produces_IR_Diff()
     {
         // BP-first edit (AddNodeInBlock) should produce a WorkflowDiff with an Added change.
-        var ir = ParseBS("Print(\"a\")\n");
+        var ir = ParseKS("Print(\"a\")\n");
         var lens = Lens();
         var edits = new BpEditAction[] { new AddNodeInBlock("/top", "Print") };
         var diff = lens.Diff(ir, edits);

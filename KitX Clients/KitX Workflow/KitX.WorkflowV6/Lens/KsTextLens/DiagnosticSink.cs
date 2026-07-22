@@ -1,7 +1,7 @@
-namespace KitX.WorkflowV6.Lens.BsTextLens;
+namespace KitX.WorkflowV6.Lens.KsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsDiagnostic — parse / lower time diagnostic message.
+// KsDiagnostic — parse / lower time diagnostic message.
 //
 // Inherited shape from KitX.WorkflowIR.Ir.Lowering.LoweringDiagnostic, re-namespaced
 // to the v6 KS text lens so the parser, lowerer, and lens can all emit diagnostics
@@ -14,9 +14,9 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>One diagnostic message from KS parsing or lowering.</summary>
-public sealed record BsDiagnostic
+public sealed record KsDiagnostic
 {
-    public required BsDiagnosticSeverity Severity { get; init; }
+    public required KsDiagnosticSeverity Severity { get; init; }
 
     /// <summary>Short machine-readable code (e.g. "KS001" for Tab rejected).</summary>
     public required string Code { get; init; }
@@ -32,27 +32,27 @@ public sealed record BsDiagnostic
 }
 
 /// <summary>Diagnostic severity (mirrors v5 LoweringDiagnosticSeverity).</summary>
-public enum BsDiagnosticSeverity { Info, Warning, Error }
+public enum KsDiagnosticSeverity { Info, Warning, Error }
 
 /// <summary>
-/// Mutable accumulator for KS diagnostics, mirroring v5's DiagnosticSink. The
+/// Mutable accumulator for KS diagnostics, mirroring v5's KsDiagnosticSink. The
 /// tokenizer, parser, and lowerer all write into one of these; the lens surfaces
 /// the collected list to the caller as part of the parse result.
 /// </summary>
-internal sealed class DiagnosticSink
+internal sealed class KsDiagnosticSink
 {
-    private readonly List<BsDiagnostic> _items = new();
+    private readonly List<KsDiagnostic> _items = new();
 
-    public IReadOnlyList<BsDiagnostic> Items => _items;
-    public int ErrorCount => _items.Count(d => d.Severity == BsDiagnosticSeverity.Error);
+    public IReadOnlyList<KsDiagnostic> Items => _items;
+    public int ErrorCount => _items.Count(d => d.Severity == KsDiagnosticSeverity.Error);
     public bool HasErrors => ErrorCount > 0;
 
-    public void Add(BsDiagnostic diag) => _items.Add(diag);
+    public void Add(KsDiagnostic diag) => _items.Add(diag);
 
     public void AddError(string code, string message, int? line = null, int? column = null)
-        => _items.Add(new BsDiagnostic
+        => _items.Add(new KsDiagnostic
         {
-            Severity = BsDiagnosticSeverity.Error,
+            Severity = KsDiagnosticSeverity.Error,
             Code = code,
             Message = message,
             Line = line,
@@ -60,16 +60,16 @@ internal sealed class DiagnosticSink
         });
 
     public void AddWarning(string code, string message, int? line = null, int? column = null)
-        => _items.Add(new BsDiagnostic
+        => _items.Add(new KsDiagnostic
         {
-            Severity = BsDiagnosticSeverity.Warning,
+            Severity = KsDiagnosticSeverity.Warning,
             Code = code,
             Message = message,
             Line = line,
             Column = column,
         });
 
-    public void AddRange(DiagnosticSink? other)
+    public void AddRange(KsDiagnosticSink? other)
     {
         if (other is null) return;
         _items.AddRange(other._items);

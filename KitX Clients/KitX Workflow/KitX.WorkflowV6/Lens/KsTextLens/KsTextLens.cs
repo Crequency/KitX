@@ -1,4 +1,4 @@
-namespace KitX.WorkflowV6.Lens.BsTextLens;
+namespace KitX.WorkflowV6.Lens.KsTextLens;
 
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
@@ -7,9 +7,9 @@ using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsTextLens — KS text ↔ structured IR (v6).
+// KsTextLens — KS text ↔ structured IR (v6).
 //
-// Inherited contract from KitX.WorkflowIR.Lens.BsTextLens.BsTextLens: this is the
+// Inherited contract from KitX.WorkflowIR.Lens.KsTextLens.KsTextLens: this is the
 // bidirectional bridge between the structured IR and the KS source text. The two
 // hard responsibilities are:
 //
@@ -19,7 +19,7 @@ using KitX.WorkflowV6.Ir.Ast;
 //                                  applies via the pure WorkflowDiffer.
 //
 // The grammar this lens parses is the v6 *indented* grammar (discussion notes §4.1,
-// §十二-A: 4-space indent, no tabs). The pipeline is Tokenizer → Parser → BsLowerer.
+// §十二-A: 4-space indent, no tabs). The pipeline is Tokenizer → Parser → KsLowerer.
 //
 // Per discussion notes §十二-K, control-flow keywords (if/switch/forEach/while/
 // break/continue/exit) are NOT routed through the builtin registry — the parser
@@ -31,11 +31,11 @@ using KitX.WorkflowV6.Ir.Ast;
 /// KS text ↔ structured-IR lens for the v6 indented grammar. Combines the tokenizer,
 /// parser, lowerer, and renderer into the lens contract.
 /// </summary>
-public sealed class BsTextLens : ILens<string, string>
+public sealed class KsTextLens : ILens<string, string>
 {
     private readonly BuiltinFunctionRegistry _registry;
 
-    public BsTextLens(BuiltinFunctionRegistry registry)
+    public KsTextLens(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
     }
@@ -44,7 +44,7 @@ public sealed class BsTextLens : ILens<string, string>
     public string Project(Workflow ir)
     {
         ArgumentNullException.ThrowIfNull(ir);
-        return new BsRenderer().Render(ir);
+        return new KsRenderer().Render(ir);
     }
 
     /// <summary>
@@ -64,18 +64,18 @@ public sealed class BsTextLens : ILens<string, string>
     /// <summary>
     /// Parses KS source into a structured IR. Convenience entry that combines
     /// tokenize + parse + lower. Returns the IR even when there are diagnostics —
-    /// the caller can inspect <see cref="ParseResult.Diagnostics"/>.
+    /// the caller can inspect <see cref="KsParseResult.Diagnostics"/>.
     /// </summary>
     public Workflow Parse(string source, IReadOnlyList<HelperFunction> helpers)
     {
         var (ast, parseDiag) = ParseAstWithDiagnostics(source);
-        var lowerer = new BsLowerer(_registry);
+        var lowerer = new KsLowerer(_registry);
         var (ir, lowerResult) = lowerer.Lower(ast, helpers);
         return ir;
     }
 
     /// <summary>Parses KS source into the lossless KS AST (pre-lowering).</summary>
-    public BsNode ParseAst(string source)
+    public KsNode ParseAst(string source)
     {
         var (ast, _) = ParseAstWithDiagnostics(source);
         return ast;
@@ -84,11 +84,11 @@ public sealed class BsTextLens : ILens<string, string>
     /// <summary>
     /// Parses KS source and returns both the AST and the collected diagnostics.
     /// Internal — the public surface is <see cref="Parse"/> / <see cref="ParseAst"/>;
-    /// diagnostics are surfaced via <see cref="ParseResult"/> once Phase 5 wires the
+    /// diagnostics are surfaced via <see cref="KsParseResult"/> once Phase 5 wires the
     /// SyncService to use them. For now the API is exposed as a low-level hook for
     /// tests that need to assert on diagnostics.
     /// </summary>
-    internal (BsProgram Ast, DiagnosticSink Diagnostics) ParseAstWithDiagnostics(string source)
+    internal (KsProgram Ast, KsDiagnosticSink Diagnostics) ParseAstWithDiagnostics(string source)
     {
         var (tokens, tokDiag) = Tokenizer.Tokenize(source);
         var (ast, parseDiag) = Parser.Parse(tokens, tokDiag);
@@ -97,8 +97,8 @@ public sealed class BsTextLens : ILens<string, string>
 }
 
 /// <summary>Result of a KS parse (AST + diagnostics). Used internally + by tests.</summary>
-internal sealed record ParseResult
+internal sealed record KsParseResult
 {
-    public required BsProgram Ast { get; init; }
-    public required IReadOnlyList<BsDiagnostic> Diagnostics { get; init; }
+    public required KsProgram Ast { get; init; }
+    public required IReadOnlyList<KsDiagnostic> Diagnostics { get; init; }
 }

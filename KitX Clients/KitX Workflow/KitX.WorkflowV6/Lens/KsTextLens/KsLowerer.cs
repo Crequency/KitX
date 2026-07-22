@@ -1,4 +1,4 @@
-namespace KitX.WorkflowV6.Lens.BsTextLens;
+namespace KitX.WorkflowV6.Lens.KsTextLens;
 
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
@@ -8,12 +8,12 @@ using KitX.WorkflowV6.Ir.Lowering;
 using KitX.WorkflowV6.Ir.Statements;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsLowerer — BsProgram (KS AST) → immutable Workflow (IR).
+// KsLowerer — KsProgram (KS AST) → immutable Workflow (IR).
 //
-// Mostly a 1:1 structural transform: BsConstBlock/BsVarBlock → Workflow.Constants/
-// GlobalVars; BsIf → IfStatement; BsForEach → ForEachStatement; BsWhile →
-// WhileStatement; BsBreak/BsContinue/BsExit → their IR kinds; BsPipeline →
-// PipelineStatement (carrying the structured BsNode sources + segments).
+// Mostly a 1:1 structural transform: KsConstBlock/KsVarBlock → Workflow.Constants/
+// GlobalVars; KsIf → IfStatement; KsForEach → ForEachStatement; KsWhile →
+// WhileStatement; KsBreak/KsContinue/KsExit → their IR kinds; KsPipeline →
+// PipelineStatement (carrying the structured KsNode sources + segments).
 //
 // No pipeline flattening, no PubVar capacitor allocation, no nested-call expansion
 // — those v5 smells are gone because the IR keeps pipelines as structured AST.
@@ -28,16 +28,16 @@ using KitX.WorkflowV6.Ir.Statements;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Lowers a parsed <see cref="BsProgram"/> AST into an immutable <see cref="Workflow"/>.
+/// Lowers a parsed <see cref="KsProgram"/> AST into an immutable <see cref="Workflow"/>.
 /// Pure: the same AST always yields the same IR. Does NOT flatten pipelines or
 /// allocate PubVar capacitors — the IR keeps pipelines as structured AST.
 /// </summary>
-internal sealed class BsLowerer
+internal sealed class KsLowerer
 {
     private readonly BuiltinFunctionRegistry? _registry;
     private HashSet<string> _helperNames = new(StringComparer.Ordinal);
 
-    public BsLowerer(BuiltinFunctionRegistry? registry = null) => _registry = registry;
+    public KsLowerer(BuiltinFunctionRegistry? registry = null) => _registry = registry;
 
     /// <summary>
     /// Lowers <paramref name="program"/> into a <see cref="Workflow"/>. Helper
@@ -45,7 +45,7 @@ internal sealed class BsLowerer
     /// types are inferred from the var block declarations (discussion notes §十二-F).
     /// </summary>
     public (Workflow Ir, LoweringResult Result) Lower(
-        BsProgram program,
+        KsProgram program,
         IReadOnlyList<HelperFunction> helpers)
     {
         // Build a set of helper function names for segment-tap disambiguation:
@@ -116,7 +116,7 @@ internal sealed class BsLowerer
         return (ir, result);
     }
 
-    private ImmutableArray<Statement> LowerStatements(IReadOnlyList<BsStatement> statements)
+    private ImmutableArray<Statement> LowerStatements(IReadOnlyList<KsStatement> statements)
     {
         var builder = ImmutableArray.CreateBuilder<Statement>(statements.Count);
         foreach (var s in statements)
@@ -124,12 +124,12 @@ internal sealed class BsLowerer
         return builder.ToImmutable();
     }
 
-    private Statement LowerStatement(BsStatement stmt)
+    private Statement LowerStatement(KsStatement stmt)
     {
         Statement ir = stmt switch
         {
-            BsPipeline pipe => LowerPipeline(pipe),
-            BsIf iff => WithFingerprint(new IfStatement
+            KsPipeline pipe => LowerPipeline(pipe),
+            KsIf iff => WithFingerprint(new IfStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Condition = iff.Condition,
@@ -138,7 +138,7 @@ internal sealed class BsLowerer
                 SourceLine = iff.SourceLine,
                 Comment = null,
             }),
-            BsSwitch sw => WithFingerprint(new SwitchStatement
+            KsSwitch sw => WithFingerprint(new SwitchStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Selector = sw.Selector,
@@ -147,7 +147,7 @@ internal sealed class BsLowerer
                 SourceLine = sw.SourceLine,
                 Comment = null,
             }),
-            BsForEach fe => WithFingerprint(new ForEachStatement
+            KsForEach fe => WithFingerprint(new ForEachStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Source = fe.Source,
@@ -157,7 +157,7 @@ internal sealed class BsLowerer
                 SourceLine = fe.SourceLine,
                 Comment = null,
             }),
-            BsWhile ws => WithFingerprint(new WhileStatement
+            KsWhile ws => WithFingerprint(new WhileStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Condition = ws.Condition,
@@ -165,19 +165,19 @@ internal sealed class BsLowerer
                 SourceLine = ws.SourceLine,
                 Comment = null,
             }),
-            BsBreak => WithFingerprint(new BreakStatement
+            KsBreak => WithFingerprint(new BreakStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,
                 Comment = null,
             }),
-            BsContinue => WithFingerprint(new ContinueStatement
+            KsContinue => WithFingerprint(new ContinueStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,
                 Comment = null,
             }),
-            BsExit => WithFingerprint(new ExitStatement
+            KsExit => WithFingerprint(new ExitStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,
@@ -192,7 +192,7 @@ internal sealed class BsLowerer
     private static Statement WithFingerprint(Statement stmt) =>
         stmt with { Fingerprint = Fingerprint.Compute(stmt) };
 
-    private ImmutableArray<ImmutableArray<Statement>> LowerArms(ImmutableArray<ImmutableArray<BsStatement>> arms)
+    private ImmutableArray<ImmutableArray<Statement>> LowerArms(ImmutableArray<ImmutableArray<KsStatement>> arms)
     {
         var builder = ImmutableArray.CreateBuilder<ImmutableArray<Statement>>(arms.Length);
         foreach (var arm in arms)
@@ -200,7 +200,7 @@ internal sealed class BsLowerer
         return builder.ToImmutable();
     }
 
-    private Statement LowerPipeline(BsPipeline pipe)
+    private Statement LowerPipeline(KsPipeline pipe)
     {
         var sources = ImmutableArray.CreateRange(pipe.Sources);
         var segments = ImmutableArray.CreateRange(pipe.Segments.Select(LowerSegment));
@@ -215,7 +215,7 @@ internal sealed class BsLowerer
         return WithFingerprint(stmt);
     }
 
-    private Segment LowerSegment(BsPipelineSegment seg)
+    private Segment LowerSegment(KsPipelineSegment seg)
     {
         var args = ImmutableArray.CreateRange(seg.Args);
         var rawArgs = ImmutableArray.CreateRange(seg.RawArgs);
@@ -235,7 +235,7 @@ internal sealed class BsLowerer
     /// Walking the body tree, inspects pipeline statements for variable-tap assignments.
     /// When a pipeline like <c>... > Func > varName</c> assigns to a PubVar, and the
     /// function's return type is known from the registry, overrides the variable's
-    /// declared type (e.g. int → bool for HelperFuncCompare).
+    /// declared type (e.g. int → bool for Compare).
     /// </summary>
     private void InferVarTypesFromPipelines(ImmutableArray<Statement> body, Dictionary<string, string> pubVarTypes)
     {

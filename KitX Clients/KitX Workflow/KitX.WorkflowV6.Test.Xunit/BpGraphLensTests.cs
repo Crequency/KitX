@@ -6,7 +6,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Lens.BpGraphLens;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -19,7 +19,7 @@ public class BpGraphLensTests
     private static Blueprint ProjectBS(string src)
     {
         var registry = Registry();
-        var lens = new BsTextLens(registry);
+        var lens = new KsTextLens(registry);
         var ir = lens.Parse(src, []);
         var bpLens = new BpGraphLens(registry);
         return bpLens.Project(ir);
@@ -66,7 +66,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_If_Statement()
     {
-        var bp = ProjectBS("if HelperFuncCompare(\"BEQ\", 1, 1)\n    Print(\"yes\")\n");
+        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1)\n    Print(\"yes\")\n");
         // Branch + then-body scope (Entry→Print) + EntryNode for top-level.
         var branches = bp.Nodes.OfType<BuiltinFunctionNode>().Where(n => n.FunctionName == "Branch").ToList();
         Assert.Single(branches);
@@ -140,9 +140,9 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Compare_Has_Op_A_B_Pins()
     {
-        // HelperFuncCompare(Op, A, B) should create 3 named input pins.
-        var bp = ProjectBS("var {\n    int a\n    int b\n}\n\na, b > HelperFuncCompare(\"BEQ\") > Print\n");
-        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "HelperFuncCompare");
+        // Compare(Op, A, B) should create 3 named input pins.
+        var bp = ProjectBS("var {\n    int a\n    int b\n}\n\na, b > Compare(\"BEQ\") > Print\n");
+        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
         Assert.Contains(compare!.InputPins, p => p.Name == "Op");
         Assert.Contains(compare.InputPins, p => p.Name == "A");
@@ -169,7 +169,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_All_Nodes_Have_Unique_Ids()
     {
-        var bp = ProjectBS("if HelperFuncCompare(\"BEQ\", 1, 1)\n    Print(\"yes\")\nelse\n    Print(\"no\")\n");
+        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1)\n    Print(\"yes\")\nelse\n    Print(\"no\")\n");
         var ids = bp.Nodes.Select(n => n.Id).ToList();
         Assert.Equal(ids.Distinct().Count(), ids.Count);
     }
@@ -255,12 +255,12 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Multi_Source_Pipeline_Chains_Data_Flow()
     {
-        // `guessNum, targetNum > HelperFuncCompare("BEQ") > cond`
+        // `guessNum, targetNum > Compare("BEQ") > cond`
         // Should produce: VariableNode(guessNum,read) + VariableNode(targetNum,read)
-        // + BuiltinFunction(HelperFuncCompare) + VariableNode(cond,write)
+        // + BuiltinFunction(Compare) + VariableNode(cond,write)
         // with data connections chaining through.
-        var bp = ProjectBS("var {\n    int guessNum\n    int targetNum\n    int cond\n}\n\nguessNum, targetNum > HelperFuncCompare(\"BEQ\") > cond\n");
-        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "HelperFuncCompare");
+        var bp = ProjectBS("var {\n    int guessNum\n    int targetNum\n    int cond\n}\n\nguessNum, targetNum > Compare(\"BEQ\") > cond\n");
+        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
         // Find the USAGE variable node for cond (the one with incoming connections),
         // not the definition node (which is standalone).
@@ -306,8 +306,8 @@ public class BpGraphLensTests
             }
 
             0 > counter
-            while counter, 3 > HelperFuncCompare("BLT")
-                counter, 1 > HelperFuncAdd > counter
+            while counter, 3 > Compare("BLT")
+                counter, 1 > Add > counter
             """);
         var whileNode = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "While");
         Assert.Contains(whileNode.InputPins, p => p.Name == "Condition");
@@ -389,14 +389,14 @@ public class BpGraphLensTests
     [Fact]
     public void Pipeline_Condition_Renders_Data_Flow()
     {
-        // `if 1, 1 > HelperFuncCompare("BEQ")` → should produce data nodes for the
-        // condition pipeline (sources + HelperFuncCompare function) and connect
+        // `if 1, 1 > Compare("BEQ")` → should produce data nodes for the
+        // condition pipeline (sources + Compare function) and connect
         // the function output to Branch.Condition.
-        var bp = ProjectBS("if 1, 1 > HelperFuncCompare(\"BEQ\")\n    Print(\"yes\")\n");
+        var bp = ProjectBS("if 1, 1 > Compare(\"BEQ\")\n    Print(\"yes\")\n");
         var branch = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Branch");
-        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "HelperFuncCompare");
+        var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
-        // HelperFuncCompare output should connect to Branch.Condition.
+        // Compare output should connect to Branch.Condition.
         Assert.Contains(bp.Connections, c =>
             c.SourceNodeId == compare!.Id && c.TargetNodeId == branch.Id);
     }
@@ -426,8 +426,8 @@ public class BpGraphLensTests
         // Same KS projected 5 times → identical node IDs each time.
         var src = """
             forEach Range(0, 3, 1) as i
-                i, 2 > HelperFuncCompare("BEQ")
-                if i, 2 > HelperFuncCompare("BEQ")
+                i, 2 > Compare("BEQ")
+                if i, 2 > Compare("BEQ")
                     break
                 i > Print
             """;
@@ -446,12 +446,12 @@ public class BpGraphLensTests
     {
         // KS → parse → IR → render → KS → parse → IR: should be idempotent.
         var src = """
-            if 1, 1 > HelperFuncCompare("BEQ")
+            if 1, 1 > Compare("BEQ")
                 Print("yes")
             else
                 Print("no")
             """;
-        var lens = new BsTextLens(Registry());
+        var lens = new KsTextLens(Registry());
         var ir1 = lens.Parse(src, []);
         var rendered = lens.Project(ir1);
         var ir2 = lens.Parse(rendered, []);

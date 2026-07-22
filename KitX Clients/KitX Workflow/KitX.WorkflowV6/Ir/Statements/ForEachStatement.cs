@@ -36,12 +36,12 @@ public sealed record ForEachStatement : KitX.WorkflowV6.Ir.Statement
         KitX.WorkflowV6.Ir.StatementKind.ForEach;
 
     /// <summary>
-    /// The collection-producing expression. A <see cref="BsNode"/> — typically a
-    /// <see cref="BsCall"/> to <c>Range(...)</c> or a <see cref="BsIdentifier"/> referencing
+    /// The collection-producing expression. A <see cref="KsNode"/> — typically a
+    /// <see cref="KsCall"/> to <c>Range(...)</c> or a <see cref="KsIdentifier"/> referencing
     /// a Json array PubVar. Lowered to a typed <c>IEnumerable&lt;T&gt;</c> / array when
     /// <see cref="ItemType"/> is known (discussion notes §十二-F: strong typing).
     /// </summary>
-    public required BsNode Source { get; init; }
+    public required KsNode Source { get; init; }
 
     /// <summary>The name of the element binding inside the body.</summary>
     public required string ItemName { get; init; }

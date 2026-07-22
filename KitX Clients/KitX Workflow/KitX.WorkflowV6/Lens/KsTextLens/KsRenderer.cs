@@ -1,4 +1,4 @@
-namespace KitX.WorkflowV6.Lens.BsTextLens;
+namespace KitX.WorkflowV6.Lens.KsTextLens;
 
 using System.Text;
 using KitX.WorkflowV6.Ir;
@@ -6,7 +6,7 @@ using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BsRenderer — immutable Workflow → indented KS source text.
+// KsRenderer — immutable Workflow → indented KS source text.
 //
 // The v6 indented renderer walks the structured Statement tree and emits text with
 // 4-space indentation per level (discussion notes §十二-A). Control-flow
@@ -14,8 +14,8 @@ using KitX.WorkflowV6.Ir.Statements;
 // line, then their bodies on indented lines, then `else` (if any) on a dedented
 // line — mirroring the parser's grammar exactly so the round-trip is idempotent.
 //
-// Conditions and selectors are rendered from the structured BsNode AST (the
-// <see cref="BsNode.SourceText"/> field carries the verbatim source form, so
+// Conditions and selectors are rendered from the structured KsNode AST (the
+// <see cref="KsNode.SourceText"/> field carries the verbatim source form, so
 // rendering is just string concatenation — no re-formatting needed).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ using KitX.WorkflowV6.Ir.Statements;
 /// Renders an immutable <see cref="Workflow"/> to indented KS source text. Pure:
 /// the same IR always yields the same text, and the IR is not mutated.
 /// </summary>
-internal sealed class BsRenderer
+internal sealed class KsRenderer
 {
     private const int IndentWidth = 4;
 
@@ -174,30 +174,30 @@ internal sealed class BsRenderer
     }
 
     /// <summary>
-    /// Renders a BsNode expression. Uses <see cref="BsNode.SourceText"/> when available
+    /// Renders a KsNode expression. Uses <see cref="KsNode.SourceText"/> when available
     /// (lossless round-trip); otherwise falls back to structural rendering.
     /// </summary>
-    private static string RenderBsNode(BsNode node) => node switch
+    private static string RenderBsNode(KsNode node) => node switch
     {
-        BsLiteral lit => RenderLiteral(lit),
-        BsIdentifier id => id.Name,
-        BsCall call => $"{call.MethodName}({string.Join(", ", call.Args.Select(RenderBsNode))})",
-        BsPipeline pipe => pipe.RenderPipelineSource(),
-        BsPipelineSegment seg => seg.IsVariableTap
+        KsLiteral lit => RenderLiteral(lit),
+        KsIdentifier id => id.Name,
+        KsCall call => $"{call.MethodName}({string.Join(", ", call.Args.Select(RenderBsNode))})",
+        KsPipeline pipe => pipe.RenderPipelineSource(),
+        KsPipelineSegment seg => seg.IsVariableTap
             ? seg.Target
             : $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderBsNode))})",
-        BsPlaceholder => "_",
+        KsPlaceholder => "_",
         _ => node.SourceText.Length > 0 ? node.SourceText : node.GetType().Name,
     };
 
-    private static string RenderLiteral(BsLiteral lit) => lit.Kind switch
+    private static string RenderLiteral(KsLiteral lit) => lit.Kind switch
     {
-        BsLiteralKind.String => $"\"{lit.Value}\"",
-        BsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
-        BsLiteralKind.Double => lit.Value?.ToString() ?? "0.0",
-        BsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
-        BsLiteralKind.Char => $"'{lit.Value}'",
-        BsLiteralKind.Null => "null",
+        KsLiteralKind.String => $"\"{lit.Value}\"",
+        KsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
+        KsLiteralKind.Double => lit.Value?.ToString() ?? "0.0",
+        KsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
+        KsLiteralKind.Char => $"'{lit.Value}'",
+        KsLiteralKind.Null => "null",
         _ => lit.SourceText,
     };
 

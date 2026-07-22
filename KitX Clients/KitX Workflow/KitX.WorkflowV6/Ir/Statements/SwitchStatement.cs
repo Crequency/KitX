@@ -30,11 +30,11 @@ public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
         KitX.WorkflowV6.Ir.StatementKind.Switch;
 
     /// <summary>
-    /// The integer selector expression. A <see cref="BsNode"/> — typically a
-    /// <see cref="BsCall"/> or <see cref="BsIdentifier"/>. The selector is evaluated once
+    /// The integer selector expression. A <see cref="KsNode"/> — typically a
+    /// <see cref="KsCall"/> or <see cref="KsIdentifier"/>. The selector is evaluated once
     /// and used to index into <see cref="Arms"/>.
     /// </summary>
-    public required BsNode Selector { get; init; }
+    public required KsNode Selector { get; init; }
 
     /// <summary>Ordered arms. <c>Arms[i]</c> is the body executed when the selector equals <c>i</c>.</summary>
     public required ImmutableArray<ImmutableArray<Statement>> Arms { get; init; } = [];

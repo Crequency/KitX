@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // ─────────────────────────────────────────────────────────────────────────────
 // Role handler interfaces — optional capabilities a function implements on top of
 // IBuiltinFunction. Inherited from KitX.WorkflowIR's IFunctionHandlers; signatures
-// re-typed for the v6 IR (Statement, not IrStatement) and AST (BsNode/BsCall, not
-// BSCall). Each handler receives only what its role needs.
+// re-typed for the v6 IR (Statement, not IrStatement) and AST (KsNode/KsCall, not
+// KsCall). Each handler receives only what its role needs.
 //
 // The interface surface is fixed here so the registry / lens / backend can be
 /// wired against stable types from day one; concrete implementations ship in the
@@ -26,7 +26,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 public interface IParserHandler
 {
     /// <summary>Parses a control-flow invocation. Signature refined during implementation.</summary>
-    object ParseInvocation(BsCall call, int sourceLine);
+    object ParseInvocation(KsCall call, int sourceLine);
 }
 
 /// <summary>
@@ -38,7 +38,7 @@ public interface ILoweringHandler
 {
     /// <summary>Lowers a KS call into IR statement(s). Signature refined during implementation.</summary>
     IReadOnlyList<Statement> LowerToIr(
-        BsCall call,
+        KsCall call,
         IReadOnlyList<string> expandedArgs,
         string? assignedVar,
         LoweringContext ctx);

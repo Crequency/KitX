@@ -217,14 +217,14 @@ public class SmokeTests
 
     // ── Helpers ──
 
-    private static BsIdentifier MakeIdentifier(string name) =>
+    private static KsIdentifier MakeIdentifier(string name) =>
         new() { Name = name, SourceText = name };
 
     private static PipelineStatement MakePrintPipeline(string literalSource)
     {
-        var lit = new BsLiteral
+        var lit = new KsLiteral
         {
-            Kind = BsLiteralKind.String,
+            Kind = KsLiteralKind.String,
             Value = literalSource.Trim('"'),
             SourceText = literalSource,
         };

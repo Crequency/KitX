@@ -25,7 +25,7 @@ namespace KitX.WorkflowV6.Ir;
 //   • whitespace-robust — content is compared as the structured AST, not as text, so
 //                          formatting drift never changes identity
 //
-// <see cref="Compute(BsNode)"/> does the same for KS AST nodes (used while lowering,
+// <see cref="Compute(KsNode)"/> does the same for KS AST nodes (used while lowering,
 // so a statement's IR fingerprint can be derived from its pre-lowered AST form and
 // match the post-lowering IR fingerprint).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
     /// Computes the structural fingerprint of a <see cref="Statement"/> by a depth-first
     /// walk of its subtree. The fingerprint folds in:
     ///   • the statement's <see cref="StatementKind"/> (so a Pipeline and an If never collide)
-    ///   • its content fields (condition BsNode, sources, target names, item name, ...)
+    ///   • its content fields (condition KsNode, sources, target names, item name, ...)
     ///   • the fingerprints of its child statements (then/else bodies, loop body, arms, ...)
     /// so two statements with the same kind + content + children have the same fingerprint,
     /// and any structural difference makes them differ.
@@ -124,11 +124,11 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
     // ── KS AST-level fingerprinting ──
 
     /// <summary>
-    /// Computes the structural fingerprint of a <see cref="BsNode"/> — used during
+    /// Computes the structural fingerprint of a <see cref="KsNode"/> — used during
     /// lowering so a statement's IR fingerprint can be derived from its pre-lowered AST
     /// form and match the post-lowering IR fingerprint.
     /// </summary>
-    public static Fingerprint Compute(BsNode node)
+    public static Fingerprint Compute(KsNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
         var accum = new HashAccum();
@@ -138,24 +138,24 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         return new Fingerprint(accum.ToHex());
     }
 
-    private static void AccumulateBsNode(HashAccum accum, BsNode node)
+    private static void AccumulateBsNode(HashAccum accum, KsNode node)
     {
         switch (node)
         {
-            case BsLiteral lit:
+            case KsLiteral lit:
                 accum.AddString(lit.Kind.ToString());
                 accum.AddOptional(lit.Value?.ToString());
                 break;
-            case BsIdentifier id:
+            case KsIdentifier id:
                 accum.AddString(id.Name);
                 break;
-            case BsCall call:
+            case KsCall call:
                 accum.AddString(call.MethodName);
                 accum.AddString(call.FullMethodName);
                 accum.AddInt(call.Args.Length);
                 foreach (var a in call.Args) accum.AddBsNode(a);
                 break;
-            case BsPipeline pipe:
+            case KsPipeline pipe:
                 accum.AddInt(pipe.Sources.Length);
                 foreach (var s in pipe.Sources) accum.AddBsNode(s);
                 accum.AddInt(pipe.Segments.Length);
@@ -167,60 +167,60 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                     foreach (var a in seg.Args) accum.AddBsNode(a);
                 }
                 break;
-            case BsPipelineSegment seg:
+            case KsPipelineSegment seg:
                 accum.AddString(seg.Target);
                 accum.AddBool(seg.IsVariableTap);
                 accum.AddInt(seg.Args.Length);
                 foreach (var a in seg.Args) accum.AddBsNode(a);
                 break;
-            case BsPlaceholder ph:
+            case KsPlaceholder ph:
                 accum.AddInt(ph.Index);
                 break;
-            case BsConstDecl cd:
+            case KsConstDecl cd:
                 accum.AddString(cd.Name);
                 accum.AddString(cd.Type);
                 accum.AddOptional(cd.InitialValueExpression);
                 break;
-            case BsVarDecl vd:
+            case KsVarDecl vd:
                 accum.AddString(vd.Name);
                 accum.AddString(vd.Type);
                 accum.AddOptional(vd.InitialValueExpression);
                 break;
-            case BsConstBlock cb:
+            case KsConstBlock cb:
                 accum.AddInt(cb.Declarations.Length);
                 foreach (var d in cb.Declarations) accum.AddBsNode(d);
                 break;
-            case BsVarBlock vb:
+            case KsVarBlock vb:
                 accum.AddInt(vb.Declarations.Length);
                 foreach (var d in vb.Declarations) accum.AddBsNode(d);
                 break;
-            case BsIf iff:
+            case KsIf iff:
                 accum.AddBsNode(iff.Condition);
                 accum.AddChildAstFingerprints(iff.ThenBody);
                 accum.AddChildAstFingerprints(iff.ElseBody);
                 break;
-            case BsSwitch sw:
+            case KsSwitch sw:
                 accum.AddBsNode(sw.Selector);
                 accum.AddInt(sw.Arms.Length);
                 foreach (var arm in sw.Arms) accum.AddChildAstFingerprints(arm);
                 accum.AddChildAstFingerprints(sw.Default);
                 break;
-            case BsForEach fe:
+            case KsForEach fe:
                 accum.AddBsNode(fe.Source);
                 accum.AddString(fe.ItemName);
                 accum.AddChildAstFingerprints(fe.Body);
                 break;
-            case BsWhile ws:
+            case KsWhile ws:
                 accum.AddBsNode(ws.Condition);
                 accum.AddChildAstFingerprints(ws.Body);
                 break;
-            case BsBreak:
-            case BsContinue:
+            case KsBreak:
+            case KsContinue:
                 break;
-            case BsExit ex:
+            case KsExit ex:
                 if (ex.Reason is not null) accum.AddBsNode(ex.Reason);
                 break;
-            case BsProgram prog:
+            case KsProgram prog:
                 accum.AddBool(prog.ConstBlock is not null);
                 if (prog.ConstBlock is not null) accum.AddBsNode(prog.ConstBlock);
                 accum.AddBool(prog.VarBlock is not null);
@@ -238,7 +238,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
     /// <summary>
     /// Computes a fingerprint from a raw textual form. Kept as a convenience for tests
     /// and for the migration path; prefer <see cref="Compute(Statement)"/> /
-    /// <see cref="Compute(BsNode)"/> for real IR/AST fingerprinting.
+    /// <see cref="Compute(KsNode)"/> for real IR/AST fingerprinting.
     /// </summary>
     public static Fingerprint Compute(string textualForm)
         => new(textualForm ?? string.Empty);
@@ -262,7 +262,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
 
     /// <summary>
     /// Internal incremental hash accumulator. Wraps a SHA-256 builder and provides
-    /// typed Add helpers (string / int / bool / BsNode / child Statement fingerprints)
+    /// typed Add helpers (string / int / bool / KsNode / child Statement fingerprints)
     /// so the fingerprint algorithm above reads as a flat list of contributions.
     /// </summary>
     private sealed class HashAccum
@@ -304,7 +304,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             _hash.AppendData([(byte)(b ? (byte)'T' : (byte)'F')]);
         }
 
-        public void AddBsNode(BsNode node)
+        public void AddBsNode(KsNode node)
         {
             // Recurse: a nested AST node's full structural fingerprint folds into the parent.
             var sub = Compute(node);
@@ -323,7 +323,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             }
         }
 
-        public void AddChildAstFingerprints(IReadOnlyList<BsStatement> children)
+        public void AddChildAstFingerprints(IReadOnlyList<KsStatement> children)
         {
             AddInt(children.Count);
             foreach (var c in children)

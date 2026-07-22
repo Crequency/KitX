@@ -9,7 +9,7 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Lowering;
 using KitX.WorkflowV6.Lens.BpGraphLens;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -34,12 +34,12 @@ public class GuessNumberDemo
             Print("开始执行工作流")
 
             loopMax > Range(0, _, 1) > forEach as i
-                guessNum, targetNum > HelperFuncCompare("BEQ") > cond
+                guessNum, targetNum > Compare("BEQ") > cond
                 if cond
                     Print("猜对啦！")
                     break
                 else
-                    guessNum, targetNum > HelperFuncCompare("BLT") > cond2
+                    guessNum, targetNum > Compare("BLT") > cond2
                     if cond2
                         Print("猜小了")
                     else
@@ -50,7 +50,7 @@ public class GuessNumberDemo
             """;
 
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new BsTextLens(registry);
+        var lens = new KsTextLens(registry);
         var backend = new StructuredRoslynBackend(registry);
         var bpGraphLens = new BpGraphLens(registry);
         var jsonOpts = new JsonSerializerOptions { WriteIndented = true };
@@ -58,7 +58,7 @@ public class GuessNumberDemo
         // Parse → IR (check diagnostics first)
         var (ast, parseDiag) = lens.ParseAstWithDiagnostics(bsSource);
         var diagSummary = parseDiag.HasErrors
-            ? string.Join("\n", parseDiag.Items.Where(d => d.Severity == BsDiagnosticSeverity.Error)
+            ? string.Join("\n", parseDiag.Items.Where(d => d.Severity == KsDiagnosticSeverity.Error)
                 .Select(d => $"  [{d.Code}] Line {d.Line}: {d.Message}"))
             : "  (no errors)";
         var ir = lens.Parse(bsSource, []);

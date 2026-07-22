@@ -4,7 +4,7 @@
 
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Serialization;
 using Xunit;
 
@@ -15,7 +15,7 @@ public class SerializationTests
     private static Workflow Parse(params string[] lines)
     {
         var src = string.Join('\n', lines) + '\n';
-        return new BsTextLens(new BuiltinFunctionRegistry()).Parse(src, []);
+        return new KsTextLens(new BuiltinFunctionRegistry()).Parse(src, []);
     }
 
     [Fact]
@@ -39,8 +39,8 @@ public class SerializationTests
     [Fact]
     public void Serialize_Deserialize_Idempotent_Nested_If()
         => Assert.Equal(
-            Parse("if HelperFuncCompare(\"BEQ\", 1, 1)", "    Print(\"yes\")"),
-            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("if HelperFuncCompare(\"BEQ\", 1, 1)", "    Print(\"yes\")"))));
+            Parse("if Compare(\"BEQ\", 1, 1)", "    Print(\"yes\")"),
+            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("if Compare(\"BEQ\", 1, 1)", "    Print(\"yes\")"))));
 
     [Fact]
     public void Serialize_Deserialize_Idempotent_ForEach()
@@ -82,8 +82,8 @@ public class SerializationTests
     public void Serialize_Deserialize_While()
     {
         var ir = Parse("var {", "    int counter", "}", "0 > counter",
-            "while counter, 3 > HelperFuncCompare(\"BLT\")",
-            "    counter, 1 > HelperFuncAdd > counter",
+            "while counter, 3 > Compare(\"BLT\")",
+            "    counter, 1 > Add > counter",
             "    Print(\"tick\")");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
         Assert.Equal(ir, result);
@@ -94,7 +94,7 @@ public class SerializationTests
     public void Serialize_Deserialize_Break()
     {
         var ir = Parse("forEach Range(0, 10, 1) as i",
-            "    if i, 2 > HelperFuncCompare(\"BEQ\")",
+            "    if i, 2 > Compare(\"BEQ\")",
             "        break",
             "    i > Print");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
@@ -106,7 +106,7 @@ public class SerializationTests
     public void Serialize_Deserialize_Continue()
     {
         var ir = Parse("forEach Range(0, 5, 1) as i",
-            "    if i, 2 > HelperFuncCompare(\"BEQ\")",
+            "    if i, 2 > Compare(\"BEQ\")",
             "        continue",
             "    i > Print");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));

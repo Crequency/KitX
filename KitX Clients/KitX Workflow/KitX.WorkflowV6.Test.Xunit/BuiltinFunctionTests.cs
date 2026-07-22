@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 3 acceptance tests for the MVP builtin function subset.
 //
-// Covers the 5 MVP builtins (Print/Range/StringConcat/HelperFuncCompare/HelperFuncAdd):
+// Covers the 5 MVP builtins (Print/Range/StringConcat/Compare/Add):
 //   • Reflection discovery finds all 5 by name
 //   • Each builtin's FunctionKind / InputPorts / OutputPorts match the spec
 //   • StringConcat declares a variadic input spec
-//   • HelperFuncCompare lists all 6 operator codes
+//   • Compare lists all 6 operator codes
 //   • Codegen handlers are wired (concrete Roslyn emission lands in Phase 4)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -28,8 +28,8 @@ public class BuiltinFunctionTests
         Assert.Contains("Print", registry.AllNames);
         Assert.Contains("Range", registry.AllNames);
         Assert.Contains("StringConcat", registry.AllNames);
-        Assert.Contains("HelperFuncCompare", registry.AllNames);
-        Assert.Contains("HelperFuncAdd", registry.AllNames);
+        Assert.Contains("Compare", registry.AllNames);
+        Assert.Contains("Add", registry.AllNames);
     }
 
     [Fact]
@@ -71,10 +71,10 @@ public class BuiltinFunctionTests
     }
 
     [Fact]
-    public void HelperFuncCompare_Ops_Correct()
+    public void Compare_Ops_Correct()
     {
         var registry = Discover();
-        var compare = registry.Get("HelperFuncCompare");
+        var compare = registry.Get("Compare");
         Assert.NotNull(compare);
         Assert.Equal(FunctionKind.Pure, compare!.Kind);
         Assert.Equal(3, compare.InputPorts.Count);
@@ -85,20 +85,20 @@ public class BuiltinFunctionTests
         Assert.Equal(PinType.Boolean, compare.OutputPorts[0].Type);
 
         // The static SupportedOps set lists all 6 operator codes.
-        Assert.Equal(6, HelperFuncCompareFunction.SupportedOps.Count);
-        Assert.Contains("BEQ", HelperFuncCompareFunction.SupportedOps);
-        Assert.Contains("BNE", HelperFuncCompareFunction.SupportedOps);
-        Assert.Contains("BLT", HelperFuncCompareFunction.SupportedOps);
-        Assert.Contains("BLE", HelperFuncCompareFunction.SupportedOps);
-        Assert.Contains("BGT", HelperFuncCompareFunction.SupportedOps);
-        Assert.Contains("BGE", HelperFuncCompareFunction.SupportedOps);
+        Assert.Equal(6, CompareFunction.SupportedOps.Count);
+        Assert.Contains("BEQ", CompareFunction.SupportedOps);
+        Assert.Contains("BNE", CompareFunction.SupportedOps);
+        Assert.Contains("BLT", CompareFunction.SupportedOps);
+        Assert.Contains("BLE", CompareFunction.SupportedOps);
+        Assert.Contains("BGT", CompareFunction.SupportedOps);
+        Assert.Contains("BGE", CompareFunction.SupportedOps);
     }
 
     [Fact]
-    public void HelperFuncAdd_Function_Spec_Correct()
+    public void Add_Function_Spec_Correct()
     {
         var registry = Discover();
-        var add = registry.Get("HelperFuncAdd");
+        var add = registry.Get("Add");
         Assert.NotNull(add);
         Assert.Equal(FunctionKind.Pure, add!.Kind);
         Assert.Equal(2, add.InputPorts.Count);
@@ -116,7 +116,7 @@ public class BuiltinFunctionTests
         Assert.NotNull(registry.GetCodeGen("Print"));
         Assert.NotNull(registry.GetCodeGen("Range"));
         Assert.NotNull(registry.GetCodeGen("StringConcat"));
-        Assert.NotNull(registry.GetCodeGen("HelperFuncCompare"));
-        Assert.NotNull(registry.GetCodeGen("HelperFuncAdd"));
+        Assert.NotNull(registry.GetCodeGen("Compare"));
+        Assert.NotNull(registry.GetCodeGen("Add"));
     }
 }

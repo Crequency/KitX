@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 2 acceptance tests for BsTextLens (KS indented parser + lowerer + renderer).
+// Phase 2 acceptance tests for KsTextLens (KS indented parser + lowerer + renderer).
 //
 // Covers the KS text round-trip pipeline:
 //   • Parse empty program
@@ -17,14 +17,14 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class BsTextLensTests
+public class KsTextLensTests
 {
-    private readonly BsTextLens _lens = new(new BuiltinFunctionRegistry());
+    private readonly KsTextLens _lens = new(new BuiltinFunctionRegistry());
 
     // ── Parse empty program ──
 
@@ -317,16 +317,16 @@ public class BsTextLensTests
         Assert.Contains("\n        Print(\"deep\")", rendered);
     }
 
-    // ── ParseAst produces BsProgram ──
+    // ── ParseAst produces KsProgram ──
 
     [Fact]
     public void ParseAst_Returns_BsProgram()
     {
         var src = "Print(\"x\")\n";
         var ast = _lens.ParseAst(src);
-        var program = Assert.IsType<BsProgram>(ast);
+        var program = Assert.IsType<KsProgram>(ast);
         Assert.Single(program.Body);
-        Assert.IsType<BsPipeline>(program.Body[0]);
+        Assert.IsType<KsPipeline>(program.Body[0]);
     }
 
     // ── Error scenario coverage (KS0xx codes) ──
@@ -345,8 +345,8 @@ public class BsTextLensTests
     [Fact]
     public void Error_BS051_Identifier_In_Segment_Parens()
     {
-        // `1 > HelperFuncAdd(x, _)` — x is an identifier inside segment parens → BS051.
-        var src = "1 > HelperFuncAdd(x, _)\n";
+        // `1 > Add(x, _)` — x is an identifier inside segment parens → BS051.
+        var src = "1 > Add(x, _)\n";
         var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS051");

@@ -1,4 +1,4 @@
-namespace KitX.WorkflowV6.Lens.BsTextLens;
+namespace KitX.WorkflowV6.Lens.KsTextLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tokenizer — indent-aware KS lexer (discussion notes §十二-A: 4 spaces per level,
@@ -16,8 +16,8 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 //   • IntegerLiteral(n)
 //   • DoubleLiteral(d)
 //   • CharLiteral(c)
-//   • Boolean: true / false (lexed as Identifier; Parser maps to BsLiteral)
-//   • null            (lexed as Identifier; Parser maps to BsLiteral Null)
+//   • Boolean: true / false (lexed as Identifier; Parser maps to KsLiteral)
+//   • null            (lexed as Identifier; Parser maps to KsLiteral Null)
 //   • Pipe            — `>`
 //   • Comma           — `,`
 //   • Colon           — `:` (used only by switch arms)
@@ -28,7 +28,7 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 //                          per §十二-B, so `==`/`<=`/`>=`/`!=`/`+`/`-`/`*`/`/` are NOT lexed;
 //                          they would be illegal and surface as Identifier-or-Error)
 //
-// Errors emitted into the DiagnosticSink:
+// Errors emitted into the KsDiagnosticSink:
 //   • KS001 Tab character in indentation — at the offending line/column
 //   • KS002 Indent not a multiple of 4 — at the offending line/column
 //   • KS003 Unterminated string literal
@@ -37,9 +37,9 @@ namespace KitX.WorkflowV6.Lens.BsTextLens;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>A token produced by the v6 KS tokenizer.</summary>
-internal readonly record struct BsToken
+internal readonly record struct KsToken
 {
-    public BsTokenKind Kind { get; init; }
+    public KsTokenKind Kind { get; init; }
     public string Text { get; init; }
     public int Line { get; init; }
     public int Column { get; init; }
@@ -47,8 +47,8 @@ internal readonly record struct BsToken
     public object? Value { get; init; }       // decoded payload for literals
 }
 
-/// <summary>Discriminant for <see cref="BsToken"/>.</summary>
-internal enum BsTokenKind
+/// <summary>Discriminant for <see cref="KsToken"/>.</summary>
+internal enum KsTokenKind
 {
     Indent,
     Identifier,
@@ -78,13 +78,13 @@ internal enum BsTokenKind
 /// </summary>
 internal static class Tokenizer
 {
-    public static (List<BsToken> Tokens, DiagnosticSink Diagnostics) Tokenize(string source)
+    public static (List<KsToken> Tokens, KsDiagnosticSink Diagnostics) Tokenize(string source)
     {
-        var tokens = new List<BsToken>();
-        var sink = new DiagnosticSink();
+        var tokens = new List<KsToken>();
+        var sink = new KsDiagnosticSink();
         if (string.IsNullOrEmpty(source))
         {
-            tokens.Add(new BsToken { Kind = BsTokenKind.EndOfInput, Line = 1, Column = 1 });
+            tokens.Add(new KsToken { Kind = KsTokenKind.EndOfInput, Line = 1, Column = 1 });
             return (tokens, sink);
         }
 
@@ -129,9 +129,9 @@ internal static class Tokenizer
                 continue;
             }
 
-            tokens.Add(new BsToken
+            tokens.Add(new KsToken
             {
-                Kind = BsTokenKind.Indent,
+                Kind = KsTokenKind.Indent,
                 IndentLevel = indentSpaces / 4,
                 Line = lineNo,
                 Column = 1,
@@ -141,12 +141,12 @@ internal static class Tokenizer
             TokenizeLine(rest, lineNo, indentSpaces, tokens, sink);
         }
 
-        tokens.Add(new BsToken { Kind = BsTokenKind.EndOfInput, Line = lines.Length, Column = 1 });
+        tokens.Add(new KsToken { Kind = KsTokenKind.EndOfInput, Line = lines.Length, Column = 1 });
         return (tokens, sink);
     }
 
     private static void TokenizeLine(string line, int lineNo, int indentSpaces,
-        List<BsToken> tokens, DiagnosticSink sink)
+        List<KsToken> tokens, KsDiagnosticSink sink)
     {
         int i = 0;
         int columnBase = indentSpaces + 1;  // 1-based column offset for tokens on this line
@@ -176,7 +176,7 @@ internal static class Tokenizer
                 var (str, next) = ReadString(line, i, lineNo, col, sink);
                 if (str is not null)
                 {
-                    tokens.Add(new BsToken { Kind = BsTokenKind.StringLiteral, Text = str, Value = str, Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.StringLiteral, Text = str, Value = str, Line = lineNo, Column = col });
                 }
                 i = next;
                 continue;
@@ -188,7 +188,7 @@ internal static class Tokenizer
                 var (ch, next) = ReadChar(line, i, lineNo, col, sink);
                 if (ch is not null)
                 {
-                    tokens.Add(new BsToken { Kind = BsTokenKind.CharLiteral, Text = ch.Value.ToString(), Value = ch, Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.CharLiteral, Text = ch.Value.ToString(), Value = ch, Line = lineNo, Column = col });
                 }
                 i = next;
                 continue;
@@ -210,12 +210,12 @@ internal static class Tokenizer
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_')) i++;
                 var word = line[start..i];
                 var kind = ClassifyWord(word);
-                tokens.Add(new BsToken
+                tokens.Add(new KsToken
                 {
                     Kind = kind,
                     Text = word,
-                    Value = kind == BsTokenKind.BooleanLiteral ? bool.Parse(word)
-                         : kind == BsTokenKind.NullLiteral ? null
+                    Value = kind == KsTokenKind.BooleanLiteral ? bool.Parse(word)
+                         : kind == KsTokenKind.NullLiteral ? null
                          : (object?)word,
                     Line = lineNo,
                     Column = col,
@@ -227,39 +227,39 @@ internal static class Tokenizer
             switch (c)
             {
                 case '>':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.Pipe, Text = ">", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.Pipe, Text = ">", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case ',':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.Comma, Text = ",", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.Comma, Text = ",", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case ':':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.Colon, Text = ":", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.Colon, Text = ":", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case '{':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.LBrace, Text = "{", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.LBrace, Text = "{", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case '}':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.RBrace, Text = "}", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.RBrace, Text = "}", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case '(':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.LParen, Text = "(", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.LParen, Text = "(", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case ')':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.RParen, Text = ")", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.RParen, Text = ")", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case ';':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.Semicolon, Text = ";", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.Semicolon, Text = ";", Line = lineNo, Column = col });
                     i++;
                     continue;
                 case '=':
-                    tokens.Add(new BsToken { Kind = BsTokenKind.Assign, Text = "=", Line = lineNo, Column = col });
+                    tokens.Add(new KsToken { Kind = KsTokenKind.Assign, Text = "=", Line = lineNo, Column = col });
                     i++;
                     continue;
                 default:
@@ -270,15 +270,15 @@ internal static class Tokenizer
         }
     }
 
-    private static BsTokenKind ClassifyWord(string word) => word switch
+    private static KsTokenKind ClassifyWord(string word) => word switch
     {
-        "true" or "false" => BsTokenKind.BooleanLiteral,
-        "null" => BsTokenKind.NullLiteral,
-        "_" => BsTokenKind.Placeholder,
-        _ => BsTokenKind.Identifier,
+        "true" or "false" => KsTokenKind.BooleanLiteral,
+        "null" => KsTokenKind.NullLiteral,
+        "_" => KsTokenKind.Placeholder,
+        _ => KsTokenKind.Identifier,
     };
 
-    private static (string?, int) ReadString(string line, int i, int lineNo, int col, DiagnosticSink sink)
+    private static (string?, int) ReadString(string line, int i, int lineNo, int col, KsDiagnosticSink sink)
     {
         // i points at the opening quote.
         var sb = new System.Text.StringBuilder();
@@ -320,7 +320,7 @@ internal static class Tokenizer
         return (null, line.Length);
     }
 
-    private static (char?, int) ReadChar(string line, int i, int lineNo, int col, DiagnosticSink sink)
+    private static (char?, int) ReadChar(string line, int i, int lineNo, int col, KsDiagnosticSink sink)
     {
         // i points at the opening quote.
         int j = i + 1;
@@ -359,7 +359,7 @@ internal static class Tokenizer
         return (first, j + 2);
     }
 
-    private static (BsToken, int) ReadNumber(string line, int i, int lineNo, int col, DiagnosticSink sink)
+    private static (KsToken, int) ReadNumber(string line, int i, int lineNo, int col, KsDiagnosticSink sink)
     {
         int start = i;
         bool isDouble = false;
@@ -375,16 +375,16 @@ internal static class Tokenizer
             if (double.TryParse(text, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var d))
             {
-                return (new BsToken { Kind = BsTokenKind.DoubleLiteral, Text = text, Value = d, Line = lineNo, Column = col }, i);
+                return (new KsToken { Kind = KsTokenKind.DoubleLiteral, Text = text, Value = d, Line = lineNo, Column = col }, i);
             }
             sink.AddError("KS006", $"Malformed double literal: {text}", lineNo, col);
-            return (new BsToken { Kind = BsTokenKind.DoubleLiteral, Text = text, Value = 0.0, Line = lineNo, Column = col }, i);
+            return (new KsToken { Kind = KsTokenKind.DoubleLiteral, Text = text, Value = 0.0, Line = lineNo, Column = col }, i);
         }
         if (int.TryParse(text, out var n))
         {
-            return (new BsToken { Kind = BsTokenKind.IntegerLiteral, Text = text, Value = n, Line = lineNo, Column = col }, i);
+            return (new KsToken { Kind = KsTokenKind.IntegerLiteral, Text = text, Value = n, Line = lineNo, Column = col }, i);
         }
         sink.AddError("KS006", $"Malformed integer literal: {text}", lineNo, col);
-        return (new BsToken { Kind = BsTokenKind.IntegerLiteral, Text = text, Value = 0, Line = lineNo, Column = col }, i);
+        return (new KsToken { Kind = KsTokenKind.IntegerLiteral, Text = text, Value = 0, Line = lineNo, Column = col }, i);
     }
 }

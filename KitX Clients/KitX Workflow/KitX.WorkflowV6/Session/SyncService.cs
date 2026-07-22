@@ -4,7 +4,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 // WorkflowDiff, apply it via the pure applier, replace the session's IR, fire
 // IrChanged.
 //
-//   KS edit path:  new KS text → BsTextLens (re-parse + lower) → new IR →
+//   KS edit path:  new KS text → KsTextLens (re-parse + lower) → new IR →
 //                  WorkflowDiffer.Compute(old, new) → WorkflowDiff
 //   BP edit path:  BpEditAction[] → BpGraphLens → WorkflowDiff
 //
@@ -35,12 +35,12 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 public sealed class SyncService
 {
     private readonly BuiltinFunctionRegistry _registry;
-    private readonly BsTextLens _bsLens;
+    private readonly KsTextLens _bsLens;
 
     public SyncService(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _bsLens = new BsTextLens(registry);
+        _bsLens = new KsTextLens(registry);
     }
 
     /// <summary>

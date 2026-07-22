@@ -4,10 +4,10 @@ using KitX.Core.Contract.Workflow;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HelperFuncAddFunction — the integer addition builtin (discussion notes §十二-B:
+// AddFunction — the integer addition builtin (discussion notes §十二-B:
 // arithmetic operators disabled, replaced by builtins).
 //
-// KScript: <c>HelperFuncAdd(a, b)</c>.
+// KScript: <c>Add(a, b)</c>.
 // BP node: 2 data inputs (int, int), 1 data output (int).
 // Codegen: <c>(a + b)</c> once types are known (strong-typed per §十二-F), or
 // <c>G.Add(a, b)</c> when dynamic.
@@ -17,12 +17,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// The HelperFuncAdd builtin — adds two integers. Pure: returns an Integer. Replaces
+/// The Add builtin — adds two integers. Pure: returns an Integer. Replaces
 /// the disabled `+` operator per §十二-B.
 /// </summary>
-public sealed class HelperFuncAddFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class AddFunction : IBuiltinFunction, ICodeGenHandler
 {
-    public string Name => "HelperFuncAdd";
+    public string Name => "Add";
     public FunctionKind Kind => FunctionKind.Pure;
 
     public IReadOnlyList<PortSpec> InputPorts =>

@@ -70,7 +70,7 @@ internal sealed class DebugCodegen
 
     private void GenPipeline(StringBuilder sb, PipelineStatement p, string pad)
     {
-        if (p.Sources.Length == 1 && p.Sources[0] is BsCall call)
+        if (p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
             var args = string.Join(", ", call.Args.Select(RenderArg));
             sb.AppendLine($"{pad}this.{call.MethodName}({args});");
@@ -130,18 +130,18 @@ internal sealed class DebugCodegen
         sb.AppendLine($"{pad}}}");
     }
 
-    private string RenderExpr(BsNode node) => node switch
+    private string RenderExpr(KsNode node) => node switch
     {
-        BsCall c => $"this.{c.MethodName}({string.Join(", ", c.Args.Select(RenderArg))})",
-        BsLiteral l => l.Value is string s ? $"\"{s}\"" : (l.Value?.ToString() ?? "null"),
-        BsIdentifier id => $"this.{id.Name}",
+        KsCall c => $"this.{c.MethodName}({string.Join(", ", c.Args.Select(RenderArg))})",
+        KsLiteral l => l.Value is string s ? $"\"{s}\"" : (l.Value?.ToString() ?? "null"),
+        KsIdentifier id => $"this.{id.Name}",
         _ => "false",
     };
 
-    private string RenderArg(BsNode node) => node switch
+    private string RenderArg(KsNode node) => node switch
     {
-        BsLiteral l => l.Kind == BsLiteralKind.String ? $"\"{l.Value}\"" : (l.Value?.ToString() ?? "null"),
-        BsIdentifier id => $"this.{id.Name}",
+        KsLiteral l => l.Kind == KsLiteralKind.String ? $"\"{l.Value}\"" : (l.Value?.ToString() ?? "null"),
+        KsIdentifier id => $"this.{id.Name}",
         _ => "null",
     };
 }

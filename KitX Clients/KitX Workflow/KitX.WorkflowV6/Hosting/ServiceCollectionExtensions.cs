@@ -3,7 +3,7 @@ namespace KitX.WorkflowV6.Hosting;
 using KitX.WorkflowV6.Backend;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Lens;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 using KitX.WorkflowV6.Session;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,9 +39,9 @@ public static class ServiceCollectionExtensions
             BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
 
         // Lenses — bidirectional IR views. Placeholder bodies; signatures are stable.
-        services.AddSingleton<BsTextLens>();
+        services.AddSingleton<KsTextLens>();
         services.AddSingleton<BpGraphLens>();
-        services.AddSingleton<ILens<string, string>>(sp => sp.GetRequiredService<BsTextLens>());
+        services.AddSingleton<ILens<string, string>>(sp => sp.GetRequiredService<KsTextLens>());
         services.AddSingleton<ILens<Blueprint, IReadOnlyList<BpEditAction>>>(
             sp => sp.GetRequiredService<BpGraphLens>());
 

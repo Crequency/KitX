@@ -12,7 +12,7 @@ using KitX.WorkflowV6.Ir.Ast;
 // Unlike forEach, while carries a dynamic condition and no element binding. Break
 // and Continue escape the body; see <see cref="BreakStatement"/> and
 // <see cref="ContinueStatement"/>. Per §十二-B the condition is always a function call
-// or identifier (no comparison operators), so <see cref="Condition"/> is a BsNode.
+// or identifier (no comparison operators), so <see cref="Condition"/> is a KsNode.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -26,11 +26,11 @@ public sealed record WhileStatement : KitX.WorkflowV6.Ir.Statement
         KitX.WorkflowV6.Ir.StatementKind.While;
 
     /// <summary>
-    /// The loop-continuation condition. A <see cref="BsNode"/> — typically a
-    /// <see cref="BsCall"/> to <c>HelperFuncCompare</c> or a <see cref="BsIdentifier"/>
+    /// The loop-continuation condition. A <see cref="KsNode"/> — typically a
+    /// <see cref="KsCall"/> to <c>Compare</c> or a <see cref="KsIdentifier"/>
     /// referencing a bool PubVar (comparisons are function-call-only per §十二-B).
     /// </summary>
-    public required BsNode Condition { get; init; }
+    public required KsNode Condition { get; init; }
 
     /// <summary>The body executed while <see cref="Condition"/> holds.</summary>
     public required ImmutableArray<Statement> Body { get; init; } = [];

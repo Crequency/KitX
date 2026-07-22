@@ -10,7 +10,7 @@
 
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Session;
 using Xunit;
 
@@ -21,7 +21,7 @@ public class SessionTests
     private static (SyncService svc, WorkflowSession session) MakeSession(string initialBs)
     {
         var registry = new BuiltinFunctionRegistry();
-        var lens = new BsTextLens(registry);
+        var lens = new KsTextLens(registry);
         var ir = lens.Parse(initialBs, []);
         var session = new WorkflowSession(ir);
         var svc = new SyncService(registry);
@@ -73,7 +73,7 @@ public class SessionTests
         // Two Print statements; the first has a Layout annotation. Edit the second;
         // the first's Layout must survive the edit round-trip.
         var registry = new BuiltinFunctionRegistry();
-        var lens = new BsTextLens(registry);
+        var lens = new KsTextLens(registry);
         var ir = lens.Parse("Print(\"a\")\nPrint(\"b\")\n", []);
 
         // Attach a Layout annotation to the first statement.

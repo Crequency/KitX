@@ -18,7 +18,7 @@ using KitX.WorkflowV6.Ir.Statements;
 // Fingerprint is unwrapped to its Value string; Annotation payloads are flattened.
 //
 // Phase 7 uses System.Text.Json polymorphic serialization via [JsonPolymorphic] +
-// [JsonDerivedType] attributes on BsNode and Statement — the discriminant is the
+// [JsonDerivedType] attributes on KsNode and Statement — the discriminant is the
 // "$kind" property emitted by System.Text.Json's polymorphic mode. Each statement
 // carries its StatementKind as well, for wire-stable dispatch.
 //
@@ -36,7 +36,7 @@ public static class WorkflowSerializer
         WriteIndented = true,
         // No PropertyNamingPolicy: PascalCase is the C# default (properties keep their names).
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new FingerprintJsonConverter(), new AnnotationValueJsonConverter(), new BsLiteralValueConverter() },
+        Converters = { new FingerprintJsonConverter(), new AnnotationValueJsonConverter(), new KsLiteralValueConverter() },
     };
 
     /// <summary>Serialises a <see cref="Workflow"/> to an indented JSON string.</summary>
@@ -98,12 +98,12 @@ internal sealed class FingerprintJsonConverter : JsonConverter<Fingerprint>
 }
 
 /// <summary>
-/// Serialises the object-typed Value of a BsLiteral. System.Text.Json would otherwise
+/// Serialises the object-typed Value of a KsLiteral. System.Text.Json would otherwise
 /// round-trip it as a JsonElement (breaking equality with the original boxed value).
 /// This converter handles the common literal types: string, int, double, bool, char.
-/// Public so the [JsonConverter] attribute on BsLiteral.Value can reference it.
+/// Public so the [JsonConverter] attribute on KsLiteral.Value can reference it.
 /// </summary>
-public sealed class BsLiteralValueConverter : JsonConverter<object?>
+public sealed class KsLiteralValueConverter : JsonConverter<object?>
 {
     public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

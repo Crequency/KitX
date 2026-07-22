@@ -19,7 +19,7 @@ using KitX.WorkflowV6.Ir.Statements;
 //   • Literal → DefaultValue — literal args inside function parens set the input
 //     pin's DefaultValue instead of creating separate ConstNode + connection.
 //   • Condition data input — Branch and While nodes get a Condition input pin;
-//     the condition BsNode renders as a data source connected to this pin.
+//     the condition KsNode renders as a data source connected to this pin.
 //   • NodeID = FNV-1a hash of path → short, deterministic, nesting-independent.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -124,8 +124,8 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderPipelineStmt(PipelineStatement p, string path, List<ExecTail> prevTails)
     {
-        // Bare call: Print("hello") — one source that is a BsCall, no segments.
-        if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is BsCall call)
+        // Bare call: Print("hello") — one source that is a KsCall, no segments.
+        if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
             var func = AddBuiltin(call.MethodName, path);
             WireCallArgs(func, call.Args, $"{path}/args");
@@ -188,24 +188,24 @@ internal sealed class BpRenderer
     /// Literals → input pin DefaultValue; identifiers → usage VariableNode + Connect.
     /// Args are matched to pins by position: arg[i] → the i-th non-Exec data input pin.
     /// </summary>
-    private void WireCallArgs(BuiltinFunctionNode func, ImmutableArray<BsNode> args, string path)
+    private void WireCallArgs(BuiltinFunctionNode func, ImmutableArray<KsNode> args, string path)
     {
         // Collect data input pins (exclude Exec) in order.
         var dataPins = func.InputPins.Where(p => p.Name != "Exec").ToList();
         for (int i = 0; i < args.Length; i++)
         {
             // Skip placeholders — pipeline sources fill these positions separately.
-            if (args[i] is BsPlaceholder) continue;
+            if (args[i] is KsPlaceholder) continue;
 
             var pin = i < dataPins.Count ? dataPins[i] : null;
             if (pin is null) continue;
 
             switch (args[i])
             {
-                case BsLiteral lit:
+                case KsLiteral lit:
                     pin.DefaultValue = lit.Value?.ToString() ?? "null";
                     break;
-                case BsIdentifier id:
+                case KsIdentifier id:
                     var vn = Add(new VariableNode
                     {
                         Name = id.Name, VarName = id.Name,
@@ -223,7 +223,7 @@ internal sealed class BpRenderer
     /// connects to; sources without an explicit placeholder are appended to remaining
     /// pins in order (v6 rule: no-placeholder → sources fill remaining arg slots).
     /// </summary>
-    private void ConnectPipelineSources(BuiltinFunctionNode fn, ImmutableArray<BsNode> segArgs, List<BlueprintNode> sourceNodes)
+    private void ConnectPipelineSources(BuiltinFunctionNode fn, ImmutableArray<KsNode> segArgs, List<BlueprintNode> sourceNodes)
     {
         var dataPins = fn.InputPins.Where(p => p.Name != "Exec").ToList();
         if (dataPins.Count == 0 || sourceNodes.Count == 0) return;
@@ -237,7 +237,7 @@ internal sealed class BpRenderer
         for (int i = 0; i < segArgs.Length; i++)
         {
             if (i >= dataPins.Count) break;
-            if (segArgs[i] is BsPlaceholder)
+            if (segArgs[i] is KsPlaceholder)
                 placeholderPinIndices.Add(i);
             else
                 occupiedPinIndices.Add(i);
@@ -380,34 +380,34 @@ internal sealed class BpRenderer
     // ── Condition / source rendering ──
 
     /// <summary>
-    /// Renders a condition BsNode as a data-source node whose output is the condition value.
-    /// Handles BsIdentifier (variable read), BsCall (function call), and BsPipeline
+    /// Renders a condition KsNode as a data-source node whose output is the condition value.
+    /// Handles KsIdentifier (variable read), KsCall (function call), and KsPipeline
     /// (pipeline condition like `a, b > Compare("BEQ")`).
     /// </summary>
-    private BlueprintNode RenderCondition(BsNode cond, string path)
+    private BlueprintNode RenderCondition(KsNode cond, string path)
     {
         switch (cond)
         {
-            case BsIdentifier id:
+            case KsIdentifier id:
                 return Add(new VariableNode
                 {
                     Name = id.Name, VarName = id.Name,
                     VarKind = VariableKind.PubVar,
                 }, path);
-            case BsLiteral lit:
+            case KsLiteral lit:
                 return Add(new ConstNode
                 {
                     Name = lit.Value?.ToString() ?? "null",
                     ConstName = lit.Value?.ToString() ?? "null",
                     ConstValue = lit.Value?.ToString(),
                 }, path);
-            case BsCall call:
+            case KsCall call:
                 {
                     var fn = AddBuiltin(call.MethodName, path);
                     WireCallArgs(fn, call.Args, $"{path}/args");
                     return fn;
                 }
-            case BsPipeline pipe:
+            case KsPipeline pipe:
                 return RenderPipelineAsCondition(pipe, path);
             default:
                 throw new InvalidOperationException($"Unexpected condition node: {cond.GetType().Name}");
@@ -415,10 +415,10 @@ internal sealed class BpRenderer
     }
 
     /// <summary>
-    /// Renders a BsPipeline condition as a chain of data nodes and returns the last
+    /// Renders a KsPipeline condition as a chain of data nodes and returns the last
     /// function node whose output is the condition value.
     /// </summary>
-    private BlueprintNode RenderPipelineAsCondition(BsPipeline pipe, string path)
+    private BlueprintNode RenderPipelineAsCondition(KsPipeline pipe, string path)
     {
         BlueprintNode? lastFunc = null;
         var sourceNodes = new List<BlueprintNode>();
@@ -460,31 +460,31 @@ internal sealed class BpRenderer
             : Add(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback"));
     }
 
-    /// <summary>Renders a single BsNode as a data-source BP node.</summary>
-    private BlueprintNode RenderSourceAsNode(BsNode node, string path)
+    /// <summary>Renders a single KsNode as a data-source BP node.</summary>
+    private BlueprintNode RenderSourceAsNode(KsNode node, string path)
     {
         switch (node)
         {
-            case BsLiteral lit:
+            case KsLiteral lit:
                 return Add(new ConstNode
                 {
                     Name = lit.Value?.ToString() ?? "null",
                     ConstName = lit.Value?.ToString() ?? "null",
                     ConstValue = lit.Value?.ToString(),
                 }, path);
-            case BsIdentifier id:
+            case KsIdentifier id:
                 return Add(new VariableNode
                 {
                     Name = id.Name, VarName = id.Name,
                     VarKind = VariableKind.PubVar,
                 }, path);
-            case BsCall call:
+            case KsCall call:
                 {
                     var fn = AddBuiltin(call.MethodName, path);
                     WireCallArgs(fn, call.Args, $"{path}/args");
                     return fn;
                 }
-            case BsPipeline pipe:
+            case KsPipeline pipe:
                 // forEach source that is itself a pipeline (e.g. `loopMax > Range(0, _, 1) > forEach as i`).
                 return RenderPipelineAsCondition(pipe, path);
             default:

@@ -36,10 +36,10 @@ public sealed class PrintFunction : IBuiltinFunction, ICodeGenHandler
         // argument in a single call segment). Resolve the first source as the value.
         if (stmt is Ir.Statements.PipelineStatement p)
         {
-            // The bare form is `Print(value)` parsed as a BsCall source with no segments;
+            // The bare form is `Print(value)` parsed as a KsCall source with no segments;
             // the pipeline form is `value > Print` parsed with one source and one Print segment.
             // Either way, the value is the first source's structured content.
-            // The Phase 4 codegen will translate the BsNode source into a Roslyn expression;
+            // The Phase 4 codegen will translate the KsNode source into a Roslyn expression;
             // for now we emit G.Print(args[0]) when args are available.
             if (p.Segments.Length == 0)
             {

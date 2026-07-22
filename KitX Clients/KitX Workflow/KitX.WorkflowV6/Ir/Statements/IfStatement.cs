@@ -13,9 +13,9 @@ using KitX.WorkflowV6.Ir.Ast;
 // body, and both bodies rejoin at the implicit continuation point.
 //
 // Per discussion notes §十二-B, comparison operators (`>`/`<`/`==`/...) are fully
-// disabled — conditions are always a function call (e.g. `HelperFuncCompare("BEQ", a, b)`)
+// disabled — conditions are always a function call (e.g. `Compare("BEQ", a, b)`)
 // or an identifier referencing a bool PubVar. So <see cref="Condition"/> is a
-/// <see cref="BsNode"/> (typically a BsCall or BsIdentifier), never a binary expression.
+/// <see cref="KsNode"/> (typically a KsCall or KsIdentifier), never a binary expression.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -30,11 +30,11 @@ public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
         KitX.WorkflowV6.Ir.StatementKind.If;
 
     /// <summary>
-    /// The condition expression. A <see cref="BsNode"/> — typically a <see cref="BsCall"/>
-    /// to <c>HelperFuncCompare</c> (comparisons are function-call-only per §十二-B) or a
-    /// <see cref="BsIdentifier"/> referencing a bool PubVar.
+    /// The condition expression. A <see cref="KsNode"/> — typically a <see cref="KsCall"/>
+    /// to <c>Compare</c> (comparisons are function-call-only per §十二-B) or a
+    /// <see cref="KsIdentifier"/> referencing a bool PubVar.
     /// </summary>
-    public required BsNode Condition { get; init; }
+    public required KsNode Condition { get; init; }
 
     /// <summary>Body executed when <see cref="Condition"/> is true.</summary>
     public required ImmutableArray<Statement> ThenBody { get; init; } = [];

@@ -7,7 +7,7 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Lens.BpGraphLens;
-using KitX.WorkflowV6.Lens.BsTextLens;
+using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
@@ -19,15 +19,15 @@ public class BpGraphLensDiffTests
     private static BuiltinFunctionRegistry Registry()
         => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
 
-    private static BsTextLens BsLens() => new(Registry());
+    private static KsTextLens KsLens() => new(Registry());
 
-    private static Workflow ParseBS(string src) => BsLens().Parse(src, []);
+    private static Workflow ParseKS(string src) => KsLens().Parse(src, []);
 
     [Fact]
     public void Diff_Empty_Edits_Returns_Empty_Diff()
     {
         var lens = Lens();
-        var ir = ParseBS("Print(\"a\")\n");
+        var ir = ParseKS("Print(\"a\")\n");
         var diff = lens.Diff(ir, []);
         Assert.NotNull(diff);
         Assert.True(diff.IsEmpty);
@@ -37,7 +37,7 @@ public class BpGraphLensDiffTests
     public void Diff_Add_Node_Produces_Added_Change()
     {
         var lens = Lens();
-        var ir = ParseBS("Print(\"a\")\n");
+        var ir = ParseKS("Print(\"a\")\n");
         var edits = new BpEditAction[] { new AddNodeInBlock("/top", "Print") };
         var diff = lens.Diff(ir, edits);
         Assert.NotNull(diff);
@@ -48,7 +48,7 @@ public class BpGraphLensDiffTests
     public void Diff_Delete_Node_Produces_Removed_Change()
     {
         var lens = Lens();
-        var ir = ParseBS("Print(\"a\")\n");
+        var ir = ParseKS("Print(\"a\")\n");
         var edits = new BpEditAction[] { new DeleteNode("v6-/top/stmt/0") };
         var diff = lens.Diff(ir, edits);
         Assert.NotNull(diff);
@@ -58,7 +58,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_Simple_Pipeline_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseBS("Print(\"hello\")\n"));
+        var bp = new BpGraphLens(Registry()).Project(ParseKS("Print(\"hello\")\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
@@ -66,7 +66,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_If_Else_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseBS("if HelperFuncCompare(\"BEQ\", 1, 1)\n    Print(\"yes\")\n"));
+        var bp = new BpGraphLens(Registry()).Project(ParseKS("if Compare(\"BEQ\", 1, 1)\n    Print(\"yes\")\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
@@ -74,7 +74,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_ForEach_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseBS("forEach Range(0, 5, 1) as i\n    i > Print\n"));
+        var bp = new BpGraphLens(Registry()).Project(ParseKS("forEach Range(0, 5, 1) as i\n    i > Print\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
