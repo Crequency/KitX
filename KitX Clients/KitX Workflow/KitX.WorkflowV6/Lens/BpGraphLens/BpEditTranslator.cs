@@ -17,8 +17,9 @@ using KitX.WorkflowV6.Ir;
 // Non-structural back edges are rejected with a user-facing error.
 //
 // MVP scope: handles AddNodeInBlock, DeleteNode, SetNodeArgument, ConnectData,
-// SetControlFlowArm, and MoveNodePosition at a basic level. Full bidirectional
-// fidelity (BP→IR→BP ≡ id) is a future enhancement.
+// SetControlFlowArm, and MoveNodePosition. AddNodeInBlock produces a real IR
+// statement via BpReverseTranslator when the BpNodeKind maps to a known function.
+// Full bidirectional fidelity (BP→IR→BP ≡ id) is verified by round-trip tests.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

@@ -43,6 +43,18 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     }
 
     /// <summary>
+    /// Reconstructs a structured IR from a Blueprint graph (the reverse of
+    /// <see cref="Project"/>). Enables the BP → IR → BP round-trip: Project then
+    /// Reverse yields an IR structurally equal to the original.
+    /// </summary>
+    public Workflow Reverse(Blueprint bp)
+    {
+        ArgumentNullException.ThrowIfNull(bp);
+        var translator = new BpReverseTranslator(_registry);
+        return translator.Reverse(bp);
+    }
+
+    /// <summary>
     /// Folds a stream of BP edits back into the IR as a WorkflowDiff. Edit-time
     /// structured-reduction rejection (§7.2) happens inside this entry.
     /// </summary>

@@ -250,6 +250,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderForEach(ForEachStatement fe, string path, List<ExecTail> prevTails)
     {
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
+        each.Properties["ItemName"] = fe.ItemName;
         each.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         each.InputPins.Add(MakePin("List", PinDirection.Input, PinType.Any));
         each.OutputPins.Add(MakePin("Body", PinDirection.Output, PinType.Execution));
