@@ -36,6 +36,27 @@ public sealed record BreakStatement : KitX.WorkflowV6.Ir.Statement
     /// feature (§十二-D); must be null today — the v6 parser rejects any non-null value.
     /// </summary>
     public string? Label { get; init; }
+
+    public bool Equals(BreakStatement? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (Fingerprint.Equals(other.Fingerprint) == false) return false;
+        if (LeadingComment != other.LeadingComment) return false;
+        if (TrailingComment != other.TrailingComment) return false;
+        if (Label != other.Label) return false;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Fingerprint);
+        hash.Add(LeadingComment);
+        hash.Add(TrailingComment);
+        hash.Add(Label);
+        return hash.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -50,6 +71,27 @@ public sealed record ContinueStatement : KitX.WorkflowV6.Ir.Statement
 
     /// <summary>Optional label of the loop to continue. Reserved (§十二-D); must be null today.</summary>
     public string? Label { get; init; }
+
+    public bool Equals(ContinueStatement? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (Fingerprint.Equals(other.Fingerprint) == false) return false;
+        if (LeadingComment != other.LeadingComment) return false;
+        if (TrailingComment != other.TrailingComment) return false;
+        if (Label != other.Label) return false;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Fingerprint);
+        hash.Add(LeadingComment);
+        hash.Add(TrailingComment);
+        hash.Add(Label);
+        return hash.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -65,4 +107,25 @@ public sealed record ExitStatement : KitX.WorkflowV6.Ir.Statement
 
     /// <summary>Optional exit reason payload (refined during implementation).</summary>
     public string? Reason { get; init; }
+
+    public bool Equals(ExitStatement? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        if (Fingerprint.Equals(other.Fingerprint) == false) return false;
+        if (LeadingComment != other.LeadingComment) return false;
+        if (TrailingComment != other.TrailingComment) return false;
+        if (Reason != other.Reason) return false;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Fingerprint);
+        hash.Add(LeadingComment);
+        hash.Add(TrailingComment);
+        hash.Add(Reason);
+        return hash.ToHashCode();
+    }
 }

@@ -403,6 +403,29 @@ public class KsTextLensTests
         Assert.Equal(ir1, ir2);
     }
 
+    [Fact]
+    public void Standard_Format_RoundTrip_Stable_With_Comments()
+    {
+        // A multi-statement program with all comment kinds (leading/trailing/segment/
+        // multi-line leading merge) round-trips with IR equality — equality is now
+        // purely semantic (SourceLine/SourceText excluded), so line/format drift from
+        // rendering does not break the round-trip.
+        var src = """
+            // top leading
+            // second leading line
+            Print("start") // trailing
+
+            // loop doc
+            forEach Range(0, 3, 1) as i: // iter
+                // body leading
+                i > Print // body trailing
+            """;
+        var ir1 = _lens.Parse(src, []);
+        var rendered = _lens.Project(ir1);
+        var ir2 = _lens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+    }
+
     // ── Project renders correct indentation ──
 
     [Fact]

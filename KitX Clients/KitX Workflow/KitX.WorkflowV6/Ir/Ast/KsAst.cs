@@ -95,12 +95,42 @@ public sealed record KsLiteral : KsNode
     /// </summary>
     [property: System.Text.Json.Serialization.JsonConverter(typeof(Serialization.KsLiteralValueConverter))]
     public object? Value { get; init; }
+
+    public bool Equals(KsLiteral? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Kind == other.Kind
+            && Equals(Value, other.Value);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Kind);
+        h.Add(Value);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>An identifier reference (variable / PubVar / ConstBlock name).</summary>
 public sealed record KsIdentifier : KsNode
 {
     public required string Name { get; init; }
+
+    public bool Equals(KsIdentifier? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Name == other.Name;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Name);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -124,8 +154,6 @@ public sealed record KsCall : KsNode
         if (ReferenceEquals(this, other)) return true;
         return MethodName == other.MethodName
             && FullMethodName == other.FullMethodName
-            && SourceText == other.SourceText
-            && SourceLine == other.SourceLine
             && Args.SequenceEqual(other.Args)
             && RawArgs.SequenceEqual(other.RawArgs);
     }
@@ -135,8 +163,6 @@ public sealed record KsCall : KsNode
         var h = new HashCode();
         h.Add(MethodName);
         h.Add(FullMethodName);
-        h.Add(SourceText);
-        h.Add(SourceLine);
         foreach (var a in Args) h.Add(a);
         return h.ToHashCode();
     }
@@ -169,17 +195,13 @@ public sealed record KsPipeline : KsStatement
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Sources.SequenceEqual(other.Sources)
+        return Sources.SequenceEqual(other.Sources)
             && Segments.SequenceEqual(other.Segments);
     }
 
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText);
-        h.Add(SourceLine);
         foreach (var s in Sources) h.Add(s);
         foreach (var s in Segments) h.Add(s);
         return h.ToHashCode();
@@ -207,8 +229,6 @@ public sealed record KsPipelineSegment : KsNode
         if (ReferenceEquals(this, other)) return true;
         return Target == other.Target
             && IsVariableTap == other.IsVariableTap
-            && SourceText == other.SourceText
-            && SourceLine == other.SourceLine
             && Args.SequenceEqual(other.Args)
             && RawArgs.SequenceEqual(other.RawArgs);
     }
@@ -218,8 +238,6 @@ public sealed record KsPipelineSegment : KsNode
         var h = new HashCode();
         h.Add(Target);
         h.Add(IsVariableTap);
-        h.Add(SourceText);
-        h.Add(SourceLine);
         foreach (var a in Args) h.Add(a);
         return h.ToHashCode();
     }
@@ -233,6 +251,20 @@ public sealed record KsPipelineSegment : KsNode
 public sealed record KsPlaceholder : KsNode
 {
     public int Index { get; init; }
+
+    public bool Equals(KsPlaceholder? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Index == other.Index;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Index);
+        return h.ToHashCode();
+    }
 }
 
 // ── Declaration nodes (top-level only) ──
@@ -245,6 +277,24 @@ public sealed record KsConstDecl : KsNode
     public string Type { get; init; } = "object";
     /// <summary>Verbatim initialiser expression source text (e.g. <c>42</c>, <c>"hi"</c>).</summary>
     public string? InitialValueExpression { get; init; }
+
+    public bool Equals(KsConstDecl? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Name == other.Name
+            && Type == other.Type
+            && InitialValueExpression == other.InitialValueExpression;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Name);
+        h.Add(Type);
+        h.Add(InitialValueExpression);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>A single mutable variable declaration row inside a <see cref="KsVarBlock"/>.</summary>
@@ -253,6 +303,24 @@ public sealed record KsVarDecl : KsNode
     public required string Name { get; init; }
     public string Type { get; init; } = "object";
     public string? InitialValueExpression { get; init; }
+
+    public bool Equals(KsVarDecl? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Name == other.Name
+            && Type == other.Type
+            && InitialValueExpression == other.InitialValueExpression;
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Name);
+        h.Add(Type);
+        h.Add(InitialValueExpression);
+        return h.ToHashCode();
+    }
 }
 
 /// <summary>
@@ -268,16 +336,12 @@ public sealed record KsConstBlock : KsNode
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Declarations.SequenceEqual(other.Declarations);
+        return Declarations.SequenceEqual(other.Declarations);
     }
 
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText);
-        h.Add(SourceLine);
         foreach (var d in Declarations) h.Add(d);
         return h.ToHashCode();
     }
@@ -296,16 +360,12 @@ public sealed record KsVarBlock : KsNode
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Declarations.SequenceEqual(other.Declarations);
+        return Declarations.SequenceEqual(other.Declarations);
     }
 
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText);
-        h.Add(SourceLine);
         foreach (var d in Declarations) h.Add(d);
         return h.ToHashCode();
     }
@@ -340,9 +400,7 @@ public sealed record KsIf : KsStatement
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Condition == other.Condition
+        return Condition == other.Condition
             && ThenBody.SequenceEqual(other.ThenBody)
             && ElseBody.SequenceEqual(other.ElseBody);
     }
@@ -350,8 +408,6 @@ public sealed record KsIf : KsStatement
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText);
-        h.Add(SourceLine);
         h.Add(Condition);
         foreach (var s in ThenBody) h.Add(s);
         foreach (var s in ElseBody) h.Add(s);
@@ -375,7 +431,6 @@ public sealed record KsSwitch : KsStatement
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        if (SourceText != other.SourceText || SourceLine != other.SourceLine) return false;
         if (Selector != other.Selector) return false;
         if (Arms.Length != other.Arms.Length) return false;
         for (int i = 0; i < Arms.Length; i++)
@@ -386,7 +441,7 @@ public sealed record KsSwitch : KsStatement
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText); h.Add(SourceLine); h.Add(Selector);
+        h.Add(Selector);
         foreach (var a in Arms) foreach (var s in a) h.Add(s);
         foreach (var s in Default) h.Add(s);
         return h.ToHashCode();
@@ -410,9 +465,7 @@ public sealed record KsForEach : KsStatement
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Source == other.Source
+        return Source == other.Source
             && ItemName == other.ItemName
             && Body.SequenceEqual(other.Body);
     }
@@ -420,7 +473,7 @@ public sealed record KsForEach : KsStatement
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText); h.Add(SourceLine); h.Add(Source); h.Add(ItemName);
+        h.Add(Source); h.Add(ItemName);
         foreach (var s in Body) h.Add(s);
         return h.ToHashCode();
     }
@@ -436,16 +489,14 @@ public sealed record KsWhile : KsStatement
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Condition == other.Condition
+        return Condition == other.Condition
             && Body.SequenceEqual(other.Body);
     }
 
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText); h.Add(SourceLine); h.Add(Condition);
+        h.Add(Condition);
         foreach (var s in Body) h.Add(s);
         return h.ToHashCode();
     }
@@ -455,13 +506,39 @@ public sealed record KsWhile : KsStatement
 /// A <c>break</c> statement (discussion notes §3.3 #6, §十二-D: no label — escapes the
 /// nearest enclosing loop only).
 /// </summary>
-public sealed record KsBreak : KsStatement;
+public sealed record KsBreak : KsStatement
+{
+    public bool Equals(KsBreak? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        return typeof(KsBreak).GetHashCode();
+    }
+}
 
 /// <summary>
 /// A <c>continue</c> statement (§3.3 #7, §十二-D: no label — continues the nearest
 /// enclosing loop only).
 /// </summary>
-public sealed record KsContinue : KsStatement;
+public sealed record KsContinue : KsStatement
+{
+    public bool Equals(KsContinue? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        return typeof(KsContinue).GetHashCode();
+    }
+}
 
 /// <summary>
 /// An <c>exit()</c> statement (§3.3 #8). Terminates the workflow (maps to <c>return</c>
@@ -471,6 +548,20 @@ public sealed record KsContinue : KsStatement;
 public sealed record KsExit : KsStatement
 {
     public KsNode? Reason { get; init; }
+
+    public bool Equals(KsExit? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Equals(Reason, other.Reason);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Reason);
+        return h.ToHashCode();
+    }
 }
 
 // ── Program root ──
@@ -490,9 +581,7 @@ public sealed record KsProgram : KsNode
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return SourceText == other.SourceText
-            && SourceLine == other.SourceLine
-            && Equals(ConstBlock, other.ConstBlock)
+        return Equals(ConstBlock, other.ConstBlock)
             && Equals(VarBlock, other.VarBlock)
             && Body.SequenceEqual(other.Body);
     }
@@ -500,7 +589,6 @@ public sealed record KsProgram : KsNode
     public override int GetHashCode()
     {
         var h = new HashCode();
-        h.Add(SourceText); h.Add(SourceLine);
         h.Add(ConstBlock); h.Add(VarBlock);
         foreach (var s in Body) h.Add(s);
         return h.ToHashCode();
