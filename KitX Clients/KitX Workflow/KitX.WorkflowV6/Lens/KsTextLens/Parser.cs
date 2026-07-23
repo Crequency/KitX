@@ -320,8 +320,16 @@ internal sealed class Parser
     private KsIf ParseIf()
     {
         var ifTok = Advance();  // 'if'
-        var cond = ParsePipelineExpression();
-        var trailing = TryConsumeComment();  // inline comment on the `if` header line
+        var (cond, lastSegComment) = ParseHeaderPipelineExpression();
+        if (!Match(KsTokenKind.Colon))
+            Error("KS063", "Expected ':' after if-header expression");
+        var trailing = TryConsumeComment();  // post-colon inline comment
+        string? stmtTrailing = null;
+        var lastComment = lastSegComment ?? trailing;
+        if (lastComment is not null && cond is KsPipeline pipe)
+            pipe.Segments[^1].Comment = lastComment;
+        else
+            stmtTrailing = trailing;
         int keywordIndent = LastConsumedIndentLevel();
         var thenBody = ParseBody(keywordIndent + 1, $"if on line {ifTok.Line}");
         ImmutableArray<KsStatement> elseBody = [];
@@ -344,6 +352,9 @@ internal sealed class Parser
                 }
                 else
                 {
+                    if (!Match(KsTokenKind.Colon))
+                        Error("KS063", "Expected ':' after 'else'");
+                    TryConsumeComment();  // post-colon comment on `else:` line (not attached)
                     elseBody = ParseBody(keywordIndent + 1, $"else on line {elseTok.Line}");
                 }
             }
@@ -355,7 +366,7 @@ internal sealed class Parser
             ThenBody = thenBody,
             ElseBody = elseBody,
             SourceLine = ifTok.Line,
-            TrailingComment = trailing,
+            TrailingComment = stmtTrailing,
         };
     }
 
@@ -363,7 +374,9 @@ internal sealed class Parser
     {
         var swTok = Advance();  // 'switch'
         var selector = ParseExpression();
-        var trailing = TryConsumeComment();  // inline comment on the `switch` header line
+        if (!Match(KsTokenKind.Colon))
+            Error("KS063", "Expected ':' after switch selector");
+        TryConsumeComment();  // post-colon comment on the `switch` header line (not attached)
         int keywordIndent = LastConsumedIndentLevel();
         int armIndent = keywordIndent + 1;
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<KsStatement>>();
@@ -401,7 +414,6 @@ internal sealed class Parser
             Arms = arms.ToImmutable(),
             Default = defaultBody,
             SourceLine = swTok.Line,
-            TrailingComment = trailing,
         };
     }
 
@@ -425,13 +437,21 @@ internal sealed class Parser
         // Source accepts pipeline expressions (like if/while conditions), so
         // `forEach loopMax > Range(0, _, 1) as i` is valid — the entire pipeline
         // between `forEach` and `as` is the source expression.
-        var source = ParsePipelineExpression();
+        var (source, lastSegComment) = ParseHeaderPipelineExpression();
         if (!MatchKeyword("as"))
             Error("KS030", "Expected 'as' after forEach source");
         if (Current.Kind != KsTokenKind.Identifier)
             Error("KS031", "Expected item name after 'as'");
         var itemName = Advance().Text;
-        var trailing = TryConsumeComment();  // inline comment on the `forEach` header line
+        if (!Match(KsTokenKind.Colon))
+            Error("KS063", "Expected ':' after forEach header");
+        var trailing = TryConsumeComment();
+        string? stmtTrailing = null;
+        var lastComment = lastSegComment ?? trailing;
+        if (lastComment is not null && source is KsPipeline pipe)
+            pipe.Segments[^1].Comment = lastComment;
+        else
+            stmtTrailing = trailing;
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"forEach on line {feTok.Line}");
         return new KsForEach
@@ -440,15 +460,23 @@ internal sealed class Parser
             ItemName = itemName,
             Body = body,
             SourceLine = feTok.Line,
-            TrailingComment = trailing,
+            TrailingComment = stmtTrailing,
         };
     }
 
     private KsWhile ParseWhile()
     {
         var whTok = Advance();  // 'while'
-        var cond = ParsePipelineExpression();
-        var trailing = TryConsumeComment();  // inline comment on the `while` header line
+        var (cond, lastSegComment) = ParseHeaderPipelineExpression();
+        if (!Match(KsTokenKind.Colon))
+            Error("KS063", "Expected ':' after while-header expression");
+        var trailing = TryConsumeComment();
+        string? stmtTrailing = null;
+        var lastComment = lastSegComment ?? trailing;
+        if (lastComment is not null && cond is KsPipeline pipe)
+            pipe.Segments[^1].Comment = lastComment;
+        else
+            stmtTrailing = trailing;
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"while on line {whTok.Line}");
         return new KsWhile
@@ -456,7 +484,7 @@ internal sealed class Parser
             Condition = cond,
             Body = body,
             SourceLine = whTok.Line,
-            TrailingComment = trailing,
+            TrailingComment = stmtTrailing,
         };
     }
 
@@ -722,19 +750,21 @@ internal sealed class Parser
     }
 
     /// <summary>
-    /// Parses a pipeline expression: a simple expression, or a multi-source pipeline
-    /// (<c>src1, src2 &gt; Func(args) &gt; ...</c>). Used for if/while conditions and
-    /// forEach sources — any position where a value-producing expression is needed and
-    /// pipeline syntax (variable sources flowing into function calls) is valid.
-    /// Returns a single KsNode (simple expression) or a KsPipeline (multi-source/segment).
+    /// Parses a control-flow header pipeline expression: a simple expression, or a
+    /// multi-source pipeline (<c>src1, src2 &gt; Func(args) &gt; ...</c>), optionally
+    /// spanning multiple lines (each continuation segment on its own indented <c>&gt;</c>
+    /// line). Returns the expression (KsNode or KsPipeline) plus the last segment's
+    /// inline comment captured during continuation (usually null — the last segment's
+    /// comment is captured post-colon by the caller, since the ':' terminator sits on
+    /// the last segment's line before any inline comment).
     /// </summary>
-    private KsNode ParsePipelineExpression()
+    private (KsNode Expr, string? LastSegComment) ParseHeaderPipelineExpression()
     {
         var firstSource = ParseExpression();
 
         // Simple condition: no comma, no pipe → return the expression directly.
         if (Current.Kind != KsTokenKind.Comma && Current.Kind != KsTokenKind.Pipe)
-            return firstSource;
+            return (firstSource, null);
 
         // Pipeline condition: build sources + segments.
         var sources = ImmutableArray.CreateBuilder<KsNode>();
@@ -743,6 +773,7 @@ internal sealed class Parser
             sources.Add(ParseExpression());
 
         var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
+        string? lastSegComment = null;
         while (Match(KsTokenKind.Pipe))
         {
             if (IsKeyword("forEach"))
@@ -753,15 +784,35 @@ internal sealed class Parser
             segments.Add(ParseSegment());
         }
 
+        // Multi-line header continuation: lines at the body indent starting with '>'
+        // are additional segments. Each may carry an inline comment (intermediate
+        // segments). The last segment's comment is typically captured post-colon by
+        // the caller (the ':' sits on the last segment's line before the inline comment).
+        while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+        {
+            Advance();  // consume Indent
+            Advance();  // consume Pipe
+            if (IsKeyword("forEach"))
+            {
+                Error("KS061", "'forEach' is not valid in a pipeline expression. Use prefix form: 'forEach <source> as <item>'");
+                break;
+            }
+            var seg = ParseSegment();
+            var segComment = TryConsumeComment();
+            seg.Comment = segComment;
+            lastSegComment = segComment;
+            segments.Add(seg);
+        }
+
         if (segments.Count == 0)
             Error("KS060", "Multiple sources in condition require a '>' pipeline segment");
 
-        return new KsPipeline
+        return (new KsPipeline
         {
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
             SourceLine = sources[0].SourceLine,
-        };
+        }, lastSegComment);
     }
 
     // ── Body parsing ──

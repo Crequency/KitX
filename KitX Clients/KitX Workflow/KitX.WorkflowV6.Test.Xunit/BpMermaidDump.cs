@@ -29,16 +29,16 @@ public class BpMermaidDump
 
             Print("start")
 
-            forEach loopMax > Range(0, _, 1) as i
+            forEach loopMax > Range(0, _, 1) as i:
                 guessNum, targetNum > Compare("BEQ") > cond
-                if cond
+                if cond:
                     Print("correct!")
                     break
-                else
+                else:
                     guessNum, targetNum > Compare("BLT") > cond2
-                    if cond2
+                    if cond2:
                         Print("too small")
-                    else
+                    else:
                         Print("too big")
 
             Print("end")

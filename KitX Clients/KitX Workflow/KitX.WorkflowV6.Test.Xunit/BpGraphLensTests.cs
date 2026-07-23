@@ -66,7 +66,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_If_Statement()
     {
-        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1)\n    Print(\"yes\")\n");
+        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\n");
         // Branch + then-body scope (Entry→Print) + EntryNode for top-level.
         var branches = bp.Nodes.OfType<BuiltinFunctionNode>().Where(n => n.FunctionName == "Branch").ToList();
         Assert.Single(branches);
@@ -80,7 +80,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_ForEach_Statement()
     {
-        var bp = ProjectBS("forEach Range(0, 5, 1) as i\n    i > Print\n");
+        var bp = ProjectBS("forEach Range(0, 5, 1) as i:\n    i > Print\n");
         var each = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Each");
         Assert.NotNull(each);
         Assert.Contains(each!.OutputPins, p => p.Name == "Body");
@@ -99,7 +99,7 @@ public class BpGraphLensTests
             }
 
             0 > counter
-            while counter, 3 > Compare("BLT")
+            while counter, 3 > Compare("BLT"):
                 counter, 1 > Add > counter
                 Print("tick")
             Print("done")
@@ -123,7 +123,7 @@ public class BpGraphLensTests
     public void Project_Switch_Statement()
     {
         var bp = ProjectBS("""
-            switch sel
+            switch sel:
                 0:
                     Print("zero")
                 1:
@@ -147,7 +147,7 @@ public class BpGraphLensTests
     public void Project_Multi_Arg_Function_Has_Named_Pins()
     {
         // Range(From, To, Step) should create 3 named input pins, not a single "Value".
-        var bp = ProjectBS("forEach Range(0, 3, 1) as i\n    i > Print\n");
+        var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    i > Print\n");
         var range = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Range");
         Assert.NotNull(range);
         Assert.Contains(range!.InputPins, p => p.Name == "From");
@@ -199,7 +199,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_All_Nodes_Have_Unique_Ids()
     {
-        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1)\n    Print(\"yes\")\nelse\n    Print(\"no\")\n");
+        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\nelse:\n    Print(\"no\")\n");
         var ids = bp.Nodes.Select(n => n.Id).ToList();
         Assert.Equal(ids.Distinct().Count(), ids.Count);
     }
@@ -241,7 +241,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Break_Node_Has_Exec_Input()
     {
-        var bp = ProjectBS("forEach Range(0, 3, 1) as i\n    break\n");
+        var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    break\n");
         var breakNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "break");
         Assert.NotNull(breakNode);
         Assert.NotEmpty(breakNode!.InputPins);
@@ -261,7 +261,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Continue_Node_Has_Exec_Input()
     {
-        var bp = ProjectBS("forEach Range(0, 3, 1) as i\n    continue\n");
+        var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    continue\n");
         var ctNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "continue");
         Assert.NotNull(ctNode);
         Assert.NotEmpty(ctNode!.InputPins);
@@ -309,9 +309,9 @@ public class BpGraphLensTests
     {
         // Top-level + if-then + if-else + forEach-body → only 1 EntryNode total.
         var bp = ProjectBS("""
-            if cond
+            if cond:
                 Print("then")
-            else
+            else:
                 Print("else")
             """);
         var entries = bp.Nodes.OfType<EntryNode>().ToList();
@@ -321,7 +321,7 @@ public class BpGraphLensTests
     [Fact]
     public void Branch_Has_Condition_Input_Pin()
     {
-        var bp = ProjectBS("if cond\n    Print(\"yes\")\n");
+        var bp = ProjectBS("if cond:\n    Print(\"yes\")\n");
         var branch = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Branch");
         Assert.Contains(branch.InputPins, p => p.Name == "Condition");
         Assert.Equal(PinType.Boolean, branch.InputPins.First(p => p.Name == "Condition").Type);
@@ -336,7 +336,7 @@ public class BpGraphLensTests
             }
 
             0 > counter
-            while counter, 3 > Compare("BLT")
+            while counter, 3 > Compare("BLT"):
                 counter, 1 > Add > counter
             """);
         var whileNode = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "While");
@@ -373,9 +373,9 @@ public class BpGraphLensTests
     {
         // After if/else, both branches' tails should connect to the next statement.
         var bp = ProjectBS("""
-            if cond
+            if cond:
                 Print("then")
-            else
+            else:
                 Print("else")
             Print("after")
             """);
@@ -391,7 +391,7 @@ public class BpGraphLensTests
     public void ForEach_Body_Starts_From_Each_Body_Pin()
     {
         var bp = ProjectBS("""
-            forEach Range(0, 3, 1) as i
+            forEach Range(0, 3, 1) as i:
                 i > Print
             """);
         var each = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Each");
@@ -406,10 +406,10 @@ public class BpGraphLensTests
     {
         // Deep nesting should NOT produce long IDs (FNV hash → fixed 10 chars: "n_" + 8 hex).
         var bp = ProjectBS("""
-            if a
-                if b
-                    if c
-                        if d
+            if a:
+                if b:
+                    if c:
+                        if d:
                             Print("deep")
             """);
         foreach (var node in bp.Nodes)
@@ -422,7 +422,7 @@ public class BpGraphLensTests
         // `if 1, 1 > Compare("BEQ")` → should produce data nodes for the
         // condition pipeline (sources + Compare function) and connect
         // the function output to Branch.Condition.
-        var bp = ProjectBS("if 1, 1 > Compare(\"BEQ\")\n    Print(\"yes\")\n");
+        var bp = ProjectBS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"yes\")\n");
         var branch = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Branch");
         var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
@@ -441,7 +441,7 @@ public class BpGraphLensTests
         for (int i = 0; i < 10; i++)
         {
             sb.Append(new string(' ', i * 4));
-            sb.Append($"if v{i}\n");
+            sb.Append($"if v{i}:\n");
         }
         sb.Append(new string(' ', 10 * 4));
         sb.Append("Print(\"deep\")\n");
@@ -455,9 +455,9 @@ public class BpGraphLensTests
     {
         // Same KS projected 5 times → identical node IDs each time.
         var src = """
-            forEach Range(0, 3, 1) as i
+            forEach Range(0, 3, 1) as i:
                 i, 2 > Compare("BEQ")
-                if i, 2 > Compare("BEQ")
+                if i, 2 > Compare("BEQ"):
                     break
                 i > Print
             """;
@@ -476,9 +476,9 @@ public class BpGraphLensTests
     {
         // KS → parse → IR → render → KS → parse → IR: should be idempotent.
         var src = """
-            if 1, 1 > Compare("BEQ")
+            if 1, 1 > Compare("BEQ"):
                 Print("yes")
-            else
+            else:
                 Print("no")
             """;
         var lens = new KsTextLens(Registry());
@@ -591,9 +591,9 @@ public class BpGraphLensTests
     public void Layout_If_Else_Branches_At_Different_Y()
     {
         var bp = ProjectBS("""
-            if 1, 1 > Compare("BEQ")
+            if 1, 1 > Compare("BEQ"):
                 Print("yes")
-            else
+            else:
                 Print("no")
             """);
         var prints = bp.Nodes.OfType<BuiltinFunctionNode>()
@@ -624,7 +624,7 @@ public class BpGraphLensTests
     public void Layout_ForEach_Branches_Not_Overlapping()
     {
         var bp = ProjectBS("""
-            forEach Range(0, 3, 1) as i
+            forEach Range(0, 3, 1) as i:
                 i > Print
             """);
         var each = bp.Nodes.OfType<BuiltinFunctionNode>()

@@ -65,7 +65,7 @@ public class E2ETests
     public async Task E2E_ForEach_Range_Prints_0_1_2()
     {
         var src = """
-            forEach Range(0, 3, 1) as i
+            forEach Range(0, 3, 1) as i:
                 i > Print
             """;
         var ir = ParseToIr(src);
@@ -79,9 +79,9 @@ public class E2ETests
     public async Task E2E_If_Else_True_Branch()
     {
         var src = """
-            if 1, 1 > Compare("BEQ")
+            if 1, 1 > Compare("BEQ"):
                 Print("yes")
-            else
+            else:
                 Print("no")
             """;        var ir = ParseToIr(src);
         var backend = MakeBackend();
@@ -100,7 +100,7 @@ public class E2ETests
             }
 
             0 > counter
-            while counter, 3 > Compare("BLT")
+            while counter, 3 > Compare("BLT"):
                 counter, 1 > Add > counter
                 Print("tick")
             """;
@@ -115,8 +115,8 @@ public class E2ETests
     public async Task E2E_Break_Exits_ForEach()
     {
         var src = """
-            forEach Range(0, 10, 1) as i
-                if i, 2 > Compare("BEQ")
+            forEach Range(0, 10, 1) as i:
+                if i, 2 > Compare("BEQ"):
                     break
                 i > Print
             """;
@@ -132,8 +132,8 @@ public class E2ETests
     public async Task E2E_Continue_Skips_ForEach_Iteration()
     {
         var src = """
-            forEach Range(0, 5, 1) as i
-                if i, 2 > Compare("BEQ")
+            forEach Range(0, 5, 1) as i:
+                if i, 2 > Compare("BEQ"):
                     continue
                 i > Print
             """;
@@ -198,9 +198,9 @@ public class E2ETests
     {
         // Pipeline condition directly in if — no intermediate variable needed.
         var src = """
-            if 1, 1 > Compare("BEQ")
+            if 1, 1 > Compare("BEQ"):
                 Print("equal")
-            else
+            else:
                 Print("not equal")
             """;
         var ir = ParseToIr(src);
@@ -222,7 +222,7 @@ public class E2ETests
 
             3 > a
             5 > b
-            if a, b > Compare("BLT")
+            if a, b > Compare("BLT"):
                 Print("a less than b")
             """;
         var ir = ParseToIr(src);
@@ -266,16 +266,16 @@ public class E2ETests
             }
 
             0 > hit
-            forEach Range(0, 5, 1) as i
+            forEach Range(0, 5, 1) as i:
                 i > guess
-                if guess, target > Compare("BEQ")
+                if guess, target > Compare("BEQ"):
                     1 > hit
                     Print("found it!")
                     break
-                else
-                    if guess, target > Compare("BLT")
+                else:
+                    if guess, target > Compare("BLT"):
                         Print("too low")
-                    else
+                    else:
                         Print("too high")
             hit > Print
             """;
@@ -299,7 +299,7 @@ public class E2ETests
                 int loopMax = 3
             }
 
-            forEach loopMax > Range(0, _, 1) as i
+            forEach loopMax > Range(0, _, 1) as i:
                 i > Print
             """;
         var ir = ParseToIr(src);
@@ -319,7 +319,7 @@ public class E2ETests
             }
 
             1 > sel
-            switch sel
+            switch sel:
                 0:
                     Print("zero")
                 1:
@@ -408,7 +408,7 @@ public class E2ETests
             }
 
             true > flag
-            if flag
+            if flag:
                 Print("yes")
             """, []);
         // Verify the PubVar type was refined to bool by the Demand pass.

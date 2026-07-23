@@ -33,16 +33,16 @@ public class GuessNumberDemo
 
             Print("开始执行工作流")
 
-            forEach loopMax > Range(0, _, 1) as i
+            forEach loopMax > Range(0, _, 1) as i:
                 guessNum, targetNum > Compare("BEQ") > cond
-                if cond
+                if cond:
                     Print("猜对啦！")
                     break
-                else
+                else:
                     guessNum, targetNum > Compare("BLT") > cond2
-                    if cond2
+                    if cond2:
                         Print("猜小了")
-                    else
+                    else:
                         Print("猜大了")
 
             Print("示例工作流结束")

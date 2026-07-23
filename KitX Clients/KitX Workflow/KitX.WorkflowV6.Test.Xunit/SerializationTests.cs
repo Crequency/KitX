@@ -39,14 +39,14 @@ public class SerializationTests
     [Fact]
     public void Serialize_Deserialize_Idempotent_Nested_If()
         => Assert.Equal(
-            Parse("if Compare(\"BEQ\", 1, 1)", "    Print(\"yes\")"),
-            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("if Compare(\"BEQ\", 1, 1)", "    Print(\"yes\")"))));
+            Parse("if Compare(\"BEQ\", 1, 1):", "    Print(\"yes\")"),
+            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("if Compare(\"BEQ\", 1, 1):", "    Print(\"yes\")"))));
 
     [Fact]
     public void Serialize_Deserialize_Idempotent_ForEach()
         => Assert.Equal(
-            Parse("forEach Range(0, 5, 1) as i", "    i > Print"),
-            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("forEach Range(0, 5, 1) as i", "    i > Print"))));
+            Parse("forEach Range(0, 5, 1) as i:", "    i > Print"),
+            WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(Parse("forEach Range(0, 5, 1) as i:", "    i > Print"))));
 
     [Fact]
     public void Serialize_Fingerprint_As_String()
@@ -69,7 +69,7 @@ public class SerializationTests
     [Fact]
     public void Serialize_Deserialize_Switch()
     {
-        var ir = Parse("var {", "    int sel", "}", "1 > sel", "switch sel",
+        var ir = Parse("var {", "    int sel", "}", "1 > sel", "switch sel:",
             "    0:", "        Print(\"zero\")",
             "    1:", "        Print(\"one\")",
             "    default:", "        Print(\"other\")");
@@ -82,7 +82,7 @@ public class SerializationTests
     public void Serialize_Deserialize_While()
     {
         var ir = Parse("var {", "    int counter", "}", "0 > counter",
-            "while counter, 3 > Compare(\"BLT\")",
+            "while counter, 3 > Compare(\"BLT\"):",
             "    counter, 1 > Add > counter",
             "    Print(\"tick\")");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
@@ -93,8 +93,8 @@ public class SerializationTests
     [Fact]
     public void Serialize_Deserialize_Break()
     {
-        var ir = Parse("forEach Range(0, 10, 1) as i",
-            "    if i, 2 > Compare(\"BEQ\")",
+        var ir = Parse("forEach Range(0, 10, 1) as i:",
+            "    if i, 2 > Compare(\"BEQ\"):",
             "        break",
             "    i > Print");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
@@ -105,8 +105,8 @@ public class SerializationTests
     [Fact]
     public void Serialize_Deserialize_Continue()
     {
-        var ir = Parse("forEach Range(0, 5, 1) as i",
-            "    if i, 2 > Compare(\"BEQ\")",
+        var ir = Parse("forEach Range(0, 5, 1) as i:",
+            "    if i, 2 > Compare(\"BEQ\"):",
             "        continue",
             "    i > Print");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
@@ -128,7 +128,7 @@ public class SerializationTests
     {
         // PubVar declared as object but inferred to bool by type inference — the
         // inferred type should survive JSON round-trip (stored in GlobalVar.Type).
-        var ir = Parse("var {", "    object flag", "}", "true > flag", "if flag", "    Print(\"yes\")");
+        var ir = Parse("var {", "    object flag", "}", "true > flag", "if flag:", "    Print(\"yes\")");
         // Verify inference happened: flag should be bool, not object.
         Assert.True(ir.GlobalVars.TryGetValue("flag", out var gv));
         Assert.Equal("bool", gv.Type);

@@ -66,7 +66,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_If_Else_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseKS("if Compare(\"BEQ\", 1, 1)\n    Print(\"yes\")\n"));
+        var bp = new BpGraphLens(Registry()).Project(ParseKS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
@@ -74,7 +74,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_ForEach_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseKS("forEach Range(0, 5, 1) as i\n    i > Print\n"));
+        var bp = new BpGraphLens(Registry()).Project(ParseKS("forEach Range(0, 5, 1) as i:\n    i > Print\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }

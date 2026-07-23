@@ -45,9 +45,9 @@ public class BpGraphLensRoundTripTests
     {
         // Simple literal condition avoids multi-arg function pin limitation (P2-8).
         var ir = ParseKS("""
-            if true
+            if true:
                 Print("yes")
-            else
+            else:
                 Print("no")
             """);
         var lens = Lens();
@@ -62,7 +62,7 @@ public class BpGraphLensRoundTripTests
     {
         // forEach with Range(0, 3, 1) — now with named pins (From/To/Step) the
         // round-trip should be fully diff-empty.
-        var ir = ParseKS("forEach Range(0, 3, 1) as i\n    i > Print\n");
+        var ir = ParseKS("forEach Range(0, 3, 1) as i:\n    i > Print\n");
         var lens = Lens();
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
@@ -81,7 +81,7 @@ public class BpGraphLensRoundTripTests
                 int a
                 int b
             }
-            if a, b > Compare("BEQ")
+            if a, b > Compare("BEQ"):
                 Print("equal")
             """);
         var lens = Lens();
@@ -105,7 +105,7 @@ public class BpGraphLensRoundTripTests
         // Literal selector (no pre-assignment) to avoid pure-data-assignment
         // nodes that don't participate in the exec chain.
         var ir = ParseKS("""
-            switch 1
+            switch 1:
                 0:
                     Print("zero")
                 1:
@@ -209,7 +209,7 @@ public class BpGraphLensRoundTripTests
         // Leading + trailing comments on a control-flow statement round-trip.
         var ir = ParseKS("""
             // guard the loop
-            while true // keep going
+            while true: // keep going
                 Print("tick")
             """);
         var lens = Lens();
@@ -239,7 +239,7 @@ public class BpGraphLensRoundTripTests
                 int a
                 int b
             }
-            if a, b > Compare("BEQ")
+            if a, b > Compare("BEQ"):
                 Print("equal")
             """);
         var lens = Lens();

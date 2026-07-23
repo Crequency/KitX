@@ -71,9 +71,9 @@ public class KsTextLensTests
     public void Parse_If_Else()
     {
         var src = """
-            if cond
+            if cond:
                 Print("then")
-            else
+            else:
                 Print("else")
             """;
         var ir = _lens.Parse(src, []);
@@ -92,7 +92,7 @@ public class KsTextLensTests
     public void Parse_ForEach()
     {
         var src = """
-            forEach Range(0, 10, 1) as i
+            forEach Range(0, 10, 1) as i:
                 i > Print
             """;
         var ir = _lens.Parse(src, []);
@@ -113,7 +113,7 @@ public class KsTextLensTests
                 int loopMax = 10
             }
 
-            forEach loopMax > Range(0, _, 1) as i
+            forEach loopMax > Range(0, _, 1) as i:
                 i > Print
             """;
         var ir = _lens.Parse(src, []);
@@ -133,7 +133,7 @@ public class KsTextLensTests
                 int loopMax = 3
             }
 
-            forEach loopMax > Range(0, _, 1) as i
+            forEach loopMax > Range(0, _, 1) as i:
                 i > Print
             """;
         var ir = _lens.Parse(src, []);
@@ -155,7 +155,7 @@ public class KsTextLensTests
     public void Parse_While()
     {
         var src = """
-            while cond
+            while cond:
                 Print("body")
             """;
         var ir = _lens.Parse(src, []);
@@ -170,9 +170,9 @@ public class KsTextLensTests
     public void Parse_Nested_If()
     {
         var src = """
-            if outer
+            if outer:
                 Print("outer then")
-                if inner
+                if inner:
                     Print("inner then")
             """;
         var ir = _lens.Parse(src, []);
@@ -188,7 +188,7 @@ public class KsTextLensTests
     public void Parse_Loop_Control_Statements()
     {
         var src = """
-            forEach Range(0, 5, 1) as i
+            forEach Range(0, 5, 1) as i:
                 break
                 continue
                 exit
@@ -240,9 +240,9 @@ public class KsTextLensTests
     public void RoundTrip_Idempotent_If_Else()
     {
         var src = """
-            if cond
+            if cond:
                 Print("then")
-            else
+            else:
                 Print("else")
             """;
         var ir1 = _lens.Parse(src, []);
@@ -255,7 +255,7 @@ public class KsTextLensTests
     public void RoundTrip_Idempotent_ForEach()
     {
         var src = """
-            forEach Range(0, 10, 1) as i
+            forEach Range(0, 10, 1) as i:
                 i > Print
             """;
         var ir1 = _lens.Parse(src, []);
@@ -268,9 +268,9 @@ public class KsTextLensTests
     public void RoundTrip_Idempotent_Nested_If()
     {
         var src = """
-            if outer
+            if outer:
                 Print("outer then")
-                if inner
+                if inner:
                     Print("inner then")
             """;
         var ir1 = _lens.Parse(src, []);
@@ -283,7 +283,7 @@ public class KsTextLensTests
     public void RoundTrip_Idempotent_While_With_Break()
     {
         var src = """
-            while cond
+            while cond:
                 Print("body")
                 break
             """;
@@ -392,7 +392,7 @@ public class KsTextLensTests
         // A trailing comment on a control-flow header line round-trips.
         var src = """
             // loop guard
-            while cond // keep looping
+            while cond: // keep looping
                 Print("tick")
             """;
         var ir1 = _lens.Parse(src, []);
@@ -409,7 +409,7 @@ public class KsTextLensTests
     public void Project_Renders_Correct_Indentation()
     {
         var src = """
-            if cond
+            if cond:
                 Print("then")
             """;
         var ir = _lens.Parse(src, []);
@@ -422,8 +422,8 @@ public class KsTextLensTests
     public void Project_Renders_Nested_Indentation()
     {
         var src = """
-            if outer
-                if inner
+            if outer:
+                if inner:
                     Print("deep")
             """;
         var ir = _lens.Parse(src, []);
@@ -663,6 +663,52 @@ public class KsTextLensTests
         Assert.Contains(diag.Items, d => d.Code == "KS061");
     }
 
+    [Fact]
+    public void Error_KS063_Missing_Colon_After_ControlFlow_Header()
+    {
+        // The ':' terminator is now mandatory on control-flow headers (Python-style).
+        var src = "if cond\n    Print(\"x\")\n";
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS063");
+    }
+
+    [Fact]
+    public void Valid_Colon_Header_No_Diagnostic()
+    {
+        var src = """
+            if cond:
+                Print("x")
+            """;
+        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        Assert.False(diag.HasErrors);
+    }
+
+    [Fact]
+    public void Multiline_Condition_With_Segment_Comment_Trip()
+    {
+        // Multi-line condition with intermediate + last segment comments round-trips.
+        // Intermediate segment comment on its continuation line; last segment comment
+        // after the ':' on the last continuation line.
+        var src = """
+            var {
+                int a
+                int b
+            }
+            if a, b
+                > Add(_, 1) // step one
+                > Compare("BEQ"): // equality check
+                Print("yes")
+            """;
+        var ir1 = _lens.Parse(src, []);
+        var rendered = _lens.Project(ir1);
+        // Multi-line condition rendered (intermediate segment has a comment).
+        Assert.Contains("> Add(_, 1) // step one", rendered);
+        Assert.Contains("> Compare(\"BEQ\"):", rendered);
+        var ir2 = _lens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+    }
+
     // ── Multi-line pipeline ──
 
     [Fact]
@@ -710,7 +756,7 @@ public class KsTextLensTests
     public void Parse_Multiline_In_If_Body()
     {
         var src = """
-            if 1, 1 > Compare("BEQ")
+            if 1, 1 > Compare("BEQ"):
                 1, 2
                     > Add
                     > Print

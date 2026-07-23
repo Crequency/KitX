@@ -80,40 +80,32 @@ internal sealed class KsRenderer
                 break;
 
             case IfStatement iff:
-                sb.Append(Indent(level)).Append("if ").Append(RenderBsNode(iff.Condition));
-                AppendTrailing(sb, iff.TrailingComment);
-                sb.Append('\n');
+                RenderControlFlowHeader(sb, level, "if", iff.Condition, trailing: iff.TrailingComment);
                 RenderBody(sb, iff.ThenBody, level + 1);
                 if (iff.ElseBody.Length > 0)
                 {
-                    // If the else body is a single nested IfStatement with no leading
-                    // comment, render as `else if`. A leading comment forces the
-                    // explicit `else` + indented body form so the comment round-trips.
                     if (iff.ElseBody.Length == 1 && iff.ElseBody[0] is IfStatement nested
                         && nested.LeadingComment is null)
                     {
-                        sb.Append(Indent(level)).Append("else if ").Append(RenderBsNode(nested.Condition));
-                        AppendTrailing(sb, nested.TrailingComment);
-                        sb.Append('\n');
+                        sb.Append(Indent(level)).Append("else ");
+                        RenderControlFlowHeaderInline(sb, level, "if", nested.Condition, trailing: nested.TrailingComment);
                         RenderBody(sb, nested.ThenBody, level + 1);
                         if (nested.ElseBody.Length > 0)
                         {
-                            sb.Append(Indent(level)).Append("else").Append('\n');
+                            sb.Append(Indent(level)).Append("else:\n");
                             RenderBody(sb, nested.ElseBody, level + 1);
                         }
                     }
                     else
                     {
-                        sb.Append(Indent(level)).Append("else").Append('\n');
+                        sb.Append(Indent(level)).Append("else:\n");
                         RenderBody(sb, iff.ElseBody, level + 1);
                     }
                 }
                 break;
 
             case SwitchStatement sw:
-                sb.Append(Indent(level)).Append("switch ").Append(RenderBsNode(sw.Selector));
-                AppendTrailing(sb, sw.TrailingComment);
-                sb.Append('\n');
+                sb.Append(Indent(level)).Append("switch ").Append(RenderBsNode(sw.Selector)).Append(":\n");
                 for (int i = 0; i < sw.Arms.Length; i++)
                 {
                     sb.Append(Indent(level + 1)).Append(i).Append(": ").Append('\n');
@@ -127,18 +119,12 @@ internal sealed class KsRenderer
                 break;
 
             case ForEachStatement fe:
-                sb.Append(Indent(level))
-                  .Append("forEach ").Append(RenderBsNode(fe.Source))
-                  .Append(" as ").Append(fe.ItemName);
-                AppendTrailing(sb, fe.TrailingComment);
-                sb.Append('\n');
+                RenderControlFlowHeader(sb, level, "forEach", fe.Source, " as " + fe.ItemName, fe.TrailingComment);
                 RenderBody(sb, fe.Body, level + 1);
                 break;
 
             case WhileStatement ws:
-                sb.Append(Indent(level)).Append("while ").Append(RenderBsNode(ws.Condition));
-                AppendTrailing(sb, ws.TrailingComment);
-                sb.Append('\n');
+                RenderControlFlowHeader(sb, level, "while", ws.Condition, trailing: ws.TrailingComment);
                 RenderBody(sb, ws.Body, level + 1);
                 break;
 
@@ -237,6 +223,73 @@ internal sealed class KsRenderer
         foreach (var seg in p.Segments)
             sb.Append(" > ").Append(RenderSegmentText(seg));
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Renders a control-flow header line: <c>keyword &lt;condition&gt;:</c> or, when
+    /// any intermediate condition segment carries a comment, the multi-line form. The
+    /// last segment's comment (post-colon) follows the colon on the header's final line.
+    /// <paramref name="suffix"/> (e.g. " as i" for forEach) is appended to the last
+    /// segment before the colon.
+    /// </summary>
+    private void RenderControlFlowHeader(StringBuilder sb, int level, string keyword, KsNode cond, string suffix = "", string? trailing = null)
+    {
+        sb.Append(Indent(level)).Append(keyword).Append(' ');
+        RenderControlFlowHeaderInline(sb, level, keyword, cond, suffix, trailing);
+    }
+
+    /// <summary>Inline portion (after the leading "keyword ") — also used by `else if`.</summary>
+    private void RenderControlFlowHeaderInline(StringBuilder sb, int level, string keyword, KsNode cond, string suffix = "", string? trailing = null)
+    {
+        if (cond is KsPipeline pipe && pipe.Segments.Length > 1 && HasIntermediateSegComment(pipe))
+        {
+            // Multi-line condition: sources on the first line, each segment on its own
+            // indented continuation line. The last segment's line ends with the suffix
+            // (forEach "as i"), the ':', and the last segment's inline comment.
+            sb.Append(string.Join(", ", pipe.Sources.Select(RenderBsNode))).Append('\n');
+            int lastIdx = pipe.Segments.Length - 1;
+            for (int i = 0; i < pipe.Segments.Length; i++)
+            {
+                var seg = pipe.Segments[i];
+                sb.Append(Indent(level + 1)).Append("> ").Append(RenderAstSegmentText(seg));
+                if (i == lastIdx)
+                {
+                    sb.Append(suffix).Append(':');
+                    AppendTrailing(sb, seg.Comment);
+                }
+                else
+                {
+                    AppendTrailing(sb, seg.Comment);
+                }
+                sb.Append('\n');
+            }
+        }
+        else
+        {
+            // Single-line header: keyword + condition + suffix + ':' [+ comment].
+            // For a pipeline condition, the last segment's inline comment follows ':'.
+            // For a simple condition, the statement's TrailingComment follows ':'.
+            sb.Append(RenderBsNode(cond)).Append(suffix).Append(':');
+            if (cond is KsPipeline p && p.Segments.Length > 0)
+                AppendTrailing(sb, p.Segments[^1].Comment);
+            else
+                AppendTrailing(sb, trailing);
+            sb.Append('\n');
+        }
+    }
+
+    private static bool HasIntermediateSegComment(KsPipeline pipe)
+    {
+        for (int i = 0; i < pipe.Segments.Length - 1; i++)
+            if (pipe.Segments[i].Comment is { Length: > 0 }) return true;
+        return false;
+    }
+
+    private static string RenderAstSegmentText(KsPipelineSegment seg)
+    {
+        if (seg.IsVariableTap || seg.Args.Length == 0)
+            return seg.Target;
+        return $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderBsNode))})";
     }
 
     /// <summary>
