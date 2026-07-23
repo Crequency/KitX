@@ -226,4 +226,31 @@ public class BpGraphLensRoundTripTests
         Assert.Equal("guard the loop", ws.LeadingComment);
         Assert.Equal("keep going", ws.TrailingComment);
     }
+
+    [Fact]
+    public void BP_Condition_Segment_Comment_RoundTrip()
+    {
+        // A condition-function-node Comment maps to the condition pipeline's last
+        // segment Segment.Comment (C-2). The KS syntax for condition segment comments
+        // arrives in C-3, so here we set the node Comment manually on the BP and verify
+        // the reverse translator reattaches it as the condition segment's comment.
+        var ir = ParseKS("""
+            var {
+                int a
+                int b
+            }
+            if a, b > Compare("BEQ")
+                Print("equal")
+            """);
+        var lens = Lens();
+        var bp = lens.Project(ir);
+        // Manually annotate the Compare condition node (simulating a BP-side edit).
+        var compareNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Compare");
+        compareNode.Comment = "check equality";
+
+        var reversed = lens.Reverse(bp);
+        var iff = Assert.IsType<IfStatement>(reversed.Body[0]);
+        var condPipe = Assert.IsType<KsPipeline>(iff.Condition);
+        Assert.Equal("check equality", condPipe.Segments[0].Comment);
+    }
 }

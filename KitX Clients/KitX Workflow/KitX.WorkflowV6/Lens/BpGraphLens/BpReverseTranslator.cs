@@ -503,12 +503,16 @@ internal sealed class BpReverseTranslator
         }
 
         // Pipeline form: sources → single segment (bracket args = literals only).
+        // The function node's Comment carries the last condition segment's inline
+        // comment (forward: RenderPipelineAsCondition sets seg.Comment → fn.Comment).
+        var segComment = fn.Comment is { Length: > 0 } ? fn.Comment : null;
         var seg = new KsPipelineSegment
         {
             Target = fn.FunctionName,
             Args = args.ToImmutable(),
             RawArgs = [.. args.Select(a => a.SourceText)],
             IsVariableTap = false,
+            Comment = segComment,
         };
         seg.SourceText = $"{fn.FunctionName}({string.Join(", ", seg.Args.Select(a => a.SourceText))})";
         var srcArr = sources.ToImmutable();

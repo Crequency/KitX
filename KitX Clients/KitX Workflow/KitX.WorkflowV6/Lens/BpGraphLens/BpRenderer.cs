@@ -486,6 +486,9 @@ internal sealed class BpRenderer
             else
             {
                 var fn = AddBuiltin(seg.Target, $"{path}/seg/{i}");
+                // Per-segment inline comment (condition pipeline) → this segment's node Comment.
+                if (seg.Comment is { Length: > 0 })
+                    fn.Comment = seg.Comment;
                 WireCallArgs(fn, seg.Args, $"{path}/seg/{i}/args");
                 if (lastFunc is null)
                 {
