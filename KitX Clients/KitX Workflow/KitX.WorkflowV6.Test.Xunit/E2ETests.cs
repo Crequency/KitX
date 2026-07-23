@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.WorkflowV6.Backend.RoslynBackend;
+using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Lens.KsTextLens;
@@ -18,6 +19,30 @@ public class E2ETests
     {
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
         return new StructuredRoslynBackend(registry);
+    }
+
+    private static StructuredRoslynBackend MakeBackendWithHost(IPluginHost host)
+    {
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        return new StructuredRoslynBackend(registry, host);
+    }
+
+    private sealed class MockPluginHost : IPluginHost
+    {
+        public object? Call(string pluginName, string methodName, params object[] args)
+            => "{\"result\":\"ok\"}";
+        public object? CallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
+            => "{\"result\":\"remote\"}";
+        public object? TryGetDevice(string deviceName) => null;
+        public bool StartPlugin(string pluginName) => true;
+        public bool StopPlugin(string pluginName) => true;
+        public bool StopWorkflow(string workflowId) => true;
+        public string CreateWorkflow(string name, string source) => "wf-001";
+        public bool RunWorkflow(string workflowId) => true;
+        public bool InstallPlugin(string kxpPath) => true;
+        public string GetPluginInfoByName(string pluginName) => "{}";
+        public string ListPluginNames() => "[\"plugin1\",\"plugin2\"]";
+        public string ListWorkflows() => "[\"wf-001\"]";
     }
 
     private static Workflow ParseToIr(string src)
@@ -638,5 +663,57 @@ public class E2ETests
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_PluginCall_Returns_Json()
+    {
+        var src = """
+            PluginCall("test", "method") > JsonGetField(_, "result") > JsonAsString > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackendWithHost(new MockPluginHost());
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("ok", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_StartPlugin_Returns_True()
+    {
+        var src = """
+            StartPlugin("test") > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackendWithHost(new MockPluginHost());
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_ListPluginNames_Returns_Json_Array()
+    {
+        var src = """
+            ListPluginNames() > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackendWithHost(new MockPluginHost());
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains(result.Output, s => s.Contains("plugin1"));
+    }
+
+    [Fact]
+    public async Task E2E_PluginCall_Null_Without_Host()
+    {
+        // Without IPluginHost injected, PluginCall returns null → Print outputs empty string
+        var src = """
+            PluginCall("test", "method") > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
     }
 }

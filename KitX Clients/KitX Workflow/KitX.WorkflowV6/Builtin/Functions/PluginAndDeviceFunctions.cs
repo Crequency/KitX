@@ -1,0 +1,78 @@
+namespace KitX.WorkflowV6.Builtin.Functions;
+
+using KitX.Core.Contract.Workflow;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plugin and device invocation builtins.
+//
+// These functions bridge the workflow to the KitX plugin ecosystem via
+// IPluginHost (injected into ExecutionGlobals at runtime). When PluginHost
+// is null, all calls return defaults (null/false) — the workflow runs without
+// a host, plugin calls simply produce no results.
+//
+// PluginCall returns PinType.Json (JsonElement) so the result can be directly
+// consumed by the JSON function family (JsonAsString/JsonAsInt/JsonGetField/...).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// PluginCall — invokes a method on a local plugin. SideEffect: produces a Json result.
+/// Extra pipeline arguments are appended as params object[] args.
+/// </summary>
+public sealed class PluginCallFunction : IBuiltinFunction
+{
+    public string Name => "PluginCall";
+    public FunctionKind Kind => FunctionKind.SideEffect;
+
+    public IReadOnlyList<PortSpec> InputPorts =>
+    [
+        new("PluginName", PinType.String, 20),
+        new("MethodName", PinType.String, 35),
+    ];
+
+    public IReadOnlyList<PortSpec> OutputPorts =>
+    [
+        new("Return", PinType.Json, 50),
+    ];
+}
+
+/// <summary>
+/// PluginCallWithTarget — invokes a method on a plugin running on a target device.
+/// SideEffect: produces a Json result.
+/// </summary>
+public sealed class PluginCallWithTargetFunction : IBuiltinFunction
+{
+    public string Name => "PluginCallWithTarget";
+    public FunctionKind Kind => FunctionKind.SideEffect;
+
+    public IReadOnlyList<PortSpec> InputPorts =>
+    [
+        new("PluginName", PinType.String, 20),
+        new("MethodName", PinType.String, 35),
+        new("TargetDevice", PinType.Any, 50),
+    ];
+
+    public IReadOnlyList<PortSpec> OutputPorts =>
+    [
+        new("Return", PinType.Json, 50),
+    ];
+}
+
+/// <summary>
+/// TryGetDevice — finds an online device by name. Pure: returns the device handle (Any)
+/// or null if not found.
+/// </summary>
+public sealed class TryGetDeviceFunction : IBuiltinFunction
+{
+    public string Name => "TryGetDevice";
+    public FunctionKind Kind => FunctionKind.Pure;
+
+    public IReadOnlyList<PortSpec> InputPorts =>
+    [
+        new("DeviceName", PinType.String, 20),
+    ];
+
+    public IReadOnlyList<PortSpec> OutputPorts =>
+    [
+        new("Return", PinType.Any, 50),
+    ];
+}

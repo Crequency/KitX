@@ -44,6 +44,10 @@ public class ExecutionGlobals
     /// calls forward to it (breakpoints, step, pause).</summary>
     public IBlueprintDebugController? Debugger { get; set; }
 
+    /// <summary>Optional plugin host for plugin/service calls. When null, all
+    /// plugin calls return defaults (null/false/"[]").</summary>
+    public IPluginHost? PluginHost { get; set; }
+
     /// <summary>
     /// Called before each statement in debug mode. Forwards to the debug controller
     /// to enable pause/step/breakpoint. When debugger is null, this is a no-op.
@@ -294,4 +298,46 @@ public class ExecutionGlobals
         }
         return true;
     }
+
+    // ── Plugin invocation ──
+
+    /// <summary>PluginCall: invokes a method on a local plugin. Returns JsonElement.</summary>
+    public object? PluginCall(string pluginName, string methodName, params object[] args)
+    {
+        if (PluginHost is null) return null;
+        try { return AsJsonElement(PluginHost.Call(pluginName, methodName, args ?? [])); }
+        catch { return null; }
+    }
+
+    /// <summary>PluginCallWithTarget: invokes a method on a target device's plugin.</summary>
+    public object? PluginCallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
+    {
+        if (PluginHost is null) return null;
+        try { return AsJsonElement(PluginHost.CallWithTarget(pluginName, methodName, targetDevice, args ?? [])); }
+        catch { return null; }
+    }
+
+    /// <summary>TryGetDevice: finds an online device by name.</summary>
+    public object? TryGetDevice(string deviceName) => PluginHost?.TryGetDevice(deviceName);
+
+    // ── Plugin lifecycle ──
+
+    public bool StartPlugin(string pluginName) => PluginHost?.StartPlugin(pluginName) ?? false;
+    public bool StopPlugin(string pluginName) => PluginHost?.StopPlugin(pluginName) ?? false;
+
+    // ── Workflow lifecycle ──
+
+    public bool StopWorkflow(string workflowId) => PluginHost?.StopWorkflow(workflowId) ?? false;
+    public string CreateWorkflow(string name, string source) => PluginHost?.CreateWorkflow(name, source) ?? "";
+    public bool RunWorkflow(string workflowId) => PluginHost?.RunWorkflow(workflowId) ?? false;
+
+    // ── Plugin installation ──
+
+    public bool InstallPlugin(string kxpPath) => PluginHost?.InstallPlugin(kxpPath) ?? false;
+
+    // ── Queries ──
+
+    public string GetPluginInfoByName(string pluginName) => PluginHost?.GetPluginInfoByName(pluginName) ?? "";
+    public string ListPluginNames() => PluginHost?.ListPluginNames() ?? "[]";
+    public string ListWorkflows() => PluginHost?.ListWorkflows() ?? "[]";
 }

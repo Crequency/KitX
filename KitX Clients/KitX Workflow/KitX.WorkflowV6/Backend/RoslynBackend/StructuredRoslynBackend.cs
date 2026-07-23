@@ -19,7 +19,7 @@ using Serilog;
 // What's gone vs v5's RoslynExecutionBackend:
 //   • No NextBlock trampoline (the generated C# is structured if/foreach/while).
 //   • No block-name addressing.
-//   • No plugin host (MVP scope).
+//   • Plugin host is optional (injected via constructor, null = no-op defaults).
 //
 // What's preserved:
 //   • String-concatenation codegen: builtin calls emit this.Method(args) directly;
@@ -40,16 +40,18 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
 {
     private readonly BuiltinFunctionRegistry _registry;
     private readonly ScriptCompiler _compiler;
+    private readonly IPluginHost? _pluginHost;
 
-    public StructuredRoslynBackend(BuiltinFunctionRegistry registry)
+    public StructuredRoslynBackend(BuiltinFunctionRegistry registry, IPluginHost? pluginHost = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _compiler = new ScriptCompiler(_registry);
+        _pluginHost = pluginHost;
     }
 
     /// <summary>Creates the backend with the default (auto-discovered) registry.</summary>
     public StructuredRoslynBackend()
-        : this(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly)) { }
+        : this(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly), null) { }
 
     public string Name => "StructuredRoslyn";
 
@@ -95,6 +97,7 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
                 ?? throw new InvalidOperationException("Generated G type not found.");
             var g = (ExecutionGlobals)Activator.CreateInstance(gType)!;
             g.Debugger = debugger;
+            g.PluginHost = _pluginHost;
 
             var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Generated RunAsync method not found.");

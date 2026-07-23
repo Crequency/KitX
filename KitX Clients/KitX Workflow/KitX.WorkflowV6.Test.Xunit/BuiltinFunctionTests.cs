@@ -251,4 +251,57 @@ public class BuiltinFunctionTests
         Assert.Single(k!.InputPorts);
         Assert.Equal(PinType.Json, k.OutputPorts[0].Type);
     }
+
+    [Fact]
+    public void Registry_Contains_Plugin_And_Service_Functions()
+    {
+        var registry = Discover();
+        Assert.Contains("PluginCall", registry.AllNames);
+        Assert.Contains("PluginCallWithTarget", registry.AllNames);
+        Assert.Contains("TryGetDevice", registry.AllNames);
+        Assert.Contains("StartPlugin", registry.AllNames);
+        Assert.Contains("StopPlugin", registry.AllNames);
+        Assert.Contains("StopWorkflow", registry.AllNames);
+        Assert.Contains("CreateWorkflow", registry.AllNames);
+        Assert.Contains("RunWorkflow", registry.AllNames);
+        Assert.Contains("InstallPlugin", registry.AllNames);
+        Assert.Contains("GetPluginInfoByName", registry.AllNames);
+        Assert.Contains("ListPluginNames", registry.AllNames);
+        Assert.Contains("ListWorkflows", registry.AllNames);
+    }
+
+    [Fact]
+    public void PluginCall_Function_Spec_Correct()
+    {
+        var registry = Discover();
+        var pc = registry.Get("PluginCall");
+        Assert.NotNull(pc);
+        Assert.Equal(FunctionKind.SideEffect, pc!.Kind);
+        Assert.Equal(2, pc.InputPorts.Count);
+        Assert.All(pc.InputPorts, p => Assert.Equal(PinType.String, p.Type));
+        Assert.Single(pc.OutputPorts);
+        Assert.Equal(PinType.Json, pc.OutputPorts[0].Type);
+    }
+
+    [Fact]
+    public void Service_Functions_Spec_Correct()
+    {
+        var registry = Discover();
+        // StartPlugin: (String) → Boolean, SideEffect
+        var sp = registry.Get("StartPlugin");
+        Assert.NotNull(sp);
+        Assert.Equal(FunctionKind.SideEffect, sp!.Kind);
+        Assert.Equal(PinType.Boolean, sp.OutputPorts[0].Type);
+        // CreateWorkflow: (String, String) → String, Pure
+        var cw = registry.Get("CreateWorkflow");
+        Assert.NotNull(cw);
+        Assert.Equal(FunctionKind.Pure, cw!.Kind);
+        Assert.Equal(2, cw.InputPorts.Count);
+        Assert.Equal(PinType.String, cw.OutputPorts[0].Type);
+        // ListPluginNames: () → String, Pure
+        var lp = registry.Get("ListPluginNames");
+        Assert.NotNull(lp);
+        Assert.Equal(FunctionKind.Pure, lp!.Kind);
+        Assert.Empty(lp!.InputPorts);
+    }
 }
