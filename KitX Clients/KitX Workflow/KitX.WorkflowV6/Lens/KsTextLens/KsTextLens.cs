@@ -22,7 +22,7 @@ using KitX.WorkflowV6.Ir.Ast;
 // §十二-A: 4-space indent, no tabs). The pipeline is Tokenizer → Parser → KsLowerer.
 //
 // Per discussion notes §十二-K, control-flow keywords (if/switch/forEach/while/
-// break/continue/exit) are NOT routed through the builtin registry — the parser
+// break/continue) are NOT routed through the builtin registry — the parser
 // builds their AST node kinds directly, and the lowerer lowers them into the
 // first-class IR statement kinds.
 // ─────────────────────────────────────────────────────────────────────────────

@@ -115,15 +115,6 @@ public class SerializationTests
     }
 
     [Fact]
-    public void Serialize_Deserialize_Exit()
-    {
-        var ir = Parse("Print(\"before\")", "exit()", "Print(\"after\")");
-        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
-        Assert.Equal(ir, result);
-        Assert.Contains(result.Body, s => s is KitX.WorkflowV6.Ir.Statements.ExitStatement);
-    }
-
-    [Fact]
     public void Serialize_Type_Inference_Result()
     {
         // PubVar declared as object but inferred to bool by type inference — the

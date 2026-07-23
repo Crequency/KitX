@@ -109,10 +109,6 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 accum.AddOptional(co.Label);
                 break;
 
-            case ExitStatement ex:
-                accum.AddOptional(ex.Reason);
-                break;
-
             default:
                 // Unknown statement kind: fall back to the runtime type name so a future
                 // statement kind never silently collides with an existing one.
@@ -227,9 +223,6 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 break;
             case KsBreak:
             case KsContinue:
-                break;
-            case KsExit ex:
-                if (ex.Reason is not null) accum.AddBsNode(ex.Reason);
                 break;
             case KsProgram prog:
                 accum.AddBool(prog.ConstBlock is not null);

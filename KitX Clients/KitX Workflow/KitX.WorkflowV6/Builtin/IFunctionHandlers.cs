@@ -17,8 +17,8 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Customises KS parse for control-flow forms (if/switch/forEach/while/break/continue/
-/// exit). Pure functions do NOT implement this — the default parser dispatches their
+/// Customises KS parse for control-flow forms (if/switch/forEach/while/break/continue).
+/// Pure functions do NOT implement this — the default parser dispatches their
 /// call verbatim. Whether v6 control-flow keywords even route through this handler or
 /// are special-cased by the indented parser is open (discussion notes §10.8).
 /// </summary>

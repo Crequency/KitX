@@ -38,7 +38,6 @@ using System.Text.Json.Serialization;
 //     KsWhile         — `while cond { body }`
 //     KsBreak         — `break`
 //     KsContinue      — `continue`
-//     KsExit          — `exit()` (may carry reason arg)
 //
 //   Program root:
 //     KsProgram       — the whole document (optional const/var blocks + top-level body)
@@ -537,30 +536,6 @@ public sealed record KsContinue : KsStatement
     public override int GetHashCode()
     {
         return typeof(KsContinue).GetHashCode();
-    }
-}
-
-/// <summary>
-/// An <c>exit()</c> statement (§3.3 #8). Terminates the workflow (maps to <c>return</c>
-/// in the generated structured C#). The v5 "Break" builtin renamed to avoid the
-/// loop-break name clash. May carry an optional reason argument.
-/// </summary>
-public sealed record KsExit : KsStatement
-{
-    public KsNode? Reason { get; init; }
-
-    public bool Equals(KsExit? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Equals(Reason, other.Reason);
-    }
-
-    public override int GetHashCode()
-    {
-        var h = new HashCode();
-        h.Add(Reason);
-        return h.ToHashCode();
     }
 }
 

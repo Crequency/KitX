@@ -5,7 +5,7 @@
 //   • Parse empty program
 //   • Parse const/var blocks
 //   • Parse if/else, forEach, while, switch, nested control flow
-//   • Parse break/continue/exit
+//   • Parse break/continue
 //   • Parse pipelines (bare call, multi-segment, with assignment tap)
 //   • Reject Tab characters in indentation (§十二-A)
 //   • Report indent errors with line/column
@@ -182,7 +182,7 @@ public class KsTextLensTests
         Assert.IsType<IfStatement>(outer.ThenBody[1]);
     }
 
-    // ── Parse break/continue/exit ──
+    // ── Parse break/continue ──
 
     [Fact]
     public void Parse_Loop_Control_Statements()
@@ -191,14 +191,12 @@ public class KsTextLensTests
             forEach Range(0, 5, 1) as i:
                 break
                 continue
-                exit
             """;
         var ir = _lens.Parse(src, []);
         var fe = Assert.IsType<ForEachStatement>(ir.Body[0]);
-        Assert.Equal(3, fe.Body.Length);
+        Assert.Equal(2, fe.Body.Length);
         Assert.IsType<BreakStatement>(fe.Body[0]);
         Assert.IsType<ContinueStatement>(fe.Body[1]);
-        Assert.IsType<ExitStatement>(fe.Body[2]);
     }
 
     // ── Tab rejected ──

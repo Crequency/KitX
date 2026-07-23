@@ -17,7 +17,6 @@ using KitX.WorkflowV6.Ir.Statements;
 //   WhileStatement   →  while (cond) { body }
 //   BreakStatement   →  break;
 //   ContinueStatement→  continue;
-//   ExitStatement    →  return;
 //   PipelineStatement →  side-effect: G.Print(value); / pure: var tmp = G.Range(...);
 //
 // No switch-case trampoline (v5's G.NextBlock), no block-name addressing. The
@@ -26,7 +25,7 @@ using KitX.WorkflowV6.Ir.Statements;
 //
 // The generated class subclasses <see cref="Runtime.ExecutionGlobals"/> so strong-typed
 // PubVars can be added as fields on it (§十二-F). The entry point is `RunAsync` which
-// runs the top-level body; exit() maps to <c>return</c>.
+// runs the top-level body; the body's natural end is the implicit return.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -205,9 +204,6 @@ internal sealed class StructuredCodegen
                 break;
             case ContinueStatement:
                 EmitLine("continue;");
-                break;
-            case ExitStatement:
-                EmitLine("return;");
                 break;
             default:
                 EmitLine($"/* unknown statement kind: {stmt.Kind} */");

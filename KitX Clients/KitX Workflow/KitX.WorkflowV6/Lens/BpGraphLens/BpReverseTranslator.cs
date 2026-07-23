@@ -206,9 +206,6 @@ internal sealed class BpReverseTranslator
             case "continue":
                 result.Add(WithFingerprint(ApplyComments(new ContinueStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
                 break;
-            case "exit":
-                result.Add(WithFingerprint(ApplyComments(new ExitStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
-                break;
             default:
                 // Regular function call → PipelineStatement.
                 result.Add(ReversePipelineCall(fn));

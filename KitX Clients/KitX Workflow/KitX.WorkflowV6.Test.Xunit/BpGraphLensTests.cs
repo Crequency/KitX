@@ -249,16 +249,6 @@ public class BpGraphLensTests
     }
 
     [Fact]
-    public void Project_Exit_Node_Has_Exec_Input()
-    {
-        var bp = ProjectBS("Print(\"x\")\nexit()\n");
-        var exitNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "exit");
-        Assert.NotNull(exitNode);
-        Assert.NotEmpty(exitNode!.InputPins);
-        Assert.Contains(exitNode.InputPins, p => p.Name == "Exec");
-    }
-
-    [Fact]
     public void Project_Continue_Node_Has_Exec_Input()
     {
         var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    continue\n");

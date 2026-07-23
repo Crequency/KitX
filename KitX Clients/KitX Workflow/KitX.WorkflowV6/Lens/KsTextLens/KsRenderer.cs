@@ -140,12 +140,6 @@ internal sealed class KsRenderer
                 sb.Append('\n');
                 break;
 
-            case ExitStatement:
-                sb.Append(Indent(level)).Append("exit");
-                AppendTrailing(sb, stmt.TrailingComment);
-                sb.Append('\n');
-                break;
-
             default:
                 // Unknown statement — emit a placeholder so rendering never silently drops.
                 sb.Append(Indent(level)).Append($"/* unknown: {stmt.Kind} */").Append('\n');

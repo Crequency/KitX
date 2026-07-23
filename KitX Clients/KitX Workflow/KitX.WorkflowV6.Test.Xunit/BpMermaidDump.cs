@@ -42,7 +42,6 @@ public class BpMermaidDump
                         Print("too big")
 
             Print("end")
-            exit()
             """;
 
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);

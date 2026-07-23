@@ -121,7 +121,6 @@ internal sealed class BpRenderer
             SwitchStatement sw => RenderSwitch(sw, path, prevTails),
             BreakStatement => RenderCtrlNode("break", path, prevTails),
             ContinueStatement => RenderCtrlNode("continue", path, prevTails),
-            ExitStatement => RenderCtrlNode("exit", path, prevTails),
             _ => prevTails,
         };
 

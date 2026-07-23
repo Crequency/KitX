@@ -13,11 +13,11 @@ using System.Text.Json.Serialization;
 //
 // This mirrors the design captured in `Structured-BS-Discussion-Notes.md` §3–§4:
 // 9 control-flow primitives (Sequence / if/else / switch / forEach / while / break /
-// continue / exit / Range-as-function), indentation expressing scope, and 1:1 mapping
+// continue / Range-as-function), indentation expressing scope, and 1:1 mapping
 // to both KS text and BP node graph.
 //
 // Per discussion notes §十二-K, control-flow primitives (if/switch/forEach/while/
-// break/continue/exit) are first-class IR statement kinds — they do NOT route through
+// break/continue) are first-class IR statement kinds — they do NOT route through
 // IBuiltinFunction. Only pure/side-effect functions (Print/Range/StringConcat/...) do.
 // The StatementKind enum below is the discriminant for that split: any code that needs
 // to dispatch on "what kind of statement is this" (Fingerprint.Compute, the BP renderer,
@@ -62,9 +62,6 @@ public enum StatementKind
 
     /// <summary>A <see cref="ContinueStatement"/> — skips to the next iteration of the enclosing loop.</summary>
     Continue,
-
-    /// <summary>An <see cref="ExitStatement"/> — terminates the workflow (v5 "Break" builtin renamed).</summary>
-    Exit,
 }
 
 /// <summary>
@@ -80,7 +77,6 @@ public enum StatementKind
 [JsonDerivedType(typeof(Statements.WhileStatement), "While")]
 [JsonDerivedType(typeof(Statements.BreakStatement), "Break")]
 [JsonDerivedType(typeof(Statements.ContinueStatement), "Continue")]
-[JsonDerivedType(typeof(Statements.ExitStatement), "Exit")]
 public abstract record Statement
 {
     /// <summary>

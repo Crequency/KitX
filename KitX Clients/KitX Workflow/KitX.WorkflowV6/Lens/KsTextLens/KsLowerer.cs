@@ -12,7 +12,7 @@ using KitX.WorkflowV6.Ir.Statements;
 //
 // Mostly a 1:1 structural transform: KsConstBlock/KsVarBlock → Workflow.Constants/
 // GlobalVars; KsIf → IfStatement; KsForEach → ForEachStatement; KsWhile →
-// WhileStatement; KsBreak/KsContinue/KsExit → their IR kinds; KsPipeline →
+// WhileStatement; KsBreak/KsContinue → their IR kinds; KsPipeline →
 // PipelineStatement (carrying the structured KsNode sources + segments).
 //
 // No pipeline flattening, no PubVar capacitor allocation, no nested-call expansion
@@ -22,7 +22,7 @@ using KitX.WorkflowV6.Ir.Statements;
 // The lowerer consults the <see cref="BuiltinFunctionRegistry"/> only for custom
 // lowering handlers (per-builtin <see cref="ILoweringHandler"/>); the default
 // path is the 1:1 transform. Control-flow primitives (if/switch/forEach/while/
-// break/continue/exit) are NOT routed through the registry — they are first-class
+// break/continue) are NOT routed through the registry — they are first-class
 // IR statement kinds per discussion notes §十二-K, so the lowerer builds them
 // directly.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,13 +185,6 @@ internal sealed class KsLowerer
                 TrailingComment = stmt.TrailingComment,
             }),
             KsContinue => WithFingerprint(new ContinueStatement
-            {
-                Fingerprint = Fingerprint.Compute("placeholder"),
-                SourceLine = stmt.SourceLine,
-                LeadingComment = stmt.LeadingComment,
-                TrailingComment = stmt.TrailingComment,
-            }),
-            KsExit => WithFingerprint(new ExitStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,

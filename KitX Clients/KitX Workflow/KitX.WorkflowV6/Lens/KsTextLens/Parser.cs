@@ -17,7 +17,7 @@ using KitX.WorkflowV6.Ir.Ast;
 //   declBlock      ::= ('const' | 'var') '{' declRow* '}'
 //   declRow        ::= type name ('=' expr)?    // on one line
 //   statement      ::= ifStmt | switchStmt | forEachStmt | whileStmt
-//                    | break | continue | exit ('(' ')')?
+//                    | break | continue
 //                    | pipeline
 //   ifStmt         ::= 'if' condition INDENT statement+ DEDENT
 //                      ('else' (ifStmt | INDENT statement+ DEDENT))?
@@ -309,7 +309,6 @@ internal sealed class Parser
                     "while" => ParseWhile(),
                     "break" => ParseBreak(),
                     "continue" => ParseContinue(),
-                    "exit" => ParseExit(),
                     _ => ParsePipelineOrAssignment(),
                 };
             default:
@@ -504,18 +503,6 @@ internal sealed class Parser
         Match(KsTokenKind.Semicolon);
         var trailing = TryConsumeComment();
         var stmt = new KsContinue { SourceLine = t.Line, SourceText = "continue" };
-        stmt.TrailingComment = trailing;
-        return stmt;
-    }
-
-    private KsExit ParseExit()
-    {
-        var t = Advance();
-        // Tolerate `exit()` — consume the parens if present.
-        if (Match(KsTokenKind.LParen)) Match(KsTokenKind.RParen);
-        Match(KsTokenKind.Semicolon);
-        var trailing = TryConsumeComment();
-        var stmt = new KsExit { SourceLine = t.Line, SourceText = "exit" };
         stmt.TrailingComment = trailing;
         return stmt;
     }

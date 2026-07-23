@@ -20,7 +20,7 @@ using KitX.Core.Contract.Workflow;
 //
 // v6 considerations:
 //   • ControlFlow is no longer a "terminator with Exec arms" (v5). A v6 control-flow
-//     keyword (if/switch/forEach/while/break/continue/exit) is *structural*: it owns
+//     keyword (if/switch/forEach/while/break/continue) is *structural*: it owns
 //     its body lexically. The renderer/codegen therefore walk into the body. Whether
 //     these are even modelled as "builtin functions" or as first-class IR statement
 //     kinds is an open design point (discussion notes §10.7). The descriptor system
@@ -37,7 +37,7 @@ public enum FunctionKind
     Pure,
 
     /// <summary>
-    /// A control-flow primitive (if/switch/forEach/while/break/continue/exit). In v6
+    /// A control-flow primitive (if/switch/forEach/while/break/continue). In v6
     /// these are structural (own their body); whether they remain in the function
     /// registry or become first-class IR statement kinds is open (discussion notes §10.7).
     /// </summary>

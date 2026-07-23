@@ -64,7 +64,6 @@ internal sealed class DebugCodegen
             case SwitchStatement sw: GenSwitch(sb, sw, pad, depth); break;
             case BreakStatement: sb.AppendLine($"{pad}break;"); break;
             case ContinueStatement: sb.AppendLine($"{pad}continue;"); break;
-            case ExitStatement: sb.AppendLine($"{pad}return;"); break;
         }
     }
 

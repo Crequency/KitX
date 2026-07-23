@@ -1,11 +1,13 @@
 namespace KitX.WorkflowV6.Ir.Statements;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Loop-control escapes — break / continue / exit (discussion notes §3.3 #6–#8).
+// Loop-control escapes — break / continue (discussion notes §3.3 #6–#7).
 //
 // These are the *structured* replacements for Goto. break and continue escape the
-// enclosing loop (forEach / while) lexically; exit terminates the workflow (the v5
-// "Break" builtin, renamed because "Break" was already overloaded by loop-break).
+// enclosing loop (forEach / while) lexically. A top-level workflow ends when its
+// statement sequence runs out (implicit return) — there is no explicit exit/return
+// keyword: an exit would be a non-local "program-level Goto" that conflicts with the
+// structured principle, and every early-exit scenario is expressible via if-branches.
 //
 // Per discussion notes §十二-D: break/continue do NOT take a label (no labeled-break
 // / labeled-continue). Escaping an outer loop requires refactoring (extract to a
@@ -15,9 +17,9 @@ namespace KitX.WorkflowV6.Ir.Statements;
 // revision reverses §十二-D; they default to null and the v6 parser will reject any
 // non-null value until such a revision.
 //
-// These three are first-class IR statement kinds per §十二-K (NOT IBuiltinFunction):
+// These two are first-class IR statement kinds per §十二-K (NOT IBuiltinFunction):
 // the indented parser builds them directly, and Phase 4 codegen lowers them to the
-// C# <c>break;</c> / <c>continue;</c> / <c>return;</c> keywords.
+// C# <c>break;</c> / <c>continue;</c> keywords.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -90,42 +92,6 @@ public sealed record ContinueStatement : KitX.WorkflowV6.Ir.Statement
         hash.Add(LeadingComment);
         hash.Add(TrailingComment);
         hash.Add(Label);
-        return hash.ToHashCode();
-    }
-}
-
-/// <summary>
-/// Terminates the workflow. Maps to <c>return</c> in the generated structured C#.
-/// This is the v5 "Break" builtin renamed to avoid the loop-break name clash
-/// (discussion notes §3.3 #8).
-/// </summary>
-public sealed record ExitStatement : KitX.WorkflowV6.Ir.Statement
-{
-    /// <inheritdoc/>
-    public override KitX.WorkflowV6.Ir.StatementKind Kind =>
-        KitX.WorkflowV6.Ir.StatementKind.Exit;
-
-    /// <summary>Optional exit reason payload (refined during implementation).</summary>
-    public string? Reason { get; init; }
-
-    public bool Equals(ExitStatement? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        if (Fingerprint.Equals(other.Fingerprint) == false) return false;
-        if (LeadingComment != other.LeadingComment) return false;
-        if (TrailingComment != other.TrailingComment) return false;
-        if (Reason != other.Reason) return false;
-        return true;
-    }
-
-    public override int GetHashCode()
-    {
-        var hash = new HashCode();
-        hash.Add(Fingerprint);
-        hash.Add(LeadingComment);
-        hash.Add(TrailingComment);
-        hash.Add(Reason);
         return hash.ToHashCode();
     }
 }

@@ -120,7 +120,6 @@ public class SmokeTests
             new WhileStatement { Fingerprint = Fingerprint.Compute(MakeIdentifier("c")), Condition = MakeIdentifier("c"), Body = [] }.Kind);
         Assert.Equal(StatementKind.Break, new BreakStatement { Fingerprint = Fingerprint.Compute("break") }.Kind);
         Assert.Equal(StatementKind.Continue, new ContinueStatement { Fingerprint = Fingerprint.Compute("continue") }.Kind);
-        Assert.Equal(StatementKind.Exit, new ExitStatement { Fingerprint = Fingerprint.Compute("exit") }.Kind);
     }
 
     [Fact]

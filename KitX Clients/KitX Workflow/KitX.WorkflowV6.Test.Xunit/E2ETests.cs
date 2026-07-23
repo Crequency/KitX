@@ -146,22 +146,6 @@ public class E2ETests
     }
 
     [Fact]
-    public async Task E2E_Exit_Terminates_Workflow()
-    {
-        var src = """
-            Print("before")
-            exit()
-            Print("after")
-            """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
-        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
-        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
-        Assert.Contains("before", result.Output);
-        Assert.DoesNotContain("after", result.Output);
-    }
-
-    [Fact]
     public async Task E2E_Strong_Typed_PubVar()
     {
         var src = """
