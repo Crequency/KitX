@@ -564,4 +564,78 @@ public class BpGraphLensTests
         Assert.Single(gfOutputs);
         Assert.Equal(PinType.Json, gfOutputs[0].Type);
     }
+
+    // ── Layout tests ──
+
+    [Fact]
+    public void Layout_All_Nodes_Have_Coordinates()
+    {
+        var bp = ProjectBS("Print(\"hello\")\n");
+        Assert.All(bp.Nodes, n => Assert.True(n.X != 0 || n.Y != 0));
+    }
+
+    [Fact]
+    public void Layout_Sequential_Nodes_Not_Overlapping()
+    {
+        var bp = ProjectBS("Print(\"a\")\nPrint(\"b\")\n");
+        var prints = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .Where(n => n.FunctionName == "Print").ToList();
+        Assert.Equal(2, prints.Count);
+        // Sequential nodes should be separated horizontally or vertically
+        var dx = Math.Abs(prints[0].X - prints[1].X);
+        var dy = Math.Abs(prints[0].Y - prints[1].Y);
+        Assert.True(dx >= 200 || dy >= 100, $"Nodes overlap: dx={dx}, dy={dy}");
+    }
+
+    [Fact]
+    public void Layout_If_Else_Branches_At_Different_Y()
+    {
+        var bp = ProjectBS("""
+            if 1, 1 > Compare("BEQ")
+                Print("yes")
+            else
+                Print("no")
+            """);
+        var prints = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .Where(n => n.FunctionName == "Print").ToList();
+        Assert.Equal(2, prints.Count);
+        // True/False branches should be vertically separated
+        Assert.NotEqual(prints[0].Y, prints[1].Y);
+    }
+
+    [Fact]
+    public void Layout_Data_Nodes_In_Sidebar()
+    {
+        var bp = ProjectBS("""
+            var {
+                int x
+            }
+
+            0 > x
+            x > Print
+            """);
+        // Variable definition nodes should be placed in the left sidebar (X < 0)
+        var vars = bp.Nodes.OfType<VariableNode>().ToList();
+        Assert.NotEmpty(vars);
+        Assert.Contains(vars, v => v.X < 0);
+    }
+
+    [Fact]
+    public void Layout_ForEach_Branches_Not_Overlapping()
+    {
+        var bp = ProjectBS("""
+            forEach Range(0, 3, 1) as i
+                i > Print
+            """);
+        var each = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .FirstOrDefault(n => n.FunctionName == "Each");
+        Assert.NotNull(each);
+        var print = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .FirstOrDefault(n => n.FunctionName == "Print");
+        Assert.NotNull(print);
+        // Print (in Body branch) should not overlap with the Each node
+        var dx = Math.Abs(each!.X - print!.X);
+        var dy = Math.Abs(each.Y - print.Y);
+        Assert.True(dx >= 200 || dy >= 100, $"Each and Print overlap: dx={dx}, dy={dy}");
+    }
 }

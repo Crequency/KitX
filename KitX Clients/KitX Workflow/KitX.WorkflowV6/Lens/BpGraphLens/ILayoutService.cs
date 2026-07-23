@@ -4,29 +4,13 @@ using KitX.Core.Contract.Workflow;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ILayoutService — assigns canvas coordinates to Blueprint nodes.
+//
+// The default implementation (LayoutService) builds a recursive region tree
+// from the exec-control-flow graph and arranges nodes with smart wrapping
+// and symmetric fork branch separation. See LayoutService.cs for details.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public interface ILayoutService
 {
     void Layout(Blueprint blueprint);
-}
-
-/// <summary>
-/// Simple auto-layout: vertical stacking. Each node gets a uniform vertical offset.
-/// </summary>
-public sealed class LayoutService : ILayoutService
-{
-    private const double HorizontalPadding = 40;
-    private const double VerticalSpacing = 80;
-
-    public void Layout(Blueprint blueprint)
-    {
-        double y = 40;
-        foreach (var node in blueprint.Nodes)
-        {
-            node.X = HorizontalPadding;
-            node.Y = y;
-            y += VerticalSpacing;
-        }
-    }
 }
