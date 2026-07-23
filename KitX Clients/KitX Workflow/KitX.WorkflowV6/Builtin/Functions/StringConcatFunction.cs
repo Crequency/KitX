@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StringConcatFunction — the Pure string concatenation builtin (discussion notes
@@ -23,7 +22,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// a value. Declares a variadic input spec so the BP editor auto-grows new string pins
 /// when the last one is connected.
 /// </summary>
-public sealed class StringConcatFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class StringConcatFunction : IBuiltinFunction
 {
     public string Name => "StringConcat";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -40,10 +39,4 @@ public sealed class StringConcatFunction : IBuiltinFunction, ICodeGenHandler
     ];
 
     public VariadicPinSpec? InputVariadic => new("Input ", 3, PinType.String);
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        // Phase 4 wires the actual Roslyn expression (string.Concat(...)).
-        yield break;
-    }
 }

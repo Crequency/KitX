@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PauseFunction — the sleep/delay builtin. Ported from v5.1 SimpleBuiltinFunctions.
@@ -14,7 +13,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// <summary>
 /// The Pause builtin — suspends execution for N milliseconds. SideEffect.
 /// </summary>
-public sealed class PauseFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class PauseFunction : IBuiltinFunction
 {
     public string Name => "Pause";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -25,9 +24,4 @@ public sealed class PauseFunction : IBuiltinFunction, ICodeGenHandler
     ];
 
     public IReadOnlyList<PortSpec> OutputPorts => [];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        yield break;
-    }
 }

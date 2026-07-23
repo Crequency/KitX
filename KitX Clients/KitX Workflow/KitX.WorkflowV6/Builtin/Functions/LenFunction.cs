@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LenFunction — the universal length builtin (inspired by Python's len()).
@@ -20,7 +19,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// The Len builtin — returns the length/count of a value. Pure: returns an Integer.
 /// Accepts strings, JSON arrays/objects, and .NET arrays/collections.
 /// </summary>
-public sealed class LenFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class LenFunction : IBuiltinFunction
 {
     public string Name => "Len";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -34,9 +33,4 @@ public sealed class LenFunction : IBuiltinFunction, ICodeGenHandler
     [
         new("Length", PinType.Integer, 50),
     ];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        yield break;
-    }
 }

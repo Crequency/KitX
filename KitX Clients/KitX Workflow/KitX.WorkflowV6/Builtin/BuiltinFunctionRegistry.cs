@@ -30,7 +30,7 @@ public sealed class BuiltinFunctionRegistry
     // Per-role indexes: only functions implementing a role appear in that role's table.
     private readonly Dictionary<string, IParserHandler> _parsers = new();
     private readonly Dictionary<string, ILoweringHandler> _lowerers = new();
-    private readonly Dictionary<string, ICodeGenHandler> _codeGens = new();
+
     private readonly Dictionary<string, IBpRenderHandler> _bpRenderers = new();
 
     // BP-reverse is keyed by BP canvas name (not KS name).
@@ -81,7 +81,6 @@ public sealed class BuiltinFunctionRegistry
 
         if (function is IParserHandler p) _parsers.Add(name, p);
         if (function is ILoweringHandler l) _lowerers.Add(name, l);
-        if (function is ICodeGenHandler c) _codeGens.Add(name, c);
         if (function is IBpRenderHandler r) _bpRenderers.Add(name, r);
         if (function is IBpReverseHandler rev)
         {
@@ -101,7 +100,6 @@ public sealed class BuiltinFunctionRegistry
 
     public IParserHandler? GetParser(string name) => _parsers.GetValueOrDefault(name);
     public ILoweringHandler? GetLowerer(string name) => _lowerers.GetValueOrDefault(name);
-    public ICodeGenHandler? GetCodeGen(string name) => _codeGens.GetValueOrDefault(name);
     public IBpRenderHandler? GetBpRenderer(string name) => _bpRenderers.GetValueOrDefault(name);
     public IBpReverseHandler? GetBpReverseByBpName(string bpName) => _bpReverseByBpName.GetValueOrDefault(bpName);
 }

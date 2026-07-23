@@ -22,7 +22,9 @@ using Serilog;
 //   • No plugin host (MVP scope).
 //
 // What's preserved:
-//   • Reflection-based builtin registry dispatch via ICodeGenHandler (Phase 3).
+//   • String-concatenation codegen: builtin calls emit this.Method(args) directly;
+//     no ICodeGenHandler dispatch (the v5 Roslyn SyntaxFactory path was retired in
+//     favour of the simpler structured-C# string builder).
 //   • LoweringResult-driven strong-typed PubVar fields on the generated G subclass
 //     (§十二-F).
 //   • Collectible ALC for unload.

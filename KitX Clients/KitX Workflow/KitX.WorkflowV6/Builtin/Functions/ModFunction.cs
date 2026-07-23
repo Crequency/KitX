@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ModFunction — the integer modulo builtin (discussion notes §十二-B:
@@ -16,7 +15,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// <summary>
 /// The Mod builtin — modulo of two integers. Pure: returns an Integer.
 /// </summary>
-public sealed class ModFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class ModFunction : IBuiltinFunction
 {
     public string Name => "Mod";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -31,9 +30,4 @@ public sealed class ModFunction : IBuiltinFunction, ICodeGenHandler
     [
         new("Remainder", PinType.Integer, 50),
     ];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        yield break;
-    }
 }

@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CompareFunction — the comparison builtin (discussion notes §十二-B:
@@ -23,7 +22,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// The Compare builtin — compares two values with a named operator. Pure:
 /// returns a Boolean. Replaces the disabled comparison operators per §十二-B.
 /// </summary>
-public sealed class CompareFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class CompareFunction : IBuiltinFunction
 {
     /// <summary>The supported comparison operator codes (KScript forms).</summary>
     public static readonly IReadOnlySet<string> SupportedOps = new HashSet<string>
@@ -45,10 +44,4 @@ public sealed class CompareFunction : IBuiltinFunction, ICodeGenHandler
     [
         new("Result", PinType.Boolean, 50),
     ];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        // Phase 4 wires the actual Roslyn expression (G.Compare(op, a, b)).
-        yield break;
-    }
 }

@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WriteTextFileFunction — writes content to a text file (overwrites). Ported from v5.1.
@@ -14,7 +13,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// <summary>
 /// The WriteTextFile builtin — writes content to a text file (overwrites). SideEffect.
 /// </summary>
-public sealed class WriteTextFileFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class WriteTextFileFunction : IBuiltinFunction
 {
     public string Name => "WriteTextFile";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -26,9 +25,4 @@ public sealed class WriteTextFileFunction : IBuiltinFunction, ICodeGenHandler
     ];
 
     public IReadOnlyList<PortSpec> OutputPorts => [];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        yield break;
-    }
 }

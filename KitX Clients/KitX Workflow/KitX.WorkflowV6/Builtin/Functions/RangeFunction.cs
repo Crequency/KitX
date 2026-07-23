@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RangeFunction — the Pure producer for forEach iteration (discussion notes §3.3 #9).
@@ -20,7 +19,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// The Range builtin — produces an integer range <c>[from, to)</c> with the given step.
 /// Pure: returns a value, no side effects. Used as the canonical forEach source.
 /// </summary>
-public sealed class RangeFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class RangeFunction : IBuiltinFunction
 {
     public string Name => "Range";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -36,12 +35,4 @@ public sealed class RangeFunction : IBuiltinFunction, ICodeGenHandler
     [
         new("Range", PinType.Json, 50),
     ];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        // Range's codegen produces a typed int[] array; Phase 4 wires the actual Roslyn
-        // expression. Placeholder for now — the spec ports + registry discovery are
-        // the Phase 3 deliverable; codegen lands in Phase 4.
-        yield break;
-    }
 }

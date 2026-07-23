@@ -108,19 +108,6 @@ public class BuiltinFunctionTests
     }
 
     [Fact]
-    public void CodeGen_Handlers_Registered_For_MVP()
-    {
-        // Each MVP builtin implements ICodeGenHandler; the registry's per-role lookup
-        // must return them so Phase 4 codegen can dispatch.
-        var registry = Discover();
-        Assert.NotNull(registry.GetCodeGen("Print"));
-        Assert.NotNull(registry.GetCodeGen("Range"));
-        Assert.NotNull(registry.GetCodeGen("StringConcat"));
-        Assert.NotNull(registry.GetCodeGen("Compare"));
-        Assert.NotNull(registry.GetCodeGen("Add"));
-    }
-
-    [Fact]
     public void Registry_Contains_Arithmetic_Functions()
     {
         var registry = Discover();

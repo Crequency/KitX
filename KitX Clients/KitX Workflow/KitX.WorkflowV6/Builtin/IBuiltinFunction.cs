@@ -11,7 +11,6 @@ using KitX.Core.Contract.Workflow;
 //   IBuiltinFunction        — always: identity + ports (the spec)
 //   IParserHandler          — if it customises KS parse (control-flow forms)
 //   ILoweringHandler        — if it customises AST→IR lowering (default = plain call)
-//   ICodeGenHandler         — if it customises IR→structured-C# emission
 //   IBpRenderHandler        — if it customises IR→BP-node template
 //   IBpReverseHandler       — if it can build IR from a BP node (cures hardcoded maps)
 //

@@ -4,7 +4,6 @@ using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Lowering;
 using KitX.WorkflowV6.Lens.BpGraphLens;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Role handler interfaces — optional capabilities a function implements on top of
@@ -42,16 +41,6 @@ public interface ILoweringHandler
         IReadOnlyList<string> expandedArgs,
         string? assignedVar,
         LoweringContext ctx);
-}
-
-/// <summary>
-/// Customises IR→structured-C# emission. The default emission generates
-/// <c>G.&lt;Name&gt;(args)</c>; functions with special codegen needs implement this.
-/// </summary>
-public interface ICodeGenHandler
-{
-    /// <summary>Emits structured C# statements for an IR statement.</summary>
-    IEnumerable<StatementSyntax> EmitCSharp(Statement stmt, CodeGenContext ctx);
 }
 
 /// <summary>

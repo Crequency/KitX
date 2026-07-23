@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DivFunction — the integer division builtin (discussion notes §十二-B:
@@ -16,7 +15,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// <summary>
 /// The Div builtin — integer division of two integers. Pure: returns an Integer.
 /// </summary>
-public sealed class DivFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class DivFunction : IBuiltinFunction
 {
     public string Name => "Div";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -31,9 +30,4 @@ public sealed class DivFunction : IBuiltinFunction, ICodeGenHandler
     [
         new("Quotient", PinType.Integer, 50),
     ];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        yield break;
-    }
 }

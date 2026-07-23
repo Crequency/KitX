@@ -1,7 +1,6 @@
 namespace KitX.WorkflowV6.Builtin.Functions;
 
 using KitX.Core.Contract.Workflow;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SubFunction — the integer subtraction builtin (discussion notes §十二-B:
@@ -15,7 +14,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 /// <summary>
 /// The Sub builtin — subtracts two integers. Pure: returns an Integer.
 /// </summary>
-public sealed class SubFunction : IBuiltinFunction, ICodeGenHandler
+public sealed class SubFunction : IBuiltinFunction
 {
     public string Name => "Sub";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -30,10 +29,4 @@ public sealed class SubFunction : IBuiltinFunction, ICodeGenHandler
     [
         new("Difference", PinType.Integer, 50),
     ];
-
-    public IEnumerable<StatementSyntax> EmitCSharp(Ir.Statement stmt, CodeGenContext ctx)
-    {
-        // StructuredCodegen emits this.Sub(a, b) via the string-concatenation path.
-        yield break;
-    }
 }
