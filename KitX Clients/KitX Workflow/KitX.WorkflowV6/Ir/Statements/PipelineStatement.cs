@@ -48,7 +48,8 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Fingerprint.Equals(other.Fingerprint) == false) return false;
-        if (Comment != other.Comment) return false;
+        if (LeadingComment != other.LeadingComment) return false;
+        if (TrailingComment != other.TrailingComment) return false;
         if (Sources.Length != other.Sources.Length) return false;
         for (int i = 0; i < Sources.Length; i++)
             if (!Sources[i].Equals(other.Sources[i])) return false;
@@ -62,7 +63,8 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
     {
         var hash = new HashCode();
         hash.Add(Fingerprint);
-        hash.Add(Comment);
+        hash.Add(LeadingComment);
+        hash.Add(TrailingComment);
                 foreach (var s in Sources) hash.Add(s);
         foreach (var s in Segments) hash.Add(s);
         return hash.ToHashCode();
@@ -101,12 +103,21 @@ public sealed record Segment
     /// <summary>True when this segment is a variable assignment tap rather than a call.</summary>
     public bool IsVariableTap { get; init; }
 
+    /// <summary>
+    /// Inline comment on this segment's line in a multi-line pipeline
+    /// (<c>    &gt; Func // cmt</c>). Null in single-line pipelines. Forces multi-line
+    /// rendering when non-null. Maps to this segment's function node
+    /// <c>BlueprintNode.Comment</c>.
+    /// </summary>
+    public string? Comment { get; init; }
+
     public bool Equals(Segment? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Target != other.Target) return false;
         if (IsVariableTap != other.IsVariableTap) return false;
+        if (Comment != other.Comment) return false;
         if (Arguments.Length != other.Arguments.Length) return false;
         for (int i = 0; i < Arguments.Length; i++)
             if (!Arguments[i].Equals(other.Arguments[i])) return false;
@@ -121,6 +132,7 @@ public sealed record Segment
         var hash = new HashCode();
         hash.Add(Target);
         hash.Add(IsVariableTap);
+        hash.Add(Comment);
         foreach (var a in Arguments) hash.Add(a);
         return hash.ToHashCode();
     }

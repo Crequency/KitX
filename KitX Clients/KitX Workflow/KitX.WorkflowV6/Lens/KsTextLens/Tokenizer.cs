@@ -5,9 +5,10 @@ namespace KitX.WorkflowV6.Lens.KsTextLens;
 // Tab forbidden).
 //
 // Unlike v5's Superpower token combinator, the v6 tokenizer is line-oriented: it
-// emits an Indent token at the start of each non-blank, non-comment line, then the
-// rest of that line's tokens. Blank lines and full-line `//` comments are dropped
-// (they don't carry indent). Inline `//` comments terminate a line's token stream.
+// emits an Indent token at the start of each non-blank line, then the rest of that
+// line's tokens. Blank lines are dropped. Full-line `//` comments emit Indent +
+// Comment (so the parser can attach them as leading comments). Inline `//` comments
+// emit a Comment token that terminates the line's token stream.
 //
 // Token kinds:
 //   • Indent(n)         — leading-whitespace count / 4, at the start of each logical line
@@ -68,6 +69,7 @@ internal enum KsTokenKind
     Semicolon,
     Placeholder,
     Assign,
+    Comment,
     EndOfInput,
 }
 
@@ -116,10 +118,33 @@ internal static class Tokenizer
                 continue;
             }
 
-            // Skip fully-blank lines and full-line comment lines (no Indent emitted).
+            // Skip fully-blank lines (no Indent emitted).
             var rest = idx < line.Length ? line[idx..] : string.Empty;
             if (string.IsNullOrWhiteSpace(rest)) continue;
-            if (rest.TrimStart().StartsWith("//")) continue;
+
+            // Full-line comment: emit Indent + Comment so the parser can associate it as
+            // a leading comment for the following statement. Indent level uses floor
+            // division (comment lines are exempt from the KS002 multiple-of-4 check, so
+            // a 3-space comment line still associates with its surroundings).
+            if (rest.TrimStart().StartsWith("//"))
+            {
+                tokens.Add(new KsToken
+                {
+                    Kind = KsTokenKind.Indent,
+                    IndentLevel = indentSpaces / 4,
+                    Line = lineNo,
+                    Column = 1,
+                });
+                var commentText = rest.TrimStart()[2..].Trim();
+                tokens.Add(new KsToken
+                {
+                    Kind = KsTokenKind.Comment,
+                    Text = commentText,
+                    Line = lineNo,
+                    Column = indentSpaces + 1,
+                });
+                continue;
+            }
 
             // Indent must be a multiple of 4 (§十二-A).
             if (indentSpaces % 4 != 0)
@@ -162,10 +187,13 @@ internal static class Tokenizer
                 continue;
             }
 
-            // Inline comment terminates the line.
+            // Inline comment — emit a Comment token carrying the trimmed text, then stop
+            // tokenising this line (the comment terminates the line's token stream).
             if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
             {
-                break;  // rest of line is a comment
+                var commentText = line[(i + 2)..].Trim();
+                tokens.Add(new KsToken { Kind = KsTokenKind.Comment, Text = commentText, Line = lineNo, Column = columnBase + i });
+                break;
             }
 
             int col = columnBase + i;

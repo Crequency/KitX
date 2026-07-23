@@ -144,7 +144,8 @@ internal sealed class KsLowerer
                 ThenBody = LowerStatements(iff.ThenBody),
                 ElseBody = LowerStatements(iff.ElseBody),
                 SourceLine = iff.SourceLine,
-                Comment = null,
+                LeadingComment = iff.LeadingComment,
+                TrailingComment = iff.TrailingComment,
             }),
             KsSwitch sw => WithFingerprint(new SwitchStatement
             {
@@ -153,7 +154,8 @@ internal sealed class KsLowerer
                 Arms = LowerArms(sw.Arms),
                 Default = LowerStatements(sw.Default),
                 SourceLine = sw.SourceLine,
-                Comment = null,
+                LeadingComment = sw.LeadingComment,
+                TrailingComment = sw.TrailingComment,
             }),
             KsForEach fe => WithFingerprint(new ForEachStatement
             {
@@ -163,7 +165,8 @@ internal sealed class KsLowerer
                 ItemType = PinType.Any,  // type inference is filled in by Phase 4 codegen
                 Body = LowerStatements(fe.Body),
                 SourceLine = fe.SourceLine,
-                Comment = null,
+                LeadingComment = fe.LeadingComment,
+                TrailingComment = fe.TrailingComment,
             }),
             KsWhile ws => WithFingerprint(new WhileStatement
             {
@@ -171,25 +174,29 @@ internal sealed class KsLowerer
                 Condition = ws.Condition,
                 Body = LowerStatements(ws.Body),
                 SourceLine = ws.SourceLine,
-                Comment = null,
+                LeadingComment = ws.LeadingComment,
+                TrailingComment = ws.TrailingComment,
             }),
             KsBreak => WithFingerprint(new BreakStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,
-                Comment = null,
+                LeadingComment = stmt.LeadingComment,
+                TrailingComment = stmt.TrailingComment,
             }),
             KsContinue => WithFingerprint(new ContinueStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,
-                Comment = null,
+                LeadingComment = stmt.LeadingComment,
+                TrailingComment = stmt.TrailingComment,
             }),
             KsExit => WithFingerprint(new ExitStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 SourceLine = stmt.SourceLine,
-                Comment = null,
+                LeadingComment = stmt.LeadingComment,
+                TrailingComment = stmt.TrailingComment,
             }),
             _ => throw new InvalidOperationException($"Unknown KS statement kind: {stmt.GetType().Name}"),
         };
@@ -218,7 +225,8 @@ internal sealed class KsLowerer
             Sources = sources,
             Segments = segments,
             SourceLine = pipe.SourceLine,
-            Comment = null,
+            LeadingComment = pipe.LeadingComment,
+            TrailingComment = pipe.TrailingComment,
         };
         return WithFingerprint(stmt);
     }
@@ -236,6 +244,7 @@ internal sealed class KsLowerer
             Arguments = args,
             RawArguments = rawArgs,
             IsVariableTap = isVarTap,
+            Comment = seg.Comment,
         };
     }
 }

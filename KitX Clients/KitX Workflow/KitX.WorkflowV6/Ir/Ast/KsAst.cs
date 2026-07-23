@@ -198,6 +198,9 @@ public sealed record KsPipelineSegment : KsNode
     public ImmutableArray<string> RawArgs { get; init; } = [];
     public bool IsVariableTap { get; init; }
 
+    /// <summary>Inline <c>//</c> comment on this segment's line (multi-line pipelines only).</summary>
+    public string? Comment { get; set; }
+
     public bool Equals(KsPipelineSegment? other)
     {
         if (other is null) return false;
@@ -311,7 +314,14 @@ public sealed record KsVarBlock : KsNode
 // ── Control-flow statement nodes ──
 
 /// <summary>Base of statement-level KS AST nodes (anything that can sit in a body).</summary>
-public abstract record KsStatement : KsNode;
+public abstract record KsStatement : KsNode
+{
+    /// <summary>Leading full-line <c>//</c> comment(s) above this statement (joined by <c>\n</c>).</summary>
+    public string? LeadingComment { get; set; }
+
+    /// <summary>Inline <c>//</c> comment on this statement's header line.</summary>
+    public string? TrailingComment { get; set; }
+}
 
 /// <summary>
 /// An <c>if &lt;condition&gt; { then-body } else { else-body }</c> statement.

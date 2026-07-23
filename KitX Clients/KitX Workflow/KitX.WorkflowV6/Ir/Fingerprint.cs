@@ -54,7 +54,8 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         ArgumentNullException.ThrowIfNull(stmt);
         var accum = new HashAccum();
         accum.AddKind(stmt.Kind);
-        accum.AddOptional(stmt.Comment);
+        accum.AddOptional(stmt.LeadingComment);
+        accum.AddOptional(stmt.TrailingComment);
         // SourceLine deliberately excluded: it's source-location metadata, not
         // semantic content. Two statements with the same content but on different
         // lines (e.g. after re-formatting) must produce the same fingerprint.
@@ -69,6 +70,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 {
                     accum.AddString(seg.Target);
                     accum.AddBool(seg.IsVariableTap);
+                    accum.AddOptional(seg.Comment);
                     accum.AddInt(seg.Arguments.Length);
                     foreach (var arg in seg.Arguments) accum.AddBsNode(arg);
                 }
@@ -140,6 +142,13 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
 
     private static void AccumulateBsNode(HashAccum accum, KsNode node)
     {
+        // Statement-level comments participate in the AST fingerprint so comment
+        // changes are detectable as identity changes (mirrors the IR fingerprint).
+        if (node is KsStatement ksStmt)
+        {
+            accum.AddOptional(ksStmt.LeadingComment);
+            accum.AddOptional(ksStmt.TrailingComment);
+        }
         switch (node)
         {
             case KsLiteral lit:
@@ -163,6 +172,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 {
                     accum.AddString(seg.Target);
                     accum.AddBool(seg.IsVariableTap);
+                    accum.AddOptional(seg.Comment);
                     accum.AddInt(seg.Args.Length);
                     foreach (var a in seg.Args) accum.AddBsNode(a);
                 }
@@ -170,6 +180,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             case KsPipelineSegment seg:
                 accum.AddString(seg.Target);
                 accum.AddBool(seg.IsVariableTap);
+                accum.AddOptional(seg.Comment);
                 accum.AddInt(seg.Args.Length);
                 foreach (var a in seg.Args) accum.AddBsNode(a);
                 break;

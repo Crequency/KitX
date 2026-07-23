@@ -72,21 +72,29 @@ internal sealed class KsRenderer
 
     private void RenderStatement(StringBuilder sb, Statement stmt, int level)
     {
+        RenderLeadingComments(sb, stmt, level);
         switch (stmt)
         {
             case PipelineStatement p:
-                sb.Append(Indent(level)).Append(RenderPipeline(p)).Append('\n');
+                RenderPipelineStmt(sb, p, level);
                 break;
 
             case IfStatement iff:
-                sb.Append(Indent(level)).Append("if ").Append(RenderBsNode(iff.Condition)).Append('\n');
+                sb.Append(Indent(level)).Append("if ").Append(RenderBsNode(iff.Condition));
+                AppendTrailing(sb, iff.TrailingComment);
+                sb.Append('\n');
                 RenderBody(sb, iff.ThenBody, level + 1);
                 if (iff.ElseBody.Length > 0)
                 {
-                    // If the else body is a single nested IfStatement, render as `else if`.
-                    if (iff.ElseBody.Length == 1 && iff.ElseBody[0] is IfStatement nested)
+                    // If the else body is a single nested IfStatement with no leading
+                    // comment, render as `else if`. A leading comment forces the
+                    // explicit `else` + indented body form so the comment round-trips.
+                    if (iff.ElseBody.Length == 1 && iff.ElseBody[0] is IfStatement nested
+                        && nested.LeadingComment is null)
                     {
-                        sb.Append(Indent(level)).Append("else if ").Append(RenderBsNode(nested.Condition)).Append('\n');
+                        sb.Append(Indent(level)).Append("else if ").Append(RenderBsNode(nested.Condition));
+                        AppendTrailing(sb, nested.TrailingComment);
+                        sb.Append('\n');
                         RenderBody(sb, nested.ThenBody, level + 1);
                         if (nested.ElseBody.Length > 0)
                         {
@@ -103,7 +111,9 @@ internal sealed class KsRenderer
                 break;
 
             case SwitchStatement sw:
-                sb.Append(Indent(level)).Append("switch ").Append(RenderBsNode(sw.Selector)).Append('\n');
+                sb.Append(Indent(level)).Append("switch ").Append(RenderBsNode(sw.Selector));
+                AppendTrailing(sb, sw.TrailingComment);
+                sb.Append('\n');
                 for (int i = 0; i < sw.Arms.Length; i++)
                 {
                     sb.Append(Indent(level + 1)).Append(i).Append(": ").Append('\n');
@@ -119,25 +129,35 @@ internal sealed class KsRenderer
             case ForEachStatement fe:
                 sb.Append(Indent(level))
                   .Append("forEach ").Append(RenderBsNode(fe.Source))
-                  .Append(" as ").Append(fe.ItemName).Append('\n');
+                  .Append(" as ").Append(fe.ItemName);
+                AppendTrailing(sb, fe.TrailingComment);
+                sb.Append('\n');
                 RenderBody(sb, fe.Body, level + 1);
                 break;
 
             case WhileStatement ws:
-                sb.Append(Indent(level)).Append("while ").Append(RenderBsNode(ws.Condition)).Append('\n');
+                sb.Append(Indent(level)).Append("while ").Append(RenderBsNode(ws.Condition));
+                AppendTrailing(sb, ws.TrailingComment);
+                sb.Append('\n');
                 RenderBody(sb, ws.Body, level + 1);
                 break;
 
             case BreakStatement:
-                sb.Append(Indent(level)).Append("break").Append('\n');
+                sb.Append(Indent(level)).Append("break");
+                AppendTrailing(sb, stmt.TrailingComment);
+                sb.Append('\n');
                 break;
 
             case ContinueStatement:
-                sb.Append(Indent(level)).Append("continue").Append('\n');
+                sb.Append(Indent(level)).Append("continue");
+                AppendTrailing(sb, stmt.TrailingComment);
+                sb.Append('\n');
                 break;
 
             case ExitStatement:
-                sb.Append(Indent(level)).Append("exit").Append('\n');
+                sb.Append(Indent(level)).Append("exit");
+                AppendTrailing(sb, stmt.TrailingComment);
+                sb.Append('\n');
                 break;
 
             default:
@@ -147,29 +167,75 @@ internal sealed class KsRenderer
         }
     }
 
-    private static string RenderPipeline(PipelineStatement p)
+    /// <summary>Emits full-line leading comments above a statement, one <c>//</c> line each.</summary>
+    private static void RenderLeadingComments(StringBuilder sb, Statement stmt, int level)
+    {
+        if (stmt.LeadingComment is { Length: > 0 } lc)
+        {
+            foreach (var line in lc.Split('\n'))
+            {
+                sb.Append(Indent(level));
+                if (line.Length == 0) sb.Append("//");
+                else sb.Append("// ").Append(line);
+                sb.Append('\n');
+            }
+        }
+    }
+
+    /// <summary>Appends an inline trailing comment (<c> // cmt</c>) when non-null/non-empty.</summary>
+    private static void AppendTrailing(StringBuilder sb, string? trailing)
+    {
+        if (trailing is { Length: > 0 })
+            sb.Append(" // ").Append(trailing);
+    }
+
+    /// <summary>
+    /// Renders a pipeline statement. When any segment carries a comment, renders the
+    /// multi-line form (sources on the first line, each segment on its own indented
+    /// continuation line) so per-segment comments can attach. Otherwise renders the
+    /// compact single-line form.
+    /// </summary>
+    private void RenderPipelineStmt(StringBuilder sb, PipelineStatement p, int level)
+    {
+        bool multiline = false;
+        foreach (var s in p.Segments)
+            if (s.Comment is { Length: > 0 }) { multiline = true; break; }
+
+        if (multiline)
+        {
+            // Sources line (+ optional source-line trailing comment).
+            sb.Append(Indent(level)).Append(string.Join(", ", p.Sources.Select(RenderBsNode)));
+            AppendTrailing(sb, p.TrailingComment);
+            sb.Append('\n');
+            // Each segment on its own indented continuation line.
+            foreach (var seg in p.Segments)
+            {
+                sb.Append(Indent(level + 1)).Append("> ").Append(RenderSegmentText(seg));
+                AppendTrailing(sb, seg.Comment);
+                sb.Append('\n');
+            }
+        }
+        else
+        {
+            sb.Append(Indent(level)).Append(RenderPipelineSingleLine(p));
+            AppendTrailing(sb, p.TrailingComment);
+            sb.Append('\n');
+        }
+    }
+
+    private static string RenderSegmentText(Segment seg)
+    {
+        if (seg.IsVariableTap || seg.Arguments.Length == 0)
+            return seg.Target;  // variable tap, or bare `> Func` (implicit single arg)
+        return $"{seg.Target}({string.Join(", ", seg.Arguments.Select(RenderBsNode))})";
+    }
+
+    private static string RenderPipelineSingleLine(PipelineStatement p)
     {
         var sb = new StringBuilder();
         sb.Append(string.Join(", ", p.Sources.Select(RenderBsNode)));
         foreach (var seg in p.Segments)
-        {
-            sb.Append(" > ");
-            if (seg.IsVariableTap)
-            {
-                sb.Append(seg.Target);
-            }
-            else if (seg.Arguments.Length == 0)
-            {
-                // Bare `> Func` — the pipeline value is the implicit single arg.
-                sb.Append(seg.Target);
-            }
-            else
-            {
-                sb.Append(seg.Target).Append('(');
-                sb.Append(string.Join(", ", seg.Arguments.Select(RenderBsNode)));
-                sb.Append(')');
-            }
-        }
+            sb.Append(" > ").Append(RenderSegmentText(seg));
         return sb.ToString();
     }
 

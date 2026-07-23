@@ -101,6 +101,21 @@ internal sealed class Parser
         return false;
     }
 
+    /// <summary>
+    /// If the current token is a <see cref="KsTokenKind.Comment"/>, consumes it and
+    /// returns its (trimmed) text; otherwise returns null without advancing.
+    /// </summary>
+    private string? TryConsumeComment()
+    {
+        if (Current.Kind == KsTokenKind.Comment)
+        {
+            var text = Current.Text;
+            Advance();
+            return text;
+        }
+        return null;
+    }
+
     private void Error(string code, string message, KsToken? at = null)
     {
         var t = at ?? Current;
@@ -114,6 +129,7 @@ internal sealed class Parser
         var body = ImmutableArray.CreateBuilder<KsStatement>();
         KsConstBlock? constBlock = null;
         KsVarBlock? varBlock = null;
+        List<string>? pendingLeading = null;  // accumulated full-line comments for the next statement
 
         while (!AtEnd)
         {
@@ -129,8 +145,20 @@ internal sealed class Parser
             }
             Advance();  // consume Indent(0)
 
+            // A full-line comment emits Indent(0) + Comment. Accumulate it as a leading
+            // comment for the next top-level statement.
+            if (Current.Kind == KsTokenKind.Comment)
+            {
+                (pendingLeading ??= new()).Add(Current.Text);
+                Advance();
+                continue;
+            }
+
+            // Comments directly above a const/var block are out of scope (declaration-
+            // block comment preservation is deferred); drop pending there.
             if (MatchKeyword("const"))
             {
+                pendingLeading = null;
                 if (constBlock is not null)
                     Error("KS011", "Duplicate const block");
                 constBlock = ParseConstBlock();
@@ -138,12 +166,19 @@ internal sealed class Parser
             }
             if (MatchKeyword("var"))
             {
+                pendingLeading = null;
                 if (varBlock is not null)
                     Error("KS011", "Duplicate var block");
                 varBlock = ParseVarBlock();
                 continue;
             }
-            body.Add(ParseStatement());
+            var stmt = ParseStatement();
+            if (pendingLeading is { Count: > 0 })
+            {
+                stmt.LeadingComment = string.Join("\n", pendingLeading);
+                pendingLeading = null;
+            }
+            body.Add(stmt);
         }
 
         return new KsProgram
@@ -286,6 +321,7 @@ internal sealed class Parser
     {
         var ifTok = Advance();  // 'if'
         var cond = ParsePipelineExpression();
+        var trailing = TryConsumeComment();  // inline comment on the `if` header line
         int keywordIndent = LastConsumedIndentLevel();
         var thenBody = ParseBody(keywordIndent + 1, $"if on line {ifTok.Line}");
         ImmutableArray<KsStatement> elseBody = [];
@@ -319,6 +355,7 @@ internal sealed class Parser
             ThenBody = thenBody,
             ElseBody = elseBody,
             SourceLine = ifTok.Line,
+            TrailingComment = trailing,
         };
     }
 
@@ -326,6 +363,7 @@ internal sealed class Parser
     {
         var swTok = Advance();  // 'switch'
         var selector = ParseExpression();
+        var trailing = TryConsumeComment();  // inline comment on the `switch` header line
         int keywordIndent = LastConsumedIndentLevel();
         int armIndent = keywordIndent + 1;
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<KsStatement>>();
@@ -363,6 +401,7 @@ internal sealed class Parser
             Arms = arms.ToImmutable(),
             Default = defaultBody,
             SourceLine = swTok.Line,
+            TrailingComment = trailing,
         };
     }
 
@@ -392,6 +431,7 @@ internal sealed class Parser
         if (Current.Kind != KsTokenKind.Identifier)
             Error("KS031", "Expected item name after 'as'");
         var itemName = Advance().Text;
+        var trailing = TryConsumeComment();  // inline comment on the `forEach` header line
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"forEach on line {feTok.Line}");
         return new KsForEach
@@ -400,6 +440,7 @@ internal sealed class Parser
             ItemName = itemName,
             Body = body,
             SourceLine = feTok.Line,
+            TrailingComment = trailing,
         };
     }
 
@@ -407,6 +448,7 @@ internal sealed class Parser
     {
         var whTok = Advance();  // 'while'
         var cond = ParsePipelineExpression();
+        var trailing = TryConsumeComment();  // inline comment on the `while` header line
         int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"while on line {whTok.Line}");
         return new KsWhile
@@ -414,6 +456,7 @@ internal sealed class Parser
             Condition = cond,
             Body = body,
             SourceLine = whTok.Line,
+            TrailingComment = trailing,
         };
     }
 
@@ -421,14 +464,20 @@ internal sealed class Parser
     {
         var t = Advance();
         Match(KsTokenKind.Semicolon);
-        return new KsBreak { SourceLine = t.Line, SourceText = "break" };
+        var trailing = TryConsumeComment();
+        var stmt = new KsBreak { SourceLine = t.Line, SourceText = "break" };
+        stmt.TrailingComment = trailing;
+        return stmt;
     }
 
     private KsContinue ParseContinue()
     {
         var t = Advance();
         Match(KsTokenKind.Semicolon);
-        return new KsContinue { SourceLine = t.Line, SourceText = "continue" };
+        var trailing = TryConsumeComment();
+        var stmt = new KsContinue { SourceLine = t.Line, SourceText = "continue" };
+        stmt.TrailingComment = trailing;
+        return stmt;
     }
 
     private KsExit ParseExit()
@@ -437,7 +486,10 @@ internal sealed class Parser
         // Tolerate `exit()` — consume the parens if present.
         if (Match(KsTokenKind.LParen)) Match(KsTokenKind.RParen);
         Match(KsTokenKind.Semicolon);
-        return new KsExit { SourceLine = t.Line, SourceText = "exit" };
+        var trailing = TryConsumeComment();
+        var stmt = new KsExit { SourceLine = t.Line, SourceText = "exit" };
+        stmt.TrailingComment = trailing;
+        return stmt;
     }
 
     // ── Pipelines and expressions ──
@@ -465,6 +517,12 @@ internal sealed class Parser
             segments.Add(ParseSegment());
         }
 
+        // Capture point A — a trailing comment after the inline sources/segments. In a
+        // multi-line pipeline this sits on the source line (e.g. `a, b // src cmt`); in
+        // a single-line pipeline with no continuation it is the end-of-statement comment.
+        // It is resolved against capture point C below (they are mutually exclusive).
+        string? sourceTrailing = TryConsumeComment();
+
         // Multi-line pipeline continuation: if the next line starts with Indent + Pipe,
         // treat it as a continuation of the current pipeline. This allows pipelines to
         // span multiple lines (each segment on its own line), which is a prerequisite
@@ -478,7 +536,12 @@ internal sealed class Parser
                 Error("KS061", "'forEach' is not valid as a pipeline segment. Use prefix form: 'forEach <source> as <item>'");
                 break;
             }
-            segments.Add(ParseSegment());
+            var seg = ParseSegment();
+            // Capture point B — a trailing comment on this continuation segment's line
+            // (`> Func // cmt`). This is the per-segment comment that forces multi-line
+            // rendering and maps to the segment's BP node.
+            seg.Comment = TryConsumeComment();
+            segments.Add(seg);
         }
 
         // Terminal assignment `= name` becomes a variable-tap segment.
@@ -500,11 +563,18 @@ internal sealed class Parser
         }
         Match(KsTokenKind.Semicolon);
 
+        // Capture point C — end-of-statement trailing comment for the single-line form
+        // (after the last token on the one physical line). Mutually exclusive with A:
+        // when a multi-line continuation ran, the last segment's comment was captured at
+        // point B and the current token is a new-line Indent (not a Comment).
+        string? endTrailing = TryConsumeComment();
+
         return new KsPipeline
         {
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
             SourceLine = sources.Count > 0 ? sources[0].SourceLine : Current.Line,
+            TrailingComment = sourceTrailing ?? endTrailing,
         };
     }
 
@@ -720,9 +790,18 @@ internal sealed class Parser
     private ImmutableArray<KsStatement> ParseBody(int bodyIndent, string context)
     {
         var body = ImmutableArray.CreateBuilder<KsStatement>();
+        List<string>? pendingLeading = null;  // accumulated full-line comments for the next statement
         while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == bodyIndent)
         {
             Advance();  // consume Indent(bodyIndent)
+            // A full-line comment emits Indent(bodyIndent) + Comment. Accumulate it as a
+            // leading comment for the next statement in this body.
+            if (Current.Kind == KsTokenKind.Comment)
+            {
+                (pendingLeading ??= new()).Add(Current.Text);
+                Advance();
+                continue;
+            }
             // If the next token is `else` at bodyIndent, it belongs to the enclosing
             // if — back out so ParseIf can see it.
             if (IsKeyword("else"))
@@ -730,7 +809,13 @@ internal sealed class Parser
                 _pos--;  // unconsume the Indent so the if's else detection works
                 break;
             }
-            body.Add(ParseStatement());
+            var stmt = ParseStatement();
+            if (pendingLeading is { Count: > 0 })
+            {
+                stmt.LeadingComment = string.Join("\n", pendingLeading);
+                pendingLeading = null;
+            }
+            body.Add(stmt);
         }
         if (body.Count == 0)
             Error("KS062", $"{context} body is empty");

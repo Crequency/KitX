@@ -293,28 +293,114 @@ public class KsTextLensTests
         Assert.Equal(ir1, ir2);
     }
 
-    // ── Comments round-trip (v5.1 §9 three-form anchoring: line comments preserved) ──
+    // ── Comments preserved (v5.1 §9 three-form anchoring: leading / trailing / segment) ──
 
     [Fact]
-    public void Parse_Inline_Comment_Ignored()
+    public void Parse_Inline_Comment_Preserved()
     {
-        // An inline `//` comment terminates a line's tokens but doesn't affect parsing.
+        // An inline `//` comment attaches as the statement's TrailingComment.
         var src = "Print(\"x\") // this is a comment\n";
         var ir = _lens.Parse(src, []);
         Assert.Single(ir.Body);
-        Assert.IsType<PipelineStatement>(ir.Body[0]);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        Assert.Equal("this is a comment", pipe.TrailingComment);
+        Assert.Null(pipe.LeadingComment);
     }
 
     [Fact]
-    public void Parse_Full_Line_Comment_Ignored()
+    public void Parse_Full_Line_Comment_Preserved()
     {
-        // A full-line comment line is dropped entirely (no Indent emitted).
+        // A full-line `//` comment attaches as the next statement's LeadingComment.
         var src = """
             // this is a full-line comment
             Print("x")
             """;
         var ir = _lens.Parse(src, []);
-        Assert.Single(ir.Body);  // only the Print statement
+        Assert.Single(ir.Body);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        Assert.Equal("this is a full-line comment", pipe.LeadingComment);
+        Assert.Null(pipe.TrailingComment);
+    }
+
+    [Fact]
+    public void Parse_Consecutive_Leading_Comments_Joined()
+    {
+        // Multiple consecutive full-line comments join into one LeadingComment (\n-separated).
+        var src = """
+            // first line
+            // second line
+            Print("x")
+            """;
+        var ir = _lens.Parse(src, []);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        Assert.Equal("first line\nsecond line", pipe.LeadingComment);
+    }
+
+    [Fact]
+    public void Comment_Leading_Trip()
+    {
+        var src = """
+            // leading comment
+            a, b > Compare("BEQ") > Print
+            """;
+        var ir1 = _lens.Parse(src, []);
+        var rendered = _lens.Project(ir1);
+        Assert.Contains("// leading comment", rendered);
+        var ir2 = _lens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+    }
+
+    [Fact]
+    public void Comment_Trailing_Trip()
+    {
+        var src = "a, b > Compare(\"BEQ\") > Print // trailing comment\n";
+        var ir1 = _lens.Parse(src, []);
+        var rendered = _lens.Project(ir1);
+        Assert.Contains("// trailing comment", rendered);
+        var ir2 = _lens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+    }
+
+    [Fact]
+    public void Comment_Multiline_Segment_Trip()
+    {
+        // A segment-level comment forces the multi-line rendering and round-trips.
+        var src = """
+            // leading
+            a, b // source inline
+                > Compare("BEQ") // compare comment
+                > Print // print comment
+            """;
+        var ir1 = _lens.Parse(src, []);
+        var pipe = Assert.IsType<PipelineStatement>(ir1.Body[0]);
+        Assert.Equal("leading", pipe.LeadingComment);
+        Assert.Equal("source inline", pipe.TrailingComment);
+        Assert.Equal("compare comment", pipe.Segments[0].Comment);
+        Assert.Equal("print comment", pipe.Segments[1].Comment);
+
+        var rendered = _lens.Project(ir1);
+        // Multi-line form: each segment on its own line.
+        Assert.Contains("> Compare(\"BEQ\") // compare comment", rendered);
+        Assert.Contains("> Print // print comment", rendered);
+        var ir2 = _lens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+    }
+
+    [Fact]
+    public void Comment_ControlFlow_Trailing_Trip()
+    {
+        // A trailing comment on a control-flow header line round-trips.
+        var src = """
+            // loop guard
+            while cond // keep looping
+                Print("tick")
+            """;
+        var ir1 = _lens.Parse(src, []);
+        var rendered = _lens.Project(ir1);
+        Assert.Contains("// keep looping", rendered);
+        Assert.Contains("// loop guard", rendered);
+        var ir2 = _lens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
     }
 
     // ── Project renders correct indentation ──

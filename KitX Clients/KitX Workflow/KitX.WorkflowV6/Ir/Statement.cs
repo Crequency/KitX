@@ -94,8 +94,21 @@ public abstract record Statement
     /// <summary>Content-derived, re-parse-stable identity. See <see cref="Fingerprint"/>.</summary>
     public required Fingerprint Fingerprint { get; init; }
 
-    /// <summary>Free-form comment attached to this statement (round-trips through KS text).</summary>
-    public string? Comment { get; init; }
+    /// <summary>
+    /// Leading comment(s) attached above this statement — full-line <c>//</c> comment(s)
+    /// on the line(s) immediately preceding the statement. Multiple consecutive comment
+    /// lines are joined with <c>\n</c>. Round-trips through KS text and participates in
+    /// the BP group-comment (one statement = one data-connection subgraph).
+    /// </summary>
+    public string? LeadingComment { get; init; }
+
+    /// <summary>
+    /// Trailing comment attached on the same line as the statement header
+    /// (<c>stmt // cmt</c>). For a single-line pipeline this follows the last segment;
+    /// for a control-flow keyword line it follows the condition/selector. Round-trips
+    /// through KS text and maps to the trailing node's <c>BlueprintNode.Comment</c>.
+    /// </summary>
+    public string? TrailingComment { get; init; }
 
     /// <summary>1-based source line in the original KS text, if known.</summary>
     public int SourceLine { get; init; }
