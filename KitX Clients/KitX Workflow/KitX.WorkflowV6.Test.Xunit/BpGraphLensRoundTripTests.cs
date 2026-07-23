@@ -129,4 +129,71 @@ public class BpGraphLensRoundTripTests
         Assert.NotNull(diff);
         Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Added);
     }
+
+    // ── Comment preservation through BP round-trip (Phase B-2) ──
+
+    [Fact]
+    public void BP_LeadingComment_RoundTrip()
+    {
+        // A leading comment maps to a GroupComment (anchored to the statement's primary
+        // node) and round-trips back as the statement's LeadingComment.
+        var ir = ParseKS("""
+            // group comment for the print
+            Print("x")
+            """);
+        var lens = Lens();
+        var bp = lens.Project(ir);
+
+        // Forward: the BP carries a GroupComment anchored to the Print node.
+        Assert.Single(bp.GroupComments);
+        var gc = bp.GroupComments[0];
+        Assert.Equal("group comment for the print", gc.Comment);
+        var printNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Print");
+        Assert.Equal(printNode.Id, gc.AnchorNodeId);
+
+        // Reverse: the comment reattaches as the statement's LeadingComment.
+        var reversed = lens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+        Assert.Equal("group comment for the print", pipe.LeadingComment);
+    }
+
+    [Fact]
+    public void BP_TrailingComment_RoundTrip()
+    {
+        // A trailing comment maps to the primary node's Comment and round-trips.
+        var ir = ParseKS("Print(\"x\") // trailing comment\n");
+        var lens = Lens();
+        var bp = lens.Project(ir);
+
+        var printNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Print");
+        Assert.Equal("trailing comment", printNode.Comment);
+
+        var reversed = lens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+        Assert.Equal("trailing comment", pipe.TrailingComment);
+    }
+
+    [Fact]
+    public void BP_ControlFlow_Leading_And_Trailing_RoundTrip()
+    {
+        // Leading + trailing comments on a control-flow statement round-trip.
+        var ir = ParseKS("""
+            // guard the loop
+            while true // keep going
+                Print("tick")
+            """);
+        var lens = Lens();
+        var bp = lens.Project(ir);
+
+        var whileNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "While");
+        Assert.Equal("keep going", whileNode.Comment);
+        Assert.Single(bp.GroupComments);
+        Assert.Equal("guard the loop", bp.GroupComments[0].Comment);
+        Assert.Equal(whileNode.Id, bp.GroupComments[0].AnchorNodeId);
+
+        var reversed = lens.Reverse(bp);
+        var ws = Assert.IsType<WhileStatement>(reversed.Body[0]);
+        Assert.Equal("guard the loop", ws.LeadingComment);
+        Assert.Equal("keep going", ws.TrailingComment);
+    }
 }

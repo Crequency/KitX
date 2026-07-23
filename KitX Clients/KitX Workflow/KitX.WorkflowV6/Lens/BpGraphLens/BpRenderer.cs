@@ -31,6 +31,15 @@ internal sealed class BpRenderer
 
     private readonly Stack<(BlueprintNode loopNode, string endPin)> _loopStack = new();
 
+    /// <summary>
+    /// The current statement's primary node — the node the exec chain enters (Branch/
+    /// Each/While/Switch/control node, or the last function node of a pipeline). Set by
+    /// each Render* method; read by <see cref="RenderStatement"/> to anchor the leading
+    /// comment (GroupComment) and to attach the trailing comment. Save/restored across
+    /// nested statements so sub-scope rendering never clobbers the parent's primary.
+    /// </summary>
+    private BlueprintNode? _currentPrimaryNode;
+
     /// <summary>Tracks which node + output pin is the current exec chain tail.</summary>
     private readonly record struct ExecTail(BlueprintNode Node, string OutputPin);
 
@@ -99,7 +108,11 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderStatement(Statement stmt, string path, List<ExecTail> prevTails)
     {
-        return stmt switch
+        int nodeStart = _bp.Nodes.Count;
+        var savedPrimary = _currentPrimaryNode;
+        _currentPrimaryNode = null;
+
+        var tails = stmt switch
         {
             PipelineStatement p => RenderPipelineStmt(p, path, prevTails),
             IfStatement iff => RenderIfElse(iff, path, prevTails),
@@ -111,11 +124,33 @@ internal sealed class BpRenderer
             ExitStatement => RenderCtrlNode("exit", path, prevTails),
             _ => prevTails,
         };
+
+        var primary = _currentPrimaryNode;
+        _currentPrimaryNode = savedPrimary;
+
+        // Attach the trailing comment to the statement's primary node (the node the
+        // reverse translator reads back as TrailingComment).
+        if (primary is not null && stmt.TrailingComment is { Length: > 0 })
+            primary.Comment = stmt.TrailingComment;
+
+        // Emit a GroupComment anchoring the leading comment to this statement's subgraph.
+        if (stmt.LeadingComment is { Length: > 0 } && primary is not null)
+        {
+            _bp.GroupComments.Add(new BlueprintGroupComment
+            {
+                Comment = stmt.LeadingComment,
+                AnchorNodeId = primary.Id,
+                NodeIds = _bp.Nodes.Skip(nodeStart).Select(n => n.Id).ToList(),
+            });
+        }
+
+        return tails;
     }
 
     private List<ExecTail> RenderCtrlNode(string name, string path, List<ExecTail> prevTails)
     {
         var node = AddCtrlNode(name, path);
+        _currentPrimaryNode = node;
         ConnectExecTails(prevTails, node);
         return [];
     }
@@ -128,6 +163,7 @@ internal sealed class BpRenderer
         if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
             var func = AddBuiltin(call.MethodName, path);
+            _currentPrimaryNode = func;
             WireCallArgs(func, call.Args, $"{path}/args");
             ConnectExecTails(prevTails, func);
             return [new ExecTail(func, "Exec")];
@@ -159,6 +195,9 @@ internal sealed class BpRenderer
             else
             {
                 var fn = AddBuiltin(seg.Target, $"{path}/seg/{i}");
+                // Per-segment inline comment → this segment's function node Comment.
+                if (seg.Comment is { Length: > 0 })
+                    fn.Comment = seg.Comment;
                 WireCallArgs(fn, seg.Arguments, $"{path}/seg/{i}/args");
                 if (i == 0)
                 {
@@ -174,6 +213,7 @@ internal sealed class BpRenderer
 
         if (lastFunc is not null)
         {
+            _currentPrimaryNode = lastFunc;
             ConnectExecTails(prevTails, lastFunc);
             return [new ExecTail(lastFunc, "Exec")];
         }
@@ -273,6 +313,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderIfElse(IfStatement iff, string path, List<ExecTail> prevTails)
     {
         var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
+        _currentPrimaryNode = br;
         br.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         br.InputPins.Add(MakePin("Condition", PinDirection.Input, PinType.Boolean));
         br.OutputPins.Add(MakePin("True", PinDirection.Output, PinType.Execution));
@@ -305,6 +346,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderForEach(ForEachStatement fe, string path, List<ExecTail> prevTails)
     {
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
+        _currentPrimaryNode = each;
         each.Properties["ItemName"] = fe.ItemName;
         each.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         each.InputPins.Add(MakePin("List", PinDirection.Input, PinType.Any));
@@ -329,6 +371,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderWhile(WhileStatement ws, string path, List<ExecTail> prevTails)
     {
         var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
+        _currentPrimaryNode = wh;
         wh.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         wh.InputPins.Add(MakePin("Condition", PinDirection.Input, PinType.Boolean));
         wh.OutputPins.Add(MakePin("Body", PinDirection.Output, PinType.Execution));
@@ -351,6 +394,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderSwitch(SwitchStatement sw, string path, List<ExecTail> prevTails)
     {
         var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
+        _currentPrimaryNode = sn;
         sn.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
         sn.InputPins.Add(MakePin("Selector", PinDirection.Input, PinType.Integer));
 

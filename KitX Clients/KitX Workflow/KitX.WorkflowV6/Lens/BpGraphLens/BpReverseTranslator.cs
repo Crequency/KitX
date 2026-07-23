@@ -42,6 +42,9 @@ internal sealed class BpReverseTranslator
     // Outgoing data edges: sourceNodeId → list of (targetNode, targetPinName).
     private Dictionary<string, List<(BlueprintNode Target, string TargetPin)>> _dataOut = new();
 
+    // Leading comments keyed by their anchor (statement primary) node id.
+    private Dictionary<string, BlueprintGroupComment> _groupCommentsByAnchor = new();
+
     public BpReverseTranslator(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -107,6 +110,10 @@ internal sealed class BpReverseTranslator
         _byId = _bp.Nodes.ToDictionary(n => n.Id);
         _execOut.Clear();
         _dataOut.Clear();
+        _groupCommentsByAnchor = _bp.GroupComments
+            .Where(g => !string.IsNullOrEmpty(g.AnchorNodeId))
+            .GroupBy(g => g.AnchorNodeId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         foreach (var conn in _bp.Connections)
         {
@@ -194,13 +201,13 @@ internal sealed class BpReverseTranslator
                 result.Add(ReverseSwitch(fn));
                 break;
             case "break":
-                result.Add(WithFingerprint(new BreakStatement { Fingerprint = Fingerprint.Compute("placeholder") }));
+                result.Add(WithFingerprint(ApplyComments(new BreakStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
                 break;
             case "continue":
-                result.Add(WithFingerprint(new ContinueStatement { Fingerprint = Fingerprint.Compute("placeholder") }));
+                result.Add(WithFingerprint(ApplyComments(new ContinueStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
                 break;
             case "exit":
-                result.Add(WithFingerprint(new ExitStatement { Fingerprint = Fingerprint.Compute("placeholder") }));
+                result.Add(WithFingerprint(ApplyComments(new ExitStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
                 break;
             default:
                 // Regular function call → PipelineStatement.
@@ -219,12 +226,15 @@ internal sealed class BpReverseTranslator
         var cond = ReadDataInput(br, "Condition");
         var thenBody = WalkExecChain(br, "True");
         var elseBody = WalkExecChain(br, "False");
+        var (leading, trailing) = ReadComments(br);
         var stmt = new IfStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
             Condition = cond,
             ThenBody = [.. thenBody],
             ElseBody = [.. elseBody],
+            LeadingComment = leading,
+            TrailingComment = trailing,
         };
         return WithFingerprint(stmt);
     }
@@ -235,6 +245,7 @@ internal sealed class BpReverseTranslator
         var body = WalkExecChain(each, "Body");
         var itemName = each.Properties.TryGetValue("ItemName", out var n) && !string.IsNullOrEmpty(n)
             ? n : "item";
+        var (leading, trailing) = ReadComments(each);
         var stmt = new ForEachStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
@@ -242,6 +253,8 @@ internal sealed class BpReverseTranslator
             ItemName = itemName,
             ItemType = PinType.Any,
             Body = [.. body],
+            LeadingComment = leading,
+            TrailingComment = trailing,
         };
         return WithFingerprint(stmt);
     }
@@ -250,11 +263,14 @@ internal sealed class BpReverseTranslator
     {
         var cond = ReadDataInput(wh, "Condition");
         var body = WalkExecChain(wh, "Body");
+        var (leading, trailing) = ReadComments(wh);
         var stmt = new WhileStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
             Condition = cond,
             Body = [.. body],
+            LeadingComment = leading,
+            TrailingComment = trailing,
         };
         return WithFingerprint(stmt);
     }
@@ -271,12 +287,15 @@ internal sealed class BpReverseTranslator
         var defaultBody = _execOut.ContainsKey((sw.Id, "Default"))
             ? WalkExecChain(sw, "Default")
             : new List<Statement>();
+        var (leading, trailing) = ReadComments(sw);
         var stmt = new SwitchStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
             Selector = selector,
             Arms = arms.ToImmutable(),
             Default = [.. defaultBody],
+            LeadingComment = leading,
+            TrailingComment = trailing,
         };
         return WithFingerprint(stmt);
     }
@@ -301,11 +320,14 @@ internal sealed class BpReverseTranslator
         if (!hasWiredInputs)
         {
             // Bare call form: Sources=[KsCall], Segments=[].
+            var (leading1, trailing1) = ReadComments(fn);
             var pipe = new PipelineStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Sources = [call],
                 Segments = [],
+                LeadingComment = leading1,
+                TrailingComment = trailing1,
             };
             return WithFingerprint(pipe);
         }
@@ -329,11 +351,14 @@ internal sealed class BpReverseTranslator
             Target = fn.FunctionName,
             IsVariableTap = false,
         };
+        var (leading2, trailing2) = ReadComments(fn);
         var pipeStmt = new PipelineStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
             Sources = sources.ToImmutable(),
             Segments = [pipelineSeg],
+            LeadingComment = leading2,
+            TrailingComment = trailing2,
         };
         return WithFingerprint(pipeStmt);
     }
@@ -341,6 +366,26 @@ internal sealed class BpReverseTranslator
     /// <summary>Replaces the placeholder fingerprint with the real structural one.</summary>
     private static Statement WithFingerprint(Statement stmt) =>
         stmt with { Fingerprint = Fingerprint.Compute(stmt) };
+
+    /// <summary>
+    /// Reads the leading comment (from <see cref="Blueprint.GroupComments"/> anchored at
+    /// <paramref name="primary"/>) and the trailing comment (from the node's own
+    /// <c>Comment</c> field) for a statement whose primary node is <paramref name="primary"/>.
+    /// </summary>
+    private (string? Leading, string? Trailing) ReadComments(BlueprintNode primary)
+    {
+        string? trailing = primary.Comment is { Length: > 0 } ? primary.Comment : null;
+        _groupCommentsByAnchor.TryGetValue(primary.Id, out var gc);
+        string? leading = gc?.Comment is { Length: > 0 } ? gc.Comment : null;
+        return (leading, trailing);
+    }
+
+    /// <summary>Sets LeadingComment/TrailingComment on a statement from its primary node.</summary>
+    private Statement ApplyComments(Statement stmt, BlueprintNode primary)
+    {
+        var (leading, trailing) = ReadComments(primary);
+        return stmt with { LeadingComment = leading, TrailingComment = trailing };
+    }
 
     // ── Data input reconstruction ──
 
