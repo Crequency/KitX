@@ -10,6 +10,7 @@ using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 using KitX.WorkflowV6.Lens.KsTextLens;
@@ -65,6 +66,35 @@ public class BpGraphLensRoundTripTests
         var lens = Lens();
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: {string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Is_Equivalent_Pipeline_Condition()
+    {
+        // Variable-source pipeline condition `if a, b > Compare("BEQ")` must round-trip
+        // as a KsPipeline condition (NOT a flat KsCall with variable args — that would
+        // violate the v6 bracket-narrowing rule KS051 on re-parse). Pre-declare the vars.
+        var ir = ParseKS("""
+            var {
+                int a
+                int b
+            }
+            if a, b > Compare("BEQ")
+                Print("equal")
+            """);
+        var lens = Lens();
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        var iff = Assert.IsType<IfStatement>(reversed.Body[0]);
+        // The condition must be a KsPipeline (variable sources + Compare segment), not a flat KsCall.
+        var condPipe = Assert.IsType<KsPipeline>(iff.Condition);
+        Assert.Equal(2, condPipe.Sources.Length);
+        Assert.Single(condPipe.Segments);
+        Assert.Equal("Compare", condPipe.Segments[0].Target);
+        // The "BEQ" literal must be preserved as a segment argument (not lost).
+        Assert.Contains(condPipe.Segments[0].Args, a => a is KsLiteral { Kind: KsLiteralKind.String });
         var diff = WorkflowDiffer.Compute(ir, reversed);
         Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: {string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
     }
