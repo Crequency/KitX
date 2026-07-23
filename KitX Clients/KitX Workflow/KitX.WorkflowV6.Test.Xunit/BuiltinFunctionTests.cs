@@ -191,4 +191,64 @@ public class BuiltinFunctionTests
         Assert.Single(len.OutputPorts);
         Assert.Equal(PinType.Integer, len.OutputPorts[0].Type);
     }
+
+    [Fact]
+    public void Registry_Contains_JSON_Functions()
+    {
+        var registry = Discover();
+        Assert.Contains("JsonAsString", registry.AllNames);
+        Assert.Contains("JsonAsInt", registry.AllNames);
+        Assert.Contains("JsonAsBool", registry.AllNames);
+        Assert.Contains("JsonArrayAt", registry.AllNames);
+        Assert.Contains("JsonObjectKeys", registry.AllNames);
+        Assert.Contains("JsonGetField", registry.AllNames);
+        Assert.Contains("JsonContains", registry.AllNames);
+    }
+
+    [Fact]
+    public void JSON_Scalar_Functions_Spec_Correct()
+    {
+        var registry = Discover();
+        // JsonAsString: Any → String
+        var s = registry.Get("JsonAsString");
+        Assert.NotNull(s);
+        Assert.Equal(PinType.String, s!.OutputPorts[0].Type);
+        // JsonAsInt: Any → Integer
+        var i = registry.Get("JsonAsInt");
+        Assert.NotNull(i);
+        Assert.Equal(PinType.Integer, i!.OutputPorts[0].Type);
+        // JsonAsBool: Any → Boolean
+        var b = registry.Get("JsonAsBool");
+        Assert.NotNull(b);
+        Assert.Equal(PinType.Boolean, b!.OutputPorts[0].Type);
+    }
+
+    [Fact]
+    public void JSON_Navigation_Functions_Spec_Correct()
+    {
+        var registry = Discover();
+        // JsonArrayAt: (Any, Integer) → Json
+        var at = registry.Get("JsonArrayAt");
+        Assert.NotNull(at);
+        Assert.Equal(2, at!.InputPorts.Count);
+        Assert.Equal(PinType.Integer, at.InputPorts[1].Type);
+        Assert.Equal(PinType.Json, at.OutputPorts[0].Type);
+        // JsonGetField: (Any, String) → Json
+        var gf = registry.Get("JsonGetField");
+        Assert.NotNull(gf);
+        Assert.Equal(2, gf!.InputPorts.Count);
+        Assert.Equal(PinType.String, gf.InputPorts[1].Type);
+        Assert.Equal(PinType.Json, gf.OutputPorts[0].Type);
+        // JsonContains: (Any, String) → Boolean
+        var c = registry.Get("JsonContains");
+        Assert.NotNull(c);
+        Assert.Equal(2, c!.InputPorts.Count);
+        Assert.Equal(PinType.String, c.InputPorts[1].Type);
+        Assert.Equal(PinType.Boolean, c.OutputPorts[0].Type);
+        // JsonObjectKeys: Any → Json
+        var k = registry.Get("JsonObjectKeys");
+        Assert.NotNull(k);
+        Assert.Single(k!.InputPorts);
+        Assert.Equal(PinType.Json, k.OutputPorts[0].Type);
+    }
 }

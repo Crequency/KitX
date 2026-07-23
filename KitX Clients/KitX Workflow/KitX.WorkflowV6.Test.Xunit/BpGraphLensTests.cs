@@ -548,4 +548,20 @@ public class BpGraphLensTests
         Assert.Single(dataOutputs);
         Assert.Equal(PinType.Integer, dataOutputs[0].Type);
     }
+
+    [Fact]
+    public void Project_JSON_Functions_Have_Correct_Pins()
+    {
+        var bp = ProjectBS("\"{}\" > JsonGetField(_, \"key\") > Print\n");
+        var gfNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "JsonGetField");
+        Assert.NotNull(gfNode);
+        // JsonGetField: 2 data inputs (Any, String), 1 data output (Json)
+        var gfInputs = gfNode!.InputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Equal(2, gfInputs.Count);
+        Assert.Equal(PinType.Any, gfInputs[0].Type);
+        Assert.Equal(PinType.String, gfInputs[1].Type);
+        var gfOutputs = gfNode.OutputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(gfOutputs);
+        Assert.Equal(PinType.Json, gfOutputs[0].Type);
+    }
 }

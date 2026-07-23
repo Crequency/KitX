@@ -548,4 +548,95 @@ public class E2ETests
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("5", result.Output);
     }
+
+    [Fact]
+    public async Task E2E_JsonAsInt_From_Number()
+    {
+        var src = """
+            "42" > JsonAsInt > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("42", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonGetField_Then_AsString()
+    {
+        var src = """
+            "{\"name\":\"world\"}" > JsonGetField(_, "name") > JsonAsString > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("world", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonArrayAt_Then_AsInt()
+    {
+        var src = """
+            "[10, 20, 30]" > JsonArrayAt(_, 1) > JsonAsInt > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("20", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonContains_Path_Exists()
+    {
+        var src = """
+            "{\"name\":\"world\"}" > JsonContains(_, "name") > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonObjectKeys_Then_Len()
+    {
+        var src = """
+            "{\"a\":1,\"b\":2}" > JsonObjectKeys > Len > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("2", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonGetField_Nested_Path()
+    {
+        var src = """
+            "{\"user\":{\"name\":\"Alice\"}}" > JsonGetField(_, "user.name") > JsonAsString > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("Alice", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonAsBool_From_Literal()
+    {
+        var src = """
+            "true" > JsonAsBool > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
 }
