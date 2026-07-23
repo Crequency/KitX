@@ -465,6 +465,22 @@ internal sealed class Parser
             segments.Add(ParseSegment());
         }
 
+        // Multi-line pipeline continuation: if the next line starts with Indent + Pipe,
+        // treat it as a continuation of the current pipeline. This allows pipelines to
+        // span multiple lines (each segment on its own line), which is a prerequisite
+        // for per-segment comment preservation (Phase B).
+        while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+        {
+            Advance(); // consume Indent
+            Advance(); // consume Pipe
+            if (IsKeyword("forEach"))
+            {
+                Error("KS061", "'forEach' is not valid as a pipeline segment. Use prefix form: 'forEach <source> as <item>'");
+                break;
+            }
+            segments.Add(ParseSegment());
+        }
+
         // Terminal assignment `= name` becomes a variable-tap segment.
         if (Match(KsTokenKind.Assign))
         {

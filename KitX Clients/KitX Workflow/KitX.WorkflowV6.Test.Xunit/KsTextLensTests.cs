@@ -576,4 +576,69 @@ public class KsTextLensTests
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS061");
     }
+
+    // ── Multi-line pipeline ──
+
+    [Fact]
+    public void Parse_Multiline_Pipeline_Two_Segments()
+    {
+        var src = """
+            1, 2
+                > Add
+                > Print
+            """;
+        var ir = _lens.Parse(src, []);
+        Assert.Single(ir.Body);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        Assert.Equal(2, pipe.Sources.Length);
+        Assert.Equal(2, pipe.Segments.Length);
+    }
+
+    [Fact]
+    public void Parse_Multiline_Equal_To_Single_Line()
+    {
+        var multiLine = _lens.Parse("""
+            1, 2
+                > Add
+                > Print
+            """, []);
+        var singleLine = _lens.Parse("1, 2 > Add > Print\n", []);
+        Assert.Equal(singleLine, multiLine);
+    }
+
+    [Fact]
+    public void Parse_Multiline_No_Segment_On_First_Line()
+    {
+        var src = """
+            1, 2
+                > Add
+            """;
+        var ir = _lens.Parse(src, []);
+        Assert.Single(ir.Body);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        Assert.Equal(2, pipe.Sources.Length);
+        Assert.Single(pipe.Segments);
+    }
+
+    [Fact]
+    public void Parse_Multiline_In_If_Body()
+    {
+        var src = """
+            if 1, 1 > Compare("BEQ")
+                1, 2
+                    > Add
+                    > Print
+                Print("no")
+            """;
+        var ir = _lens.Parse(src, []);
+        var iff = Assert.IsType<IfStatement>(ir.Body[0]);
+        Assert.Equal(2, iff.ThenBody.Length);
+        // First statement is a multi-line pipeline 1,2 > Add > Print
+        var pipe1 = Assert.IsType<PipelineStatement>(iff.ThenBody[0]);
+        Assert.Equal(2, pipe1.Segments.Length);
+        // Second statement is a single-line bare call Print("no")
+        var pipe2 = Assert.IsType<PipelineStatement>(iff.ThenBody[1]);
+        Assert.Empty(pipe2.Segments);
+        Assert.Single(pipe2.Sources);
+    }
 }
