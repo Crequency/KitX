@@ -36,7 +36,7 @@ public class SmokeTests
         // while no builtins were shipped).
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
         Assert.NotNull(registry);
-        Assert.Equal(5, registry.AllNames.Count);
+        Assert.True(registry.AllNames.Count >= 5, $"Expected at least 5 builtins, got {registry.AllNames.Count}");
     }
 
     [Fact]

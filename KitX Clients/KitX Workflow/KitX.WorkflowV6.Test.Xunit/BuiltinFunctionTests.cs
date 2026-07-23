@@ -119,4 +119,89 @@ public class BuiltinFunctionTests
         Assert.NotNull(registry.GetCodeGen("Compare"));
         Assert.NotNull(registry.GetCodeGen("Add"));
     }
+
+    [Fact]
+    public void Registry_Contains_Arithmetic_Functions()
+    {
+        var registry = Discover();
+        Assert.Contains("Sub", registry.AllNames);
+        Assert.Contains("Mul", registry.AllNames);
+        Assert.Contains("Div", registry.AllNames);
+        Assert.Contains("Mod", registry.AllNames);
+    }
+
+    [Fact]
+    public void Arithmetic_Functions_Spec_Correct()
+    {
+        var registry = Discover();
+        foreach (var name in new[] { "Sub", "Mul", "Div", "Mod" })
+        {
+            var fn = registry.Get(name);
+            Assert.NotNull(fn);
+            Assert.Equal(FunctionKind.Pure, fn!.Kind);
+            Assert.Equal(2, fn.InputPorts.Count);
+            Assert.All(fn.InputPorts, p => Assert.Equal(PinType.Integer, p.Type));
+            Assert.Single(fn.OutputPorts);
+            Assert.Equal(PinType.Integer, fn.OutputPorts[0].Type);
+        }
+    }
+
+    [Fact]
+    public void Registry_Contains_Utility_Functions()
+    {
+        var registry = Discover();
+        Assert.Contains("Pause", registry.AllNames);
+        Assert.Contains("ReadTextFile", registry.AllNames);
+        Assert.Contains("WriteTextFile", registry.AllNames);
+    }
+
+    [Fact]
+    public void Pause_Function_Spec_Correct()
+    {
+        var registry = Discover();
+        var pause = registry.Get("Pause");
+        Assert.NotNull(pause);
+        Assert.Equal(FunctionKind.SideEffect, pause!.Kind);
+        Assert.Single(pause.InputPorts);
+        Assert.Equal(PinType.Integer, pause.InputPorts[0].Type);
+        Assert.Empty(pause.OutputPorts);
+    }
+
+    [Fact]
+    public void ReadTextFile_Function_Spec_Correct()
+    {
+        var registry = Discover();
+        var read = registry.Get("ReadTextFile");
+        Assert.NotNull(read);
+        Assert.Equal(FunctionKind.Pure, read!.Kind);
+        Assert.Single(read.InputPorts);
+        Assert.Equal(PinType.String, read.InputPorts[0].Type);
+        Assert.Single(read.OutputPorts);
+        Assert.Equal(PinType.String, read.OutputPorts[0].Type);
+    }
+
+    [Fact]
+    public void WriteTextFile_Function_Spec_Correct()
+    {
+        var registry = Discover();
+        var write = registry.Get("WriteTextFile");
+        Assert.NotNull(write);
+        Assert.Equal(FunctionKind.SideEffect, write!.Kind);
+        Assert.Equal(2, write.InputPorts.Count);
+        Assert.All(write.InputPorts, p => Assert.Equal(PinType.String, p.Type));
+        Assert.Empty(write.OutputPorts);
+    }
+
+    [Fact]
+    public void Len_Function_Spec_Correct()
+    {
+        var registry = Discover();
+        var len = registry.Get("Len");
+        Assert.NotNull(len);
+        Assert.Equal(FunctionKind.Pure, len!.Kind);
+        Assert.Single(len.InputPorts);
+        Assert.Equal(PinType.Any, len.InputPorts[0].Type);
+        Assert.Single(len.OutputPorts);
+        Assert.Equal(PinType.Integer, len.OutputPorts[0].Type);
+    }
 }

@@ -1,6 +1,10 @@
 namespace KitX.WorkflowV6.Backend.Runtime;
 
+using System.Collections;
 using System.Collections.Concurrent;
+using System.IO;
+using System.Text.Json;
+using System.Threading;
 using KitX.Core.Contract.Workflow;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,6 +141,18 @@ public class ExecutionGlobals
     /// <summary>Add dispatcher: adds two integers.</summary>
     public int Add(int a, int b) => a + b;
 
+    /// <summary>Sub dispatcher: subtracts two integers.</summary>
+    public int Sub(int a, int b) => a - b;
+
+    /// <summary>Mul dispatcher: multiplies two integers.</summary>
+    public int Mul(int a, int b) => a * b;
+
+    /// <summary>Div dispatcher: integer division of two integers.</summary>
+    public int Div(int a, int b) => a / b;
+
+    /// <summary>Mod dispatcher: modulo of two integers.</summary>
+    public int Mod(int a, int b) => a % b;
+
     /// <summary>StringConcat dispatcher: concatenates N string arguments.</summary>
     public string StringConcatMethod(params object?[] args)
         => string.Concat(args.Select(a => a?.ToString() ?? string.Empty));
@@ -156,4 +172,34 @@ public class ExecutionGlobals
             for (int i = from; i > to; i += step) list.Add(i);
         return list.ToArray();
     }
+
+    /// <summary>Pause: sleep for N milliseconds.</summary>
+    public void Pause(int milliseconds) => Thread.Sleep(milliseconds);
+
+    /// <summary>ReadTextFile: read a text file into a string.</summary>
+    public string ReadTextFile(string path) => File.ReadAllText(path);
+
+    /// <summary>WriteTextFile: write content to a text file (overwrites).</summary>
+    public void WriteTextFile(string path, string content) => File.WriteAllText(path, content);
+
+    /// <summary>
+    /// Len: polymorphic length/count dispatcher. Returns the length of strings,
+    /// JSON arrays/objects, .NET arrays, and collections. Returns 0 for null or
+    /// scalar types (int, bool, etc.).
+    /// </summary>
+    public int Len(object? value) => value switch
+    {
+        null => 0,
+        string s => s.Length,
+        JsonElement je => je.ValueKind switch
+        {
+            JsonValueKind.Array => je.GetArrayLength(),
+            JsonValueKind.Object => je.EnumerateObject().Count(),
+            JsonValueKind.String => je.GetString()?.Length ?? 0,
+            _ => 0,
+        },
+        Array a => a.Length,
+        ICollection c => c.Count,
+        _ => 0,
+    };
 }

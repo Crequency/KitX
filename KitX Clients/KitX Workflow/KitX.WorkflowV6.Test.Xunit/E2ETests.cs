@@ -456,4 +456,96 @@ public class E2ETests
         Assert.Contains("second", result2.Output);
         Assert.DoesNotContain("second", result1.Output);
     }
+
+    [Fact]
+    public async Task E2E_Arithmetic_Four_Operations()
+    {
+        var src = """
+            Sub(10, 3) > Print
+            Mul(4, 5) > Print
+            Div(20, 4) > Print
+            Mod(10, 3) > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "7", "20", "5", "1" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Arithmetic_In_Computation()
+    {
+        // 3 * 4 = 12, then 12 - 5 = 7. Uses pipeline chaining with placeholder.
+        var src = """
+            3, 4 > Mul > Sub(_, 5) > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("7", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Pause_Then_Print()
+    {
+        var src = """
+            Pause(1)
+            Print("after pause")
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("after pause", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Write_And_Read_File()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"kitx_test_{Guid.NewGuid():N}.txt");
+        try
+        {
+            var src = $"""
+                WriteTextFile("{tempFile}", "hello world")
+                ReadTextFile("{tempFile}") > Print
+                """;
+            var ir = ParseToIr(src);
+            var backend = MakeBackend();
+            var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+            Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+            Assert.Contains("hello world", result.Output);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task E2E_Len_Of_String()
+    {
+        var src = """
+            Len("hello") > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("5", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Len_Of_Range_Array()
+    {
+        var src = """
+            Range(0, 5, 1) > Len > Print
+            """;
+        var ir = ParseToIr(src);
+        var backend = MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("5", result.Output);
+    }
 }

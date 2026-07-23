@@ -487,4 +487,65 @@ public class BpGraphLensTests
         var ir2 = lens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
+
+    [Fact]
+    public void Project_Arithmetic_Function_Has_Data_Pins()
+    {
+        var bp = ProjectBS("Sub(10, 3) > Print\n");
+        var subNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Sub");
+        Assert.NotNull(subNode);
+        // Sub: Exec in/out + 2 Integer data inputs (A, B)
+        var dataInputs = subNode!.InputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Equal(2, dataInputs.Count);
+        Assert.All(dataInputs, p => Assert.Equal(PinType.Integer, p.Type));
+        // Sub: Exec out + 1 Integer data output (Difference)
+        var dataOutputs = subNode.OutputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(dataOutputs);
+        Assert.Equal(PinType.Integer, dataOutputs[0].Type);
+    }
+
+    [Fact]
+    public void Project_Pause_Function_Has_Correct_Pins()
+    {
+        var bp = ProjectBS("Pause(1)\n");
+        var pauseNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Pause");
+        Assert.NotNull(pauseNode);
+        // Pause: 1 Integer data input (Milliseconds), no data output
+        var dataInputs = pauseNode!.InputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(dataInputs);
+        Assert.Equal(PinType.Integer, dataInputs[0].Type);
+        // Pause: only Exec output pin, no data output pins
+        Assert.Single(pauseNode.OutputPins);
+        Assert.Equal(PinType.Execution, pauseNode.OutputPins[0].Type);
+    }
+
+    [Fact]
+    public void Project_FileIO_Functions_Have_Correct_Pins()
+    {
+        var bp = ProjectBS("ReadTextFile(\"test.txt\") > Print\n");
+        var readNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "ReadTextFile");
+        Assert.NotNull(readNode);
+        // ReadTextFile: 1 String data input (Path), 1 String data output (Content)
+        var readInputs = readNode!.InputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(readInputs);
+        Assert.Equal(PinType.String, readInputs[0].Type);
+        var readOutputs = readNode.OutputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(readOutputs);
+        Assert.Equal(PinType.String, readOutputs[0].Type);
+    }
+
+    [Fact]
+    public void Project_Len_Function_Has_Correct_Pins()
+    {
+        var bp = ProjectBS("Len(\"hello\") > Print\n");
+        var lenNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Len");
+        Assert.NotNull(lenNode);
+        // Len: 1 Any data input (Value), 1 Integer data output (Length)
+        var dataInputs = lenNode!.InputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(dataInputs);
+        Assert.Equal(PinType.Any, dataInputs[0].Type);
+        var dataOutputs = lenNode.OutputPins.Where(p => p.Type != PinType.Execution).ToList();
+        Assert.Single(dataOutputs);
+        Assert.Equal(PinType.Integer, dataOutputs[0].Type);
+    }
 }
