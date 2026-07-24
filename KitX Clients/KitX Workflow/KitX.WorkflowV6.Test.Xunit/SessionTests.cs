@@ -99,8 +99,9 @@ public class SessionTests
         var resultFirst = session.Ir.Body[0];
         Assert.Contains(resultFirst.Annotations, a => a.Kind == "Layout" && a.Key == "node0");
         var layout = Assert.Single(resultFirst.Annotations, a => a.Kind == "Layout");
-        Assert.Equal(50, layout.Value.X);
-        Assert.Equal(75, layout.Value.Y);
+        var layoutVal = Assert.IsType<LayoutValue>(layout.Value);
+        Assert.Equal(50, layoutVal.X);
+        Assert.Equal(75, layoutVal.Y);
     }
 
     [Fact]

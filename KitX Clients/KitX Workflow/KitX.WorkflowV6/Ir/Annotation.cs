@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Ir;
 
+using System.Text.Json.Serialization;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Annotation — view/render metadata attached to a Statement or a Workflow.
 //
@@ -41,39 +43,57 @@ public sealed record Annotation
     public required AnnotationValue Value { get; init; }
 }
 
-/// <summary>The payload of an <see cref="Annotation"/>. Discriminated by <see cref="AnnotationKind"/>.</summary>
-public sealed record AnnotationValue
+/// <summary>The payload of an <see cref="Annotation"/>. Abstract base for the discriminated union.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
+[JsonDerivedType(typeof(LayoutValue), "Layout")]
+[JsonDerivedType(typeof(TextValue), "Text")]
+[JsonDerivedType(typeof(IntValue), "Int")]
+[JsonDerivedType(typeof(BoolValue), "Bool")]
+public abstract record AnnotationValue
 {
-    /// <summary>Which value facet is populated.</summary>
-    public AnnotationKind AnnotationKind { get; init; } = AnnotationKind.None;
-
-    public double X { get; init; }
-    public double Y { get; init; }
-    public string? Text { get; init; }
-    public int IntValue { get; init; }
-
-    /// <summary>
-    /// Boolean payload — used by DebugHighlight annotations ("IsExecuting",
-    /// "IsBreakpoint", "HasError") added for the v6 BP-side interactive debugger
-    /// (discussion notes §十二-I).
-    /// </summary>
-    public bool BoolValue { get; init; }
+    /// <summary>Which concrete variant this value is. Derived from the runtime type.</summary>
+    [JsonIgnore]
+    public abstract AnnotationKind Kind { get; }
 
     /// <summary>Convenience factory for a Layout annotation payload.</summary>
-    public static AnnotationValue Layout(double x, double y) =>
-        new() { AnnotationKind = AnnotationKind.Layout, X = x, Y = y };
+    public static LayoutValue Layout(double x, double y) => new(x, y);
 
     /// <summary>Convenience factory for a Text annotation payload.</summary>
-    public static AnnotationValue TextValue(string text) =>
-        new() { AnnotationKind = AnnotationKind.Text, Text = text };
+    public static TextValue TextValue(string text) => new(text);
 
     /// <summary>Convenience factory for an Int annotation payload.</summary>
-    public static AnnotationValue IntValueOf(int value) =>
-        new() { AnnotationKind = AnnotationKind.Int, IntValue = value };
+    public static IntValue IntValueOf(int value) => new(value);
 
     /// <summary>Convenience factory for a Bool annotation payload (debug highlights).</summary>
-    public static AnnotationValue BoolValueOf(bool value) =>
-        new() { AnnotationKind = AnnotationKind.Bool, BoolValue = value };
+    public static BoolValue BoolValueOf(bool value) => new(value);
+}
+
+/// <summary>Layout (canvas position) payload — <see cref="AnnotationKind.Layout"/>.</summary>
+public sealed record LayoutValue(double X, double Y) : AnnotationValue
+{
+    [JsonIgnore]
+    public override AnnotationKind Kind => AnnotationKind.Layout;
+}
+
+/// <summary>Text payload — <see cref="AnnotationKind.Text"/>.</summary>
+public sealed record TextValue(string Text) : AnnotationValue
+{
+    [JsonIgnore]
+    public override AnnotationKind Kind => AnnotationKind.Text;
+}
+
+/// <summary>Integer payload — <see cref="AnnotationKind.Int"/>.</summary>
+public sealed record IntValue(int Value) : AnnotationValue
+{
+    [JsonIgnore]
+    public override AnnotationKind Kind => AnnotationKind.Int;
+}
+
+/// <summary>Boolean payload — <see cref="AnnotationKind.Bool"/>.</summary>
+public sealed record BoolValue(bool Value) : AnnotationValue
+{
+    [JsonIgnore]
+    public override AnnotationKind Kind => AnnotationKind.Bool;
 }
 
 /// <summary>Discriminant for <see cref="AnnotationValue"/>.</summary>

@@ -130,4 +130,44 @@ public class SerializationTests
         Assert.True(result.GlobalVars.TryGetValue("flag", out var rtGv));
         Assert.Equal("bool", rtGv.Type);
     }
+
+    [Fact]
+    public void Serialize_Deserialize_Annotation_Values_All_Kinds()
+    {
+        // D3 union refactor: AnnotationValue is now an abstract record with 4 derived
+        // types (LayoutValue/TextValue/IntValue/BoolValue) serialised via
+        // [JsonPolymorphic] $kind discriminator. This test guards against silent
+        // data loss if the discriminator wiring breaks.
+        var ir = new Workflow
+        {
+            Body = [],
+            Annotations =
+            [
+                new Annotation { Kind = "Layout", Key = "node0", Value = AnnotationValue.Layout(50, 75) },
+                new Annotation { Kind = "Text",   Key = "note",  Value = AnnotationValue.TextValue("hello") },
+                new Annotation { Kind = "Int",    Key = "count", Value = AnnotationValue.IntValueOf(42) },
+                new Annotation { Kind = "Bool",   Key = "on",    Value = AnnotationValue.BoolValueOf(true) },
+            ],
+        };
+
+        var serialized = WorkflowSerializer.Serialize(ir);
+        var roundTripped = WorkflowSerializer.Deserialize(serialized);
+
+        Assert.Equal(ir, roundTripped);
+        Assert.Equal(4, roundTripped.Annotations.Length);
+
+        // Verify each derived type survived with correct payload.
+        var layout = Assert.IsType<LayoutValue>(roundTripped.Annotations[0].Value);
+        Assert.Equal(50.0, layout.X);
+        Assert.Equal(75.0, layout.Y);
+
+        var text = Assert.IsType<TextValue>(roundTripped.Annotations[1].Value);
+        Assert.Equal("hello", text.Text);
+
+        var intVal = Assert.IsType<IntValue>(roundTripped.Annotations[2].Value);
+        Assert.Equal(42, intVal.Value);
+
+        var boolVal = Assert.IsType<BoolValue>(roundTripped.Annotations[3].Value);
+        Assert.True(boolVal.Value);
+    }
 }

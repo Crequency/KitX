@@ -39,21 +39,14 @@ public sealed record ForEachStatement : KitX.WorkflowV6.Ir.Statement
     /// The collection-producing expression. A <see cref="KsNode"/> — typically a
     /// <see cref="KsCall"/> to <c>Range(...)</c> or a <see cref="KsIdentifier"/> referencing
     /// a Json array PubVar. Lowered to a typed <c>IEnumerable&lt;T&gt;</c> / array when
-    /// <see cref="ItemType"/> is known (discussion notes §十二-F: strong typing).
+    /// the backend's type-inference pass decides an element type (currently the codegen
+    /// emits <c>foreach (var item in ...)</c>; a future strong-typing pass would surface
+    /// the element type via <see cref="KitX.WorkflowV6.Ir.Lowering.LoweringResult"/>).
     /// </summary>
     public required KsNode Source { get; init; }
 
     /// <summary>The name of the element binding inside the body.</summary>
     public required string ItemName { get; init; }
-
-    /// <summary>
-    /// Inferred element type for the forEach binding, filled in during lowering (Phase 2).
-    /// <see cref="PinType.Any"/> when inference cannot decide; <see cref="PinType.Integer"/>
-    /// for <c>Range(...)</c> sources; <see cref="PinType.Json"/> for Json arrays. Drives
-    /// both the codegen (emit <c>foreach (int item in ...)</c> with a typed loop variable)
-    /// and the BP rendering (Current-element data pin type, §十二-G).
-    /// </summary>
-    public PinType ItemType { get; init; } = PinType.Any;
 
     /// <summary>The body executed per element.</summary>
     public required ImmutableArray<Statement> Body { get; init; } = [];
@@ -67,7 +60,6 @@ public sealed record ForEachStatement : KitX.WorkflowV6.Ir.Statement
         if (TrailingComment != other.TrailingComment) return false;
         if (!Source.Equals(other.Source)) return false;
         if (ItemName != other.ItemName) return false;
-        if (ItemType != other.ItemType) return false;
         if (!Body.SequenceEqual(other.Body)) return false;
         return true;
     }
@@ -78,9 +70,8 @@ public sealed record ForEachStatement : KitX.WorkflowV6.Ir.Statement
         hash.Add(Fingerprint);
         hash.Add(LeadingComment);
         hash.Add(TrailingComment);
-                hash.Add(Source);
+        hash.Add(Source);
         hash.Add(ItemName);
-        hash.Add(ItemType);
         foreach (var s in Body) hash.Add(s);
         return hash.ToHashCode();
     }

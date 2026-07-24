@@ -36,7 +36,7 @@ public static class WorkflowSerializer
         WriteIndented = true,
         // No PropertyNamingPolicy: PascalCase is the C# default (properties keep their names).
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new FingerprintJsonConverter(), new AnnotationValueJsonConverter(), new KsLiteralValueConverter() },
+        Converters = { new FingerprintJsonConverter(), new KsLiteralValueConverter() },
     };
 
     /// <summary>Serialises a <see cref="Workflow"/> to an indented JSON string.</summary>
@@ -136,49 +136,3 @@ public sealed class KsLiteralValueConverter : JsonConverter<object?>
     }
 }
 
-/// <summary>
-/// Serialises AnnotationValue with a discriminator tag so the kind survives round-trip.
-/// Emits as { "kind": "Layout", "x": 1, "y": 2 } etc.
-/// </summary>
-internal sealed class AnnotationValueJsonConverter : JsonConverter<AnnotationValue>
-{
-    public override AnnotationValue Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        using var doc = JsonDocument.ParseValue(ref reader);
-        var root = doc.RootElement;
-        if (!root.TryGetProperty("Kind", out var kindEl))
-            return new AnnotationValue();
-        var kindStr = kindEl.GetString();
-        return kindStr switch
-        {
-            "Layout" => new AnnotationValue { AnnotationKind = AnnotationKind.Layout, X = root.GetProperty("X").GetDouble(), Y = root.GetProperty("Y").GetDouble() },
-            "Text" => new AnnotationValue { AnnotationKind = AnnotationKind.Text, Text = root.GetProperty("Text").GetString() },
-            "Int" => new AnnotationValue { AnnotationKind = AnnotationKind.Int, IntValue = root.GetProperty("IntValue").GetInt32() },
-            "Bool" => new AnnotationValue { AnnotationKind = AnnotationKind.Bool, BoolValue = root.GetProperty("BoolValue").GetBoolean() },
-            _ => new AnnotationValue(),
-        };
-    }
-
-    public override void Write(Utf8JsonWriter writer, AnnotationValue value, JsonSerializerOptions options)
-    {
-        writer.WriteStartObject();
-        writer.WriteString("Kind", value.AnnotationKind.ToString());
-        switch (value.AnnotationKind)
-        {
-            case AnnotationKind.Layout:
-                writer.WriteNumber("X", value.X);
-                writer.WriteNumber("Y", value.Y);
-                break;
-            case AnnotationKind.Text:
-                writer.WriteString("Text", value.Text ?? string.Empty);
-                break;
-            case AnnotationKind.Int:
-                writer.WriteNumber("IntValue", value.IntValue);
-                break;
-            case AnnotationKind.Bool:
-                writer.WriteBoolean("BoolValue", value.BoolValue);
-                break;
-        }
-        writer.WriteEndObject();
-    }
-}

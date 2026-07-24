@@ -92,7 +92,6 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             case ForEachStatement fe:
                 accum.AddKsNode(fe.Source);
                 accum.AddString(fe.ItemName);
-                accum.AddString(fe.ItemType.ToString());
                 accum.AddChildFingerprints(fe.Body);
                 break;
 

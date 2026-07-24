@@ -187,31 +187,15 @@ public class SmokeTests
     }
 
     [Fact]
-    public void ForEach_Statement_Carries_ItemType()
-    {
-        // ForEachStatement must carry an ItemType (PinType) — the v6 strong-typing hook
-        // (discussion notes §十二-F) and the BP Current-element data-pin type (§十二-G).
-        var fe = new ForEachStatement
-        {
-            Fingerprint = Fingerprint.Compute(MakeIdentifier("Range(0,10,1)")),
-            Source = MakeIdentifier("Range(0,10,1)"),
-            ItemName = "i",
-            ItemType = PinType.Integer,
-            Body = [],
-        };
-        Assert.Equal(PinType.Integer, fe.ItemType);
-    }
-
-    [Fact]
     public void AnnotationValue_Factories_Produce_Correct_Kind()
     {
         // The convenience factories on AnnotationValue must tag the AnnotationKind correctly
         // so downstream renderers can switch on the kind without re-inferring.
-        Assert.Equal(AnnotationKind.Layout, AnnotationValue.Layout(1, 2).AnnotationKind);
-        Assert.Equal(AnnotationKind.Text, AnnotationValue.TextValue("hi").AnnotationKind);
-        Assert.Equal(AnnotationKind.Int, AnnotationValue.IntValueOf(42).AnnotationKind);
-        Assert.Equal(AnnotationKind.Bool, AnnotationValue.BoolValueOf(true).AnnotationKind);
-        Assert.True(AnnotationValue.BoolValueOf(true).BoolValue);
+        Assert.Equal(AnnotationKind.Layout, AnnotationValue.Layout(1, 2).Kind);
+        Assert.Equal(AnnotationKind.Text, AnnotationValue.TextValue("hi").Kind);
+        Assert.Equal(AnnotationKind.Int, AnnotationValue.IntValueOf(42).Kind);
+        Assert.Equal(AnnotationKind.Bool, AnnotationValue.BoolValueOf(true).Kind);
+        Assert.True(AnnotationValue.BoolValueOf(true).Value);
     }
 
     // ── Helpers ──

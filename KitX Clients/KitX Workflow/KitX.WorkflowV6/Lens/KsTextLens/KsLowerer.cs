@@ -161,7 +161,6 @@ internal sealed class KsLowerer
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Source = fe.Source,
                 ItemName = fe.ItemName,
-                ItemType = PinType.Any,  // type inference is filled in by Phase 4 codegen
                 Body = LowerStatements(fe.Body),
                 SourceLine = fe.SourceLine,
                 LeadingComment = fe.LeadingComment,

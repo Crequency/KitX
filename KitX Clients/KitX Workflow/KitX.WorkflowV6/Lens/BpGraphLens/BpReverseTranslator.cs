@@ -262,7 +262,6 @@ internal sealed class BpReverseTranslator
             Fingerprint = Fingerprint.Compute("placeholder"),
             Source = source,
             ItemName = itemName,
-            ItemType = PinType.Any,
             Body = [.. body],
             LeadingComment = leading,
             TrailingComment = trailing,
