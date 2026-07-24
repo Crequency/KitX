@@ -40,12 +40,12 @@ public class GuessNumberDemo
             // 循环猜测（最多 loopMax 次）
             forEach loopMax > Range(0, _, 1) as i: // 逐次尝试
                 // 判断是否相等
-                if guessNum, targetNum > Compare("BEQ"): // 相等？
+                if guessNum, targetNum > Compare("BEQ", _, _): // 相等？
                     Print("猜对啦！") // 成功提示
                     break // 跳出循环
                 else:
                     // 判断偏小还是偏大
-                    if guessNum, targetNum > Compare("BLT"): // 偏小？
+                    if guessNum, targetNum > Compare("BLT", _, _): // 偏小？
                         Print("猜小了") // 提示偏小
                     else:
                         Print("猜大了") // 提示偏大
@@ -160,14 +160,11 @@ public class GuessNumberDemo
         // Assertions for test correctness
         Assert.False(parseDiag.HasErrors, $"Parse errors:\n{diagSummary}");
         Assert.True(ksRoundTripEqual, "KS round-trip (parse→render→parse) IR should be equal");
+        Assert.True(bpRoundTripOk, $"BP round-trip diff should be empty: {bpDiff.StatementChanges.Length} changes");
         Assert.True(result.IsSuccess, $"Execution failed: {result.ErrorMessage}");
-        // BP round-trip: comments are fully preserved (GroupComments + node Comments).
-        // Note: the explicit `_` placeholder form (`loopMax > Range(0,_,1)`) does not
-        // round-trip byte-perfectly — a known C-1 limitation (`_` positions cannot be
-        // recovered from BP pin wiring). So we assert comment preservation directly
-        // rather than a fully-empty diff.
+        // Comments fully preserved: GroupComments (leading) + node Comments (trailing/segment).
         Assert.True(bp.GroupComments.Count >= 3, $"Expected ≥3 GroupComments (leading comments), got {bp.GroupComments.Count}");
-        Assert.Contains(bp.Nodes, n => n.Comment is { Length: > 0 });  // trailing/segment comments on nodes
+        Assert.Contains(bp.Nodes, n => n.Comment is { Length: > 0 });
 
         // Also print a summary to test output
         Console.WriteLine($"Demo output written to: {outFile}");

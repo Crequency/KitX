@@ -75,13 +75,15 @@ public class BpGraphLensRoundTripTests
     {
         // Variable-source pipeline condition `if a, b > Compare("BEQ")` must round-trip
         // as a KsPipeline condition (NOT a flat KsCall with variable args — that would
-        // violate the v6 bracket-narrowing rule KS051 on re-parse). Pre-declare the vars.
+        // violate the v6 bracket-narrowing rule KS051 on re-parse). The reverse translator
+        // canonicalises wired pins to explicit `_` placeholders (semantically unambiguous),
+        // so we author the source in the explicit-`_` form to get a clean empty diff.
         var ir = ParseKS("""
             var {
                 int a
                 int b
             }
-            if a, b > Compare("BEQ"):
+            if a, b > Compare("BEQ", _, _):
                 Print("equal")
             """);
         var lens = Lens();
@@ -97,6 +99,32 @@ public class BpGraphLensRoundTripTests
         Assert.Contains(condPipe.Segments[0].Args, a => a is KsLiteral { Kind: KsLiteralKind.String });
         var diff = WorkflowDiffer.Compute(ir, reversed);
         Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: {string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void Pipeline_Condition_Append_Form_Canonicalised_To_Explicit_Placeholder()
+    {
+        // The append form `Compare("BEQ")` (no `_`) is semantically equivalent to the
+        // explicit-`_` form `Compare("BEQ", _, _)`. Through BP round-trip the reverse
+        // translator canonicalises to the explicit-`_` form (semantically unambiguous).
+        // This test documents that canonicalisation: the condition structure round-trips
+        // to the explicit-`_` form (not byte-identical to the append-form source, but
+        // semantically equal — both route a, b into the A, B pins).
+        var ir = ParseKS("""
+            var {
+                int a
+                int b
+            }
+            if a, b > Compare("BEQ"):
+                Print("equal")
+            """);
+        var lens = Lens();
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        var iff = Assert.IsType<IfStatement>(reversed.Body[0]);
+        var condPipe = Assert.IsType<KsPipeline>(iff.Condition);
+        // The reverse canonicalises to explicit `_` placeholders for the A, B pins.
+        Assert.Equal(2, condPipe.Segments[0].Args.Count(a => a is KsPlaceholder));
     }
 
     [Fact]

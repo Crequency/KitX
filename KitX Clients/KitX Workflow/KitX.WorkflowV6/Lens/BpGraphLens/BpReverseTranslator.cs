@@ -452,28 +452,37 @@ internal sealed class BpReverseTranslator
     /// function's data input pins carry wired sources (variables/other nodes — which per
     /// the v6 bracket-narrowing rule can ONLY have arrived via pipeline sources, never as
     /// bracket args), reconstructs a <see cref="KsPipeline"/> with those sources and a
-    /// single segment whose <see cref="KsPipelineSegment.Arguments"/> preserve literal
-    /// positions and <c>_</c> placeholders at wired positions. When all data inputs are
+    /// single segment whose <see cref="KsPipelineSegment.Arguments"/> preserve the PIN
+    /// ORDER: a literal pin → its literal arg, a wired pin → a <c>_</c> placeholder at
+    /// that position (the pipeline source flows into it). When all data inputs are
     /// unwired (a bare literal-arg call like <c>Print("x")</c>), reconstructs a flat
     /// <see cref="KsCall"/>.
-    /// This fixes the KS051 correctness violation where a variable-source condition
-    /// (<c>if a, b &gt; Compare("BEQ")</c>) was previously rebuilt as an illegal
-    /// <c>KsCall(Compare, ["BEQ", a, b])</c> with variable args inside the brackets.
     /// </summary>
     /// <remarks>
-    /// Single-segment conditions are fully reconstructed. Multi-segment conditions
-    /// (<c>&gt; Func1 &gt; Compare</c>) where an intermediate segment is itself a function
-    /// node remain partially reconstructed (the intermediate appears as a source via
-    /// <see cref="NodeToBsNode"/>, matching the existing multi-segment pipeline limitation).
+    /// <para>Positional <c>_</c> reconstruction is REQUIRED for semantic correctness: a
+    /// source that wired into a non-last pin (e.g. <c>loopMax &gt; Range(0, _, 1)</c>
+    /// where loopMax feeds the <em>To</em> pin, not the last <em>Step</em> pin) must keep
+    /// its <c>_</c> slot, otherwise the append rule would route the source into the wrong
+    /// pin on re-parse (Range(0,1) + append → Step, corrupting the To/Step values).</para>
+    /// <para>Canonical-form note: the append form (<c>a, b &gt; Compare("BEQ")</c>, no
+    /// explicit <c>_</c>) and the explicit-<c>_</c> form (<c>Compare("BEQ", _, _)</c>)
+    /// produce identical BP wiring, so BP→KS cannot tell them apart. We canonicalise to
+    /// the explicit-<c>_</c> form (semantically unambiguous); an append-form input is
+    /// "upgraded" to explicit <c>_</c> through BP round-trip — semantically equivalent,
+    /// just a more explicit KS rendering.</para>
+    /// <para>Single-segment conditions/sources are fully reconstructed. Multi-segment
+    /// conditions where an intermediate segment is itself a function node remain
+    /// partially reconstructed (the intermediate appears as a source via
+    /// <see cref="NodeToBsNode"/>).</para>
     /// </remarks>
     private KsNode ReconstructPipelineOrCall(BuiltinFunctionNode fn)
     {
-        // Read each non-Exec data pin: wired (→ source) vs literal (→ bracket arg).
-        // Per the v6 bracket-narrowing rule, bracket args are ONLY literals/_; variable
-        // values arrive via pipeline sources. So wired pins → Sources, and the segment
-        // args carry ONLY the literal pins (the parens content), matching the original
-        // AST where `Compare("BEQ")` has args=["BEQ"] and `a, b` flow in as sources.
+        // Read each non-Exec data pin IN ORDER. A wired pin → a `_` placeholder arg at
+        // that position + the wired source; an unwired pin → its literal DefaultValue arg.
+        // This preserves pin positions so the source routes into the correct pin on
+        // re-parse (fixing the To/Step swap corruption for forms like Range(0, _, 1)).
         var args = ImmutableArray.CreateBuilder<KsNode>();
+        var rawArgs = ImmutableArray.CreateBuilder<string>();
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         bool anyWired = false;
         foreach (var pin in fn.InputPins)
@@ -490,12 +499,17 @@ internal sealed class BpReverseTranslator
             {
                 anyWired = true;
                 sources.Add(wired);
-                // Wired pins do NOT contribute a bracket arg — they are pipeline sources,
-                // filled via the append rule (not explicit `_` in the AST args).
+                // NOTE: the parser currently emits Index=0 for every placeholder (a
+                // pre-existing quirk); match it here so the reconstructed node's
+                // fingerprint matches a re-parsed explicit-`_` form.
+                args.Add(new KsPlaceholder { Index = 0, SourceText = "_" });
+                rawArgs.Add("_");
             }
             else
             {
-                args.Add(ParseDefaultValue(pin.DefaultValue ?? "null"));
+                var lit = ParseDefaultValue(pin.DefaultValue ?? "null");
+                args.Add(lit);
+                rawArgs.Add(lit.SourceText);
             }
         }
 
@@ -508,24 +522,25 @@ internal sealed class BpReverseTranslator
                 MethodName = fn.FunctionName,
                 FullMethodName = fn.FunctionName,
                 Args = flatArgs,
-                RawArgs = [.. flatArgs.Select(a => a.SourceText)],
+                RawArgs = [.. rawArgs],
                 SourceText = $"{fn.FunctionName}({string.Join(", ", flatArgs.Select(a => a.SourceText))})",
             };
         }
 
-        // Pipeline form: sources → single segment (bracket args = literals only).
-        // The function node's Comment carries the last condition segment's inline
-        // comment (forward: RenderPipelineAsCondition sets seg.Comment → fn.Comment).
+        // Pipeline form: sources → single segment (args preserve pin order: literals +
+        // `_` placeholders at wired positions). The function node's Comment carries the
+        // last condition segment's inline comment (forward: RenderPipelineAsCondition
+        // sets seg.Comment → fn.Comment).
         var segComment = fn.Comment is { Length: > 0 } ? fn.Comment : null;
         var seg = new KsPipelineSegment
         {
             Target = fn.FunctionName,
             Args = args.ToImmutable(),
-            RawArgs = [.. args.Select(a => a.SourceText)],
+            RawArgs = rawArgs.ToImmutable(),
             IsVariableTap = false,
             Comment = segComment,
         };
-        seg.SourceText = $"{fn.FunctionName}({string.Join(", ", seg.Args.Select(a => a.SourceText))})";
+        seg.SourceText = $"{fn.FunctionName}({string.Join(", ", rawArgs)})";
         var srcArr = sources.ToImmutable();
         return new KsPipeline
         {
