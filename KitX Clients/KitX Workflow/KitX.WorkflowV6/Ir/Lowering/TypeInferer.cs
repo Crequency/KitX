@@ -104,32 +104,22 @@ public static class TypeInferer
                 }
             }
 
-            if (target is null || producingFunc is null)
+            if (target is not null && producingFunc is not null && pubVarTypes.ContainsKey(target))
             {
-                // Bare call (no assignment) or pure data tap — no type to infer.
-                goto Recurse;
-            }
-
-            if (!pubVarTypes.ContainsKey(target))
-                goto Recurse;
-
-            // (a) Helper function return type.
-            if (helperMap.TryGetValue(producingFunc, out var helper))
-            {
-                pubVarTypes[target] = helper.ReturnType;
-                goto Recurse;
-            }
-
-            // (b) Builtin return PinType.
-            if (registry?.Get(producingFunc) is { } builtin
-                && FirstDataOutputPin(builtin) is { } retPin)
-            {
-                pubVarTypes[target] = PinTypeToCSharp(retPin.Type);
-                goto Recurse;
+                // (a) Helper function return type.
+                if (helperMap.TryGetValue(producingFunc, out var helper))
+                {
+                    pubVarTypes[target] = helper.ReturnType;
+                }
+                // (b) Builtin return PinType.
+                else if (registry?.Get(producingFunc) is { } builtin
+                    && FirstDataOutputPin(builtin) is { } retPin)
+                {
+                    pubVarTypes[target] = PinTypeToCSharp(retPin.Type);
+                }
             }
         }
 
-    Recurse:
         // Recurse into structured bodies.
         switch (stmt)
         {
@@ -262,6 +252,8 @@ public static class TypeInferer
     private static PortSpec? FirstDataOutputPin(IBuiltinFunction fn)
     {
         foreach (var p in fn.OutputPorts)
+            // "Exec" matches the BP pin name (KScriptGrammarRule §14.7). Hardcoded here
+            // because TypeInferer is IR-layer and must not depend on Lens.BpGraphLens.BpPinNames.
             if (p.Name != "Exec" && p.Type != PinType.Execution)
                 return p;
         return null;

@@ -58,7 +58,7 @@ internal sealed class BpRenderer
         if (ir.Body.Length > 0)
         {
             var entry = Add(new EntryNode { Name = "Entry" }, "/entry");
-            RenderScope(ir.Body, "/top", [new ExecTail(entry, "Exec")]);
+            RenderScope(ir.Body, "/top", [new ExecTail(entry, BpPinNames.Exec)]);
         }
 
         _layout.Layout(_bp);
@@ -165,7 +165,7 @@ internal sealed class BpRenderer
             _currentPrimaryNode = func;
             WireCallArgs(func, call.Args, $"{path}/args");
             ConnectExecTails(prevTails, func);
-            return [new ExecTail(func, "Exec")];
+            return [new ExecTail(func, BpPinNames.Exec)];
         }
 
         // General pipeline: sources → segment1 → segment2 → ... → variable tap.
@@ -214,7 +214,7 @@ internal sealed class BpRenderer
         {
             _currentPrimaryNode = lastFunc;
             ConnectExecTails(prevTails, lastFunc);
-            return [new ExecTail(lastFunc, "Exec")];
+            return [new ExecTail(lastFunc, BpPinNames.Exec)];
         }
 
         // Pure data assignment (no function call) — exec chain passes through.
@@ -230,7 +230,7 @@ internal sealed class BpRenderer
     private void WireCallArgs(BuiltinFunctionNode func, ImmutableArray<KsNode> args, string path)
     {
         // Collect data input pins (exclude Exec) in order.
-        var dataPins = func.InputPins.Where(p => p.Name != "Exec").ToList();
+        var dataPins = func.InputPins.Where(p => p.Name != BpPinNames.Exec).ToList();
         for (int i = 0; i < args.Length; i++)
         {
             // Skip placeholders — pipeline sources fill these positions separately.
@@ -264,7 +264,7 @@ internal sealed class BpRenderer
     /// </summary>
     private void ConnectPipelineSources(BuiltinFunctionNode fn, ImmutableArray<KsNode> segArgs, List<BlueprintNode> sourceNodes)
     {
-        var dataPins = fn.InputPins.Where(p => p.Name != "Exec").ToList();
+        var dataPins = fn.InputPins.Where(p => p.Name != BpPinNames.Exec).ToList();
         if (dataPins.Count == 0 || sourceNodes.Count == 0) return;
 
         // Map: arg index → pin index. Placeholders mark where pipeline sources insert.
@@ -303,8 +303,8 @@ internal sealed class BpRenderer
     /// <summary>Returns the name of the first non-Exec output data pin, or "Value" as fallback.</summary>
     private static string FirstDataOutputPinName(BlueprintNode node)
     {
-        var dataOut = node.OutputPins.Find(p => p.Name != "Exec");
-        return dataOut?.Name ?? "Value";
+        var dataOut = node.OutputPins.Find(p => p.Name != BpPinNames.Exec);
+        return dataOut?.Name ?? BpPinNames.Value;
     }
 
     // ── If/Else ──
@@ -313,28 +313,28 @@ internal sealed class BpRenderer
     {
         var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
         _currentPrimaryNode = br;
-        br.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
-        br.InputPins.Add(MakePin("Condition", PinDirection.Input, PinType.Boolean));
-        br.OutputPins.Add(MakePin("True", PinDirection.Output, PinType.Execution));
-        br.OutputPins.Add(MakePin("False", PinDirection.Output, PinType.Execution));
+        br.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
+        br.InputPins.Add(MakePin(BpPinNames.Condition, PinDirection.Input, PinType.Boolean));
+        br.OutputPins.Add(MakePin(BpPinNames.True, PinDirection.Output, PinType.Execution));
+        br.OutputPins.Add(MakePin(BpPinNames.False, PinDirection.Output, PinType.Execution));
 
         ConnectExecTails(prevTails, br);
 
         var condNode = RenderCondition(iff.Condition, $"{path}/cond");
-        ConnectToInput(condNode, br, "Condition");
+        ConnectToInput(condNode, br, BpPinNames.Condition);
 
         var thenTails = RenderSubScope(iff.ThenBody, $"{path}/then",
-            [new ExecTail(br, "True")]);
+            [new ExecTail(br, BpPinNames.True)]);
 
         List<ExecTail> elseTails;
         if (iff.ElseBody.Length > 0)
         {
             elseTails = RenderSubScope(iff.ElseBody, $"{path}/else",
-                [new ExecTail(br, "False")]);
+                [new ExecTail(br, BpPinNames.False)]);
         }
         else
         {
-            elseTails = [new ExecTail(br, "False")];
+            elseTails = [new ExecTail(br, BpPinNames.False)];
         }
 
         return thenTails.Concat(elseTails).ToList();
@@ -347,22 +347,22 @@ internal sealed class BpRenderer
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
         _currentPrimaryNode = each;
         each.Properties["ItemName"] = fe.ItemName;
-        each.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
-        each.InputPins.Add(MakePin("List", PinDirection.Input, PinType.Any));
-        each.OutputPins.Add(MakePin("Body", PinDirection.Output, PinType.Execution));
-        each.OutputPins.Add(MakePin("End", PinDirection.Output, PinType.Execution));
-        each.OutputPins.Add(MakePin("Current", PinDirection.Output, PinType.Any));
+        each.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
+        each.InputPins.Add(MakePin(BpPinNames.List, PinDirection.Input, PinType.Any));
+        each.OutputPins.Add(MakePin(BpPinNames.Body, PinDirection.Output, PinType.Execution));
+        each.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
+        each.OutputPins.Add(MakePin(BpPinNames.Current, PinDirection.Output, PinType.Any));
 
         ConnectExecTails(prevTails, each);
 
         var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src");
-        ConnectToInput(sourceNode, each, "List");
+        ConnectToInput(sourceNode, each, BpPinNames.List);
 
-        _loopStack.Push((each, "End"));
-        RenderSubScope(fe.Body, $"{path}/body", [new ExecTail(each, "Body")]);
+        _loopStack.Push((each, BpPinNames.End));
+        RenderSubScope(fe.Body, $"{path}/body", [new ExecTail(each, BpPinNames.Body)]);
         _loopStack.Pop();
 
-        return [new ExecTail(each, "End")];
+        return [new ExecTail(each, BpPinNames.End)];
     }
 
     // ── While ──
@@ -371,21 +371,21 @@ internal sealed class BpRenderer
     {
         var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
         _currentPrimaryNode = wh;
-        wh.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
-        wh.InputPins.Add(MakePin("Condition", PinDirection.Input, PinType.Boolean));
-        wh.OutputPins.Add(MakePin("Body", PinDirection.Output, PinType.Execution));
-        wh.OutputPins.Add(MakePin("End", PinDirection.Output, PinType.Execution));
+        wh.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
+        wh.InputPins.Add(MakePin(BpPinNames.Condition, PinDirection.Input, PinType.Boolean));
+        wh.OutputPins.Add(MakePin(BpPinNames.Body, PinDirection.Output, PinType.Execution));
+        wh.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
 
         ConnectExecTails(prevTails, wh);
 
         var condNode = RenderCondition(ws.Condition, $"{path}/cond");
-        ConnectToInput(condNode, wh, "Condition");
+        ConnectToInput(condNode, wh, BpPinNames.Condition);
 
-        _loopStack.Push((wh, "End"));
-        RenderSubScope(ws.Body, $"{path}/body", [new ExecTail(wh, "Body")]);
+        _loopStack.Push((wh, BpPinNames.End));
+        RenderSubScope(ws.Body, $"{path}/body", [new ExecTail(wh, BpPinNames.Body)]);
         _loopStack.Pop();
 
-        return [new ExecTail(wh, "End")];
+        return [new ExecTail(wh, BpPinNames.End)];
     }
 
     // ── Switch ──
@@ -394,13 +394,13 @@ internal sealed class BpRenderer
     {
         var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
         _currentPrimaryNode = sn;
-        sn.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
-        sn.InputPins.Add(MakePin("Selector", PinDirection.Input, PinType.Integer));
+        sn.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
+        sn.InputPins.Add(MakePin(BpPinNames.Selector, PinDirection.Input, PinType.Integer));
 
         ConnectExecTails(prevTails, sn);
 
         var selNode = RenderCondition(sw.Selector, $"{path}/sel");
-        ConnectToInput(selNode, sn, "Selector");
+        ConnectToInput(selNode, sn, BpPinNames.Selector);
 
         var allTails = new List<ExecTail>();
         for (int i = 0; i < sw.Arms.Length; i++)
@@ -412,9 +412,9 @@ internal sealed class BpRenderer
         }
         if (sw.Default.Length > 0)
         {
-            sn.OutputPins.Add(MakePin("Default", PinDirection.Output, PinType.Execution));
+            sn.OutputPins.Add(MakePin(BpPinNames.Default, PinDirection.Output, PinType.Execution));
             var defTails = RenderSubScope(sw.Default, $"{path}/default",
-                [new ExecTail(sn, "Default")]);
+                [new ExecTail(sn, BpPinNames.Default)]);
             allTails.AddRange(defTails);
         }
         return allTails;
@@ -543,8 +543,8 @@ internal sealed class BpRenderer
     private BuiltinFunctionNode AddBuiltin(string name, string path)
     {
         var n = new BuiltinFunctionNode { Name = name, FunctionName = name };
-        n.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
-        n.OutputPins.Add(MakePin("Exec", PinDirection.Output, PinType.Execution));
+        n.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
+        n.OutputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Output, PinType.Execution));
         var bi = _registry.Get(name);
         if (bi is not null)
         {
@@ -558,8 +558,8 @@ internal sealed class BpRenderer
         {
             // Fallback for unknown functions (e.g. user helpers not in registry):
             // single generic Value pin, as before.
-            n.InputPins.Add(MakePin("Value", PinDirection.Input, PinType.Any));
-            n.OutputPins.Add(MakePin("Value", PinDirection.Output, PinType.Any));
+            n.InputPins.Add(MakePin(BpPinNames.Value, PinDirection.Input, PinType.Any));
+            n.OutputPins.Add(MakePin(BpPinNames.Value, PinDirection.Output, PinType.Any));
         }
         return Add(n, path);
     }
@@ -567,7 +567,7 @@ internal sealed class BpRenderer
     private BuiltinFunctionNode AddCtrlNode(string name, string path)
     {
         var n = new BuiltinFunctionNode { Name = name, FunctionName = name };
-        n.InputPins.Add(MakePin("Exec", PinDirection.Input, PinType.Execution));
+        n.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
         return Add(n, path);
     }
 
@@ -600,7 +600,7 @@ internal sealed class BpRenderer
 
     private void ConnectExecTails(List<ExecTail> tails, BlueprintNode target)
     {
-        var tp = target.InputPins.Find(p => p.Name == "Exec");
+        var tp = target.InputPins.Find(p => p.Name == BpPinNames.Exec);
         if (tp is null) return;
         foreach (var tail in tails)
         {
@@ -616,8 +616,8 @@ internal sealed class BpRenderer
 
     private void ConnectValue(BlueprintNode from, BlueprintNode to)
     {
-        var fp = from.OutputPins.Find(p => p.Name != "Exec");
-        var tp = to.InputPins.Find(p => p.Name != "Exec");
+        var fp = from.OutputPins.Find(p => p.Name != BpPinNames.Exec);
+        var tp = to.InputPins.Find(p => p.Name != BpPinNames.Exec);
         if (fp is not null && tp is not null)
             _bp.Connections.Add(new BlueprintConnection
             {
@@ -628,7 +628,7 @@ internal sealed class BpRenderer
 
     private void ConnectToInput(BlueprintNode from, BlueprintNode to, string inputPinName)
     {
-        var fp = from.OutputPins.Find(p => p.Name != "Exec");
+        var fp = from.OutputPins.Find(p => p.Name != BpPinNames.Exec);
         var tp = to.InputPins.Find(p => p.Name == inputPinName);
         if (fp is not null && tp is not null)
             _bp.Connections.Add(new BlueprintConnection

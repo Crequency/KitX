@@ -122,6 +122,31 @@ internal sealed class Parser
         _sink.AddError(code, message, t.Line, t.Column);
     }
 
+    private bool RejectForEachInPipeline(string context)
+    {
+        if (IsKeyword("forEach"))
+        {
+            Error("KS061", $"'forEach' is not valid {context}. Use prefix form: 'forEach <source> as <item>'");
+            return true;
+        }
+        return false;
+    }
+
+    private sealed class CommentAccumulator
+    {
+        private List<string>? _pending;
+
+        public void Add(string text) => (_pending ??= new()).Add(text);
+
+        public string? Detach()
+        {
+            if (_pending is null or { Count: 0 }) return null;
+            var joined = string.Join("\n", _pending);
+            _pending.Clear();
+            return joined;
+        }
+    }
+
     // ── Program ──
 
     private KsProgram ParseProgram()
@@ -129,7 +154,7 @@ internal sealed class Parser
         var body = ImmutableArray.CreateBuilder<KsStatement>();
         KsConstBlock? constBlock = null;
         KsVarBlock? varBlock = null;
-        List<string>? pendingLeading = null;  // accumulated full-line comments for the next statement
+        var commentAcc = new CommentAccumulator();
 
         while (!AtEnd)
         {
@@ -149,7 +174,7 @@ internal sealed class Parser
             // comment for the next top-level statement.
             if (Current.Kind == KsTokenKind.Comment)
             {
-                (pendingLeading ??= new()).Add(Current.Text);
+                commentAcc.Add(Current.Text);
                 Advance();
                 continue;
             }
@@ -158,7 +183,7 @@ internal sealed class Parser
             // block comment preservation is deferred); drop pending there.
             if (MatchKeyword("const"))
             {
-                pendingLeading = null;
+                commentAcc = new CommentAccumulator();
                 if (constBlock is not null)
                     Error("KS011", "Duplicate const block");
                 constBlock = ParseConstBlock();
@@ -166,18 +191,14 @@ internal sealed class Parser
             }
             if (MatchKeyword("var"))
             {
-                pendingLeading = null;
+                commentAcc = new CommentAccumulator();
                 if (varBlock is not null)
                     Error("KS011", "Duplicate var block");
                 varBlock = ParseVarBlock();
                 continue;
             }
             var stmt = ParseStatement();
-            if (pendingLeading is { Count: > 0 })
-            {
-                stmt.LeadingComment = string.Join("\n", pendingLeading);
-                pendingLeading = null;
-            }
+            stmt.LeadingComment = commentAcc.Detach();
             body.Add(stmt);
         }
 
@@ -192,65 +213,57 @@ internal sealed class Parser
 
     // ── Decl blocks ──
 
-    private KsConstBlock ParseConstBlock()
+    private TBlock ParseDeclBlock<TBlock, TRow>(
+        Func<TRow> rowParser,
+        Func<ImmutableArray<TRow>, TBlock> blockFactory)
     {
-        var decls = ImmutableArray.CreateBuilder<KsConstDecl>();
-        ExpectLBrace();
-        while (!AtEnd && Current.Kind != KsTokenKind.RBrace)
-        {
-            // Each decl row lives on its own line, prefixed by an Indent token.
-            if (Current.Kind == KsTokenKind.Indent) Advance();
-            if (Current.Kind == KsTokenKind.RBrace) break;
-            decls.Add(ParseConstRow());
-            // Skip any remaining tokens on this line.
-            while (!AtEnd && Current.Kind != KsTokenKind.Indent
-                          && Current.Kind != KsTokenKind.RBrace) Advance();
-        }
-        Match(KsTokenKind.RBrace);
-        return new KsConstBlock { Declarations = decls.ToImmutable() };
-    }
-
-    private KsVarBlock ParseVarBlock()
-    {
-        var decls = ImmutableArray.CreateBuilder<KsVarDecl>();
+        var decls = ImmutableArray.CreateBuilder<TRow>();
         ExpectLBrace();
         while (!AtEnd && Current.Kind != KsTokenKind.RBrace)
         {
             if (Current.Kind == KsTokenKind.Indent) Advance();
             if (Current.Kind == KsTokenKind.RBrace) break;
-            decls.Add(ParseVarRow());
+            decls.Add(rowParser());
             while (!AtEnd && Current.Kind != KsTokenKind.Indent
                           && Current.Kind != KsTokenKind.RBrace) Advance();
         }
         Match(KsTokenKind.RBrace);
-        return new KsVarBlock { Declarations = decls.ToImmutable() };
+        return blockFactory(decls.ToImmutable());
     }
 
-    private KsConstDecl ParseConstRow()
+    private KsConstBlock ParseConstBlock() =>
+        ParseDeclBlock<KsConstBlock, KsConstDecl>(
+            ParseConstRow, decls => new KsConstBlock { Declarations = decls });
+
+    private KsVarBlock ParseVarBlock() =>
+        ParseDeclBlock<KsVarBlock, KsVarDecl>(
+            ParseVarRow, decls => new KsVarBlock { Declarations = decls });
+
+    private T ParseDeclRow<T>(Func<string, string, string?, string, int, T> factory)
     {
         var (typeTok, nameTok, initExpr, src) = ParseDeclRowCore();
-        return new KsConstDecl
-        {
-            Name = nameTok.Text,
-            Type = typeTok.Text,
-            InitialValueExpression = initExpr,
-            SourceText = src,
-            SourceLine = typeTok.Line,
-        };
+        return factory(typeTok.Text, nameTok.Text, initExpr, src, typeTok.Line);
     }
 
-    private KsVarDecl ParseVarRow()
-    {
-        var (typeTok, nameTok, initExpr, src) = ParseDeclRowCore();
-        return new KsVarDecl
+    private KsConstDecl ParseConstRow() =>
+        ParseDeclRow<KsConstDecl>((type, name, init, src, line) => new KsConstDecl
         {
-            Name = nameTok.Text,
-            Type = typeTok.Text,
-            InitialValueExpression = initExpr,
+            Name = name,
+            Type = type,
+            InitialValueExpression = init,
             SourceText = src,
-            SourceLine = typeTok.Line,
-        };
-    }
+            SourceLine = line,
+        });
+
+    private KsVarDecl ParseVarRow() =>
+        ParseDeclRow<KsVarDecl>((type, name, init, src, line) => new KsVarDecl
+        {
+            Name = name,
+            Type = type,
+            InitialValueExpression = init,
+            SourceText = src,
+            SourceLine = line,
+        });
 
     private (KsToken typeTok, KsToken nameTok, string? initExpr, string src) ParseDeclRowCore()
     {
@@ -524,11 +537,8 @@ internal sealed class Parser
         var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
         while (Match(KsTokenKind.Pipe))
         {
-            if (IsKeyword("forEach"))
-            {
-                Error("KS061", "'forEach' is not valid as a pipeline segment. Use prefix form: 'forEach <source> as <item>'");
+            if (RejectForEachInPipeline("as a pipeline segment"))
                 break;
-            }
             segments.Add(ParseSegment());
         }
 
@@ -546,11 +556,8 @@ internal sealed class Parser
         {
             Advance(); // consume Indent
             Advance(); // consume Pipe
-            if (IsKeyword("forEach"))
-            {
-                Error("KS061", "'forEach' is not valid as a pipeline segment. Use prefix form: 'forEach <source> as <item>'");
+            if (RejectForEachInPipeline("as a pipeline segment"))
                 break;
-            }
             var seg = ParseSegment();
             // Capture point B — a trailing comment on this continuation segment's line
             // (`> Func // cmt`). This is the per-segment comment that forces multi-line
@@ -763,11 +770,8 @@ internal sealed class Parser
         string? lastSegComment = null;
         while (Match(KsTokenKind.Pipe))
         {
-            if (IsKeyword("forEach"))
-            {
-                Error("KS061", "'forEach' is not valid in a pipeline expression. Use prefix form: 'forEach <source> as <item>'");
+            if (RejectForEachInPipeline("in a pipeline expression"))
                 break;
-            }
             segments.Add(ParseSegment());
         }
 
@@ -779,11 +783,8 @@ internal sealed class Parser
         {
             Advance();  // consume Indent
             Advance();  // consume Pipe
-            if (IsKeyword("forEach"))
-            {
-                Error("KS061", "'forEach' is not valid in a pipeline expression. Use prefix form: 'forEach <source> as <item>'");
+            if (RejectForEachInPipeline("in a pipeline expression"))
                 break;
-            }
             var seg = ParseSegment();
             var segComment = TryConsumeComment();
             seg.Comment = segComment;
@@ -828,7 +829,7 @@ internal sealed class Parser
     private ImmutableArray<KsStatement> ParseBody(int bodyIndent, string context)
     {
         var body = ImmutableArray.CreateBuilder<KsStatement>();
-        List<string>? pendingLeading = null;  // accumulated full-line comments for the next statement
+        var commentAcc = new CommentAccumulator();
         while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == bodyIndent)
         {
             Advance();  // consume Indent(bodyIndent)
@@ -836,7 +837,7 @@ internal sealed class Parser
             // leading comment for the next statement in this body.
             if (Current.Kind == KsTokenKind.Comment)
             {
-                (pendingLeading ??= new()).Add(Current.Text);
+                commentAcc.Add(Current.Text);
                 Advance();
                 continue;
             }
@@ -848,11 +849,7 @@ internal sealed class Parser
                 break;
             }
             var stmt = ParseStatement();
-            if (pendingLeading is { Count: > 0 })
-            {
-                stmt.LeadingComment = string.Join("\n", pendingLeading);
-                pendingLeading = null;
-            }
+            stmt.LeadingComment = commentAcc.Detach();
             body.Add(stmt);
         }
         if (body.Count == 0)

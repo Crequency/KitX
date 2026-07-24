@@ -106,19 +106,13 @@ internal static class StructuralReducer
         return false;
     }
 
-    // TODO(C3): extract these pin-name literals to a shared BpPinNames constant class.
-    private static bool IsExecPinName(string name) =>
-        name == "Exec" || name == "True" || name == "False"
-        || name == "Body" || name == "End" || name == "Default"
-        || int.TryParse(name, out _);
-
     private static bool IsExecOutPin(BlueprintPin pin) =>
         pin.Direction == PinDirection.Output
         && pin.Type == PinType.Execution
-        && IsExecPinName(pin.Name);
+        && BpPinNames.IsExecOutName(pin.Name);
 
     private static bool IsExecInPin(BlueprintPin pin) =>
         pin.Direction == PinDirection.Input
         && pin.Type == PinType.Execution
-        && pin.Name == "Exec";
+        && pin.Name == BpPinNames.Exec;
 }

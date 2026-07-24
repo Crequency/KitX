@@ -96,7 +96,7 @@ internal sealed class BpReverseTranslator
         var entry = bp.Nodes.OfType<EntryNode>().FirstOrDefault();
         if (entry is not null)
         {
-            var body = WalkExecChain(entry, "Exec");
+            var body = WalkExecChain(entry, BpPinNames.Exec);
             ir = ir with { Body = [.. body] };
         }
 
@@ -200,12 +200,12 @@ internal sealed class BpReverseTranslator
             case "Each":
                 result.Add(ReverseForEach(fn));
                 // Statements after the loop connect to Each.End.
-                result.AddRange(WalkExecChain(fn, "End"));
+                result.AddRange(WalkExecChain(fn, BpPinNames.End));
                 break;
             case "While":
                 result.Add(ReverseWhile(fn));
                 // Statements after the loop connect to While.End.
-                result.AddRange(WalkExecChain(fn, "End"));
+                result.AddRange(WalkExecChain(fn, BpPinNames.End));
                 break;
             case "Switch":
                 result.Add(ReverseSwitch(fn));
@@ -224,7 +224,7 @@ internal sealed class BpReverseTranslator
                 // Regular function call → PipelineStatement.
                 result.Add(ReversePipelineCall(fn));
                 // Continue the exec chain after this node.
-                result.AddRange(WalkExecChain(fn, "Exec"));
+                result.AddRange(WalkExecChain(fn, BpPinNames.Exec));
                 break;
         }
         return result;
@@ -234,9 +234,9 @@ internal sealed class BpReverseTranslator
 
     private Statement ReverseIf(BuiltinFunctionNode br)
     {
-        var cond = ReadDataInput(br, "Condition");
-        var thenBody = WalkExecChain(br, "True");
-        var elseBody = WalkExecChain(br, "False");
+        var cond = ReadDataInput(br, BpPinNames.Condition);
+        var thenBody = WalkExecChain(br, BpPinNames.True);
+        var elseBody = WalkExecChain(br, BpPinNames.False);
         var (leading, trailing) = ReadComments(br);
         var stmt = new IfStatement
         {
@@ -252,8 +252,8 @@ internal sealed class BpReverseTranslator
 
     private Statement ReverseForEach(BuiltinFunctionNode each)
     {
-        var source = ReadDataInput(each, "List");
-        var body = WalkExecChain(each, "Body");
+        var source = ReadDataInput(each, BpPinNames.List);
+        var body = WalkExecChain(each, BpPinNames.Body);
         var itemName = each.Properties.TryGetValue("ItemName", out var n) && !string.IsNullOrEmpty(n)
             ? n : "item";
         var (leading, trailing) = ReadComments(each);
@@ -272,8 +272,8 @@ internal sealed class BpReverseTranslator
 
     private Statement ReverseWhile(BuiltinFunctionNode wh)
     {
-        var cond = ReadDataInput(wh, "Condition");
-        var body = WalkExecChain(wh, "Body");
+        var cond = ReadDataInput(wh, BpPinNames.Condition);
+        var body = WalkExecChain(wh, BpPinNames.Body);
         var (leading, trailing) = ReadComments(wh);
         var stmt = new WhileStatement
         {
@@ -288,15 +288,15 @@ internal sealed class BpReverseTranslator
 
     private Statement ReverseSwitch(BuiltinFunctionNode sw)
     {
-        var selector = ReadDataInput(sw, "Selector");
+        var selector = ReadDataInput(sw, BpPinNames.Selector);
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<Statement>>();
         for (int i = 0; ; i++)
         {
             if (!_execOut.ContainsKey((sw.Id, i.ToString()))) break;
             arms.Add([.. WalkExecChain(sw, i.ToString())]);
         }
-        var defaultBody = _execOut.ContainsKey((sw.Id, "Default"))
-            ? WalkExecChain(sw, "Default")
+        var defaultBody = _execOut.ContainsKey((sw.Id, BpPinNames.Default))
+            ? WalkExecChain(sw, BpPinNames.Default)
             : new List<Statement>();
         var (leading, trailing) = ReadComments(sw);
         var stmt = new SwitchStatement
@@ -321,7 +321,7 @@ internal sealed class BpReverseTranslator
         bool hasWiredInputs = false;
         foreach (var pin in fn.InputPins)
         {
-            if (pin.Name == "Exec") continue;
+            if (pin.Name == BpPinNames.Exec) continue;
             foreach (var conn in _bp.Connections)
                 if (conn.TargetNodeId == fn.Id && conn.TargetPinId == pin.Id)
                 { hasWiredInputs = true; break; }
@@ -348,7 +348,7 @@ internal sealed class BpReverseTranslator
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         foreach (var pin in fn.InputPins)
         {
-            if (pin.Name == "Exec") continue;
+            if (pin.Name == BpPinNames.Exec) continue;
             foreach (var conn in _bp.Connections)
             {
                 if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
@@ -499,7 +499,7 @@ internal sealed class BpReverseTranslator
         bool anyWired = false;
         foreach (var pin in fn.InputPins)
         {
-            if (pin.Name == "Exec") continue;
+            if (pin.Name == BpPinNames.Exec) continue;
             KsNode? wired = null;
             foreach (var conn in _bp.Connections)
             {
@@ -571,7 +571,7 @@ internal sealed class BpReverseTranslator
         // that BpRenderer used when creating the node.
         foreach (var pin in fn.InputPins)
         {
-            if (pin.Name == "Exec") continue;
+            if (pin.Name == BpPinNames.Exec) continue;
             // Check for a wired data source first.
             KsNode? wired = null;
             foreach (var conn in _bp.Connections)

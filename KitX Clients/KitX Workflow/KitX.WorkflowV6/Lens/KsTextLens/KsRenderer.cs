@@ -203,6 +203,12 @@ internal sealed class KsRenderer
         }
     }
 
+    /// <summary>
+    /// Renders an IR Segment (from the lowered <see cref="PipelineStatement"/>).
+    /// Not merged with <see cref="RenderAstSegmentText"/> because IR
+    /// <see cref="Segment.Arguments"/> and AST <see cref="KsPipelineSegment.Args"/>
+    /// are different property names on unrelated types — no common interface exists.
+    /// </summary>
     private static string RenderSegmentText(Segment seg)
     {
         if (seg.IsVariableTap || seg.Arguments.Length == 0)
@@ -279,6 +285,12 @@ internal sealed class KsRenderer
         return false;
     }
 
+    /// <summary>
+    /// Renders an AST KsPipelineSegment (from the <see cref="KsPipeline"/> AST).
+    /// Not merged with <see cref="RenderSegmentText"/> because AST
+    /// <see cref="KsPipelineSegment.Args"/> and IR <see cref="Segment.Arguments"/>
+    /// are different property names on unrelated types — no common interface exists.
+    /// </summary>
     private static string RenderAstSegmentText(KsPipelineSegment seg)
     {
         if (seg.IsVariableTap || seg.Args.Length == 0)
