@@ -14,11 +14,22 @@ using KitX.WorkflowV6.Ir.Statements;
 internal sealed class DebugCodegen
 {
     private readonly BuiltinFunctionRegistry _registry;
+    private HashSet<string> _helperNames = new(StringComparer.Ordinal);
+    private int _pipeCounter;
+    private readonly HashSet<string> _localNames = new(StringComparer.Ordinal);
 
-    public DebugCodegen(BuiltinFunctionRegistry registry) => _registry = registry;
-
-    public string Generate(Workflow ir, LoweringResult? lowering, bool hasDebugger)
+    public DebugCodegen(BuiltinFunctionRegistry registry)
     {
+        _registry = registry;
+    }
+
+    public string Generate(Workflow ir, LoweringResult? lowering, bool hasDebugger = false)
+    {
+        _pipeCounter = 0;
+        _helperNames = new HashSet<string>(
+            ir.HelperFunctions.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name!),
+            StringComparer.Ordinal);
+
         if (!hasDebugger)
             return new RoslynBackend.StructuredCodegen(_registry).Generate(ir, lowering);
 
@@ -57,7 +68,7 @@ internal sealed class DebugCodegen
 
         switch (stmt)
         {
-            case PipelineStatement p: GenPipeline(sb, p, pad); break;
+            case PipelineStatement p: GenPipeline(sb, p, pad, depth); break;
             case IfStatement iff: GenIf(sb, iff, pad, depth); break;
             case ForEachStatement fe: GenForEach(sb, fe, pad, depth); break;
             case WhileStatement ws: GenWhile(sb, ws, pad, depth); break;
@@ -67,14 +78,57 @@ internal sealed class DebugCodegen
         }
     }
 
-    private void GenPipeline(StringBuilder sb, PipelineStatement p, string pad)
+    private void GenPipeline(StringBuilder sb, PipelineStatement p, string pad, int depth)
     {
-        if (p.Sources.Length == 1 && p.Sources[0] is KsCall call)
+        // Bare call: no segments, single KsCall source → this.Method(args);
+        if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
-            var args = string.Join(", ", call.Args.Select(RenderArg));
-            sb.AppendLine($"{pad}this.{call.MethodName}({args});");
+            sb.AppendLine($"{pad}this.{MapMethodName(call.MethodName)}({string.Join(", ", call.Args.Select(RenderNode))});");
+            return;
         }
-        else sb.AppendLine($"{pad}/* pipeline */");
+
+        if (p.Segments.Length == 0)
+        {
+            sb.AppendLine($"{pad}/* bare expression: {RenderNode(p.Sources[0])} */");
+            return;
+        }
+
+        string? currentVar = null;
+
+        for (int i = 0; i < p.Segments.Length; i++)
+        {
+            var seg = p.Segments[i];
+            string outputVar = $"__pipe_{_pipeCounter++}";
+            bool isVarTap = seg.IsVariableTap
+                         || (seg.Arguments.Length == 0
+                             && !_registry.Contains(seg.Target)
+                             && !_helperNames.Contains(seg.Target));
+
+            if (isVarTap)
+            {
+                if (i == 0)
+                {
+                    var src = RenderNode(p.Sources[0]);
+                    sb.AppendLine($"{pad}this.{seg.Target} = {src};");
+                    sb.AppendLine($"{pad}var {outputVar} = {src};");
+                }
+                else
+                {
+                    sb.AppendLine($"{pad}this.{seg.Target} = {currentVar};");
+                    sb.AppendLine($"{pad}var {outputVar} = {currentVar};");
+                }
+            }
+            else
+            {
+                IEnumerable<string> inputs = i == 0
+                    ? p.Sources.Select(RenderNode)
+                    : [currentVar!];
+                string args = BuildArgList(seg.Arguments, inputs);
+                sb.AppendLine($"{pad}var {outputVar} = this.{MapMethodName(seg.Target)}({args});");
+            }
+
+            currentVar = outputVar;
+        }
     }
 
     private void GenIf(StringBuilder sb, IfStatement iff, string pad, int depth)
@@ -94,7 +148,9 @@ internal sealed class DebugCodegen
     {
         sb.AppendLine($"{pad}foreach (var {fe.ItemName} in {RenderExpr(fe.Source)})");
         sb.AppendLine($"{pad}{{");
+        _localNames.Add(fe.ItemName);
         GenBody(sb, fe.Body, pad.Length + 4, depth + 1);
+        _localNames.Remove(fe.ItemName);
         sb.AppendLine($"{pad}}}");
     }
 
@@ -133,14 +189,63 @@ internal sealed class DebugCodegen
     {
         KsCall c => $"this.{c.MethodName}({string.Join(", ", c.Args.Select(RenderArg))})",
         KsLiteral l => l.Value is string s ? $"\"{s}\"" : (l.Value?.ToString() ?? "null"),
-        KsIdentifier id => $"this.{id.Name}",
+        KsIdentifier id => _localNames.Contains(id.Name) ? id.Name : $"this.{id.Name}",
         _ => "false",
     };
 
     private string RenderArg(KsNode node) => node switch
     {
         KsLiteral l => l.Kind == KsLiteralKind.String ? $"\"{l.Value}\"" : (l.Value?.ToString() ?? "null"),
-        KsIdentifier id => $"this.{id.Name}",
+        KsIdentifier id => _localNames.Contains(id.Name) ? id.Name : $"this.{id.Name}",
         _ => "null",
     };
+
+    // ── Pipeline helpers ──
+
+    private string RenderNode(KsNode node) => node switch
+    {
+        KsLiteral lit => RenderLiteral(lit),
+        KsIdentifier id => _localNames.Contains(id.Name) ? id.Name : $"this.{id.Name}",
+        KsCall call => call.Args.Length == 0
+            ? $"this.{MapMethodName(call.MethodName)}()"
+            : $"this.{MapMethodName(call.MethodName)}({string.Join(", ", call.Args.Select(RenderNode))})",
+        KsPlaceholder => "_",
+        _ => "null",
+    };
+
+    private string RenderLiteral(KsLiteral lit) => lit.Kind switch
+    {
+        KsLiteralKind.String => $"\"{EscapeString(lit.Value?.ToString() ?? "")}\"",
+        KsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
+        KsLiteralKind.Double => (lit.Value?.ToString() ?? "0.0") + "d",
+        KsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
+        KsLiteralKind.Char => $"'{lit.Value}'",
+        KsLiteralKind.Null => "null",
+        _ => "null",
+    };
+
+    private static string EscapeString(string s)
+        => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\t", "\\t");
+
+    private static string MapMethodName(string name)
+        => name == "StringConcat" ? "StringConcatMethod" : name;
+
+    private bool IsKnownFunction(string name)
+        => _registry.Contains(name) || _helperNames.Contains(name);
+
+    private string BuildArgList(ImmutableArray<KsNode> args, IEnumerable<string> inputs)
+    {
+        var queue = new Queue<string>(inputs);
+        var result = new List<string>();
+        foreach (var arg in args)
+        {
+            if (arg is KsPlaceholder)
+                result.Add(queue.Count > 0 ? queue.Dequeue() : "null");
+            else
+                result.Add(RenderNode(arg));
+        }
+        while (queue.Count > 0)
+            result.Add(queue.Dequeue());
+        return string.Join(", ", result);
+    }
 }
