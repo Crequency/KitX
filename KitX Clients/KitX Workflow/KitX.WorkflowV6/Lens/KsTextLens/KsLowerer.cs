@@ -19,12 +19,11 @@ using KitX.WorkflowV6.Ir.Statements;
 // — those v5 smells are gone because the IR keeps pipelines as structured AST.
 // The lowerer is therefore ~3x shorter than v5's BS2CFGConverter.
 //
-// The lowerer consults the <see cref="BuiltinFunctionRegistry"/> only for custom
-// lowering handlers (per-builtin <see cref="ILoweringHandler"/>); the default
-// path is the 1:1 transform. Control-flow primitives (if/switch/forEach/while/
-// break/continue) are NOT routed through the registry — they are first-class
-// IR statement kinds per discussion notes §十二-K, so the lowerer builds them
-// directly.
+// The lowerer consults the <see cref="BuiltinFunctionRegistry"/> only to feed
+// function PortSpec metadata into type inference; the default path is the 1:1
+// transform. Control-flow primitives (if/switch/forEach/while/break/continue)
+// are NOT routed through the registry — they are first-class IR statement
+// kinds per discussion notes §十二-K, so the lowerer builds them directly.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

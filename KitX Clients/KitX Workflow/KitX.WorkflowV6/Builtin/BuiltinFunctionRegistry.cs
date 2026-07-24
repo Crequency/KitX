@@ -27,15 +27,6 @@ public sealed class BuiltinFunctionRegistry
     // Primary index: function name → the function object (always IBuiltinFunction).
     private readonly Dictionary<string, IBuiltinFunction> _byName = new();
 
-    // Per-role indexes: only functions implementing a role appear in that role's table.
-    private readonly Dictionary<string, IParserHandler> _parsers = new();
-    private readonly Dictionary<string, ILoweringHandler> _lowerers = new();
-
-    private readonly Dictionary<string, IBpRenderHandler> _bpRenderers = new();
-
-    // BP-reverse is keyed by BP canvas name (not KS name).
-    private readonly Dictionary<string, IBpReverseHandler> _bpReverseByBpName = new();
-
     /// <summary>
     /// Reflects over <paramref name="assemblies"/>, instantiates every concrete
     /// <see cref="IBuiltinFunction"/> type, and registers it. Construction failures
@@ -70,7 +61,7 @@ public sealed class BuiltinFunctionRegistry
         return registry;
     }
 
-    /// <summary>Registers one function and indexes it under each role it implements.</summary>
+    /// <summary>Registers one function.</summary>
     public void Register(IBuiltinFunction function)
     {
         var name = function.Name;
@@ -78,15 +69,6 @@ public sealed class BuiltinFunctionRegistry
             throw new InvalidOperationException($"Duplicate builtin function registration: {name}");
 
         _byName.Add(name, function);
-
-        if (function is IParserHandler p) _parsers.Add(name, p);
-        if (function is ILoweringHandler l) _lowerers.Add(name, l);
-        if (function is IBpRenderHandler r) _bpRenderers.Add(name, r);
-        if (function is IBpReverseHandler rev)
-        {
-            foreach (var bpName in rev.BpNames)
-                _bpReverseByBpName[bpName] = rev;
-        }
     }
 
     // ── Primary lookups (by KS function name). ──
@@ -95,15 +77,4 @@ public sealed class BuiltinFunctionRegistry
     public bool Contains(string name) => _byName.ContainsKey(name);
     public IReadOnlyCollection<string> AllNames => _byName.Keys;
     public IReadOnlyCollection<IBuiltinFunction> All => _byName.Values;
-
-    // ── Per-role lookups (null when the function has no custom handler for that role). ──
-
-    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
-    public IParserHandler? GetParser(string name) => _parsers.GetValueOrDefault(name);
-    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
-    public ILoweringHandler? GetLowerer(string name) => _lowerers.GetValueOrDefault(name);
-    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
-    public IBpRenderHandler? GetBpRenderer(string name) => _bpRenderers.GetValueOrDefault(name);
-    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
-    public IBpReverseHandler? GetBpReverseByBpName(string bpName) => _bpReverseByBpName.GetValueOrDefault(bpName);
 }

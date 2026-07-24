@@ -3,28 +3,17 @@ namespace KitX.WorkflowV6.Builtin;
 using KitX.Core.Contract.Workflow;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Builtin function descriptor system — ISP-style role split, inherited from
-// KitX.WorkflowIR (which in turn inherited it from the discussion that retired
-// the v4 fat IBuiltinFunctionDefinition interface).
+// Builtin function descriptor system.
 //
-// The split:
-//   IBuiltinFunction        — always: identity + ports (the spec)
-//   IParserHandler          — if it customises KS parse (control-flow forms)
-//   ILoweringHandler        — if it customises AST→IR lowering (default = plain call)
-//   IBpRenderHandler        — if it customises IR→BP-node template
-//   IBpReverseHandler       — if it can build IR from a BP node (cures hardcoded maps)
+// v6 model: every builtin implements only IBuiltinFunction (identity + ports).
+// There is no per-role handler split in v6 — all 32 builtins use the default
+// parse / lower / codegen / bp-render paths. Control-flow primitives
+// (if/switch/forEach/while/break/continue) are NOT routed through the registry
+// at all; they are first-class IR statement kinds (see StatementKind).
 //
-// No function implements more than it needs. The registry discovers each role
-// independently and stores them in separate lookup tables — see
-// <see cref="BuiltinFunctionRegistry"/>.
-//
-// v6 considerations:
-//   • ControlFlow is no longer a "terminator with Exec arms" (v5). A v6 control-flow
-//     keyword (if/switch/forEach/while/break/continue) is *structural*: it owns
-//     its body lexically. The renderer/codegen therefore walk into the body. Whether
-//     these are even modelled as "builtin functions" or as first-class IR statement
-//     kinds is an open design point (discussion notes §10.7). The descriptor system
-//     is preserved here so either path is open.
+// History: v5.1 had an ISP-style role split (IParserHandler / ILoweringHandler /
+// IBpRenderHandler / IBpReverseHandler). v6 removed these (no builtin needed
+// custom behaviour) along with the registry's per-role lookup tables.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

@@ -13,7 +13,6 @@ using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
-using KitX.WorkflowV6.Builtin.Functions;
 using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
 
@@ -86,15 +85,6 @@ public class BuiltinFunctionTests
         Assert.Equal(PinType.Any, compare.InputPorts[2].Type);       // B
         Assert.Single(compare.OutputPorts);
         Assert.Equal(PinType.Boolean, compare.OutputPorts[0].Type);
-
-        // The static SupportedOps set lists all 6 operator codes.
-        Assert.Equal(6, CompareFunction.SupportedOps.Count);
-        Assert.Contains("BEQ", CompareFunction.SupportedOps);
-        Assert.Contains("BNE", CompareFunction.SupportedOps);
-        Assert.Contains("BLT", CompareFunction.SupportedOps);
-        Assert.Contains("BLE", CompareFunction.SupportedOps);
-        Assert.Contains("BGT", CompareFunction.SupportedOps);
-        Assert.Contains("BGE", CompareFunction.SupportedOps);
     }
 
     [Fact]

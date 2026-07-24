@@ -111,21 +111,57 @@ public class ExecutionGlobals
 
     /// <summary>
     /// Compare dispatcher: compares a and b with the named operator.
-    /// Op codes per §十二-B: BEQ/BNE/BLT/BLE/BGT/BGE. Uses dynamic comparison so the
-    /// types can be int / double / string. Strong-typed codegen (Phase 4 future) inlines
-    /// the comparison directly; this path is for the dynamic fallback.
+    /// Op codes per §十二-B: BEQ/BNE/BLT/BLE/BGT/BGE.
+    /// Integer operands use exact comparison (int→double is lossless within 2^53, but
+    /// relative tolerance on large ints can falsely equate distinct values).
+    /// Floating-point operands use a combined relative+absolute tolerance for equality
+    /// (BEQ/BNE) to absorb IEEE-754 rounding; ordering comparisons (BLT/BLE/BGT/BGE)
+    /// stay strict since callers needing tolerance should compare via BEQ on the diff.
+    /// Non-numeric operands fall back to <see cref="object.Equals"/>.
     /// </summary>
     public bool Compare(string op, object? a, object? b)
     {
-        // Try numeric comparison first (int/double).
+        // Integer paths — exact comparison (no tolerance).
+        if (a is int ai && b is int bi)
+        {
+            return op switch
+            {
+                "BEQ" => ai == bi,
+                "BNE" => ai != bi,
+                "BLT" => ai < bi,
+                "BLE" => ai <= bi,
+                "BGT" => ai > bi,
+                "BGE" => ai >= bi,
+                _ => throw new ArgumentException($"Unknown compare op: {op}", nameof(op)),
+            };
+        }
+        if (a is long al && b is long bl)
+        {
+            return op switch
+            {
+                "BEQ" => al == bl,
+                "BNE" => al != bl,
+                "BLT" => al < bl,
+                "BLE" => al <= bl,
+                "BGT" => al > bl,
+                "BGE" => al >= bl,
+                _ => throw new ArgumentException($"Unknown compare op: {op}", nameof(op)),
+            };
+        }
+
+        // Numeric path — tolerance applies only to equality for floating operands.
         if (a is IConvertible && b is IConvertible)
         {
             double da = Convert.ToDouble(a, System.Globalization.CultureInfo.InvariantCulture);
             double db = Convert.ToDouble(b, System.Globalization.CultureInfo.InvariantCulture);
+            const double RelTol = 1e-9;
+            const double AbsTol = 1e-12;
+            double absDiff = Math.Abs(da - db);
+            double tol = Math.Max(Math.Max(Math.Abs(da), Math.Abs(db)) * RelTol, AbsTol);
             return op switch
             {
-                "BEQ" => Math.Abs(da - db) < double.Epsilon * 10,
-                "BNE" => Math.Abs(da - db) >= double.Epsilon * 10,
+                "BEQ" => absDiff <= tol,
+                "BNE" => absDiff > tol,
                 "BLT" => da < db,
                 "BLE" => da <= db,
                 "BGT" => da > db,
@@ -133,7 +169,8 @@ public class ExecutionGlobals
                 _ => throw new ArgumentException($"Unknown compare op: {op}", nameof(op)),
             };
         }
-        // Fall back to object equality.
+
+        // Non-numeric fallback — only equality makes sense.
         return op switch
         {
             "BEQ" => object.Equals(a, b),

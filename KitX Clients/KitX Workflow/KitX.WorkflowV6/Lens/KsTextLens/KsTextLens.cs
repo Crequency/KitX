@@ -85,8 +85,8 @@ public sealed class KsTextLens : ILens<string, string>
     /// Parses KS source and returns both the AST and the collected diagnostics.
     /// Internal — the public surface is <see cref="Parse"/> / <see cref="ParseAst"/>;
     /// diagnostics are surfaced via <see cref="KsParseResult"/> once Phase 5 wires the
-    /// SyncService to use them. For now the API is exposed as a low-level hook for
-    /// tests that need to assert on diagnostics.
+    /// SyncService to use them. Exposed as a low-level entry point for diagnostic
+    /// inspection.
     /// </summary>
     internal (KsProgram Ast, KsDiagnosticSink Diagnostics) ParseAstWithDiagnostics(string source)
     {

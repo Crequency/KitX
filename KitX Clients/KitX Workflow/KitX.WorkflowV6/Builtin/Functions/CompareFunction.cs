@@ -24,12 +24,6 @@ using KitX.Core.Contract.Workflow;
 /// </summary>
 public sealed class CompareFunction : IBuiltinFunction
 {
-    /// <summary>The supported comparison operator codes (KScript forms).</summary>
-    public static readonly IReadOnlySet<string> SupportedOps = new HashSet<string>
-    {
-        "BEQ", "BNE", "BLT", "BLE", "BGT", "BGE",
-    };
-
     public string Name => "Compare";
     public FunctionKind Kind => FunctionKind.Pure;
 

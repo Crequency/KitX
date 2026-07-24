@@ -75,30 +75,3 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
         return diff!;
     }
 }
-
-/// <summary>
-/// A description of a BP node to render: title, kind hint, port layout. Built by
-/// <see cref="IBpRenderHandler"/>; consumed by <see cref="BpGraphLens"/>.
-/// Mirrors <c>KitX.WorkflowIR.Builtin.BpNodeTemplate</c>.
-/// </summary>
-public sealed record BpNodeTemplate
-{
-    public required string Title { get; init; }
-    public required FunctionKind Kind { get; init; }
-    public IReadOnlyList<PortSpec> Inputs { get; init; } = [];
-    public IReadOnlyList<PortSpec> Outputs { get; init; } = [];
-}
-
-/// <summary>
-/// Information about a BP node being reverse-translated to IR: its canvas title,
-/// its argument values (port → string), and its control-flow targets. Built by the
-/// BP-edit translator; consumed by <see cref="IBpReverseHandler.BuildFromBp"/>.
-/// Mirrors <c>KitX.WorkflowIR.Builtin.BpNodeInfo</c>, re-typed for the v6 lexical path.
-/// </summary>
-public sealed record BpNodeInfo
-{
-    public required string Title { get; init; }
-    public IReadOnlyDictionary<string, string> Arguments { get; init; } = new Dictionary<string, string>();
-    /// <summary>Outgoing control-flow targets (pin name → lexical path of the target body).</summary>
-    public IReadOnlyList<(string PinName, string TargetPath)> Arms { get; init; } = [];
-}
