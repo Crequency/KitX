@@ -457,6 +457,25 @@ public class BuiltinFunctionTests
         Assert.Contains("True", result.Output);
     }
 
+    [Fact]
+    public async Task Builtin_String_Escape_Special_Chars_E2E()
+    {
+        // CodegenBase.EscapeString must escape \n \t \r \0 so the generated C# string
+        // literal compiles. Old StructuredCodegen only escaped \\ and \", which produced
+        // invalid C# for strings containing raw control chars (multiline string literal).
+        var registry = Discover();
+        var lens = new KsTextLens(registry);
+        var ir = lens.Parse("Print(\"line1\\nline2\\ttab\")\n", []);
+        var backend = new StructuredRoslynBackend(registry);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Escape E2E failed: {result.ErrorMessage}");
+        // Print emits one output line containing the raw string (with control chars preserved).
+        var line = Assert.Single(result.Output);
+        Assert.Contains("line1", line);
+        Assert.Contains("line2", line);
+        Assert.Contains("tab", line);
+    }
+
     private sealed class E2ETests_Inner_Host : IPluginHost
     {
         public object? Call(string pluginName, string methodName, params object[] args) => "{}";
