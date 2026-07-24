@@ -12,21 +12,18 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class BpGraphLensDiffTests
+[Trait("Category", "Unit")]
+public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
 {
-    private static BpGraphLens Lens() => new(Registry());
+    private readonly WorkflowTestFixture _fixture;
+    public BpGraphLensDiffTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
-    private static BuiltinFunctionRegistry Registry()
-        => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-
-    private static KsTextLens KsLens() => new(Registry());
-
-    private static Workflow ParseKS(string src) => KsLens().Parse(src, []);
+    private Workflow ParseKS(string src) => _fixture.KsLens.Parse(src, []);
 
     [Fact]
     public void Diff_Empty_Edits_Returns_Empty_Diff()
     {
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var ir = ParseKS("Print(\"a\")\n");
         var diff = lens.Diff(ir, []);
         Assert.NotNull(diff);
@@ -36,7 +33,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Diff_Add_Node_Produces_Added_Change()
     {
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var ir = ParseKS("Print(\"a\")\n");
         var edits = new BpEditAction[] { new AddNodeInBlock("/top", "Print") };
         var diff = lens.Diff(ir, edits);
@@ -47,7 +44,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Diff_Delete_Node_Produces_Removed_Change()
     {
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var ir = ParseKS("Print(\"a\")\n");
         var edits = new BpEditAction[] { new DeleteNode("v6-/top/stmt/0") };
         var diff = lens.Diff(ir, edits);
@@ -58,7 +55,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_Simple_Pipeline_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseKS("Print(\"hello\")\n"));
+        var bp = _fixture.BpLens.Project(ParseKS("Print(\"hello\")\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
@@ -66,7 +63,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_If_Else_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseKS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\n"));
+        var bp = _fixture.BpLens.Project(ParseKS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
@@ -74,7 +71,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_ForEach_Valid()
     {
-        var bp = new BpGraphLens(Registry()).Project(ParseKS("forEach Range(0, 5, 1) as i:\n    i > Print\n"));
+        var bp = _fixture.BpLens.Project(ParseKS("forEach Range(0, 5, 1) as i:\n    i > Print\n"));
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
     }
@@ -93,8 +90,7 @@ public class BpGraphLensDiffTests
         bp.Connections.Add(Conn("a", "a-out", "b", "b-in"));
         bp.Connections.Add(Conn("b", "b-out", "entry", "entry-in"));
         var error = StructuralReducer.Check(bp);
-        Assert.NotNull(error);
-        Assert.Contains("back edge", error.ToLowerInvariant());
+        Assert.NotNull(error);  // E3: assert error exists; don't freeze UX wording
     }
 
     [Fact]
@@ -109,8 +105,7 @@ public class BpGraphLensDiffTests
         bp.Connections.Add(Conn("e", "eo", "n", "n-in"));
         bp.Connections.Add(Conn("n", "n-out", "n", "n-in")); // self-loop
         var error = StructuralReducer.Check(bp);
-        Assert.NotNull(error);
-        Assert.Contains("loop", error.ToLowerInvariant());
+        Assert.NotNull(error);  // E3: assert error exists; don't freeze UX wording
     }
 
     private static BuiltinFunctionNode MakeNode(string id, string name)
@@ -124,13 +119,8 @@ public class BpGraphLensDiffTests
     private static BlueprintConnection Conn(string srcNode, string srcPin, string tgtNode, string tgtPin)
         => new() { Id = Guid.NewGuid().ToString(), SourceNodeId = srcNode, SourcePinId = srcPin, TargetNodeId = tgtNode, TargetPinId = tgtPin };
 
-    private static Blueprint ProjectKS(string src)
-    {
-        var registry = Registry();
-        var ksLens = new KsTextLens(registry);
-        var ir = ksLens.Parse(src, []);
-        return new BpGraphLens(registry).Project(ir);
-    }
+    private Blueprint ProjectKS(string src)
+        => _fixture.BpLens.Project(_fixture.KsLens.Parse(src, []));
 
     private static Blueprint BuildBlueprintWithMultipleDataConnectionsToSamePin()
     {

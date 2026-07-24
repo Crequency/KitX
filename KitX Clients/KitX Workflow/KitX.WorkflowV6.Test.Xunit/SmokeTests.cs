@@ -26,17 +26,19 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class SmokeTests
+[Trait("Category", "Unit")]
+public class SmokeTests : IClassFixture<WorkflowTestFixture>
 {
+    private readonly WorkflowTestFixture _fixture;
+    public SmokeTests(WorkflowTestFixture fixture) => _fixture = fixture;
     [Fact]
     public void Registry_Discovered_From_V6_Assembly_Contains_MVP()
     {
         // After Phase 3, the registry now discovers the 5 MVP builtins; update the
         // smoke test to assert the non-empty registry (the empty case was only valid
         // while no builtins were shipped).
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        Assert.NotNull(registry);
-        Assert.True(registry.AllNames.Count >= 5, $"Expected at least 5 builtins, got {registry.AllNames.Count}");
+        Assert.NotNull(_fixture.Registry);
+        Assert.True(_fixture.Registry.AllNames.Count >= 5, $"Expected at least 5 builtins, got {_fixture.Registry.AllNames.Count}");
     }
 
     [Fact]

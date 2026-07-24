@@ -10,12 +10,16 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class SerializationTests
+[Trait("Category", "Unit")]
+public class SerializationTests : IClassFixture<WorkflowTestFixture>
 {
-    private static Workflow Parse(params string[] lines)
+    private readonly WorkflowTestFixture _fixture;
+    public SerializationTests(WorkflowTestFixture fixture) => _fixture = fixture;
+
+    private Workflow Parse(params string[] lines)
     {
         var src = string.Join('\n', lines) + '\n';
-        return new KsTextLens(new BuiltinFunctionRegistry()).Parse(src, []);
+        return _fixture.KsLens.Parse(src, []);
     }
 
     [Fact]

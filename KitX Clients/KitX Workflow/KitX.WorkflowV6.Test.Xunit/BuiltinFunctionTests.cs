@@ -18,27 +18,26 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class BuiltinFunctionTests
+[Trait("Category", "Spec")]
+public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
 {
-    private static BuiltinFunctionRegistry Discover()
-        => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+    private readonly WorkflowTestFixture _fixture;
+    public BuiltinFunctionTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
     [Fact]
     public void Registry_Contains_MVP_Functions()
     {
-        var registry = Discover();
-        Assert.Contains("Print", registry.AllNames);
-        Assert.Contains("Range", registry.AllNames);
-        Assert.Contains("StringConcat", registry.AllNames);
-        Assert.Contains("Compare", registry.AllNames);
-        Assert.Contains("Add", registry.AllNames);
+        Assert.Contains("Print", _fixture.Registry.AllNames);
+        Assert.Contains("Range", _fixture.Registry.AllNames);
+        Assert.Contains("StringConcat", _fixture.Registry.AllNames);
+        Assert.Contains("Compare", _fixture.Registry.AllNames);
+        Assert.Contains("Add", _fixture.Registry.AllNames);
     }
 
     [Fact]
     public void Print_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var print = registry.Get("Print");
+        var print = _fixture.Registry.Get("Print");
         Assert.NotNull(print);
         Assert.Equal(FunctionKind.SideEffect, print!.Kind);
         Assert.Single(print.InputPorts);
@@ -49,8 +48,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void Range_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var range = registry.Get("Range");
+        var range = _fixture.Registry.Get("Range");
         Assert.NotNull(range);
         Assert.Equal(FunctionKind.Pure, range!.Kind);
         Assert.Equal(3, range.InputPorts.Count);
@@ -62,8 +60,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void StringConcat_Variadic_Spec_Declared()
     {
-        var registry = Discover();
-        var concat = registry.Get("StringConcat");
+        var concat = _fixture.Registry.Get("StringConcat");
         Assert.NotNull(concat);
         var variadic = concat!.InputVariadic;
         Assert.NotNull(variadic);
@@ -75,8 +72,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void Compare_Ops_Correct()
     {
-        var registry = Discover();
-        var compare = registry.Get("Compare");
+        var compare = _fixture.Registry.Get("Compare");
         Assert.NotNull(compare);
         Assert.Equal(FunctionKind.Pure, compare!.Kind);
         Assert.Equal(3, compare.InputPorts.Count);
@@ -90,8 +86,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void Add_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var add = registry.Get("Add");
+        var add = _fixture.Registry.Get("Add");
         Assert.NotNull(add);
         Assert.Equal(FunctionKind.Pure, add!.Kind);
         Assert.Equal(2, add.InputPorts.Count);
@@ -103,20 +98,18 @@ public class BuiltinFunctionTests
     [Fact]
     public void Registry_Contains_Arithmetic_Functions()
     {
-        var registry = Discover();
-        Assert.Contains("Sub", registry.AllNames);
-        Assert.Contains("Mul", registry.AllNames);
-        Assert.Contains("Div", registry.AllNames);
-        Assert.Contains("Mod", registry.AllNames);
+        Assert.Contains("Sub", _fixture.Registry.AllNames);
+        Assert.Contains("Mul", _fixture.Registry.AllNames);
+        Assert.Contains("Div", _fixture.Registry.AllNames);
+        Assert.Contains("Mod", _fixture.Registry.AllNames);
     }
 
     [Fact]
     public void Arithmetic_Functions_Spec_Correct()
     {
-        var registry = Discover();
         foreach (var name in new[] { "Sub", "Mul", "Div", "Mod" })
         {
-            var fn = registry.Get(name);
+            var fn = _fixture.Registry.Get(name);
             Assert.NotNull(fn);
             Assert.Equal(FunctionKind.Pure, fn!.Kind);
             Assert.Equal(2, fn.InputPorts.Count);
@@ -129,17 +122,15 @@ public class BuiltinFunctionTests
     [Fact]
     public void Registry_Contains_Utility_Functions()
     {
-        var registry = Discover();
-        Assert.Contains("Pause", registry.AllNames);
-        Assert.Contains("ReadTextFile", registry.AllNames);
-        Assert.Contains("WriteTextFile", registry.AllNames);
+        Assert.Contains("Pause", _fixture.Registry.AllNames);
+        Assert.Contains("ReadTextFile", _fixture.Registry.AllNames);
+        Assert.Contains("WriteTextFile", _fixture.Registry.AllNames);
     }
 
     [Fact]
     public void Pause_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var pause = registry.Get("Pause");
+        var pause = _fixture.Registry.Get("Pause");
         Assert.NotNull(pause);
         Assert.Equal(FunctionKind.SideEffect, pause!.Kind);
         Assert.Single(pause.InputPorts);
@@ -150,8 +141,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void ReadTextFile_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var read = registry.Get("ReadTextFile");
+        var read = _fixture.Registry.Get("ReadTextFile");
         Assert.NotNull(read);
         Assert.Equal(FunctionKind.Pure, read!.Kind);
         Assert.Single(read.InputPorts);
@@ -163,8 +153,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void WriteTextFile_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var write = registry.Get("WriteTextFile");
+        var write = _fixture.Registry.Get("WriteTextFile");
         Assert.NotNull(write);
         Assert.Equal(FunctionKind.SideEffect, write!.Kind);
         Assert.Equal(2, write.InputPorts.Count);
@@ -175,8 +164,7 @@ public class BuiltinFunctionTests
     [Fact]
     public void Len_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var len = registry.Get("Len");
+        var len = _fixture.Registry.Get("Len");
         Assert.NotNull(len);
         Assert.Equal(FunctionKind.Pure, len!.Kind);
         Assert.Single(len.InputPorts);
@@ -188,30 +176,28 @@ public class BuiltinFunctionTests
     [Fact]
     public void Registry_Contains_JSON_Functions()
     {
-        var registry = Discover();
-        Assert.Contains("JsonAsString", registry.AllNames);
-        Assert.Contains("JsonAsInt", registry.AllNames);
-        Assert.Contains("JsonAsBool", registry.AllNames);
-        Assert.Contains("JsonArrayAt", registry.AllNames);
-        Assert.Contains("JsonObjectKeys", registry.AllNames);
-        Assert.Contains("JsonGetField", registry.AllNames);
-        Assert.Contains("JsonContains", registry.AllNames);
+        Assert.Contains("JsonAsString", _fixture.Registry.AllNames);
+        Assert.Contains("JsonAsInt", _fixture.Registry.AllNames);
+        Assert.Contains("JsonAsBool", _fixture.Registry.AllNames);
+        Assert.Contains("JsonArrayAt", _fixture.Registry.AllNames);
+        Assert.Contains("JsonObjectKeys", _fixture.Registry.AllNames);
+        Assert.Contains("JsonGetField", _fixture.Registry.AllNames);
+        Assert.Contains("JsonContains", _fixture.Registry.AllNames);
     }
 
     [Fact]
     public void JSON_Scalar_Functions_Spec_Correct()
     {
-        var registry = Discover();
         // JsonAsString: Any → String
-        var s = registry.Get("JsonAsString");
+        var s = _fixture.Registry.Get("JsonAsString");
         Assert.NotNull(s);
         Assert.Equal(PinType.String, s!.OutputPorts[0].Type);
         // JsonAsInt: Any → Integer
-        var i = registry.Get("JsonAsInt");
+        var i = _fixture.Registry.Get("JsonAsInt");
         Assert.NotNull(i);
         Assert.Equal(PinType.Integer, i!.OutputPorts[0].Type);
         // JsonAsBool: Any → Boolean
-        var b = registry.Get("JsonAsBool");
+        var b = _fixture.Registry.Get("JsonAsBool");
         Assert.NotNull(b);
         Assert.Equal(PinType.Boolean, b!.OutputPorts[0].Type);
     }
@@ -219,27 +205,26 @@ public class BuiltinFunctionTests
     [Fact]
     public void JSON_Navigation_Functions_Spec_Correct()
     {
-        var registry = Discover();
         // JsonArrayAt: (Any, Integer) → Json
-        var at = registry.Get("JsonArrayAt");
+        var at = _fixture.Registry.Get("JsonArrayAt");
         Assert.NotNull(at);
         Assert.Equal(2, at!.InputPorts.Count);
         Assert.Equal(PinType.Integer, at.InputPorts[1].Type);
         Assert.Equal(PinType.Json, at.OutputPorts[0].Type);
         // JsonGetField: (Any, String) → Json
-        var gf = registry.Get("JsonGetField");
+        var gf = _fixture.Registry.Get("JsonGetField");
         Assert.NotNull(gf);
         Assert.Equal(2, gf!.InputPorts.Count);
         Assert.Equal(PinType.String, gf.InputPorts[1].Type);
         Assert.Equal(PinType.Json, gf.OutputPorts[0].Type);
         // JsonContains: (Any, String) → Boolean
-        var c = registry.Get("JsonContains");
+        var c = _fixture.Registry.Get("JsonContains");
         Assert.NotNull(c);
         Assert.Equal(2, c!.InputPorts.Count);
         Assert.Equal(PinType.String, c.InputPorts[1].Type);
         Assert.Equal(PinType.Boolean, c.OutputPorts[0].Type);
         // JsonObjectKeys: Any → Json
-        var k = registry.Get("JsonObjectKeys");
+        var k = _fixture.Registry.Get("JsonObjectKeys");
         Assert.NotNull(k);
         Assert.Single(k!.InputPorts);
         Assert.Equal(PinType.Json, k.OutputPorts[0].Type);
@@ -248,26 +233,24 @@ public class BuiltinFunctionTests
     [Fact]
     public void Registry_Contains_Plugin_And_Service_Functions()
     {
-        var registry = Discover();
-        Assert.Contains("PluginCall", registry.AllNames);
-        Assert.Contains("PluginCallWithTarget", registry.AllNames);
-        Assert.Contains("TryGetDevice", registry.AllNames);
-        Assert.Contains("StartPlugin", registry.AllNames);
-        Assert.Contains("StopPlugin", registry.AllNames);
-        Assert.Contains("StopWorkflow", registry.AllNames);
-        Assert.Contains("CreateWorkflow", registry.AllNames);
-        Assert.Contains("RunWorkflow", registry.AllNames);
-        Assert.Contains("InstallPlugin", registry.AllNames);
-        Assert.Contains("GetPluginInfoByName", registry.AllNames);
-        Assert.Contains("ListPluginNames", registry.AllNames);
-        Assert.Contains("ListWorkflows", registry.AllNames);
+        Assert.Contains("PluginCall", _fixture.Registry.AllNames);
+        Assert.Contains("PluginCallWithTarget", _fixture.Registry.AllNames);
+        Assert.Contains("TryGetDevice", _fixture.Registry.AllNames);
+        Assert.Contains("StartPlugin", _fixture.Registry.AllNames);
+        Assert.Contains("StopPlugin", _fixture.Registry.AllNames);
+        Assert.Contains("StopWorkflow", _fixture.Registry.AllNames);
+        Assert.Contains("CreateWorkflow", _fixture.Registry.AllNames);
+        Assert.Contains("RunWorkflow", _fixture.Registry.AllNames);
+        Assert.Contains("InstallPlugin", _fixture.Registry.AllNames);
+        Assert.Contains("GetPluginInfoByName", _fixture.Registry.AllNames);
+        Assert.Contains("ListPluginNames", _fixture.Registry.AllNames);
+        Assert.Contains("ListWorkflows", _fixture.Registry.AllNames);
     }
 
     [Fact]
     public void PluginCall_Function_Spec_Correct()
     {
-        var registry = Discover();
-        var pc = registry.Get("PluginCall");
+        var pc = _fixture.Registry.Get("PluginCall");
         Assert.NotNull(pc);
         Assert.Equal(FunctionKind.SideEffect, pc!.Kind);
         Assert.Equal(2, pc.InputPorts.Count);
@@ -279,20 +262,19 @@ public class BuiltinFunctionTests
     [Fact]
     public void Service_Functions_Spec_Correct()
     {
-        var registry = Discover();
         // StartPlugin: (String) → Boolean, SideEffect
-        var sp = registry.Get("StartPlugin");
+        var sp = _fixture.Registry.Get("StartPlugin");
         Assert.NotNull(sp);
         Assert.Equal(FunctionKind.SideEffect, sp!.Kind);
         Assert.Equal(PinType.Boolean, sp.OutputPorts[0].Type);
         // CreateWorkflow: (String, String) → String, SideEffect
-        var cw = registry.Get("CreateWorkflow");
+        var cw = _fixture.Registry.Get("CreateWorkflow");
         Assert.NotNull(cw);
         Assert.Equal(FunctionKind.SideEffect, cw!.Kind);
         Assert.Equal(2, cw.InputPorts.Count);
         Assert.Equal(PinType.String, cw.OutputPorts[0].Type);
         // ListPluginNames: () → String, Pure
-        var lp = registry.Get("ListPluginNames");
+        var lp = _fixture.Registry.Get("ListPluginNames");
         Assert.NotNull(lp);
         Assert.Equal(FunctionKind.Pure, lp!.Kind);
         Assert.Empty(lp!.InputPorts);
@@ -301,6 +283,7 @@ public class BuiltinFunctionTests
     // === E2E execution tests for builtin functions ===
 
     [Theory]
+    [Trait("Category", "Integration")]
     [InlineData("Add", "1, 2 > Add", "3")]
     [InlineData("Sub", "5, 3 > Sub", "2")]
     [InlineData("Mul", "4, 3 > Mul", "12")]
@@ -308,68 +291,62 @@ public class BuiltinFunctionTests
     [InlineData("Mod", "10, 3 > Mod", "1")]
     public async Task Builtin_Arithmetic_E2E(string _, string ks, string expected)
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse(ks + " > Print\n", []);
-        var backend = new StructuredRoslynBackend(registry);
+        var ir = _fixture.KsLens.Parse(ks + " > Print\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains(expected, result.Output);
     }
 
     [Theory]
+    [Trait("Category", "Integration")]
     [InlineData("Len(string)", "\"hello\" > Len", "5")]
     [InlineData("Len(array)", "Range(0, 3, 1) > Len", "3")]
     public async Task Builtin_Len_E2E(string _, string ks, string expected)
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse(ks + " > Print\n", []);
-        var backend = new StructuredRoslynBackend(registry);
+        var ir = _fixture.KsLens.Parse(ks + " > Print\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains(expected, result.Output);
     }
 
     [Theory]
+    [Trait("Category", "Integration")]
     [InlineData("JsonGetField", "\"{\\\"name\\\":\\\"world\\\"}\" > JsonGetField(_, \"name\") > JsonAsString", "world")]
     [InlineData("JsonArrayAt", "\"[10,20,30]\" > JsonArrayAt(_, 1) > JsonAsInt", "20")]
     [InlineData("JsonObjectKeys", "\"{\\\"a\\\":1,\\\"b\\\":2}\" > JsonObjectKeys > Len", "2")]
     [InlineData("JsonAsString", "\"hello\" > JsonAsString", "hello")]
     public async Task Builtin_Json_E2E(string _, string ks, string expected)
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse(ks + " > Print\n", []);
-        var backend = new StructuredRoslynBackend(registry);
+        var ir = _fixture.KsLens.Parse(ks + " > Print\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains(expected, result.Output);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_Pause_E2E()
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("Pause(1)\nPrint(\"after\")\n", []);
-        var backend = new StructuredRoslynBackend(registry);
+        var ir = _fixture.KsLens.Parse("Pause(1)\nPrint(\"after\")\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("after", result.Output);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_FileIO_RoundTrip_E2E()
     {
         var tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"kitx_test_{Guid.NewGuid():N}.txt");
         try
         {
-            var registry = Discover();
-            var lens = new KsTextLens(registry);
-            var src = $"WriteTextFile(\"{tempFile}\", \"hello\")\nReadTextFile(\"{tempFile}\") > Print\n";
-            var ir = lens.Parse(src, []);
-            var backend = new StructuredRoslynBackend(registry);
+                    var src = $"WriteTextFile(\"{tempFile}\", \"hello\")\nReadTextFile(\"{tempFile}\") > Print\n";
+            var ir = _fixture.KsLens.Parse(src, []);
+            var backend = _fixture.MakeBackend();
             var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
             Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
             Assert.Contains("hello", result.Output);
@@ -382,44 +359,42 @@ public class BuiltinFunctionTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_StartPlugin_E2E()
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("StartPlugin(\"test\") > Print\n", []);
+        var ir = _fixture.KsLens.Parse("StartPlugin(\"test\") > Print\n", []);
         var host = new E2ETests_Inner_Host();
-        var backend = new StructuredRoslynBackend(registry, host);
+        var backend = _fixture.MakeBackend(host);
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("True", result.Output);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_ListPluginNames_E2E()
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("ListPluginNames() > Print\n", []);
+        var ir = _fixture.KsLens.Parse("ListPluginNames() > Print\n", []);
         var host = new E2ETests_Inner_Host();
-        var backend = new StructuredRoslynBackend(registry, host);
+        var backend = _fixture.MakeBackend(host);
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains(result.Output, s => s.Contains("plugin1"));
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_StringConcat_E2E()
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("\"Hello, \" > StringConcat(_, \"World!\") > Print\n", []);
-        var backend = new StructuredRoslynBackend(registry);
+        var ir = _fixture.KsLens.Parse("\"Hello, \" > StringConcat(_, \"World!\") > Print\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("Hello, World!", result.Output);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_Compare_All_Ops_E2E()
     {
         var testCases = new[]
@@ -433,11 +408,9 @@ public class BuiltinFunctionTests
         };
         foreach (var (op, a, b, expected) in testCases)
         {
-            var registry = Discover();
-            var lens = new KsTextLens(registry);
-            var src = $"Compare(\"{op}\", {a}, {b}) > Print\n";
-            var ir = lens.Parse(src, []);
-            var backend = new StructuredRoslynBackend(registry);
+                    var src = $"Compare(\"{op}\", {a}, {b}) > Print\n";
+            var ir = _fixture.KsLens.Parse(src, []);
+            var backend = _fixture.MakeBackend();
             var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
             Assert.True(result.IsSuccess, $"Compare {op} failed: {result.ErrorMessage}");
             Assert.Contains(expected.ToString(), result.Output);
@@ -445,28 +418,26 @@ public class BuiltinFunctionTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_StopPlugin_E2E()
     {
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("\"test\" > StopPlugin > Print\n", []);
+        var ir = _fixture.KsLens.Parse("\"test\" > StopPlugin > Print\n", []);
         var host = new E2ETests_Inner_Host();
-        var backend = new StructuredRoslynBackend(registry, host);
+        var backend = _fixture.MakeBackend(host);
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("True", result.Output);
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task Builtin_String_Escape_Special_Chars_E2E()
     {
         // CodegenBase.EscapeString must escape \n \t \r \0 so the generated C# string
         // literal compiles. Old StructuredCodegen only escaped \\ and \", which produced
         // invalid C# for strings containing raw control chars (multiline string literal).
-        var registry = Discover();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("Print(\"line1\\nline2\\ttab\")\n", []);
-        var backend = new StructuredRoslynBackend(registry);
+        var ir = _fixture.KsLens.Parse("Print(\"line1\\nline2\\ttab\")\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Escape E2E failed: {result.ErrorMessage}");
         // Print emits one output line containing the raw string (with control chars preserved).

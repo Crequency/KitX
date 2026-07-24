@@ -22,16 +22,18 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class KsTextLensTests
+[Trait("Category", "Unit")]
+public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
 {
-    private readonly KsTextLens _lens = new(new BuiltinFunctionRegistry());
+    private readonly WorkflowTestFixture _fixture;
+    public KsTextLensTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
     // ── Parse empty program ──
 
     [Fact]
     public void Parse_Empty_Program()
     {
-        var ir = _lens.Parse("", []);
+        var ir = _fixture.KsLens.Parse("", []);
         Assert.Empty(ir.Body);
         Assert.Empty(ir.Constants);
         Assert.Empty(ir.GlobalVars);
@@ -55,7 +57,7 @@ public class KsTextLensTests
 
             Print("start")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Equal(2, ir.Constants.Count);
         Assert.Equal("int", ir.Constants["loopMax"].Type);
         Assert.Equal("5", ir.Constants["loopMax"].InitialValueExpression);
@@ -76,7 +78,7 @@ public class KsTextLensTests
             else:
                 Print("else")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var iff = Assert.IsType<IfStatement>(ir.Body[0]);
         Assert.NotNull(iff.Condition);
@@ -95,7 +97,7 @@ public class KsTextLensTests
             forEach Range(0, 10, 1) as i:
                 i > Print
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var fe = Assert.IsType<ForEachStatement>(ir.Body[0]);
         Assert.Equal("i", fe.ItemName);
@@ -116,7 +118,7 @@ public class KsTextLensTests
             forEach loopMax > Range(0, _, 1) as i:
                 i > Print
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         var fe = ir.Body.OfType<ForEachStatement>().Single();
         Assert.Equal("i", fe.ItemName);
         // Source should be a KsPipeline (loopMax > Range(0, _, 1)).
@@ -136,10 +138,10 @@ public class KsTextLensTests
             forEach loopMax > Range(0, _, 1) as i:
                 i > Print
             """;
-        var ir = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir);
+        var ir = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir);
         // The rendered output must be re-parseable (no round-trip breakage).
-        var reIr = _lens.Parse(rendered, []);
+        var reIr = _fixture.KsLens.Parse(rendered, []);
         // Compare the forEach source type and item name explicitly.
         var origFe = ir.Body.OfType<ForEachStatement>().Single();
         var reFe = reIr.Body.OfType<ForEachStatement>().Single();
@@ -158,7 +160,7 @@ public class KsTextLensTests
             while cond:
                 Print("body")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var ws = Assert.IsType<WhileStatement>(ir.Body[0]);
         Assert.Single(ws.Body);
@@ -175,7 +177,7 @@ public class KsTextLensTests
                 if inner:
                     Print("inner then")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var outer = Assert.IsType<IfStatement>(ir.Body[0]);
         Assert.Equal(2, outer.ThenBody.Length);
@@ -192,7 +194,7 @@ public class KsTextLensTests
                 break
                 continue
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         var fe = Assert.IsType<ForEachStatement>(ir.Body[0]);
         Assert.Equal(2, fe.Body.Length);
         Assert.IsType<BreakStatement>(fe.Body[0]);
@@ -205,7 +207,7 @@ public class KsTextLensTests
     public void Parse_Tab_Rejected()
     {
         var src = "if cond\n\tPrint(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS001");
     }
@@ -217,7 +219,7 @@ public class KsTextLensTests
     {
         // 3-space indent is not a multiple of 4 — must report KS002.
         var src = "if cond\n   Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS002");
     }
@@ -228,9 +230,9 @@ public class KsTextLensTests
     public void RoundTrip_Idempotent_Simple_Pipeline()
     {
         var src = "Print(\"hello\")\n";
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -243,9 +245,9 @@ public class KsTextLensTests
             else:
                 Print("else")
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -256,9 +258,9 @@ public class KsTextLensTests
             forEach Range(0, 10, 1) as i:
                 i > Print
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -271,9 +273,9 @@ public class KsTextLensTests
                 if inner:
                     Print("inner then")
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -285,9 +287,9 @@ public class KsTextLensTests
                 Print("body")
                 break
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -298,7 +300,7 @@ public class KsTextLensTests
     {
         // An inline `//` comment attaches as the statement's TrailingComment.
         var src = "Print(\"x\") // this is a comment\n";
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
         Assert.Equal("this is a comment", pipe.TrailingComment);
@@ -313,7 +315,7 @@ public class KsTextLensTests
             // this is a full-line comment
             Print("x")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
         Assert.Equal("this is a full-line comment", pipe.LeadingComment);
@@ -329,7 +331,7 @@ public class KsTextLensTests
             // second line
             Print("x")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
         Assert.Equal("first line\nsecond line", pipe.LeadingComment);
     }
@@ -341,10 +343,10 @@ public class KsTextLensTests
             // leading comment
             a, b > Compare("BEQ") > Print
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
         Assert.Contains("// leading comment", rendered);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -352,10 +354,10 @@ public class KsTextLensTests
     public void Comment_Trailing_Trip()
     {
         var src = "a, b > Compare(\"BEQ\") > Print // trailing comment\n";
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
         Assert.Contains("// trailing comment", rendered);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -369,18 +371,18 @@ public class KsTextLensTests
                 > Compare("BEQ") // compare comment
                 > Print // print comment
             """;
-        var ir1 = _lens.Parse(src, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
         var pipe = Assert.IsType<PipelineStatement>(ir1.Body[0]);
         Assert.Equal("leading", pipe.LeadingComment);
         Assert.Equal("source inline", pipe.TrailingComment);
         Assert.Equal("compare comment", pipe.Segments[0].Comment);
         Assert.Equal("print comment", pipe.Segments[1].Comment);
 
-        var rendered = _lens.Project(ir1);
+        var rendered = _fixture.KsLens.Project(ir1);
         // Multi-line form: each segment on its own line.
         Assert.Contains("> Compare(\"BEQ\") // compare comment", rendered);
         Assert.Contains("> Print // print comment", rendered);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -393,11 +395,11 @@ public class KsTextLensTests
             while cond: // keep looping
                 Print("tick")
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
         Assert.Contains("// keep looping", rendered);
         Assert.Contains("// loop guard", rendered);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -418,9 +420,9 @@ public class KsTextLensTests
                 // body leading
                 i > Print // body trailing
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -433,8 +435,8 @@ public class KsTextLensTests
             if cond:
                 Print("then")
             """;
-        var ir = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir);
+        var ir = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir);
         // The then body must be indented by 4 spaces.
         Assert.Contains("\n    Print(\"then\")", rendered);
     }
@@ -447,8 +449,8 @@ public class KsTextLensTests
                 if inner:
                     Print("deep")
             """;
-        var ir = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir);
+        var ir = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir);
         // The innermost Print must be indented by 8 spaces.
         Assert.Contains("\n        Print(\"deep\")", rendered);
     }
@@ -459,7 +461,7 @@ public class KsTextLensTests
     public void ParseAst_Returns_KsProgram()
     {
         var src = "Print(\"x\")\n";
-        var ast = _lens.ParseAst(src);
+        var ast = _fixture.KsLens.ParseAst(src);
         var program = Assert.IsType<KsProgram>(ast);
         Assert.Single(program.Body);
         Assert.IsType<KsPipeline>(program.Body[0]);
@@ -473,7 +475,7 @@ public class KsTextLensTests
         // v6.0 rule: function parens may only contain literals/placeholders.
         // `Print(myVar)` — myVar is an identifier inside parens → KS051.
         var src = "Print(myVar)\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS051");
     }
@@ -483,7 +485,7 @@ public class KsTextLensTests
     {
         // `1 > Add(x, _)` — x is an identifier inside segment parens → KS051.
         var src = "1 > Add(x, _)\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS051");
     }
@@ -493,7 +495,7 @@ public class KsTextLensTests
     {
         // `Print("hello")` — all-literal args → no KS051.
         var src = "Print(\"hello\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.False(diag.HasErrors);
     }
 
@@ -502,7 +504,7 @@ public class KsTextLensTests
     {
         // `1 > Range(0, _, 1)` — _ is a placeholder, not an identifier → no KS051.
         var src = "1 > Range(0, _, 1)\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.False(diag.HasErrors);
     }
 
@@ -510,7 +512,7 @@ public class KsTextLensTests
     public void Error_KS030_Missing_As_After_ForEach()
     {
         var src = "forEach Range(0, 3, 1)\n    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS030");
     }
@@ -519,7 +521,7 @@ public class KsTextLensTests
     public void Error_KS042_Unterminated_Call_Args()
     {
         var src = "Print(\"hello\"\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS042" || d.Code == "KS052");
     }
@@ -528,7 +530,7 @@ public class KsTextLensTests
     public void Error_KS062_Empty_If_Body()
     {
         var src = "if cond\nPrint(\"not indented\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS062");
     }
@@ -538,7 +540,7 @@ public class KsTextLensTests
     {
         // Statement at indent 2 (not 0) at top level.
         var src = "    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS010");
     }
@@ -555,7 +557,7 @@ public class KsTextLensTests
                 int b = 2
             }
             """;
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS011");
     }
@@ -565,7 +567,7 @@ public class KsTextLensTests
     {
         // Multiple errors in one source — all should be collected (error recovery).
         var src = "Print(myVar)\nPrint(otherVar)\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         // Both lines should produce KS051.
         var ks051Count = diag.Items.Count(d => d.Code == "KS051");
@@ -579,7 +581,7 @@ public class KsTextLensTests
     {
         // const row missing type identifier: "5" is IntegerLiteral, not Identifier.
         var src = "const {\n    5\n}\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS012");
     }
@@ -589,7 +591,7 @@ public class KsTextLensTests
     {
         // "const int x = 5" — const followed by identifier, not "{".
         var src = "const int x = 5\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS013");
     }
@@ -599,7 +601,7 @@ public class KsTextLensTests
     {
         // Case label without ":" separator.
         var src = "switch sel\n    0 Print(\"zero\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS020");
     }
@@ -609,7 +611,7 @@ public class KsTextLensTests
     {
         // Arm label must be integer or "default"; "x" is an identifier.
         var src = "switch sel\n    x:\n        Print(\"zero\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS021");
     }
@@ -618,7 +620,7 @@ public class KsTextLensTests
     public void Error_KS022_Duplicate_Default_Arm()
     {
         var src = "switch sel\n    default:\n        Print(\"a\")\n    default:\n        Print(\"b\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS022");
     }
@@ -628,7 +630,7 @@ public class KsTextLensTests
     {
         // Pipeline ending with "=" but no identifier follows.
         var src = "var {\n    int x\n}\n1 > x =\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS040");
     }
@@ -638,7 +640,7 @@ public class KsTextLensTests
     {
         // ">" at end of line with no identifier following.
         var src = "1 >\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS041");
     }
@@ -648,7 +650,7 @@ public class KsTextLensTests
     {
         // "@" is not in the grammar alphabet → unexpected token in expression.
         var src = "if @\n    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS050");
     }
@@ -659,7 +661,7 @@ public class KsTextLensTests
         // Call in expression position (if condition) missing closing ")".
         // ParseSegment uses KS042; ParseExpression call branch uses KS052.
         var src = "if Foo(\n    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS052");
     }
@@ -669,7 +671,7 @@ public class KsTextLensTests
     {
         // Multiple sources in condition but no ">" pipeline segment.
         var src = "if a, b\n    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS060");
     }
@@ -679,7 +681,7 @@ public class KsTextLensTests
     {
         // forEach is not valid inside a condition pipeline.
         var src = "if 1 > forEach as i\n    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS061");
     }
@@ -689,7 +691,7 @@ public class KsTextLensTests
     {
         // The ':' terminator is now mandatory on control-flow headers (Python-style).
         var src = "if cond\n    Print(\"x\")\n";
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS063");
     }
@@ -701,7 +703,7 @@ public class KsTextLensTests
             if cond:
                 Print("x")
             """;
-        var (ast, diag) = _lens.ParseAstWithDiagnostics(src);
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.False(diag.HasErrors);
     }
 
@@ -721,12 +723,12 @@ public class KsTextLensTests
                 > Compare("BEQ"): // equality check
                 Print("yes")
             """;
-        var ir1 = _lens.Parse(src, []);
-        var rendered = _lens.Project(ir1);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
         // Multi-line condition rendered (intermediate segment has a comment).
         Assert.Contains("> Add(_, 1) // step one", rendered);
         Assert.Contains("> Compare(\"BEQ\"):", rendered);
-        var ir2 = _lens.Parse(rendered, []);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 
@@ -740,7 +742,7 @@ public class KsTextLensTests
                 > Add
                 > Print
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
         Assert.Equal(2, pipe.Sources.Length);
@@ -750,12 +752,12 @@ public class KsTextLensTests
     [Fact]
     public void Parse_Multiline_Equal_To_Single_Line()
     {
-        var multiLine = _lens.Parse("""
+        var multiLine = _fixture.KsLens.Parse("""
             1, 2
                 > Add
                 > Print
             """, []);
-        var singleLine = _lens.Parse("1, 2 > Add > Print\n", []);
+        var singleLine = _fixture.KsLens.Parse("1, 2 > Add > Print\n", []);
         Assert.Equal(singleLine, multiLine);
     }
 
@@ -766,7 +768,7 @@ public class KsTextLensTests
             1, 2
                 > Add
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         Assert.Single(ir.Body);
         var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
         Assert.Equal(2, pipe.Sources.Length);
@@ -783,7 +785,7 @@ public class KsTextLensTests
                     > Print
                 Print("no")
             """;
-        var ir = _lens.Parse(src, []);
+        var ir = _fixture.KsLens.Parse(src, []);
         var iff = Assert.IsType<IfStatement>(ir.Body[0]);
         Assert.Equal(2, iff.ThenBody.Length);
         // First statement is a multi-line pipeline 1,2 > Add > Print

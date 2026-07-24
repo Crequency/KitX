@@ -13,19 +13,11 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class E2ETests
+[Trait("Category", "Integration")]
+public class E2ETests : IClassFixture<WorkflowTestFixture>
 {
-    private static StructuredRoslynBackend MakeBackend()
-    {
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        return new StructuredRoslynBackend(registry);
-    }
-
-    private static StructuredRoslynBackend MakeBackendWithHost(IPluginHost host)
-    {
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        return new StructuredRoslynBackend(registry, host);
-    }
+    private readonly WorkflowTestFixture _fixture;
+    public E2ETests(WorkflowTestFixture fixture) => _fixture = fixture;
 
     private sealed class MockPluginHost : IPluginHost
     {
@@ -45,17 +37,13 @@ public class E2ETests
         public string ListWorkflows() => "[\"wf-001\"]";
     }
 
-    private static Workflow ParseToIr(string src)
-    {
-        var lens = new KsTextLens(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
-        return lens.Parse(src, []);
-    }
+
 
     [Fact]
     public async Task E2E_Hello_World()
     {
-        var ir = ParseToIr("Print(\"hello\")\n");
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse("Print(\"hello\")\n", []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Execution failed: {result.ErrorMessage}");
         Assert.Contains("hello", result.Output);
@@ -68,8 +56,8 @@ public class E2ETests
             forEach Range(0, 3, 1) as i:
                 i > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(new[] { "0", "1", "2" }, result.Output);
@@ -83,8 +71,8 @@ public class E2ETests
                 Print("yes")
             else:
                 Print("no")
-            """;        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+            """;        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("yes", result.Output);
@@ -104,8 +92,8 @@ public class E2ETests
                 counter, 1 > Add > counter
                 Print("tick")
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(3, result.Output.Count(x => x == "tick"));
@@ -120,8 +108,8 @@ public class E2ETests
                     break
                 i > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         // i=0 prints 0, i=1 prints 1, i=2 breaks before printing.
@@ -137,8 +125,8 @@ public class E2ETests
                     continue
                 i > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         // i=0,1,3,4 print; i=2 is skipped.
@@ -155,8 +143,8 @@ public class E2ETests
 
             Add(2, 3) > counter
             counter > Print
-            """;        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+            """;        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("5", result.Output);
@@ -168,8 +156,8 @@ public class E2ETests
         var src = """
             StringConcat("hello, ", "world") > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("hello, world", result.Output);
@@ -187,8 +175,8 @@ public class E2ETests
             else:
                 Print("not equal")
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("equal", result.Output);
@@ -209,8 +197,8 @@ public class E2ETests
             if a, b > Compare("BLT"):
                 Print("a less than b")
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("a less than b", result.Output);
@@ -227,8 +215,8 @@ public class E2ETests
 
             0 > counter > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("0", result.Output);
@@ -263,8 +251,8 @@ public class E2ETests
                         Print("too high")
             hit > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         // i=0,1,2 are too low; i=3 matches.
@@ -286,8 +274,8 @@ public class E2ETests
             forEach loopMax > Range(0, _, 1) as i:
                 i > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(new[] { "0", "1", "2" }, result.Output);
@@ -311,8 +299,8 @@ public class E2ETests
                 default:
                     Print("other")
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(new[] { "one" }, result.Output);
@@ -336,10 +324,8 @@ public class E2ETests
                 Code = "return x * 2;",
             },
         };
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("5 > Double > Print\n", helpers);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse("5 > Double > Print\n", helpers);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("10", result.Output);
@@ -360,9 +346,7 @@ public class E2ETests
                 Code = "return x * 2;",
             },
         };
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("""
+        var ir = _fixture.KsLens.Parse("""
             var {
                 int result
             }
@@ -374,7 +358,7 @@ public class E2ETests
         Assert.True(ir.GlobalVars.TryGetValue("result", out var gv));
         Assert.Equal("int", gv.Type);
         // Execute to verify strong-typed field works.
-        var backend = MakeBackend();
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("10", result.Output);
@@ -384,9 +368,7 @@ public class E2ETests
     public async Task E2E_Branch_Condition_Type_Inference()
     {
         // var { object flag } + true > flag + if flag → flag should be inferred as bool.
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("""
+        var ir = _fixture.KsLens.Parse("""
             var {
                 object flag
             }
@@ -398,7 +380,7 @@ public class E2ETests
         // Verify the PubVar type was refined to bool by the Demand pass.
         Assert.True(ir.GlobalVars.TryGetValue("flag", out var gv));
         Assert.Equal("bool", gv.Type);
-        var backend = MakeBackend();
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("yes", result.Output);
@@ -418,9 +400,7 @@ public class E2ETests
                 Code = "return \"hello, \" + name;",
             },
         };
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("""
+        var ir = _fixture.KsLens.Parse("""
             var {
                 object who
             }
@@ -431,7 +411,7 @@ public class E2ETests
         // The Demand pass should refine `who` from object to string.
         Assert.True(ir.GlobalVars.TryGetValue("who", out var gv));
         Assert.Equal("string", gv.Type);
-        var backend = MakeBackend();
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("hello, world", result.Output);
@@ -442,8 +422,8 @@ public class E2ETests
     {
         // Same IR executed twice — second call should hit the in-memory cache
         // (assembly reuse). Verify output is identical.
-        var ir = ParseToIr("Print(\"cached\")\n");
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse("Print(\"cached\")\n", []);
+        var backend = _fixture.MakeBackend();
         var result1 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         var result2 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result1.IsSuccess, $"First execution failed: {result1.ErrorMessage}");
@@ -456,9 +436,9 @@ public class E2ETests
     public async Task E2E_Cache_Invalidation_On_IR_Change()
     {
         // Different IR should produce different output (no stale cache hit).
-        var ir1 = ParseToIr("Print(\"first\")\n");
-        var ir2 = ParseToIr("Print(\"second\")\n");
-        var backend = MakeBackend();
+        var ir1 = _fixture.KsLens.Parse("Print(\"first\")\n", []);
+        var ir2 = _fixture.KsLens.Parse("Print(\"second\")\n", []);
+        var backend = _fixture.MakeBackend();
         var result1 = await backend.ExecuteAsync(ir1, null, CancellationToken.None);
         var result2 = await backend.ExecuteAsync(ir2, null, CancellationToken.None);
         Assert.Contains("first", result1.Output);
@@ -475,8 +455,8 @@ public class E2ETests
             Div(20, 4) > Print
             Mod(10, 3) > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Equal(new[] { "7", "20", "5", "1" }, result.Output);
@@ -489,8 +469,8 @@ public class E2ETests
         var src = """
             3, 4 > Mul > Sub(_, 5) > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("7", result.Output);
@@ -503,8 +483,8 @@ public class E2ETests
             Pause(1)
             Print("after pause")
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("after pause", result.Output);
@@ -520,8 +500,8 @@ public class E2ETests
                 WriteTextFile("{tempFile}", "hello world")
                 ReadTextFile("{tempFile}") > Print
                 """;
-            var ir = ParseToIr(src);
-            var backend = MakeBackend();
+            var ir = _fixture.KsLens.Parse(src, []);
+            var backend = _fixture.MakeBackend();
             var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
             Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
             Assert.Contains("hello world", result.Output);
@@ -538,8 +518,8 @@ public class E2ETests
         var src = """
             Len("hello") > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("5", result.Output);
@@ -551,8 +531,8 @@ public class E2ETests
         var src = """
             Range(0, 5, 1) > Len > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("5", result.Output);
@@ -564,8 +544,8 @@ public class E2ETests
         var src = """
             "42" > JsonAsInt > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("42", result.Output);
@@ -577,8 +557,8 @@ public class E2ETests
         var src = """
             "{\"name\":\"world\"}" > JsonGetField(_, "name") > JsonAsString > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("world", result.Output);
@@ -590,8 +570,8 @@ public class E2ETests
         var src = """
             "[10, 20, 30]" > JsonArrayAt(_, 1) > JsonAsInt > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("20", result.Output);
@@ -603,8 +583,8 @@ public class E2ETests
         var src = """
             "{\"name\":\"world\"}" > JsonContains(_, "name") > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("True", result.Output);
@@ -616,8 +596,8 @@ public class E2ETests
         var src = """
             "{\"a\":1,\"b\":2}" > JsonObjectKeys > Len > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("2", result.Output);
@@ -629,8 +609,8 @@ public class E2ETests
         var src = """
             "{\"user\":{\"name\":\"Alice\"}}" > JsonGetField(_, "user.name") > JsonAsString > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("Alice", result.Output);
@@ -642,8 +622,8 @@ public class E2ETests
         var src = """
             "true" > JsonAsBool > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("True", result.Output);
@@ -655,8 +635,8 @@ public class E2ETests
         var src = """
             PluginCall("test", "method") > JsonGetField(_, "result") > JsonAsString > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackendWithHost(new MockPluginHost());
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(new MockPluginHost());
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("ok", result.Output);
@@ -668,8 +648,8 @@ public class E2ETests
         var src = """
             StartPlugin("test") > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackendWithHost(new MockPluginHost());
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(new MockPluginHost());
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains("True", result.Output);
@@ -681,8 +661,8 @@ public class E2ETests
         var src = """
             ListPluginNames() > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackendWithHost(new MockPluginHost());
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(new MockPluginHost());
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
         Assert.Contains(result.Output, s => s.Contains("plugin1"));
@@ -695,8 +675,8 @@ public class E2ETests
         var src = """
             PluginCall("test", "method") > Print
             """;
-        var ir = ParseToIr(src);
-        var backend = MakeBackend();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
     }

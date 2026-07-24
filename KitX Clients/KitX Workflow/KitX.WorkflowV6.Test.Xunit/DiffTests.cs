@@ -20,15 +20,16 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class DiffTests
+[Trait("Category", "Unit")]
+public class DiffTests : IClassFixture<WorkflowTestFixture>
 {
-    private static readonly BuiltinFunctionRegistry _registry = new();
+    private readonly WorkflowTestFixture _fixture;
+    public DiffTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
-    private static Workflow Parse(params string[] lines)
+    private Workflow Parse(params string[] lines)
     {
         var src = string.Join('\n', lines) + '\n';
-        var lens = new KsTextLens(_registry);
-        return lens.Parse(src, []);
+        return _fixture.KsLens.Parse(src, []);
     }
 
     [Fact]
@@ -223,5 +224,298 @@ public class DiffTests
         var diff = WorkflowDiffer.Compute(old, nws);
         var applied = WorkflowDiffApply.Apply(old, diff);
         Assert.Equal(nws, applied);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // E5.4: WorkflowDiffApply 补测 — 嵌套作用域边界 case
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ── 组 1: 路径处理单元测试（通过 Apply 入口间接测）─────────────────────────
+
+    [Fact]
+    public void Apply_Direct_Child_Path_Gets_Applied()
+    {
+        var baseline = Parse("Print(\"a\")");
+        var newPrint = Parse("Print(\"b\")").Body[0];
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/0",
+                Fingerprint = newPrint.Fingerprint,
+                Kind = DiffKind.Modified,
+                NewValue = newPrint,
+                Index = 0,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(newPrint.Fingerprint, result.Body[0].Fingerprint);
+    }
+
+    [Fact]
+    public void Apply_Nested_Only_Path_Is_Skipped()
+    {
+        var baseline = Parse("if cond:", "    Print(\"a\")");
+        var newPrint = Parse("Print(\"b\")").Body[0];
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/0/then/0",
+                Fingerprint = newPrint.Fingerprint,
+                Kind = DiffKind.Modified,
+                NewValue = newPrint,
+                Index = 0,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(baseline, result);
+    }
+
+    [Fact]
+    public void Apply_Different_Branch_Path_Is_Skipped()
+    {
+        var baseline = Parse("if cond:", "    Print(\"a\")");
+        var newPrint = Parse("Print(\"b\")").Body[0];
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/0/else/0",
+                Fingerprint = newPrint.Fingerprint,
+                Kind = DiffKind.Added,
+                NewValue = newPrint,
+                Index = 0,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(baseline, result);
+    }
+
+    // ── 组 2: 端到端 Apply 场景 ──────────────────────────────────────────────
+
+    [Fact]
+    public void Apply_Removed_At_Top_Level_Shifts_Later_Indices()
+    {
+        var old = Parse("Print(\"a\")", "Print(\"b\")", "Print(\"c\")", "Print(\"d\")");
+        var nws = Parse("Print(\"b\")", "Print(\"c\")", "Print(\"d2\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Mixed_Add_Remove_Modify_At_Top_Level()
+    {
+        var old = Parse("Print(\"a\")", "Print(\"b\")");
+        var nws = Parse("Print(\"a2\")", "if cond:", "    Print(\"c\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Modified);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Removed);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Added);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Empty_Diff_Returns_Original()
+    {
+        var baseline = Parse("Print(\"a\")");
+        var diff = new WorkflowDiff { StatementChanges = [] };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Same(baseline, result);
+    }
+
+    [Fact]
+    public void Apply_Modified_With_Null_NewValue_No_Op()
+    {
+        var baseline = Parse("Print(\"a\")");
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/0",
+                Fingerprint = Fingerprint.Compute("placeholder"),
+                Kind = DiffKind.Modified,
+                NewValue = null,
+                Index = 0,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(baseline, result);
+    }
+
+    [Fact]
+    public void Apply_Added_At_Specific_Index_Inserts()
+    {
+        var baseline = Parse("Print(\"b\")");
+        var newPrint = Parse("Print(\"a\")").Body[0];
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/0",
+                Fingerprint = newPrint.Fingerprint,
+                Kind = DiffKind.Added,
+                NewValue = newPrint,
+                Index = 0,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(2, result.Body.Length);
+        var expected = Parse("Print(\"a\")", "Print(\"b\")");
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void Apply_Added_At_End_Appends()
+    {
+        var baseline = Parse("Print(\"a\")");
+        var newPrint = Parse("Print(\"b\")").Body[0];
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/999",
+                Fingerprint = newPrint.Fingerprint,
+                Kind = DiffKind.Added,
+                NewValue = newPrint,
+                Index = 999,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(2, result.Body.Length);
+        var expected = Parse("Print(\"a\")", "Print(\"b\")");
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void Apply_Removed_At_Invalid_Index_No_Op()
+    {
+        var baseline = Parse("Print(\"a\")");
+        var diff = new WorkflowDiff
+        {
+            StatementChanges = [new StatementChange
+            {
+                LexicalPath = "/999",
+                Fingerprint = baseline.Body[0].Fingerprint,
+                Kind = DiffKind.Removed,
+                NewValue = null,
+                Index = 999,
+            }]
+        };
+        var result = WorkflowDiffApply.Apply(baseline, diff);
+        Assert.Equal(baseline, result);
+    }
+
+    // ── 组 3: 嵌套作用域（通过整体 Modified 覆盖）──────────────────────────────
+
+    [Fact]
+    public void Apply_Nested_While_Body_Change()
+    {
+        var old = Parse("while cond:", "    Print(\"a\")");
+        var nws = Parse("while cond:", "    Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Nested_ForEach_Body_Change()
+    {
+        var old = Parse("forEach Range(0, 3, 1) as i:", "    Print(\"a\")");
+        var nws = Parse("forEach Range(0, 3, 1) as i:", "    Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Nested_Switch_Arm_Change()
+    {
+        var old = Parse("switch sel:", "    0:", "        Print(\"a\")", "    default:", "        Print(\"d\")");
+        var nws = Parse("switch sel:", "    0:", "        Print(\"b\")", "    default:", "        Print(\"d\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Nested_Switch_Default_Change()
+    {
+        var old = Parse("switch sel:", "    0:", "        Print(\"a\")", "    default:", "        Print(\"d\")");
+        var nws = Parse("switch sel:", "    0:", "        Print(\"a\")", "    default:", "        Print(\"e\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Deep_Nesting_Two_Levels()
+    {
+        var old = Parse("if cond1:", "    if cond2:", "        Print(\"a\")");
+        var nws = Parse("if cond1:", "    if cond2:", "        Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    // ── 组 4: Layout 保留 ──────────────────────────────────────────────────
+
+    [Fact]
+    public void Apply_Layout_Preserved_For_Unchanged_Container_Body()
+    {
+        var layoutAnn = new Annotation
+        {
+            Kind = "Layout",
+            Key = "c1",
+            Value = AnnotationValue.Layout(100, 200),
+        };
+
+        var cond = new KsIdentifier { Name = "cond" };
+
+        var litA = new KsLiteral { Kind = KsLiteralKind.String, Value = "a", SourceText = "\"a\"" };
+        var innerA = new PipelineStatement
+        {
+            Fingerprint = Fingerprint.Compute("placeholder"),
+            Sources = [litA],
+            Segments = [new Segment { Target = "Print", Arguments = [litA] }],
+        };
+        innerA = innerA with { Fingerprint = Fingerprint.Compute(innerA) };
+
+        var oldContainer = new IfStatement
+        {
+            Fingerprint = Fingerprint.Compute("placeholder"),
+            Condition = cond,
+            ThenBody = [innerA],
+            Annotations = [layoutAnn],
+        };
+        oldContainer = oldContainer with { Fingerprint = Fingerprint.Compute(oldContainer) };
+
+        var oldWorkflow = new Workflow { Body = [oldContainer] };
+
+        var litB = new KsLiteral { Kind = KsLiteralKind.String, Value = "b", SourceText = "\"b\"" };
+        var innerB = new PipelineStatement
+        {
+            Fingerprint = Fingerprint.Compute("placeholder"),
+            Sources = [litB],
+            Segments = [new Segment { Target = "Print", Arguments = [litB] }],
+        };
+        innerB = innerB with { Fingerprint = Fingerprint.Compute(innerB) };
+
+        var newContainer = new IfStatement
+        {
+            Fingerprint = Fingerprint.Compute("placeholder"),
+            Condition = cond,
+            ThenBody = [innerB],
+        };
+        newContainer = newContainer with { Fingerprint = Fingerprint.Compute(newContainer) };
+
+        var newWorkflow = new Workflow { Body = [newContainer] };
+
+        var diff = WorkflowDiffer.Compute(oldWorkflow, newWorkflow);
+        var result = WorkflowDiffApply.Apply(oldWorkflow, diff);
+
+        Assert.Contains(result.Body[0].Annotations, a => a.Kind == "Layout" && a.Key == "c1");
     }
 }

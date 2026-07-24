@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 8 acceptance tests for BpGraphLens (IR �?Blueprint projection).
+// Phase 8 acceptance tests for BpGraphLens (IR �?Blueprint projection).
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.Core.Contract.Workflow;
@@ -11,25 +11,22 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class BpGraphLensTests
+[Trait("Category", "Unit")]
+public class BpGraphLensTests : IClassFixture<WorkflowTestFixture>
 {
-    private static BuiltinFunctionRegistry Registry()
-        => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+    private readonly WorkflowTestFixture _fixture;
+    public BpGraphLensTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
-    private static Blueprint ProjectKS(string src)
+    private Blueprint ProjectKS(string src)
     {
-        var registry = Registry();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse(src, []);
-        var bpLens = new BpGraphLens(registry);
-        return bpLens.Project(ir);
+        var ir = _fixture.KsLens.Parse(src, []);
+        return _fixture.BpLens.Project(ir);
     }
 
     [Fact]
     public void Project_Empty_IR_Empty_Blueprint()
     {
-        var bpLens = new BpGraphLens(Registry());
-        var bp = bpLens.Project(new Workflow());
+        var bp = _fixture.BpLens.Project(new Workflow());
         Assert.Empty(bp.Nodes);
     }
 
@@ -54,7 +51,7 @@ public class BpGraphLensTests
     public void Project_Single_Print_Has_Exec_Connection()
     {
         var bp = ProjectKS("Print(\"hello\")\n");
-        // Entry �?Print exec connection (data literal is via DefaultValue, no data edge).
+        // Entry �?Print exec connection (data literal is via DefaultValue, no data edge).
         Assert.Contains(bp.Connections, c =>
         {
             var from = bp.Nodes.Find(n => n.Id == c.SourceNodeId);
@@ -92,7 +89,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_While_Statement_Body_And_End_Connections()
     {
-        // while node should have Body exec output �?Print node, End exec output �?subsequent Print.
+        // while node should have Body exec output �?Print node, End exec output �?subsequent Print.
         var bp = ProjectKS("""
             var {
                 int counter
@@ -258,12 +255,12 @@ public class BpGraphLensTests
         Assert.Contains(ctNode.InputPins, p => p.Name == "Exec");
     }
 
-    // ── Pipeline variable taps �?VariableNode ──
+    // ── Pipeline variable taps �?VariableNode ──
 
     [Fact]
     public void Project_Pipeline_Variable_Tap_Is_VariableNode()
     {
-        // `0 > counter` �?the >counter segment should become a VariableNode, not BuiltinFunction.
+        // `0 > counter` �?the >counter segment should become a VariableNode, not BuiltinFunction.
         var bp = ProjectKS("var {\n    int counter\n}\n\n0 > counter\n");
         var varNodes = bp.Nodes.OfType<VariableNode>().ToList();
         Assert.Contains(varNodes, n => n.VarName == "counter");
@@ -297,7 +294,7 @@ public class BpGraphLensTests
     [Fact]
     public void No_Duplicate_Entry_Nodes()
     {
-        // Top-level + if-then + if-else + forEach-body �?only 1 EntryNode total.
+        // Top-level + if-then + if-else + forEach-body �?only 1 EntryNode total.
         var bp = ProjectKS("""
             if cond:
                 Print("then")
@@ -336,7 +333,7 @@ public class BpGraphLensTests
     [Fact]
     public void Definition_Nodes_Have_No_Connections()
     {
-        // const/var definition nodes are standalone �?they don't participate in edges.
+        // const/var definition nodes are standalone �?they don't participate in edges.
         var bp = ProjectKS("""
             const {
                 int max = 5
@@ -394,7 +391,7 @@ public class BpGraphLensTests
     [Fact]
     public void Node_Ids_Are_Short()
     {
-        // Deep nesting should NOT produce long IDs (FNV hash �?fixed 10 chars: "n_" + 8 hex).
+        // Deep nesting should NOT produce long IDs (FNV hash �?fixed 10 chars: "n_" + 8 hex).
         var bp = ProjectKS("""
             if a:
                 if b:
@@ -409,7 +406,7 @@ public class BpGraphLensTests
     [Fact]
     public void Pipeline_Condition_Renders_Data_Flow()
     {
-        // `if 1, 1 > Compare("BEQ")` �?should produce data nodes for the
+        // `if 1, 1 > Compare("BEQ")` �?should produce data nodes for the
         // condition pipeline (sources + Compare function) and connect
         // the function output to Branch.Condition.
         var bp = ProjectKS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"yes\")\n");
@@ -426,7 +423,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Deep_Nesting_Ids_Bounded()
     {
-        // 10 levels of nested if �?all Node IDs must be �?20 chars.
+        // 10 levels of nested if �?all Node IDs must be �?20 chars.
         var sb = new System.Text.StringBuilder();
         for (int i = 0; i < 10; i++)
         {
@@ -443,7 +440,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Repeated_Project_Stable_NodeIds()
     {
-        // Same KS projected 5 times �?identical node IDs each time.
+        // Same KS projected 5 times �?identical node IDs each time.
         var src = """
             forEach Range(0, 3, 1) as i:
                 i, 2 > Compare("BEQ")
@@ -464,17 +461,16 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Round_Trip_BS_IR_BS()
     {
-        // KS �?parse �?IR �?render �?KS �?parse �?IR: should be idempotent.
+        // KS �?parse �?IR �?render �?KS �?parse �?IR: should be idempotent.
         var src = """
             if 1, 1 > Compare("BEQ"):
                 Print("yes")
             else:
                 Print("no")
             """;
-        var lens = new KsTextLens(Registry());
-        var ir1 = lens.Parse(src, []);
-        var rendered = lens.Project(ir1);
-        var ir2 = lens.Parse(rendered, []);
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var rendered = _fixture.KsLens.Project(ir1);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
         Assert.Equal(ir1, ir2);
     }
 

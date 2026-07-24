@@ -16,15 +16,17 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class SessionTests
+[Trait("Category", "Integration")]
+public class SessionTests : IClassFixture<WorkflowTestFixture>
 {
-    private static (SyncService svc, WorkflowSession session) MakeSession(string initialBs)
+    private readonly WorkflowTestFixture _fixture;
+    public SessionTests(WorkflowTestFixture fixture) => _fixture = fixture;
+
+    private (SyncService svc, WorkflowSession session) MakeSession(string initialBs)
     {
-        var registry = new BuiltinFunctionRegistry();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse(initialBs, []);
+        var ir = _fixture.KsLens.Parse(initialBs, []);
         var session = new WorkflowSession(ir);
-        var svc = new SyncService(registry);
+        var svc = new SyncService(_fixture.Registry);
         return (svc, session);
     }
 
@@ -72,9 +74,7 @@ public class SessionTests
     {
         // Two Print statements; the first has a Layout annotation. Edit the second;
         // the first's Layout must survive the edit round-trip.
-        var registry = new BuiltinFunctionRegistry();
-        var lens = new KsTextLens(registry);
-        var ir = lens.Parse("Print(\"a\")\nPrint(\"b\")\n", []);
+        var ir = _fixture.KsLens.Parse("Print(\"a\")\nPrint(\"b\")\n", []);
 
         // Attach a Layout annotation to the first statement.
         var layoutAnn = new Annotation
@@ -90,7 +90,7 @@ public class SessionTests
         };
 
         var session = new WorkflowSession(ir);
-        var svc = new SyncService(registry);
+        var svc = new SyncService(_fixture.Registry);
 
         // Edit: change the second Print's argument.
         svc.ApplyKsEdit(session, "Print(\"a\")\nPrint(\"c\")\n");

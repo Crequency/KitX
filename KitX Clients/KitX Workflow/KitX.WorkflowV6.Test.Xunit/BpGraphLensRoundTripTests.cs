@@ -18,22 +18,19 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class BpGraphLensRoundTripTests
+[Trait("Category", "Unit")]
+public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
 {
-    private static BuiltinFunctionRegistry Registry()
-        => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+    private readonly WorkflowTestFixture _fixture;
+    public BpGraphLensRoundTripTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
-    private static KsTextLens KsLens() => new(Registry());
-
-    private static Workflow ParseKS(string src) => KsLens().Parse(src, []);
-
-    private static BpGraphLens Lens() => new(Registry());
+    private Workflow ParseKS(string src) => _fixture.KsLens.Parse(src, []);
 
     [Fact]
     public void IR_To_BP_To_IR_Is_Equivalent_Simple_Print()
     {
         var ir = ParseKS("Print(\"hello\")\n");
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         var diff = WorkflowDiffer.Compute(ir, reversed);
@@ -50,7 +47,7 @@ public class BpGraphLensRoundTripTests
             else:
                 Print("no")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         var diff = WorkflowDiffer.Compute(ir, reversed);
@@ -63,7 +60,7 @@ public class BpGraphLensRoundTripTests
         // forEach with Range(0, 3, 1) — now with named pins (From/To/Step) the
         // round-trip should be fully diff-empty.
         var ir = ParseKS("forEach Range(0, 3, 1) as i:\n    i > Print\n");
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         var diff = WorkflowDiffer.Compute(ir, reversed);
@@ -86,7 +83,7 @@ public class BpGraphLensRoundTripTests
             if a, b > Compare("BEQ", _, _):
                 Print("equal")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         var iff = Assert.IsType<IfStatement>(reversed.Body[0]);
@@ -118,7 +115,7 @@ public class BpGraphLensRoundTripTests
             if a, b > Compare("BEQ"):
                 Print("equal")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         var iff = Assert.IsType<IfStatement>(reversed.Body[0]);
@@ -141,7 +138,7 @@ public class BpGraphLensRoundTripTests
                 default:
                     Print("other")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         Assert.Single(reversed.Body.OfType<SwitchStatement>());
@@ -153,7 +150,7 @@ public class BpGraphLensRoundTripTests
     public void Reverse_Produces_NonEmpty_IR_From_NonEmpty_Blueprint()
     {
         var ir = ParseKS("Print(\"a\")\nPrint(\"b\")\n");
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         var reversed = lens.Reverse(bp);
         Assert.NotEmpty(reversed.Body);
@@ -165,7 +162,7 @@ public class BpGraphLensRoundTripTests
     {
         // BP-first edit (DeleteNode) should produce a WorkflowDiff with a Removed change.
         var ir = ParseKS("Print(\"a\")\nPrint(\"b\")\n");
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         // Delete the second Print node (find it by FunctionName).
         var printNodes = bp.Nodes.OfType<BuiltinFunctionNode>().Where(n => n.FunctionName == "Print").ToList();
@@ -181,7 +178,7 @@ public class BpGraphLensRoundTripTests
     {
         // BP-first edit (AddNodeInBlock) should produce a WorkflowDiff with an Added change.
         var ir = ParseKS("Print(\"a\")\n");
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var edits = new BpEditAction[] { new AddNodeInBlock("/top", "Print") };
         var diff = lens.Diff(ir, edits);
         Assert.NotNull(diff);
@@ -199,7 +196,7 @@ public class BpGraphLensRoundTripTests
             // group comment for the print
             Print("x")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
 
         // Forward: the BP carries a GroupComment anchored to the Print node.
@@ -220,7 +217,7 @@ public class BpGraphLensRoundTripTests
     {
         // A trailing comment maps to the primary node's Comment and round-trips.
         var ir = ParseKS("Print(\"x\") // trailing comment\n");
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
 
         var printNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Print");
@@ -240,7 +237,7 @@ public class BpGraphLensRoundTripTests
             while true: // keep going
                 Print("tick")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
 
         var whileNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "While");
@@ -270,7 +267,7 @@ public class BpGraphLensRoundTripTests
             if a, b > Compare("BEQ"):
                 Print("equal")
             """);
-        var lens = Lens();
+        var lens = _fixture.BpLens;
         var bp = lens.Project(ir);
         // Manually annotate the Compare condition node (simulating a BP-side edit).
         var compareNode = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Compare");

@@ -18,9 +18,12 @@ using Xunit;
 
 namespace KitX.WorkflowV6.Test.Xunit;
 
-public class GuessNumberDemo
+public class GuessNumberDemo : IClassFixture<WorkflowTestFixture>
 {
-    [Fact]
+    private readonly WorkflowTestFixture _fixture;
+    public GuessNumberDemo(WorkflowTestFixture fixture) => _fixture = fixture;
+
+    [Fact, Trait("Category", "Diagnostic")]
     public async Task Show_All_Forms_Of_Guess_Number()
     {
         // 猜数字 demo — 内化 cond/cond2（用管道条件语法直接判断，不再暂存变量），
@@ -55,10 +58,9 @@ public class GuessNumberDemo
             Print("示例工作流结束") // 收尾
             """;
 
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
-        var lens = new KsTextLens(registry);
-        var backend = new StructuredRoslynBackend(registry);
-        var bpGraphLens = new BpGraphLens(registry);
+        var lens = _fixture.KsLens;
+        var backend = _fixture.MakeBackend();
+        var bpGraphLens = _fixture.BpLens;
         var jsonOpts = new JsonSerializerOptions { WriteIndented = true };
 
         // Parse → IR (check diagnostics first)
@@ -79,7 +81,7 @@ public class GuessNumberDemo
         var irJson = JsonSerializer.Serialize(ir, jsonOpts);
 
         // 3. C# codegen (via internal StructuredCodegen, with inferred PubVar types)
-        var codegen = new StructuredCodegen(registry);
+        var codegen = new StructuredCodegen(_fixture.Registry);
         var codegenLowering = new LoweringResult
         {
             PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type),
