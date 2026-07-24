@@ -580,12 +580,16 @@ internal sealed class BpRenderer
         return node;
     }
 
-    /// <summary>FNV-1a hash of path → short, deterministic, nesting-independent ID.</summary>
+    /// <summary>
+    /// Standard FNV-1a 32-bit hash of path → short, deterministic, nesting-independent ID.
+    /// Format: <c>n_XXXXXXXX</c> (fixed 10 chars: 'n_' + 8 uppercase hex digits).
+    /// Collision probability ~2^-32; acceptable for workflows with ≤ 10^4 nodes.
+    /// </summary>
     private static string StableId(string path)
     {
-        ulong hash = 0xcbf29ce484222325UL;
+        uint hash = 0x811c9dc5u;
         foreach (var c in path)
-            hash = (hash ^ (byte)c) * 0x100000001b3UL;
+            hash = (hash ^ (byte)c) * 0x01000193u;
         return $"n_{hash:X8}";
     }
 

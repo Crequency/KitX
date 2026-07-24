@@ -402,8 +402,8 @@ public class BpGraphLensTests
                         if d:
                             Print("deep")
             """);
-        foreach (var node in bp.Nodes)
-            Assert.True(node.Id.Length <= 20, $"Node ID too long: {node.Id} ({node.Id.Length} chars)");
+        Assert.All(bp.Nodes, n => Assert.Equal(10, n.Id.Length));
+        Assert.All(bp.Nodes, n => Assert.Matches("^n_[0-9A-F]{8}$", n.Id));
     }
 
     [Fact]
