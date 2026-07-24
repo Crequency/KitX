@@ -3,12 +3,15 @@
 // Writes output to %TEMP%\v6demo\guess_number_demo.txt for inspection.
 // ─────────────────────────────────────────────────────────────────────────────
 
+using System.Text;
 using System.Text.Json;
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Lowering;
+using KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
@@ -158,6 +161,13 @@ public class GuessNumberDemo
         Assert.False(parseDiag.HasErrors, $"Parse errors:\n{diagSummary}");
         Assert.True(ksRoundTripEqual, "KS round-trip (parse→render→parse) IR should be equal");
         Assert.True(result.IsSuccess, $"Execution failed: {result.ErrorMessage}");
+        // BP round-trip: comments are fully preserved (GroupComments + node Comments).
+        // Note: the explicit `_` placeholder form (`loopMax > Range(0,_,1)`) does not
+        // round-trip byte-perfectly — a known C-1 limitation (`_` positions cannot be
+        // recovered from BP pin wiring). So we assert comment preservation directly
+        // rather than a fully-empty diff.
+        Assert.True(bp.GroupComments.Count >= 3, $"Expected ≥3 GroupComments (leading comments), got {bp.GroupComments.Count}");
+        Assert.Contains(bp.Nodes, n => n.Comment is { Length: > 0 });  // trailing/segment comments on nodes
 
         // Also print a summary to test output
         Console.WriteLine($"Demo output written to: {outFile}");
@@ -165,9 +175,9 @@ public class GuessNumberDemo
         Console.WriteLine($"BP node count: {bp.Nodes.Count}");
         Console.WriteLine($"BP edge count: {bp.Connections.Count}");
         Console.WriteLine($"BP GroupComments: {bp.GroupComments.Count}");
-        Console.WriteLine($"C# code length: {csharp.Length} chars}}");
+        Console.WriteLine($"C# code length: {csharp.Length} chars");
         Console.WriteLine($"KS round-trip stable: {ksRoundTripEqual}");
-        Console.WriteLine($"BP round-trip stable: {bpRoundTripOk}");
+        Console.WriteLine($"BP round-trip diff: {bpDiff.StatementChanges.Length} changes (known `_` placeholder limitation)");
         Console.WriteLine($"Execution: {(result.IsSuccess ? "OK" : "FAILED")}");
         Console.WriteLine($"Output: {execOutput}");
     }

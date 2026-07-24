@@ -190,15 +190,29 @@ internal sealed class BpReverseTranslator
         {
             case "Branch":
                 result.Add(ReverseIf(fn));
+                // An if/else merges back to the continuation after both branches; the
+                // continuation connects to the merged exec tails of then/else bodies.
+                // Those tails are walked as the bodies' last nodes' Exec outs — already
+                // captured by ReverseIf's recursive WalkExecChain on True/False. The
+                // post-if siblings are reached via those merged tails, so nothing extra
+                // to follow here (Branch has no End pin; continuation is implicit).
                 break;
             case "Each":
                 result.Add(ReverseForEach(fn));
+                // Statements after the loop connect to Each.End.
+                result.AddRange(WalkExecChain(fn, "End"));
                 break;
             case "While":
                 result.Add(ReverseWhile(fn));
+                // Statements after the loop connect to While.End.
+                result.AddRange(WalkExecChain(fn, "End"));
                 break;
             case "Switch":
                 result.Add(ReverseSwitch(fn));
+                // Statements after the switch connect to the merged arm exec tails —
+                // Switch has no End pin; arms rejoin implicitly via their body tails,
+                // which ReverseSwitch already captured. The post-switch continuation is
+                // reached through those tails, so nothing extra to follow here.
                 break;
             case "break":
                 result.Add(WithFingerprint(ApplyComments(new BreakStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
