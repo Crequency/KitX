@@ -8,7 +8,9 @@ using KitX.Core.Contract.Workflow;
 //
 // In a structured Blueprint graph:
 //   1. The Exec-edge graph must form a DAG (no back-edges that create cycles).
-//   2. Each node receives at most one Exec input (single-entry for every scope).
+//   2. Non-Exec input pins receive at most one data connection (single-assignment data flow);
+//      Exec inputs may receive multiple connections from merged control-flow tails,
+//      e.g. if/else branches flowing to the same next statement.
 //   3. Loop back-edges may only originate from explicit loop nodes (Each/While),
 //      never from plain Pipeline nodes.
 //
@@ -33,27 +35,30 @@ internal static class StructuralReducer
     {
         if (blueprint.Nodes.Count == 0) return null;
 
-        // Build Exec adjacency (output pin -> input pin connections).
-        var execTargets = new Dictionary<string, string>(); // target node id -> ?
-        var execSourceCount = new Dictionary<string, int>(); // source node id -> outgoing exec count
+        // Build node ID lookup for data-flow constraint check.
+        var nodeById = blueprint.Nodes.ToDictionary(n => n.Id);
 
+        // Constraint: each non-Exec input pin receives at most one connection
+        // (single-assignment data flow). Exec inputs may receive multiple
+        // connections from merged control-flow tails (e.g. if/else branches).
+        var dataInputConnectionCount = new Dictionary<(string NodeId, string PinId), int>();
         foreach (var conn in blueprint.Connections)
         {
-            var fromNode = blueprint.Nodes.Find(n => n.Id == conn.SourceNodeId);
-            var toNode = blueprint.Nodes.Find(n => n.Id == conn.TargetNodeId);
-            var fromPin = fromNode?.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (fromPin is null || toNode is null) continue;
+            var targetNode = nodeById.GetValueOrDefault(conn.TargetNodeId);
+            if (targetNode is null) continue;
+            var targetPin = targetNode.InputPins.FirstOrDefault(p => p.Id == conn.TargetPinId);
+            if (targetPin is null) continue;
+            if (targetPin.Type == PinType.Execution) continue; // Exec allows multi-merge
 
-            // Only check Exec connections (data connections are unrestricted).
-            if (fromPin.Name != "Exec" && fromPin.Name != "True" && fromPin.Name != "False"
-                && fromPin.Name != "Body" && fromPin.Name != "End" && !int.TryParse(fromPin.Name, out _)
-                && fromPin.Name != "Default")
-                continue;
+            var key = (conn.TargetNodeId, conn.TargetPinId);
+            dataInputConnectionCount[key] = dataInputConnectionCount.GetValueOrDefault(key) + 1;
+        }
 
-            execSourceCount[conn.SourceNodeId] = execSourceCount.GetValueOrDefault(conn.SourceNodeId) + 1;
-
-            // Check: each node can have at most one Exec input.
-            // (Entry nodes are always single-entry by design.)
+        var dataErrors = new List<string>();
+        foreach (var ((nodeId, pinId), count) in dataInputConnectionCount)
+        {
+            if (count > 1)
+                dataErrors.Add($"Node '{nodeId}' input pin '{pinId}' has {count} incoming data connections — data flow requires single assignment (pin must have at most one incoming data wire).");
         }
 
         // Check for back edges in the Exec graph.
@@ -67,6 +72,9 @@ internal static class StructuralReducer
             if (HasCycle(blueprint, entry.Id, visited, inStack))
                 return "Non-structural back edge detected. Use a loop node (ForEach/While) to express iteration, or break/continue to exit a loop early.";
         }
+
+        if (dataErrors.Count > 0)
+            return string.Join("\n", dataErrors);
 
         return null; // structurally valid
     }
@@ -86,10 +94,7 @@ internal static class StructuralReducer
             // Follow Exec connections from this node.
             foreach (var conn in bp.Connections.Where(c => c.SourceNodeId == nodeId && c.SourcePinId == outPin.Id))
             {
-                // Only check Exec-type pins (data connections can form any topology).
-                if (outPin.Name == "Exec" || outPin.Name == "True" || outPin.Name == "False"
-                    || outPin.Name == "Body" || outPin.Name == "End" || int.TryParse(outPin.Name, out _)
-                    || outPin.Name == "Default")
+                if (IsExecOutPin(outPin))
                 {
                     if (HasCycle(bp, conn.TargetNodeId, visited, inStack))
                         return true;
@@ -100,4 +105,20 @@ internal static class StructuralReducer
         inStack.Remove(nodeId);
         return false;
     }
+
+    // TODO(C3): extract these pin-name literals to a shared BpPinNames constant class.
+    private static bool IsExecPinName(string name) =>
+        name == "Exec" || name == "True" || name == "False"
+        || name == "Body" || name == "End" || name == "Default"
+        || int.TryParse(name, out _);
+
+    private static bool IsExecOutPin(BlueprintPin pin) =>
+        pin.Direction == PinDirection.Output
+        && pin.Type == PinType.Execution
+        && IsExecPinName(pin.Name);
+
+    private static bool IsExecInPin(BlueprintPin pin) =>
+        pin.Direction == PinDirection.Input
+        && pin.Type == PinType.Execution
+        && pin.Name == "Exec";
 }

@@ -84,7 +84,7 @@ public class BpGraphLensDiffTests
     {
         var bp = new Blueprint();
         var entry = new EntryNode { Id = "entry", Name = "Start", NodeType = BlueprintNodeType.Entry };
-        entry.OutputPins.Add(new BlueprintPin { Id = "entry-out", Name = "Exec", Direction = PinDirection.Output });
+        entry.OutputPins.Add(new BlueprintPin { Id = "entry-out", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
         var nodeA = MakeNode("a", "A");
         var nodeB = MakeNode("b", "B");
         bp.Nodes.Add(entry); bp.Nodes.Add(nodeA); bp.Nodes.Add(nodeB);
@@ -102,9 +102,9 @@ public class BpGraphLensDiffTests
     {
         var bp = new Blueprint();
         var entry = new EntryNode { Id = "e", Name = "Start", NodeType = BlueprintNodeType.Entry };
-        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output });
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
         var node = MakeNode("n", "N");
-        node.InputPins.Add(new BlueprintPin { Id = "ni2", Name = "Exec", Direction = PinDirection.Input });
+        node.InputPins.Add(new BlueprintPin { Id = "ni2", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
         bp.Nodes.Add(entry); bp.Nodes.Add(node);
         bp.Connections.Add(Conn("e", "eo", "n", "n-in"));
         bp.Connections.Add(Conn("n", "n-out", "n", "n-in")); // self-loop
@@ -116,11 +116,62 @@ public class BpGraphLensDiffTests
     private static BuiltinFunctionNode MakeNode(string id, string name)
     {
         var n = new BuiltinFunctionNode { Id = id, Name = name, FunctionName = name, NodeType = BlueprintNodeType.BuiltinFunction };
-        n.InputPins.Add(new BlueprintPin { Id = $"{id}-in", Name = "Exec", Direction = PinDirection.Input });
-        n.OutputPins.Add(new BlueprintPin { Id = $"{id}-out", Name = "Exec", Direction = PinDirection.Output });
+        n.InputPins.Add(new BlueprintPin { Id = $"{id}-in", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        n.OutputPins.Add(new BlueprintPin { Id = $"{id}-out", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
         return n;
     }
 
     private static BlueprintConnection Conn(string srcNode, string srcPin, string tgtNode, string tgtPin)
         => new() { Id = Guid.NewGuid().ToString(), SourceNodeId = srcNode, SourcePinId = srcPin, TargetNodeId = tgtNode, TargetPinId = tgtPin };
+
+    private static Blueprint ProjectBS(string src)
+    {
+        var registry = Registry();
+        var ksLens = new KsTextLens(registry);
+        var ir = ksLens.Parse(src, []);
+        return new BpGraphLens(registry).Project(ir);
+    }
+
+    private static Blueprint BuildBlueprintWithMultipleDataConnectionsToSamePin()
+    {
+        var bp = new Blueprint();
+
+        // Two ConstNodes both connecting to the same BuiltinFunctionNode.Print.Value input.
+        var const1 = new ConstNode { Id = "const1", Name = "c1", ConstName = "c1", ConstValue = "1" };
+        const1.OutputPins.Add(new BlueprintPin { Id = "c1-out", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+
+        var const2 = new ConstNode { Id = "const2", Name = "c2", ConstName = "c2", ConstValue = "2" };
+        const2.OutputPins.Add(new BlueprintPin { Id = "c2-out", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+
+        var print = new BuiltinFunctionNode { Id = "print", Name = "Print", FunctionName = "Print" };
+        print.InputPins.Add(new BlueprintPin { Id = "print-exec", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        print.InputPins.Add(new BlueprintPin { Id = "print-value", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+
+        bp.Nodes.Add(const1);
+        bp.Nodes.Add(const2);
+        bp.Nodes.Add(print);
+
+        // Both const1 and const2 connect to print's Value input (violation).
+        bp.Connections.Add(Conn("const1", "c1-out", "print", "print-value"));
+        bp.Connections.Add(Conn("const2", "c2-out", "print", "print-value"));
+
+        return bp;
+    }
+
+    [Fact]
+    public void Structural_Rejects_Multiple_Data_Connections_To_Same_Pin()
+    {
+        var bp = BuildBlueprintWithMultipleDataConnectionsToSamePin();
+        var result = StructuralReducer.Check(bp);
+        Assert.NotNull(result);
+        Assert.Contains("data flow", result!);
+    }
+
+    [Fact]
+    public void Structural_Allows_Multiple_Exec_Connections_From_Merged_Branches()
+    {
+        var bp = ProjectBS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"then\")\nelse:\n    Print(\"else\")\nPrint(\"after\")\n");
+        var result = StructuralReducer.Check(bp);
+        Assert.Null(result);
+    }
 }
