@@ -36,10 +36,11 @@ public enum KsDiagnosticSeverity { Info, Warning, Error }
 
 /// <summary>
 /// Mutable accumulator for KS diagnostics, mirroring v5's KsDiagnosticSink. The
-/// tokenizer, parser, and lowerer all write into one of these; the lens surfaces
-/// the collected list to the caller as part of the parse result.
+/// tokenizer, parser, and lowerer all write into one of these; <see cref="KsTextLens"/>
+/// surfaces the collected list to the caller via
+/// <see cref="KsTextLens.ParseAstWithDiagnostics"/>.
 /// </summary>
-internal sealed class KsDiagnosticSink
+public sealed class KsDiagnosticSink
 {
     private readonly List<KsDiagnostic> _items = new();
 

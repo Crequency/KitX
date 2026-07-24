@@ -83,12 +83,12 @@ public sealed class KsTextLens : ILens<string, string>
 
     /// <summary>
     /// Parses KS source and returns both the AST and the collected diagnostics.
-    /// Internal — the public surface is <see cref="Parse"/> / <see cref="ParseAst"/>;
-    /// diagnostics are surfaced via <see cref="KsParseResult"/> once Phase 5 wires the
-    /// SyncService to use them. Exposed as a low-level entry point for diagnostic
-    /// inspection.
+    /// Public low-level entry point for diagnostic inspection (e.g. asserting on
+    /// specific error codes in tests, or surfacing diagnostics to IDE integrations).
+    /// The higher-level <see cref="Parse"/> / <see cref="ParseAst"/> swallow
+    /// diagnostics and return only the AST.
     /// </summary>
-    internal (KsProgram Ast, KsDiagnosticSink Diagnostics) ParseAstWithDiagnostics(string source)
+    public (KsProgram Ast, KsDiagnosticSink Diagnostics) ParseAstWithDiagnostics(string source)
     {
         var (tokens, tokDiag) = Tokenizer.Tokenize(source);
         var (ast, parseDiag) = Parser.Parse(tokens, tokDiag);
@@ -96,8 +96,8 @@ public sealed class KsTextLens : ILens<string, string>
     }
 }
 
-/// <summary>Result of a KS parse (AST + diagnostics). Used internally + by tests.</summary>
-internal sealed record KsParseResult
+/// <summary>Result of a KS parse (AST + diagnostics).</summary>
+public sealed record KsParseResult
 {
     public required KsProgram Ast { get; init; }
     public required IReadOnlyList<KsDiagnostic> Diagnostics { get; init; }
