@@ -98,8 +98,12 @@ public sealed class BuiltinFunctionRegistry
 
     // ── Per-role lookups (null when the function has no custom handler for that role). ──
 
+    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
     public IParserHandler? GetParser(string name) => _parsers.GetValueOrDefault(name);
+    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
     public ILoweringHandler? GetLowerer(string name) => _lowerers.GetValueOrDefault(name);
+    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
     public IBpRenderHandler? GetBpRenderer(string name) => _bpRenderers.GetValueOrDefault(name);
+    // NOTE: Currently unused in v6 — all builtins use default path. Kept as design placeholder.
     public IBpReverseHandler? GetBpReverseByBpName(string bpName) => _bpReverseByBpName.GetValueOrDefault(bpName);
 }

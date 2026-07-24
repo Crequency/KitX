@@ -1,3 +1,8 @@
+// NOTE: These role-specific handler interfaces are design placeholders from v5.1.
+// In v6, all 32 builtins use the default lowering/codegen/bp-render path; no builtin
+// implements any of these interfaces, and the registry's Get* methods are not called.
+// TODO: decide whether to wire up dispatch (as v5.1 did) or remove the dead code.
+
 namespace KitX.WorkflowV6.Builtin;
 
 using KitX.WorkflowV6.Ir;

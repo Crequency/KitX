@@ -61,11 +61,11 @@ public sealed class StopWorkflowFunction : IBuiltinFunction
     ];
 }
 
-/// <summary>CreateWorkflow — creates a new workflow from source. Pure (value-producing).</summary>
+/// <summary>CreateWorkflow — creates a new workflow from source. SideEffect.</summary>
 public sealed class CreateWorkflowFunction : IBuiltinFunction
 {
     public string Name => "CreateWorkflow";
-    public FunctionKind Kind => FunctionKind.Pure;
+    public FunctionKind Kind => FunctionKind.SideEffect;
 
     public IReadOnlyList<PortSpec> InputPorts =>
     [
@@ -79,11 +79,11 @@ public sealed class CreateWorkflowFunction : IBuiltinFunction
     ];
 }
 
-/// <summary>RunWorkflow — starts a workflow by ID. Pure (value-producing).</summary>
+/// <summary>RunWorkflow — starts a workflow by ID. SideEffect.</summary>
 public sealed class RunWorkflowFunction : IBuiltinFunction
 {
     public string Name => "RunWorkflow";
-    public FunctionKind Kind => FunctionKind.Pure;
+    public FunctionKind Kind => FunctionKind.SideEffect;
 
     public IReadOnlyList<PortSpec> InputPorts =>
     [
@@ -96,11 +96,11 @@ public sealed class RunWorkflowFunction : IBuiltinFunction
     ];
 }
 
-/// <summary>InstallPlugin — installs a plugin from a .kxp file. Pure.</summary>
+/// <summary>InstallPlugin — installs a plugin from a .kxp file. SideEffect.</summary>
 public sealed class InstallPluginFunction : IBuiltinFunction
 {
     public string Name => "InstallPlugin";
-    public FunctionKind Kind => FunctionKind.Pure;
+    public FunctionKind Kind => FunctionKind.SideEffect;
 
     public IReadOnlyList<PortSpec> InputPorts =>
     [
