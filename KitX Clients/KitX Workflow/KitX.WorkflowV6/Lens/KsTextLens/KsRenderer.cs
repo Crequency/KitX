@@ -105,7 +105,7 @@ internal sealed class KsRenderer
                 break;
 
             case SwitchStatement sw:
-                sb.Append(Indent(level)).Append("switch ").Append(RenderBsNode(sw.Selector)).Append(":\n");
+                sb.Append(Indent(level)).Append("switch ").Append(RenderKsNode(sw.Selector)).Append(":\n");
                 for (int i = 0; i < sw.Arms.Length; i++)
                 {
                     sb.Append(Indent(level + 1)).Append(i).Append(": ").Append('\n');
@@ -184,7 +184,7 @@ internal sealed class KsRenderer
         if (multiline)
         {
             // Sources line (+ optional source-line trailing comment).
-            sb.Append(Indent(level)).Append(string.Join(", ", p.Sources.Select(RenderBsNode)));
+            sb.Append(Indent(level)).Append(string.Join(", ", p.Sources.Select(RenderKsNode)));
             AppendTrailing(sb, p.TrailingComment);
             sb.Append('\n');
             // Each segment on its own indented continuation line.
@@ -207,13 +207,13 @@ internal sealed class KsRenderer
     {
         if (seg.IsVariableTap || seg.Arguments.Length == 0)
             return seg.Target;  // variable tap, or bare `> Func` (implicit single arg)
-        return $"{seg.Target}({string.Join(", ", seg.Arguments.Select(RenderBsNode))})";
+        return $"{seg.Target}({string.Join(", ", seg.Arguments.Select(RenderKsNode))})";
     }
 
     private static string RenderPipelineSingleLine(PipelineStatement p)
     {
         var sb = new StringBuilder();
-        sb.Append(string.Join(", ", p.Sources.Select(RenderBsNode)));
+        sb.Append(string.Join(", ", p.Sources.Select(RenderKsNode)));
         foreach (var seg in p.Segments)
             sb.Append(" > ").Append(RenderSegmentText(seg));
         return sb.ToString();
@@ -240,7 +240,7 @@ internal sealed class KsRenderer
             // Multi-line condition: sources on the first line, each segment on its own
             // indented continuation line. The last segment's line ends with the suffix
             // (forEach "as i"), the ':', and the last segment's inline comment.
-            sb.Append(string.Join(", ", pipe.Sources.Select(RenderBsNode))).Append('\n');
+            sb.Append(string.Join(", ", pipe.Sources.Select(RenderKsNode))).Append('\n');
             int lastIdx = pipe.Segments.Length - 1;
             for (int i = 0; i < pipe.Segments.Length; i++)
             {
@@ -263,7 +263,7 @@ internal sealed class KsRenderer
             // Single-line header: keyword + condition + suffix + ':' [+ comment].
             // For a pipeline condition, the last segment's inline comment follows ':'.
             // For a simple condition, the statement's TrailingComment follows ':'.
-            sb.Append(RenderBsNode(cond)).Append(suffix).Append(':');
+            sb.Append(RenderKsNode(cond)).Append(suffix).Append(':');
             if (cond is KsPipeline p && p.Segments.Length > 0)
                 AppendTrailing(sb, p.Segments[^1].Comment);
             else
@@ -283,22 +283,22 @@ internal sealed class KsRenderer
     {
         if (seg.IsVariableTap || seg.Args.Length == 0)
             return seg.Target;
-        return $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderBsNode))})";
+        return $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderKsNode))})";
     }
 
     /// <summary>
     /// Renders a KsNode expression. Uses <see cref="KsNode.SourceText"/> when available
     /// (lossless round-trip); otherwise falls back to structural rendering.
     /// </summary>
-    private static string RenderBsNode(KsNode node) => node switch
+    private static string RenderKsNode(KsNode node) => node switch
     {
         KsLiteral lit => RenderLiteral(lit),
         KsIdentifier id => id.Name,
-        KsCall call => $"{call.MethodName}({string.Join(", ", call.Args.Select(RenderBsNode))})",
+        KsCall call => $"{call.MethodName}({string.Join(", ", call.Args.Select(RenderKsNode))})",
         KsPipeline pipe => pipe.RenderPipelineSource(),
         KsPipelineSegment seg => seg.IsVariableTap
             ? seg.Target
-            : $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderBsNode))})",
+            : $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderKsNode))})",
         KsPlaceholder => "_",
         _ => node.SourceText.Length > 0 ? node.SourceText : node.GetType().Name,
     };

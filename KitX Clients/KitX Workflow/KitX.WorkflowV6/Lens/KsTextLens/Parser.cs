@@ -668,7 +668,7 @@ internal sealed class Parser
             case KsTokenKind.NullLiteral:
                 { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = t.Line }; }
             case KsTokenKind.Placeholder:
-                { var t = Advance(); return new KsPlaceholder { Index = 0, SourceText = "_", SourceLine = t.Line }; }
+                { var t = Advance(); return new KsPlaceholder { SourceText = "_", SourceLine = t.Line }; }
             default:
                 Error("KS051", $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
                 Advance();

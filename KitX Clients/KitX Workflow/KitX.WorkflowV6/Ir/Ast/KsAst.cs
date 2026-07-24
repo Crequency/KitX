@@ -244,25 +244,20 @@ public sealed record KsPipelineSegment : KsNode
 
 /// <summary>
 /// A pipeline placeholder (<c>_</c>) — marks where a pipeline value inserts during
-/// lowering. <see cref="Index"/> is the ordinal among multiple placeholders in the
-/// same call (0-based).
+/// lowering.
 /// </summary>
 public sealed record KsPlaceholder : KsNode
 {
-    public int Index { get; init; }
-
     public bool Equals(KsPlaceholder? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Index == other.Index;
+        return true;
     }
 
     public override int GetHashCode()
     {
-        var h = new HashCode();
-        h.Add(Index);
-        return h.ToHashCode();
+        return typeof(KsPlaceholder).GetHashCode();
     }
 }
 

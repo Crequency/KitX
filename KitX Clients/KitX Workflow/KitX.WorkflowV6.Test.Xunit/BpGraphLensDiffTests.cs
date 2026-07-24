@@ -124,7 +124,7 @@ public class BpGraphLensDiffTests
     private static BlueprintConnection Conn(string srcNode, string srcPin, string tgtNode, string tgtPin)
         => new() { Id = Guid.NewGuid().ToString(), SourceNodeId = srcNode, SourcePinId = srcPin, TargetNodeId = tgtNode, TargetPinId = tgtPin };
 
-    private static Blueprint ProjectBS(string src)
+    private static Blueprint ProjectKS(string src)
     {
         var registry = Registry();
         var ksLens = new KsTextLens(registry);
@@ -170,7 +170,7 @@ public class BpGraphLensDiffTests
     [Fact]
     public void Structural_Allows_Multiple_Exec_Connections_From_Merged_Branches()
     {
-        var bp = ProjectBS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"then\")\nelse:\n    Print(\"else\")\nPrint(\"after\")\n");
+        var bp = ProjectKS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"then\")\nelse:\n    Print(\"else\")\nPrint(\"after\")\n");
         var result = StructuralReducer.Check(bp);
         Assert.Null(result);
     }

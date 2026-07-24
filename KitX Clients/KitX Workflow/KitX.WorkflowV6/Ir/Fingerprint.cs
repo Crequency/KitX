@@ -64,7 +64,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         {
             case PipelineStatement p:
                 accum.AddInt(p.Sources.Length);
-                foreach (var src in p.Sources) accum.AddBsNode(src);
+                foreach (var src in p.Sources) accum.AddKsNode(src);
                 accum.AddInt(p.Segments.Length);
                 foreach (var seg in p.Segments)
                 {
@@ -72,32 +72,32 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                     accum.AddBool(seg.IsVariableTap);
                     accum.AddOptional(seg.Comment);
                     accum.AddInt(seg.Arguments.Length);
-                    foreach (var arg in seg.Arguments) accum.AddBsNode(arg);
+                    foreach (var arg in seg.Arguments) accum.AddKsNode(arg);
                 }
                 break;
 
             case IfStatement iff:
-                accum.AddBsNode(iff.Condition);
+                accum.AddKsNode(iff.Condition);
                 accum.AddChildFingerprints(iff.ThenBody);
                 accum.AddChildFingerprints(iff.ElseBody);
                 break;
 
             case SwitchStatement sw:
-                accum.AddBsNode(sw.Selector);
+                accum.AddKsNode(sw.Selector);
                 accum.AddInt(sw.Arms.Length);
                 foreach (var arm in sw.Arms) accum.AddChildFingerprints(arm);
                 accum.AddChildFingerprints(sw.Default);
                 break;
 
             case ForEachStatement fe:
-                accum.AddBsNode(fe.Source);
+                accum.AddKsNode(fe.Source);
                 accum.AddString(fe.ItemName);
                 accum.AddString(fe.ItemType.ToString());
                 accum.AddChildFingerprints(fe.Body);
                 break;
 
             case WhileStatement ws:
-                accum.AddBsNode(ws.Condition);
+                accum.AddKsNode(ws.Condition);
                 accum.AddChildFingerprints(ws.Body);
                 break;
 
@@ -132,11 +132,11 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         var accum = new HashAccum();
         accum.AddString(node.GetType().Name);
         // SourceLine deliberately excluded: not semantic content (see Compute(Statement)).
-        AccumulateBsNode(accum, node);
+        AccumulateKsNode(accum, node);
         return new Fingerprint(accum.ToHex());
     }
 
-    private static void AccumulateBsNode(HashAccum accum, KsNode node)
+    private static void AccumulateKsNode(HashAccum accum, KsNode node)
     {
         // Statement-level comments participate in the AST fingerprint so comment
         // changes are detectable as identity changes (mirrors the IR fingerprint).
@@ -158,11 +158,11 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 accum.AddString(call.MethodName);
                 accum.AddString(call.FullMethodName);
                 accum.AddInt(call.Args.Length);
-                foreach (var a in call.Args) accum.AddBsNode(a);
+                foreach (var a in call.Args) accum.AddKsNode(a);
                 break;
             case KsPipeline pipe:
                 accum.AddInt(pipe.Sources.Length);
-                foreach (var s in pipe.Sources) accum.AddBsNode(s);
+                foreach (var s in pipe.Sources) accum.AddKsNode(s);
                 accum.AddInt(pipe.Segments.Length);
                 foreach (var seg in pipe.Segments)
                 {
@@ -170,7 +170,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                     accum.AddBool(seg.IsVariableTap);
                     accum.AddOptional(seg.Comment);
                     accum.AddInt(seg.Args.Length);
-                    foreach (var a in seg.Args) accum.AddBsNode(a);
+                    foreach (var a in seg.Args) accum.AddKsNode(a);
                 }
                 break;
             case KsPipelineSegment seg:
@@ -178,10 +178,9 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 accum.AddBool(seg.IsVariableTap);
                 accum.AddOptional(seg.Comment);
                 accum.AddInt(seg.Args.Length);
-                foreach (var a in seg.Args) accum.AddBsNode(a);
+                foreach (var a in seg.Args) accum.AddKsNode(a);
                 break;
-            case KsPlaceholder ph:
-                accum.AddInt(ph.Index);
+            case KsPlaceholder:
                 break;
             case KsConstDecl cd:
                 accum.AddString(cd.Name);
@@ -195,30 +194,30 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 break;
             case KsConstBlock cb:
                 accum.AddInt(cb.Declarations.Length);
-                foreach (var d in cb.Declarations) accum.AddBsNode(d);
+                foreach (var d in cb.Declarations) accum.AddKsNode(d);
                 break;
             case KsVarBlock vb:
                 accum.AddInt(vb.Declarations.Length);
-                foreach (var d in vb.Declarations) accum.AddBsNode(d);
+                foreach (var d in vb.Declarations) accum.AddKsNode(d);
                 break;
             case KsIf iff:
-                accum.AddBsNode(iff.Condition);
+                accum.AddKsNode(iff.Condition);
                 accum.AddChildAstFingerprints(iff.ThenBody);
                 accum.AddChildAstFingerprints(iff.ElseBody);
                 break;
             case KsSwitch sw:
-                accum.AddBsNode(sw.Selector);
+                accum.AddKsNode(sw.Selector);
                 accum.AddInt(sw.Arms.Length);
                 foreach (var arm in sw.Arms) accum.AddChildAstFingerprints(arm);
                 accum.AddChildAstFingerprints(sw.Default);
                 break;
             case KsForEach fe:
-                accum.AddBsNode(fe.Source);
+                accum.AddKsNode(fe.Source);
                 accum.AddString(fe.ItemName);
                 accum.AddChildAstFingerprints(fe.Body);
                 break;
             case KsWhile ws:
-                accum.AddBsNode(ws.Condition);
+                accum.AddKsNode(ws.Condition);
                 accum.AddChildAstFingerprints(ws.Body);
                 break;
             case KsBreak:
@@ -226,9 +225,9 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 break;
             case KsProgram prog:
                 accum.AddBool(prog.ConstBlock is not null);
-                if (prog.ConstBlock is not null) accum.AddBsNode(prog.ConstBlock);
+                if (prog.ConstBlock is not null) accum.AddKsNode(prog.ConstBlock);
                 accum.AddBool(prog.VarBlock is not null);
-                if (prog.VarBlock is not null) accum.AddBsNode(prog.VarBlock);
+                if (prog.VarBlock is not null) accum.AddKsNode(prog.VarBlock);
                 accum.AddChildAstFingerprints(prog.Body);
                 break;
             default:
@@ -308,7 +307,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             _hash.AppendData([(byte)(b ? (byte)'T' : (byte)'F')]);
         }
 
-        public void AddBsNode(KsNode node)
+        public void AddKsNode(KsNode node)
         {
             // Recurse: a nested AST node's full structural fingerprint folds into the parent.
             var sub = Compute(node);

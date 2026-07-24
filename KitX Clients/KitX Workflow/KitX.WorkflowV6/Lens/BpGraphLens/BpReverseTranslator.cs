@@ -313,7 +313,7 @@ internal sealed class BpReverseTranslator
 
     private Statement ReversePipelineCall(BuiltinFunctionNode fn)
     {
-        var call = BuildBsCallFromFunctionNode(fn);
+        var call = BuildKsCallFromFunctionNode(fn);
 
         // Distinguish bare call (Print("hello")) from pipeline form (i > Print).
         // Bare call: the function's data inputs are all DefaultValues (no wired sources).
@@ -353,7 +353,7 @@ internal sealed class BpReverseTranslator
             {
                 if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
                 var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) sources.Add(NodeToBsNode(src));
+                if (src is not null) sources.Add(NodeToKsNode(src));
                 break;
             }
         }
@@ -408,7 +408,13 @@ internal sealed class BpReverseTranslator
     private KsNode ReadDataInput(BlueprintNode node, string pinName)
     {
         var pin = node.InputPins.Find(p => p.Name == pinName);
-        if (pin is null) return MakeBoolLiteral(true);
+        if (pin is null)
+        {
+            // TODO(B3): silent fallback — BP graph is incomplete (pin missing).
+            // Currently returns 'true' to keep round-trip tests green; ideally
+            // should surface a diagnostic. Revisit when BP editing UX matures.
+            return MakeBoolLiteral(true);
+        }
 
         // Find the incoming data connection targeting this pin.
         foreach (var conn in _bp.Connections)
@@ -421,18 +427,21 @@ internal sealed class BpReverseTranslator
             var tgtPin = src.InputPins.Find(p => p.Id == conn.TargetPinId);
             // Confirm this connection targets our pin.
             if (pin.Id != conn.TargetPinId) continue;
-            return NodeToBsNode(src);
+            return NodeToKsNode(src);
         }
 
         // No wired source — use the pin's DefaultValue if available.
         if (pin.DefaultValue is not null)
             return ParseDefaultValue(pin.DefaultValue);
 
+        // TODO(B3): silent fallback — BP graph is incomplete (default value missing).
+        // Currently returns 'true' to keep round-trip tests green; ideally
+        // should surface a diagnostic. Revisit when BP editing UX matures.
         return MakeBoolLiteral(true);
     }
 
     /// <summary>Converts a data-source BP node into the corresponding KsNode expression.</summary>
-    private KsNode NodeToBsNode(BlueprintNode node)
+    private KsNode NodeToKsNode(BlueprintNode node)
     {
         switch (node)
         {
@@ -443,6 +452,9 @@ internal sealed class BpReverseTranslator
             case BuiltinFunctionNode fn:
                 return ReconstructPipelineOrCall(fn);
             default:
+                // TODO(B3): silent fallback — BP graph is incomplete (unknown node type).
+                // Currently returns 'true' to keep round-trip tests green; ideally
+                // should surface a diagnostic. Revisit when BP editing UX matures.
                 return MakeBoolLiteral(true);
         }
     }
@@ -473,7 +485,7 @@ internal sealed class BpReverseTranslator
     /// <para>Single-segment conditions/sources are fully reconstructed. Multi-segment
     /// conditions where an intermediate segment is itself a function node remain
     /// partially reconstructed (the intermediate appears as a source via
-    /// <see cref="NodeToBsNode"/>).</para>
+    /// <see cref="NodeToKsNode"/>).</para>
     /// </remarks>
     private KsNode ReconstructPipelineOrCall(BuiltinFunctionNode fn)
     {
@@ -493,16 +505,13 @@ internal sealed class BpReverseTranslator
             {
                 if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
                 var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) { wired = NodeToBsNode(src); break; }
+                if (src is not null) { wired = NodeToKsNode(src); break; }
             }
             if (wired is not null)
             {
                 anyWired = true;
                 sources.Add(wired);
-                // NOTE: the parser currently emits Index=0 for every placeholder (a
-                // pre-existing quirk); match it here so the reconstructed node's
-                // fingerprint matches a re-parsed explicit-`_` form.
-                args.Add(new KsPlaceholder { Index = 0, SourceText = "_" });
+                args.Add(new KsPlaceholder { SourceText = "_" });
                 rawArgs.Add("_");
             }
             else
@@ -555,7 +564,7 @@ internal sealed class BpReverseTranslator
     /// wired (→ VariableNode/ConstNode/FunctionNode source) or carries a DefaultValue.
     /// Pins are read in order to reconstruct the original argument list.
     /// </summary>
-    private KsCall BuildBsCallFromFunctionNode(BuiltinFunctionNode fn)
+    private KsCall BuildKsCallFromFunctionNode(BuiltinFunctionNode fn)
     {
         var args = ImmutableArray.CreateBuilder<KsNode>();
         // Read data input pins in order (exclude Exec), matching the InputPorts order
@@ -569,7 +578,7 @@ internal sealed class BpReverseTranslator
             {
                 if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
                 var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) { wired = NodeToBsNode(src); break; }
+                if (src is not null) { wired = NodeToKsNode(src); break; }
             }
             args.Add(wired ?? ParseDefaultValue(pin.DefaultValue ?? "null"));
         }

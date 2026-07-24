@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 8 acceptance tests for BpGraphLens (IR → Blueprint projection).
+// Phase 8 acceptance tests for BpGraphLens (IR �?Blueprint projection).
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.Core.Contract.Workflow;
@@ -16,7 +16,7 @@ public class BpGraphLensTests
     private static BuiltinFunctionRegistry Registry()
         => BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
 
-    private static Blueprint ProjectBS(string src)
+    private static Blueprint ProjectKS(string src)
     {
         var registry = Registry();
         var lens = new KsTextLens(registry);
@@ -36,7 +36,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Single_Print()
     {
-        var bp = ProjectBS("Print(\"hello\")\n");
+        var bp = ProjectKS("Print(\"hello\")\n");
         // Should have: EntryNode + BuiltinFunctionNode (Print).
         // "hello" literal goes to Print's DefaultValue, not a separate ConstNode.
         Assert.Equal(2, bp.Nodes.Count);
@@ -53,8 +53,8 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Single_Print_Has_Exec_Connection()
     {
-        var bp = ProjectBS("Print(\"hello\")\n");
-        // Entry → Print exec connection (data literal is via DefaultValue, no data edge).
+        var bp = ProjectKS("Print(\"hello\")\n");
+        // Entry �?Print exec connection (data literal is via DefaultValue, no data edge).
         Assert.Contains(bp.Connections, c =>
         {
             var from = bp.Nodes.Find(n => n.Id == c.SourceNodeId);
@@ -66,7 +66,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_If_Statement()
     {
-        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\n");
+        var bp = ProjectKS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\n");
         // Branch + then-body scope (Entry→Print) + EntryNode for top-level.
         var branches = bp.Nodes.OfType<BuiltinFunctionNode>().Where(n => n.FunctionName == "Branch").ToList();
         Assert.Single(branches);
@@ -80,7 +80,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_ForEach_Statement()
     {
-        var bp = ProjectBS("forEach Range(0, 5, 1) as i:\n    i > Print\n");
+        var bp = ProjectKS("forEach Range(0, 5, 1) as i:\n    i > Print\n");
         var each = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Each");
         Assert.NotNull(each);
         Assert.Contains(each!.OutputPins, p => p.Name == "Body");
@@ -92,8 +92,8 @@ public class BpGraphLensTests
     [Fact]
     public void Project_While_Statement_Body_And_End_Connections()
     {
-        // while node should have Body exec output → Print node, End exec output → subsequent Print.
-        var bp = ProjectBS("""
+        // while node should have Body exec output �?Print node, End exec output �?subsequent Print.
+        var bp = ProjectKS("""
             var {
                 int counter
             }
@@ -122,7 +122,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Switch_Statement()
     {
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             switch sel:
                 0:
                     Print("zero")
@@ -147,7 +147,7 @@ public class BpGraphLensTests
     public void Project_Multi_Arg_Function_Has_Named_Pins()
     {
         // Range(From, To, Step) should create 3 named input pins, not a single "Value".
-        var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    i > Print\n");
+        var bp = ProjectKS("forEach Range(0, 3, 1) as i:\n    i > Print\n");
         var range = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Range");
         Assert.NotNull(range);
         Assert.Contains(range!.InputPins, p => p.Name == "From");
@@ -171,7 +171,7 @@ public class BpGraphLensTests
     public void Project_Compare_Has_Op_A_B_Pins()
     {
         // Compare(Op, A, B) should create 3 named input pins.
-        var bp = ProjectBS("var {\n    int a\n    int b\n}\n\na, b > Compare(\"BEQ\") > Print\n");
+        var bp = ProjectKS("var {\n    int a\n    int b\n}\n\na, b > Compare(\"BEQ\") > Print\n");
         var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
         Assert.Contains(compare!.InputPins, p => p.Name == "Op");
@@ -189,8 +189,8 @@ public class BpGraphLensTests
     public void Node_Ids_Stable_Across_Project()
     {
         // Two projections of the same source should produce identical node IDs.
-        var bp1 = ProjectBS("Print(\"hello\")\n");
-        var bp2 = ProjectBS("Print(\"hello\")\n");
+        var bp1 = ProjectKS("Print(\"hello\")\n");
+        var bp2 = ProjectKS("Print(\"hello\")\n");
         Assert.Equal(bp1.Nodes.Count, bp2.Nodes.Count);
         for (int i = 0; i < bp1.Nodes.Count; i++)
             Assert.Equal(bp1.Nodes[i].Id, bp2.Nodes[i].Id);
@@ -199,7 +199,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_All_Nodes_Have_Unique_Ids()
     {
-        var bp = ProjectBS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\nelse:\n    Print(\"no\")\n");
+        var bp = ProjectKS("if Compare(\"BEQ\", 1, 1):\n    Print(\"yes\")\nelse:\n    Print(\"no\")\n");
         var ids = bp.Nodes.Select(n => n.Id).ToList();
         Assert.Equal(ids.Distinct().Count(), ids.Count);
     }
@@ -207,7 +207,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_All_Pins_Have_Unique_Ids()
     {
-        var bp = ProjectBS("Print(\"hello\")\n");
+        var bp = ProjectKS("Print(\"hello\")\n");
         var pinIds = bp.Nodes.SelectMany(n => n.InputPins.Concat(n.OutputPins)).Select(p => p.Id).ToList();
         Assert.True(pinIds.Count > 0);
         Assert.Equal(pinIds.Distinct().Count(), pinIds.Count);
@@ -218,7 +218,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Sequential_Prints_Have_Exec_Chain()
     {
-        var bp = ProjectBS("Print(\"a\")\nPrint(\"b\")\n");
+        var bp = ProjectKS("Print(\"a\")\nPrint(\"b\")\n");
         var prints = bp.Nodes.OfType<BuiltinFunctionNode>().Where(n => n.FunctionName == "Print").ToList();
         Assert.Equal(2, prints.Count);
         // There must be an exec connection from Print-0 to Print-1.
@@ -229,7 +229,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Entry_Connects_To_First_Statement()
     {
-        var bp = ProjectBS("Print(\"hello\")\n");
+        var bp = ProjectKS("Print(\"hello\")\n");
         var entry = bp.Nodes.OfType<EntryNode>().First();
         var print = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Print");
         Assert.Contains(bp.Connections, c =>
@@ -241,7 +241,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Break_Node_Has_Exec_Input()
     {
-        var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    break\n");
+        var bp = ProjectKS("forEach Range(0, 3, 1) as i:\n    break\n");
         var breakNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "break");
         Assert.NotNull(breakNode);
         Assert.NotEmpty(breakNode!.InputPins);
@@ -251,20 +251,20 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Continue_Node_Has_Exec_Input()
     {
-        var bp = ProjectBS("forEach Range(0, 3, 1) as i:\n    continue\n");
+        var bp = ProjectKS("forEach Range(0, 3, 1) as i:\n    continue\n");
         var ctNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "continue");
         Assert.NotNull(ctNode);
         Assert.NotEmpty(ctNode!.InputPins);
         Assert.Contains(ctNode.InputPins, p => p.Name == "Exec");
     }
 
-    // ── Pipeline variable taps → VariableNode ──
+    // ── Pipeline variable taps �?VariableNode ──
 
     [Fact]
     public void Project_Pipeline_Variable_Tap_Is_VariableNode()
     {
-        // `0 > counter` — the >counter segment should become a VariableNode, not BuiltinFunction.
-        var bp = ProjectBS("var {\n    int counter\n}\n\n0 > counter\n");
+        // `0 > counter` �?the >counter segment should become a VariableNode, not BuiltinFunction.
+        var bp = ProjectKS("var {\n    int counter\n}\n\n0 > counter\n");
         var varNodes = bp.Nodes.OfType<VariableNode>().ToList();
         Assert.Contains(varNodes, n => n.VarName == "counter");
         // The counter variable must have a data input (write) pin.
@@ -279,7 +279,7 @@ public class BpGraphLensTests
         // Should produce: VariableNode(guessNum,read) + VariableNode(targetNum,read)
         // + BuiltinFunction(Compare) + VariableNode(cond,write)
         // with data connections chaining through.
-        var bp = ProjectBS("var {\n    int guessNum\n    int targetNum\n    int cond\n}\n\nguessNum, targetNum > Compare(\"BEQ\") > cond\n");
+        var bp = ProjectKS("var {\n    int guessNum\n    int targetNum\n    int cond\n}\n\nguessNum, targetNum > Compare(\"BEQ\") > cond\n");
         var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
         // Find the USAGE variable node for cond (the one with incoming connections),
@@ -297,8 +297,8 @@ public class BpGraphLensTests
     [Fact]
     public void No_Duplicate_Entry_Nodes()
     {
-        // Top-level + if-then + if-else + forEach-body → only 1 EntryNode total.
-        var bp = ProjectBS("""
+        // Top-level + if-then + if-else + forEach-body �?only 1 EntryNode total.
+        var bp = ProjectKS("""
             if cond:
                 Print("then")
             else:
@@ -311,7 +311,7 @@ public class BpGraphLensTests
     [Fact]
     public void Branch_Has_Condition_Input_Pin()
     {
-        var bp = ProjectBS("if cond:\n    Print(\"yes\")\n");
+        var bp = ProjectKS("if cond:\n    Print(\"yes\")\n");
         var branch = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Branch");
         Assert.Contains(branch.InputPins, p => p.Name == "Condition");
         Assert.Equal(PinType.Boolean, branch.InputPins.First(p => p.Name == "Condition").Type);
@@ -320,7 +320,7 @@ public class BpGraphLensTests
     [Fact]
     public void While_Has_Condition_Input_Pin()
     {
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             var {
                 int counter
             }
@@ -336,8 +336,8 @@ public class BpGraphLensTests
     [Fact]
     public void Definition_Nodes_Have_No_Connections()
     {
-        // const/var definition nodes are standalone — they don't participate in edges.
-        var bp = ProjectBS("""
+        // const/var definition nodes are standalone �?they don't participate in edges.
+        var bp = ProjectKS("""
             const {
                 int max = 5
             }
@@ -362,7 +362,7 @@ public class BpGraphLensTests
     public void If_Else_Both_Branches_Connect_Forward()
     {
         // After if/else, both branches' tails should connect to the next statement.
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             if cond:
                 Print("then")
             else:
@@ -380,7 +380,7 @@ public class BpGraphLensTests
     [Fact]
     public void ForEach_Body_Starts_From_Each_Body_Pin()
     {
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             forEach Range(0, 3, 1) as i:
                 i > Print
             """);
@@ -394,8 +394,8 @@ public class BpGraphLensTests
     [Fact]
     public void Node_Ids_Are_Short()
     {
-        // Deep nesting should NOT produce long IDs (FNV hash → fixed 10 chars: "n_" + 8 hex).
-        var bp = ProjectBS("""
+        // Deep nesting should NOT produce long IDs (FNV hash �?fixed 10 chars: "n_" + 8 hex).
+        var bp = ProjectKS("""
             if a:
                 if b:
                     if c:
@@ -409,10 +409,10 @@ public class BpGraphLensTests
     [Fact]
     public void Pipeline_Condition_Renders_Data_Flow()
     {
-        // `if 1, 1 > Compare("BEQ")` → should produce data nodes for the
+        // `if 1, 1 > Compare("BEQ")` �?should produce data nodes for the
         // condition pipeline (sources + Compare function) and connect
         // the function output to Branch.Condition.
-        var bp = ProjectBS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"yes\")\n");
+        var bp = ProjectKS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"yes\")\n");
         var branch = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Branch");
         var compare = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Compare");
         Assert.NotNull(compare);
@@ -426,7 +426,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Deep_Nesting_Ids_Bounded()
     {
-        // 10 levels of nested if — all Node IDs must be ≤ 20 chars.
+        // 10 levels of nested if �?all Node IDs must be �?20 chars.
         var sb = new System.Text.StringBuilder();
         for (int i = 0; i < 10; i++)
         {
@@ -435,7 +435,7 @@ public class BpGraphLensTests
         }
         sb.Append(new string(' ', 10 * 4));
         sb.Append("Print(\"deep\")\n");
-        var bp = ProjectBS(sb.ToString());
+        var bp = ProjectKS(sb.ToString());
         foreach (var node in bp.Nodes)
             Assert.True(node.Id.Length <= 20, $"ID too long at depth: {node.Id}");
     }
@@ -443,7 +443,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Repeated_Project_Stable_NodeIds()
     {
-        // Same KS projected 5 times → identical node IDs each time.
+        // Same KS projected 5 times �?identical node IDs each time.
         var src = """
             forEach Range(0, 3, 1) as i:
                 i, 2 > Compare("BEQ")
@@ -451,10 +451,10 @@ public class BpGraphLensTests
                     break
                 i > Print
             """;
-        var first = ProjectBS(src);
+        var first = ProjectKS(src);
         for (int rep = 0; rep < 4; rep++)
         {
-            var again = ProjectBS(src);
+            var again = ProjectKS(src);
             Assert.Equal(first.Nodes.Count, again.Nodes.Count);
             for (int i = 0; i < first.Nodes.Count; i++)
                 Assert.Equal(first.Nodes[i].Id, again.Nodes[i].Id);
@@ -464,7 +464,7 @@ public class BpGraphLensTests
     [Fact]
     public void Stress_Round_Trip_BS_IR_BS()
     {
-        // KS → parse → IR → render → KS → parse → IR: should be idempotent.
+        // KS �?parse �?IR �?render �?KS �?parse �?IR: should be idempotent.
         var src = """
             if 1, 1 > Compare("BEQ"):
                 Print("yes")
@@ -481,7 +481,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Arithmetic_Function_Has_Data_Pins()
     {
-        var bp = ProjectBS("Sub(10, 3) > Print\n");
+        var bp = ProjectKS("Sub(10, 3) > Print\n");
         var subNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Sub");
         Assert.NotNull(subNode);
         // Sub: Exec in/out + 2 Integer data inputs (A, B)
@@ -497,7 +497,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Pause_Function_Has_Correct_Pins()
     {
-        var bp = ProjectBS("Pause(1)\n");
+        var bp = ProjectKS("Pause(1)\n");
         var pauseNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Pause");
         Assert.NotNull(pauseNode);
         // Pause: 1 Integer data input (Milliseconds), no data output
@@ -512,7 +512,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_FileIO_Functions_Have_Correct_Pins()
     {
-        var bp = ProjectBS("ReadTextFile(\"test.txt\") > Print\n");
+        var bp = ProjectKS("ReadTextFile(\"test.txt\") > Print\n");
         var readNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "ReadTextFile");
         Assert.NotNull(readNode);
         // ReadTextFile: 1 String data input (Path), 1 String data output (Content)
@@ -527,7 +527,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_Len_Function_Has_Correct_Pins()
     {
-        var bp = ProjectBS("Len(\"hello\") > Print\n");
+        var bp = ProjectKS("Len(\"hello\") > Print\n");
         var lenNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "Len");
         Assert.NotNull(lenNode);
         // Len: 1 Any data input (Value), 1 Integer data output (Length)
@@ -542,7 +542,7 @@ public class BpGraphLensTests
     [Fact]
     public void Project_JSON_Functions_Have_Correct_Pins()
     {
-        var bp = ProjectBS("\"{}\" > JsonGetField(_, \"key\") > Print\n");
+        var bp = ProjectKS("\"{}\" > JsonGetField(_, \"key\") > Print\n");
         var gfNode = bp.Nodes.OfType<BuiltinFunctionNode>().FirstOrDefault(n => n.FunctionName == "JsonGetField");
         Assert.NotNull(gfNode);
         // JsonGetField: 2 data inputs (Any, String), 1 data output (Json)
@@ -560,14 +560,14 @@ public class BpGraphLensTests
     [Fact]
     public void Layout_All_Nodes_Have_Coordinates()
     {
-        var bp = ProjectBS("Print(\"hello\")\n");
+        var bp = ProjectKS("Print(\"hello\")\n");
         Assert.All(bp.Nodes, n => Assert.True(n.X != 0 || n.Y != 0));
     }
 
     [Fact]
     public void Layout_Sequential_Nodes_Not_Overlapping()
     {
-        var bp = ProjectBS("Print(\"a\")\nPrint(\"b\")\n");
+        var bp = ProjectKS("Print(\"a\")\nPrint(\"b\")\n");
         var prints = bp.Nodes.OfType<BuiltinFunctionNode>()
             .Where(n => n.FunctionName == "Print").ToList();
         Assert.Equal(2, prints.Count);
@@ -580,7 +580,7 @@ public class BpGraphLensTests
     [Fact]
     public void Layout_If_Else_Branches_At_Different_Y()
     {
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             if 1, 1 > Compare("BEQ"):
                 Print("yes")
             else:
@@ -596,7 +596,7 @@ public class BpGraphLensTests
     [Fact]
     public void Layout_Data_Nodes_In_Sidebar()
     {
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             var {
                 int x
             }
@@ -613,7 +613,7 @@ public class BpGraphLensTests
     [Fact]
     public void Layout_ForEach_Branches_Not_Overlapping()
     {
-        var bp = ProjectBS("""
+        var bp = ProjectKS("""
             forEach Range(0, 3, 1) as i:
                 i > Print
             """);

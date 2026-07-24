@@ -29,10 +29,10 @@ public class SessionTests
     }
 
     [Fact]
-    public void BS_Edit_Round_Trip_Adds_Print()
+    public void KS_Edit_Round_Trip_Adds_Print()
     {
         var (svc, session) = MakeSession("Print(\"a\")\n");
-        var changeSet = svc.ApplyBsEdit(session, "Print(\"a\")\nPrint(\"b\")\n");
+        var changeSet = svc.ApplyKsEdit(session, "Print(\"a\")\nPrint(\"b\")\n");
         Assert.NotNull(changeSet.StatementDiff);
         Assert.False(changeSet.StatementDiff!.IsEmpty);
         // The session's IR should now contain both Print statements.
@@ -47,7 +47,7 @@ public class SessionTests
         WorkflowChangeSet? receivedChangeSet = null;
         session.IrChanged += cs => { fireCount++; receivedChangeSet = cs; };
 
-        svc.ApplyBsEdit(session, "Print(\"a\")\nPrint(\"b\")\n");
+        svc.ApplyKsEdit(session, "Print(\"a\")\nPrint(\"b\")\n");
 
         Assert.Equal(1, fireCount);
         Assert.NotNull(receivedChangeSet);
@@ -62,13 +62,13 @@ public class SessionTests
         session.IrChanged += _ => fireCount++;
 
         // Same KS text → no change → no event.
-        svc.ApplyBsEdit(session, "Print(\"a\")\n");
+        svc.ApplyKsEdit(session, "Print(\"a\")\n");
 
         Assert.Equal(0, fireCount);
     }
 
     [Fact]
-    public void BS_Edit_Preserves_Other_Node_Coordinates()
+    public void KS_Edit_Preserves_Other_Node_Coordinates()
     {
         // Two Print statements; the first has a Layout annotation. Edit the second;
         // the first's Layout must survive the edit round-trip.
@@ -93,7 +93,7 @@ public class SessionTests
         var svc = new SyncService(registry);
 
         // Edit: change the second Print's argument.
-        svc.ApplyBsEdit(session, "Print(\"a\")\nPrint(\"c\")\n");
+        svc.ApplyKsEdit(session, "Print(\"a\")\nPrint(\"c\")\n");
 
         // The first statement's Layout annotation must be preserved.
         var resultFirst = session.Ir.Body[0];
@@ -104,10 +104,10 @@ public class SessionTests
     }
 
     [Fact]
-    public void BS_Edit_Remove_Statement_Updates_Ir()
+    public void KS_Edit_Remove_Statement_Updates_Ir()
     {
         var (svc, session) = MakeSession("Print(\"a\")\nPrint(\"b\")\n");
-        svc.ApplyBsEdit(session, "Print(\"a\")\n");
+        svc.ApplyKsEdit(session, "Print(\"a\")\n");
         Assert.Single(session.Ir.Body);
     }
 }

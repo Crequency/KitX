@@ -35,25 +35,25 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 public sealed class SyncService
 {
     private readonly BuiltinFunctionRegistry _registry;
-    private readonly KsTextLens _bsLens;
+    private readonly KsTextLens _ksLens;
 
     public SyncService(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _bsLens = new KsTextLens(registry);
+        _ksLens = new KsTextLens(registry);
     }
 
     /// <summary>
     /// Applies a KS text edit: re-parses the new source, diffs against the live IR,
     /// applies the diff, and fires <see cref="WorkflowSession.IrChanged"/>.
     /// </summary>
-    public WorkflowChangeSet ApplyBsEdit(WorkflowSession session, string newBsSource)
+    public WorkflowChangeSet ApplyKsEdit(WorkflowSession session, string newKsSource)
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(newBsSource);
+        ArgumentNullException.ThrowIfNull(newKsSource);
 
         // Parse the new KS source into a fresh IR.
-        var newIr = _bsLens.Parse(newBsSource, session.HelperFunctions);
+        var newIr = _ksLens.Parse(newKsSource, session.HelperFunctions);
 
         // If the new IR equals the current IR, nothing changed — don't fire event.
         if (session.Ir.Equals(newIr))

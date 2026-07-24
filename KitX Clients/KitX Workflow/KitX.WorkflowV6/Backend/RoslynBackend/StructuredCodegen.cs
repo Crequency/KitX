@@ -36,7 +36,6 @@ internal sealed class StructuredCodegen
     private readonly BuiltinFunctionRegistry _registry;
     private readonly StringBuilder _sb = new();
     private int _indent;
-    private int _tempCounter;
     private Workflow _ir = null!;
     private HashSet<string> _helperNames = new(StringComparer.Ordinal);
     /// <summary>
@@ -78,8 +77,6 @@ internal sealed class StructuredCodegen
             StringComparer.Ordinal);
         _sb.Clear();
         _indent = 0;
-        _tempCounter = 0;
-
         // ── Class header ──
         EmitLine("using System;");
         EmitLine("using System.Collections.Generic;");
@@ -164,7 +161,7 @@ internal sealed class StructuredCodegen
                 EmitPipeline(p);
                 break;
             case IfStatement iff:
-                EmitLine($"if ({RenderBsNode(iff.Condition)})");
+                EmitLine($"if ({RenderKsNode(iff.Condition)})");
                 EmitLine("{");
                 _indent++;
                 EmitBody(iff.ThenBody);
@@ -189,7 +186,7 @@ internal sealed class StructuredCodegen
                 EmitLine("}");
                 break;
             case WhileStatement ws:
-                EmitLine($"while ({RenderBsNode(ws.Condition)})");
+                EmitLine($"while ({RenderKsNode(ws.Condition)})");
                 EmitLine("{");
                 _indent++;
                 EmitBody(ws.Body);
@@ -213,7 +210,7 @@ internal sealed class StructuredCodegen
 
     private void EmitSwitch(SwitchStatement sw)
     {
-        EmitLine($"switch ({RenderBsNode(sw.Selector)})");
+        EmitLine($"switch ({RenderKsNode(sw.Selector)})");
         EmitLine("{");
         _indent++;
         for (int i = 0; i < sw.Arms.Length; i++)
@@ -249,7 +246,7 @@ internal sealed class StructuredCodegen
                 EmitLine($"{RenderCallStatement(call)};");
                 return;
             }
-            EmitLine($"/* bare expression: {RenderBsNode(p.Sources[0])} */");
+            EmitLine($"/* bare expression: {RenderKsNode(p.Sources[0])} */");
             return;
         }
 
@@ -268,7 +265,7 @@ internal sealed class StructuredCodegen
             if (isVarTap)
             {
                 var tapValue = currentExpr
-                    ?? (p.Sources.Length > 0 ? RenderBsNode(p.Sources[0]) : "null");
+                    ?? (p.Sources.Length > 0 ? RenderKsNode(p.Sources[0]) : "null");
                 EmitLine($"this.{seg.Target} = {tapValue};");
                 currentExpr = $"this.{seg.Target}";
                 lastWasAssignment = true;
@@ -279,7 +276,7 @@ internal sealed class StructuredCodegen
             // First segment uses pipeline sources as implicit inputs.
             // Subsequent segments use the previous segment's output as sole input.
             IEnumerable<string> inputArgs = segIdx == 0
-                ? p.Sources.Select(RenderBsNode)
+                ? p.Sources.Select(RenderKsNode)
                 : new[] { currentExpr ?? "null" };
             var allArgs = BuildArgList(seg.Arguments, inputArgs);
             currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({allArgs})";
@@ -293,22 +290,22 @@ internal sealed class StructuredCodegen
 
     private string RenderCallStatement(KsCall call)
     {
-        var args = string.Join(", ", call.Args.Select(RenderBsNode));
+        var args = string.Join(", ", call.Args.Select(RenderKsNode));
         return $"this.{MapBuiltinToGMethod(call.MethodName)}({args})";
     }
 
     /// <summary>Renders a KsNode as a C# expression string.</summary>
-    private string RenderBsNode(KsNode node) => node switch
+    private string RenderKsNode(KsNode node) => node switch
     {
         KsLiteral lit => RenderLiteral(lit),
         KsIdentifier id => RenderIdentifier(id),
         KsCall call => call.Args.Length == 0
             ? $"this.{MapBuiltinToGMethod(call.MethodName)}()"
-            : $"this.{MapBuiltinToGMethod(call.MethodName)}({string.Join(", ", call.Args.Select(RenderBsNode))})",
+            : $"this.{MapBuiltinToGMethod(call.MethodName)}({string.Join(", ", call.Args.Select(RenderKsNode))})",
         KsPipeline pipe => RenderPipelineAsExpression(pipe),
         KsPipelineSegment seg => seg.IsVariableTap
             ? seg.Target
-            : $"this.{MapBuiltinToGMethod(seg.Target)}({string.Join(", ", seg.Args.Select(RenderBsNode))})",
+            : $"this.{MapBuiltinToGMethod(seg.Target)}({string.Join(", ", seg.Args.Select(RenderKsNode))})",
         KsPlaceholder => "_placeholder_",
         _ => $"/* {node.GetType().Name} */",
     };
@@ -323,7 +320,7 @@ internal sealed class StructuredCodegen
     {
         if (pipe.Segments.Length == 0)
         {
-            return pipe.Sources.Length > 0 ? RenderBsNode(pipe.Sources[0]) : "true";
+            return pipe.Sources.Length > 0 ? RenderKsNode(pipe.Sources[0]) : "true";
         }
 
         string currentExpr = "";
@@ -331,7 +328,7 @@ internal sealed class StructuredCodegen
         {
             var seg = pipe.Segments[i];
             IEnumerable<string> inputArgs = i == 0
-                ? pipe.Sources.Select(RenderBsNode)
+                ? pipe.Sources.Select(RenderKsNode)
                 : new[] { currentExpr };
             var allArgs = BuildArgList(seg.Args, inputArgs);
             currentExpr = $"this.{MapBuiltinToGMethod(seg.Target)}({allArgs})";
@@ -355,7 +352,7 @@ internal sealed class StructuredCodegen
             if (arg is KsPlaceholder)
                 result.Add(queue.Count > 0 ? queue.Dequeue() : "null");
             else
-                result.Add(RenderBsNode(arg));
+                result.Add(RenderKsNode(arg));
         }
         while (queue.Count > 0)
             result.Add(queue.Dequeue());
@@ -377,15 +374,15 @@ internal sealed class StructuredCodegen
     /// <summary>
     /// Renders a forEach source expression. If the source is a Range call, emit
     /// `G.Range(from, to, step)` directly so the foreach binds a real int. Otherwise
-    /// fall back to the general RenderBsNode.
+    /// fall back to the general RenderKsNode.
     /// </summary>
     private string RenderForEachSource(KsNode source)
     {
         if (source is KsCall call && call.MethodName == "Range")
         {
-            return $"this.Range({string.Join(", ", call.Args.Select(RenderBsNode))})";
+            return $"this.Range({string.Join(", ", call.Args.Select(RenderKsNode))})";
         }
-        return RenderBsNode(source);
+        return RenderKsNode(source);
     }
 
     private string RenderLiteral(KsLiteral lit) => lit.Kind switch
@@ -405,5 +402,4 @@ internal sealed class StructuredCodegen
         _sb.AppendLine(line);
     }
 
-    private string NewTemp() => $"t{++_tempCounter}";
 }
