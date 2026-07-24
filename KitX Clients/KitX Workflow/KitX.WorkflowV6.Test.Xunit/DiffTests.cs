@@ -159,4 +159,69 @@ public class DiffTests
         var resultStmt1 = result.Body[0];
         Assert.Contains(resultStmt1.Annotations, a => a.Kind == "Layout" && a.Key == "node1");
     }
+
+    [Fact]
+    public void Diff_Recurses_Into_If_Body_Changes()
+    {
+        var old = Parse("if cond:", "    Print(\"a\")");
+        var nws = Parse("if cond:", "    Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.LexicalPath.StartsWith("/0/then"));
+    }
+
+    [Fact]
+    public void Diff_Recurses_Into_ForEach_Body()
+    {
+        var old = Parse("forEach Range(0, 3, 1) as i:", "    Print(\"a\")");
+        var nws = Parse("forEach Range(0, 3, 1) as i:", "    Print(\"a\")", "    Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.LexicalPath.StartsWith("/0/body") && c.Kind == DiffKind.Added);
+    }
+
+    [Fact]
+    public void Diff_Top_Level_Still_Produces_Simple_Paths()
+    {
+        var old = Parse("Print(\"a\")");
+        var nws = Parse("Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.All(diff.StatementChanges, c => Assert.False(c.LexicalPath.Substring(1).Contains('/')));
+    }
+
+    // ── A3 修复轮: 新增 3 个 P0 测试 ─────────────────────────────────────────
+
+    [Fact]
+    public void Diff_Includes_Switch_Default_Arm_Changes()
+    {
+        var old = Parse("switch sel:",
+            "    0:",
+            "        Print(\"a\")",
+            "    default:",
+            "        Print(\"d\")");
+        var nws = Parse("switch sel:",
+            "    0:",
+            "        Print(\"a\")",
+            "    default:",
+            "        Print(\"e\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.LexicalPath.Contains("/default"));
+    }
+
+    [Fact]
+    public void Diff_Includes_Container_Non_Body_Field_Changes()
+    {
+        var old = Parse("if 1:", "    Print(\"yes\")");
+        var nws = Parse("if 2:", "    Print(\"yes\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.LexicalPath == "/0" && c.Kind == DiffKind.Modified);
+    }
+
+    [Fact]
+    public void Apply_Nested_Change_Via_Whole_Container_Modified()
+    {
+        var old = Parse("if cond:", "    Print(\"a\")");
+        var nws = Parse("if cond:", "    Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var applied = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, applied);
+    }
 }

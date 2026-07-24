@@ -42,7 +42,7 @@ public static class WorkflowDiffer
         ArgumentNullException.ThrowIfNull(oldIr);
         ArgumentNullException.ThrowIfNull(newIr);
         var changes = new List<StatementChange>();
-        DiffScope(oldIr.Body, newIr.Body, "/", changes);
+        DiffBody(oldIr.Body, newIr.Body, "/", changes);
         return new WorkflowDiff { StatementChanges = changes.ToImmutableArray() };
     }
 
@@ -50,112 +50,119 @@ public static class WorkflowDiffer
     /// Diffs one scope (an ordered list of statements). Emits changes for the scope's
     /// direct children; recurses into unchanged container bodies to diff their children.
     /// </summary>
-    private static void DiffScope(
+    private static void DiffBody(
         ImmutableArray<Statement> oldBody,
         ImmutableArray<Statement> newBody,
         string path,
         List<StatementChange> changes)
     {
-        // LCS over fingerprint sequences.
         var (oldIndices, newIndices) = LongestCommonSubsequence(oldBody, newBody);
 
-        // Walk both sequences, emitting changes for off-LCS items.
         int oi = 0, ni = 0;
         for (int lcsIdx = 0; lcsIdx < oldIndices.Count; lcsIdx++)
         {
             int nextOld = oldIndices[lcsIdx];
             int nextNew = newIndices[lcsIdx];
 
-            // Emit Removed for baseline items before the next LCS match.
             while (oi < nextOld)
             {
-                // Try to pair with an off-LCS new item at the same relative slot (Modified).
                 if (ni < nextNew && TryPairModified(oldBody[oi], newBody[ni]))
                 {
-                    changes.Add(new StatementChange
-                    {
-                        LexicalPath = $"{path}{ni}",
-                        Fingerprint = newBody[ni].Fingerprint,
-                        Kind = DiffKind.Modified,
-                        NewValue = newBody[ni],
-                        Index = ni,
-                    });
+                    if (IsContainerStatement(oldBody[oi]) && IsContainerStatement(newBody[ni]))
+                        EmitContainerDiff(oldBody[oi], newBody[ni], path, ni, changes);
+                    else
+                        EmitModified(newBody[ni], path, ni, changes);
                     oi++; ni++;
                     continue;
                 }
-                changes.Add(new StatementChange
-                {
-                    LexicalPath = $"{path}{oi}",
-                    Fingerprint = oldBody[oi].Fingerprint,
-                    Kind = DiffKind.Removed,
-                    NewValue = null,
-                    Index = oi,
-                });
+                EmitRemoved(oldBody[oi], path, oi, changes);
                 oi++;
             }
 
-            // Skip new items before the next LCS match (they're Added).
             while (ni < nextNew)
             {
-                // Check if the off-LCS new item can pair with a preceding baseline item.
-                // (This handles the case where Modified detection didn't trigger above.)
-                changes.Add(new StatementChange
-                {
-                    LexicalPath = $"{path}{ni}",
-                    Fingerprint = newBody[ni].Fingerprint,
-                    Kind = DiffKind.Added,
-                    NewValue = newBody[ni],
-                    Index = ni,
-                });
+                EmitAdded(newBody[ni], path, ni, changes);
                 ni++;
             }
 
-            // The LCS match: both items are "unchanged" at the top level. But if this
-            // is a container statement, recurse into its body to detect nested changes.
-            // (Same fingerprint at the top means the whole subtree is identical, so no
-            // recursion is needed — fingerprint is content-derived.)
             oi = nextOld + 1;
             ni = nextNew + 1;
         }
 
-        // Emit trailing Removed / Added after the last LCS match.
         while (oi < oldBody.Length)
         {
             if (ni < newBody.Length && TryPairModified(oldBody[oi], newBody[ni]))
             {
-                changes.Add(new StatementChange
-                {
-                    LexicalPath = $"{path}{ni}",
-                    Fingerprint = newBody[ni].Fingerprint,
-                    Kind = DiffKind.Modified,
-                    NewValue = newBody[ni],
-                    Index = ni,
-                });
+                if (IsContainerStatement(oldBody[oi]) && IsContainerStatement(newBody[ni]))
+                    EmitContainerDiff(oldBody[oi], newBody[ni], path, ni, changes);
+                else
+                    EmitModified(newBody[ni], path, ni, changes);
                 oi++; ni++;
                 continue;
             }
-            changes.Add(new StatementChange
-            {
-                LexicalPath = $"{path}{oi}",
-                Fingerprint = oldBody[oi].Fingerprint,
-                Kind = DiffKind.Removed,
-                NewValue = null,
-                Index = oi,
-            });
+            EmitRemoved(oldBody[oi], path, oi, changes);
             oi++;
         }
         while (ni < newBody.Length)
         {
-            changes.Add(new StatementChange
-            {
-                LexicalPath = $"{path}{ni}",
-                Fingerprint = newBody[ni].Fingerprint,
-                Kind = DiffKind.Added,
-                NewValue = newBody[ni],
-                Index = ni,
-            });
+            EmitAdded(newBody[ni], path, ni, changes);
             ni++;
         }
+    }
+
+    private static void EmitModified(Statement newStmt, string path, int idx, List<StatementChange> changes)
+    {
+        changes.Add(new StatementChange
+        {
+            LexicalPath = ChildPath(path, idx),
+            Fingerprint = newStmt.Fingerprint,
+            Kind = DiffKind.Modified,
+            NewValue = newStmt,
+            Index = idx,
+        });
+    }
+
+    private static void EmitRemoved(Statement oldStmt, string path, int idx, List<StatementChange> changes)
+    {
+        changes.Add(new StatementChange
+        {
+            LexicalPath = ChildPath(path, idx),
+            Fingerprint = oldStmt.Fingerprint,
+            Kind = DiffKind.Removed,
+            NewValue = null,
+            Index = idx,
+        });
+    }
+
+    private static void EmitAdded(Statement newStmt, string path, int idx, List<StatementChange> changes)
+    {
+        changes.Add(new StatementChange
+        {
+            LexicalPath = ChildPath(path, idx),
+            Fingerprint = newStmt.Fingerprint,
+            Kind = DiffKind.Added,
+            NewValue = newStmt,
+            Index = idx,
+        });
+    }
+
+    private static void EmitContainerDiff(
+        Statement oldStmt, Statement newStmt, string path, int idx, List<StatementChange> changes)
+    {
+        // Emit a whole-container Modified to capture non-body field changes
+        // (e.g. if.Condition, forEach.Source/ItemName, switch.Selector).
+        // Sub-body diffs use deeper paths (e.g. /0/then/0), so they coexist without conflict.
+        changes.Add(new StatementChange
+        {
+            LexicalPath = ChildPath(path, idx),
+            Fingerprint = newStmt.Fingerprint,
+            Kind = DiffKind.Modified,
+            NewValue = newStmt,
+            Index = idx,
+        });
+        // Also recurse into sub-bodies for granular per-statement diffs.
+        foreach (var c in DiffContainerBodies(oldStmt, newStmt, ChildPath(path, idx)))
+            changes.Add(c);
     }
 
     /// <summary>
@@ -169,6 +176,59 @@ public static class WorkflowDiffer
         if (oldStmt.Kind != newStmt.Kind) return false;
         // Same Kind but different fingerprint → Modified candidate.
         return !oldStmt.Fingerprint.Equals(newStmt.Fingerprint);
+    }
+
+    private static string ChildPath(string prefix, int index) =>
+        prefix == "/" ? $"/{index}" : $"{prefix}/{index}";
+
+    private static bool IsContainerStatement(Statement stmt) =>
+        stmt is IfStatement or ForEachStatement or WhileStatement or SwitchStatement;
+
+    private static IEnumerable<StatementChange> DiffContainerBodies(
+        Statement oldStmt, Statement newStmt, string basePath)
+    {
+        return (oldStmt, newStmt) switch
+        {
+            (IfStatement o, IfStatement n) => DiffIfBodies(o, n, basePath),
+            (ForEachStatement o, ForEachStatement n) => DiffBodyEnumerable(o.Body, n.Body, $"{basePath}/body"),
+            (WhileStatement o, WhileStatement n) => DiffBodyEnumerable(o.Body, n.Body, $"{basePath}/body"),
+            (SwitchStatement o, SwitchStatement n) => DiffSwitchArms(o, n, basePath),
+            _ => []
+        };
+    }
+
+    private static IEnumerable<StatementChange> DiffIfBodies(
+        IfStatement o, IfStatement n, string basePath)
+    {
+        foreach (var c in DiffBodyEnumerable(o.ThenBody, n.ThenBody, $"{basePath}/then"))
+            yield return c;
+        foreach (var c in DiffBodyEnumerable(o.ElseBody, n.ElseBody, $"{basePath}/else"))
+            yield return c;
+    }
+
+    private static IEnumerable<StatementChange> DiffSwitchArms(
+        SwitchStatement o, SwitchStatement n, string basePath)
+    {
+        int maxArms = Math.Max(o.Arms.Length, n.Arms.Length);
+        for (int i = 0; i < maxArms; i++)
+        {
+            var oldArm = i < o.Arms.Length ? o.Arms[i] : [];
+            var newArm = i < n.Arms.Length ? n.Arms[i] : [];
+            foreach (var c in DiffBodyEnumerable(oldArm, newArm, $"{basePath}/arm/{i}"))
+                yield return c;
+        }
+        foreach (var c in DiffBodyEnumerable(o.Default, n.Default, $"{basePath}/default"))
+            yield return c;
+    }
+
+    private static IEnumerable<StatementChange> DiffBodyEnumerable(
+        ImmutableArray<Statement> oldBody,
+        ImmutableArray<Statement> newBody,
+        string basePath)
+    {
+        var changes = new List<StatementChange>();
+        DiffBody(oldBody, newBody, basePath, changes);
+        return changes;
     }
 
     /// <summary>

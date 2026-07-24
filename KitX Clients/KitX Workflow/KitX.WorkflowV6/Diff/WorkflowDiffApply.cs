@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Diff;
 
+using System.Linq;
 using KitX.WorkflowV6.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +58,11 @@ public static class WorkflowDiffApply
         // after the scope). This is a simplification for Phase 5 MVP.
         var scopeChanges = changes
             .Where(c => IsInScope(c.LexicalPath, scopePath))
+            // Whole-container Modified (emitted by EmitContainerDiff for every changed
+            // container) covers nested changes — the container subtree is fully replaced.
+            // Fine-grained sub-body diffs (deeper paths) are naturally skipped by the
+            // IsDirectChild filter; if future Apply needs them, recurse here.
+            .Where(c => IsDirectChild(c.LexicalPath, scopePath))
             .OrderBy(c => c.Index ?? 0)
             .ToList();
         if (scopeChanges.Count == 0) return body;
@@ -108,18 +114,27 @@ public static class WorkflowDiffApply
     }
 
     /// <summary>
-    /// Determines whether a lexical path belongs to the given scope. For the MVP we
-    /// only handle top-level scope ("/"), so any path that is a plain ordinal (e.g.
-    /// "3") belongs to "/". Paths containing "/" separators belong to nested scopes
-    /// and are skipped for now.
+    /// Determines whether a lexical path belongs to the given scope. A change is in scope
+    /// when its path equals scopePath or starts with scopePath + "/". The root scope "/"
+    /// matches every path starting with "/".
     /// </summary>
     private static bool IsInScope(string lexicalPath, string scopePath)
     {
-        // Top-level: path is a plain ordinal like "3".
+        if (scopePath == "/") return lexicalPath.StartsWith("/");
+        return lexicalPath == scopePath || lexicalPath.StartsWith(scopePath + "/");
+    }
+
+    /// <summary>
+    /// Returns true when lexicalPath is a direct child of scopePath (i.e. exactly one
+    /// path segment deeper). Used to prevent nested-scope changes from being applied
+    /// at the wrong level until recursive Apply is implemented.
+    /// </summary>
+    private static bool IsDirectChild(string lexicalPath, string scopePath)
+    {
         if (scopePath == "/")
-            return !lexicalPath.Contains('/') || lexicalPath.All(c => char.IsDigit(c) || c == '/');
-        // Nested: path starts with scopePath + "/".
-        return lexicalPath.StartsWith(scopePath + "/");
+            return lexicalPath.Count(c => c == '/') == 1;
+        if (!lexicalPath.StartsWith(scopePath + "/")) return false;
+        return !lexicalPath[(scopePath.Length + 1)..].Contains('/');
     }
 
     /// <summary>
