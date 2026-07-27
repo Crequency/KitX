@@ -252,6 +252,10 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
     /// the per-node-layout key. Stable across KS re-parse because it only depends
     /// on (lexical path, statement fingerprint, in-scope position).
     /// </summary>
+    [Obsolete("Replaced by KitX.WorkflowV6.Ir.NodeId.Of. The debug codegen now derives " +
+              "statementId via FNV-1a over the lexical path alone, identical to BpRenderer's " +
+              "BP-node id. This keeps statementId == nodeId so breakpoints set on a BP node " +
+              "fire when execution reaches the matching IR statement. Scheduled for removal.")]
     public static string DeriveStableId(string lexicalPath, Fingerprint fingerprint, int ordinal)
     {
         var raw = $"{lexicalPath}\u001F{fingerprint.Value}\u001F{ordinal}";

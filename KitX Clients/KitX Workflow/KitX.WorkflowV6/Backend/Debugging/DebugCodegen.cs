@@ -10,6 +10,13 @@ using KitX.WorkflowV6.Backend.RoslynBackend;
 
 internal sealed class DebugCodegen : CodegenBase
 {
+    // ─────────────────────────────────────────────────────────────────────────
+    // Per-statement condition counter, used to name condition temporaries
+    // (__cond_0, __cond_1, ...) inside a single RunAsync body. Reset together
+    // with _pipeCounter at the start of every Generate call.
+    // ─────────────────────────────────────────────────────────────────────────
+    private int _condCounter;
+
     private readonly StructuredCodegen? _structured;
 
     public DebugCodegen(BuiltinFunctionRegistry registry) : base(registry)
@@ -20,6 +27,7 @@ internal sealed class DebugCodegen : CodegenBase
     public override string Generate(Workflow ir, LoweringResult? lowering, bool hasDebugger = false)
     {
         _pipeCounter = 0;
+        _condCounter = 0;
         _ir = ir;  // set in all paths so RenderIdentifier etc. work consistently
         _helperNames = new HashSet<string>(
             ir.HelperFunctions.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name!),
@@ -34,34 +42,110 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine("public void RunAsync()");
         EmitLine("{");
         Indent();
-        EmitBody(ir.Body, 0);
+        EmitBody(ir.Body, "/top");
         Dedent();
         EmitLine("}");
         EmitClassFooter();
         return _sb.ToString();
     }
 
-    private void EmitBody(ImmutableArray<Statement> body, int depth)
+    // ── Body / statement dispatch ──
+    //
+    // Path convention mirrors BpRenderer exactly (Lens/BpGraphLens/BpRenderer.cs):
+    //   • top-level:      /top/stmt/{i}
+    //   • if-then body:   {parentPath}/then/stmt/{i}     (parentPath = the If statement's own path)
+    //   • if-else body:   {parentPath}/else/stmt/{i}
+    //   • forEach body:   {parentPath}/body/stmt/{i}
+    //   • while body:     {parentPath}/body/stmt/{i}
+    //   • switch arm i:   {parentPath}/arm/{i}/stmt/{j}
+    //   • switch default: {parentPath}/default/stmt/{j}
+    //
+    // Control-flow node paths (used as the data-wire target identifier):
+    //   • Branch (If):    {parentPath}                     — Condition wire: w:{NodeId.Of(parentPath)}:Condition
+    //   • Each:           {parentPath}                     — List wire:       w:{NodeId.Of(parentPath)}:List
+    //   • While:          {parentPath}                     — Condition wire: w:{NodeId.Of(parentPath)}:Condition
+    //   • Switch:         {parentPath}                     — Selector wire:   w:{NodeId.Of(parentPath)}:Selector
+    //
+    // Pipeline segment path: {stmtPath}/seg/{i}            — output wire: w:{NodeId.Of(stmtPath + "/seg/" + i)}
+
+    private void EmitBody(ImmutableArray<Statement> body, string scopePath)
     {
         for (int i = 0; i < body.Length; i++)
-            EmitStatement(body[i], i, depth);
+            EmitStatement(body[i], $"{scopePath}/stmt/{i}");
     }
 
-    private void EmitStatement(Statement stmt, int ordinal, int depth)
+    private void EmitStatement(Statement stmt, string stmtPath)
     {
-        var stmtId = Fingerprint.DeriveStableId($"/stmt/{ordinal}", stmt.Fingerprint, depth);
-        EmitCheckpoint(stmtId, $"/stmt/{ordinal}", ordinal);
+        // Checkpoint id now equals the BP node id (both derive from the same path
+        // via NodeId.Of — see Ir/NodeId.cs). This is the foundation that lets a
+        // breakpoint set on a BP node fire when execution reaches the matching
+        // IR statement. (Discussion notes §十二-I MVP-required debug UX.)
+        //
+        // The path passed to NodeId.Of is the statement's *primary node path* —
+        // the BP node that visually represents the statement. For most statements
+        // this is the statement's own path; for a PipelineStatement it is the
+        // last segment's path (mirrors BpRenderer's _currentPrimaryNode tracking,
+        // BpRenderer.cs:213). For bare calls (Print("hello")) there are no
+        // segments so the primary node sits at the statement's own path.
+        var primaryPath = GetPrimaryNodePath(stmt, stmtPath);
+        var stmtId = NodeId.Of(primaryPath);
+        EmitCheckpoint(stmtId, primaryPath, 0);
 
         switch (stmt)
         {
-            case PipelineStatement p: EmitPipeline(p, ordinal, depth); break;
-            case IfStatement iff: EmitIf(iff, depth); break;
-            case ForEachStatement fe: EmitForEach(fe, depth); break;
-            case WhileStatement ws: EmitWhile(ws, depth); break;
-            case SwitchStatement sw: EmitSwitch(sw, depth); break;
+            case PipelineStatement p: EmitPipeline(p, stmtPath); break;
+            case IfStatement iff: EmitIf(iff, stmtPath); break;
+            case ForEachStatement fe: EmitForEach(fe, stmtPath); break;
+            case WhileStatement ws: EmitWhile(ws, stmtPath); break;
+            case SwitchStatement sw: EmitSwitch(sw, stmtPath); break;
             case BreakStatement: EmitLine("break;"); break;
             case ContinueStatement: EmitLine("continue;"); break;
         }
+    }
+
+    /// <summary>
+    /// Computes the BP-node path that visually represents this statement — i.e.
+    /// the path whose FNV-1a hash becomes both the BP node id (BpRenderer) and
+    /// the Checkpoint statement id (this codegen). Keep in sync with
+    /// BpRenderer.RenderStatement's <c>_currentPrimaryNode</c> tracking.
+    /// </summary>
+    private string GetPrimaryNodePath(Statement stmt, string stmtPath)
+    {
+        if (stmt is not PipelineStatement p)
+            return stmtPath;  // control-flow + break/continue: primary node sits at stmtPath.
+
+        // Bare call: Print("hello") — one source that is a KsCall, no segments.
+        // The function node occupies the statement's own path (BpRenderer.cs:164).
+        if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall)
+            return stmtPath;
+
+        // General pipeline: the primary node is the last function-call segment
+        // (BpRenderer's lastFunc variable, BpRenderer.cs:209). If the pipeline
+        // has only variable taps (pure assignment, e.g. `0 > counter`), fall
+        // back to the last segment's VariableNode path so the statement still
+        // has a representative id on the canvas.
+        int lastFuncIdx = -1;
+        for (int i = 0; i < p.Segments.Length; i++)
+        {
+            var seg = p.Segments[i];
+            bool isVarTap = seg.IsVariableTap
+                         || (seg.Arguments.Length == 0
+                             && !_registry.Contains(seg.Target)
+                             && !_helperNames.Contains(seg.Target));
+            if (!isVarTap)
+                lastFuncIdx = i;
+        }
+
+        if (lastFuncIdx >= 0)
+            return $"{stmtPath}/seg/{lastFuncIdx}";
+
+        // Pure assignment with at least one variable-tap segment.
+        if (p.Segments.Length > 0)
+            return $"{stmtPath}/seg/{p.Segments.Length - 1}";
+
+        // Bare expression with no segments and no call (rare; BpRenderer treats
+        // it as a comment-only statement). Fall back to stmtPath.
+        return stmtPath;
     }
 
     protected override void EmitCheckpoint(string stmtId, string lexicalPath, int ordinal)
@@ -71,9 +155,20 @@ internal sealed class DebugCodegen : CodegenBase
 
     protected override void EmitPipeline(PipelineStatement p, int ordinal, int depth)
     {
+        // Legacy 2-arg signature retained by CodegenBase; not used by DebugCodegen
+        // (which threads the full stmtPath through EmitPipeline(PipelineStatement, string) below).
+        throw new NotSupportedException(
+            "DebugCodegen.EmitPipeline requires a stmtPath; use the (PipelineStatement, string) overload.");
+    }
+
+    private void EmitPipeline(PipelineStatement p, string stmtPath)
+    {
+        // Bare call: Print("hello") — one source that is a KsCall, no segments.
+        // The function node occupies the statement's own path (mirrors BpRenderer:164).
         if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
             EmitLine($"this.{MapMethodName(call.MethodName)}({string.Join(", ", call.Args.Select(RenderKsNode))});");
+            // No data output to record (bare call has no Value pin consumer).
             return;
         }
 
@@ -88,6 +183,8 @@ internal sealed class DebugCodegen : CodegenBase
         for (int i = 0; i < p.Segments.Length; i++)
         {
             var seg = p.Segments[i];
+            string segPath = $"{stmtPath}/seg/{i}";
+            string segNodeId = NodeId.Of(segPath);
             string outputVar = $"__pipe_{_pipeCounter++}";
             bool isVarTap = seg.IsVariableTap
                          || (seg.Arguments.Length == 0
@@ -96,6 +193,8 @@ internal sealed class DebugCodegen : CodegenBase
 
             if (isVarTap)
             {
+                // Variable tap: write to PubVar + notify. The "wire" here is the
+                // VariableNode's input pin — its value equals what was written.
                 if (i == 0)
                 {
                     var src = RenderKsNode(p.Sources[0]);
@@ -107,6 +206,12 @@ internal sealed class DebugCodegen : CodegenBase
                     EmitLine($"this.{seg.Target} = {currentVar};");
                     EmitLine($"var {outputVar} = {currentVar};");
                 }
+                // Notify PubVar change (variable panel update).
+                EmitLine($"this.OnVarChanged(\"{seg.Target}\", this.{seg.Target});");
+                // Also publish as a wire value so a connection hovered between the
+                // upstream segment and this VariableNode shows the flowing value.
+                // The wireId uses the VariableNode's own path (matches BpRenderer:190).
+                EmitLine($"this.OnWireValue(\"w:{segNodeId}\", {outputVar});");
             }
             else
             {
@@ -115,54 +220,67 @@ internal sealed class DebugCodegen : CodegenBase
                     : [currentVar!];
                 string args = BuildArgList(seg.Arguments, inputs);
                 EmitLine($"var {outputVar} = this.{MapMethodName(seg.Target)}({args});");
+                // Function call output wire — segment node's primary data output pin.
+                EmitLine($"this.OnWireValue(\"w:{segNodeId}\", {outputVar});");
             }
 
             currentVar = outputVar;
         }
     }
 
-    private void EmitIf(IfStatement iff, int depth)
+    private void EmitIf(IfStatement iff, string stmtPath)
     {
-        EmitLine($"if ({RenderKsNode(iff.Condition)})");
+        // Condition wire: the data source feeding Branch.Condition. Source path
+        // is {stmtPath}/cond (mirrors BpRenderer:323). The wireId targets the
+        // Branch node + its Condition input pin, so the frontend can compose it
+        // from BlueprintConnection.TargetNodeId + TargetPin.Name.
+        EmitConditionEvaluation(iff.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        EmitLine($"if (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
-        EmitBody(iff.ThenBody, depth + 1);
+        EmitBody(iff.ThenBody, $"{stmtPath}/then");
         Dedent();
         if (iff.ElseBody.Length > 0)
         {
             EmitLine("} else {");
             Indent();
-            EmitBody(iff.ElseBody, depth + 1);
+            EmitBody(iff.ElseBody, $"{stmtPath}/else");
             Dedent();
         }
         EmitLine("}");
     }
 
-    private void EmitForEach(ForEachStatement fe, int depth)
+    private void EmitForEach(ForEachStatement fe, string stmtPath)
     {
-        EmitLine($"foreach (var {fe.ItemName} in {RenderForEachSource(fe.Source)})");
+        // List wire: the data source feeding Each.List. Source path is {stmtPath}/src.
+        EmitConditionEvaluation(fe.Source, stmtPath, "List", $"{stmtPath}/src");
+        EmitLine($"foreach (var {fe.ItemName} in __cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
         PushLocal(fe.ItemName);
-        EmitBody(fe.Body, depth + 1);
+        EmitBody(fe.Body, $"{stmtPath}/body");
         PopLocal(fe.ItemName);
         Dedent();
         EmitLine("}");
     }
 
-    private void EmitWhile(WhileStatement ws, int depth)
+    private void EmitWhile(WhileStatement ws, string stmtPath)
     {
-        EmitLine($"while ({RenderKsNode(ws.Condition)})");
+        // Condition wire: the data source feeding While.Condition. Source path is {stmtPath}/cond.
+        EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        EmitLine($"while (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
-        EmitBody(ws.Body, depth + 1);
+        EmitBody(ws.Body, $"{stmtPath}/body");
         Dedent();
         EmitLine("}");
     }
 
-    private void EmitSwitch(SwitchStatement sw, int depth)
+    private void EmitSwitch(SwitchStatement sw, string stmtPath)
     {
-        EmitLine($"switch ({RenderKsNode(sw.Selector)})");
+        // Selector wire: the data source feeding Switch.Selector. Source path is {stmtPath}/sel.
+        EmitConditionEvaluation(sw.Selector, stmtPath, "Selector", $"{stmtPath}/sel");
+        EmitLine($"switch (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
         for (int i = 0; i < sw.Arms.Length; i++)
@@ -170,7 +288,7 @@ internal sealed class DebugCodegen : CodegenBase
             EmitLine($"case {i}:");
             EmitLine("{");
             Indent();
-            EmitBody(sw.Arms[i], depth + 1);
+            EmitBody(sw.Arms[i], $"{stmtPath}/arm/{i}");
             EmitLine("break;");
             Dedent();
             EmitLine("}");
@@ -180,12 +298,32 @@ internal sealed class DebugCodegen : CodegenBase
             EmitLine("default:");
             EmitLine("{");
             Indent();
-            EmitBody(sw.Default, depth + 1);
+            EmitBody(sw.Default, $"{stmtPath}/default");
             EmitLine("break;");
             Dedent();
             EmitLine("}");
         }
         Dedent();
         EmitLine("}");
+    }
+
+    /// <summary>
+    /// Evaluates a control-flow condition/selector expression into a fresh local
+    /// (<c>__cond_N</c>) and emits an <see cref="ExecutionGlobals.OnWireValue"/>
+    /// notification tagged with the target control-flow node's id and input pin
+    /// name. This exposes the runtime value flowing on the wire that BP renders
+    /// as `dataSource → Branch.Condition` / `→ Each.List` / `→ While.Condition`
+    /// / `→ Switch.Selector`.
+    /// </summary>
+    /// <param name="cond">The condition/selector KsNode (Identifier / Literal / Call / Pipeline).</param>
+    /// <param name="ctrlNodePath">Path of the control-flow node itself (used to compute its nodeId).</param>
+    /// <param name="inputPinName">Name of the input pin this value feeds (Condition / List / Selector).</param>
+    /// <param name="condPath">Path of the condition data-source node (for diagnostic use only).</param>
+    private void EmitConditionEvaluation(KsNode cond, string ctrlNodePath, string inputPinName, string condPath)
+    {
+        string ctrlNodeId = NodeId.Of(ctrlNodePath);
+        string condVar = $"__cond_{_condCounter++}";
+        EmitLine($"var {condVar} = {RenderKsNode(cond)};");
+        EmitLine($"this.OnWireValue(\"w:{ctrlNodeId}:{inputPinName}\", {condVar});");
     }
 }

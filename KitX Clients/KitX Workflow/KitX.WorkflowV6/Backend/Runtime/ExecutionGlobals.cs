@@ -18,8 +18,11 @@ using KitX.Core.Contract.Workflow;
 //
 // Resumability (checkpoint + restart, §5.5) is exposed via <see cref="Debugger"/>;
 // the <see cref="Checkpoint"/> method is invoked by DebugCodegen (one call before
-// each statement); <see cref="RecordWireValue"/> is the data-tooltip plumbing
-// (P2 task: codegen does not yet emit RecordWireValue calls into pipelines).
+// each statement). The <see cref="OnWireValue"/> / <see cref="OnVarChanged"/> hooks
+// are the data-tooltip + variable-panel plumbing (discussion notes §十二-M):
+// generated code in debug mode calls them to publish wire values and PubVar
+// changes through <see cref="IBlueprintDebugController.NotifyValueChanged"/>,
+// reusing the controller's existing VariableChanged event channel.
 //
 // Phase 4 additions:
 //   • <see cref="OutputLines"/> — captures every G.Print line so the E2E tests can
@@ -60,17 +63,28 @@ public class ExecutionGlobals
     }
 
     /// <summary>
-    /// Records a data value flowing on a wire, enabling the "wire data tooltip"
-    /// feature (§十二-M). The frontend queries these cached values when the user
-    /// hovers over a connection.
+    /// Publishes a wire (data-line) value to the debug controller. Called by the
+    /// generated pipeline code after every function-call segment output and every
+    /// control-flow condition/selector evaluation. The <paramref name="wireId"/>
+    /// uses the naming convention <c>w:{nodeId}</c> (segment output) or
+    /// <c>w:{nodeId}:{pinName}</c> (control-flow input pin), so the frontend can
+    /// recover the corresponding Blueprint connection by composing the same id
+    /// from <see cref="BlueprintConnection.SourceNodeId"/> (or TargetNodeId for
+    /// control-flow inputs) and the pin name. See discussion notes §十二-M.
     /// </summary>
-    public Dictionary<string, object?> WireValues { get; } = new();
+    /// <param name="wireId">Wire identifier in the <c>w:{nodeId}[:{pinName}]</c> format.</param>
+    /// <param name="value">The runtime value flowing on the wire.</param>
+    public void OnWireValue(string wireId, object? value)
+        => Debugger?.NotifyValueChanged(wireId, value);
 
-    /// <summary>Records a wire value for the debugger tooltip.</summary>
-    public void RecordWireValue(string wireId, object? value)
-    {
-        WireValues[wireId] = value;
-    }
+    /// <summary>
+    /// Publishes a PubVar write to the debug controller. Called by the generated
+    /// code after every <c>this.{name} = ...</c> assignment so the frontend
+    /// variable panel can refresh in real time. Only emitted in debug builds
+    /// (<c>hasDebugger=true</c>); release path has zero overhead.
+    /// </summary>
+    public void OnVarChanged(string name, object? value)
+        => Debugger?.NotifyValueChanged(name, value);
 
     /// <summary>
     /// Returns a snapshot of all current PubVar values for the debugger variable panel.

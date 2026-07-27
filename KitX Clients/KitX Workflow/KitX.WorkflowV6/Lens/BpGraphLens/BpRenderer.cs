@@ -575,22 +575,9 @@ internal sealed class BpRenderer
 
     private T Add<T>(T node, string path) where T : BlueprintNode
     {
-        node.Id = StableId(path);
+        node.Id = NodeId.Of(path);
         _bp.Nodes.Add(node);
         return node;
-    }
-
-    /// <summary>
-    /// Standard FNV-1a 32-bit hash of path → short, deterministic, nesting-independent ID.
-    /// Format: <c>n_XXXXXXXX</c> (fixed 10 chars: 'n_' + 8 uppercase hex digits).
-    /// Collision probability ~2^-32; acceptable for workflows with ≤ 10^4 nodes.
-    /// </summary>
-    private static string StableId(string path)
-    {
-        uint hash = 0x811c9dc5u;
-        foreach (var c in path)
-            hash = (hash ^ (byte)c) * 0x01000193u;
-        return $"n_{hash:X8}";
     }
 
     private static BlueprintPin MakePin(string name, PinDirection dir, PinType type = PinType.Any)

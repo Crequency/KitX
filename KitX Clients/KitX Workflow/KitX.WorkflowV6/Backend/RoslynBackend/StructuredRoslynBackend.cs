@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Backend.RoslynBackend;
 
+using System.Diagnostics;
 using System.Reflection;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.Runtime;
@@ -101,13 +102,20 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
 
             var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Generated RunAsync method not found.");
+
+            // Measure only the generated workflow's RunAsync; compile/load time
+            // is reported separately (or not at all) to keep this metric aligned
+            // with user-perceived "workflow run duration".
+            var sw = Stopwatch.StartNew();
             runMethod.Invoke(g, null);
+            sw.Stop();
 
             return new BlockScriptExecutionResult
             {
                 IsSuccess = true,
                 Output = g.OutputLines,
                 ExecutedBlockCount = 0,
+                ExecutionTimeMs = sw.ElapsedMilliseconds,
             };
         }
         catch (Exception ex)
