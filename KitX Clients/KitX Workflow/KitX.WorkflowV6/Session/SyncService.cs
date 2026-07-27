@@ -82,6 +82,24 @@ public sealed class SyncService
     /// Applies a batch of BP edits: translates them into a WorkflowDiff, applies the
     /// diff, and fires <see cref="WorkflowSession.IrChanged"/>.
     /// </summary>
+    /// <remarks>
+    /// <b>Deferred to the project's P2 milestone</b> (dual-pane live highlight). The
+    /// current v5.1-era <see cref="BpEditAction"/> hierarchy carries Block-centric
+    /// fields (BlockName/AddBlock/RenameBlock/SetControlFlowArm) that have no V6
+    /// equivalent — V6 has no "Block" concept (per KScriptGrammarRule §0/§16). A full
+    /// V6-native redesign is required before this path can be wired correctly.
+    ///
+    /// <b>Why it is OK to defer</b>:
+    /// <list type="bullet">
+    /// <item><c>ApplyKsEdit</c> (KS→IR sync) is fully functional and independent of this path.</item>
+    /// <item>BP→KS round-trip uses <c>BpReverseTranslator.Reverse</c> + <c>KsRenderer.Project</c> to produce a wholesale new KS text — KS is always formatted output, so no diff is needed for this direction.</item>
+    /// <item>KS→BP minimal-change rendering is driven by <see cref="WorkflowChangeSet.AffectedPaths"/> emitted from <c>ApplyKsEdit</c>; the frontend re-renders only affected nodes. This is also independent of this path.</item>
+    /// <item>The dual-pane live-highlight feature (the actual consumer of this method) is in the project's P2 priority — see <c>Package/Archive/Docs/V6-BpEditAction-Future-Design-ADR.md</c>.</item>
+    /// </list>
+    /// </remarks>
     public WorkflowChangeSet ApplyBpEdits(WorkflowSession session, IReadOnlyList<BpEditAction> edits) =>
-        throw new NotImplementedException("SyncService.ApplyBpEdits: v6 BP lens not implemented (Phase 9).");
+        throw new NotSupportedException(
+            "SyncService.ApplyBpEdits is deferred until the P2 'dual-pane live highlight' milestone. " +
+            "KS→BP sync (ApplyKsEdit) is independent and fully functional. " +
+            "See Package/Archive/Docs/V6-BpEditAction-Future-Design-ADR.md for the future design.");
 }

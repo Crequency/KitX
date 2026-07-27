@@ -8,18 +8,25 @@ using KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 // BpEditTranslator — BP edit actions → WorkflowDiff.
 //
-// Translates a batch of BpEditActions into a content-addressed WorkflowDiff that
-// the SyncService can apply to the session's IR. Each edit is inspected and mapped
-// to one or more StatementChanges.
+// CURRENT STATUS: stub. Produces placeholder StatementChanges with NewValue=null
+// (only the Kind/LexicalPath/Fingerprint are filled). This is intentional — the
+// full V6-native implementation is deferred to the project's P2 milestone
+// (dual-pane live highlight feature).
 //
-// Before translation, the translator invokes <see cref="StructuralReducer.Check"/>
-// on the Blueprint to validate that the post-edit graph is structurally well-formed.
-// Non-structural back edges are rejected with a user-facing error.
+// Why deferred: the v5.1-era BpEditAction hierarchy (AddNodeInBlock/DeleteNode/
+// SetNodeArgument/ConnectData/SetControlFlowArm/MoveNodePosition) carries Block-
+// centric concepts that have no V6 equivalent. V6 retired the "Block" notion
+// entirely (KScriptGrammarRule §0/§16) in favour of structured AST + lexical path.
+// A proper V6 redesign is required (proposed "replay model":
+// edits → BpEditApplier.Apply → new Blueprint → BpReverseTranslator.Reverse → new IR
+// → WorkflowDiffer.Compute — fully reusing existing tested components).
 //
-// MVP scope: handles AddNodeInBlock, DeleteNode, SetNodeArgument, ConnectData,
-// SetControlFlowArm, and MoveNodePosition. AddNodeInBlock produces a real IR
-// statement via BpReverseTranslator when the BpNodeKind maps to a known function.
-// Full bidirectional fidelity (BP→IR→BP ≡ id) is verified by round-trip tests.
+// Why it is OK to defer:
+//   • SyncService.ApplyKsEdit (KS→IR) is fully functional and independent.
+//   • BP→KS round-trip uses BpReverseTranslator + KsRenderer (wholesale replacement).
+//   • The actual consumer (dual-pane live highlight) is itself in P2 priority.
+//
+// See Package/Archive/Docs/V6-BpEditAction-Future-Design-ADR.md for the design.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

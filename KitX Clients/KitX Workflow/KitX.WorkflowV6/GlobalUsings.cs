@@ -1,8 +1,8 @@
 // Global usings for KitX.WorkflowV6.
 //
 // This library is the experimental successor to KitX.WorkflowIR on the dev=v6-grammar
-// branch. It is the test bed for the structured KScript grammar proposal captured
-// in `Package/Structured-BS-Discussion-Notes.md`: indented (Python-style) blocks,
+// branch. It implements the structured KScript grammar proposal captured in
+// `Package/Structured-BS-Discussion-Notes.md`: indented (Python-style) blocks,
 // removal of Goto, structured control flow (if/switch/forEach/while/break/continue),
 // IR as a structured AST (not block + Goto), and structured C# as the compile target.
 //
@@ -10,14 +10,16 @@
 //   • The IR is immutable (records + ImmutableArray/Dictionary).
 //   • View state (canvas positions, comments) lives in Annotations, separated from
 //     semantic fields so that structural equality is unaffected by view state.
-//   • Builtins are discovered by reflection and split per role (parser/lowering/codegen/
-//     bp-render/bp-reverse) — a single builtin implements only the roles it needs.
+//   • Builtins are discovered by reflection; v6 ships 32 builtin functions across
+//     22 source files (Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat +
+//     Pause/File I/O + 7 JSON + 3 plugin-call + 9 service-management).
 //
-// The architectural skeleton here mirrors KitX.WorkflowIR's directory layout so that
-// design discussion can proceed against a familiar map. All method bodies are
-// deliberately empty / throw NotImplementedException: this commit establishes the
-// *shape* of the future library, not its behaviour. Filling in the shape is the work
-// of the follow-up implementation plan.
+// Implementation status (see Package/WorkflowV6-Handoff.md for full reference):
+//   • Phase 1-10 fully implemented (313/313 tests passing).
+//   • KsTextLens + BpGraphLens (Project/Reverse) fully implemented.
+//   • StructuredRoslynBackend (IExecutionBackend) fully implemented.
+//   • SyncService.ApplyKsEdit fully functional; ApplyBpEdits deferred to project P2
+//     milestone (dual-pane live highlight) — see V6-BpEditAction-Future-Design-ADR.md.
 
 global using System.Collections.Immutable;
 global using KitX.Core.Contract.Workflow;

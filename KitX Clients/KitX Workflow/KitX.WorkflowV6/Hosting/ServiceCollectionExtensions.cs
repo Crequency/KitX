@@ -1,6 +1,7 @@
 namespace KitX.WorkflowV6.Hosting;
 
 using KitX.WorkflowV6.Backend;
+using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Lens;
 using KitX.WorkflowV6.Lens.KsTextLens;
@@ -11,9 +12,10 @@ using Microsoft.Extensions.DependencyInjection;
 // ─────────────────────────────────────────────────────────────────────────────
 // ServiceCollectionExtensions — DI entry point for KitX.WorkflowV6.
 //
-// Inherited shape from KitX.WorkflowIR.Hosting.ServiceCollectionExtensions.AddKitXWorkflowIR,
-// re-aimed at the v6 types: registers the (currently empty) builtin registry, the
-// two lenses (placeholder bodies), the SyncService, and an IExecutionBackend slot.
+// Registers the reflection-discovered builtin registry (32 v6 builtin functions),
+// both lenses (KsTextLens + BpGraphLens), the SyncService, and the default v6
+// execution backend (StructuredRoslynBackend — structured IR → structured C# via
+// Roslyn, loaded into a collectible AssemblyLoadContext).
 //
 // The Dashboard does NOT reference this library yet (decision: experiment-period
 // isolation). The Dashboard's existing AddKitXWorkflowIR() call keeps the v5 pipeline
@@ -28,17 +30,22 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
-    /// (reflection-discovered, currently empty), the two lenses (KS text + BP graph),
-    /// the session sync service, and an IExecutionBackend slot (no default impl yet).
+    /// (reflection-discovered, 32 functions across 22 source files), the two lenses
+    /// (KS text + BP graph), the session sync service, and the default
+    /// IExecutionBackend (StructuredRoslynBackend).
     /// </summary>
     public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
     {
-        // BuiltinFunctionRegistry — single reflection-discovered instance. The v6
-        // library currently ships no builtins, so this returns an empty registry.
+        // BuiltinFunctionRegistry — single reflection-discovered instance. Discovers
+        // the 32 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
+        // + Pause/ReadTextFile/WriteTextFile + 7 JSON functions + 3 plugin-call
+        // functions + 9 service-management functions.
         services.AddSingleton(sp =>
             BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
 
-        // Lenses — bidirectional IR views. Placeholder bodies; signatures are stable.
+        // Lenses — bidirectional IR views. Both KsTextLens and BpGraphLens are fully
+        // implemented (Parse/Project/Reverse); BpGraphLens.Diff is the only entry on
+        // the deferred list (P2 milestone — see V6-BpEditAction-Future-Design-ADR.md).
         services.AddSingleton<KsTextLens>();
         services.AddSingleton<BpGraphLens>();
         services.AddSingleton<ILens<string, string>>(sp => sp.GetRequiredService<KsTextLens>());
@@ -46,14 +53,15 @@ public static class ServiceCollectionExtensions
             sp => sp.GetRequiredService<BpGraphLens>());
 
         // SyncService — applies KS/BP edits to a WorkflowSession, producing a
-        // WorkflowChangeSet.
+        // WorkflowChangeSet. ApplyKsEdit is fully functional; ApplyBpEdits is
+        // deferred to the P2 dual-pane-live-highlight milestone.
         services.AddSingleton<SyncService>();
 
-        // IExecutionBackend — no default implementation yet. The structured-C# Roslyn
-        // backend ships with the implementation plan; until then, callers that need
-        // an execution backend must register their own (or use the v5 backend via
-        // KitX.WorkflowIR).
-        // services.AddSingleton<IExecutionBackend, StructuredRoslynBackend>();
+        // IExecutionBackend — StructuredRoslynBackend is the default v6 backend.
+        // Compiles structured IR → structured C# via Roslyn, loads into a collectible
+        // AssemblyLoadContext, runs RunAsync, captures OutputLines.
+        services.AddSingleton<StructuredRoslynBackend>();
+        services.AddSingleton<IExecutionBackend>(sp => sp.GetRequiredService<StructuredRoslynBackend>());
 
         return services;
     }

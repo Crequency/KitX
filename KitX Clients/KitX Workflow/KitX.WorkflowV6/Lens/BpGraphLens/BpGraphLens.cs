@@ -18,12 +18,20 @@ using KitX.WorkflowV6.Ir;
 // at edit time. Loops are expressed by control-flow nodes (ForEach / While) whose Body
 // output pin connects to a sub-graph that implicitly re-enters the loop node; the
 // editor's connection validator invokes the structured-reduction check (§7.2) on every
-// Exec-edge edit. The implementation of that check is part of the implementation plan.
+// Exec-edge edit.
+//
+// Status:
+//   • Project — fully implemented (BpRenderer + LayoutService)
+//   • Reverse — fully implemented (BpReverseTranslator, 13 round-trip tests)
+//   • Diff — currently a stub (BpEditTranslator produces placeholder StatementChanges
+//     with NewValue=null). Full V6-native implementation is deferred to the project's
+//     P2 milestone (dual-pane live highlight). See
+//     Package/Archive/Docs/V6-BpEditAction-Future-Design-ADR.md for the future design.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// BP graph ↔ structured-IR lens. Methods are placeholders pending the implementation
-/// plan; signatures match the v5 contract so DI wiring works from day one.
+/// BP graph ↔ structured-IR lens. Project and Reverse are fully implemented;
+/// Diff currently produces placeholder changes pending the P2 milestone redesign.
 /// </summary>
 public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
 {

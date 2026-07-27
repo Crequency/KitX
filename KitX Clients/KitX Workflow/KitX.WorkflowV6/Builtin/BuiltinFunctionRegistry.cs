@@ -7,15 +7,19 @@ using Serilog;
 // BuiltinFunctionRegistry — reflection-based discovery + per-role lookup tables.
 //
 // Inherited concept from KitX.WorkflowIR.Builtin.BuiltinFunctionRegistry: one
-// reflection-discovered registry indexes each builtin by name and by every role it
-// implements. Querying "does Print have a custom codegen handler?" is an O(1) dict
-// hit, not a runtime default-interface-method check.
+// reflection-discovered registry indexes each builtin by name. V6 ships 32 builtin
+// functions across 22 source files: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/
+// StringConcat + Pause/ReadTextFile/WriteTextFile + 7 JSON functions (JsonGetField/
+// JsonArrayAt/JsonObjectKeys/JsonAsString/JsonAsInt/JsonAsBool/JsonContains) +
+// 3 plugin-call functions (PluginCall/PluginCallWithTarget/TryGetDevice) +
+// 9 service-management functions (StartPlugin/StopPlugin/StopWorkflow/CreateWorkflow/
+// RunWorkflow/InstallPlugin/GetPluginInfoByName/ListPluginNames/ListWorkflows).
 //
-// Validation: v5 enforced "control-flow nodes have no data output pins" at Register
-// time. The v6 structured-control-flow model may or may not preserve this rule
-// (e.g. forEach's body might count as a "control-flow output"). The validation here
-// is a placeholder until the design lands; it currently permits anything so the
-// skeleton compiles and the registry can be wired in DI.
+// V6 control-flow primitives (if/switch/forEach/while/break/continue) are NOT
+// registered here — they are first-class IR statement types (Ir/Statements/*.cs),
+// per design decision §十二-K. The v5.1 "control-flow nodes have no data output
+// pins" validation rule is therefore inapplicable: forEach's Current pin is a
+// real data output by design (§十二-G), not a control-flow violation.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -30,8 +34,8 @@ public sealed class BuiltinFunctionRegistry
     /// <summary>
     /// Reflects over <paramref name="assemblies"/>, instantiates every concrete
     /// <see cref="IBuiltinFunction"/> type, and registers it. Construction failures
-    /// are logged (treated as backend bugs) but do not abort discovery. The v6
-    /// library currently ships no builtins, so this returns an empty registry.
+    /// are logged (treated as backend bugs) but do not abort discovery. Discovers
+    /// the 32 v6 builtins from the WorkflowV6 assembly.
     /// </summary>
     public static BuiltinFunctionRegistry Discover(params Assembly[] assemblies)
     {

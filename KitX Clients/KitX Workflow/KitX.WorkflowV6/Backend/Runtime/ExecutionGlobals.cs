@@ -17,7 +17,9 @@ using KitX.Core.Contract.Workflow;
 // so the v6 ExecutionGlobals is purely a service-access and PubVar-storage surface.
 //
 // Resumability (checkpoint + restart, §5.5) is exposed via <see cref="Debugger"/>;
-// the checkpoint implementation will live here when the backend is filled in.
+// the <see cref="Checkpoint"/> method is invoked by DebugCodegen (one call before
+// each statement); <see cref="RecordWireValue"/> is the data-tooltip plumbing
+// (P2 task: codegen does not yet emit RecordWireValue calls into pipelines).
 //
 // Phase 4 additions:
 //   • <see cref="OutputLines"/> — captures every G.Print line so the E2E tests can

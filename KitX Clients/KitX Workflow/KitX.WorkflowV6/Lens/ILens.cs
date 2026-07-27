@@ -17,9 +17,10 @@ using KitX.WorkflowV6.Diff;
 //
 // Why a Lens (vs sync converters): the IR is the sole truth, each view is a
 // derivation, so there is exactly one source and N pure projections — no bidirectional
-// sync hazard. The v6 library ships two lenses: KsTextLens (indented-grammar) and
-// BpGraphLens (structured-graph), with placeholder bodies pending the implementation
-// plan.
+// sync hazard. The v6 library ships two lenses:
+//   • KsTextLens — fully implemented (Parse/ParseAst/Project round-trip, 55 tests)
+//   • BpGraphLens — Project and Reverse fully implemented; Diff is the only entry on
+//     the deferred list (P2 milestone — see V6-BpEditAction-Future-Design-ADR.md).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
