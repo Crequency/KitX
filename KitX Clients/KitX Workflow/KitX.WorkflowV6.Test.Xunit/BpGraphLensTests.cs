@@ -5,6 +5,7 @@
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 using KitX.WorkflowV6.Lens.KsTextLens;
 using Xunit;
@@ -383,9 +384,20 @@ public class BpGraphLensTests : IClassFixture<WorkflowTestFixture>
             """);
         var each = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Each");
         var print = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Print");
-        // There should be an exec connection from Each.Body to the Print node.
+        // Body should start from Each.Body pin. After the usage-node exec-chain change,
+        // the chain is Each.Body → i (VariableNode usage) → Print (BuiltinFunctionNode).
+        // Verify the first hop from Each.Body targets a VariableNode (the loop item read),
+        // and that Print is reachable downstream.
+        var bodyEdge = bp.Connections.FirstOrDefault(c =>
+            c.SourceNodeId == each.Id && c.TargetNodeId != each.Id);
+        Assert.NotNull(bodyEdge);  // Each must have an outgoing Body exec edge.
+        var firstTarget = bp.Nodes.First(n => n.Id == bodyEdge!.TargetNodeId);
+        Assert.True(firstTarget is VariableNode,
+            $"First node after Each.Body should be a VariableNode (the i read), got {firstTarget.GetType().Name}");
+        // The VariableNode should chain to Print via exec.
+        var iNode = (VariableNode)firstTarget;
         Assert.Contains(bp.Connections, c =>
-            c.SourceNodeId == each.Id && c.TargetNodeId == print.Id);
+            c.SourceNodeId == iNode.Id && c.TargetNodeId == print.Id);
     }
 
     [Fact]
@@ -623,5 +635,136 @@ public class BpGraphLensTests : IClassFixture<WorkflowTestFixture>
         var dx = Math.Abs(each!.X - print!.X);
         var dy = Math.Abs(each.Y - print.Y);
         Assert.True(dx >= 200 || dy >= 100, $"Each and Print overlap: dx={dx}, dy={dy}");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Usage-node exec-chain integration tests (the design change that gave every
+    // non-definition node Exec pins so pure assignments stay connected to the
+    // exec graph — see Package/WorkflowV6-Handoff.md "第四轮增强").
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Usage_VariableNode_Has_Exec_Pin()
+    {
+        // `a > counter` produces a usage VariableNode for `counter` (the write target).
+        // It must have Exec input/output pins to participate in the exec graph.
+        var bp = ProjectKS("""
+            var {
+                int a
+                int counter
+            }
+            a > counter
+            """);
+        var defNode = bp.Nodes.OfType<VariableNode>().Where(n => n.VarName == "counter").First();
+        var defHasExecIn = defNode.InputPins.Any(p => p.Name == BpPinNames.Exec);
+        var defHasExecOut = defNode.OutputPins.Any(p => p.Name == BpPinNames.Exec);
+        Assert.False(defHasExecIn || defHasExecOut,
+            "Definition VariableNode (in var {} block) must NOT have Exec pins");
+
+        // Use a different name to avoid var name collision: project `a > counter2` separately.
+        var bp2 = ProjectKS("""
+            var {
+                int a
+                int counter
+            }
+            a > counter
+            """);
+        // The usage VariableNode for counter has path /top/stmt/0/seg/0.
+        // It's distinct from the definition node at /def/var/counter.
+        var usageNodes = bp2.Nodes.OfType<VariableNode>()
+            .Where(n => n.VarName == "counter" && n.InputPins.Any(p => p.Name == BpPinNames.Exec))
+            .ToList();
+        Assert.Single(usageNodes);  // exactly one usage node with Exec pin
+        var usage = usageNodes[0];
+        Assert.Contains(usage.InputPins, p => p.Name == BpPinNames.Exec);
+        Assert.Contains(usage.OutputPins, p => p.Name == BpPinNames.Exec);
+        Assert.Contains(usage.InputPins, p => p.Name == BpPinNames.Value);
+        Assert.Contains(usage.OutputPins, p => p.Name == BpPinNames.Value);
+    }
+
+    [Fact]
+    public void Usage_ConstNode_Has_Exec_Pin()
+    {
+        // `0 > counter` produces a usage ConstNode for the literal `0` (the pipeline source).
+        var bp = ProjectKS("""
+            var {
+                int counter
+            }
+            0 > counter
+            """);
+        // The usage ConstNode at /top/stmt/0/src/0 has Exec pins (definition ConstNodes don't).
+        var usageConsts = bp.Nodes.OfType<ConstNode>()
+            .Where(n => n.InputPins.Any(p => p.Name == BpPinNames.Exec))
+            .ToList();
+        Assert.Single(usageConsts);
+        var usage = usageConsts[0];
+        Assert.Contains(usage.OutputPins, p => p.Name == BpPinNames.Exec);
+    }
+
+    [Fact]
+    public void Pure_Assignment_Is_Connected_To_Exec_Chain()
+    {
+        // The key bug-fix: `0 > counter` between two Print statements must NOT produce
+        // an isolated sub-graph. The pure-assignment nodes must be reachable from
+        // EntryNode via exec edges (so WalkExecChain can find them, so BP-only editors
+        // know when they execute, so breakpoints can be set on them).
+        var bp = ProjectKS("""
+            var {
+                int counter
+            }
+            Print("start")
+            0 > counter
+            Print("end")
+            """);
+        var entry = bp.Nodes.OfType<EntryNode>().Single();
+        var prints = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .Where(n => n.FunctionName == "Print").ToList();
+        // Distinguish by the Value input pin's DefaultValue (the literal arg of Print).
+        var startPrint = prints.First(p =>
+            p.InputPins.Any(pin => pin.DefaultValue == "start"));
+        var endPrint = prints.First(p =>
+            p.InputPins.Any(pin => pin.DefaultValue == "end"));
+        var counterUsage = bp.Nodes.OfType<VariableNode>()
+            .Where(n => n.VarName == "counter"
+                     && n.InputPins.Any(p => p.Name == BpPinNames.Exec))
+            .Single();
+        var literalUsage = bp.Nodes.OfType<ConstNode>()
+            .Where(n => n.InputPins.Any(p => p.Name == BpPinNames.Exec))
+            .Single();
+
+        // Exec chain: Entry → Print("start") → ConstNode(0) → VariableNode(counter) → Print("end")
+        Assert.True(bp.Connections.Any(c =>
+            c.SourceNodeId == startPrint.Id && c.TargetNodeId == literalUsage.Id),
+            "Print(start) must exec-chain to ConstNode(0)");
+        Assert.True(bp.Connections.Any(c =>
+            c.SourceNodeId == literalUsage.Id && c.TargetNodeId == counterUsage.Id),
+            "ConstNode(0) must exec-chain to VariableNode(counter)");
+        Assert.True(bp.Connections.Any(c =>
+            c.SourceNodeId == counterUsage.Id && c.TargetNodeId == endPrint.Id),
+            "VariableNode(counter) must exec-chain to Print(end)");
+    }
+
+    [Fact]
+    public void Pure_Assignment_Round_Trip_Preserves_Statement()
+    {
+        // BP → IR round-trip must preserve `0 > counter` as a PipelineStatement.
+        // Before the fix, the pure-assignment sub-graph was disconnected and
+        // WalkExecChain skipped it, losing the statement on reverse translation.
+        var src = """
+            var {
+                int counter
+            }
+            0 > counter
+            """;
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir1);
+        var ir2 = _fixture.BpLens.Reverse(bp);
+
+        Assert.Single(ir2.Body);
+        Assert.IsType<PipelineStatement>(ir2.Body[0]);
+        var pipe = (PipelineStatement)ir2.Body[0];
+        Assert.Single(pipe.Segments);
+        Assert.True(pipe.Segments[0].IsVariableTap);
+        Assert.Equal("counter", pipe.Segments[0].Target);
     }
 }

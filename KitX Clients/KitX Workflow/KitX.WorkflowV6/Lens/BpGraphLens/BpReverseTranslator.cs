@@ -177,10 +177,70 @@ internal sealed class BpReverseTranslator
         {
             case BuiltinFunctionNode fn:
                 return WalkBuiltinFunction(fn);
+            case VariableNode vn:
+                return WalkUsageVariable(vn);
+            case ConstNode cn:
+                // Usage ConstNode (pipeline-source literal) — produces no statement of its
+                // own; it only readies a value for the downstream consumer. Continue the
+                // exec chain so subsequent nodes are reached.
+                return WalkExecChain(cn, BpPinNames.Exec);
             default:
-                // EntryNode shouldn't appear mid-chain; ConstNode/VariableNode are data only.
+                // EntryNode shouldn't appear mid-chain.
                 return [];
         }
+    }
+
+    /// <summary>
+    /// Reconstructs a usage-type VariableNode. Connection-mode dispatch:
+    ///   • Value input has incoming data edge → variable tap (write) → emit a
+    ///     PipelineStatement ending in a var-tap segment, then continue the exec chain.
+    ///   • No incoming data edge → variable read (pipeline source) → emit no statement
+    ///     (the value is consumed by a downstream node that will produce its own statement),
+    ///     just continue the exec chain.
+    /// </summary>
+    private List<Statement> WalkUsageVariable(VariableNode vn)
+    {
+        var result = new List<Statement>();
+
+        // Look for an incoming data edge targeting this VariableNode's Value input pin.
+        BlueprintNode? dataSource = null;
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.TargetNodeId != vn.Id) continue;
+            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
+            if (src is null) continue;
+            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+            // Found an incoming data edge → this is a write/tap VariableNode.
+            dataSource = src;
+            break;
+        }
+
+        if (dataSource is not null)
+        {
+            // Variable tap: produce a PipelineStatement ending in a var-tap segment.
+            // The data source becomes the pipeline source; the variable becomes the tap target.
+            var source = NodeToKsNode(dataSource);
+            var seg = new Segment
+            {
+                Target = vn.VarName ?? vn.Name,
+                IsVariableTap = true,
+            };
+            var (leading, trailing) = ReadComments(vn);
+            var pipe = new PipelineStatement
+            {
+                Fingerprint = Fingerprint.Compute("placeholder"),
+                Sources = [source],
+                Segments = [seg],
+                LeadingComment = leading,
+                TrailingComment = trailing,
+            };
+            result.Add(WithFingerprint(pipe));
+        }
+
+        // Continue the exec chain regardless (read or write, the next node must be reached).
+        result.AddRange(WalkExecChain(vn, BpPinNames.Exec));
+        return result;
     }
 
     private List<Statement> WalkBuiltinFunction(BuiltinFunctionNode fn)

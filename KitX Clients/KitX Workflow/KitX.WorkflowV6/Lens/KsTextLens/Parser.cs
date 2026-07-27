@@ -585,6 +585,19 @@ internal sealed class Parser
         }
         Match(KsTokenKind.Semicolon);
 
+        // KS053: reject bare literal/identifier statements (e.g. `0\n` or `counter\n`).
+        // A statement must either be a bare call (`Print("hello")`) or contain at least
+        // one pipe segment / terminal `= name` assignment. Bare expressions have no
+        // effect and produce dead C# (`/* bare expression: 0 */`); rejecting them here
+        // keeps BP projection sound (every statement yields at least one exec anchor).
+        // Note: Error() is non-fatal — diagnostics are collected, parsing continues.
+        if (segments.Count == 0 && !(sources.Count == 1 && sources[0] is KsCall))
+        {
+            Error("KS053",
+                "Bare literal/identifier is not a valid statement; a pipeline must contain " +
+                "at least one '>' segment or '= name' assignment, or be a single function call");
+        }
+
         // Capture point C — end-of-statement trailing comment for the single-line form
         // (after the last token on the one physical line). Mutually exclusive with A:
         // when a multi-line continuation ran, the last segment's comment was captured at

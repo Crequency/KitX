@@ -796,4 +796,37 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
         Assert.Empty(pipe2.Segments);
         Assert.Single(pipe2.Sources);
     }
+
+    // ── KS053: bare literal/identifier statement rejection ──
+
+    [Fact]
+    public void Parse_Bare_Literal_Rejected_With_KS053()
+    {
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("0\n");
+        Assert.Contains(diag.Items, d => d.Code == "KS053");
+    }
+
+    [Fact]
+    public void Parse_Bare_Identifier_Rejected_With_KS053()
+    {
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("counter\n");
+        Assert.Contains(diag.Items, d => d.Code == "KS053");
+    }
+
+    [Fact]
+    public void Parse_Bare_Call_Still_Legal_No_KS053()
+    {
+        // Bare call (single KsCall source, no segments) is the Print("hello") form —
+        // it must remain legal and not trigger KS053.
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("Print(\"hello\")\n");
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS053");
+    }
+
+    [Fact]
+    public void Parse_Pipeline_Assignment_Still_Legal_No_KS053()
+    {
+        // `0 > counter` is a pipeline assignment — must not trigger KS053.
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("var {\n    int counter\n}\n0 > counter\n");
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS053");
+    }
 }

@@ -168,56 +168,76 @@ internal sealed class BpRenderer
             return [new ExecTail(func, BpPinNames.Exec)];
         }
 
-        // General pipeline: sources → segment1 → segment2 → ... → variable tap.
-        BlueprintNode? lastFunc = null;
+        // General pipeline: every source and every segment node is created with Exec pins
+        // (via AddUsageNode for ConstNode/VariableNode; AddBuiltin already adds Exec pins)
+        // and threaded into the exec chain in left-to-right order. This guarantees the BP
+        // exec graph stays connected for pure-assignment pipelines like `0 > counter`,
+        // which would otherwise produce an isolated ConstNode→VariableNode sub-graph.
+        BlueprintNode? lastNode = null;
         var sourceNodes = new List<BlueprintNode>();
+        var currentTails = prevTails;
 
+        // 1. Render every source as a node and chain it into the exec flow.
         for (int i = 0; i < p.Sources.Length; i++)
-            sourceNodes.Add(RenderSourceAsNode(p.Sources[i], $"{path}/src/{i}"));
+        {
+            var srcNode = RenderSourceAsNode(p.Sources[i], $"{path}/src/{i}");
+            sourceNodes.Add(srcNode);
+            ConnectExecTails(currentTails, srcNode);
+            currentTails = [new ExecTail(srcNode, BpPinNames.Exec)];
+            lastNode = srcNode;
+        }
 
+        // 2. Render every segment and chain it into the exec flow.
         for (int i = 0; i < p.Segments.Length; i++)
         {
             var seg = p.Segments[i];
+            string segPath = $"{path}/seg/{i}";
             bool isVarTap = seg.IsVariableTap
                          || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target));
 
+            BlueprintNode segNode;
             if (isVarTap)
             {
-                var vn = Add(new VariableNode
+                var vn = AddUsageNode(new VariableNode
                 {
                     Name = seg.Target, VarName = seg.Target,
                     VarKind = VariableKind.PubVar,
-                }, $"{path}/seg/{i}");
-                var dataSource = lastFunc ?? (sourceNodes.Count > 0 ? sourceNodes[^1] : null);
+                }, segPath);
+                var dataSource = lastNode ?? (sourceNodes.Count > 0 ? sourceNodes[^1] : null);
                 if (dataSource is not null) ConnectValue(dataSource, vn);
+                segNode = vn;
             }
             else
             {
-                var fn = AddBuiltin(seg.Target, $"{path}/seg/{i}");
+                var fn = AddBuiltin(seg.Target, segPath);
                 // Per-segment inline comment → this segment's function node Comment.
                 if (seg.Comment is { Length: > 0 })
                     fn.Comment = seg.Comment;
-                WireCallArgs(fn, seg.Arguments, $"{path}/seg/{i}/args");
+                WireCallArgs(fn, seg.Arguments, $"{segPath}/args");
                 if (i == 0)
                 {
                     ConnectPipelineSources(fn, seg.Arguments, sourceNodes);
                 }
-                else if (lastFunc is not null)
+                else if (lastNode is not null)
                 {
-                    ConnectToInput(lastFunc, fn, FirstDataOutputPinName(lastFunc));
+                    ConnectToInput(lastNode, fn, FirstDataOutputPinName(lastNode));
                 }
-                lastFunc = fn;
+                segNode = fn;
             }
+
+            ConnectExecTails(currentTails, segNode);
+            currentTails = [new ExecTail(segNode, BpPinNames.Exec)];
+            lastNode = segNode;
         }
 
-        if (lastFunc is not null)
+        if (lastNode is not null)
         {
-            _currentPrimaryNode = lastFunc;
-            ConnectExecTails(prevTails, lastFunc);
-            return [new ExecTail(lastFunc, BpPinNames.Exec)];
+            _currentPrimaryNode = lastNode;
+            return currentTails;
         }
 
-        // Pure data assignment (no function call) — exec chain passes through.
+        // No sources and no segments — should be unreachable (Parser rejects bare
+        // expressions via KS053), but keep the safety net for direct IR construction.
         return prevTails;
     }
 
@@ -245,7 +265,7 @@ internal sealed class BpRenderer
                     pin.DefaultValue = lit.Value?.ToString() ?? "null";
                     break;
                 case KsIdentifier id:
-                    var vn = Add(new VariableNode
+                    var vn = AddUsageNode(new VariableNode
                     {
                         Name = id.Name, VarName = id.Name,
                         VarKind = VariableKind.PubVar,
@@ -311,6 +331,12 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderIfElse(IfStatement iff, string path, List<ExecTail> prevTails)
     {
+        // Branch is the exec-chain anchor for the if statement. The condition node still
+        // gets Exec pins (via AddUsageNode in RenderCondition) — keeping the "every usage
+        // node participates in the exec graph" principle — but its exec pins are left
+        // unwired, because the Branch node is the primary anchor and consumes the
+        // condition via its Condition data input. Wiring condition→Branch on the exec
+        // chain would make ReverseTranslator treat the condition as a separate statement.
         var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
         _currentPrimaryNode = br;
         br.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
@@ -344,6 +370,8 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderForEach(ForEachStatement fe, string path, List<ExecTail> prevTails)
     {
+        // Each is the exec-chain anchor; the source node (data provider for List input)
+        // gets Exec pins but its exec pins are left unwired (same rationale as IfElse).
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
         _currentPrimaryNode = each;
         each.Properties["ItemName"] = fe.ItemName;
@@ -369,6 +397,7 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderWhile(WhileStatement ws, string path, List<ExecTail> prevTails)
     {
+        // While is the exec-chain anchor; condition node gets Exec pins but unwired.
         var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
         _currentPrimaryNode = wh;
         wh.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
@@ -392,6 +421,7 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderSwitch(SwitchStatement sw, string path, List<ExecTail> prevTails)
     {
+        // Switch is the exec-chain anchor; selector node gets Exec pins but unwired.
         var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
         _currentPrimaryNode = sn;
         sn.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
@@ -432,13 +462,13 @@ internal sealed class BpRenderer
         switch (cond)
         {
             case KsIdentifier id:
-                return Add(new VariableNode
+                return AddUsageNode(new VariableNode
                 {
                     Name = id.Name, VarName = id.Name,
                     VarKind = VariableKind.PubVar,
                 }, path);
             case KsLiteral lit:
-                return Add(new ConstNode
+                return AddUsageNode(new ConstNode
                 {
                     Name = lit.Value?.ToString() ?? "null",
                     ConstName = lit.Value?.ToString() ?? "null",
@@ -463,6 +493,15 @@ internal sealed class BpRenderer
     /// </summary>
     private BlueprintNode RenderPipelineAsCondition(KsPipeline pipe, string path)
     {
+        // Same exec-chain threading logic as RenderPipelineStmt: every source and every
+        // segment node participates in the exec graph. The condition's last segment
+        // node is returned as the data source whose Value feeds the control-flow node's
+        // Condition/List/Selector input.
+        //
+        // Note: condition pipelines don't carry their own prevTails (the caller —
+        // RenderIfElse/RenderForEach/RenderWhile/RenderSwitch — threads them through
+        // separately). Here we only ensure each node has Exec pins (via AddUsageNode /
+        // AddBuiltin); the actual exec-chain connection happens in the caller.
         BlueprintNode? lastFunc = null;
         var sourceNodes = new List<BlueprintNode>();
 
@@ -474,7 +513,7 @@ internal sealed class BpRenderer
             var seg = pipe.Segments[i];
             if (seg.Args.Length == 0 && !_registry.Contains(seg.Target))
             {
-                var vn = Add(new VariableNode
+                var vn = AddUsageNode(new VariableNode
                 {
                     Name = seg.Target, VarName = seg.Target,
                     VarKind = VariableKind.PubVar,
@@ -503,7 +542,7 @@ internal sealed class BpRenderer
 
         return lastFunc ?? (sourceNodes.Count > 0
             ? sourceNodes[0]
-            : Add(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback"));
+            : AddUsageNode(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback"));
     }
 
     /// <summary>Renders a single KsNode as a data-source BP node.</summary>
@@ -512,14 +551,14 @@ internal sealed class BpRenderer
         switch (node)
         {
             case KsLiteral lit:
-                return Add(new ConstNode
+                return AddUsageNode(new ConstNode
                 {
                     Name = lit.Value?.ToString() ?? "null",
                     ConstName = lit.Value?.ToString() ?? "null",
                     ConstValue = lit.Value?.ToString(),
                 }, path);
             case KsIdentifier id:
-                return Add(new VariableNode
+                return AddUsageNode(new VariableNode
                 {
                     Name = id.Name, VarName = id.Name,
                     VarKind = VariableKind.PubVar,
@@ -562,6 +601,26 @@ internal sealed class BpRenderer
             n.OutputPins.Add(MakePin(BpPinNames.Value, PinDirection.Output, PinType.Any));
         }
         return Add(n, path);
+    }
+
+    /// <summary>
+    /// Adds a *usage* (non-definition) ConstNode/VariableNode to the blueprint, equipped
+    /// with Exec input/output pins in addition to the data pins the constructor set up.
+    ///
+    /// Per the v6 design principle: every node outside the definition region
+    /// (/def/const/{name}, /def/var/{name}) participates in the execution graph.
+    /// Definition nodes carry only data pins; usage nodes carry Exec pins so they can be
+    /// reached by the exec chain (WalkExecChain in BpReverseTranslator). Without this,
+    /// a pure assignment like `0 > counter` would create an isolated ConstNode→VariableNode
+    /// sub-graph disconnected from the main exec chain — BP→IR round-trip would lose the
+    /// statement entirely, and BP-only editors couldn't determine when it executes.
+    /// </summary>
+    private T AddUsageNode<T>(T node, string path) where T : BlueprintNode
+    {
+        // Prepend Exec pins (matching AddBuiltin's pin ordering convention: Exec first).
+        node.InputPins.Insert(0, MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
+        node.OutputPins.Insert(0, MakePin(BpPinNames.Exec, PinDirection.Output, PinType.Execution));
+        return Add(node, path);
     }
 
     private BuiltinFunctionNode AddCtrlNode(string name, string path)

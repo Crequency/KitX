@@ -108,6 +108,10 @@ internal sealed class DebugCodegen : CodegenBase
     /// the path whose FNV-1a hash becomes both the BP node id (BpRenderer) and
     /// the Checkpoint statement id (this codegen). Keep in sync with
     /// BpRenderer.RenderStatement's <c>_currentPrimaryNode</c> tracking.
+    ///
+    /// Since BpRenderer now threads every usage node (including variable taps) into
+    /// the exec chain, the primary node is always the last node of the pipeline
+    /// (function call OR variable tap) — both cases share the same path scheme.
     /// </summary>
     private string GetPrimaryNodePath(Statement stmt, string stmtPath)
     {
@@ -119,32 +123,14 @@ internal sealed class DebugCodegen : CodegenBase
         if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall)
             return stmtPath;
 
-        // General pipeline: the primary node is the last function-call segment
-        // (BpRenderer's lastFunc variable, BpRenderer.cs:209). If the pipeline
-        // has only variable taps (pure assignment, e.g. `0 > counter`), fall
-        // back to the last segment's VariableNode path so the statement still
-        // has a representative id on the canvas.
-        int lastFuncIdx = -1;
-        for (int i = 0; i < p.Segments.Length; i++)
-        {
-            var seg = p.Segments[i];
-            bool isVarTap = seg.IsVariableTap
-                         || (seg.Arguments.Length == 0
-                             && !_registry.Contains(seg.Target)
-                             && !_helperNames.Contains(seg.Target));
-            if (!isVarTap)
-                lastFuncIdx = i;
-        }
-
-        if (lastFuncIdx >= 0)
-            return $"{stmtPath}/seg/{lastFuncIdx}";
-
-        // Pure assignment with at least one variable-tap segment.
+        // General pipeline (incl. pure assignment `0 > counter`): primary = last segment.
+        // After the BP-renderer change, every segment node (function or var tap) is in
+        // the exec chain, so the last segment is always the primary anchor.
         if (p.Segments.Length > 0)
             return $"{stmtPath}/seg/{p.Segments.Length - 1}";
 
-        // Bare expression with no segments and no call (rare; BpRenderer treats
-        // it as a comment-only statement). Fall back to stmtPath.
+        // Fallback for any direct-IR-constructed edge case (Parser rejects bare
+        // expressions via KS053, so this path is unreachable from KS text).
         return stmtPath;
     }
 
