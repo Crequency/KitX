@@ -116,7 +116,13 @@ public sealed record Segment
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         if (Target != other.Target) return false;
-        if (IsVariableTap != other.IsVariableTap) return false;
+        // IsVariableTap deliberately NOT compared: it is a derived flag (a segment is
+        // a var tap iff Arguments.Length == 0 AND Target is not a known function). The
+        // forward path (Parser) and reverse path (BpReverseTranslator) currently set it
+        // asymmetrically for the `> name` form (Parser: false, Reverse: true) because
+        // the BP graph doesn't preserve the syntactic distinction between `> name` and
+        // `= name`. Excluding it from equality keeps round-trip stable while preserving
+        // the flag for codegen consumers that read it directly.
         if (Comment != other.Comment) return false;
         if (Arguments.Length != other.Arguments.Length) return false;
         for (int i = 0; i < Arguments.Length; i++)
@@ -131,7 +137,7 @@ public sealed record Segment
     {
         var hash = new HashCode();
         hash.Add(Target);
-        hash.Add(IsVariableTap);
+        // IsVariableTap NOT hashed (see Equals rationale).
         hash.Add(Comment);
         foreach (var a in Arguments) hash.Add(a);
         return hash.ToHashCode();

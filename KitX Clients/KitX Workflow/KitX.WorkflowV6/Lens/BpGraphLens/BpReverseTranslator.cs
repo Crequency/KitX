@@ -45,6 +45,12 @@ internal sealed class BpReverseTranslator
     // Leading comments keyed by their anchor (statement primary) node id.
     private Dictionary<string, BlueprintGroupComment> _groupCommentsByAnchor = new();
 
+    // Nodes already consumed by a control-flow node's condition/selector read.
+    // WalkExecChain skips these so condition sub-graphs (e.g. `a, b > Compare("BEQ")`
+    // feeding Branch.Condition) don't get re-emitted as standalone PipelineStatements.
+    // Populated by MarkConsumedSubtree, called from ReadDataInput.
+    private HashSet<string> _consumedNodes = new();
+
     public BpReverseTranslator(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -110,6 +116,7 @@ internal sealed class BpReverseTranslator
         _byId = _bp.Nodes.ToDictionary(n => n.Id);
         _execOut.Clear();
         _dataOut.Clear();
+        _consumedNodes.Clear();
         _groupCommentsByAnchor = _bp.GroupComments
             .Where(g => !string.IsNullOrEmpty(g.AnchorNodeId))
             .GroupBy(g => g.AnchorNodeId)
@@ -154,56 +161,190 @@ internal sealed class BpReverseTranslator
         return true;
     }
 
-    // ── Exec chain walking ──
+    // ── Exec chain walking (pipeline-merging model) ──
+    //
+    // The reverse translator walks the exec chain and groups consecutive nodes that
+    // belong to the same KS pipeline statement. A group is closed when:
+    //   1. A write-type var tap VariableNode is reached (it ends a pipeline as the
+    //      assignment target).
+    //   2. A control-flow node (Branch/Each/While/Switch) is reached — it forms its
+    //      own statement; the preceding group is flushed first.
+    //   3. A break/continue is reached.
+    //   4. The next node has no data continuity with the current group (e.g. two
+    //      independent bare calls Print("a") → Print("b")).
+    //
+    // Nodes marked as "_consumed" (condition sub-graphs of control-flow nodes) are
+    // skipped entirely — they're reconstructed as KsNode expressions via ReadDataInput
+    // when the consuming control-flow node is processed.
+    //
+    // Traversal model: the exec chain is treated as a linear sequence. Each node has
+    // at most one outgoing "main" exec edge (control-flow nodes have multiple named
+    // outputs like True/False/Body/End, which are handled by WalkBuiltinFunction's
+    // recursive calls to WalkExecChain). We follow the chain via a queue, pushing the
+    // exec-out target of each visited node so the traversal continues naturally.
 
     /// <summary>
     /// Walks the exec chain starting from <paramref name="source"/>'s <paramref name="pinName"/>
-    /// output pin, reconstructing the ordered list of IR statements.
+    /// output pin, reconstructing the ordered list of IR statements. Consecutive nodes
+    /// participating in the same KS pipeline are merged into a single PipelineStatement.
     /// </summary>
     private List<Statement> WalkExecChain(BlueprintNode source, string pinName)
     {
         var result = new List<Statement>();
-        if (!_execOut.TryGetValue((source.Id, pinName), out var targets))
-            return result;
-        foreach (var tgt in targets)
-            result.AddRange(WalkFromNode(tgt));
+        var group = new List<BlueprintNode>();
+        var visited = new HashSet<string>();
+
+        var queue = new Queue<BlueprintNode>();
+        if (_execOut.TryGetValue((source.Id, pinName), out var initialTargets))
+        {
+            foreach (var t in initialTargets)
+                queue.Enqueue(t);
+        }
+
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (!visited.Add(node.Id)) continue;  // already processed (e.g. if-merge node)
+
+            // Already-consumed node (part of a control-flow condition sub-graph).
+            if (_consumedNodes.Contains(node.Id))
+            {
+                FlushGroup();
+                continue;
+            }
+
+            // Control-flow node: marks its own condition sub-graph as consumed, flushes
+            // the in-progress group (filtering out newly-consumed nodes), then processes
+            // the control-flow statement (which recursively walks its sub-scopes).
+            if (node is BuiltinFunctionNode fn && IsControlFlowName(fn.FunctionName))
+            {
+                PreMarkControlFlowConsumed(fn);
+                FlushGroup();
+                result.AddRange(WalkBuiltinFunction(fn));
+                continue;  // control-flow node's downstream handled by WalkBuiltinFunction
+            }
+
+            // Ordinary pipeline node — test continuity with the current group.
+            bool canExtend = group.Count == 0 || IsDataContinuous(group[^1], node);
+            if (!canExtend)
+                FlushGroup();
+            group.Add(node);
+
+            // Write-type var tap closes the pipeline.
+            if (IsWriteVarTap(node))
+                FlushGroup();
+
+            // Continue the linear exec chain by following this node's exec out.
+            if (_execOut.TryGetValue((node.Id, BpPinNames.Exec), out var nextTargets))
+            {
+                foreach (var t in nextTargets)
+                    queue.Enqueue(t);
+            }
+        }
+
+        FlushGroup();
         return result;
+
+        void FlushGroup()
+        {
+            // Filter out any nodes consumed by a control-flow condition sub-graph
+            // (e.g. when group = [condNode] but condNode got consumed by Branch).
+            var live = group.Where(n => !_consumedNodes.Contains(n.Id)).ToList();
+            group.Clear();
+            if (live.Count == 0) return;
+            result.Add(BuildPipelineFromGroup(live));
+        }
     }
 
-    /// <summary>Reconstructs the statement(s) starting at <paramref name="node"/>, then follows the node's exec-out chain.</summary>
-    private List<Statement> WalkFromNode(BlueprintNode node)
+    /// <summary>True if <paramref name="name"/> is a control-flow node function name.</summary>
+    private static bool IsControlFlowName(string name)
+        => name is "Branch" or "Each" or "While" or "Switch" or "break" or "continue";
+
+    /// <summary>
+    /// Pre-marks the condition/selector sub-graph of a control-flow node as consumed,
+    /// so that FlushGroup filters out nodes that were speculatively added to the group
+    /// before the control-flow node was recognised.
+    /// </summary>
+    private void PreMarkControlFlowConsumed(BuiltinFunctionNode fn)
     {
-        switch (node)
+        string? dataInputPin = fn.FunctionName switch
         {
-            case BuiltinFunctionNode fn:
-                return WalkBuiltinFunction(fn);
-            case VariableNode vn:
-                return WalkUsageVariable(vn);
-            case ConstNode cn:
-                // Usage ConstNode (pipeline-source literal) — produces no statement of its
-                // own; it only readies a value for the downstream consumer. Continue the
-                // exec chain so subsequent nodes are reached.
-                return WalkExecChain(cn, BpPinNames.Exec);
-            default:
-                // EntryNode shouldn't appear mid-chain.
-                return [];
+            "Branch" => BpPinNames.Condition,
+            "While" => BpPinNames.Condition,
+            "Each" => BpPinNames.List,
+            "Switch" => BpPinNames.Selector,
+            _ => null,
+        };
+        if (dataInputPin is null) return;
+
+        var pin = fn.InputPins.Find(p => p.Name == dataInputPin);
+        if (pin is null) return;
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
+            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
+            if (src is not null) MarkConsumedSubtree(src);
+            break;
         }
     }
 
     /// <summary>
-    /// Reconstructs a usage-type VariableNode. Connection-mode dispatch:
-    ///   • Value input has incoming data edge → variable tap (write) → emit a
-    ///     PipelineStatement ending in a var-tap segment, then continue the exec chain.
-    ///   • No incoming data edge → variable read (pipeline source) → emit no statement
-    ///     (the value is consumed by a downstream node that will produce its own statement),
-    ///     just continue the exec chain.
+    /// Determines whether <paramref name="next"/> can extend the current pipeline group
+    /// (i.e. it's the next segment in the same KS pipeline as <paramref name="prev"/>).
+    /// The rule is data-flow-driven: there must be a data edge between prev and next
+    /// (or prev must be a read source and next is another read source joining the same
+    /// pipeline's source list).
     /// </summary>
-    private List<Statement> WalkUsageVariable(VariableNode vn)
+    private bool IsDataContinuous(BlueprintNode prev, BlueprintNode next)
     {
-        var result = new List<Statement>();
+        bool prevIsRead = IsReadSource(prev);
+        bool nextIsRead = IsReadSource(next);
 
-        // Look for an incoming data edge targeting this VariableNode's Value input pin.
-        BlueprintNode? dataSource = null;
+        // Read → Read: a, b both sources of the same pipeline (e.g. `a, b > Compare`).
+        if (prevIsRead && nextIsRead) return true;
+
+        // Read → Function: function consumes prev's value (e.g. `a > Print`).
+        if (prevIsRead && next is BuiltinFunctionNode fn)
+            return HasDataInputFrom(fn, prev);
+
+        // Read → VarTap: var tap receives prev's value (e.g. `0 > counter`).
+        if (prevIsRead && next is VariableNode tapVn && HasIncomingDataEdge(tapVn))
+            return DataComesFrom(tapVn, prev);
+
+        // Function → Function: next function consumes prev function's output
+        // (e.g. `Range > Print` — Range's output flows to Print's input).
+        if (prev is BuiltinFunctionNode prevFn && next is BuiltinFunctionNode nextFn)
+            return HasDataInputFrom(nextFn, prevFn);
+
+        // Function → VarTap: var tap receives prev function's output (e.g. `func > counter`).
+        if (prev is BuiltinFunctionNode prevFn2 && next is VariableNode vn2 && HasIncomingDataEdge(vn2))
+            return DataComesFrom(vn2, prevFn2);
+
+        // VarTap → Function / VarTap → VarTap: tap-mode var tap (has outgoing data edge)
+        // acts as pass-through — its Value output may feed the next segment. This keeps
+        // multi-segment pipelines like `0 > counter > Print` merged into one statement.
+        if (prev is VariableNode prevTap && HasIncomingDataEdge(prevTap))
+        {
+            if (next is BuiltinFunctionNode nextFnFromTap)
+                return HasDataInputFrom(nextFnFromTap, prevTap);
+            if (next is VariableNode nextVnFromTap && HasIncomingDataEdge(nextVnFromTap))
+                return DataComesFrom(nextVnFromTap, prevTap);
+        }
+
+        return false;
+    }
+
+    /// <summary>True if <paramref name="node"/> is a pipeline source (read role): ConstNode or read-type VariableNode.</summary>
+    private bool IsReadSource(BlueprintNode node)
+    {
+        if (node is ConstNode) return true;
+        if (node is VariableNode vn && !HasIncomingDataEdge(vn)) return true;
+        return false;
+    }
+
+    /// <summary>True if <paramref name="vn"/> has an incoming data edge on its Value input.</summary>
+    private bool HasIncomingDataEdge(VariableNode vn)
+    {
         foreach (var conn in _bp.Connections)
         {
             if (conn.TargetNodeId != vn.Id) continue;
@@ -211,36 +352,238 @@ internal sealed class BpReverseTranslator
             if (src is null) continue;
             var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
             if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            // Found an incoming data edge → this is a write/tap VariableNode.
-            dataSource = src;
-            break;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>True if <paramref name="vn"/>'s Value input data edge originates from <paramref name="src"/>.</summary>
+    private bool DataComesFrom(VariableNode vn, BlueprintNode src)
+    {
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.TargetNodeId != vn.Id || conn.SourceNodeId != src.Id) continue;
+            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>True if <paramref name="fn"/> has at least one wired data input from <paramref name="src"/>.</summary>
+    private bool HasDataInputFrom(BuiltinFunctionNode fn, BlueprintNode src)
+    {
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.TargetNodeId != fn.Id || conn.SourceNodeId != src.Id) continue;
+            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// True if <paramref name="node"/> is a write-type var tap (Value input has incoming
+    /// data edge AND Value output has no outgoing data edge). Such nodes close the
+    /// pipeline because they're the assignment target.
+    /// </summary>
+    private bool IsWriteVarTap(BlueprintNode node)
+    {
+        if (node is not VariableNode vn) return false;
+        if (!HasIncomingDataEdge(vn)) return false;
+        // Check that Value output has no outgoing data edge.
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.SourceNodeId != vn.Id) continue;
+            var tgt = _byId.GetValueOrDefault(conn.TargetNodeId);
+            if (tgt is null) continue;
+            var tgtPin = tgt.InputPins.Find(p => p.Id == conn.TargetPinId);
+            if (tgtPin is null || tgtPin.Type == PinType.Execution) continue;
+            return false;  // has outgoing data edge → tap, not pure write
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Builds a single PipelineStatement from a group of consecutive exec-chain nodes.
+    /// The first node determines the Sources (read VarNode/ConstNode → source;
+    /// function/var-tap → goes into Segments). Subsequent nodes append to Segments.
+    /// Bare call form (Sources=[KsCall], Segments=[]) is preserved when the group is
+    /// a single function node with no wired inputs.
+    /// </summary>
+    private Statement BuildPipelineFromGroup(List<BlueprintNode> group)
+    {
+        var primary = group[0];
+        var sources = ImmutableArray.CreateBuilder<KsNode>();
+        var segments = ImmutableArray.CreateBuilder<Segment>();
+
+        // Walk the group left-to-right, dispatching by node type.
+        // Read ConstNode / read VariableNode → Sources.Add
+        // Function node → Segments.Add (with Arguments reconstructed)
+        // Var tap VariableNode → Segments.Add (IsVariableTap=true)
+        // Write VariableNode (no outgoing data) → Segments.Add (IsVariableTap=true, closes pipeline)
+        BlueprintNode? lastFuncOrTap = null;
+
+        foreach (var node in group)
+        {
+            switch (node)
+            {
+                case ConstNode cn:
+                    sources.Add(NodeToKsNode(cn));
+                    break;
+                case VariableNode vn:
+                    if (HasIncomingDataEdge(vn))
+                    {
+                        // Var tap segment (write or tap).
+                        segments.Add(new Segment
+                        {
+                            Target = vn.VarName ?? vn.Name,
+                            IsVariableTap = true,
+                        });
+                        lastFuncOrTap = vn;
+                    }
+                    else
+                    {
+                        // Read VariableNode → source identifier.
+                        sources.Add(NodeToKsNode(vn));
+                    }
+                    break;
+                case BuiltinFunctionNode fn:
+                    // Build the segment with full Arguments (preserves literals + placeholders).
+                    var (seg, wiredSourceCount) = BuildSegmentFromFunctionNode(fn);
+                    // Sources that feed this function via wired inputs are collected
+                    // when they appear earlier in the group as ConstNode/read VarNode.
+                    // But if the function is the FIRST node in group (no preceding read
+                    // sources), it's a bare call form — handle below.
+                    segments.Add(seg);
+                    lastFuncOrTap = fn;
+                    break;
+            }
         }
 
-        if (dataSource is not null)
+        // Determine bare call vs pipeline form.
+        // Bare call: single function node with no wired inputs AND no preceding sources.
+        if (group.Count == 1 && group[0] is BuiltinFunctionNode singleFn
+            && !HasWiredInputs(singleFn))
         {
-            // Variable tap: produce a PipelineStatement ending in a var-tap segment.
-            // The data source becomes the pipeline source; the variable becomes the tap target.
-            var source = NodeToKsNode(dataSource);
-            var seg = new Segment
-            {
-                Target = vn.VarName ?? vn.Name,
-                IsVariableTap = true,
-            };
-            var (leading, trailing) = ReadComments(vn);
-            var pipe = new PipelineStatement
+            var (leading, trailing) = ReadComments(singleFn);
+            var call = BuildKsCallFromFunctionNode(singleFn);
+            return WithFingerprint(new PipelineStatement
             {
                 Fingerprint = Fingerprint.Compute("placeholder"),
-                Sources = [source],
-                Segments = [seg],
+                Sources = [call],
+                Segments = [],
                 LeadingComment = leading,
                 TrailingComment = trailing,
-            };
-            result.Add(WithFingerprint(pipe));
+            });
         }
 
-        // Continue the exec chain regardless (read or write, the next node must be reached).
-        result.AddRange(WalkExecChain(vn, BpPinNames.Exec));
-        return result;
+        // Pipeline form: Sources=[collected sources], Segments=[collected segments].
+        var primaryForComments = lastFuncOrTap ?? primary;
+        var (leadC, trailC) = ReadComments(primaryForComments);
+        return WithFingerprint(new PipelineStatement
+        {
+            Fingerprint = Fingerprint.Compute("placeholder"),
+            Sources = sources.ToImmutable(),
+            Segments = segments.ToImmutable(),
+            LeadingComment = leadC,
+            TrailingComment = trailC,
+        });
+    }
+
+    /// <summary>
+    /// Builds a Segment from a function node's input pins. Arguments are populated
+    /// ONLY when the segment has at least one literal DefaultValue arg — this preserves
+    /// the literal values plus the explicit `_` placeholders marking wired positions
+    /// (e.g. `Range(0, _, 1)`). When ALL non-Exec inputs are wired (no literals), the
+    /// KS source is in the append form `i > Print` and Arguments stays empty — this
+    /// matches the parser's canonical append representation.
+    /// </summary>
+    private (Segment Segment, int WiredCount) BuildSegmentFromFunctionNode(BuiltinFunctionNode fn)
+    {
+        var args = ImmutableArray.CreateBuilder<KsNode>();
+        var rawArgs = ImmutableArray.CreateBuilder<string>();
+        int wiredCount = 0;
+        bool hasLiteralArg = false;
+
+        foreach (var pin in fn.InputPins)
+        {
+            if (pin.Name == BpPinNames.Exec) continue;
+
+            // Check for a wired source.
+            bool isWired = false;
+            foreach (var conn in _bp.Connections)
+            {
+                if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
+                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
+                if (src is not null) { isWired = true; break; }
+            }
+
+            if (isWired)
+            {
+                args.Add(new KsPlaceholder { SourceText = "_" });
+                rawArgs.Add("_");
+                wiredCount++;
+            }
+            else if (pin.DefaultValue is not null)
+            {
+                var lit = ParseDefaultValue(pin.DefaultValue);
+                args.Add(lit);
+                rawArgs.Add(lit.SourceText);
+                hasLiteralArg = true;
+            }
+        }
+
+        // Populate Arguments on the segment only when there are literal args — this
+        // distinguishes `Range(0, _, 1)` (literal 0 and 1 force Arguments=[0, _, 1])
+        // from `i > Print` (all wired, append form → Arguments=[]).
+        ImmutableArray<KsNode> finalArgs = hasLiteralArg ? args.ToImmutable() : [];
+        ImmutableArray<string> finalRawArgs = hasLiteralArg ? rawArgs.ToImmutable() : [];
+
+        var segComment = fn.Comment is { Length: > 0 } ? fn.Comment : null;
+        var seg = new Segment
+        {
+            Target = fn.FunctionName,
+            IsVariableTap = false,
+            Arguments = finalArgs,
+            RawArguments = finalRawArgs,
+            Comment = segComment,
+        };
+        return (seg, wiredCount);
+    }
+
+    /// <summary>True if <paramref name="fn"/> has any wired (non-default) data input.</summary>
+    private bool HasWiredInputs(BuiltinFunctionNode fn)
+    {
+        foreach (var pin in fn.InputPins)
+        {
+            if (pin.Name == BpPinNames.Exec) continue;
+            foreach (var conn in _bp.Connections)
+                if (conn.TargetNodeId == fn.Id && conn.TargetPinId == pin.Id)
+                    return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Marks the entire condition/selector sub-graph rooted at <paramref name="node"/>
+    /// as consumed so WalkExecChain skips it. Recursively walks upstream data edges.
+    /// Called from ReadDataInput when a control-flow node reads its condition.
+    /// </summary>
+    private void MarkConsumedSubtree(BlueprintNode node)
+    {
+        if (!_consumedNodes.Add(node.Id)) return;  // already marked
+        // Walk upstream data edges, mark all source nodes recursively.
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.TargetNodeId != node.Id) continue;
+            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
+            if (src is null) continue;
+            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+            MarkConsumedSubtree(src);
+        }
     }
 
     private List<Statement> WalkBuiltinFunction(BuiltinFunctionNode fn)
@@ -281,9 +624,10 @@ internal sealed class BpReverseTranslator
                 result.Add(WithFingerprint(ApplyComments(new ContinueStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
                 break;
             default:
-                // Regular function call → PipelineStatement.
+                // Non-control-flow BuiltinFunctionNode should never reach here — the new
+                // WalkExecChain routes them through BuildPipelineFromGroup instead.
+                // Defensive fallback: emit as a bare call.
                 result.Add(ReversePipelineCall(fn));
-                // Continue the exec chain after this node.
                 result.AddRange(WalkExecChain(fn, BpPinNames.Exec));
                 break;
         }
@@ -486,6 +830,10 @@ internal sealed class BpReverseTranslator
             var tgtPin = src.InputPins.Find(p => p.Id == conn.TargetPinId);
             // Confirm this connection targets our pin.
             if (pin.Id != conn.TargetPinId) continue;
+            // Mark the source's sub-tree as consumed so WalkExecChain doesn't emit
+            // these nodes as standalone PipelineStatements (idempotent — PreMark may
+            // have already marked them).
+            MarkConsumedSubtree(src);
             return NodeToKsNode(src);
         }
 

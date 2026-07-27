@@ -69,7 +69,9 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
                 foreach (var seg in p.Segments)
                 {
                     accum.AddString(seg.Target);
-                    accum.AddBool(seg.IsVariableTap);
+                    // IsVariableTap deliberately NOT hashed: see Segment.Equals rationale
+                    // (the flag is derived from Arguments.Length + registry membership, and
+                    // the forward/reverse paths set it asymmetrically for the `> name` form).
                     accum.AddOptional(seg.Comment);
                     accum.AddInt(seg.Arguments.Length);
                     foreach (var arg in seg.Arguments) accum.AddKsNode(arg);

@@ -278,4 +278,118 @@ public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
         var condPipe = Assert.IsType<KsPipeline>(iff.Condition);
         Assert.Equal("check equality", condPipe.Segments[0].Comment);
     }
+
+    // ── Multi-segment pipeline round-trip (the bug fixed by the pipeline-merging
+    //    refactor of BpReverseTranslator — without merging, each segment node would
+    //    be emitted as a standalone PipelineStatement). ──
+
+    [Fact]
+    public void IR_To_BP_To_IR_Is_Equivalent_Multi_Segment_Pipeline()
+    {
+        // `0 > Add(_, 1) > counter` has 2 segments (function call + var tap). The
+        // reverse translator must merge ConstNode(0) → Add → counter into ONE
+        // PipelineStatement, not split into separate statements.
+        var ir = ParseKS("""
+            var {
+                int counter
+            }
+            0 > Add(_, 1) > counter
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Single(reversed.Body);  // critical: must be exactly one statement
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Is_Equivalent_Multi_Source_Multi_Segment_Pipeline()
+    {
+        // `a, b > Compare("BEQ", _, _) > cond`: 2 sources + 1 function segment + 1 var tap.
+        // Uses explicit `_` placeholders (the canonical form BP→KS upgrades append-form
+        // inputs to — see IR_To_BP_To_IR_Is_Equivalent_Pipeline_Condition for the same
+        // canonicalisation note).
+        var ir = ParseKS("""
+            var {
+                int a
+                int b
+                bool cond
+            }
+            a, b > Compare("BEQ", _, _) > cond
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Single(reversed.Body);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Pipeline_With_Literal_And_Wired_Args()
+    {
+        // `loopMax > Range(0, _, 1) > items` exercises a function whose args mix
+        // literal DefaultValues (0, 1) with a wired `_` placeholder. The reverse
+        // translator must preserve the literal args + the explicit `_` position
+        // (otherwise the append rule would route loopMax into the wrong pin).
+        var ir = ParseKS("""
+            var {
+                int loopMax
+                int items
+            }
+            loopMax > Range(0, _, 1) > items
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Single(reversed.Body);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Two_Independent_Bare_Calls_Not_Merged()
+    {
+        // `Print("hello")\nPrint("world")` must round-trip as TWO statements, not
+        // be merged into one. The pipeline-merging algorithm uses data-continuity
+        // to decide merging; two unrelated bare calls have no data wire between them.
+        var ir = ParseKS("Print(\"hello\")\nPrint(\"world\")\n");
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Equal(2, reversed.Body.Length);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Multi_Statement_With_Pipeline_In_Middle()
+    {
+        // Mixed: bare call → multi-segment pipeline → bare call. Each statement
+        // boundary must be respected.
+        var ir = ParseKS("""
+            var {
+                int counter
+            }
+            Print("start")
+            0 > Add(_, 1) > counter
+            Print("end")
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Equal(3, reversed.Body.Length);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
 }

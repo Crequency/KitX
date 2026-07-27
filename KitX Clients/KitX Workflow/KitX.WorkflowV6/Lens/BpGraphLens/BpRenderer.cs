@@ -331,12 +331,19 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderIfElse(IfStatement iff, string path, List<ExecTail> prevTails)
     {
-        // Branch is the exec-chain anchor for the if statement. The condition node still
-        // gets Exec pins (via AddUsageNode in RenderCondition) — keeping the "every usage
-        // node participates in the exec graph" principle — but its exec pins are left
-        // unwired, because the Branch node is the primary anchor and consumes the
-        // condition via its Condition data input. Wiring condition→Branch on the exec
-        // chain would make ReverseTranslator treat the condition as a separate statement.
+        // Condition node is rendered first and threaded into the exec chain before Branch.
+        // Per the v6 design principle "every non-definition node participates in the exec
+        // graph", the condition node (VariableNode / ConstNode / pipeline of function nodes)
+        // is a usage node with Exec pins and is reached by the exec flow before Branch.
+        //
+        // The BpReverseTranslator correctly handles this via _consumedNodes tracking: when
+        // ReverseIf reads the condition via ReadDataInput, it marks the entire condition
+        // sub-graph as consumed; WalkExecChain then skips those nodes, avoiding spurious
+        // standalone PipelineStatements for the condition expression.
+        var condNode = RenderCondition(iff.Condition, $"{path}/cond");
+        ConnectExecTails(prevTails, condNode);
+        var afterCondTails = new List<ExecTail> { new(condNode, BpPinNames.Exec) };
+
         var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
         _currentPrimaryNode = br;
         br.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
@@ -344,9 +351,7 @@ internal sealed class BpRenderer
         br.OutputPins.Add(MakePin(BpPinNames.True, PinDirection.Output, PinType.Execution));
         br.OutputPins.Add(MakePin(BpPinNames.False, PinDirection.Output, PinType.Execution));
 
-        ConnectExecTails(prevTails, br);
-
-        var condNode = RenderCondition(iff.Condition, $"{path}/cond");
+        ConnectExecTails(afterCondTails, br);
         ConnectToInput(condNode, br, BpPinNames.Condition);
 
         var thenTails = RenderSubScope(iff.ThenBody, $"{path}/then",
@@ -370,8 +375,12 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderForEach(ForEachStatement fe, string path, List<ExecTail> prevTails)
     {
-        // Each is the exec-chain anchor; the source node (data provider for List input)
-        // gets Exec pins but its exec pins are left unwired (same rationale as IfElse).
+        // Source node threaded into exec chain before Each. See RenderIfElse comment for
+        // the _consumedNodes-based reverse-translation rationale.
+        var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src");
+        ConnectExecTails(prevTails, sourceNode);
+        var afterSrcTails = new List<ExecTail> { new(sourceNode, BpPinNames.Exec) };
+
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
         _currentPrimaryNode = each;
         each.Properties["ItemName"] = fe.ItemName;
@@ -381,9 +390,7 @@ internal sealed class BpRenderer
         each.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
         each.OutputPins.Add(MakePin(BpPinNames.Current, PinDirection.Output, PinType.Any));
 
-        ConnectExecTails(prevTails, each);
-
-        var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src");
+        ConnectExecTails(afterSrcTails, each);
         ConnectToInput(sourceNode, each, BpPinNames.List);
 
         _loopStack.Push((each, BpPinNames.End));
@@ -397,7 +404,11 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderWhile(WhileStatement ws, string path, List<ExecTail> prevTails)
     {
-        // While is the exec-chain anchor; condition node gets Exec pins but unwired.
+        // Condition node threaded into exec chain before While.
+        var condNode = RenderCondition(ws.Condition, $"{path}/cond");
+        ConnectExecTails(prevTails, condNode);
+        var afterCondTails = new List<ExecTail> { new(condNode, BpPinNames.Exec) };
+
         var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
         _currentPrimaryNode = wh;
         wh.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
@@ -405,9 +416,7 @@ internal sealed class BpRenderer
         wh.OutputPins.Add(MakePin(BpPinNames.Body, PinDirection.Output, PinType.Execution));
         wh.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
 
-        ConnectExecTails(prevTails, wh);
-
-        var condNode = RenderCondition(ws.Condition, $"{path}/cond");
+        ConnectExecTails(afterCondTails, wh);
         ConnectToInput(condNode, wh, BpPinNames.Condition);
 
         _loopStack.Push((wh, BpPinNames.End));
@@ -421,15 +430,17 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderSwitch(SwitchStatement sw, string path, List<ExecTail> prevTails)
     {
-        // Switch is the exec-chain anchor; selector node gets Exec pins but unwired.
+        // Selector node threaded into exec chain before Switch.
+        var selNode = RenderCondition(sw.Selector, $"{path}/sel");
+        ConnectExecTails(prevTails, selNode);
+        var afterSelTails = new List<ExecTail> { new(selNode, BpPinNames.Exec) };
+
         var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
         _currentPrimaryNode = sn;
         sn.InputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
         sn.InputPins.Add(MakePin(BpPinNames.Selector, PinDirection.Input, PinType.Integer));
 
-        ConnectExecTails(prevTails, sn);
-
-        var selNode = RenderCondition(sw.Selector, $"{path}/sel");
+        ConnectExecTails(afterSelTails, sn);
         ConnectToInput(selNode, sn, BpPinNames.Selector);
 
         var allTails = new List<ExecTail>();
