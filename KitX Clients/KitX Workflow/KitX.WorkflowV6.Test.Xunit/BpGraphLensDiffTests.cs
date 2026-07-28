@@ -154,14 +154,97 @@ public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
         var bp = BuildBlueprintWithMultipleDataConnectionsToSamePin();
         var result = StructuralReducer.Check(bp);
         Assert.NotNull(result);
-        Assert.Contains("data flow", result!);
+        Assert.Contains("KS111", result!);
     }
 
     [Fact]
-    public void Structural_Allows_Multiple_Exec_Connections_From_Merged_Branches()
+    public void Structural_Allows_End_Pin_Model_If_Else()
     {
+        // v6 End-pin model: if/else branches' tails dangle; post-if connects to
+        // Branch.End. No multi-exec merge — the graph is a pure tree-shaped DAG.
         var bp = ProjectKS("if 1, 1 > Compare(\"BEQ\"):\n    Print(\"then\")\nelse:\n    Print(\"else\")\nPrint(\"after\")\n");
         var result = StructuralReducer.Check(bp);
         Assert.Null(result);
+    }
+
+    // ── End-pin model constraint rejection tests ──
+
+    [Fact]
+    public void Structural_Rejects_Diamond_Merge_Multi_Exec_Input()
+    {
+        // Manually build a graph where two nodes' Exec outputs both connect to the
+        // same target node's Exec input — a diamond merge forbidden by E3/KS102.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var a = MakeNode("a", "A");
+        var b = MakeNode("b", "B");
+        var merge = MakeNode("m", "Merge");
+        bp.Nodes.Add(entry); bp.Nodes.Add(a); bp.Nodes.Add(b); bp.Nodes.Add(merge);
+        bp.Connections.Add(Conn("e", "eo", "a", "a-in"));
+        bp.Connections.Add(Conn("e", "eo", "b", "b-in"));
+        bp.Connections.Add(Conn("a", "a-out", "m", "m-in"));
+        bp.Connections.Add(Conn("b", "b-out", "m", "m-in"));
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS102", error!);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Break_Outside_Loop()
+    {
+        // break at top level (no enclosing loop) — violates KS140.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var brk = new BuiltinFunctionNode { Id = "bk", Name = "break", FunctionName = "break", NodeType = BlueprintNodeType.BuiltinFunction };
+        brk.InputPins.Add(new BlueprintPin { Id = "bk-in", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        bp.Nodes.Add(entry); bp.Nodes.Add(brk);
+        bp.Connections.Add(Conn("e", "eo", "bk", "bk-in"));
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS140", error!);
+    }
+
+    [Fact]
+    public void Structural_Allows_Break_Inside_ForEach_Body()
+    {
+        // break inside a forEach body — valid, KS140 should not fire.
+        var bp = ProjectKS("forEach Range(0, 3, 1) as i:\n    break\n");
+        var error = StructuralReducer.Check(bp);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void Structural_Allows_Break_Inside_While_Body()
+    {
+        var bp = ProjectKS("""
+            var {
+                bool c
+            }
+            while c:
+                break
+            """);
+        var error = StructuralReducer.Check(bp);
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void Structural_Allows_Nested_If_Inside_ForEach_With_Break()
+    {
+        // Nested control flow — break is inside forEach (the nearest enclosing loop).
+        var bp = ProjectKS("""
+            const {
+                int g = 5
+            }
+            var {
+                bool c
+            }
+            forEach Range(0, 3, 1) as i:
+                if c:
+                    break
+            """);
+        var error = StructuralReducer.Check(bp);
+        Assert.Null(error);
     }
 }

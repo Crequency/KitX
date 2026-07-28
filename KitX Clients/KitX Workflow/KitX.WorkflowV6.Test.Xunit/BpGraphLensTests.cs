@@ -359,7 +359,8 @@ public class BpGraphLensTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void If_Else_Both_Branches_Connect_Forward()
     {
-        // After if/else, both branches' tails should connect to the next statement.
+        // v6 End-pin model: both branches' tails are dangling (naturally ended), and
+        // the post-if statement connects to Branch.End (the single continuation point).
         var bp = ProjectKS("""
             if cond:
                 Print("then")
@@ -367,12 +368,23 @@ public class BpGraphLensTests : IClassFixture<WorkflowTestFixture>
                 Print("else")
             Print("after")
             """);
+        var branch = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Branch");
+        // Branch must have an End output pin.
+        Assert.Contains(branch.OutputPins, p => p.Name == BpPinNames.End);
         var afterPrint = bp.Nodes.OfType<BuiltinFunctionNode>()
             .Where(n => n.FunctionName == "Print")
             .Last();
-        // Both "then" and "else" Print nodes should have exec connections to "after" Print.
+        // The post-if Print should have exactly one incoming exec connection, from Branch.End.
         var incomingExec = bp.Connections.Where(c => c.TargetNodeId == afterPrint.Id).ToList();
-        Assert.True(incomingExec.Count >= 2, $"Expected >=2 incoming exec connections, got {incomingExec.Count}");
+        Assert.Single(incomingExec);
+        Assert.Equal(branch.Id, incomingExec[0].SourceNodeId);
+        // Then/Else body tails should be dangling (no outgoing exec edge from them).
+        var thenPrint = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .First(n => n.FunctionName == "Print" && n.InputPins.Any(p => p.DefaultValue == "then"));
+        var elsePrint = bp.Nodes.OfType<BuiltinFunctionNode>()
+            .First(n => n.FunctionName == "Print" && n.InputPins.Any(p => p.DefaultValue == "else"));
+        Assert.DoesNotContain(bp.Connections, c => c.SourceNodeId == thenPrint.Id && c.TargetNodeId == afterPrint.Id);
+        Assert.DoesNotContain(bp.Connections, c => c.SourceNodeId == elsePrint.Id && c.TargetNodeId == afterPrint.Id);
     }
 
     [Fact]

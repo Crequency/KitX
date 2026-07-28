@@ -350,25 +350,24 @@ internal sealed class BpRenderer
         br.InputPins.Add(MakePin(BpPinNames.Condition, PinDirection.Input, PinType.Boolean));
         br.OutputPins.Add(MakePin(BpPinNames.True, PinDirection.Output, PinType.Execution));
         br.OutputPins.Add(MakePin(BpPinNames.False, PinDirection.Output, PinType.Execution));
+        br.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
 
         ConnectExecTails(afterCondTails, br);
         ConnectToInput(condNode, br, BpPinNames.Condition);
 
-        var thenTails = RenderSubScope(iff.ThenBody, $"{path}/then",
+        // Sub-scope bodies' exec-out tails are left dangling (no target) per the v6
+        // End-pin model: a branch body naturally ends → control returns to Branch.End,
+        // which is the single continuation point. The dangling tails are intentionally
+        // discarded here — the caller threads the post-if statement from Branch.End.
+        _ = RenderSubScope(iff.ThenBody, $"{path}/then",
             [new ExecTail(br, BpPinNames.True)]);
-
-        List<ExecTail> elseTails;
         if (iff.ElseBody.Length > 0)
         {
-            elseTails = RenderSubScope(iff.ElseBody, $"{path}/else",
+            _ = RenderSubScope(iff.ElseBody, $"{path}/else",
                 [new ExecTail(br, BpPinNames.False)]);
         }
-        else
-        {
-            elseTails = [new ExecTail(br, BpPinNames.False)];
-        }
 
-        return thenTails.Concat(elseTails).ToList();
+        return [new ExecTail(br, BpPinNames.End)];
     }
 
     // ── ForEach ──
@@ -443,22 +442,23 @@ internal sealed class BpRenderer
         ConnectExecTails(afterSelTails, sn);
         ConnectToInput(selNode, sn, BpPinNames.Selector);
 
-        var allTails = new List<ExecTail>();
+        // Each arm body's exec-out tails are left dangling per the v6 End-pin model:
+        // an arm naturally ends → control returns to Switch.End, the single
+        // continuation point. Dangling tails are intentionally discarded.
         for (int i = 0; i < sw.Arms.Length; i++)
         {
             sn.OutputPins.Add(MakePin($"{i}", PinDirection.Output, PinType.Execution));
-            var armTails = RenderSubScope(sw.Arms[i], $"{path}/arm/{i}",
+            _ = RenderSubScope(sw.Arms[i], $"{path}/arm/{i}",
                 [new ExecTail(sn, $"{i}")]);
-            allTails.AddRange(armTails);
         }
         if (sw.Default.Length > 0)
         {
             sn.OutputPins.Add(MakePin(BpPinNames.Default, PinDirection.Output, PinType.Execution));
-            var defTails = RenderSubScope(sw.Default, $"{path}/default",
+            _ = RenderSubScope(sw.Default, $"{path}/default",
                 [new ExecTail(sn, BpPinNames.Default)]);
-            allTails.AddRange(defTails);
         }
-        return allTails;
+        sn.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
+        return [new ExecTail(sn, BpPinNames.End)];
     }
 
     // ── Condition / source rendering ──

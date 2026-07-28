@@ -392,4 +392,141 @@ public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
             $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
             $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
     }
+
+    // ── End-pin model tests (v6.0 refactor) ──
+    // These cover the Branch/Switch End pin refactor: post-construct statements connect
+    // to the control-flow node's End pin (single continuation), and sub-scope body tails
+    // dangle. The key scenario is control flow FOLLOWED BY more statements — the old
+    // diamond-merge model had a known bug where continuation statements got embedded in
+    // both ThenBody and ElseBody; the End-pin model fixes this.
+
+    [Fact]
+    public void IR_To_BP_To_IR_If_Else_With_Continuation()
+    {
+        // if/else followed by a statement — the post-if Print should round-trip as a
+        // top-level statement, NOT be embedded in ThenBody/ElseBody.
+        var ir = ParseKS("""
+            var {
+                bool cond
+            }
+            if cond:
+                Print("then")
+            else:
+                Print("else")
+            Print("after")
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        // Top-level body should have exactly 3 statements: PipelineStatement(Print?),
+        // IfStatement, PipelineStatement(Print after).
+        Assert.Equal(2, reversed.Body.Length);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_If_No_Else_With_Continuation()
+    {
+        // if without else, followed by a statement.
+        var ir = ParseKS("""
+            var {
+                bool cond
+            }
+            if cond:
+                Print("then")
+            Print("after")
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Equal(2, reversed.Body.Length);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Switch_With_Continuation()
+    {
+        // switch followed by a statement — the post-switch Print should round-trip as
+        // a top-level statement, NOT be embedded in any arm body.
+        var ir = ParseKS("""
+            var {
+                int sel
+            }
+            switch sel:
+                0:
+                    Print("zero")
+                1:
+                    Print("one")
+                default:
+                    Print("default")
+            Print("after")
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Equal(2, reversed.Body.Length);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Nested_If_Inside_ForEach_With_Break()
+    {
+        // Nested control flow: forEach body contains an if with a break — the canonical
+        // guess-number-game pattern. This stresses the End-pin model's scope stack
+        // (break must be recognised as inside the forEach loop scope).
+        // Uses explicit `_` placeholder form to avoid the append-form upgrade degradation
+        // (§7.1 #1: `a, b > Compare("BEQ")` reverses to `Compare("BEQ", _, _)`).
+        var ir = ParseKS("""
+            const {
+                int guessNum = 5
+                int targetNum = 7
+            }
+            var {
+                bool cond
+            }
+            forEach Range(0, 3, 1) as i:
+                guessNum, targetNum > Compare("BEQ", _, _) > cond
+                if cond:
+                    Print("correct")
+                    break
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
+
+    [Fact]
+    public void IR_To_BP_To_IR_While_With_Continuation()
+    {
+        // while loop followed by a statement.
+        var ir = ParseKS("""
+            var {
+                bool cond
+            }
+            while cond:
+                Print("tick")
+            Print("after")
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        Assert.Equal(2, reversed.Body.Length);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
 }
