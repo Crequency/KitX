@@ -301,7 +301,17 @@ internal sealed class Parser
         for (int i = from; i < toExclusive && i < tokens.Count; i++)
         {
             if (sb.Length > 0) sb.Append(' ');
-            sb.Append(tokens[i].Text);
+            var tok = tokens[i];
+            // Re-wrap literal tokens so the reconstructed text is valid KS / C# source.
+            // StringLiteral.Text holds the *decoded* content (without surrounding quotes);
+            // re-add the quotes so e.g. `string bfCode = "..."` round-trips correctly
+            // through Codegen (which emits InitialValueExpression verbatim into C#).
+            sb.Append(tok.Kind switch
+            {
+                KsTokenKind.StringLiteral => $"\"{tok.Text}\"",
+                KsTokenKind.CharLiteral => $"'{tok.Text}'",
+                _ => tok.Text,
+            });
         }
         return sb.ToString();
     }
