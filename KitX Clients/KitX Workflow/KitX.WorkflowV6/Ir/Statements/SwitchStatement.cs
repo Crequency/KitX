@@ -20,8 +20,10 @@ using KitX.WorkflowV6.Ir.Ast;
 
 /// <summary>
 /// A switch statement: <c>switch &lt;selector&gt; { 0: A; 1: B; default: C }</c>.
-/// The selector is an integer index; <see cref="Arms"/> carries arms 0..N-1 in order;
-/// <see cref="Default"/> is the fallback body.
+/// The selector is evaluated and compared against each arm's label value (value-match
+/// semantics, not 0-based index). <see cref="Arms"/> carries arms in source order;
+/// <see cref="ArmLabels"/>[i] is the integer label for <see cref="Arms"/>[i].
+/// <see cref="Default"/> is the fallback body for values not matching any label.
 /// </summary>
 public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
 {
@@ -32,14 +34,17 @@ public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
     /// <summary>
     /// The integer selector expression. A <see cref="KsNode"/> — typically a
     /// <see cref="KsCall"/> or <see cref="KsIdentifier"/>. The selector is evaluated once
-    /// and used to index into <see cref="Arms"/>.
+    /// and its value is compared against each arm's label.
     /// </summary>
     public required KsNode Selector { get; init; }
 
-    /// <summary>Ordered arms. <c>Arms[i]</c> is the body executed when the selector equals <c>i</c>.</summary>
+    /// <summary>Ordered arms. <c>Arms[i]</c> is the body executed when the selector equals <c>ArmLabels[i]</c>.</summary>
     public required ImmutableArray<ImmutableArray<Statement>> Arms { get; init; } = [];
 
-    /// <summary>Fallback body for out-of-range selector values.</summary>
+    /// <summary>Integer labels for each arm. <c>ArmLabels[i]</c> corresponds to <c>Arms[i]</c>.</summary>
+    public ImmutableArray<int> ArmLabels { get; init; } = [];
+
+    /// <summary>Fallback body for selector values not matching any label.</summary>
     public ImmutableArray<Statement> Default { get; init; } = [];
 
     public bool Equals(SwitchStatement? other)
@@ -53,6 +58,7 @@ public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
         if (Arms.Length != other.Arms.Length) return false;
         for (int i = 0; i < Arms.Length; i++)
             if (!Arms[i].SequenceEqual(other.Arms[i])) return false;
+        if (!ArmLabels.SequenceEqual(other.ArmLabels)) return false;
         if (!Default.SequenceEqual(other.Default)) return false;
         return true;
     }
@@ -66,6 +72,7 @@ public sealed record SwitchStatement : KitX.WorkflowV6.Ir.Statement
                 hash.Add(Selector);
         foreach (var arm in Arms)
             foreach (var s in arm) hash.Add(s);
+        foreach (var label in ArmLabels) hash.Add(label);
         foreach (var s in Default) hash.Add(s);
         return hash.ToHashCode();
     }

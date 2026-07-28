@@ -151,6 +151,7 @@ internal sealed class KsLowerer
                 Fingerprint = Fingerprint.Compute("placeholder"),
                 Selector = sw.Selector,
                 Arms = LowerArms(sw.Arms),
+                ArmLabels = sw.ArmLabels,
                 Default = LowerStatements(sw.Default),
                 SourceLine = sw.SourceLine,
                 LeadingComment = sw.LeadingComment,

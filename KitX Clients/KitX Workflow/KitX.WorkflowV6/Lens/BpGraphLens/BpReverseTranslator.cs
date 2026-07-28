@@ -690,11 +690,23 @@ internal sealed class BpReverseTranslator
     {
         var selector = ReadDataInput(sw, BpPinNames.Selector);
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<Statement>>();
-        for (int i = 0; ; i++)
+        var armLabels = ImmutableArray.CreateBuilder<int>();
+
+        // Enumerate arm pins by scanning OutputPins for integer-named exec pins.
+        // Preserve the pin insertion order (which mirrors the original KS arm order)
+        // rather than sorting by label value — this keeps round-trip stable when arms
+        // are not in ascending label order (e.g. BF: 43, 45, 62, 60, 46, 44, 91, 93).
+        var armPins = sw.OutputPins
+            .Where(p => p.Type == PinType.Execution && int.TryParse(p.Name, out _))
+            .Select(p => (Label: int.Parse(p.Name), PinName: p.Name))
+            .ToList();
+
+        foreach (var (label, pinName) in armPins)
         {
-            if (!_execOut.ContainsKey((sw.Id, i.ToString()))) break;
-            arms.Add([.. WalkExecChain(sw, i.ToString())]);
+            armLabels.Add(label);
+            arms.Add([.. WalkExecChain(sw, pinName)]);
         }
+
         var defaultBody = _execOut.ContainsKey((sw.Id, BpPinNames.Default))
             ? WalkExecChain(sw, BpPinNames.Default)
             : new List<Statement>();
@@ -704,6 +716,7 @@ internal sealed class BpReverseTranslator
             Fingerprint = Fingerprint.Compute("placeholder"),
             Selector = selector,
             Arms = arms.ToImmutable(),
+            ArmLabels = armLabels.ToImmutable(),
             Default = [.. defaultBody],
             LeadingComment = leading,
             TrailingComment = trailing,

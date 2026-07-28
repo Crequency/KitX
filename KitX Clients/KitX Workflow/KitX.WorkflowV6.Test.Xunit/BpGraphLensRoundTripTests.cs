@@ -529,4 +529,49 @@ public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
             $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
             $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
     }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Switch_Value_Match_Non_Sequential_Labels()
+    {
+        // Value-match switch with non-sequential, non-sorted labels (BF-style dispatch).
+        // Arm labels are ASCII codes: 43='+', 45='-', 62='>', 60='<'. Not 0,1,2,3.
+        // This verifies: (1) labels preserved through round-trip, (2) BP pin names use
+        // label values, (3) arm order preserved (not re-sorted by label).
+        var ir = ParseKS("""
+            var {
+                int sel
+            }
+            switch sel:
+                43:
+                    Print("plus")
+                45:
+                    Print("minus")
+                62:
+                    Print("right")
+                60:
+                    Print("left")
+            default:
+                Print("other")
+            """);
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+        var reversed = lens.Reverse(bp);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty,
+            $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: " +
+            $"{string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+
+        // Verify BP pin names use label values (not 0,1,2,3).
+        var sw = bp.Nodes.OfType<BuiltinFunctionNode>().First(n => n.FunctionName == "Switch");
+        Assert.Contains(sw.OutputPins, p => p.Name == "43");
+        Assert.Contains(sw.OutputPins, p => p.Name == "45");
+        Assert.Contains(sw.OutputPins, p => p.Name == "62");
+        Assert.Contains(sw.OutputPins, p => p.Name == "60");
+        Assert.DoesNotContain(sw.OutputPins, p => p.Name == "0");
+        Assert.DoesNotContain(sw.OutputPins, p => p.Name == "1");
+
+        // Verify ArmLabels preserved in reversed IR.
+        var reversedSw = Assert.IsType<SwitchStatement>(reversed.Body[0]);
+        Assert.Equal(new[] { 43, 45, 62, 60 }, reversedSw.ArmLabels.ToArray());
+    }
 }

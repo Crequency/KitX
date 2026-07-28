@@ -271,10 +271,11 @@ internal sealed class DebugCodegen : CodegenBase
         Indent();
         for (int i = 0; i < sw.Arms.Length; i++)
         {
-            EmitLine($"case {i}:");
+            var label = i < sw.ArmLabels.Length ? sw.ArmLabels[i] : i;
+            EmitLine($"case {label}:");
             EmitLine("{");
             Indent();
-            EmitBody(sw.Arms[i], $"{stmtPath}/arm/{i}");
+            EmitBody(sw.Arms[i], $"{stmtPath}/arm/{i}");  // path stays index-based for stable diff
             EmitLine("break;");
             Dedent();
             EmitLine("}");

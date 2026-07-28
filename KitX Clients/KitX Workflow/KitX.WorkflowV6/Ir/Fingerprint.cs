@@ -87,6 +87,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             case SwitchStatement sw:
                 accum.AddKsNode(sw.Selector);
                 accum.AddInt(sw.Arms.Length);
+                foreach (var label in sw.ArmLabels) accum.AddInt(label);
                 foreach (var arm in sw.Arms) accum.AddChildFingerprints(arm);
                 accum.AddChildFingerprints(sw.Default);
                 break;
@@ -209,6 +210,7 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
             case KsSwitch sw:
                 accum.AddKsNode(sw.Selector);
                 accum.AddInt(sw.Arms.Length);
+                foreach (var label in sw.ArmLabels) accum.AddInt(label);
                 foreach (var arm in sw.Arms) accum.AddChildAstFingerprints(arm);
                 accum.AddChildAstFingerprints(sw.Default);
                 break;

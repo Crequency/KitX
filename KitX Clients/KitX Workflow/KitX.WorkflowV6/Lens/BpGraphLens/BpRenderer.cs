@@ -445,11 +445,15 @@ internal sealed class BpRenderer
         // Each arm body's exec-out tails are left dangling per the v6 End-pin model:
         // an arm naturally ends → control returns to Switch.End, the single
         // continuation point. Dangling tails are intentionally discarded.
+        // Arm pin names use the label value (value-match semantics) so the BP graph
+        // is self-documenting — e.g. pin "43" means "case 43:".
         for (int i = 0; i < sw.Arms.Length; i++)
         {
-            sn.OutputPins.Add(MakePin($"{i}", PinDirection.Output, PinType.Execution));
+            var label = i < sw.ArmLabels.Length ? sw.ArmLabels[i] : i;
+            var pinName = label.ToString();
+            sn.OutputPins.Add(MakePin(pinName, PinDirection.Output, PinType.Execution));
             _ = RenderSubScope(sw.Arms[i], $"{path}/arm/{i}",
-                [new ExecTail(sn, $"{i}")]);
+                [new ExecTail(sn, pinName)]);
         }
         if (sw.Default.Length > 0)
         {

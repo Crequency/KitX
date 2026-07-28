@@ -108,7 +108,8 @@ internal sealed class KsRenderer
                 sb.Append(Indent(level)).Append("switch ").Append(RenderKsNode(sw.Selector)).Append(":\n");
                 for (int i = 0; i < sw.Arms.Length; i++)
                 {
-                    sb.Append(Indent(level + 1)).Append(i).Append(": ").Append('\n');
+                    var label = i < sw.ArmLabels.Length ? sw.ArmLabels[i] : i;
+                    sb.Append(Indent(level + 1)).Append(label).Append(": ").Append('\n');
                     RenderBody(sb, sw.Arms[i], level + 2);
                 }
                 if (sw.Default.Length > 0)

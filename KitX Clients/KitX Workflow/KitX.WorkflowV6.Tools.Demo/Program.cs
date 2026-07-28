@@ -226,57 +226,54 @@ string ksSource = """
     bfCode > Len > codeLen
     while ip, codeLen > Compare("BLT", _, _):
         bfCode, ip > CharCodeAt > currentCharCode
-        // BF instruction dispatch via if-else chain (v6 switch is index-based, not value-match)
-        currentCharCode, 43 > Compare("BEQ", _, _) > tmpBool
-        if tmpBool:
-            memory, pointer > CharCodeAt > tmpInt
-            tmpInt, 1, 256 > ModAdd > tmpInt
-            tmpInt > Int2Char > tmpChar
-            memory, pointer, tmpChar > StringSetChar > memory
-        else:
-            currentCharCode, 45 > Compare("BEQ", _, _) > tmpBool
-            if tmpBool:
+        // BF instruction dispatch via value-match switch (v6 switch: case label = ASCII code)
+        switch currentCharCode:
+            43:
+                // '+': memory[pointer] = (memory[pointer] + 1) % 256
+                memory, pointer > CharCodeAt > tmpInt
+                tmpInt, 1, 256 > ModAdd > tmpInt
+                tmpInt > Int2Char > tmpChar
+                memory, pointer, tmpChar > StringSetChar > memory
+            45:
+                // '-': memory[pointer] = (memory[pointer] - 1) % 256
                 memory, pointer > CharCodeAt > tmpInt
                 tmpInt, 1, 256 > ModSub > tmpInt
                 tmpInt > Int2Char > tmpChar
                 memory, pointer, tmpChar > StringSetChar > memory
-            else:
-                currentCharCode, 62 > Compare("BEQ", _, _) > tmpBool
+            62:
+                // '>': pointer++
+                pointer, 1 > Add > pointer
+            60:
+                // '<': pointer--
+                pointer, 1 > Sub > pointer
+            46:
+                // '.': output += char(memory[pointer])
+                memory, pointer > CharCodeAt > tmpInt
+                tmpInt > Int2Char > tmpChar
+                outputBuffer, tmpChar > StringAppendChar > outputBuffer
+            44:
+                // ',': read input
+                inputBuffer > Len > tmpInt
+                inputIndex, tmpInt > Compare("BLT", _, _) > tmpBool
                 if tmpBool:
-                    pointer, 1 > Add > pointer
-                else:
-                    currentCharCode, 60 > Compare("BEQ", _, _) > tmpBool
-                    if tmpBool:
-                        pointer, 1 > Sub > pointer
-                    else:
-                        currentCharCode, 46 > Compare("BEQ", _, _) > tmpBool
-                        if tmpBool:
-                            memory, pointer > CharCodeAt > tmpInt
-                            tmpInt > Int2Char > tmpChar
-                            outputBuffer, tmpChar > StringAppendChar > outputBuffer
-                        else:
-                            currentCharCode, 44 > Compare("BEQ", _, _) > tmpBool
-                            if tmpBool:
-                                inputBuffer > Len > tmpInt
-                                inputIndex, tmpInt > Compare("BLT", _, _) > tmpBool
-                                if tmpBool:
-                                    inputBuffer, inputIndex > CharAt > tmpChar
-                                    memory, pointer, tmpChar > StringSetChar > memory
-                                    inputIndex, 1 > Add > inputIndex
-                            else:
-                                currentCharCode, 91 > Compare("BEQ", _, _) > tmpBool
-                                if tmpBool:
-                                    memory, pointer > CharCodeAt > tmpInt
-                                    tmpInt, 0 > Compare("BEQ", _, _) > tmpBool
-                                    if tmpBool:
-                                        bfCode, ip > FindMatchingForward > ip
-                                else:
-                                    currentCharCode, 93 > Compare("BEQ", _, _) > tmpBool
-                                    if tmpBool:
-                                        memory, pointer > CharCodeAt > tmpInt
-                                        tmpInt, 0 > Compare("BNE", _, _) > tmpBool
-                                        if tmpBool:
-                                            bfCode, ip > FindMatchingBackward > ip
+                    inputBuffer, inputIndex > CharAt > tmpChar
+                    memory, pointer, tmpChar > StringSetChar > memory
+                    inputIndex, 1 > Add > inputIndex
+            91:
+                // '[': if memory[pointer]==0 jump forward
+                memory, pointer > CharCodeAt > tmpInt
+                tmpInt, 0 > Compare("BEQ", _, _) > tmpBool
+                if tmpBool:
+                    bfCode, ip > FindMatchingForward > ip
+            93:
+                // ']': if memory[pointer]!=0 jump backward
+                memory, pointer > CharCodeAt > tmpInt
+                tmpInt, 0 > Compare("BNE", _, _) > tmpBool
+                if tmpBool:
+                    bfCode, ip > FindMatchingBackward > ip
+            default:
+                // ignore other characters
+                0 > tmpInt
         ip, 1 > Add > ip
 
     outputBuffer > Print

@@ -402,6 +402,7 @@ internal sealed class Parser
         int keywordIndent = LastConsumedIndentLevel();
         int armIndent = keywordIndent + 1;
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<KsStatement>>();
+        var armLabels = ImmutableArray.CreateBuilder<int>();
         ImmutableArray<KsStatement> defaultBody = [];
         bool sawDefault = false;
 
@@ -418,9 +419,12 @@ internal sealed class Parser
             }
             else if (Current.Kind == KsTokenKind.IntegerLiteral)
             {
+                // Capture the arm label value (value-match semantics).
+                int label = Current.Value is int v ? v : int.TryParse(Current.Text, out var parsed) ? parsed : 0;
                 Advance();
                 if (!Match(KsTokenKind.Colon))
                     Error("KS020", "Expected ':' after case label");
+                armLabels.Add(label);
                 arms.Add(ParseArmBody(armIndent));
             }
             else
@@ -434,6 +438,7 @@ internal sealed class Parser
         {
             Selector = selector,
             Arms = arms.ToImmutable(),
+            ArmLabels = armLabels.ToImmutable(),
             Default = defaultBody,
             SourceLine = swTok.Line,
         };

@@ -413,12 +413,15 @@ public sealed record KsIf : KsStatement
 /// A <c>switch &lt;selector&gt; { 0: A; 1: B; default: C }</c> statement.
 /// <see cref="Selector"/> is a <see cref="KsNode"/> expression yielding an integer index.
 /// <see cref="Arms"/> carries arms 0..N-1 in source order; <see cref="Default"/> is the
-/// fallback body (may be empty).
+/// fallback body (may be empty). <see cref="ArmLabels"/> stores the integer label for
+/// each arm (value-match semantics: selector value is compared against labels, not used
+/// as a 0-based index).
 /// </summary>
 public sealed record KsSwitch : KsStatement
 {
     public required KsNode Selector { get; init; }
     public required ImmutableArray<ImmutableArray<KsStatement>> Arms { get; init; } = [];
+    public ImmutableArray<int> ArmLabels { get; init; } = [];
     public ImmutableArray<KsStatement> Default { get; init; } = [];
 
     public bool Equals(KsSwitch? other)
@@ -429,6 +432,7 @@ public sealed record KsSwitch : KsStatement
         if (Arms.Length != other.Arms.Length) return false;
         for (int i = 0; i < Arms.Length; i++)
             if (!Arms[i].SequenceEqual(other.Arms[i])) return false;
+        if (!ArmLabels.SequenceEqual(other.ArmLabels)) return false;
         return Default.SequenceEqual(other.Default);
     }
 
@@ -437,6 +441,7 @@ public sealed record KsSwitch : KsStatement
         var h = new HashCode();
         h.Add(Selector);
         foreach (var a in Arms) foreach (var s in a) h.Add(s);
+        foreach (var label in ArmLabels) h.Add(label);
         foreach (var s in Default) h.Add(s);
         return h.ToHashCode();
     }

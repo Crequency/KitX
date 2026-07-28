@@ -127,7 +127,8 @@ internal sealed class StructuredCodegen : CodegenBase
         Indent();
         for (int i = 0; i < sw.Arms.Length; i++)
         {
-            EmitLine($"case {i}:");
+            var label = i < sw.ArmLabels.Length ? sw.ArmLabels[i] : i;
+            EmitLine($"case {label}:");
             EmitLine("{");
             Indent();
             EmitBody(sw.Arms[i]);
