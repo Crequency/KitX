@@ -36,10 +36,18 @@ using KitX.WorkflowV6.Ir;
 public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
 {
     private readonly BuiltinFunctionRegistry _registry;
+    private readonly IScopeAnalyzer _scopeAnalyzer;
 
     public BpGraphLens(BuiltinFunctionRegistry registry)
+        : this(registry, new ScopeAnalyzer())
+    {
+    }
+
+    /// <summary>Internal constructor allowing a custom scope analyzer (testing/DI).</summary>
+    internal BpGraphLens(BuiltinFunctionRegistry registry, IScopeAnalyzer scopeAnalyzer)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _scopeAnalyzer = scopeAnalyzer ?? throw new ArgumentNullException(nameof(scopeAnalyzer));
     }
 
     /// <summary>Renders the structured IR as a Blueprint graph.</summary>
@@ -48,6 +56,30 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
         ArgumentNullException.ThrowIfNull(ir);
         var renderer = new BpRenderer(_registry);
         return renderer.Render(ir);
+    }
+
+    /// <summary>
+    /// Validates the Blueprint's structural integrity per the v6 End-pin model
+    /// (KScript-Blueprint-Correspondence.md §五). Returns null on success, or a
+    /// user-facing error message (with KS error code) on failure. The Dashboard
+    /// BP editor calls this on every connectivity edit to reject illegal graphs.
+    /// Pure: the blueprint is never mutated.
+    /// </summary>
+    public string? Validate(Blueprint blueprint)
+    {
+        ArgumentNullException.ThrowIfNull(blueprint);
+        return StructuralReducer.Check(blueprint);
+    }
+
+    /// <summary>
+    /// Analyzes the Blueprint's exec topology and returns sub-scope regions for
+    /// decorative background-frame rendering. Coordinates must already be assigned
+    /// (call after <see cref="Project"/>, which runs LayoutService internally).
+    /// </summary>
+    public IReadOnlyList<ScopeRegion> AnalyzeScopes(Blueprint blueprint)
+    {
+        ArgumentNullException.ThrowIfNull(blueprint);
+        return _scopeAnalyzer.Analyze(blueprint);
     }
 
     /// <summary>

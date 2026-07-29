@@ -52,6 +52,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ILens<Blueprint, IReadOnlyList<BpEditAction>>>(
             sp => sp.GetRequiredService<BpGraphLens>());
 
+        // IScopeAnalyzer — walks the Blueprint's exec topology to produce sub-scope
+        // regions for decorative background-frame rendering in the Dashboard BP editor.
+        services.AddSingleton<IScopeAnalyzer, ScopeAnalyzer>();
+
         // SyncService — applies KS/BP edits to a WorkflowSession, producing a
         // WorkflowChangeSet. ApplyKsEdit is fully functional; ApplyBpEdits is
         // deferred to the P2 dual-pane-live-highlight milestone.
