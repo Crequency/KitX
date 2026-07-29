@@ -213,9 +213,11 @@ public class DictE2ETests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public async Task E2E_Dict_Value_Const_Reference()
+    public void Dict_Value_Const_Reference_Rejected()
     {
-        // Dict value referencing a const scalar — the const is inlined into the field initialiser.
+        // Dict values must be literals only — const references are rejected (KS077) because a
+        // decl-block initialiser must be expressible as a BP definition-node payload (no data
+        // edges). The parser recovers by substituting a null literal for the offending value.
         var src = """
             const {
                 int MAX = 99
@@ -223,13 +225,14 @@ public class DictE2ETests : IClassFixture<WorkflowTestFixture>
             var {
                 dict d = {val: MAX}
             }
-            d, "val" > DictGetValue > Print
             """;
         var ir = _fixture.KsLens.Parse(src, []);
-        var backend = _fixture.MakeBackend();
-        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
-        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
-        Assert.Equal(new[] { "99" }, result.Output);
+        var d = ir.GlobalVars["d"];
+        Assert.NotNull(d.DictInitializer);
+        var entry = d.DictInitializer!.Entries[0];
+        Assert.True(entry.Value is KitX.WorkflowV6.Ir.Ast.KsLiteral
+            { Kind: KitX.WorkflowV6.Ir.Ast.KsLiteralKind.Null },
+            $"const-reference dict value should be rejected → null recovery, got {entry.Value.GetType().Name}");
     }
 
     [Fact]
@@ -342,6 +345,27 @@ public class DictE2ETests : IClassFixture<WorkflowTestFixture>
         Assert.True(diff.IsEmpty,
             $"Round-trip diff: {diff.StatementChanges.Length} changes: " +
             string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}")));
+    }
+
+    [Fact]
+    public async Task ScalarVar_LiteralInitializer_Executed()
+    {
+        // v6 scalar var literal initialiser generates a C# field initialiser (public int x = 42;).
+        var src = """
+            var {
+                int x = 42
+                string s = "hi"
+                bool b = true
+            }
+            x > Print
+            s > Print
+            b > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "42", "hi", "True" }, result.Output);
     }
 
     [Fact]

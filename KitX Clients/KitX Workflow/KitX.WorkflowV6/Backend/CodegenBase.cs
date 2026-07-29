@@ -197,20 +197,24 @@ internal abstract class CodegenBase
     };
 
     /// <summary>
-    /// Renders the C# field-initialiser fragment for a declared PubVar/Const, when it carries
-    /// a structured dict-literal initialiser (Package/Dict-Type-Design.md §2.1). Returns ""
-    /// when there is no dict initialiser (the legacy <c>InitialValueExpression</c> text path is
-    /// not emitted as a C# field initialiser — it is consumed elsewhere).
+    /// Renders the C# field-initialiser fragment for a declared PubVar/Const. Dict decls use the
+    /// structured <see cref="KsDictLiteral"/>; scalar decls use their verbatim literal text
+    /// (Package/Dict-Type-Design.md §2.1 — initialisers are literals only, so the text is valid
+    /// C#). Returns "" when there is no initialiser.
     /// </summary>
     protected string RenderDeclInitializer(string name, Workflow ir)
     {
-        KsDictLiteral? dictInit = null;
-        if (ir.GlobalVars.TryGetValue(name, out var g) && g.DictInitializer is not null)
-            dictInit = g.DictInitializer;
-        else if (ir.Constants.TryGetValue(name, out var c) && c.DictInitializer is not null)
-            dictInit = c.DictInitializer;
-
-        return dictInit is { } dl ? " = " + RenderDictInitializer(dl) : "";
+        if (ir.GlobalVars.TryGetValue(name, out var g))
+        {
+            if (g.DictInitializer is { } gdl) return " = " + RenderDictInitializer(gdl);
+            if (g.InitialValueExpression is { Length: > 0 } gie) return " = " + gie;
+        }
+        if (ir.Constants.TryGetValue(name, out var c))
+        {
+            if (c.DictInitializer is { } cdl) return " = " + RenderDictInitializer(cdl);
+            if (c.InitialValueExpression is { Length: > 0 } cie) return " = " + cie;
+        }
+        return "";
     }
 
     /// <summary>Renders a KsDictLiteral as a C# Dictionary collection initialiser.</summary>

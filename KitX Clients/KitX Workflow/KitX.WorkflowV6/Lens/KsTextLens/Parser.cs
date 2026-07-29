@@ -289,17 +289,36 @@ internal sealed class Parser
             }
             else
             {
-                // Capture the rest of the line as the initialiser expression text.
-                int start = _pos;
-                while (!AtEnd && Current.Kind != KsTokenKind.Indent
-                              && Current.Kind != KsTokenKind.RBrace) Advance();
-                initExpr = ReconstructText(_tokens, start, _pos).Trim();
+                // Scalar initialiser: LITERAL ONLY. No expressions/references — a decl-block
+                // initialiser must be expressible as a BP definition-node payload (ConstValue /
+                // VarInitialValue / DictNew pin DefaultValues), which precludes data edges to
+                // other nodes. (Package/Dict-Type-Design.md §2.1 / §4.5.)
+                if (IsScalarLiteralToken(Current.Kind))
+                {
+                    initExpr = ReconstructText(_tokens, _pos, _pos + 1).Trim();
+                    Advance();
+                    // Reject anything beyond a single literal on the line (e.g. `42 + 1`, `x`).
+                    if (!AtEnd && Current.Kind != KsTokenKind.Indent && Current.Kind != KsTokenKind.RBrace)
+                        Error("KS076", "Scalar var/const initialiser must be a single literal — expressions/references are not allowed in decl blocks");
+                }
+                else
+                {
+                    Error("KS076", "Scalar var/const initialiser must be a literal — references/expressions are not allowed in decl blocks");
+                    // Skip to end of line for error recovery.
+                    while (!AtEnd && Current.Kind != KsTokenKind.Indent
+                                  && Current.Kind != KsTokenKind.RBrace) Advance();
+                }
             }
         }
 
         var src = $"{typeTok.Text} {nameTok.Text}{(initExpr is null ? "" : " = " + initExpr)}";
         return (typeTok, nameTok, initExpr, dictInit, src);
     }
+
+    /// <summary>True for the six scalar-literal token kinds usable as a decl-block initialiser.</summary>
+    private static bool IsScalarLiteralToken(KsTokenKind kind) =>
+        kind is KsTokenKind.StringLiteral or KsTokenKind.IntegerLiteral or KsTokenKind.DoubleLiteral
+            or KsTokenKind.CharLiteral or KsTokenKind.BooleanLiteral or KsTokenKind.NullLiteral;
 
     // ── Dict literal parsing (only valid as a const/var declaration initialiser) ──
 
@@ -369,9 +388,12 @@ internal sealed class Parser
             case KsTokenKind.NullLiteral:
                 return ParseLiteralOrPlaceholder();
             case KsTokenKind.Identifier:
-                // const reference — C# field-initialiser scoping enforces const-only at compile time
-                var t = Advance();
-                return new KsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
+                // References (incl. const) are NOT allowed as dict values — a dict literal lives
+                // in a decl block, whose values must be literals so BP definition nodes can carry
+                // them as payloads (no data edges). (Dict-Type design §2.1 / §2.4.)
+                Error("KS077", "Dict value must be a literal — references/expressions are not allowed in dict literals");
+                Advance();
+                return new KsLiteral { Kind = KsLiteralKind.Null, SourceText = "null", SourceLine = line };
             case KsTokenKind.LBrace:
                 Error("KS073", "Nested dict literal is not allowed — use JSON format for nested structures");
                 Advance();
