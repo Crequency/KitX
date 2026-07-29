@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Lens.BpGraphLens;
 
+using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
@@ -82,6 +83,9 @@ internal sealed class BpReverseTranslator
                         Name = cn.ConstName,
                         Type = cn.ConstType ?? "object",
                         InitialValueExpression = cn.ConstValue,
+                        // Rebuild the structured dict initialiser from the JSON payload BpRenderer
+                        // stored in ConstValue (Dict-Type design §3.3). Non-dict consts leave null.
+                        DictInitializer = (cn.ConstType == "dict") ? TryDeserializeDictInit(cn.ConstValue) : null,
                     }),
                 };
             }
@@ -93,6 +97,7 @@ internal sealed class BpReverseTranslator
                     {
                         Name = vn.VarName,
                         Type = vn.VarType ?? "object",
+                        DictInitializer = (vn.VarType == "dict") ? TryDeserializeDictInit(vn.VarInitialValue) : null,
                     }),
                 };
             }
@@ -107,6 +112,18 @@ internal sealed class BpReverseTranslator
         }
 
         return ir;
+    }
+
+    /// <summary>
+    /// Attempts to deserialize a JSON payload back into a <see cref="KsDictLiteral"/>. Returns
+    /// null on failure (e.g. payload is plain text rather than JSON). Used to rebuild dict
+    /// declaration initialisers during BP→IR reverse translation (Dict-Type design §3.3).
+    /// </summary>
+    private static KsDictLiteral? TryDeserializeDictInit(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try { return JsonSerializer.Deserialize<KsDictLiteral>(json); }
+        catch { return null; }
     }
 
     // ── Graph indexing ──

@@ -343,4 +343,57 @@ public class DictE2ETests : IClassFixture<WorkflowTestFixture>
             $"Round-trip diff: {diff.StatementChanges.Length} changes: " +
             string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}")));
     }
+
+    [Fact]
+    public async Task ConstDict_BP_RoundTrip_Then_Execute()
+    {
+        var src = """
+            const {
+                dict d = {a: 1, b: 2}
+            }
+            d, "a" > DictGetValue > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(reversed, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "1" }, result.Output);
+    }
+
+    [Fact]
+    public async Task VarDict_BP_RoundTrip_Then_Execute()
+    {
+        // var dict: the initialiser rides on VariableNode.VarInitialValue (Contract addition).
+        var src = """
+            var {
+                dict d = {a: 1, b: 2}
+            }
+            d, "a" > DictGetValue > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(reversed, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "1" }, result.Output);
+    }
+
+    [Fact]
+    public void Dict_Literal_JSON_RoundTrip()
+    {
+        // The BP path serialises KsDictLiteral as JSON; verify direct JSON round-trip.
+        var src = """
+            const { dict d = {a: 1, b: "x"} }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var dictInit = ir.Constants["d"].DictInitializer;
+        Assert.NotNull(dictInit);
+        var json = System.Text.Json.JsonSerializer.Serialize(dictInit);
+        var asDict = System.Text.Json.JsonSerializer.Deserialize<KitX.WorkflowV6.Ir.Ast.KsDictLiteral>(json);
+        Assert.NotNull(asDict);
+        Assert.Equal(dictInit!.Entries.Length, asDict!.Entries.Length);
+    }
 }

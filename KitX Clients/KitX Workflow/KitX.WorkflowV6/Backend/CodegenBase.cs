@@ -80,13 +80,13 @@ internal abstract class CodegenBase
     {
         if (_ir.Constants.TryGetValue(id.Name, out var c))
         {
-            if (c.InitialValueExpression is not null)
-                return c.InitialValueExpression;
-            // A const declared with a dict literal carries DictInitializer instead of text.
-            // Inline its structured initialiser so a reference (e.g. as another decl's value)
-            // does not emit `this.name` — which is invalid in a C# field-initialiser context.
+            // A dict const carries a structured DictInitializer — inline its C# Dictionary
+            // construction. This MUST take priority over InitialValueExpression: after a BP
+            // round-trip the text field may hold the JSON payload, not a valid C# expression.
             if (c.DictInitializer is not null)
                 return RenderDictInitializer(c.DictInitializer);
+            if (c.InitialValueExpression is not null)
+                return c.InitialValueExpression;
         }
         return IsLocal(id.Name) ? id.Name : $"this.{id.Name}";
     }
@@ -217,7 +217,10 @@ internal abstract class CodegenBase
     protected string RenderDictInitializer(KsDictLiteral dict)
     {
         var sb = new StringBuilder();
-        sb.Append("new() {");
+        // Explicit type (not `new()`): when inlined into an object?-typed argument position
+        // (e.g. DictGetValue(dictRef, key) where dictRef is a const dict), target-type inference
+        // would resolve `new()` to object — which doesn't support [] indexing (CS0021).
+        sb.Append("new Dictionary<string, object?>() {");
         bool first = true;
         foreach (var entry in dict.Entries)
         {

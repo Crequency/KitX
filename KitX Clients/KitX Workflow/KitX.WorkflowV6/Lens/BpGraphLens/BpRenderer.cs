@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Lens.BpGraphLens;
 
+using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
@@ -75,7 +76,11 @@ internal sealed class BpRenderer
                 Name = name,
                 ConstName = name,
                 ConstType = c.Type,
-                ConstValue = c.InitialValueExpression,
+                // For dict consts carry the structured DictInitialiser as JSON so the reverse
+                // path can rebuild it (Dict-Type design §3.3); otherwise the verbatim text.
+                ConstValue = c.DictInitializer is not null
+                    ? JsonSerializer.Serialize(c.DictInitializer)
+                    : c.InitialValueExpression,
             }, $"/def/const/{name}");
 
         foreach (var (name, g) in ir.GlobalVars)
@@ -85,6 +90,10 @@ internal sealed class BpRenderer
                 VarName = name,
                 VarType = g.Type,
                 VarKind = VariableKind.PubVar,
+                // Carry a dict var's structured DictInitialiser as JSON (symmetric to ConstValue).
+                VarInitialValue = g.DictInitializer is not null
+                    ? JsonSerializer.Serialize(g.DictInitializer)
+                    : g.InitialValueExpression,
             }, $"/def/var/{name}");
     }
 
