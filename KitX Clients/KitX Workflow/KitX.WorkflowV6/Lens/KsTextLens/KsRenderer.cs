@@ -59,10 +59,27 @@ internal sealed class KsRenderer
     }
 
     private static string RenderConstant(Constant c) =>
-        $"{c.Type} {c.Name}{(c.InitialValueExpression is null ? "" : " = " + c.InitialValueExpression)}";
+        $"{c.Type} {c.Name}{RenderDeclInit(c.DictInitializer, c.InitialValueExpression)}";
 
     private static string RenderGlobalVar(GlobalVar g) =>
-        $"{g.Type} {g.Name}{(g.InitialValueExpression is null ? "" : " = " + g.InitialValueExpression)}";
+        $"{g.Type} {g.Name}{RenderDeclInit(g.DictInitializer, g.InitialValueExpression)}";
+
+    /// <summary>
+    /// Renders the <c>= &lt;initialiser&gt;</c> suffix for a declaration row: a dict literal
+    /// when <paramref name="dictInit"/> is set, else the legacy verbatim expression text.
+    /// </summary>
+    private static string RenderDeclInit(KsDictLiteral? dictInit, string? initialValueExpression)
+    {
+        if (dictInit is { } dl) return " = " + RenderDictLiteral(dl);
+        return initialValueExpression is null ? "" : " = " + initialValueExpression;
+    }
+
+    /// <summary>Renders a KsDictLiteral as KS source text <c>{k: v, ...}</c>.</summary>
+    private static string RenderDictLiteral(KsDictLiteral dict)
+    {
+        var entries = dict.Entries.Select(e => $"{RenderKsNode(e.Key)}: {RenderKsNode(e.Value)}");
+        return "{" + string.Join(", ", entries) + "}";
+    }
 
     private void RenderBody(StringBuilder sb, ImmutableArray<Statement> body, int level)
     {

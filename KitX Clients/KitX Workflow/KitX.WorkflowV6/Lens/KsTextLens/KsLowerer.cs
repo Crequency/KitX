@@ -65,6 +65,7 @@ internal sealed class KsLowerer
                     Name = d.Name,
                     Type = d.Type,
                     InitialValueExpression = d.InitialValueExpression,
+                    DictInitializer = d.DictInitializer,
                 });
                 pubVarTypes[d.Name] = d.Type;
             }
@@ -78,6 +79,7 @@ internal sealed class KsLowerer
                     Name = d.Name,
                     Type = d.Type,
                     InitialValueExpression = d.InitialValueExpression,
+                    DictInitializer = d.DictInitializer,
                 });
                 pubVarTypes[d.Name] = d.Type;
             }

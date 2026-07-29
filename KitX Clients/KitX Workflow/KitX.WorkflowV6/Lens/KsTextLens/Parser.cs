@@ -239,35 +239,37 @@ internal sealed class Parser
         ParseDeclBlock<KsVarBlock, KsVarDecl>(
             ParseVarRow, decls => new KsVarBlock { Declarations = decls });
 
-    private T ParseDeclRow<T>(Func<string, string, string?, string, int, T> factory)
+    private T ParseDeclRow<T>(Func<string, string, string?, KsDictLiteral?, string, int, T> factory)
     {
-        var (typeTok, nameTok, initExpr, src) = ParseDeclRowCore();
-        return factory(typeTok.Text, nameTok.Text, initExpr, src, typeTok.Line);
+        var (typeTok, nameTok, initExpr, dictInit, src) = ParseDeclRowCore();
+        return factory(typeTok.Text, nameTok.Text, initExpr, dictInit, src, typeTok.Line);
     }
 
     private KsConstDecl ParseConstRow() =>
-        ParseDeclRow<KsConstDecl>((type, name, init, src, line) => new KsConstDecl
+        ParseDeclRow<KsConstDecl>((type, name, init, dictInit, src, line) => new KsConstDecl
         {
             Name = name,
             Type = type,
             InitialValueExpression = init,
+            DictInitializer = dictInit,
             SourceText = src,
             SourceLine = line,
         });
 
     private KsVarDecl ParseVarRow() =>
-        ParseDeclRow<KsVarDecl>((type, name, init, src, line) => new KsVarDecl
+        ParseDeclRow<KsVarDecl>((type, name, init, dictInit, src, line) => new KsVarDecl
         {
             Name = name,
             Type = type,
             InitialValueExpression = init,
+            DictInitializer = dictInit,
             SourceText = src,
             SourceLine = line,
         });
 
-    private (KsToken typeTok, KsToken nameTok, string? initExpr, string src) ParseDeclRowCore()
+    private (KsToken typeTok, KsToken nameTok, string? initExpr, KsDictLiteral? dictInit, string src) ParseDeclRowCore()
     {
-        // Form: <type> <name> ['=' <expr-text>]
+        // Form: <type> <name> ['=' <initialiser>]
         var typeTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
         var nameTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
         if (typeTok.Kind != KsTokenKind.Identifier)
@@ -276,17 +278,109 @@ internal sealed class Parser
             Error("KS012", "Declaration must have a name after the type", nameTok);
 
         string? initExpr = null;
+        KsDictLiteral? dictInit = null;
         if (Match(KsTokenKind.Assign))
         {
-            // Capture the rest of the line as the initialiser expression text.
-            int start = _pos;
-            while (!AtEnd && Current.Kind != KsTokenKind.Indent
-                          && Current.Kind != KsTokenKind.RBrace) Advance();
-            initExpr = ReconstructText(_tokens, start, _pos).Trim();
+            if (typeTok.Text == "dict" && Current.Kind == KsTokenKind.LBrace)
+            {
+                // dict literal initialiser: {k: v, ...} (Dict-Type design §2.1)
+                dictInit = ParseDictLiteral();
+                initExpr = dictInit.SourceText;
+            }
+            else
+            {
+                // Capture the rest of the line as the initialiser expression text.
+                int start = _pos;
+                while (!AtEnd && Current.Kind != KsTokenKind.Indent
+                              && Current.Kind != KsTokenKind.RBrace) Advance();
+                initExpr = ReconstructText(_tokens, start, _pos).Trim();
+            }
         }
 
         var src = $"{typeTok.Text} {nameTok.Text}{(initExpr is null ? "" : " = " + initExpr)}";
-        return (typeTok, nameTok, initExpr, src);
+        return (typeTok, nameTok, initExpr, dictInit, src);
+    }
+
+    // ── Dict literal parsing (only valid as a const/var declaration initialiser) ──
+
+    /// <summary>
+    /// Parses a <c>{k: v, ...}</c> dict literal. Caller has consumed the leading <c>=</c> and
+    /// verified <c>Current</c> is <c>LBrace</c>. Rejects nested dict/array values
+    /// (Dict-Type design §2.4: flat scalars only).
+    /// </summary>
+    private KsDictLiteral ParseDictLiteral()
+    {
+        var startTok = Current;
+        ExpectLBrace();  // consume '{'
+        var entries = ImmutableArray.CreateBuilder<KsDictEntry>();
+
+        if (Current.Kind == KsTokenKind.RBrace)
+        {
+            Advance();
+            return new KsDictLiteral { Entries = [], SourceText = "{}", SourceLine = startTok.Line };
+        }
+
+        while (true)
+        {
+            var key = ParseDictKey(startTok.Line);
+            if (!Match(KsTokenKind.Colon))
+                Error("KS070", "Expected ':' after dict key");
+            var value = ParseDictValue(startTok.Line);
+            entries.Add(new KsDictEntry { Key = key, Value = value });
+
+            if (Match(KsTokenKind.Comma)) continue;
+            if (Match(KsTokenKind.RBrace)) break;
+            Error("KS071", "Expected ',' or '}' in dict literal");
+            break;
+        }
+
+        var src = "{" + string.Join(", ", entries.Select(e =>
+            $"{e.Key.SourceText}: {e.Value.SourceText}")) + "}";
+        return new KsDictLiteral { Entries = entries.ToImmutable(), SourceText = src, SourceLine = startTok.Line };
+    }
+
+    private KsNode ParseDictKey(int line)
+    {
+        if (Current.Kind == KsTokenKind.StringLiteral)
+        {
+            var t = Advance();
+            return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Text, SourceText = $"\"{t.Text}\"", SourceLine = t.Line };
+        }
+        if (Current.Kind == KsTokenKind.Identifier)
+        {
+            var t = Advance();
+            // Identifier key → string literal (syntactic sugar, equivalent to "key")
+            return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Text, SourceText = t.Text, SourceLine = t.Line };
+        }
+        Error("KS072", "Dict key must be a string literal or identifier");
+        Advance();
+        return new KsLiteral { Kind = KsLiteralKind.String, Value = "?", SourceText = "\"?\"", SourceLine = line };
+    }
+
+    private KsNode ParseDictValue(int line)
+    {
+        switch (Current.Kind)
+        {
+            case KsTokenKind.StringLiteral:
+            case KsTokenKind.IntegerLiteral:
+            case KsTokenKind.DoubleLiteral:
+            case KsTokenKind.CharLiteral:
+            case KsTokenKind.BooleanLiteral:
+            case KsTokenKind.NullLiteral:
+                return ParseLiteralOrPlaceholder();
+            case KsTokenKind.Identifier:
+                // const reference — C# field-initialiser scoping enforces const-only at compile time
+                var t = Advance();
+                return new KsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
+            case KsTokenKind.LBrace:
+                Error("KS073", "Nested dict literal is not allowed — use JSON format for nested structures");
+                Advance();
+                return new KsLiteral { Kind = KsLiteralKind.Null, SourceText = "null", SourceLine = line };
+            default:
+                Error("KS074", "Dict value must be a scalar literal or const reference");
+                Advance();
+                return new KsLiteral { Kind = KsLiteralKind.Null, SourceText = "null", SourceLine = line };
+        }
     }
 
     private void ExpectLBrace()
@@ -763,6 +857,21 @@ internal sealed class Parser
                         };
                     }
                     return new KsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
+                }
+            case KsTokenKind.LParen:
+                {
+                    // Parenthesised pipeline source: (a > Func) — Dict-Type design §8.3.
+                    // Recursively parse the inner pipeline expression, then expect ')'.
+                    var t = Advance();  // consume '('
+                    var (inner, _) = ParseHeaderPipelineExpression();
+                    if (!Match(KsTokenKind.RParen))
+                        Error("KS075", "Expected ')' to close parenthesised pipeline source");
+                    // Wrap a pipeline's source text in parens for lossless round-trip.
+                    if (inner is KsPipeline)
+                        inner.SourceText = $"({inner.SourceText})";
+                    else
+                        inner.SourceLine = t.Line;
+                    return inner;
                 }
             default:
                 Error("KS050", $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");

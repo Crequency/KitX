@@ -56,6 +56,7 @@ using System.Text.Json.Serialization;
 [JsonDerivedType(typeof(KsPipeline), "Pipeline")]
 [JsonDerivedType(typeof(KsPipelineSegment), "PipelineSegment")]
 [JsonDerivedType(typeof(KsPlaceholder), "Placeholder")]
+[JsonDerivedType(typeof(KsDictLiteral), "DictLiteral")]
 public abstract record KsNode
 {
     /// <summary>
@@ -108,6 +109,55 @@ public sealed record KsLiteral : KsNode
         var h = new HashCode();
         h.Add(Kind);
         h.Add(Value);
+        return h.ToHashCode();
+    }
+}
+
+/// <summary>
+/// One key→value entry of a <see cref="KsDictLiteral"/>. Key is a string literal;
+/// Value is a scalar literal or a const identifier reference (flat — no nesting).
+/// </summary>
+public sealed record KsDictEntry
+{
+    public required KsNode Key { get; init; }
+    public required KsNode Value { get; init; }
+
+    public bool Equals(KsDictEntry? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Equals(Key, other.Key) && Equals(Value, other.Value);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        h.Add(Key);
+        h.Add(Value);
+        return h.ToHashCode();
+    }
+}
+
+/// <summary>
+/// A dict literal <c>{k: v, ...}</c>. Only valid as a const/var declaration initialiser
+/// (Package/Dict-Type-Design.md §2.1) — not a general expression, never appears in pipeline
+/// sources or function arguments. Values are flat scalars; nesting is rejected at parse time.
+/// </summary>
+public sealed record KsDictLiteral : KsNode
+{
+    public required ImmutableArray<KsDictEntry> Entries { get; init; }
+
+    public bool Equals(KsDictLiteral? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Entries.SequenceEqual(other.Entries);
+    }
+
+    public override int GetHashCode()
+    {
+        var h = new HashCode();
+        foreach (var e in Entries) h.Add(e);
         return h.ToHashCode();
     }
 }
@@ -271,6 +321,11 @@ public sealed record KsConstDecl : KsNode
     public string Type { get; init; } = "object";
     /// <summary>Verbatim initialiser expression source text (e.g. <c>42</c>, <c>"hi"</c>).</summary>
     public string? InitialValueExpression { get; init; }
+    /// <summary>
+    /// Structured dict-literal initialiser, set only when <see cref="Type"/> == "dict" and the
+    /// row has a <c>{k: v, ...}</c> initialiser (Package/Dict-Type-Design.md §2.1). Null otherwise.
+    /// </summary>
+    public KsDictLiteral? DictInitializer { get; init; }
 
     public bool Equals(KsConstDecl? other)
     {
@@ -278,7 +333,8 @@ public sealed record KsConstDecl : KsNode
         if (ReferenceEquals(this, other)) return true;
         return Name == other.Name
             && Type == other.Type
-            && InitialValueExpression == other.InitialValueExpression;
+            && InitialValueExpression == other.InitialValueExpression
+            && Equals(DictInitializer, other.DictInitializer);
     }
 
     public override int GetHashCode()
@@ -287,6 +343,7 @@ public sealed record KsConstDecl : KsNode
         h.Add(Name);
         h.Add(Type);
         h.Add(InitialValueExpression);
+        h.Add(DictInitializer);
         return h.ToHashCode();
     }
 }
@@ -297,6 +354,11 @@ public sealed record KsVarDecl : KsNode
     public required string Name { get; init; }
     public string Type { get; init; } = "object";
     public string? InitialValueExpression { get; init; }
+    /// <summary>
+    /// Structured dict-literal initialiser, set only when <see cref="Type"/> == "dict" and the
+    /// row has a <c>{k: v, ...}</c> initialiser (Package/Dict-Type-Design.md §2.1). Null otherwise.
+    /// </summary>
+    public KsDictLiteral? DictInitializer { get; init; }
 
     public bool Equals(KsVarDecl? other)
     {
@@ -304,7 +366,8 @@ public sealed record KsVarDecl : KsNode
         if (ReferenceEquals(this, other)) return true;
         return Name == other.Name
             && Type == other.Type
-            && InitialValueExpression == other.InitialValueExpression;
+            && InitialValueExpression == other.InitialValueExpression
+            && Equals(DictInitializer, other.DictInitializer);
     }
 
     public override int GetHashCode()
@@ -313,6 +376,7 @@ public sealed record KsVarDecl : KsNode
         h.Add(Name);
         h.Add(Type);
         h.Add(InitialValueExpression);
+        h.Add(DictInitializer);
         return h.ToHashCode();
     }
 }

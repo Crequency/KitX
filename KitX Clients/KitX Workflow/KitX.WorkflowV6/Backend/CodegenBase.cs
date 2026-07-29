@@ -78,8 +78,16 @@ internal abstract class CodegenBase
 
     protected string RenderIdentifier(KsIdentifier id)
     {
-        if (_ir.Constants.TryGetValue(id.Name, out var c) && c.InitialValueExpression is not null)
-            return c.InitialValueExpression;
+        if (_ir.Constants.TryGetValue(id.Name, out var c))
+        {
+            if (c.InitialValueExpression is not null)
+                return c.InitialValueExpression;
+            // A const declared with a dict literal carries DictInitializer instead of text.
+            // Inline its structured initialiser so a reference (e.g. as another decl's value)
+            // does not emit `this.name` — which is invalid in a C# field-initialiser context.
+            if (c.DictInitializer is not null)
+                return RenderDictInitializer(c.DictInitializer);
+        }
         return IsLocal(id.Name) ? id.Name : $"this.{id.Name}";
     }
 
@@ -173,10 +181,55 @@ internal abstract class CodegenBase
         {
             foreach (var (name, type) in lowering.PubVarTypes)
             {
-                EmitLine($"public {type} {name};");
+                var csharpType = KsTypeToCSharp(type);
+                var init = RenderDeclInitializer(name, ir);
+                EmitLine($"public {csharpType} {name}{init};");
             }
         }
         EmitLine("");
+    }
+
+    /// <summary>Maps a KS type keyword to its C# type name. Non-mapped types pass through.</summary>
+    protected static string KsTypeToCSharp(string ksType) => ksType switch
+    {
+        "dict" => "Dictionary<string, object?>",
+        _ => ksType,
+    };
+
+    /// <summary>
+    /// Renders the C# field-initialiser fragment for a declared PubVar/Const, when it carries
+    /// a structured dict-literal initialiser (Package/Dict-Type-Design.md §2.1). Returns ""
+    /// when there is no dict initialiser (the legacy <c>InitialValueExpression</c> text path is
+    /// not emitted as a C# field initialiser — it is consumed elsewhere).
+    /// </summary>
+    protected string RenderDeclInitializer(string name, Workflow ir)
+    {
+        KsDictLiteral? dictInit = null;
+        if (ir.GlobalVars.TryGetValue(name, out var g) && g.DictInitializer is not null)
+            dictInit = g.DictInitializer;
+        else if (ir.Constants.TryGetValue(name, out var c) && c.DictInitializer is not null)
+            dictInit = c.DictInitializer;
+
+        return dictInit is { } dl ? " = " + RenderDictInitializer(dl) : "";
+    }
+
+    /// <summary>Renders a KsDictLiteral as a C# Dictionary collection initialiser.</summary>
+    protected string RenderDictInitializer(KsDictLiteral dict)
+    {
+        var sb = new StringBuilder();
+        sb.Append("new() {");
+        bool first = true;
+        foreach (var entry in dict.Entries)
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append(" [");
+            sb.Append(RenderKsNode(entry.Key));
+            sb.Append("] = ");
+            sb.Append(RenderKsNode(entry.Value));
+        }
+        sb.Append(" }");
+        return sb.ToString();
     }
 
     protected virtual void EmitClassFooter()

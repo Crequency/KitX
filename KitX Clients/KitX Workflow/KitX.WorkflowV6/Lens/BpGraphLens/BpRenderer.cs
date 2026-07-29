@@ -220,7 +220,12 @@ internal sealed class BpRenderer
                 }
                 else if (lastNode is not null)
                 {
-                    ConnectToInput(lastNode, fn, FirstDataOutputPinName(lastNode));
+                    // Connect prev function's first data output → this function's first data input.
+                    // Use ConnectValue (direction-based) not ConnectToInput(name-based): the prev
+                    // node's output pin name (e.g. "Keys") rarely matches the next node's input pin
+                    // name (e.g. "Value"), so name-matching would silently drop the data edge and
+                    // break BP→IR round-trip for any function→function pipeline segment.
+                    ConnectValue(lastNode, fn);
                 }
                 segNode = fn;
             }
@@ -549,7 +554,8 @@ internal sealed class BpRenderer
                 }
                 else
                 {
-                    ConnectToInput(lastFunc, fn, FirstDataOutputPinName(lastFunc));
+                    // See RenderPipelineStmt: connect by direction, not pin-name match.
+                    ConnectValue(lastFunc, fn);
                 }
                 lastFunc = fn;
             }

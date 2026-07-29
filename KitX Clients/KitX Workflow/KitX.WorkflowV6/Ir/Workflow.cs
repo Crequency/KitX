@@ -1,3 +1,5 @@
+using KitX.WorkflowV6.Ir.Ast;
+
 namespace KitX.WorkflowV6.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,16 +92,21 @@ public sealed record Workflow
 public sealed record Constant
 {
     public required string Name { get; init; }
-    /// <summary>C# type name (e.g. "int", "string", "double"). Carried into codegen for typed emission.</summary>
+    /// <summary>C# type name (e.g. "int", "string"). Carried into codegen for typed emission.</summary>
     public string Type { get; init; } = "object";
     /// <summary>Verbatim initialiser expression source text (e.g. <c>42</c>, <c>"hi"</c>). Null when unset.</summary>
     public string? InitialValueExpression { get; init; }
+    /// <summary>
+    /// Structured dict-literal initialiser, set when <see cref="Type"/> == "dict" and the row has
+    /// a <c>{k: v, ...}</c> initialiser (Package/Dict-Type-Design.md §2.1). Null otherwise.
+    /// </summary>
+    public KsDictLiteral? DictInitializer { get; init; }
     /// <summary>Evaluated default value, when known at lowering time. Null when dynamic.</summary>
     public object? DefaultValue { get; init; }
 
     /// <summary>True when the constant has any kind of initial value.</summary>
     public bool HasInitialValue =>
-        DefaultValue is not null || !string.IsNullOrEmpty(InitialValueExpression);
+        DefaultValue is not null || !string.IsNullOrEmpty(InitialValueExpression) || DictInitializer is not null;
 }
 
 /// <summary>
@@ -114,5 +121,10 @@ public sealed record GlobalVar
     public required string Name { get; init; }
     public string Type { get; init; } = "object";
     public string? InitialValueExpression { get; init; }
+    /// <summary>
+    /// Structured dict-literal initialiser, set when <see cref="Type"/> == "dict" and the row has
+    /// a <c>{k: v, ...}</c> initialiser (Package/Dict-Type-Design.md §2.1). Null otherwise.
+    /// </summary>
+    public KsDictLiteral? DictInitializer { get; init; }
     public object? DefaultValue { get; init; }
 }

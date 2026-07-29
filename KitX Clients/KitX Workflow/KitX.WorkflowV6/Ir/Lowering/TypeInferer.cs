@@ -263,6 +263,7 @@ public static class TypeInferer
     private static string PinTypeToCSharp(PinType type) => type switch
     {
         PinType.Json => "JsonElement",
+        PinType.Dict => "Dictionary<string, object?>",
         PinType.String => "string",
         PinType.Integer => "int",
         PinType.Double => "double",
