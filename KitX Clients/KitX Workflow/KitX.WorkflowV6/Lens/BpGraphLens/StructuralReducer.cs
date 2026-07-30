@@ -41,7 +41,16 @@ internal static class StructuralReducer
     /// Checks whether the Blueprint's connections form a valid structured graph.
     /// Returns null on success, or a user-facing error message on failure.
     /// </summary>
-    public static string? Check(Blueprint blueprint)
+    public static string? Check(Blueprint blueprint) => CheckInternal(blueprint)?.Message;
+
+    /// <summary>
+    /// Checks whether the Blueprint's connections form a valid structured graph
+    /// and returns a structured <see cref="ConstraintViolation"/> on failure
+    /// (with node IDs for frontend highlighting) or null on success.
+    /// </summary>
+    public static ConstraintViolation? CheckDetailed(Blueprint blueprint) => CheckInternal(blueprint);
+
+    private static ConstraintViolation? CheckInternal(Blueprint blueprint)
     {
         if (blueprint.Nodes.Count == 0) return null;
 
@@ -64,7 +73,7 @@ internal static class StructuralReducer
             if (count > 1)
             {
                 var n = nodeById.GetValueOrDefault(nodeId);
-                return $"KS102: 节点 '{n?.Name ?? nodeId}' 的 Exec input 有 {count} 条 incoming edges，违反唯一前驱约束（E3）。v6 End-pin 模型不允许菱形合流；建议：让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。";
+                return new ConstraintViolation("KS102", "E3", $"KS102: 节点 '{n?.Name ?? nodeId}' 的 Exec input 有 {count} 条 incoming edges，违反唯一前驱约束（E3）。v6 End-pin 模型不允许菱形合流；建议：让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", new[] { nodeId }, null, "让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。");
             }
         }
 
@@ -83,17 +92,21 @@ internal static class StructuralReducer
             if (count > 1)
             {
                 var n = nodeById.GetValueOrDefault(nodeId);
-                return $"KS111: 节点 '{n?.Name ?? nodeId}' 的 data input pin 有 {count} 条 incoming edges，违反单输入约束（D2）。每个 data input pin 至多一条 incoming edge。";
+                return new ConstraintViolation("KS111", "D2", $"KS111: 节点 '{n?.Name ?? nodeId}' 的 data input pin 有 {count} 条 incoming edges，违反单输入约束（D2）。每个 data input pin 至多一条 incoming edge。", new[] { nodeId }, null, "每个 data input pin 至多一条 incoming edge，删除多余的连线。");
             }
         }
 
         // ── E6 (KS105): No explicit exec back-edges ──
-        if (HasCycle(blueprint, nodeById, execOnly: true))
-            return "KS105: 检测到显式 exec 回环，违反回边规则（E6）。循环的\"回到循环头\"语义应通过 body 末节点 exec-out 悬空隐式表达；不允许显式画从 body 末节点到循环节点的 exec edge。";
+        var execCycle = FindCycle(blueprint, nodeById, execOnly: true);
+        if (execCycle is not null)
+            return new ConstraintViolation("KS105", "E6", "KS105: 检测到显式 exec 回环，违反回边规则（E6）。循环的\"回到循环头\"语义应通过 body 末节点 exec-out 悬空隐式表达；不允许显式画从 body 末节点到循环节点的 exec edge。",
+                execCycle, null, "使用 Each/While 控制流节点表达循环，让 body 末节点 exec-out 悬空（自然结束）。");
 
         // ── D1 (KS110): Data DAG — data graph must be acyclic ──
-        if (HasCycle(blueprint, nodeById, execOnly: false))
-            return "KS110: Data graph 成环，违反 DAG 约束（D1）。值的定义不能循环依赖。";
+        var dataCycle = FindCycle(blueprint, nodeById, execOnly: false);
+        if (dataCycle is not null)
+            return new ConstraintViolation("KS110", "D1", "KS110: Data graph 成环，违反 DAG 约束（D1）。值的定义不能循环依赖。",
+                dataCycle, null, "检查数据连线，消除循环依赖。");
 
         // ── E1 (KS100): Connectivity ──
         // Every non-definition node must be reachable from EntryNode via exec edges,
@@ -167,7 +180,7 @@ internal static class StructuralReducer
                 if (IsDefinitionNode(node)) continue;
                 if (execReachable.Contains(node.Id)) continue;
                 if (dataReachable.Contains(node.Id)) continue;  // proxied via data edge
-                return $"KS100: 节点 '{node.Name ?? node.Id}' 未接入 exec graph，违反连通性约束（E1）。建议：将该节点的 Exec input 连接到上游节点的 Exec output。";
+                return new ConstraintViolation("KS100", "E1", $"KS100: 节点 '{node.Name ?? node.Id}' 未接入 exec graph，违反连通性约束（E1）。建议：将该节点的 Exec input 连接到上游节点的 Exec output。", new[] { node.Id }, null, "将该节点的 Exec input 连接到上游节点的 Exec output。");
             }
         }
 
@@ -189,7 +202,7 @@ internal static class StructuralReducer
             bool hasExecOut = node.OutputPins.Any(p => p.Type == PinType.Execution)
                               || IsTerminatorNode(node);
             if (!hasExecIn || !hasExecOut)
-                return $"KS120: 节点 '{node.Name ?? node.Id}' 是使用型节点但缺少 Exec pin，违反双图耦合约束（C1）。除定义型节点（const/var 块声明）和终结符外，所有节点必须有 Exec input/output pin 并接入 exec graph。";
+                return new ConstraintViolation("KS120", "C1", $"KS120: 节点 '{node.Name ?? node.Id}' 是使用型节点但缺少 Exec pin，违反双图耦合约束（C1）。除定义型节点（const/var 块声明）和终结符外，所有节点必须有 Exec input/output pin 并接入 exec graph。", new[] { node.Id }, null, "为该节点添加 Exec input/output pin 并接入执行流。");
         }
 
         // ── N2 (KS130): VarName consistency ──
@@ -213,7 +226,7 @@ internal static class StructuralReducer
             if (IsDefinitionNode(node)) continue;
             if (node.VarName is null) continue;
             if (!defVarNames.Contains(node.VarName))
-                return $"KS130: 使用型 VariableNode '{node.VarName}' 没有对应的定义型节点，违反 VarName 一致性约束（N2）。建议：在 var {{ ... }} 块中声明该变量。";
+                return new ConstraintViolation("KS130", "N2", $"KS130: 使用型 VariableNode '{node.VarName}' 没有对应的定义型节点，违反 VarName 一致性约束（N2）。建议：在 var {{ ... }} 块中声明该变量。", new[] { node.Id }, null, "在 var { ... } 块中声明该变量。");
         }
 
         return null;  // structurally valid
@@ -248,27 +261,33 @@ internal static class StructuralReducer
     /// <summary>
     /// Cycle detection. When execOnly is true, follows only exec pins (E6);
     /// when false, follows all pins (D1 data DAG).
+    /// Returns null if no cycle is found, or a list of node IDs forming the cycle.
     /// </summary>
-    private static bool HasCycle(Blueprint bp, Dictionary<string, BlueprintNode> nodeById, bool execOnly)
+    private static List<string>? FindCycle(Blueprint bp, Dictionary<string, BlueprintNode> nodeById, bool execOnly)
     {
         var visited = new HashSet<string>();
         var inStack = new HashSet<string>();
         foreach (var node in bp.Nodes)
         {
             if (visited.Contains(node.Id)) continue;
-            if (HasCycleFrom(bp, nodeById, node.Id, execOnly, visited, inStack))
-                return true;
+            var cycle = FindCycleFrom(bp, nodeById, node.Id, execOnly, visited, inStack, new List<string>());
+            if (cycle is not null) return cycle;
         }
-        return false;
+        return null;
     }
 
-    private static bool HasCycleFrom(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
-        string nodeId, bool execOnly, HashSet<string> visited, HashSet<string> inStack)
+    private static List<string>? FindCycleFrom(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
+        string nodeId, bool execOnly, HashSet<string> visited, HashSet<string> inStack, List<string> path)
     {
-        if (inStack.Contains(nodeId)) return true;
-        if (visited.Contains(nodeId)) return false;
+        if (inStack.Contains(nodeId))
+        {
+            var startIdx = path.IndexOf(nodeId);
+            return startIdx >= 0 ? path.GetRange(startIdx, path.Count - startIdx) : new List<string> { nodeId };
+        }
+        if (visited.Contains(nodeId)) return null;
         visited.Add(nodeId);
         inStack.Add(nodeId);
+        path.Add(nodeId);
 
         if (nodeById.TryGetValue(nodeId, out var node))
         {
@@ -278,14 +297,15 @@ internal static class StructuralReducer
                 foreach (var conn in bp.Connections)
                 {
                     if (conn.SourceNodeId != nodeId || conn.SourcePinId != outPin.Id) continue;
-                    if (HasCycleFrom(bp, nodeById, conn.TargetNodeId, execOnly, visited, inStack))
-                        return true;
+                    var result = FindCycleFrom(bp, nodeById, conn.TargetNodeId, execOnly, visited, inStack, path);
+                    if (result is not null) return result;
                 }
             }
         }
 
+        path.RemoveAt(path.Count - 1);
         inStack.Remove(nodeId);
-        return false;
+        return null;
     }
 
     /// <summary>
@@ -295,7 +315,7 @@ internal static class StructuralReducer
     /// sub-walks that terminate at dangling tails. The End pin continues to the
     /// post-construct statement. Also enforces break/continue inside loop scope.
     /// </summary>
-    private static string? CheckStructuredReducibility(Blueprint bp,
+    private static ConstraintViolation? CheckStructuredReducibility(Blueprint bp,
         Dictionary<string, BlueprintNode> nodeById, EntryNode entry)
     {
         var visited = new HashSet<string>();
@@ -329,7 +349,7 @@ internal static class StructuralReducer
             if (IsDefinitionNode(node)) continue;
             if (visited.Contains(node.Id)) continue;
             if (dataReachable.Contains(node.Id)) continue;
-            return $"KS101: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。";
+            return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。");
         }
         return null;
     }
@@ -359,7 +379,7 @@ internal static class StructuralReducer
     /// recursively walks each sub-scope pin independently in a fresh sub-scope context,
     /// then continues from End pin. Returns an error message on structural violation.
     /// </summary>
-    private static string? WalkStructured(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
+    private static ConstraintViolation? WalkStructured(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
         string sourceId, string pinName, HashSet<string> visited, Stack<string> loopScopeStack)
     {
         // Find all exec edges leaving (sourceId, pinName). Match by pin *name* (not id)
@@ -387,11 +407,11 @@ internal static class StructuralReducer
             {
                 // Re-visiting a node in a *different* path = merge point = structural error.
                 var n = nodeById.GetValueOrDefault(targetId);
-                return $"KS101: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。";
+                return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。");
             }
 
             if (!nodeById.TryGetValue(targetId, out var node))
-                return $"KS101: 节点 {targetId} 不存在。";
+                return new ConstraintViolation("KS101", "E2", $"KS101: 节点 {targetId} 不存在。", new[] { targetId });
 
             if (node is BuiltinFunctionNode fn && IsControlFlowName(fn.FunctionName))
             {
@@ -418,7 +438,7 @@ internal static class StructuralReducer
             {
                 // break/continue: must be inside a loop scope.
                 if (loopScopeStack.Count == 0)
-                    return $"KS140: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。";
+                    return new ConstraintViolation("KS140", "BreakContinue", $"KS140: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { targetId }, null, "将 break/continue 移到 forEach 或 while 的 body 内。");
                 // Terminator has no exec-out — walk ends here.
             }
             else

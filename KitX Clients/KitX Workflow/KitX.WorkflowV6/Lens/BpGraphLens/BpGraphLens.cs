@@ -72,6 +72,17 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     }
 
     /// <summary>
+    /// Validates the blueprint and returns a structured violation (with node IDs for
+    /// frontend highlighting) on failure, or null on success. Frontend BP editor calls
+    /// this during connection hover-preview and on commit to enforce strong constraints.
+    /// </summary>
+    public ConstraintViolation? ValidateDetailed(Blueprint blueprint)
+    {
+        ArgumentNullException.ThrowIfNull(blueprint);
+        return StructuralReducer.CheckDetailed(blueprint);
+    }
+
+    /// <summary>
     /// Analyzes the Blueprint's exec topology and returns sub-scope regions for
     /// decorative background-frame rendering. Coordinates must already be assigned
     /// (call after <see cref="Project"/>, which runs LayoutService internally).
