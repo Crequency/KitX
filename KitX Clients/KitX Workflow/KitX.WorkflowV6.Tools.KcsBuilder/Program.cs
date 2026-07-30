@@ -115,7 +115,12 @@ static async Task BuildAndWriteAsync(string ksSource, string outPath, string nam
         // 3. Build KcsFileFormat with IrVersion = "v6"
         var kcs = new KcsFileFormat
         {
-            Id = Guid.NewGuid().ToString(),
+            // Use the output file name (without extension) as the Id, so the .kcs
+            // filename matches the internal Id (required by WorkflowStorageService's
+            // GetWorkflowFilePath: {storageDir}/{id}.kcs).
+            Id = Guid.TryParse(Path.GetFileNameWithoutExtension(outPath), out var g)
+                ? g.ToString()
+                : Guid.NewGuid().ToString(),
             Name = name,
             Description = desc,
             Author = "",
