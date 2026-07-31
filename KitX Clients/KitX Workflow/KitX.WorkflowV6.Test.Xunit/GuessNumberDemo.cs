@@ -84,7 +84,9 @@ public class GuessNumberDemo : IClassFixture<WorkflowTestFixture>
         var codegen = new StructuredCodegen(_fixture.Registry);
         var codegenLowering = new LoweringResult
         {
-            PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type),
+            PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type)
+                .Concat(ir.Constants.ToDictionary(c => c.Key, c => c.Value.Type))
+                .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
             HelperReturnTypes = new Dictionary<string, string>(),
             InjectedVariableNames = new HashSet<string>(),
         };

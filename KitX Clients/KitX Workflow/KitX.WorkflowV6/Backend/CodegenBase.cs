@@ -177,14 +177,28 @@ internal abstract class CodegenBase
         EmitLine("{");
         _indent++;
 
+        // Generate strongly-typed fields. PubVarTypes (from TypeInferer) is the
+        // primary source, but it may be incomplete when lowering is null (BP mode)
+        // or when ScriptCompiler's fallback path is used. Fall back to ir.Constants
+        // and ir.GlobalVars directly so no declared variable is ever missing.
+        var emitted = new HashSet<string>(StringComparer.Ordinal);
         if (lowering is not null)
         {
             foreach (var (name, type) in lowering.PubVarTypes)
             {
-                var csharpType = KsTypeToCSharp(type);
-                var init = RenderDeclInitializer(name, ir);
-                EmitLine($"public {csharpType} {name}{init};");
+                if (emitted.Add(name))
+                    EmitLine($"public {KsTypeToCSharp(type)} {name}{RenderDeclInitializer(name, ir)};");
             }
+        }
+        foreach (var (name, c) in ir.Constants)
+        {
+            if (emitted.Add(name))
+                EmitLine($"public {KsTypeToCSharp(c.Type)} {name}{RenderDeclInitializer(name, ir)};");
+        }
+        foreach (var (name, g) in ir.GlobalVars)
+        {
+            if (emitted.Add(name))
+                EmitLine($"public {KsTypeToCSharp(g.Type)} {name}{RenderDeclInitializer(name, ir)};");
         }
         EmitLine("");
     }

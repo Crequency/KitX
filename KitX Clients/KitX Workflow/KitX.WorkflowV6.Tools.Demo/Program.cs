@@ -63,7 +63,9 @@ var backend = new StructuredRoslynBackend();
 var ir = lens.Parse(ksSource, []);
 var lowering = new LoweringResult
 {
-    PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type),
+    PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type)
+        .Concat(ir.Constants.ToDictionary(c => c.Key, c => c.Value.Type))
+        .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
     HelperReturnTypes = new Dictionary<string, string>(),
     InjectedVariableNames = new HashSet<string>(),
 };
@@ -301,7 +303,9 @@ catch (Exception ex)
 
 var lowering = new LoweringResult
 {
-    PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type),
+    PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type)
+        .Concat(ir.Constants.ToDictionary(c => c.Key, c => c.Value.Type))
+        .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
     HelperReturnTypes = helpers.ToDictionary(h => h.Name, h => h.ReturnType),
     InjectedVariableNames = new HashSet<string>(),
 };
