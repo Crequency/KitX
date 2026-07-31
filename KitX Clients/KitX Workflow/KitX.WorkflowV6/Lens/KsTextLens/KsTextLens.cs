@@ -6,6 +6,7 @@ using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Lowering;
+using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KsTextLens — KS text ↔ structured IR (v6).
@@ -80,7 +81,15 @@ public sealed class KsTextLens : ILens<string, string>
     public (Workflow Ir, LoweringResult Lowering) ParseLowering(
         string source, IReadOnlyList<HelperFunction> helpers)
     {
-        var (ast, _) = ParseAstWithDiagnostics(source);
+        var (ast, diagnostics) = ParseAstWithDiagnostics(source);
+        if (diagnostics.HasErrors)
+        {
+            var detail = string.Join("\n", diagnostics.Items
+                .Where(d => d.Severity == KsDiagnosticSeverity.Error)
+                .Select(d => $"  [{d.Code}] L{d.Line}: {d.Message}"));
+            Log.Warning("[KsTextLens] Parse errors ({Count}) — IR may be incomplete:\n{Detail}",
+                diagnostics.ErrorCount, detail);
+        }
         return new KsLowerer(_registry).Lower(ast, helpers);
     }
 
