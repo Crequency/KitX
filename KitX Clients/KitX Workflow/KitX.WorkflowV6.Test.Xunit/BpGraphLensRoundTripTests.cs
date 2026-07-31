@@ -574,4 +574,23 @@ public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
         var reversedSw = Assert.IsType<SwitchStatement>(reversed.Body[0]);
         Assert.Equal(new[] { 43, 45, 62, 60 }, reversedSw.ArmLabels.ToArray());
     }
+
+    [Fact]
+    public void IR_To_BP_To_IR_Is_Equivalent_StringConcat_Variadic()
+    {
+        // P5-C1: a StringConcat call with more args than its static PortSpec (2 inputs)
+        // must extend the variadic "Input N" group on the way to the Blueprint instead of
+        // silently dropping the extra args. Round-trip must be diff-empty.
+        var ir = ParseKS("StringConcat(\"a\", \"b\", \"c\", \"d\")\n");
+        var lens = _fixture.BpLens;
+        var bp = lens.Project(ir);
+
+        var fn = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "StringConcat");
+        Assert.Contains(fn.InputPins, p => p.Name == "Input 3");
+        Assert.Contains(fn.InputPins, p => p.Name == "Input 4");
+
+        var reversed = lens.Reverse(bp);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: {string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
+    }
 }

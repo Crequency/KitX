@@ -265,13 +265,31 @@ internal sealed class BpRenderer
     {
         // Collect data input pins (exclude Exec) in order.
         var dataPins = func.InputPins.Where(p => p.Name != BpPinNames.Exec).ToList();
+        // Variadic input group (P5-C1): args beyond the static PortSpec extend the group.
+        var variadic = _registry?.Get(func.FunctionName)?.InputVariadic;
         for (int i = 0; i < args.Length; i++)
         {
             // Skip placeholders — pipeline sources fill these positions separately.
             if (args[i] is KsPlaceholder) continue;
 
             var pin = i < dataPins.Count ? dataPins[i] : null;
-            if (pin is null) continue;
+            if (pin is null)
+            {
+                // Beyond the static PortSpec: append a variadic input pin when the
+                // function declares one. Without this, KS calls with more arguments than
+                // static pins would silently drop the extra args on the way to the
+                // Blueprint, breaking the KS↔BP round-trip for e.g. StringConcat(a, b, c).
+                if (variadic is null) continue;
+                var variadicCount = dataPins.Count(p =>
+                    !string.IsNullOrEmpty(variadic.BasePinName)
+                    && p.Name.StartsWith(variadic.BasePinName, StringComparison.Ordinal));
+                var name = string.IsNullOrEmpty(variadic.BasePinName)
+                    ? (variadic.StartIndex + variadicCount).ToString()
+                    : $"{variadic.BasePinName}{variadic.StartIndex + variadicCount}";
+                pin = MakePin(name, PinDirection.Input, variadic.PinType);
+                func.InputPins.Add(pin);
+                dataPins.Add(pin);
+            }
 
             switch (args[i])
             {
