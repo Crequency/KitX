@@ -55,7 +55,8 @@ internal static class StructuralReducer
         if (blueprint.Nodes.Count == 0) return null;
 
         var nodeById = blueprint.Nodes.ToDictionary(n => n.Id);
-        var entry = blueprint.Nodes.OfType<EntryNode>().FirstOrDefault();
+        // Entry or PluginTrigger (the trigger entry node replaces Entry when TriggerType=PluginEvent).
+        var entry = blueprint.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
 
         // ── E3 (KS102): Unique predecessor — every Exec input ≤1 incoming edge ──
         // The v6 End-pin model is a pure tree-shaped DAG; no diamond merge exists.
@@ -197,7 +198,7 @@ internal static class StructuralReducer
         foreach (var node in blueprint.Nodes)
         {
             if (IsDefinitionNode(node)) continue;
-            if (node is EntryNode) continue;  // EntryNode has no Exec input (only output)
+            if (node is EntryNode or PluginTriggerNode) continue;  // entry nodes have no Exec input (only output)
             bool hasExecIn = node.InputPins.Any(p => p.Type == PinType.Execution);
             bool hasExecOut = node.OutputPins.Any(p => p.Type == PinType.Execution)
                               || IsTerminatorNode(node);
@@ -316,7 +317,7 @@ internal static class StructuralReducer
     /// post-construct statement. Also enforces break/continue inside loop scope.
     /// </summary>
     private static ConstraintViolation? CheckStructuredReducibility(Blueprint bp,
-        Dictionary<string, BlueprintNode> nodeById, EntryNode entry)
+        Dictionary<string, BlueprintNode> nodeById, BlueprintNode entry)
     {
         var visited = new HashSet<string>();
         // The EntryNode itself is the root — mark it visited before walking its exec out.

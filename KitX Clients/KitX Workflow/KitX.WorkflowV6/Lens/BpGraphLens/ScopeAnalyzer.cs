@@ -41,7 +41,8 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
 
         var byId = blueprint.Nodes.ToDictionary(n => n.Id);
         var execOut = IndexExecOut(blueprint, byId);
-        var entry = blueprint.Nodes.OfType<EntryNode>().FirstOrDefault();
+        // Entry or PluginTrigger (trigger entry node replaces Entry when TriggerType=PluginEvent).
+        var entry = blueprint.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
         if (entry is null) return [];
 
         var regions = new List<ScopeRegion>();

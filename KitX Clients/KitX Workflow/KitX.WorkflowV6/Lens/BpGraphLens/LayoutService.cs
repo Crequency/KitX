@@ -63,8 +63,9 @@ public sealed class LayoutService : ILayoutService
         // Phase 1: Build exec adjacency map (Execution-pin connections only).
         var execMap = BuildExecAdjacencyMap(blueprint);
 
-        // Phase 2: Find the single EntryNode (v6 has exactly one per workflow).
-        var entry = blueprint.Nodes.FirstOrDefault(n => n.NodeType == BlueprintNodeType.Entry);
+        // Phase 2: Find the single entry node (v6 has exactly one per workflow).
+        // A PluginTriggerNode replaces the EntryNode when TriggerType=PluginEvent.
+        var entry = blueprint.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
         if (entry == null) return;
 
         // Phase 3: Build region tree starting from entry.

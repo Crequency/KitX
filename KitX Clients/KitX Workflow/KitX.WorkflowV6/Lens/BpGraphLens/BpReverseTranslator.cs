@@ -103,8 +103,10 @@ internal sealed class BpReverseTranslator
             }
         }
 
-        // Restore the top-level body by walking exec edges from the EntryNode.
-        var entry = bp.Nodes.OfType<EntryNode>().FirstOrDefault();
+        // Restore the top-level body by walking exec edges from the entry node.
+        // A PluginTriggerNode replaces the EntryNode when TriggerType=PluginEvent (same
+        // 0-in/1-Exec-out pin shape) — treat both as the exec-graph root.
+        var entry = bp.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
         if (entry is not null)
         {
             var body = WalkExecChain(entry, BpPinNames.Exec);
