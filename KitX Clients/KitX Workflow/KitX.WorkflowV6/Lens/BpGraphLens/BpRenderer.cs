@@ -354,8 +354,7 @@ internal sealed class BpRenderer
         // ReverseIf reads the condition via ReadDataInput, it marks the entire condition
         // sub-graph as consumed; WalkExecChain then skips those nodes, avoiding spurious
         // standalone PipelineStatements for the condition expression.
-        var condNode = RenderCondition(iff.Condition, $"{path}/cond");
-        ConnectExecTails(prevTails, condNode);
+        var condNode = RenderCondition(iff.Condition, $"{path}/cond", prevTails);
         var afterCondTails = new List<ExecTail> { new(condNode, BpPinNames.Exec) };
 
         var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
@@ -390,8 +389,7 @@ internal sealed class BpRenderer
     {
         // Source node threaded into exec chain before Each. See RenderIfElse comment for
         // the _consumedNodes-based reverse-translation rationale.
-        var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src");
-        ConnectExecTails(prevTails, sourceNode);
+        var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src", prevTails);
         var afterSrcTails = new List<ExecTail> { new(sourceNode, BpPinNames.Exec) };
 
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
@@ -418,8 +416,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderWhile(WhileStatement ws, string path, List<ExecTail> prevTails)
     {
         // Condition node threaded into exec chain before While.
-        var condNode = RenderCondition(ws.Condition, $"{path}/cond");
-        ConnectExecTails(prevTails, condNode);
+        var condNode = RenderCondition(ws.Condition, $"{path}/cond", prevTails);
         var afterCondTails = new List<ExecTail> { new(condNode, BpPinNames.Exec) };
 
         var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
@@ -444,8 +441,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderSwitch(SwitchStatement sw, string path, List<ExecTail> prevTails)
     {
         // Selector node threaded into exec chain before Switch.
-        var selNode = RenderCondition(sw.Selector, $"{path}/sel");
-        ConnectExecTails(prevTails, selNode);
+        var selNode = RenderCondition(sw.Selector, $"{path}/sel", prevTails);
         var afterSelTails = new List<ExecTail> { new(selNode, BpPinNames.Exec) };
 
         var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
@@ -485,32 +481,47 @@ internal sealed class BpRenderer
     /// Renders a condition KsNode as a data-source node whose output is the condition value.
     /// Handles KsIdentifier (variable read), KsCall (function call), and KsPipeline
     /// (pipeline condition like `a, b > Compare("BEQ")`).
+    ///
+    /// Per the v6 contract (§3.3.2-3.3.5 of KScript-Blueprint-Correspondence.md), the
+    /// condition/source sub-graph IS threaded into the exec chain before the control-flow
+    /// node — every non-definition node participates in the exec graph. <paramref name="prevTails"/>
+    /// are connected to the condition's first node; the returned node's Exec out becomes
+    /// the tail the caller threads into the Branch/Each/While/Switch node.
     /// </summary>
-    private BlueprintNode RenderCondition(KsNode cond, string path)
+    private BlueprintNode RenderCondition(KsNode cond, string path, List<ExecTail> prevTails)
     {
         switch (cond)
         {
             case KsIdentifier id:
-                return AddUsageNode(new VariableNode
                 {
-                    Name = id.Name, VarName = id.Name,
-                    VarKind = VariableKind.PubVar,
-                }, path);
+                    var vn = AddUsageNode(new VariableNode
+                    {
+                        Name = id.Name, VarName = id.Name,
+                        VarKind = VariableKind.PubVar,
+                    }, path);
+                    ConnectExecTails(prevTails, vn);
+                    return vn;
+                }
             case KsLiteral lit:
-                return AddUsageNode(new ConstNode
                 {
-                    Name = lit.Value?.ToString() ?? "null",
-                    ConstName = lit.Value?.ToString() ?? "null",
-                    ConstValue = lit.Value?.ToString(),
-                }, path);
+                    var cn = AddUsageNode(new ConstNode
+                    {
+                        Name = lit.Value?.ToString() ?? "null",
+                        ConstName = lit.Value?.ToString() ?? "null",
+                        ConstValue = lit.Value?.ToString(),
+                    }, path);
+                    ConnectExecTails(prevTails, cn);
+                    return cn;
+                }
             case KsCall call:
                 {
                     var fn = AddBuiltin(call.MethodName, path);
                     WireCallArgs(fn, call.Args, $"{path}/args");
+                    ConnectExecTails(prevTails, fn);
                     return fn;
                 }
             case KsPipeline pipe:
-                return RenderPipelineAsCondition(pipe, path);
+                return RenderPipelineAsCondition(pipe, path, prevTails);
             default:
                 throw new InvalidOperationException($"Unexpected condition node: {cond.GetType().Name}");
         }
@@ -520,22 +531,25 @@ internal sealed class BpRenderer
     /// Renders a KsPipeline condition as a chain of data nodes and returns the last
     /// function node whose output is the condition value.
     /// </summary>
-    private BlueprintNode RenderPipelineAsCondition(KsPipeline pipe, string path)
+    private BlueprintNode RenderPipelineAsCondition(KsPipeline pipe, string path, List<ExecTail> prevTails)
     {
-        // Same exec-chain threading logic as RenderPipelineStmt: every source and every
-        // segment node participates in the exec graph. The condition's last segment
-        // node is returned as the data source whose Value feeds the control-flow node's
-        // Condition/List/Selector input.
-        //
-        // Note: condition pipelines don't carry their own prevTails (the caller —
-        // RenderIfElse/RenderForEach/RenderWhile/RenderSwitch — threads them through
-        // separately). Here we only ensure each node has Exec pins (via AddUsageNode /
-        // AddBuiltin); the actual exec-chain connection happens in the caller.
+        // Same exec-chain threading as RenderPipelineStmt: every source and every
+        // segment node participates in the exec graph (v6 contract §3.3.1/§3.3.2 —
+        // "every non-definition node participates in the exec graph", else the data
+        // sub-graph feeding a control-flow pin is ambiguous during reverse translation).
+        // prevTails → src0 → src1 → seg0 → ... → lastFunc; the caller threads
+        // lastFunc's Exec out into the Branch/Each/While/Switch node.
+        var currentTails = prevTails;
         BlueprintNode? lastFunc = null;
         var sourceNodes = new List<BlueprintNode>();
 
         for (int i = 0; i < pipe.Sources.Length; i++)
-            sourceNodes.Add(RenderSourceAsNode(pipe.Sources[i], $"{path}/src/{i}"));
+        {
+            var srcNode = RenderSourceAsNode(pipe.Sources[i], $"{path}/src/{i}");
+            sourceNodes.Add(srcNode);
+            ConnectExecTails(currentTails, srcNode);
+            currentTails = [new ExecTail(srcNode, BpPinNames.Exec)];
+        }
 
         for (int i = 0; i < pipe.Segments.Length; i++)
         {
@@ -548,6 +562,8 @@ internal sealed class BpRenderer
                     VarKind = VariableKind.PubVar,
                 }, $"{path}/seg/{i}");
                 if (lastFunc is not null) ConnectValue(lastFunc, vn);
+                ConnectExecTails(currentTails, vn);
+                currentTails = [new ExecTail(vn, BpPinNames.Exec)];
                 lastFunc = vn;
             }
             else
@@ -566,42 +582,63 @@ internal sealed class BpRenderer
                     // See RenderPipelineStmt: connect by direction, not pin-name match.
                     ConnectValue(lastFunc, fn);
                 }
+                ConnectExecTails(currentTails, fn);
+                currentTails = [new ExecTail(fn, BpPinNames.Exec)];
                 lastFunc = fn;
             }
         }
 
-        return lastFunc ?? (sourceNodes.Count > 0
-            ? sourceNodes[0]
-            : AddUsageNode(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback"));
+        if (lastFunc is not null)
+            return lastFunc;
+        if (sourceNodes.Count > 0)
+            return sourceNodes[0];
+
+        // No sources and no segments — safety net (Parser rejects empty conditions).
+        var fallback = AddUsageNode(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback");
+        ConnectExecTails(currentTails, fallback);
+        return fallback;
     }
 
-    /// <summary>Renders a single KsNode as a data-source BP node.</summary>
-    private BlueprintNode RenderSourceAsNode(KsNode node, string path)
+    /// <summary>
+    /// Renders a single KsNode as a data-source BP node. When <paramref name="prevTails"/>
+    /// is non-null, the node is threaded into the exec chain (usage sites of
+    /// control-flow sources); when null the caller (RenderPipelineStmt) threads it itself.
+    /// </summary>
+    private BlueprintNode RenderSourceAsNode(KsNode node, string path, List<ExecTail>? prevTails = null)
     {
         switch (node)
         {
             case KsLiteral lit:
-                return AddUsageNode(new ConstNode
                 {
-                    Name = lit.Value?.ToString() ?? "null",
-                    ConstName = lit.Value?.ToString() ?? "null",
-                    ConstValue = lit.Value?.ToString(),
-                }, path);
+                    var cn = AddUsageNode(new ConstNode
+                    {
+                        Name = lit.Value?.ToString() ?? "null",
+                        ConstName = lit.Value?.ToString() ?? "null",
+                        ConstValue = lit.Value?.ToString(),
+                    }, path);
+                    if (prevTails is not null) ConnectExecTails(prevTails, cn);
+                    return cn;
+                }
             case KsIdentifier id:
-                return AddUsageNode(new VariableNode
                 {
-                    Name = id.Name, VarName = id.Name,
-                    VarKind = VariableKind.PubVar,
-                }, path);
+                    var vn = AddUsageNode(new VariableNode
+                    {
+                        Name = id.Name, VarName = id.Name,
+                        VarKind = VariableKind.PubVar,
+                    }, path);
+                    if (prevTails is not null) ConnectExecTails(prevTails, vn);
+                    return vn;
+                }
             case KsCall call:
                 {
                     var fn = AddBuiltin(call.MethodName, path);
                     WireCallArgs(fn, call.Args, $"{path}/args");
+                    if (prevTails is not null) ConnectExecTails(prevTails, fn);
                     return fn;
                 }
             case KsPipeline pipe:
                 // forEach source that is itself a pipeline (e.g. `loopMax > Range(0, _, 1) > forEach as i`).
-                return RenderPipelineAsCondition(pipe, path);
+                return RenderPipelineAsCondition(pipe, path, prevTails ?? []);
             default:
                 throw new InvalidOperationException($"Unexpected pipeline source: {node.GetType().Name}");
         }
