@@ -223,9 +223,9 @@ internal sealed class ScriptCompiler
         foreach (var helper in ir.HelperFunctions)
             sb.Append($"{{H:{helper.Name}:{helper.Code}}}");
         foreach (var (k, v) in ir.Constants)
-            sb.Append($"{{C:{k}:{v.Type}}}");
+            sb.Append($"{{C:{k}:{v.Type}:{v.InitialValueExpression}:{v.DictInitializer}}}");
         foreach (var (k, v) in ir.GlobalVars)
-            sb.Append($"{{V:{k}:{v.Type}}}");
+            sb.Append($"{{V:{k}:{v.Type}:{v.InitialValueExpression}:{v.DictInitializer}}}");
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
         return Convert.ToHexString(hashBytes, 0, 8); // 16 hex chars

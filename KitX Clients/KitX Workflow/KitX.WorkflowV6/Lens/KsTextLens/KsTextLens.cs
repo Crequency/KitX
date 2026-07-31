@@ -5,6 +5,7 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
+using KitX.WorkflowV6.Ir.Lowering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KsTextLens — KS text ↔ structured IR (v6).
@@ -67,11 +68,20 @@ public sealed class KsTextLens : ILens<string, string>
     /// the caller can inspect <see cref="KsParseResult.Diagnostics"/>.
     /// </summary>
     public Workflow Parse(string source, IReadOnlyList<HelperFunction> helpers)
+        => ParseLowering(source, helpers).Ir;
+
+    /// <summary>
+    /// Parses KS source into a structured IR and returns both the IR and the
+    /// lowering result (PubVar type mapping). The lowering result is required by
+    /// <see cref="Backend.RoslynBackend.StructuredRoslynBackend"/> for type-informed
+    /// code generation. Unlike v5.1's <c>LoweringResult</c>, the v6 record does NOT
+    /// carry the IR — callers receive a <c>(Workflow, LoweringResult)</c> tuple instead.
+    /// </summary>
+    public (Workflow Ir, LoweringResult Lowering) ParseLowering(
+        string source, IReadOnlyList<HelperFunction> helpers)
     {
-        var (ast, parseDiag) = ParseAstWithDiagnostics(source);
-        var lowerer = new KsLowerer(_registry);
-        var (ir, lowerResult) = lowerer.Lower(ast, helpers);
-        return ir;
+        var (ast, _) = ParseAstWithDiagnostics(source);
+        return new KsLowerer(_registry).Lower(ast, helpers);
     }
 
     /// <summary>Parses KS source into the lossless KS AST (pre-lowering).</summary>
