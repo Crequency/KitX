@@ -20,7 +20,7 @@ using KitX.WorkflowV6.Ir.Ast;
 //                    | break | continue
 //                    | pipeline
 //   ifStmt         ::= 'if' condition INDENT statement+ DEDENT
-//                      ('else' (ifStmt | INDENT statement+ DEDENT))?
+//                      ('else' ':' INDENT statement+ DEDENT)?   // no `else if` (KS064)
 //   switchStmt     ::= 'switch' expr INDENT arm+ DEDENT
 //   arm            ::= (integer | 'default') ':' statement+ (inline or block)
 //   forEachStmt    ::= 'forEach' expr 'as' name INDENT statement+ DEDENT
@@ -485,8 +485,11 @@ internal sealed class Parser
                 var elseTok = Advance();  // consume 'else'
                 if (IsKeyword("if"))
                 {
-                    // `else if` → single nested If as the only statement of else body.
-                    elseBody = [ParseIf()];
+                    // `else if` is deliberately unsupported: it would break the KS↔IR
+                    // bijection — both `else if c:` and `else:\n    if c:` lower to the
+                    // same nested-If IR, so a round-trip would rewrite the text.
+                    // Require the nested form instead.
+                    Error("KS064", "'else if' is not supported — write 'else:' followed by a nested 'if' block");
                 }
                 else
                 {

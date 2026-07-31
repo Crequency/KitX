@@ -101,23 +101,12 @@ internal sealed class KsRenderer
                 RenderBody(sb, iff.ThenBody, level + 1);
                 if (iff.ElseBody.Length > 0)
                 {
-                    if (iff.ElseBody.Length == 1 && iff.ElseBody[0] is IfStatement nested
-                        && nested.LeadingComment is null)
-                    {
-                        sb.Append(Indent(level)).Append("else ");
-                        RenderControlFlowHeaderInline(sb, level, "if", nested.Condition, trailing: nested.TrailingComment);
-                        RenderBody(sb, nested.ThenBody, level + 1);
-                        if (nested.ElseBody.Length > 0)
-                        {
-                            sb.Append(Indent(level)).Append("else:\n");
-                            RenderBody(sb, nested.ElseBody, level + 1);
-                        }
-                    }
-                    else
-                    {
-                        sb.Append(Indent(level)).Append("else:\n");
-                        RenderBody(sb, iff.ElseBody, level + 1);
-                    }
+                    // Always render `else:` with a nested body — the nested-if form is
+                    // preserved verbatim (a nested IfStatement in the else body renders as
+                    // an indented `if ...:` block, NOT the `else if` sugar). This keeps the
+                    // round-trip text structurally identical to the source.
+                    sb.Append(Indent(level)).Append("else:\n");
+                    RenderBody(sb, iff.ElseBody, level + 1);
                 }
                 break;
 
@@ -256,7 +245,7 @@ internal sealed class KsRenderer
         RenderControlFlowHeaderInline(sb, level, keyword, cond, suffix, trailing);
     }
 
-    /// <summary>Inline portion (after the leading "keyword ") — also used by `else if`.</summary>
+    /// <summary>Inline portion of a control-flow header (after the leading "keyword ").</summary>
     private void RenderControlFlowHeaderInline(StringBuilder sb, int level, string keyword, KsNode cond, string suffix = "", string? trailing = null)
     {
         if (cond is KsPipeline pipe && pipe.Segments.Length > 1 && HasIntermediateSegComment(pipe))

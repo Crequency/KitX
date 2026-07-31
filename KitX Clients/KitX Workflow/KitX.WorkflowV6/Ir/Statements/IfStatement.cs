@@ -20,8 +20,8 @@ using KitX.WorkflowV6.Ir.Ast;
 
 /// <summary>
 /// An if/else statement: <c>if &lt;condition&gt; &lt;then-body&gt; else &lt;else-body&gt;</c>.
-/// Either body may be empty. There is no elseif keyword: <c>else if</c> nests an
-/// IfStatement inside the Else body.
+/// Either body may be empty. There is no <c>else if</c> keyword (KS064) — a nested
+/// if is expressed as an IfStatement inside the Else body.
 /// </summary>
 public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
 {
@@ -41,7 +41,8 @@ public sealed record IfStatement : KitX.WorkflowV6.Ir.Statement
 
     /// <summary>
     /// Body executed when <see cref="Condition"/> is false. Empty when the source had
-    /// no <c>else</c> clause. <c>else if</c> nests an <see cref="IfStatement"/> here.
+    /// no <c>else</c> clause. A nested if (the <c>else:\n    if ...</c> form) is an
+    /// <see cref="IfStatement"/> here.
     /// </summary>
     public ImmutableArray<Statement> ElseBody { get; init; } = [];
 

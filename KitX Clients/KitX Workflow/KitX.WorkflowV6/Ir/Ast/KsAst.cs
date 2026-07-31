@@ -446,7 +446,8 @@ public abstract record KsStatement : KsNode
 /// <see cref="Condition"/> is a <see cref="KsNode"/> expression (typically a KsCall to
 /// <c>Compare</c>, or a KsIdentifier referencing a bool PubVar — comparison
 /// operators are disabled per §十二-B so conditions are always function calls or ids).
-/// <c>else if</c> nests a <see cref="KsIf"/> inside <see cref="ElseBody"/>.
+/// <c>else</c> is the nested form only: a nested if is a <see cref="KsIf"/> inside
+/// <see cref="ElseBody"/> (the <c>else if</c> keyword is unsupported — KS064).
 /// </summary>
 public sealed record KsIf : KsStatement
 {
