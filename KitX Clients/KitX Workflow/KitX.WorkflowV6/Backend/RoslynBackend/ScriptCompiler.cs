@@ -114,7 +114,10 @@ internal sealed class ScriptCompiler
 
             var (assembly, loadContext, errors) = CompileSource(source, hash);
             if (assembly is null)
+            {
+                Log.Error("[ScriptCompiler] Compilation failed. Generated source:\n{Source}", source);
                 return (null, loadContext, errors);
+            }
 
             // Cache the assembly.
             var cacheContext = loadContext ?? new CollectibleAssemblyLoadContext(hash);
