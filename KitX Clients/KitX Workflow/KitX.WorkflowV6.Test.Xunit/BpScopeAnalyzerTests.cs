@@ -58,4 +58,25 @@ public class BpScopeAnalyzerTests : IClassFixture<WorkflowTestFixture>
         Assert.NotEmpty(body.NodeIds);
         Assert.True(body.Width > 0 && body.Height > 0);
     }
+
+    [Fact]
+    public void Project_Collects_Statement_Primary_Nodes()
+    {
+        // Statements: if (Branch) + body Print(a) + else-body Print(b) + trailing Print.
+        var ir = _fixture.KsLens.Parse("""
+            if true:
+                Print("a")
+            else:
+                Print("b")
+            Print("after")
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+
+        Assert.Equal(4, bp.StatementPrimaryNodeIds.Count);
+        Assert.All(bp.StatementPrimaryNodeIds, id => Assert.Contains(bp.Nodes, n => n.Id == id));
+
+        var branch = bp.Nodes.OfType<KitX.Core.Contract.Workflow.BuiltinFunctionNode>()
+            .First(n => n.FunctionName == "Branch");
+        Assert.Contains(branch.Id, bp.StatementPrimaryNodeIds);
+    }
 }

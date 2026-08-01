@@ -136,6 +136,12 @@ internal sealed class BpRenderer
         var primary = _currentPrimaryNode;
         _currentPrimaryNode = savedPrimary;
 
+        // Record the statement's leader (primary) node so the frontend can offer
+        // group-comment anchoring only on valid statement leaders (the reverse translator
+        // reattaches leading comments by this node's id).
+        if (primary is not null)
+            _bp.StatementPrimaryNodeIds.Add(primary.Id);
+
         // Attach the trailing comment to the statement's primary node (the node the
         // reverse translator reads back as TrailingComment).
         if (primary is not null && stmt.TrailingComment is { Length: > 0 })

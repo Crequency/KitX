@@ -14,10 +14,17 @@ namespace KitX.WorkflowV6.Lens.BpGraphLens;
 /// <param name="NodeIds">IDs of nodes involved in the violation (for frontend highlighting).</param>
 /// <param name="ConnectionIds">IDs of connections involved (optional).</param>
 /// <param name="FixSuggestion">Suggested fix shown in the error tooltip (optional).</param>
+/// <param name="BadgeColorHex">Error-bar background colour hex. Defaults to red; non-structural
+/// informational rejections (e.g. group-comment anchoring conflicts) may pass orange.</param>
 public sealed record ConstraintViolation(
     string Code,
     string Constraint,
     string Message,
     IReadOnlyList<string> NodeIds,
     IReadOnlyList<string>? ConnectionIds = null,
-    string? FixSuggestion = null);
+    string? FixSuggestion = null,
+    string? BadgeColorHex = null)
+{
+    /// <summary>Effective badge colour (red default, orange for informational rejections).</summary>
+    public string EffectiveBadgeColorHex => BadgeColorHex ?? "#F44336";
+}
