@@ -132,6 +132,20 @@ internal sealed class Parser
         return false;
     }
 
+    /// <summary>
+    /// True when the current Indent+Comment line is shortly followed by an Indent+Pipe
+    /// continuation line — i.e. a full-line comment wedged between multi-line pipeline
+    /// continuations (rejected with KS065). Lookahead is bounded: a comment line is at
+    /// most a few tokens from the continuation it interrupts.
+    /// </summary>
+    private bool HasContinuationAfterCommentLine()
+    {
+        for (int j = 2; j <= 8; j++)
+            if (Peek(j).Kind == KsTokenKind.Indent && Peek(j + 1).Kind == KsTokenKind.Pipe)
+                return true;
+        return false;
+    }
+
     private sealed class CommentAccumulator
     {
         private List<string>? _pending;
@@ -686,18 +700,35 @@ internal sealed class Parser
         // treat it as a continuation of the current pipeline. This allows pipelines to
         // span multiple lines (each segment on its own line), which is a prerequisite
         // for per-segment comment preservation (Phase B).
-        while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+        while (true)
         {
-            Advance(); // consume Indent
-            Advance(); // consume Pipe
-            if (RejectForEachInPipeline("as a pipeline segment"))
-                break;
-            var seg = ParseSegment();
-            // Capture point B — a trailing comment on this continuation segment's line
-            // (`> Func // cmt`). This is the per-segment comment that forces multi-line
-            // rendering and maps to the segment's BP node.
-            seg.Comment = TryConsumeComment();
-            segments.Add(seg);
+            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+            {
+                Advance(); // consume Indent
+                Advance(); // consume Pipe
+                if (RejectForEachInPipeline("as a pipeline segment"))
+                    break;
+                var seg = ParseSegment();
+                // Capture point B — a trailing comment on this continuation segment's line
+                // (`> Func // cmt`). This is the per-segment comment that forces multi-line
+                // rendering and maps to the segment's BP node.
+                seg.Comment = TryConsumeComment();
+                segments.Add(seg);
+                continue;
+            }
+
+            // KS065: a full-line comment BETWEEN continuation lines is rejected — a leading
+            // comment belongs to the whole statement (one line ⇔ one data subgraph); only
+            // per-segment inline comments are allowed inside a multi-line pipeline.
+            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Comment
+                && HasContinuationAfterCommentLine())
+            {
+                Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或续行段后（行内注释）。");
+                Advance(); // consume Indent
+                Advance(); // consume Comment
+                continue;
+            }
+            break;
         }
 
         // Terminal assignment `= name` becomes a variable-tap segment.
@@ -941,17 +972,33 @@ internal sealed class Parser
         // are additional segments. Each may carry an inline comment (intermediate
         // segments). The last segment's comment is typically captured post-colon by
         // the caller (the ':' sits on the last segment's line before the inline comment).
-        while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+        while (true)
         {
-            Advance();  // consume Indent
-            Advance();  // consume Pipe
-            if (RejectForEachInPipeline("in a pipeline expression"))
-                break;
-            var seg = ParseSegment();
-            var segComment = TryConsumeComment();
-            seg.Comment = segComment;
-            lastSegComment = segComment;
-            segments.Add(seg);
+            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+            {
+                Advance();  // consume Indent
+                Advance();  // consume Pipe
+                if (RejectForEachInPipeline("in a pipeline expression"))
+                    break;
+                var seg = ParseSegment();
+                var segComment = TryConsumeComment();
+                seg.Comment = segComment;
+                lastSegComment = segComment;
+                segments.Add(seg);
+                continue;
+            }
+
+            // KS065: no full-line comments between continuation lines (see statement
+            // pipeline — the leading comment belongs to the whole statement).
+            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Comment
+                && HasContinuationAfterCommentLine())
+            {
+                Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或续行段后（行内注释）。");
+                Advance();  // consume Indent
+                Advance();  // consume Comment
+                continue;
+            }
+            break;
         }
 
         if (segments.Count == 0)

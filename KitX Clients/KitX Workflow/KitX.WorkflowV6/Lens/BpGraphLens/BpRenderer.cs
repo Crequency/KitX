@@ -117,7 +117,6 @@ internal sealed class BpRenderer
 
     private List<ExecTail> RenderStatement(Statement stmt, string path, List<ExecTail> prevTails)
     {
-        int nodeStart = _bp.Nodes.Count;
         var savedPrimary = _currentPrimaryNode;
         _currentPrimaryNode = null;
 
@@ -136,29 +135,78 @@ internal sealed class BpRenderer
         var primary = _currentPrimaryNode;
         _currentPrimaryNode = savedPrimary;
 
-        // Record the statement's leader (primary) node so the frontend can offer
-        // group-comment anchoring only on valid statement leaders (the reverse translator
-        // reattaches leading comments by this node's id).
         if (primary is not null)
+        {
+            // Record the statement's leader (primary) node so the frontend can offer
+            // group-comment anchoring on valid statement leaders (the reverse translator
+            // reattaches leading comments by this node's id).
             _bp.StatementPrimaryNodeIds.Add(primary.Id);
 
-        // Attach the trailing comment to the statement's primary node (the node the
-        // reverse translator reads back as TrailingComment).
-        if (primary is not null && stmt.TrailingComment is { Length: > 0 })
-            primary.Comment = stmt.TrailingComment;
+            // Data subgraph: the connected component of DATA edges reachable from the
+            // primary node. KS one line ⇔ one data subgraph; subgraphs never overlap —
+            // cross-statement data edges do not exist (variable writes/reads are separate
+            // usage nodes, control-flow data pins connect only their own statement's
+            // subgraph, Each.Current is not wired). Every node in the component belongs
+            // to THIS statement's primary (frontend snap target).
+            var component = CollectDataComponent(primary, _bp);
+            foreach (var id in component)
+                _bp.StatementNodeToPrimary[id] = primary.Id;
 
-        // Emit a GroupComment anchoring the leading comment to this statement's subgraph.
-        if (stmt.LeadingComment is { Length: > 0 } && primary is not null)
-        {
-            _bp.GroupComments.Add(new BlueprintGroupComment
+            // Attach the trailing comment to the statement's primary node (the node the
+            // reverse translator reads back as TrailingComment).
+            if (stmt.TrailingComment is { Length: > 0 })
+                primary.Comment = stmt.TrailingComment;
+
+            // Emit a GroupComment anchoring the leading comment to this statement's data
+            // subgraph. A statement with no data edges still keeps its primary node so the
+            // dashed frame shows the node itself.
+            if (stmt.LeadingComment is { Length: > 0 })
             {
-                Comment = stmt.LeadingComment,
-                AnchorNodeId = primary.Id,
-                NodeIds = _bp.Nodes.Skip(nodeStart).Select(n => n.Id).ToList(),
-            });
+                _bp.GroupComments.Add(new BlueprintGroupComment
+                {
+                    Comment = stmt.LeadingComment,
+                    AnchorNodeId = primary.Id,
+                    NodeIds = component.Count > 0 ? [.. component] : [primary.Id],
+                });
+            }
         }
 
         return tails;
+    }
+
+    /// <summary>
+    /// Collects the connected component of data edges (undirected) reachable from the root
+    /// node. Exec edges are excluded — the data subgraph is the pure data-flow region.
+    /// </summary>
+    private static HashSet<string> CollectDataComponent(BlueprintNode root, Blueprint bp)
+    {
+        var adj = new Dictionary<string, List<string>>();
+        foreach (var conn in bp.Connections)
+        {
+            var src = bp.Nodes.FirstOrDefault(n => n.Id == conn.SourceNodeId);
+            if (src == null) continue;
+            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+
+            if (!adj.TryGetValue(conn.SourceNodeId, out var l1)) adj[conn.SourceNodeId] = l1 = new();
+            l1.Add(conn.TargetNodeId);
+            if (!adj.TryGetValue(conn.TargetNodeId, out var l2)) adj[conn.TargetNodeId] = l2 = new();
+            l2.Add(conn.SourceNodeId);
+        }
+
+        var visited = new HashSet<string>();
+        var queue = new Queue<string>();
+        visited.Add(root.Id);
+        queue.Enqueue(root.Id);
+        while (queue.Count > 0)
+        {
+            var id = queue.Dequeue();
+            if (!adj.TryGetValue(id, out var neighbors)) continue;
+            foreach (var n in neighbors)
+                if (visited.Add(n))
+                    queue.Enqueue(n);
+        }
+        return visited;
     }
 
     private List<ExecTail> RenderCtrlNode(string name, string path, List<ExecTail> prevTails)
