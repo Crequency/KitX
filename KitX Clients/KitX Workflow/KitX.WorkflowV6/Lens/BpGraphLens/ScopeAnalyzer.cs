@@ -108,6 +108,9 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
                     if (subPin.Type != PinType.Execution) continue;
 
                     var childScope = new HashSet<string>();
+                    // Record the index BEFORE recursing: nested scopes append their own
+                    // regions afterwards, so regions[^1] would not reference this placeholder.
+                    var regionIndex = regions.Count;
                     regions.Add(new ScopeRegion
                     {
                         ScopeId = $"{targetId}:{subPin.Name}",
@@ -121,9 +124,9 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
                     // Recurse into the sub-scope with the child set as current scope.
                     WalkChain(targetId, subPin.Name, depth + 1,
                         childScope, byId, execOut, regions, globalVisited);
-                    // Replace the placeholder region's NodeIds with the collected set.
-                    var placeholder = regions[^1];
-                    regions[^1] = placeholder with { NodeIds = [.. childScope] };
+                    // Replace THIS placeholder region's NodeIds with the collected set.
+                    var placeholder = regions[regionIndex];
+                    regions[regionIndex] = placeholder with { NodeIds = [.. childScope] };
                 }
 
                 // Continue from the End pin into the current scope.
