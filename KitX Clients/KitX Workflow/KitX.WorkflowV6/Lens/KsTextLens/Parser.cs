@@ -727,7 +727,15 @@ internal sealed class Parser
         {
             if (RejectForEachInPipeline("as a pipeline segment"))
                 break;
-            segments.Add(ParseSegment());
+            // An inline comment right after a same-line segment attaches to THAT
+            // segment (the nearest node), never to the statement — `a > FB // cmt`
+            // → FB.Comment. Capture point A below only sees comments that no segment
+            // could own (bare calls / source-list tails).
+            var seg = ParseSegment();
+            var cmt = TryConsumeComment();
+            if (cmt is not null)
+                seg.Comment = cmt;
+            segments.Add(seg);
         }
 
         // Capture point A — a trailing comment after the inline sources/segments. In a
@@ -1044,7 +1052,13 @@ internal sealed class Parser
         {
             if (RejectForEachInPipeline("in a pipeline expression"))
                 break;
-            segments.Add(ParseSegment());
+            // Same-line segment inline comment attaches to THAT segment (nearest node).
+            var seg = ParseSegment();
+            var cmt = TryConsumeComment();
+            if (cmt is not null)
+                seg.Comment = cmt;
+            lastSegComment = cmt;
+            segments.Add(seg);
         }
 
         // Multi-line header continuation: lines at the body indent starting with '>'

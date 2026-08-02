@@ -4,7 +4,6 @@
 // and precise BP→KS comment round-trips (each comment points at its nearest node).
 // ─────────────────────────────────────────────────────────────────────────────
 
-using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Lens.BpGraphLens;
@@ -136,7 +135,7 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
         var bp = _fixture.BpLens.Project(ir);
         var reversed = _fixture.BpLens.Reverse(bp);
         var text = _fixture.KsLens.Project(reversed);
-        Assert.Contains("源注释", text);
+                Assert.Contains("源注释", text);
     }
 
     [Fact]
@@ -159,11 +158,6 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
 
     // ── Precise comment round-trips (each comment points at its NEAREST node) ──
 
-    private static VariableNode UsageNode(Blueprint bp, string name)
-        => bp.Nodes.OfType<VariableNode>()
-            .First(n => n.VarName == name
-                        && n.InputPins.Any(p => p.Type == PinType.Execution));
-
     [Fact]
     public void RoundTrip_Last_Segment_Comment_Stays_On_Last_Segment()
     {
@@ -182,12 +176,15 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
         Assert.Equal("末段注释", pipe.Segments[^1].Comment);
         Assert.Null(pipe.TrailingComment);
         var text = _fixture.KsLens.Project(reversed);
-        Assert.Contains("> Print // 末段注释", text);
+                Assert.Contains("> Print // 末段注释", text);
     }
 
     [Fact]
-    public void RoundTrip_SingleLine_Trailing_Comment_Stays_Statement_Trailing()
+    public void RoundTrip_SingleLine_Trailing_Comment_Stays_On_Last_Segment()
     {
+        // `a > Print // cmt` — the inline comment belongs to the NEAREST node (Print),
+        // not the statement: Parse→Project→Reverse keeps it on the last segment, and
+        // rendering keeps the single-line form.
         var ir = _fixture.KsLens.Parse("""
             var {
                 int a
@@ -197,8 +194,10 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
         var bp = _fixture.BpLens.Project(ir);
         var reversed = _fixture.BpLens.Reverse(bp);
         var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
-        Assert.Equal("语句尾注释", pipe.TrailingComment);
-        Assert.All(pipe.Segments, s => Assert.Null(s.Comment));
+        Assert.Equal("语句尾注释", pipe.Segments[^1].Comment);
+        Assert.Null(pipe.TrailingComment);
+        var text = _fixture.KsLens.Project(reversed);
+                Assert.True(text.Contains("a > Print // 语句尾注释"), $"Text:\n{text}");
     }
 
     [Fact]
@@ -222,32 +221,99 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public void RoundTrip_Mixed_Source_And_Segment_Comments_No_Shift()
+    public void RoundTrip_User_Scenario_Comments_On_Nearest_Nodes()
     {
+        // User scenario: `targetNum > Compare("BEQ", _, _) // Comment4Compare` — the
+        // comment must land on the Compare SEGMENT (nearest node), never on the targetNum
+        // source, and survive a full round-trip without shifting.
         var ir = _fixture.KsLens.Parse("""
-            var {
-                int a
-                int b
-                bool cond
+            const {
+                int targetNum
+                int loopMax
+                int guessNum
             }
-            a, // 源a注释
-                b
-                > Compare("BEQ")  // 段注释
-                > cond
+            var {
+                bool cond
+                int i
+            }
+            forEach loopMax > Range(0, _, 1) as i:
+                guessNum, // Comment4guessNum
+                    targetNum > Compare("BEQ", _, _) // Comment4Compare
+                    > cond // Comment4cond
+                if cond:
+                    Print("correct!") // 猜对了
             """, []);
+        var fe = Assert.IsType<ForEachStatement>(ir.Body[0]);
+        var pipe = Assert.IsType<PipelineStatement>(fe.Body[0]);
+        Assert.Equal("Comment4guessNum", pipe.Sources[0].Comment);
+        Assert.Equal("Comment4Compare", pipe.Segments[0].Comment);
+        Assert.Equal("Comment4cond", pipe.Segments[1].Comment);
+
         var bp = _fixture.BpLens.Project(ir);
-        Assert.Equal("源a注释", UsageNode(bp, "a").Comment);
         var reversed = _fixture.BpLens.Reverse(bp);
-        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
-        // Source comment stays on source a; segment comment stays on Compare; no shifts.
-        Assert.Equal("源a注释", pipe.Sources[0].Comment);
-        Assert.Equal("段注释", pipe.Segments[0].Comment);
-        Assert.Null(pipe.TrailingComment);
+        var fe2 = Assert.IsType<ForEachStatement>(reversed.Body[0]);
+        var pipe2 = Assert.IsType<PipelineStatement>(fe2.Body[0]);
+        Assert.Equal("Comment4guessNum", pipe2.Sources[0].Comment);
+        Assert.Equal("Comment4Compare", pipe2.Segments[0].Comment);
+        Assert.Equal("Comment4cond", pipe2.Segments[1].Comment);
         var text = _fixture.KsLens.Project(reversed);
-        Assert.True(text.Contains("a, // 源a注释"), $"Text:\n{text}");
-        Assert.True(text.Contains("> Compare(\"BEQ\", _, _) // 段注释"), $"SegText:\n{text}");
+                Assert.True(text.Contains("guessNum, // Comment4guessNum"), $"Text:\n{text}");
+        Assert.True(text.Contains("// Comment4Compare"), $"Text:\n{text}");
+        Assert.True(text.Contains("// Comment4cond"), $"Text:\n{text}");
+    }
+
+    [Fact]
+    public void RoundTrip_Full_User_Program_No_Comment_Shift()
+    {
+        const string src = """
+            const {
+                int targetNum
+                int loopMax
+                int guessNum
+            }
+            var {
+                bool cond
+                int i
+            }
+            // 开始游戏
+            Print("start")
+            // 循环
+            forEach loopMax > Range(0, _, 1) as i:
+                // 测试组注释无交互问题
+                guessNum, // Comment4guessNum
+                    targetNum > Compare("BEQ", _, _) // Comment4Compare
+                    > cond // Comment4cond
+                if cond:
+                    Print("correct!") // 猜对了
+                    break
+                else:
+                    if guessNum, targetNum > Compare("BLT", _, _):
+                        Print("too small") // 猜小了吗
+                    else:
+                        Print("too big") // 猜大了
+            // 结束消息
+            Print("end") // 游戏结束
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var text = _fixture.KsLens.Project(reversed);
+        
+        // Every comment stays on its nearest node / original line — no shifts.
+        Assert.True(text.Contains("guessNum, // Comment4guessNum"), $"Text:\n{text}");
+        Assert.True(text.Contains("targetNum > Compare(\"BEQ\", _, _) // Comment4Compare")
+                 || text.Contains("> Compare(\"BEQ\", _, _) // Comment4Compare"), $"Text:\n{text}");
+        Assert.True(text.Contains("> cond // Comment4cond"), $"Text:\n{text}");
+        Assert.True(text.Contains("Print(\"correct!\") // 猜对了"), $"Text:\n{text}");
+        Assert.True(text.Contains("Print(\"too small\") // 猜小了吗"), $"Text:\n{text}");
+        Assert.True(text.Contains("Print(\"too big\") // 猜大了"), $"Text:\n{text}");
+        Assert.True(text.Contains("Print(\"end\") // 游戏结束"), $"Text:\n{text}");
     }
 }
+
+
+
+
 
 
 

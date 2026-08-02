@@ -188,18 +188,36 @@ internal sealed class KsRenderer
     /// </summary>
     private void RenderPipelineStmt(StringBuilder sb, PipelineStatement p, int level)
     {
+        // Multi-line only when a SOURCE comment or an INTERMEDIATE segment comment
+        // exists — a lone last-segment comment stays single-line (`a > FB // cmt`).
         bool multiline = p.Sources.Any(s => s.Comment is { Length: > 0 })
-                      || p.Segments.Any(s => s.Comment is { Length: > 0 });
+                      || (p.Segments.Length > 1
+                          && p.Segments.Take(p.Segments.Length - 1).Any(s => s.Comment is { Length: > 0 }));
         if (multiline)
         {
-            RenderSourceBlock(sb, p.Sources, level, prependFirstIndent: true, trailingComment: p.TrailingComment);
+            // The first segment joins the last source line when that source carries no
+            // comment and the statement has no TrailingComment (`a, b > FB // cmt`);
+            // otherwise it starts a new segment line.
+            bool joinFirstSegment = p.Sources.Length > 0
+                                    && p.Sources[^1].Comment is not { Length: > 0 }
+                                    && p.TrailingComment is null;
+            RenderSourceBlock(sb, p.Sources, level, prependFirstIndent: true,
+                trailingComment: joinFirstSegment ? null : p.TrailingComment,
+                endWithNewline: !joinFirstSegment);
 
             // Segment block: contiguous comment-free segments share a line; a commented
             // segment terminates its line (inline comment at line end).
             for (int i = 0; i < p.Segments.Length; i++)
             {
                 var seg = p.Segments[i];
-                if (i == 0 || p.Segments[i - 1].Comment is { Length: > 0 })
+                if (i == 0)
+                {
+                    if (joinFirstSegment)
+                        sb.Append(" > ");
+                    else
+                        sb.Append(Indent(level + 1)).Append("> ");
+                }
+                else if (p.Segments[i - 1].Comment is { Length: > 0 })
                     sb.Append(Indent(level + 1)).Append("> ");
                 else
                     sb.Append(" > ");
@@ -228,7 +246,7 @@ internal sealed class KsRenderer
     /// to the LAST source line (dropped if that line already carries a source comment).
     /// </summary>
     private static void RenderSourceBlock(StringBuilder sb, ImmutableArray<KsNode> sources, int level,
-        bool prependFirstIndent, string? trailingComment)
+        bool prependFirstIndent, string? trailingComment, bool endWithNewline = true)
     {
         for (int i = 0; i < sources.Length; i++)
         {
@@ -254,7 +272,9 @@ internal sealed class KsRenderer
         // TrailingComment: only when the last source line is free of a source comment.
         if (sources.Length > 0 && sources[^1].Comment is not { Length: > 0 })
             AppendTrailing(sb, trailingComment);
-        if (sources.Length == 0 || sources[^1].Comment is not { Length: > 0 })
+        // When the first segment joins this line, the final newline is deferred to the
+        // segment block; otherwise terminate the source block here.
+        if (endWithNewline && (sources.Length == 0 || sources[^1].Comment is not { Length: > 0 }))
             sb.Append('\n');
     }
 
@@ -277,6 +297,9 @@ internal sealed class KsRenderer
         sb.Append(string.Join(", ", p.Sources.Select(RenderKsNode)));
         foreach (var seg in p.Segments)
             sb.Append(" > ").Append(RenderSegmentText(seg));
+        // A lone last-segment comment renders at the end of the single line.
+        if (p.Segments.Length > 0 && p.Segments[^1].Comment is { Length: > 0 })
+            AppendTrailing(sb, p.Segments[^1].Comment);
         return sb.ToString();
     }
 
@@ -301,12 +324,24 @@ internal sealed class KsRenderer
             // Multi-line condition: source block (keyword already written on the first
             // line) + segment block with comment-driven folding. The last segment's line
             // ends with the suffix (forEach "as i"), the ':', and its inline comment.
-            RenderSourceBlock(sb, pipe.Sources, level, prependFirstIndent: false, trailingComment: null);
+            // The first segment joins the last source line when that source is
+            // comment-free (`if a, b > Compare:`).
+            bool joinFirstSegment = pipe.Sources.Length > 0
+                                    && pipe.Sources[^1].Comment is not { Length: > 0 };
+            RenderSourceBlock(sb, pipe.Sources, level, prependFirstIndent: false,
+                trailingComment: null, endWithNewline: !joinFirstSegment);
             int lastIdx = pipe.Segments.Length - 1;
             for (int i = 0; i < pipe.Segments.Length; i++)
             {
                 var seg = pipe.Segments[i];
-                if (i == 0 || pipe.Segments[i - 1].Comment is { Length: > 0 })
+                if (i == 0)
+                {
+                    if (joinFirstSegment)
+                        sb.Append(" > ");
+                    else
+                        sb.Append(Indent(level + 1)).Append("> ");
+                }
+                else if (pipe.Segments[i - 1].Comment is { Length: > 0 })
                     sb.Append(Indent(level + 1)).Append("> ");
                 else
                     sb.Append(" > ");
