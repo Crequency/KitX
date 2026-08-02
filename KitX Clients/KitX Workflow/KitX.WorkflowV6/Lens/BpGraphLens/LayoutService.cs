@@ -399,14 +399,23 @@ public sealed class LayoutService : ILayoutService
 
             double upperStartY = forkNode.Y - ForkVGap;
 
+            // The lower branches start BELOW the deepest upper branch. Upper branches
+            // are stacked from upperStartY downward with VSpacing — the running
+            // position must be accumulated, otherwise the lower branch start
+            // underestimates and the two branch groups overlap (observed with the
+            // BF interpreter's 8-arm switch).
             double maxUpperBottom = upperStartY;
+            double runningUpperY = upperStartY;
             for (int i = 0; i < Branches.Count; i++)
             {
                 if (GetBranchDirection(i, Branches.Count) == -1)
                 {
                     var b = Branches[i];
                     if (b != null && b.MeasuredHeight > 0)
-                        maxUpperBottom = Math.Max(maxUpperBottom, upperStartY + b.MeasuredHeight);
+                    {
+                        maxUpperBottom = Math.Max(maxUpperBottom, runningUpperY + b.MeasuredHeight);
+                        runningUpperY += b.MeasuredHeight + VSpacing;
+                    }
                 }
             }
 

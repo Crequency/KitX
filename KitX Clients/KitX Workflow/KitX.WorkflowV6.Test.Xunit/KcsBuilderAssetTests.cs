@@ -76,4 +76,59 @@ public class KcsBuilderAssetTests : IClassFixture<WorkflowTestFixture>
         var restored = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
         Assert.Equal(ir.Body.Length, restored.Body.Length);
     }
+
+    [Fact]
+    public void BF_Switch_Arm_Chains_Do_Not_Overlap_After_Layout()
+    {
+        // Regression (2026-08-02): the fork layout's lower-branch start used a
+        // non-accumulated maxUpperBottom, so the BF interpreter's 8-arm switch
+        // stacked later arms over earlier ones. Every arm chain's first node Y must
+        // be spaced at least VSpacing (130) apart from its neighbours in sorted order.
+        var ks = File.ReadAllText(ScriptPath("brainfuck.ks"));
+        var helpers = JsonSerializer.Deserialize<List<HelperFunction>>(
+            File.ReadAllText(ScriptPath("brainfuck.helpers.json")))!;
+        var ir = _fixture.KsLens.Parse(ks, helpers);
+        var bp = _fixture.BpLens.Project(ir);
+
+        var sw = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Switch");
+        var armStarts = new List<(string Pin, double Y)>();
+        foreach (var pin in sw.OutputPins.Where(p => p.Type == PinType.Execution))
+        {
+            var conn = bp.Connections.FirstOrDefault(c => c.SourceNodeId == sw.Id && c.SourcePinId == pin.Id);
+            if (conn == null) continue;
+            var tgt = bp.Nodes.First(n => n.Id == conn.TargetNodeId);
+            armStarts.Add((pin.Name, tgt.Y));
+        }
+
+        Assert.True(armStarts.Count >= 8, $"expected 8+ arms, got {armStarts.Count}");
+        var sorted = armStarts.OrderBy(a => a.Y).ToList();
+        for (int i = 1; i < sorted.Count; i++)
+        {
+            Assert.True(sorted[i].Y - sorted[i - 1].Y >= 130,
+                $"arm chains overlap: {sorted[i - 1].Pin}@{sorted[i - 1].Y} vs {sorted[i].Pin}@{sorted[i].Y}");
+        }
+    }
+
+    [Fact]
+    public async Task BP_Reverse_With_Helper_Reinjection_Compiles_And_Runs()
+    {
+        // Regression (2026-08-02): the BP graph does not carry helper metadata, so a
+        // plain reverse loses them and the generated class G lacks every helper method
+        // (CS1061). The editor's ReverseWithHelpers re-attaches them — that path must
+        // compile and run (BF interpreter prints Hello World).
+        var ks = File.ReadAllText(ScriptPath("brainfuck.ks"));
+        var helpers = JsonSerializer.Deserialize<List<HelperFunction>>(
+            File.ReadAllText(ScriptPath("brainfuck.helpers.json")))!;
+        var ir = _fixture.KsLens.Parse(ks, helpers);
+        var bp = _fixture.BpLens.Project(ir);
+
+        var reversed = _fixture.BpLens.Reverse(bp);
+        Assert.Empty(reversed.HelperFunctions);   // BP graph carries no helpers
+
+        var withHelpers = reversed with { HelperFunctions = [.. helpers] };
+        var backend = new KitX.WorkflowV6.Backend.RoslynBackend.StructuredRoslynBackend();
+        var result = await backend.ExecuteAsync(withHelpers, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"BP→IR→Run failed: {result.ErrorMessage}");
+        Assert.Contains(result.Output, s => s.Contains("Hello World!"));
+    }
 }

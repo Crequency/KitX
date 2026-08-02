@@ -30,6 +30,13 @@ internal sealed class BpRenderer
     private readonly ILayoutService _layout;
     private Blueprint _bp = null!;
 
+    /// <summary>Helper-function names from the IR — a bare helper call (`> CreateMemory`)
+    /// must NOT be misread as a variable tap (registry only knows builtins).</summary>
+    private readonly HashSet<string> _helperNames = new(StringComparer.Ordinal);
+
+    /// <summary>Helper metadata (name → definition) so BP nodes get one pin per parameter.</summary>
+    private readonly Dictionary<string, KitX.Core.Contract.Workflow.HelperFunction> _helpersByName = new(StringComparer.Ordinal);
+
     private readonly Stack<(BlueprintNode loopNode, string endPin)> _loopStack = new();
 
     /// <summary>
@@ -53,6 +60,17 @@ internal sealed class BpRenderer
     public Blueprint Render(Workflow ir)
     {
         _bp = new Blueprint { Name = "Workflow" };
+
+        _helperNames.Clear();
+        _helpersByName.Clear();
+        foreach (var h in ir.HelperFunctions)
+        {
+            if (!string.IsNullOrEmpty(h.Name))
+            {
+                _helperNames.Add(h.Name);
+                _helpersByName[h.Name] = h;
+            }
+        }
 
         RenderDefinitions(ir);
 
@@ -281,7 +299,7 @@ internal sealed class BpRenderer
             var seg = p.Segments[i];
             string segPath = $"{path}/seg/{i}";
             bool isVarTap = seg.IsVariableTap
-                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target));
+                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target));
 
             BlueprintNode segNode;
             if (isVarTap)
@@ -656,7 +674,7 @@ internal sealed class BpRenderer
         for (int i = 0; i < pipe.Segments.Length; i++)
         {
             var seg = pipe.Segments[i];
-            if (seg.Args.Length == 0 && !_registry.Contains(seg.Target))
+            if (seg.Args.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target))
             {
                 var vn = AddUsageNode(new VariableNode
                 {
@@ -768,6 +786,16 @@ internal sealed class BpRenderer
             foreach (var port in bi.OutputPorts)
                 n.OutputPins.Add(MakePin(port.Name, PinDirection.Output, port.Type));
         }
+        else if (_helpersByName.TryGetValue(name, out var helper))
+        {
+            // User helper: create one input pin per declared parameter so multi-arg
+            // pipelines like `bfCode, ip > CharCodeAt` wire EVERY source (the generic
+            // single-Value fallback would silently drop all but the first source and
+            // break the BP→IR round-trip).
+            foreach (var p in helper.Parameters)
+                n.InputPins.Add(MakePin(p.Name, PinDirection.Input, MapKsType(p.Type)));
+            n.OutputPins.Add(MakePin(BpPinNames.Value, PinDirection.Output, PinType.Any));
+        }
         else
         {
             // Fallback for unknown functions (e.g. user helpers not in registry):
@@ -777,6 +805,17 @@ internal sealed class BpRenderer
         }
         return Add(n, path);
     }
+
+    /// <summary>Maps a KS type name to a pin type (helper parameter pins).</summary>
+    private static PinType MapKsType(string type) => type.ToLowerInvariant() switch
+    {
+        "string" or "char" => PinType.String,
+        "int" or "long" or "short" or "byte" => PinType.Integer,
+        "double" or "float" or "decimal" => PinType.Double,
+        "bool" => PinType.Boolean,
+        "dict" => PinType.Dict,
+        _ => PinType.Any,
+    };
 
     /// <summary>
     /// Adds a *usage* (non-definition) ConstNode/VariableNode to the blueprint, equipped
@@ -840,11 +879,13 @@ internal sealed class BpRenderer
         var fp = from.OutputPins.Find(p => p.Name != BpPinNames.Exec);
         var tp = to.InputPins.Find(p => p.Name != BpPinNames.Exec);
         if (fp is not null && tp is not null)
+        {
             _bp.Connections.Add(new BlueprintConnection
             {
                 SourceNodeId = from.Id, SourcePinId = fp.Id,
                 TargetNodeId = to.Id, TargetPinId = tp.Id,
             });
+        }
     }
 
     private void ConnectToInput(BlueprintNode from, BlueprintNode to, string inputPinName)
@@ -852,10 +893,14 @@ internal sealed class BpRenderer
         var fp = from.OutputPins.Find(p => p.Name != BpPinNames.Exec);
         var tp = to.InputPins.Find(p => p.Name == inputPinName);
         if (fp is not null && tp is not null)
+        {
             _bp.Connections.Add(new BlueprintConnection
             {
                 SourceNodeId = from.Id, SourcePinId = fp.Id,
                 TargetNodeId = to.Id, TargetPinId = tp.Id,
             });
+        }
     }
 }
+
+

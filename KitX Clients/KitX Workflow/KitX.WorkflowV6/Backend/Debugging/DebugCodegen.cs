@@ -172,7 +172,7 @@ internal sealed class DebugCodegen : CodegenBase
             string segPath = $"{stmtPath}/seg/{i}";
             string segNodeId = NodeId.Of(segPath);
             string outputVar = $"__pipe_{_pipeCounter++}";
-            bool isVarTap = seg.IsVariableTap
+            bool isVarTap = (seg.IsVariableTap && !_helperNames.Contains(seg.Target))
                          || (seg.Arguments.Length == 0
                              && !_registry.Contains(seg.Target)
                              && !_helperNames.Contains(seg.Target));

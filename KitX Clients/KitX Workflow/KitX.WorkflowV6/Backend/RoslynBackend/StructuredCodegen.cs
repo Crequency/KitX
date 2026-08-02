@@ -171,7 +171,11 @@ internal sealed class StructuredCodegen : CodegenBase
             var seg = p.Segments[segIdx];
             lastWasAssignment = false;
 
-            bool isVarTap = seg.IsVariableTap
+            // A helper-named segment is NEVER a variable tap — helper bodies are
+            // emitted as methods on G, so writing `this.{helper} = ...` would be
+            // CS1656 (method group). This also heals IR that was reverse-projected
+            // before BpRenderer learned the helper names.
+            bool isVarTap = (seg.IsVariableTap && !_helperNames.Contains(seg.Target))
                          || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target));
 
             if (isVarTap)
