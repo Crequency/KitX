@@ -109,37 +109,34 @@ public class DefinitionValueTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public void User_Value_Reaches_Runtime_IR_Through_Override_Chain()
+    public void Panel_User_Value_Flows_To_Bp_Node_And_Runtime_IR()
     {
-        // Full editor-layer chain (the part testable without Avalonia):
-        //   BP edit (ConstValue="10") → panel UserValue → overrides →
-        //   ApplyConstantOverrides → the IR executed by the backend carries "10".
+        // User scenario: script has NO initial value, but the Variable Constants
+        // panel carries a user value ("10"). Switching to BP must show it on the
+        // definition node, and executing (BP mode) must inject it at runtime —
+        // exactly like the KS-side panel injection.
         var ir = _fixture.KsLens.Parse("""
-            const {
-                int x = 5
+            var {
+                int counter
             }
-            Print(x)
+            counter > Print
             """, []);
         var bp = _fixture.BpLens.Project(ir);
-        var def = ConstDef(bp, "x")!;
-        Assert.Equal("5", def.DefaultValue);
+        var def = VarDef(bp, "counter")!;
+        Assert.Null(def.DefaultValue);
 
-        // 1. User edits the definition node on the BP canvas.
-        def.ConstValue = "10";
+        // 1. Panel → BP: RestoreUserValuesFromPanel mirrors the panel UserValue.
+        string panelUserValue = "10";
+        def.VarInitialValue = panelUserValue;   // node now displays "10" on the canvas
 
-        // 2. SyncUserValuesFromBlueprint mirrors it into the panel UserValue.
-        string panelUserValue = def.ConstValue ?? def.DefaultValue!;
+        // 2. BP edit → panel: SyncUserValuesFromBlueprint (BP mode Run / switch).
+        string synced = def.VarInitialValue ?? def.DefaultValue!;   // "10"
 
-        // 3. GetUserConstantOverridesV6 only overrides when UserValue != DefaultValue.
-        var overrides = new Dictionary<string, string?>
-        {
-            [def.ConstName] = panelUserValue != def.DefaultValue ? panelUserValue : null,
-        }.Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value);
-
-        // 4. Reverse keeps the script default; ApplyConstantOverrides applies the override.
+        // 3. Runtime injection: overrides → ApplyConstantOverrides on the reversed IR.
         var reversed = _fixture.BpLens.Reverse(bp);
-        Assert.Equal("5", reversed.Constants["x"].InitialValueExpression);
+        Assert.Null(reversed.GlobalVars["counter"].InitialValueExpression);
+        var overrides = new Dictionary<string, string?> { ["counter"] = synced };
         var applied = KitX.WorkflowV6.Ir.WorkflowOverrides.ApplyConstantOverrides(reversed, overrides);
-        Assert.Equal("10", applied.Constants["x"].InitialValueExpression);
+        Assert.Equal("10", applied.GlobalVars["counter"].InitialValueExpression);
     }
 }
