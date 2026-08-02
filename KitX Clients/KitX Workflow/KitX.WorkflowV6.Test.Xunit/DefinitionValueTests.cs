@@ -109,6 +109,32 @@ public class DefinitionValueTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public void Usage_Nodes_Do_Not_Carry_Definition_Values()
+    {
+        // Regression: Restore/Sync must only touch the standalone definition node —
+        // wired usage nodes must never carry (or clobber with) a user value.
+        var ir = _fixture.KsLens.Parse("""
+            const {
+                int x = 5
+            }
+            Print(x)
+            x > Print
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+
+        var def = ConstDef(bp, "x")!;
+        def.ConstValue = "10";   // user edit lands on the definition node only
+
+        // Wired usage nodes keep their initial-value fields untouched.
+        var usages = bp.Nodes.Where(n => bp.Connections.Any(c => c.SourceNodeId == n.Id || c.TargetNodeId == n.Id));
+        foreach (var usage in usages)
+        {
+            if (usage is ConstNode cn) Assert.Null(cn.ConstValue);
+            if (usage is VariableNode vn) Assert.Null(vn.VarInitialValue);
+        }
+    }
+
+    [Fact]
     public void Panel_User_Value_Flows_To_Bp_Node_And_Runtime_IR()
     {
         // User scenario: script has NO initial value, but the Variable Constants
