@@ -107,4 +107,39 @@ public class DefinitionValueTests : IClassFixture<WorkflowTestFixture>
         var reversed = _fixture.BpLens.Reverse(bp);
         Assert.Null(reversed.GlobalVars["empty"].InitialValueExpression);
     }
+
+    [Fact]
+    public void User_Value_Reaches_Runtime_IR_Through_Override_Chain()
+    {
+        // Full editor-layer chain (the part testable without Avalonia):
+        //   BP edit (ConstValue="10") → panel UserValue → overrides →
+        //   ApplyConstantOverrides → the IR executed by the backend carries "10".
+        var ir = _fixture.KsLens.Parse("""
+            const {
+                int x = 5
+            }
+            Print(x)
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var def = ConstDef(bp, "x")!;
+        Assert.Equal("5", def.DefaultValue);
+
+        // 1. User edits the definition node on the BP canvas.
+        def.ConstValue = "10";
+
+        // 2. SyncUserValuesFromBlueprint mirrors it into the panel UserValue.
+        string panelUserValue = def.ConstValue ?? def.DefaultValue!;
+
+        // 3. GetUserConstantOverridesV6 only overrides when UserValue != DefaultValue.
+        var overrides = new Dictionary<string, string?>
+        {
+            [def.ConstName] = panelUserValue != def.DefaultValue ? panelUserValue : null,
+        }.Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        // 4. Reverse keeps the script default; ApplyConstantOverrides applies the override.
+        var reversed = _fixture.BpLens.Reverse(bp);
+        Assert.Equal("5", reversed.Constants["x"].InitialValueExpression);
+        var applied = KitX.WorkflowV6.Ir.WorkflowOverrides.ApplyConstantOverrides(reversed, overrides);
+        Assert.Equal("10", applied.Constants["x"].InitialValueExpression);
+    }
 }
