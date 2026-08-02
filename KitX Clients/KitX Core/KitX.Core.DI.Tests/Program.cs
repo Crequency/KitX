@@ -2,7 +2,7 @@
 using KitX.Core.DI;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Workflow;
-using KitX.Workflow.Hosting;
+using KitX.WorkflowV6.Hosting;
 
 namespace KitX.Core.DI.Tests;
 
@@ -10,7 +10,7 @@ namespace KitX.Core.DI.Tests;
 /// Complete test suite for DI container verification.
 ///
 /// This console app mirrors the Dashboard's App.axaml.cs DI registration sequence
-/// (AddCoreServices + AddKitXWorkflowIR + Dashboard-specific registrations) and then
+/// (AddCoreServices + AddKitXWorkflowV6 + Dashboard-specific registrations) and then
 /// tries to resolve every service the workflow UI depends on. The original 13-service
 /// Core suite is preserved as Test 1; Test 3 walks the full host graph to localize
 /// the "workflow page does not show" failure.
@@ -133,14 +133,9 @@ public class Program
         // --- Mirror App.axaml.cs InitializeServiceProvider() ---
         var services = new ServiceCollection();
         services.AddCoreServices();
-        services.AddKitXWorkflowIR();
+        services.AddKitXWorkflowV6();
 
-        // NodeFactory
-        services.AddSingleton<KitX.Dashboard.Services.NodeFactory>(sp =>
-            new KitX.Dashboard.Services.NodeFactory(
-                sp.GetRequiredService<KitX.Workflow.Builtin.BuiltinFunctionRegistry>()));
-
-        // IPluginHost adapter (§2.3 wiring)
+        // IPluginHost adapter (v6 workflow backend)
         services.AddSingleton<Kscript.CSharp.Parser.Core.IPluginServiceProvider>(sp =>
             new KitX.Dashboard.Services.DashboardPluginServiceProvider(
                 sp.GetRequiredService<KitX.Core.Contract.Plugin.IPluginServer>(),
@@ -148,7 +143,7 @@ public class Program
         services.AddSingleton<Kscript.CSharp.Parser.Core.IPluginManager>(sp =>
             new Kscript.CSharp.Parser.Core.RealPluginManager(
                 sp.GetRequiredService<Kscript.CSharp.Parser.Core.IPluginServiceProvider>()));
-        services.AddSingleton<KitX.Workflow.Backend.Runtime.IPluginHost>(sp =>
+        services.AddSingleton<KitX.WorkflowV6.Backend.Runtime.IPluginHost>(sp =>
             new KitX.Dashboard.Services.PluginHostAdapter(
                 sp.GetRequiredService<Kscript.CSharp.Parser.Core.IPluginManager>()));
 
@@ -160,10 +155,9 @@ public class Program
         // S4: WorkflowSessionManager (IWorkflowManagementService)
         services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowManagementService,
             KitX.Dashboard.Services.WorkflowSessionManager>();
-        services.AddTransient<KitX.Dashboard.ViewModels.BlueprintEditorViewModel>();
 
         var sp = services.BuildServiceProvider();
-        Console.WriteLine("✅ Full host DI container built (AddCoreServices + AddKitXWorkflowIR + Dashboard)\n");
+        Console.WriteLine("✅ Full host DI container built (AddCoreServices + AddKitXWorkflowV6 + Dashboard)\n");
         Console.WriteLine("Testing workflow-related resolution:\n");
 
         // --- Services the workflow UI's constructor bodies call via App.GetService ---
@@ -173,23 +167,12 @@ public class Program
         TestResolve(sp, "IEventService", typeof(KitX.Core.Contract.Event.IEventService));
 
         Console.WriteLine();
-        // WorkflowEditorWindow ctor + WorkflowEditorViewModel ctor need these:
-        TestResolve(sp, "BsTextLens", typeof(KitX.Workflow.Lens.BsTextLens.BsTextLens));
-        TestResolve(sp, "BpGraphLens", typeof(KitX.Workflow.Lens.BpGraphLens.BpGraphLens));
-        TestResolve(sp, "ILens<string,string>", typeof(KitX.Workflow.Lens.ILens<string, string>));
-        TestResolve(sp, "ILess<Blueprint,...>", typeof(KitX.Workflow.Lens.ILens<KitX.Core.Contract.Workflow.Blueprint, IReadOnlyList<KitX.Core.Contract.Workflow.BpEditAction>>));
-        TestResolve(sp, "SyncService", typeof(KitX.Workflow.Session.SyncService));
-        TestResolve(sp, "NodeFactory", typeof(KitX.Dashboard.Services.NodeFactory));
-        TestResolve(sp, "IExecutionBackend", typeof(KitX.Workflow.Backend.IExecutionBackend));
-
-        Console.WriteLine();
-        // The VM itself (constructed by DI inside WorkflowEditorWindow):
-        TestResolve(sp, "BlueprintEditorViewModel (DI)", typeof(KitX.Dashboard.ViewModels.BlueprintEditorViewModel));
-        // Legacy interfaces — intentionally NOT registered (retired with the old KitX.Workflow library).
-        // ScriptVM retirement (S5) removes the last consumers. Showing them here documents the retirement.
-        Console.WriteLine("  --- Legacy (retired, expected NOT REGISTERED) ---");
-        TestResolve(sp, "IBlockScriptService (retired)", typeof(KitX.Core.Contract.Workflow.IBlockScriptService));
-        TestResolve(sp, "IWorkflowPluginService (retired)", typeof(KitX.Core.Contract.Workflow.IWorkflowPluginService));
+        // WorkflowEditorWindowV6 + WorkflowEditorViewModelV6 need these (v6 concrete types):
+        TestResolve(sp, "KsTextLens", typeof(KitX.WorkflowV6.Lens.KsTextLens.KsTextLens));
+        TestResolve(sp, "BpGraphLens", typeof(KitX.WorkflowV6.Lens.BpGraphLens.BpGraphLens));
+        TestResolve(sp, "IScopeAnalyzer", typeof(KitX.WorkflowV6.Lens.BpGraphLens.IScopeAnalyzer));
+        TestResolve(sp, "StructuredRoslynBackend", typeof(KitX.WorkflowV6.Backend.RoslynBackend.StructuredRoslynBackend));
+        TestResolve(sp, "IPluginHost (v6)", typeof(KitX.WorkflowV6.Backend.Runtime.IPluginHost));
 
         Console.WriteLine("\n✅ Test 3 Passed: Full host workflow graph resolved\n");
     }
