@@ -478,6 +478,16 @@ internal sealed class BpReverseTranslator
                     }
                     break;
                 case BuiltinFunctionNode fn:
+                    // A function that STARTS the group with NO wired inputs is a function
+                    // SOURCE (`PluginCall(...) > JsonAsString > x`), not a segment — it
+                    // must be restored as a KsCall source, otherwise the pipeline's
+                    // leading call is dropped (round-trip produces `> PluginCall(...)`).
+                    // The bare-call form (whole group = single function) is handled below.
+                    if (ReferenceEquals(group[0], fn) && !HasWiredInputs(fn))
+                    {
+                        sources.Add(BuildKsCallFromFunctionNode(fn));
+                        break;
+                    }
                     // Build the segment with full Arguments (preserves literals + placeholders).
                     var (seg, wiredSourceCount) = BuildSegmentFromFunctionNode(fn);
                     // Sources that feed this function via wired inputs are collected

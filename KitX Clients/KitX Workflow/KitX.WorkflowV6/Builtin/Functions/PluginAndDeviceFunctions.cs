@@ -29,6 +29,9 @@ public sealed class PluginCallFunction : IBuiltinFunction
         new("MethodName", PinType.String, 35),
     ];
 
+    /// <summary>Extra pipeline args append as variadic params (`PluginCall(p, m, a, b, ...)`).</summary>
+    public VariadicPinSpec? InputVariadic => new("Param ", 3, PinType.Any);
+
     public IReadOnlyList<PortSpec> OutputPorts =>
     [
         new("Return", PinType.Json, 50),
@@ -50,6 +53,9 @@ public sealed class PluginCallWithTargetFunction : IBuiltinFunction
         new("MethodName", PinType.String, 35),
         new("TargetDevice", PinType.Any, 50),
     ];
+
+    /// <summary>Extra pipeline args append as variadic params.</summary>
+    public VariadicPinSpec? InputVariadic => new("Param ", 4, PinType.Any);
 
     public IReadOnlyList<PortSpec> OutputPorts =>
     [

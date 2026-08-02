@@ -78,6 +78,41 @@ public class KcsBuilderAssetTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public void Trigger_Test_RoundTrip_Preserves_Function_Source_And_Placeholder()
+    {
+        // Regression (2026-08-02): the BP round-trip dropped a leading function SOURCE
+        // (`PluginCall(...) > JsonAsString`) and lost the variadic placeholder on
+        // `vaaa0001 > PluginCall(..., _)`. Both must survive Project→Reverse→Project.
+        var ks = File.ReadAllText(ScriptPath("trigger-test.ks"));
+        var ir = _fixture.KsLens.Parse(ks, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var text = _fixture.KsLens.Project(reversed);
+
+        Assert.True(text.Contains("PluginCall(\"TestPlugin.WPF.Core\", \"GetInput\") > JsonAsString > vaaa0001"),
+            $"projected:\n{text}");
+        Assert.True(text.Contains("vaaa0001 > PluginCall(\"TestPlugin.WPF.Core\", \"HelloAnything\", _)"),
+            $"projected:\n{text}");
+        // And the projection must re-parse without errors.
+        var (_, diag) = _fixture.KsLens.ParseAstWithDiagnostics(text);
+        Assert.False(diag.HasErrors, string.Join("\n", diag.Items.Select(d => $"[{d.Code}] {d.Message}")));
+    }
+
+    [Fact]
+    public async Task Trigger_Test_BP_Reverse_Executes_Without_Host()
+    {
+        // No IPluginHost injected → PluginCall returns null (benign); the reversed BP
+        // must still compile and run to completion.
+        var ks = File.ReadAllText(ScriptPath("trigger-test.ks"));
+        var ir = _fixture.KsLens.Parse(ks, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var backend = new KitX.WorkflowV6.Backend.RoslynBackend.StructuredRoslynBackend();
+        var result = await backend.ExecuteAsync(reversed, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"BP→IR→Run failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
     public void BF_Switch_Arm_Chains_Do_Not_Overlap_After_Layout()
     {
         // Regression (2026-08-02): the fork layout's lower-branch start used a

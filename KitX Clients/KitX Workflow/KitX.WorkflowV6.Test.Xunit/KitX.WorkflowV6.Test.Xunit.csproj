@@ -18,4 +18,11 @@
     <ProjectReference Include="..\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="TextMateSharp" Version="2.0.2" />
+    <PackageReference Include="TextMateSharp.Grammars" Version="2.0.2" />
+  </ItemGroup>
 </Project>
+
+
+

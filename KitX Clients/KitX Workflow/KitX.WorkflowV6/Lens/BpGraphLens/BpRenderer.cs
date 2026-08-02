@@ -369,16 +369,16 @@ internal sealed class BpRenderer
         var variadic = _registry?.Get(func.FunctionName)?.InputVariadic;
         for (int i = 0; i < args.Length; i++)
         {
-            // Skip placeholders — pipeline sources fill these positions separately.
-            if (args[i] is KsPlaceholder) continue;
-
             var pin = i < dataPins.Count ? dataPins[i] : null;
             if (pin is null)
             {
                 // Beyond the static PortSpec: append a variadic input pin when the
                 // function declares one. Without this, KS calls with more arguments than
                 // static pins would silently drop the extra args on the way to the
-                // Blueprint, breaking the KS↔BP round-trip for e.g. StringConcat(a, b, c).
+                // Blueprint, breaking the KS↔BP round-trip for e.g. StringConcat(a, b, c)
+                // or PluginCall(plugin, method, ...params). Placeholders at variadic
+                // positions must also materialise their pin so pipeline sources have
+                // somewhere to attach.
                 if (variadic is null) continue;
                 var variadicCount = dataPins.Count(p =>
                     !string.IsNullOrEmpty(variadic.BasePinName)
@@ -390,6 +390,10 @@ internal sealed class BpRenderer
                 func.InputPins.Add(pin);
                 dataPins.Add(pin);
             }
+
+            // Skip placeholders — pipeline sources fill these positions separately.
+            // (The pin above is already in place, including variadic positions.)
+            if (args[i] is KsPlaceholder) continue;
 
             switch (args[i])
             {

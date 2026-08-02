@@ -284,10 +284,12 @@ public class ExecutionGlobals
         catch (JsonException) { result = default; return false; }
     }
 
-    /// <summary>JsonAsString: extracts a string from a JSON value.</summary>
+    /// <summary>JsonAsString: extracts a string from a JSON value. Undefined (null/empty)
+    /// yields an empty string — GetRawText() would throw on ValueKind.Undefined.</summary>
     public string JsonAsString(object? json)
     {
         var je = AsJsonElement(json);
+        if (je.ValueKind == JsonValueKind.Undefined) return "";
         return je.ValueKind == JsonValueKind.String ? je.GetString() ?? "" : je.GetRawText();
     }
 
