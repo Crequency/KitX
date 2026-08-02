@@ -82,10 +82,13 @@ internal sealed class BpReverseTranslator
                     {
                         Name = cn.ConstName,
                         Type = cn.ConstType ?? "object",
-                        InitialValueExpression = cn.ConstValue,
+                        // The KS script keeps its declaration initialiser (DefaultValue);
+                        // the user value (ConstValue) is an override handled by the editor
+                        // layer, so it never rewrites the script text.
+                        InitialValueExpression = cn.DefaultValue,
                         // Rebuild the structured dict initialiser from the JSON payload BpRenderer
-                        // stored in ConstValue (Dict-Type design §3.3). Non-dict consts leave null.
-                        DictInitializer = (cn.ConstType == "dict") ? TryDeserializeDictInit(cn.ConstValue) : null,
+                        // stored in DefaultValue (Dict-Type design §3.3). Non-dict consts leave null.
+                        DictInitializer = (cn.ConstType == "dict") ? TryDeserializeDictInit(cn.DefaultValue) : null,
                     }),
                 };
             }
@@ -97,7 +100,11 @@ internal sealed class BpReverseTranslator
                     {
                         Name = vn.VarName,
                         Type = vn.VarType ?? "object",
-                        DictInitializer = (vn.VarType == "dict") ? TryDeserializeDictInit(vn.VarInitialValue) : null,
+                        // Same split as constants: DefaultValue → script initialiser; the
+                        // user value (VarInitialValue) is an editor-layer override. (This
+                        // also fixes the old bug where the scalar initialiser was dropped.)
+                        InitialValueExpression = vn.DefaultValue,
+                        DictInitializer = (vn.VarType == "dict") ? TryDeserializeDictInit(vn.DefaultValue) : null,
                     }),
                 };
             }

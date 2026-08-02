@@ -70,31 +70,40 @@ internal sealed class BpRenderer
 
     private void RenderDefinitions(Workflow ir)
     {
+        // Definition nodes carry TWO value slots (2026-08-02):
+        //   DefaultValue — the KS script's declaration initialiser, read-only on the BP
+        //     side (the node's display falls back to it while the user value is empty).
+        //   ConstValue / VarInitialValue — the USER value (empty by default), edited on
+        //     the BP node and synced to the KS Variable Constants panel as an override.
+        // The KS script text is never rewritten from the user value.
         foreach (var (name, c) in ir.Constants)
+        {
+            var defaultValue = c.DictInitializer is not null
+                ? JsonSerializer.Serialize(c.DictInitializer)
+                : c.InitialValueExpression;
             Add(new ConstNode
             {
                 Name = name,
                 ConstName = name,
                 ConstType = c.Type,
-                // For dict consts carry the structured DictInitialiser as JSON so the reverse
-                // path can rebuild it (Dict-Type design §3.3); otherwise the verbatim text.
-                ConstValue = c.DictInitializer is not null
-                    ? JsonSerializer.Serialize(c.DictInitializer)
-                    : c.InitialValueExpression,
+                DefaultValue = defaultValue,
             }, $"/def/const/{name}");
+        }
 
         foreach (var (name, g) in ir.GlobalVars)
+        {
+            var defaultValue = g.DictInitializer is not null
+                ? JsonSerializer.Serialize(g.DictInitializer)
+                : g.InitialValueExpression;
             Add(new VariableNode
             {
                 Name = name,
                 VarName = name,
                 VarType = g.Type,
                 VarKind = VariableKind.PubVar,
-                // Carry a dict var's structured DictInitialiser as JSON (symmetric to ConstValue).
-                VarInitialValue = g.DictInitializer is not null
-                    ? JsonSerializer.Serialize(g.DictInitializer)
-                    : g.InitialValueExpression,
+                DefaultValue = defaultValue,
             }, $"/def/var/{name}");
+        }
     }
 
     // ── Scope rendering ──

@@ -79,4 +79,57 @@ public class BpScopeAnalyzerTests : IClassFixture<WorkflowTestFixture>
             .First(n => n.FunctionName == "Branch");
         Assert.Contains(branch.Id, bp.StatementPrimaryNodeIds);
     }
+
+    [Fact]
+    public void AnalyzeScopes_Parent_Frame_Encloses_Nested_Child_Frames()
+    {
+        // Guess-number shape: forEach Body ends in an if/else (Branch). The Body frame
+        // must enclose the Then/Else frames, and the outer Else (nested if) must
+        // enclose its own inner Then/Else — the frames mirror KS scoping.
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                bool cond
+            }
+            forEach Range(0, 3, 1) as i:
+                i > cond
+                if cond:
+                    Print("yes")
+                else:
+                    if true:
+                        Print("inner")
+                    else:
+                        Print("outer")
+            Print("end")
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var scopes = _fixture.BpLens.AnalyzeScopes(bp);
+
+        // Every child region (its owner node sits in the parent's NodeIds) must be
+        // geometrically enclosed by the parent frame.
+        foreach (var parent in scopes)
+        {
+            foreach (var child in scopes)
+            {
+                if (child.ScopeId == parent.ScopeId) continue;
+                if (!parent.NodeIds.Contains(child.OwnerNodeId)) continue;
+                Assert.True(
+                    parent.X <= child.X && parent.Y <= child.Y
+                    && parent.X + parent.Width >= child.X + child.Width
+                    && parent.Y + parent.Height >= child.Y + child.Height,
+                    $"frame {parent.ScopeKind}(D{parent.Depth}) [x={parent.X:0},y={parent.Y:0},w={parent.Width:0},h={parent.Height:0}] " +
+                    $"does not enclose child {child.ScopeKind}(D{child.Depth}) [x={child.X:0},y={child.Y:0},w={child.Width:0},h={child.Height:0}]");
+            }
+        }
+
+        // The forEach Body frame must span beyond the Branch (it encloses Then/Else),
+        // and the trailing Print("end") is NOT a Body member (KS scoping).
+        var body = scopes.Single(s => s.ScopeKind == "Body");
+        var branchNode = bp.Nodes.OfType<KitX.Core.Contract.Workflow.BuiltinFunctionNode>()
+            .First(n => n.FunctionName == "Branch");
+        Assert.True(body.X <= branchNode.X && body.X + body.Width >= branchNode.X + branchNode.Width,
+            "Body frame must span the whole Branch statement");
+        var printEnd = bp.Nodes.OfType<KitX.Core.Contract.Workflow.BuiltinFunctionNode>()
+            .Last(n => n.FunctionName == "Print");
+        Assert.DoesNotContain(printEnd.Id, body.NodeIds);
+    }
 }

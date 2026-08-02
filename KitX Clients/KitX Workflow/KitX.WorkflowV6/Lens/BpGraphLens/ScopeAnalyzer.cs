@@ -52,8 +52,80 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
         WalkChain(entry.Id, BpPinNames.Exec, depth: 0,
             currentScope: null, byId, execOut, regions, globalVisited);
 
-        // Compute bounding boxes from node coordinates.
-        return [.. regions.Select(r => WithBoundingBox(r, byId))];
+        // Compute bounding boxes from node coordinates. A parent region's frame must
+        // ENCLOSE all its nested sub-regions, so child frames are merged recursively
+        // (a child is a region whose owner control-flow node sits in this region's
+        // node set; grandchildren come along transitively through the child's frame).
+        var computed = new Dictionary<string, Box>();
+        var boxes = new Dictionary<string, Box>(regions.Count);
+        foreach (var r in regions)
+            boxes[r.ScopeId] = ComputeBox(r, regions, byId, computed);
+        return [.. regions.Select(r => r with { X = boxes[r.ScopeId].X, Y = boxes[r.ScopeId].Y, Width = boxes[r.ScopeId].Width, Height = boxes[r.ScopeId].Height })];
+    }
+
+    private readonly record struct Box(double X, double Y, double Width, double Height);
+
+    private static Box ComputeBox(
+        ScopeRegion region,
+        IReadOnlyList<ScopeRegion> all,
+        Dictionary<string, BlueprintNode> byId,
+        Dictionary<string, Box> memo)
+    {
+        if (memo.TryGetValue(region.ScopeId, out var cached))
+            return cached;
+
+        if (region.NodeIds.Count == 0)
+        {
+            // Empty body: place a minimal frame at the owner node's position.
+            if (byId.TryGetValue(region.OwnerNodeId, out var emptyOwner))
+            {
+                var empty = new Box(
+                    emptyOwner.X + emptyOwner.Width + FramePadding,
+                    emptyOwner.Y,
+                    80, 50);
+                memo[region.ScopeId] = empty;
+                return empty;
+            }
+            memo[region.ScopeId] = default;
+            return default;
+        }
+
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+        foreach (var nodeId in region.NodeIds)
+        {
+            if (!byId.TryGetValue(nodeId, out var n)) continue;
+            minX = Math.Min(minX, n.X);
+            minY = Math.Min(minY, n.Y);
+            maxX = Math.Max(maxX, n.X + n.Width);
+            maxY = Math.Max(maxY, n.Y + n.Height);
+        }
+        if (minX == double.MaxValue)
+        {
+            memo[region.ScopeId] = default;
+            return default;
+        }
+
+        // Merge every nested sub-region's frame (child frames already include their own
+        // descendants). A child's owner node belongs to this region's node set.
+        foreach (var child in all)
+        {
+            if (child.ScopeId == region.ScopeId) continue;
+            if (!region.NodeIds.Contains(child.OwnerNodeId)) continue;
+            var cb = ComputeBox(child, all, byId, memo);
+            minX = Math.Min(minX, cb.X);
+            minY = Math.Min(minY, cb.Y);
+            maxX = Math.Max(maxX, cb.X + cb.Width);
+            maxY = Math.Max(maxY, cb.Y + cb.Height);
+        }
+
+        var box = new Box(
+            minX - FramePadding,
+            minY - FramePadding,
+            (maxX - minX) + FramePadding * 2,
+            (maxY - minY) + FramePadding * 2);
+        memo[region.ScopeId] = box;
+        return box;
     }
 
     // ── Exec-edge indexing ──
@@ -170,47 +242,4 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
                     : pinName,
         _ => pinName,
     };
-
-    /// <summary>
-    /// Computes the bounding box of a region from its contained nodes' coordinates.
-    /// Returns the region unchanged if it has no nodes (empty body).
-    /// </summary>
-    private static ScopeRegion WithBoundingBox(ScopeRegion region, Dictionary<string, BlueprintNode> byId)
-    {
-        if (region.NodeIds.Count == 0)
-        {
-            // Empty body: place a minimal frame at the owner node's position.
-            if (byId.TryGetValue(region.OwnerNodeId, out var owner))
-            {
-                return region with
-                {
-                    X = owner.X + owner.Width + FramePadding,
-                    Y = owner.Y,
-                    Width = 80,
-                    Height = 50,
-                };
-            }
-            return region;
-        }
-
-        double minX = double.MaxValue, minY = double.MaxValue;
-        double maxX = double.MinValue, maxY = double.MinValue;
-        foreach (var nodeId in region.NodeIds)
-        {
-            if (!byId.TryGetValue(nodeId, out var n)) continue;
-            minX = Math.Min(minX, n.X);
-            minY = Math.Min(minY, n.Y);
-            maxX = Math.Max(maxX, n.X + n.Width);
-            maxY = Math.Max(maxY, n.Y + n.Height);
-        }
-        if (minX == double.MaxValue) return region;
-
-        return region with
-        {
-            X = minX - FramePadding,
-            Y = minY - FramePadding,
-            Width = (maxX - minX) + FramePadding * 2,
-            Height = (maxY - minY) + FramePadding * 2,
-        };
-    }
 }
