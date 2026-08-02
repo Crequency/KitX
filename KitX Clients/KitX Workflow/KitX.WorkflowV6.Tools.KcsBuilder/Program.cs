@@ -15,10 +15,13 @@ using KitX.WorkflowV6.Serialization;
 // the Dashboard will detect IrVersion="v6" and open it in the v6 editor.
 //
 // Usage:
-//   --from-ks <ksFile> <outKcs> [name] [description]
-//       Reads KS source from <ksFile>, writes a v6 .kcs to <outKcs>.
+//   --from-ks <ksFile> <outKcs> [name] [description] [--helpers <helpersJson>]
+//       Reads KS source from <ksFile>, writes a v6 .kcs to <outKcs>. Helper
+//       functions (needed when the script calls custom helpers) are loaded from a
+//       JSON array file: [ { "Name": ..., "Parameters": [ { "Name", "Type" } ],
+//       "ReturnType": ..., "Code": ... } ].
 //
-//   --from-ks-text "inline KS" <outKcs> [name]
+//   --from-ks-text "inline KS" <outKcs> [name] [--helpers <helpersJson>]
 //       Parses the inline KS text argument directly (no input file needed).
 //
 //   --help
@@ -55,11 +58,14 @@ static void PrintUsage()
         KitX.WorkflowV6.Tools.KcsBuilder — KS script → v6 .kcs file converter
 
         Usage:
-          --from-ks <ksFile> <outKcs> [name] [description]
+          --from-ks <ksFile> <outKcs> [name] [description] [--helpers <jsonFile>]
               Reads KS source from <ksFile>, writes a v6 .kcs to <outKcs>.
 
-          --from-ks-text "inline KS" <outKcs> [name]
+          --from-ks-text "inline KS" <outKcs> [name] [--helpers <jsonFile>]
               Parses the inline KS text argument directly.
+
+          --helpers <jsonFile>
+              Optional (appended to either mode): helper-function JSON array file.
 
           --help
               Prints this usage.
@@ -70,13 +76,14 @@ static async Task RunFromKsFileAsync(string[] args)
 {
     if (args.Length < 3)
     {
-        Console.Error.WriteLine("Usage: --from-ks <ksFile> <outKcs> [name] [description]");
+        Console.Error.WriteLine("Usage: --from-ks <ksFile> <outKcs> [name] [description] [--helpers <jsonFile>]");
         return;
     }
     var ksPath = args[1];
     var outPath = args[2];
     var name = args.Length > 3 ? args[3] : Path.GetFileNameWithoutExtension(ksPath);
-    var desc = args.Length > 4 ? args[4] : "";
+    var desc = "";
+    var helpers = LoadHelpersFromArgs(args, out desc);
 
     if (!File.Exists(ksPath))
     {
@@ -84,30 +91,71 @@ static async Task RunFromKsFileAsync(string[] args)
         return;
     }
     var ksSource = await File.ReadAllTextAsync(ksPath);
-    await BuildAndWriteAsync(ksSource, outPath, name, desc);
+    await BuildAndWriteAsync(ksSource, outPath, name, desc, helpers);
 }
 
 static async Task RunFromKsTextAsync(string[] args)
 {
     if (args.Length < 3)
     {
-        Console.Error.WriteLine("Usage: --from-ks-text \"inline KS\" <outKcs> [name]");
+        Console.Error.WriteLine("Usage: --from-ks-text \"inline KS\" <outKcs> [name] [--helpers <jsonFile>]");
         return;
     }
     var ksSource = args[1];
     var outPath = args[2];
     var name = args.Length > 3 ? args[3] : "Inline Workflow";
-    await BuildAndWriteAsync(ksSource, outPath, name, "");
+    var helpers = LoadHelpersFromArgs(args, out _);
+    await BuildAndWriteAsync(ksSource, outPath, name, "", helpers);
 }
 
-static async Task BuildAndWriteAsync(string ksSource, string outPath, string name, string desc)
+/// <summary>
+/// Extracts <c>--helpers &lt;jsonFile&gt;</c> from the trailing arguments and loads the
+/// helper-function array. Also captures the optional [description] positional arg.
+/// Returns an empty list when the flag is absent.
+/// </summary>
+static List<HelperFunction> LoadHelpersFromArgs(string[] args, out string desc)
+{
+    desc = "";
+    var helpers = new List<HelperFunction>();
+    for (int i = 4; i < args.Length; i++)
+    {
+        if (args[i] == "--helpers" && i + 1 < args.Length)
+        {
+            var path = args[i + 1];
+            if (!File.Exists(path))
+            {
+                Console.Error.WriteLine($"Error: helpers JSON file not found: {path}");
+                return helpers;
+            }
+            try
+            {
+                var json = File.ReadAllText(path);
+                helpers = JsonSerializer.Deserialize<List<HelperFunction>>(json)
+                          ?? [];
+                Console.WriteLine($"Loaded {helpers.Count} helper function(s) from {path}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error parsing helpers JSON: {ex.Message}");
+            }
+            i++;
+        }
+        else if (string.IsNullOrEmpty(desc) && !args[i].StartsWith("--"))
+        {
+            desc = args[i];
+        }
+    }
+    return helpers;
+}
+
+static async Task BuildAndWriteAsync(string ksSource, string outPath, string name, string desc, List<HelperFunction> helpers)
 {
     try
     {
-        // 1. Parse KS → V6 Workflow IR
+        // 1. Parse KS → V6 Workflow IR (with helpers when provided)
         var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
         var ksTextLens = new KsTextLens(registry);
-        var ir = ksTextLens.Parse(ksSource, []);
+        var ir = ksTextLens.Parse(ksSource, helpers);
 
         // 2. Serialize IR via V6 WorkflowSerializer
         var irData = WorkflowSerializer.Serialize(ir);
