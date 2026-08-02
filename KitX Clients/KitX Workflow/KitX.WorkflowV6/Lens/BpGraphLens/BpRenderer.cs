@@ -448,13 +448,36 @@ internal sealed class BpRenderer
             ConnectToInput(sourceNodes[sourceIdx], fn, dataPins[pinIdx].Name);
             sourceIdx++;
         }
-        // Append remaining sources to unoccupied pins in order.
-        for (int pinIdx = 0; pinIdx < dataPins.Count && sourceIdx < sourceNodes.Count; pinIdx++)
+        // Append remaining sources to unoccupied pins in order. When sources exceed
+        // the existing data pins (e.g. `vaaa0001 > PluginCall(Lit, Lit)` — both static
+        // pins occupied by literals, or `a, b > StringConcat("|")`), a variadic pin is
+        // created on demand — otherwise the source edge is silently dropped and the
+        // BP→IR reverse splits the statement (KS053 bare statement + bare call).
+        var variadic = _registry?.Get(fn.FunctionName)?.InputVariadic;
+        for (int pinIdx = 0; sourceIdx < sourceNodes.Count; pinIdx++)
         {
-            if (occupiedPinIndices.Contains(pinIdx)) continue;
-            if (placeholderPinIndices.Contains(pinIdx)) continue;
-            ConnectToInput(sourceNodes[sourceIdx], fn, dataPins[pinIdx].Name);
-            sourceIdx++;
+            if (pinIdx < dataPins.Count)
+            {
+                if (occupiedPinIndices.Contains(pinIdx)) continue;
+                if (placeholderPinIndices.Contains(pinIdx)) continue;
+                ConnectToInput(sourceNodes[sourceIdx], fn, dataPins[pinIdx].Name);
+                sourceIdx++;
+            }
+            else
+            {
+                if (variadic is null) break;
+                var variadicCount = dataPins.Count(p =>
+                    !string.IsNullOrEmpty(variadic.BasePinName)
+                    && p.Name.StartsWith(variadic.BasePinName, StringComparison.Ordinal));
+                var name = string.IsNullOrEmpty(variadic.BasePinName)
+                    ? (variadic.StartIndex + variadicCount).ToString()
+                    : $"{variadic.BasePinName}{variadic.StartIndex + variadicCount}";
+                var newPin = MakePin(name, PinDirection.Input, variadic.PinType);
+                fn.InputPins.Add(newPin);
+                dataPins.Add(newPin);
+                ConnectToInput(sourceNodes[sourceIdx], fn, newPin.Name);
+                sourceIdx++;
+            }
         }
     }
 

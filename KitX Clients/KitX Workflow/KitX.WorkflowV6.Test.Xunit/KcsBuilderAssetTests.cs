@@ -113,6 +113,77 @@ public class KcsBuilderAssetTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public void Append_Form_Source_Beyond_Static_Pins_Creates_Variadic_Pin()
+    {
+        // Regression (2026-08-02): `vaaa0001 > PluginCall(Lit, Lit)` — both static pins
+        // (PluginName/MethodName) occupied by literals — the appended source used to be
+        // silently dropped (no variadic pin created in the append branch), so the BP
+        // round-trip split the statement and lost the `_` placeholder. The append rule
+        // must materialise a variadic pin so the source survives AND the placeholder
+        // is restored on projection.
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                dynamic vaaa0001
+            }
+            vaaa0001 > PluginCall("TestPlugin.WPF.Core", "HelloAnything")
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var text = _fixture.KsLens.Project(reversed);
+
+        Assert.True(text.Contains("vaaa0001 > PluginCall(\"TestPlugin.WPF.Core\", \"HelloAnything\", _)"),
+            $"projected:\n{text}");
+        var (_, diag) = _fixture.KsLens.ParseAstWithDiagnostics(text);
+        Assert.False(diag.HasErrors, string.Join("\n", diag.Items.Select(d => $"[{d.Code}] {d.Message}")));
+    }
+
+    [Fact]
+    public void Multiple_Sources_Append_To_Variadic_Pins()
+    {
+        // `a, b > StringConcat("|")` — one literal occupies pin B; both sources must
+        // attach (A + a new variadic pin), not just the first one.
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                string a
+                string b
+            }
+            a, b > StringConcat("|")
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var text = _fixture.KsLens.Project(reversed);
+
+        Assert.True(text.Contains("a, b > StringConcat(\"|\", _, _)"), $"projected:\n{text}");
+        var (_, diag) = _fixture.KsLens.ParseAstWithDiagnostics(text);
+        Assert.False(diag.HasErrors, string.Join("\n", diag.Items.Select(d => $"[{d.Code}] {d.Message}")));
+    }
+
+    [Fact]
+    public void Corrupted_PluginCall_IrData_Heals_Through_BP_Round_Trip()
+    {
+        // The user's saved kcs carried a PluginCall segment with only 2 literal args
+        // (`_` was lost by an earlier build). Loading that shape → BP → KS must
+        // self-heal: the append rule re-creates the variadic pin and the projection
+        // restores `vaaa0001 > PluginCall(..., _)`.
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                dynamic vaaa0001
+            }
+            PluginCall("TestPlugin.WPF.Core", "GetInput") > JsonAsString > vaaa0001
+            vaaa0001 > PluginCall("TestPlugin.WPF.Core", "HelloAnything")
+            Print("Trigger 测试完成")
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var text = _fixture.KsLens.Project(reversed);
+
+        Assert.True(text.Contains("vaaa0001 > PluginCall(\"TestPlugin.WPF.Core\", \"HelloAnything\", _)"),
+            $"projected:\n{text}");
+        var (_, diag) = _fixture.KsLens.ParseAstWithDiagnostics(text);
+        Assert.False(diag.HasErrors, string.Join("\n", diag.Items.Select(d => $"[{d.Code}] {d.Message}")));
+    }
+
+    [Fact]
     public void BF_Switch_Arm_Chains_Do_Not_Overlap_After_Layout()
     {
         // Regression (2026-08-02): the fork layout's lower-branch start used a
