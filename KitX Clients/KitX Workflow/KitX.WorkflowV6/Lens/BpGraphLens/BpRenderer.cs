@@ -152,9 +152,12 @@ internal sealed class BpRenderer
             foreach (var id in component)
                 _bp.StatementNodeToPrimary[id] = primary.Id;
 
-            // Attach the trailing comment to the statement's primary node (the node the
-            // reverse translator reads back as TrailingComment).
-            if (stmt.TrailingComment is { Length: > 0 })
+            // The statement TrailingComment is attached to the LAST SOURCE node (parser
+            // capture point A reads it back from the source list's final line) — NOT the
+            // primary node, whose Comment is reserved for the last segment's inline
+            // comment. This is done inside RenderPipelineStmt for pipelines; non-pipeline
+            // statements (control flow) keep the trailing comment on the primary node.
+            if (stmt is not PipelineStatement && stmt.TrailingComment is { Length: > 0 })
                 primary.Comment = stmt.TrailingComment;
 
             // Emit a GroupComment anchoring the leading comment to this statement's data
@@ -228,6 +231,10 @@ internal sealed class BpRenderer
             _currentPrimaryNode = func;
             WireCallArgs(func, call.Args, $"{path}/args");
             ConnectExecTails(prevTails, func);
+            // Bare call: the trailing comment lands on the single function node
+            // (there is no source node; the reverse translator reads it back here).
+            if (p.TrailingComment is { Length: > 0 } && func.Comment is null)
+                func.Comment = p.TrailingComment;
             return [new ExecTail(func, BpPinNames.Exec)];
         }
 
@@ -245,6 +252,15 @@ internal sealed class BpRenderer
         {
             var srcNode = RenderSourceAsNode(p.Sources[i], $"{path}/src/{i}");
             sourceNodes.Add(srcNode);
+            // Statement TrailingComment lands on the LAST source node (parser capture
+            // point A reads it back from the source list's final line) — unless the
+            // source itself carries an inline comment.
+            if (i == p.Sources.Length - 1
+                && p.TrailingComment is { Length: > 0 }
+                && srcNode.Comment is null)
+            {
+                srcNode.Comment = p.TrailingComment;
+            }
             ConnectExecTails(currentTails, srcNode);
             currentTails = [new ExecTail(srcNode, BpPinNames.Exec)];
             lastNode = srcNode;
@@ -266,6 +282,9 @@ internal sealed class BpRenderer
                     Name = seg.Target, VarName = seg.Target,
                     VarKind = VariableKind.PubVar,
                 }, segPath);
+                // Per-segment inline comment → this segment's variable-tap node Comment.
+                if (seg.Comment is { Length: > 0 })
+                    vn.Comment = seg.Comment;
                 var dataSource = lastNode ?? (sourceNodes.Count > 0 ? sourceNodes[^1] : null);
                 if (dataSource is not null) ConnectValue(dataSource, vn);
                 segNode = vn;

@@ -454,11 +454,13 @@ internal sealed class BpReverseTranslator
                 case VariableNode vn:
                     if (HasIncomingDataEdge(vn))
                     {
-                        // Var tap segment (write or tap).
+                        // Var tap segment (write or tap); the tap node's Comment is its
+                        // inline segment comment (`> x // cmt`).
                         segments.Add(new Segment
                         {
                             Target = vn.VarName ?? vn.Name,
                             IsVariableTap = true,
+                            Comment = vn.Comment is { Length: > 0 } ? vn.Comment : null,
                         });
                         lastFuncOrTap = vn;
                     }
@@ -499,15 +501,26 @@ internal sealed class BpReverseTranslator
         }
 
         // Pipeline form: Sources=[collected sources], Segments=[collected segments].
+        // The primary node's Comment is the LAST SEGMENT's inline comment (rendered on
+        // the segment line and read back by BuildSegmentFromFunctionNode / the tap
+        // branch) — NOT a statement trailing comment. The statement TrailingComment
+        // lives on the LAST SOURCE node (parser capture point A reads it back from the
+        // source list's final line), so we lift it off the final source here.
         var primaryForComments = lastFuncOrTap ?? primary;
-        var (leadC, trailC) = ReadComments(primaryForComments);
+        var leadingOnly = ReadComments(primaryForComments).Leading;
+        string? pipeTrailing = null;
+        if (sources.Count > 0 && sources[^1].Comment is { Length: > 0 })
+        {
+            pipeTrailing = sources[^1].Comment;
+            sources[^1] = sources[^1] with { Comment = null };
+        }
         return WithFingerprint(new PipelineStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
-            LeadingComment = leadC,
-            TrailingComment = trailC,
+            LeadingComment = leadingOnly,
+            TrailingComment = pipeTrailing,
         });
     }
 

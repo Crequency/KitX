@@ -1,9 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Multi-line source-list tests (2026-08-02): comma line-breaks with strict indent,
-// inline comments attaching to sources, comment-driven render folding, and the
-// BP→KS source-comment round-trip.
+// inline comments attaching to sources/segments, comment-driven render folding,
+// and precise BP→KS comment round-trips (each comment points at its nearest node).
 // ─────────────────────────────────────────────────────────────────────────────
 
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
 using KitX.WorkflowV6.Lens.BpGraphLens;
@@ -155,5 +156,99 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
         Assert.Equal(2, cond.Sources.Length);
         Assert.Equal("条件源注释", cond.Sources[0].Comment);
     }
+
+    // ── Precise comment round-trips (each comment points at its NEAREST node) ──
+
+    private static VariableNode UsageNode(Blueprint bp, string name)
+        => bp.Nodes.OfType<VariableNode>()
+            .First(n => n.VarName == name
+                        && n.InputPins.Any(p => p.Type == PinType.Execution));
+
+    [Fact]
+    public void RoundTrip_Last_Segment_Comment_Stays_On_Last_Segment()
+    {
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                int a
+            }
+            a
+                > Add(_, 1)
+                > Print  // 末段注释
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+        // The last segment keeps its comment; the statement has NO trailing comment.
+        Assert.Equal("末段注释", pipe.Segments[^1].Comment);
+        Assert.Null(pipe.TrailingComment);
+        var text = _fixture.KsLens.Project(reversed);
+        Assert.Contains("> Print // 末段注释", text);
+    }
+
+    [Fact]
+    public void RoundTrip_SingleLine_Trailing_Comment_Stays_Statement_Trailing()
+    {
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                int a
+            }
+            a > Print  // 语句尾注释
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+        Assert.Equal("语句尾注释", pipe.TrailingComment);
+        Assert.All(pipe.Segments, s => Assert.Null(s.Comment));
+    }
+
+    [Fact]
+    public void RoundTrip_Tap_Segment_Comment_Stays_On_Tap_Segment()
+    {
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                int a
+                int counter
+            }
+            a
+                > counter  // tap 注释
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+        Assert.Single(pipe.Segments);
+        Assert.True(pipe.Segments[0].IsVariableTap);
+        Assert.Equal("tap 注释", pipe.Segments[0].Comment);
+        Assert.Null(pipe.TrailingComment);
+    }
+
+    [Fact]
+    public void RoundTrip_Mixed_Source_And_Segment_Comments_No_Shift()
+    {
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                int a
+                int b
+                bool cond
+            }
+            a, // 源a注释
+                b
+                > Compare("BEQ")  // 段注释
+                > cond
+            """, []);
+        var bp = _fixture.BpLens.Project(ir);
+        Assert.Equal("源a注释", UsageNode(bp, "a").Comment);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+        // Source comment stays on source a; segment comment stays on Compare; no shifts.
+        Assert.Equal("源a注释", pipe.Sources[0].Comment);
+        Assert.Equal("段注释", pipe.Segments[0].Comment);
+        Assert.Null(pipe.TrailingComment);
+        var text = _fixture.KsLens.Project(reversed);
+        Assert.True(text.Contains("a, // 源a注释"), $"Text:\n{text}");
+        Assert.True(text.Contains("> Compare(\"BEQ\", _, _) // 段注释"), $"SegText:\n{text}");
+    }
 }
+
+
+
 
