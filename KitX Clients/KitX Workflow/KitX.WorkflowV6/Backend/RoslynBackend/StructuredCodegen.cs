@@ -176,7 +176,7 @@ internal sealed class StructuredCodegen : CodegenBase
             // CS1656 (method group). This also heals IR that was reverse-projected
             // before BpRenderer learned the helper names.
             bool isVarTap = (seg.IsVariableTap && !_helperNames.Contains(seg.Target))
-                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target));
+                         || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);
 
             if (isVarTap)
             {

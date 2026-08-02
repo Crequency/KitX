@@ -51,14 +51,11 @@ public sealed class KsTextLens : ILens<string, string>
 
     /// <summary>
     /// Re-parses the edited KS text and diffs against <paramref name="baseline"/>.
-    /// Returns the content-addressed diff for the SyncService to apply. The actual
-    /// WorkflowDiffer.Compute is Phase 5; for now we round-trip via re-parse +
-    /// structural equality so the SyncService contract compiles end-to-end.
+    /// Returns the content-addressed diff for the SyncService to apply — a re-parse +
+    /// <see cref="WorkflowDiffer.Compute"/> structural diff.
     /// </summary>
     public WorkflowDiff Diff(Workflow baseline, string delta)
     {
-        // Phase 5 fills in the real diff. For now we re-parse and return an empty
-        // diff so the SyncService contract is wireable.
         var newIr = Parse(delta, []);
         return WorkflowDiffer.Compute(baseline, newIr);
     }

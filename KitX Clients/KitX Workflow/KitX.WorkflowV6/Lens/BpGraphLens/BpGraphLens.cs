@@ -98,11 +98,21 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     /// <see cref="Project"/>). Enables the BP → IR → BP round-trip: Project then
     /// Reverse yields an IR structurally equal to the original.
     /// </summary>
-    public Workflow Reverse(Blueprint bp)
+    /// <param name="bp">The blueprint to reverse.</param>
+    /// <param name="helpers">
+    /// Optional user helper functions. The BP graph does NOT carry helper metadata
+    /// (helper bodies live only in the IR), so the reversed IR would otherwise lose
+    /// them — the Dashboard BP-mode Run/Save/Debug paths pass them through here
+    /// (previously re-attached frontend-side via a ReverseWithHelpers wrapper).
+    /// </param>
+    public Workflow Reverse(Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null)
     {
         ArgumentNullException.ThrowIfNull(bp);
         var translator = new BpReverseTranslator(_registry);
-        return translator.Reverse(bp);
+        var ir = translator.Reverse(bp);
+        if (helpers is { Count: > 0 })
+            ir = ir with { HelperFunctions = [.. helpers] };
+        return ir;
     }
 
     /// <summary>

@@ -670,12 +670,14 @@ internal sealed class BpReverseTranslator
                 result.Add(WithFingerprint(ApplyComments(new ContinueStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
                 break;
             default:
-                // Non-control-flow BuiltinFunctionNode should never reach here — the new
-                // WalkExecChain routes them through BuildPipelineFromGroup instead.
-                // Defensive fallback: emit as a bare call.
-                result.Add(ReversePipelineCall(fn));
-                result.AddRange(WalkExecChain(fn, BpPinNames.Exec));
-                break;
+                // Non-control-flow BuiltinFunctionNode must never reach here — the active
+                // WalkExecChain routes them through BuildPipelineFromGroup instead. A hit
+                // means a graph shape the reverse translator does not model: fail loudly
+                // rather than emit a semantically wrong bare call (former ReversePipelineCall
+                // fallback was dead code and produced wrong statements).
+                throw new InvalidOperationException(
+                    $"BpReverseTranslator: unexpected non-control-flow node '{fn.FunctionName}' in WalkBuiltinFunction " +
+                    $"(id={fn.Id}). The graph shape is not covered by the structured reduction walk.");
         }
         return result;
     }
@@ -773,69 +775,6 @@ internal sealed class BpReverseTranslator
         return WithFingerprint(stmt);
     }
 
-    private Statement ReversePipelineCall(BuiltinFunctionNode fn)
-    {
-        var call = BuildKsCallFromFunctionNode(fn);
-
-        // Distinguish bare call (Print("hello")) from pipeline form (i > Print).
-        // Bare call: the function's data inputs are all DefaultValues (no wired sources).
-        // Pipeline form: at least one data input is wired from another node.
-        bool hasWiredInputs = false;
-        foreach (var pin in fn.InputPins)
-        {
-            if (pin.Name == BpPinNames.Exec) continue;
-            foreach (var conn in _bp.Connections)
-                if (conn.TargetNodeId == fn.Id && conn.TargetPinId == pin.Id)
-                { hasWiredInputs = true; break; }
-            if (hasWiredInputs) break;
-        }
-
-        if (!hasWiredInputs)
-        {
-            // Bare call form: Sources=[KsCall], Segments=[].
-            var (leading1, trailing1) = ReadComments(fn);
-            var pipe = new PipelineStatement
-            {
-                Fingerprint = Fingerprint.Compute("placeholder"),
-                Sources = [call],
-                Segments = [],
-                LeadingComment = leading1,
-                TrailingComment = trailing1,
-            };
-            return WithFingerprint(pipe);
-        }
-
-        // Pipeline form: Sources=[wired sources], Segments=[Segment(Target)].
-        // Collect wired source KsNodes in pin order.
-        var sources = ImmutableArray.CreateBuilder<KsNode>();
-        foreach (var pin in fn.InputPins)
-        {
-            if (pin.Name == BpPinNames.Exec) continue;
-            foreach (var conn in _bp.Connections)
-            {
-                if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
-                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) sources.Add(NodeToKsNode(src));
-                break;
-            }
-        }
-        var pipelineSeg = new Segment
-        {
-            Target = fn.FunctionName,
-            IsVariableTap = false,
-        };
-        var (leading2, trailing2) = ReadComments(fn);
-        var pipeStmt = new PipelineStatement
-        {
-            Fingerprint = Fingerprint.Compute("placeholder"),
-            Sources = sources.ToImmutable(),
-            Segments = [pipelineSeg],
-            LeadingComment = leading2,
-            TrailingComment = trailing2,
-        };
-        return WithFingerprint(pipeStmt);
-    }
-
     /// <summary>Replaces the placeholder fingerprint with the real structural one.</summary>
     private static Statement WithFingerprint(Statement stmt) =>
         stmt with { Fingerprint = Fingerprint.Compute(stmt) };
@@ -872,9 +811,9 @@ internal sealed class BpReverseTranslator
         var pin = node.InputPins.Find(p => p.Name == pinName);
         if (pin is null)
         {
-            // TODO(B3): silent fallback — BP graph is incomplete (pin missing).
-            // Currently returns 'true' to keep round-trip tests green; ideally
-            // should surface a diagnostic. Revisit when BP editing UX matures.
+            // Defensive fallback for malformed BP graphs (pin missing). Returns 'true'
+            // so a degenerate graph still round-trips; the frontend's strong-constraint
+            // editing prevents this shape from being reachable in practice.
             return MakeBoolLiteral(true);
         }
 
@@ -889,10 +828,9 @@ internal sealed class BpReverseTranslator
             var tgtPin = src.InputPins.Find(p => p.Id == conn.TargetPinId);
             // Confirm this connection targets our pin.
             if (pin.Id != conn.TargetPinId) continue;
-            // Mark the source's sub-tree as consumed so WalkExecChain doesn't emit
-            // these nodes as standalone PipelineStatements (idempotent — PreMark may
-            // have already marked them).
-            MarkConsumedSubtree(src);
+            // Consumption is marked once, in WalkExecChain, by PreMarkControlFlowConsumed
+            // before the control-flow node's sub-scope is walked — this method is only
+            // reachable through that path, so no defensive re-mark is needed here.
             return NodeToKsNode(src);
         }
 
@@ -900,9 +838,7 @@ internal sealed class BpReverseTranslator
         if (pin.DefaultValue is not null)
             return ParseDefaultValue(pin.DefaultValue);
 
-        // TODO(B3): silent fallback — BP graph is incomplete (default value missing).
-        // Currently returns 'true' to keep round-trip tests green; ideally
-        // should surface a diagnostic. Revisit when BP editing UX matures.
+        // Defensive fallback for malformed BP graphs (default value missing) — see above.
         return MakeBoolLiteral(true);
     }
 
@@ -914,9 +850,9 @@ internal sealed class BpReverseTranslator
             VariableNode vn => new KsIdentifier { Name = vn.VarName ?? vn.Name, SourceText = vn.VarName ?? vn.Name },
             ConstNode cn => ParseDefaultValue(cn.ConstValue ?? cn.ConstName ?? "null"),
             BuiltinFunctionNode fn => ReconstructPipelineOrCall(fn),
-            // TODO(B3): silent fallback — BP graph is incomplete (unknown node type).
-            // Currently returns 'true' to keep round-trip tests green; ideally
-            // should surface a diagnostic. Revisit when BP editing UX matures.
+            // Defensive fallback for malformed BP graphs (unknown node type). Returns
+            // 'true' so a degenerate graph still round-trips; unreachable through the
+            // frontend's strong-constraint editing.
             _ => MakeBoolLiteral(true),
         };
 

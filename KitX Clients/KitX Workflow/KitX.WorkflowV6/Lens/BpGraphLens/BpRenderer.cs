@@ -37,8 +37,6 @@ internal sealed class BpRenderer
     /// <summary>Helper metadata (name → definition) so BP nodes get one pin per parameter.</summary>
     private readonly Dictionary<string, KitX.Core.Contract.Workflow.HelperFunction> _helpersByName = new(StringComparer.Ordinal);
 
-    private readonly Stack<(BlueprintNode loopNode, string endPin)> _loopStack = new();
-
     /// <summary>
     /// The current statement's primary node — the node the exec chain enters (Branch/
     /// Each/While/Switch/control node, or the last function node of a pipeline). Set by
@@ -105,6 +103,7 @@ internal sealed class BpRenderer
                 ConstName = name,
                 ConstType = c.Type,
                 DefaultValue = defaultValue,
+                IsDefinition = true,
             }, $"/def/const/{name}");
         }
 
@@ -120,6 +119,7 @@ internal sealed class BpRenderer
                 VarType = g.Type,
                 VarKind = VariableKind.PubVar,
                 DefaultValue = defaultValue,
+                IsDefinition = true,
             }, $"/def/var/{name}");
         }
     }
@@ -299,7 +299,7 @@ internal sealed class BpRenderer
             var seg = p.Segments[i];
             string segPath = $"{path}/seg/{i}";
             bool isVarTap = seg.IsVariableTap
-                         || (seg.Arguments.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target));
+                         || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);
 
             BlueprintNode segNode;
             if (isVarTap)
@@ -481,13 +481,6 @@ internal sealed class BpRenderer
         }
     }
 
-    /// <summary>Returns the name of the first non-Exec output data pin, or "Value" as fallback.</summary>
-    private static string FirstDataOutputPinName(BlueprintNode node)
-    {
-        var dataOut = node.OutputPins.Find(p => p.Name != BpPinNames.Exec);
-        return dataOut?.Name ?? BpPinNames.Value;
-    }
-
     // ── If/Else ──
 
     private List<ExecTail> RenderIfElse(IfStatement iff, string path, List<ExecTail> prevTails)
@@ -551,9 +544,7 @@ internal sealed class BpRenderer
         ConnectExecTails(afterSrcTails, each);
         ConnectToInput(sourceNode, each, BpPinNames.List);
 
-        _loopStack.Push((each, BpPinNames.End));
         RenderSubScope(fe.Body, $"{path}/body", [new ExecTail(each, BpPinNames.Body)]);
-        _loopStack.Pop();
 
         return [new ExecTail(each, BpPinNames.End)];
     }
@@ -576,9 +567,7 @@ internal sealed class BpRenderer
         ConnectExecTails(afterCondTails, wh);
         ConnectToInput(condNode, wh, BpPinNames.Condition);
 
-        _loopStack.Push((wh, BpPinNames.End));
         RenderSubScope(ws.Body, $"{path}/body", [new ExecTail(wh, BpPinNames.Body)]);
-        _loopStack.Pop();
 
         return [new ExecTail(wh, BpPinNames.End)];
     }
@@ -701,7 +690,7 @@ internal sealed class BpRenderer
         for (int i = 0; i < pipe.Segments.Length; i++)
         {
             var seg = pipe.Segments[i];
-            if (seg.Args.Length == 0 && !_registry.Contains(seg.Target) && !_helperNames.Contains(seg.Target))
+            if (KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames))
             {
                 var vn = AddUsageNode(new VariableNode
                 {

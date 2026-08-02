@@ -51,7 +51,10 @@ internal sealed class BpEditTranslator
         ArgumentNullException.ThrowIfNull(blueprint);
         ArgumentNullException.ThrowIfNull(edits);
 
-        // Structural check on the post-edit blueprint.
+        // Structural check on the passed-in (baseline) blueprint. NOTE: the edits are
+        // NOT applied before this check — this translator is a stub pending the P2
+        // replay-model redesign (see Package/Archive/Docs/V6-BpEditAction-Future-Design-ADR.md);
+        // it exists to keep the edit protocol surface stable.
         var structuralError = StructuralReducer.Check(blueprint);
         if (structuralError is not null)
             return (null, structuralError);

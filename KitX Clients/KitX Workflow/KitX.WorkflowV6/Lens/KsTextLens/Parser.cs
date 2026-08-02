@@ -870,10 +870,12 @@ internal sealed class Parser
             Target = nameTok.Text,
             Args = args.ToImmutable(),
             RawArgs = rawArgsArray,
-            IsVariableTap = !isCall && args.Count == 0 && false,
-            // ^ never mark a `> name` as a tap here — only `= name` becomes a tap.
+            // Never mark a `> name` as a tap here — only `= name` becomes a tap.
             // A bare `> name` is a call with no args (the pipeline value is the
-            // implicit single arg via `_`). The renderer/codegen handle this.
+            // implicit single arg via `_`). Consumers (codegen/renderer/type-inferer)
+            // classify var taps structurally via KsSegmentClassifier, so this flag is
+            // intentionally left false for the `> name` form.
+            IsVariableTap = false,
             SourceLine = nameTok.Line,
             SourceText = isCall
                 ? $"{nameTok.Text}({string.Join(", ", rawArgsArray)})"

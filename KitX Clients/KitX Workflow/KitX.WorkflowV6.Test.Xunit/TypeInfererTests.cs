@@ -430,4 +430,71 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
         Assert.True(result.ContainsKey("b"));
         Assert.Equal("string", result["b"]);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Group 4: `> name` write-back form (A6 — KsSegmentClassifier adoption)
+    //
+    // Parser sets IsVariableTap=false for bare `> name` segments (they are
+    // syntactically calls). TypeInferer previously trusted the flag alone, so
+    // the write-back form `counter, 1 > Add > counter` never inferred counter's
+    // type (the documented IsVariableTap asymmetry, Correspondence §7.1-2).
+    // Classified structurally now.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Infer_SourcePass_WriteBack_Tap_Form_Infers_Type()
+    {
+        var source = """
+            var {
+                object counter
+            }
+            0 > counter
+            counter, 1 > Add > counter
+            """;
+        var result = InferFromDeclared(source);
+        Assert.True(result.ContainsKey("counter"));
+        Assert.Equal("int", result["counter"]);
+    }
+
+    [Fact]
+    public void Infer_SourcePass_WriteBack_Tap_Form_Infers_Bool_From_Compare()
+    {
+        var source = """
+            var {
+                object cond
+                object guess
+            }
+            1 > guess
+            guess, 3 > Compare("BLT") > cond
+            """;
+        var result = InferFromDeclared(source);
+        Assert.True(result.ContainsKey("cond"));
+        Assert.Equal("bool", result["cond"]);
+    }
+
+    [Fact]
+    public void Infer_Helper_Named_Bare_Segment_Is_Call_Not_Tap()
+    {
+        var helpers = new List<HelperFunction>
+        {
+            new()
+            {
+                Name = "Concat",
+                ReturnType = "string",
+                Parameters = [new HelperFunctionParameter { Name = "a", Type = "string" }],
+                Code = "return a;",
+            },
+        };
+        var source = """
+            var {
+                object result
+            }
+            "hello" > Concat > result
+            """;
+        // The bare `> Concat` segment must NOT be classified as a variable tap
+        // (it is a helper call); the terminal `> result` is the tap target.
+        var result = InferFromDeclaredWithHelpers(source, helpers);
+        Assert.True(result.ContainsKey("result"));
+        Assert.Equal("string", result["result"]);
+    }
 }

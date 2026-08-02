@@ -17,10 +17,10 @@ using Microsoft.Extensions.DependencyInjection;
 // execution backend (StructuredRoslynBackend — structured IR → structured C# via
 // Roslyn, loaded into a collectible AssemblyLoadContext).
 //
-// The Dashboard does NOT reference this library yet (decision: experiment-period
-// isolation). The Dashboard's existing AddKitXWorkflowIR() call keeps the v5 pipeline
-// running; when the v6 implementation is far enough along, the Dashboard will add a
-// parallel AddKitXWorkflowV6() call and select between the two via feature flag.
+// The Dashboard references this library (KitX.Dashboard.csproj ProjectReference)
+// and calls AddKitXWorkflowV6() in App.axaml.cs. Since the v5.1 WorkflowIR library
+// was archived (Package/Archive), the v6 registrations are the only workflow
+// pipeline — shared interface names (ILens<>, IExecutionBackend) resolve to v6.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

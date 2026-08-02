@@ -18,14 +18,18 @@ using KitX.Core.Contract.Workflow;
 //   E1  KS100  Connectivity — every non-definition node reachable from EntryNode.
 //   E2  KS101  Structural reducibility — exec graph reduces to a structured tree.
 //   E3  KS102  Unique predecessor — each Exec input ≤1 incoming edge (no merge).
-//   E4  KS103  Sub-scope termination — sub-scope tails must dangle; no leak to outer.
-//   E5  KS104  Scope isolation — exec edges may not cross control-flow sub-scope boundary.
+//   E4  KS103  Sub-scope termination — covered INDIRECTLY by the E2 walk (no standalone code).
+//   E5  KS104  Scope isolation — covered INDIRECTLY by the E2 walk (no standalone code).
 //   E6  KS105  Back-edge rule — no explicit exec cycles; loops are implicit.
 //   D1  KS110  Data DAG — data graph must be acyclic.
 //   D2  KS111  Single data input — each data input pin ≤1 incoming edge.
 //   C1  KS120  Non-definition node must have Exec pins.
 //   N2  KS130  VarName consistency — usage VarNode has a matching definition VarNode.
 //   KS140      break/continue must be inside a loop scope.
+//
+// Not emitted (documented gaps, see KScript-Blueprint-Correspondence.md §5.5):
+//   KS112 (D3 data scope reachability) and KS113 (D4 condition subgraph contained)
+//   are not implemented.
 //
 // MVP: one-shot full-graph check; no incremental update (§十二-J).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,7 +78,7 @@ internal static class StructuralReducer
             if (count > 1)
             {
                 var n = nodeById.GetValueOrDefault(nodeId);
-                return new ConstraintViolation("KS102", "E3", $"KS102: 节点 '{n?.Name ?? nodeId}' 的 Exec input 有 {count} 条 incoming edges，违反唯一前驱约束（E3）。v6 End-pin 模型不允许菱形合流；建议：让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", new[] { nodeId }, null, "让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。");
+                return new ConstraintViolation("KS102", "E3", $"KS102: 节点 '{n?.Name ?? nodeId}' 的 Exec input 有 {count} 条 incoming edges，违反唯一前驱约束（E3）。v6 End-pin 模型不允许菱形合流；建议：让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", new[] { nodeId }, null, "让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
             }
         }
 
@@ -93,7 +97,7 @@ internal static class StructuralReducer
             if (count > 1)
             {
                 var n = nodeById.GetValueOrDefault(nodeId);
-                return new ConstraintViolation("KS111", "D2", $"KS111: 节点 '{n?.Name ?? nodeId}' 的 data input pin 有 {count} 条 incoming edges，违反单输入约束（D2）。每个 data input pin 至多一条 incoming edge。", new[] { nodeId }, null, "每个 data input pin 至多一条 incoming edge，删除多余的连线。");
+                return new ConstraintViolation("KS111", "D2", $"KS111: 节点 '{n?.Name ?? nodeId}' 的 data input pin 有 {count} 条 incoming edges，违反单输入约束（D2）。每个 data input pin 至多一条 incoming edge。", new[] { nodeId }, null, "每个 data input pin 至多一条 incoming edge，删除多余的连线。", IsConnectionStructural: true);
             }
         }
 
@@ -101,13 +105,13 @@ internal static class StructuralReducer
         var execCycle = FindCycle(blueprint, nodeById, execOnly: true);
         if (execCycle is not null)
             return new ConstraintViolation("KS105", "E6", "KS105: 检测到显式 exec 回环，违反回边规则（E6）。循环的\"回到循环头\"语义应通过 body 末节点 exec-out 悬空隐式表达；不允许显式画从 body 末节点到循环节点的 exec edge。",
-                execCycle, null, "使用 Each/While 控制流节点表达循环，让 body 末节点 exec-out 悬空（自然结束）。");
+                execCycle, null, "使用 Each/While 控制流节点表达循环，让 body 末节点 exec-out 悬空（自然结束）。", IsConnectionStructural: true);
 
         // ── D1 (KS110): Data DAG — data graph must be acyclic ──
         var dataCycle = FindCycle(blueprint, nodeById, execOnly: false);
         if (dataCycle is not null)
             return new ConstraintViolation("KS110", "D1", "KS110: Data graph 成环，违反 DAG 约束（D1）。值的定义不能循环依赖。",
-                dataCycle, null, "检查数据连线，消除循环依赖。");
+                dataCycle, null, "检查数据连线，消除循环依赖。", IsConnectionStructural: true);
 
         // ── E1 (KS100): Connectivity ──
         // Every non-definition node must be reachable from EntryNode via exec edges,
@@ -350,7 +354,7 @@ internal static class StructuralReducer
             if (IsDefinitionNode(node)) continue;
             if (visited.Contains(node.Id)) continue;
             if (dataReachable.Contains(node.Id)) continue;
-            return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。");
+            return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。", IsConnectionStructural: true);
         }
         return null;
     }
@@ -408,7 +412,7 @@ internal static class StructuralReducer
             {
                 // Re-visiting a node in a *different* path = merge point = structural error.
                 var n = nodeById.GetValueOrDefault(targetId);
-                return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。");
+                return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
             }
 
             if (!nodeById.TryGetValue(targetId, out var node))
@@ -439,7 +443,7 @@ internal static class StructuralReducer
             {
                 // break/continue: must be inside a loop scope.
                 if (loopScopeStack.Count == 0)
-                    return new ConstraintViolation("KS140", "BreakContinue", $"KS140: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { targetId }, null, "将 break/continue 移到 forEach 或 while 的 body 内。");
+                    return new ConstraintViolation("KS140", "BreakContinue", $"KS140: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { targetId }, null, "将 break/continue 移到 forEach 或 while 的 body 内。", IsConnectionStructural: true);
                 // Terminator has no exec-out — walk ends here.
             }
             else

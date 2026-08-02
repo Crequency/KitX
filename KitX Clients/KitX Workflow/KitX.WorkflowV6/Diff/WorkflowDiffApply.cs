@@ -40,10 +40,9 @@ public static class WorkflowDiffApply
         if (diff.IsEmpty) return baseline;
 
         // Group changes by their top-level scope path (the lexical path up to the last
-        // '/' separator). For Phase 5 MVP we only handle top-level changes (lexical
-        // path "/" + ordinal); nested-scope changes recurse via the diff's path encoding.
-        // The diff's path format is "{ordinal}" for top-level or "{parentPath}/body/{ordinal}"
-        // for nested. For MVP we handle the simple top-level case.
+        // '/' separator). Only top-level changes are applied by name; nested-scope
+        // changes arrive as container replacements (the container statement is replaced
+        // wholesale with its new body) rather than recursive per-statement edits.
         var newBody = ApplyChangesToScope(baseline.Body, diff.StatementChanges, "/");
         return baseline with { Body = newBody };
     }
@@ -126,8 +125,9 @@ public static class WorkflowDiffApply
 
     /// <summary>
     /// Returns true when lexicalPath is a direct child of scopePath (i.e. exactly one
-    /// path segment deeper). Used to prevent nested-scope changes from being applied
-    /// at the wrong level until recursive Apply is implemented.
+    /// path segment deeper). Nested-scope changes are applied as container replacements
+    /// (the parent statement is replaced wholesale with its new body), so a change must
+    /// land exactly at its own scope level.
     /// </summary>
     private static bool IsDirectChild(string lexicalPath, string scopePath)
     {

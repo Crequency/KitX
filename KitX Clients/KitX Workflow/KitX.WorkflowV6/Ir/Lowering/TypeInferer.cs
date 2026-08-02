@@ -89,13 +89,16 @@ public static class TypeInferer
         if (stmt is PipelineStatement pipe)
         {
             // Find the terminal variable tap (assignment target) and the producing call.
+            // IsVariableTap is classified structurally (see KsSegmentClassifier) instead
+            // of trusting the flag alone — the forward (Parser) and reverse paths set it
+            // asymmetrically for the `> name` form (KScript-Blueprint-Correspondence §7.1-2).
             string? target = null;
             string? producingFunc = null;
             ImmutableArray<KsNode> producingArgs = [];
 
             foreach (var seg in pipe.Segments)
             {
-                if (seg.IsVariableTap)
+                if (KsSegmentClassifier.IsVariableTap(seg, registry, helperMap.Keys))
                     target = seg.Target;
                 else
                 {
@@ -219,7 +222,7 @@ public static class TypeInferer
         for (int segIdx = 0; segIdx < pipe.Segments.Length; segIdx++)
         {
             var seg = pipe.Segments[segIdx];
-            if (seg.IsVariableTap) continue;
+            if (KsSegmentClassifier.IsVariableTap(seg, registry, helperMap.Keys)) continue;
             if (registry?.Contains(seg.Target) is true) continue; // builtin — skip
             if (!helperMap.TryGetValue(seg.Target, out var helper)) continue;
 
