@@ -356,6 +356,8 @@ internal sealed class BpRenderer
                         Name = id.Name, VarName = id.Name,
                         VarKind = VariableKind.PubVar,
                     }, $"{path}/{i}");
+                    if (id.Comment is { Length: > 0 })
+                        vn.Comment = id.Comment;
                     ConnectToInput(vn, func, pin.Name);
                     break;
             }
@@ -688,6 +690,8 @@ internal sealed class BpRenderer
                         ConstName = lit.Value?.ToString() ?? "null",
                         ConstValue = lit.Value?.ToString(),
                     }, path);
+                    if (lit.Comment is { Length: > 0 })
+                        cn.Comment = lit.Comment;
                     if (prevTails is not null) ConnectExecTails(prevTails, cn);
                     return cn;
                 }
@@ -698,12 +702,16 @@ internal sealed class BpRenderer
                         Name = id.Name, VarName = id.Name,
                         VarKind = VariableKind.PubVar,
                     }, path);
+                    if (id.Comment is { Length: > 0 })
+                        vn.Comment = id.Comment;
                     if (prevTails is not null) ConnectExecTails(prevTails, vn);
                     return vn;
                 }
             case KsCall call:
                 {
                     var fn = AddBuiltin(call.MethodName, path);
+                    if (call.Comment is { Length: > 0 })
+                        fn.Comment = call.Comment;
                     WireCallArgs(fn, call.Args, $"{path}/args");
                     if (prevTails is not null) ConnectExecTails(prevTails, fn);
                     return fn;

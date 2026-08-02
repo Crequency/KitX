@@ -177,30 +177,39 @@ internal sealed class KsRenderer
     }
 
     /// <summary>
-    /// Renders a pipeline statement. When any segment carries a comment, renders the
-    /// multi-line form (sources on the first line, each segment on its own indented
-    /// continuation line) so per-segment comments can attach. Otherwise renders the
+    /// Renders a pipeline statement. When any source or segment carries a comment, the
+    /// multi-line form is used with comment-driven line folding: contiguous elements
+    /// WITHOUT comments share a line; an element WITH a comment terminates its line
+    /// (the inline comment sits at that line's end), and following elements continue on
+    /// a new line (indent + 1). The statement's TrailingComment lands on the LAST source
+    /// line (Parser capture point A reads it back); a source comment there would
+    /// conflict and the trailing comment is dropped (rare edge). Otherwise renders the
     /// compact single-line form.
     /// </summary>
     private void RenderPipelineStmt(StringBuilder sb, PipelineStatement p, int level)
     {
-        bool multiline = false;
-        foreach (var s in p.Segments)
-            if (s.Comment is { Length: > 0 }) { multiline = true; break; }
-
+        bool multiline = p.Sources.Any(s => s.Comment is { Length: > 0 })
+                      || p.Segments.Any(s => s.Comment is { Length: > 0 });
         if (multiline)
         {
-            // Sources line (+ optional source-line trailing comment).
-            sb.Append(Indent(level)).Append(string.Join(", ", p.Sources.Select(RenderKsNode)));
-            AppendTrailing(sb, p.TrailingComment);
-            sb.Append('\n');
-            // Each segment on its own indented continuation line.
-            foreach (var seg in p.Segments)
+            RenderSourceBlock(sb, p.Sources, level, prependFirstIndent: true, trailingComment: p.TrailingComment);
+
+            // Segment block: contiguous comment-free segments share a line; a commented
+            // segment terminates its line (inline comment at line end).
+            for (int i = 0; i < p.Segments.Length; i++)
             {
-                sb.Append(Indent(level + 1)).Append("> ").Append(RenderSegmentText(seg));
+                var seg = p.Segments[i];
+                if (i == 0 || p.Segments[i - 1].Comment is { Length: > 0 })
+                    sb.Append(Indent(level + 1)).Append("> ");
+                else
+                    sb.Append(" > ");
+                sb.Append(RenderSegmentText(seg));
                 AppendTrailing(sb, seg.Comment);
-                sb.Append('\n');
+                if (seg.Comment is { Length: > 0 })
+                    sb.Append('\n');
             }
+            if (p.Segments.Length == 0 || p.Segments[^1].Comment is not { Length: > 0 })
+                sb.Append('\n');
         }
         else
         {
@@ -208,6 +217,45 @@ internal sealed class KsRenderer
             AppendTrailing(sb, p.TrailingComment);
             sb.Append('\n');
         }
+    }
+
+    /// <summary>
+    /// Renders a source list with comment-driven line folding: the first source starts
+    /// the line (indented unless <paramref name="prependFirstIndent"/> is false — the
+    /// control-flow header already wrote "keyword "); a commented source terminates its
+    /// line; following sources continue on the same line with ", " or a new line at
+    /// indent + 1 after a commented predecessor. The statement TrailingComment attaches
+    /// to the LAST source line (dropped if that line already carries a source comment).
+    /// </summary>
+    private static void RenderSourceBlock(StringBuilder sb, ImmutableArray<KsNode> sources, int level,
+        bool prependFirstIndent, string? trailingComment)
+    {
+        for (int i = 0; i < sources.Length; i++)
+        {
+            var src = sources[i];
+            bool hasNext = i < sources.Length - 1;
+            if (i == 0)
+            {
+                if (prependFirstIndent)
+                    sb.Append(Indent(level));
+            }
+            else if (sources[i - 1].Comment is { Length: > 0 })
+                sb.Append(Indent(level + 1));
+            else
+                sb.Append(' ');
+            sb.Append(RenderKsNode(src));
+            // Source separator comma sits BEFORE the source's inline comment: `a, // cmt`.
+            if (hasNext)
+                sb.Append(',');
+            AppendTrailing(sb, src.Comment);
+            if (src.Comment is { Length: > 0 })
+                sb.Append('\n');
+        }
+        // TrailingComment: only when the last source line is free of a source comment.
+        if (sources.Length > 0 && sources[^1].Comment is not { Length: > 0 })
+            AppendTrailing(sb, trailingComment);
+        if (sources.Length == 0 || sources[^1].Comment is not { Length: > 0 })
+            sb.Append('\n');
     }
 
     /// <summary>
@@ -248,17 +296,21 @@ internal sealed class KsRenderer
     /// <summary>Inline portion of a control-flow header (after the leading "keyword ").</summary>
     private void RenderControlFlowHeaderInline(StringBuilder sb, int level, string keyword, KsNode cond, string suffix = "", string? trailing = null)
     {
-        if (cond is KsPipeline pipe && pipe.Segments.Length > 1 && HasIntermediateSegComment(pipe))
+        if (cond is KsPipeline pipe && NeedsMultiLineHeader(pipe))
         {
-            // Multi-line condition: sources on the first line, each segment on its own
-            // indented continuation line. The last segment's line ends with the suffix
-            // (forEach "as i"), the ':', and the last segment's inline comment.
-            sb.Append(string.Join(", ", pipe.Sources.Select(RenderKsNode))).Append('\n');
+            // Multi-line condition: source block (keyword already written on the first
+            // line) + segment block with comment-driven folding. The last segment's line
+            // ends with the suffix (forEach "as i"), the ':', and its inline comment.
+            RenderSourceBlock(sb, pipe.Sources, level, prependFirstIndent: false, trailingComment: null);
             int lastIdx = pipe.Segments.Length - 1;
             for (int i = 0; i < pipe.Segments.Length; i++)
             {
                 var seg = pipe.Segments[i];
-                sb.Append(Indent(level + 1)).Append("> ").Append(RenderAstSegmentText(seg));
+                if (i == 0 || pipe.Segments[i - 1].Comment is { Length: > 0 })
+                    sb.Append(Indent(level + 1)).Append("> ");
+                else
+                    sb.Append(" > ");
+                sb.Append(RenderAstSegmentText(seg));
                 if (i == lastIdx)
                 {
                     sb.Append(suffix).Append(':');
@@ -267,9 +319,12 @@ internal sealed class KsRenderer
                 else
                 {
                     AppendTrailing(sb, seg.Comment);
+                    if (seg.Comment is { Length: > 0 })
+                        sb.Append('\n');
                 }
-                sb.Append('\n');
             }
+            if (pipe.Segments[^1].Comment is not { Length: > 0 })
+                sb.Append('\n');
         }
         else
         {
@@ -285,12 +340,15 @@ internal sealed class KsRenderer
         }
     }
 
-    private static bool HasIntermediateSegComment(KsPipeline pipe)
-    {
-        for (int i = 0; i < pipe.Segments.Length - 1; i++)
-            if (pipe.Segments[i].Comment is { Length: > 0 }) return true;
-        return false;
-    }
+    /// <summary>
+    /// True when a pipeline header needs the multi-line form: a SOURCE comment or an
+    /// INTERMEDIATE segment comment. A lone last-segment comment stays single-line
+    /// (it renders post-colon: <c>if a &gt; FA: // cmt</c>).
+    /// </summary>
+    private static bool NeedsMultiLineHeader(KsPipeline pipe)
+        => pipe.Sources.Any(s => s.Comment is { Length: > 0 })
+        || (pipe.Segments.Length > 1
+            && pipe.Segments.Take(pipe.Segments.Length - 1).Any(s => s.Comment is { Length: > 0 }));
 
     /// <summary>
     /// Renders an AST KsPipelineSegment (from the <see cref="KsPipeline"/> AST).

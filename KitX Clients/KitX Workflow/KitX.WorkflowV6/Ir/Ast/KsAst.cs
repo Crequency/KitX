@@ -75,6 +75,13 @@ public abstract record KsNode
     /// </remarks>
     public string SourceText { get; set; } = string.Empty;
     public int SourceLine { get; set; }
+
+    /// <summary>
+    /// Inline <c>//</c> comment on this source node's line (multi-line source lists:
+    /// <c>a, // cmt</c> attaches to <c>a</c>). Mirrors <see cref="KsPipelineSegment.Comment"/>;
+    /// excluded from record equality (presentation-only, like segment comments).
+    /// </summary>
+    public string? Comment { get; set; }
 }
 
 // ── Expression nodes ──
@@ -268,9 +275,7 @@ public sealed record KsPipelineSegment : KsNode
     public ImmutableArray<KsNode> Args { get; init; } = [];
     public ImmutableArray<string> RawArgs { get; init; } = [];
     public bool IsVariableTap { get; init; }
-
-    /// <summary>Inline <c>//</c> comment on this segment's line (multi-line pipelines only).</summary>
-    public string? Comment { get; set; }
+    // Comment inherited from KsNode (inline `//` comment on this segment's line).
 
     public bool Equals(KsPipelineSegment? other)
     {

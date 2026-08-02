@@ -679,8 +679,48 @@ internal sealed class Parser
         // statement: `forEach <source> as <item>`. Use that form instead.
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         sources.Add(ParseExpression());
-        while (Match(KsTokenKind.Comma))
+        int stmtIndent = LastConsumedIndentLevel();
+        while (true)
+        {
+            if (!Match(KsTokenKind.Comma)) break;
+
+            // Inline comment right after the comma attaches to the preceding source
+            // (`a, // cmt` → a.Comment), enabling multi-line source lists.
+            var srcTrailing = TryConsumeComment();
+            if (srcTrailing is not null && sources.Count > 0)
+                sources[^1].Comment = srcTrailing;
+
+            // Comma line-break: the next line continues the source list. Strict indent
+            // rule: the continuation line must be indented strictly deeper than the
+            // statement (statement indent + 1), mirroring the segment-continuation rule.
+            bool invalidContinuation = false;
+            while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind != KsTokenKind.Pipe)
+            {
+                if (Current.IndentLevel < stmtIndent + 1)
+                {
+                    Error("KS066",
+                        $"多行管道续源行缩进必须大于语句缩进（语句缩进 {stmtIndent}，实际 {Current.IndentLevel}）");
+                    // Recover: skip to the next line so it re-parses as its own statement.
+                    while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
+                    invalidContinuation = true;
+                    break;
+                }
+                // KS065: a full-line comment between source continuations is rejected —
+                // the trailing comma means the pipeline is unfinished, so the comment
+                // line is necessarily inside the pipeline.
+                if (Peek(1).Kind == KsTokenKind.Comment)
+                {
+                    Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或行内。");
+                    Advance();  // consume Indent
+                    Advance();  // consume Comment
+                    continue;
+                }
+                Advance();  // consume Indent
+                break;
+            }
+            if (invalidContinuation) break;
             sources.Add(ParseExpression());
+        }
 
         var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
         while (Match(KsTokenKind.Pipe))
@@ -706,14 +746,20 @@ internal sealed class Parser
             {
                 Advance(); // consume Indent
                 Advance(); // consume Pipe
-                if (RejectForEachInPipeline("as a pipeline segment"))
-                    break;
-                var seg = ParseSegment();
-                // Capture point B — a trailing comment on this continuation segment's line
-                // (`> Func // cmt`). This is the per-segment comment that forces multi-line
-                // rendering and maps to the segment's BP node.
-                seg.Comment = TryConsumeComment();
-                segments.Add(seg);
+                // A continuation line may carry several segments (`> FA > FB // cmt`);
+                // the inline comment lands on the LAST segment of the line (capture B).
+                while (true)
+                {
+                    if (RejectForEachInPipeline("as a pipeline segment"))
+                        break;
+                    var seg = ParseSegment();
+                    var cmt = TryConsumeComment();
+                    if (cmt is not null)
+                        seg.Comment = cmt;
+                    segments.Add(seg);
+                    if (!Match(KsTokenKind.Pipe))
+                        break;
+                }
                 continue;
             }
 
@@ -956,8 +1002,41 @@ internal sealed class Parser
         // Pipeline condition: build sources + segments.
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         sources.Add(firstSource);
-        while (Match(KsTokenKind.Comma))
+        int stmtIndent = LastConsumedIndentLevel();
+        while (true)
+        {
+            if (!Match(KsTokenKind.Comma)) break;
+
+            // Inline comment after the comma attaches to the preceding source (multi-line
+            // source lists in control-flow headers, e.g. `if a, // cmt` + continuation).
+            var srcTrailing = TryConsumeComment();
+            if (srcTrailing is not null && sources.Count > 0)
+                sources[^1].Comment = srcTrailing;
+
+            bool invalidContinuation = false;
+            while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind != KsTokenKind.Pipe)
+            {
+                if (Current.IndentLevel < stmtIndent + 1)
+                {
+                    Error("KS066",
+                        $"多行管道续源行缩进必须大于语句缩进（语句缩进 {stmtIndent}，实际 {Current.IndentLevel}）");
+                    while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
+                    invalidContinuation = true;
+                    break;
+                }
+                if (Peek(1).Kind == KsTokenKind.Comment)
+                {
+                    Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或行内。");
+                    Advance();  // consume Indent
+                    Advance();  // consume Comment
+                    continue;
+                }
+                Advance();  // consume Indent
+                break;
+            }
+            if (invalidContinuation) break;
             sources.Add(ParseExpression());
+        }
 
         var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
         string? lastSegComment = null;
@@ -978,13 +1057,21 @@ internal sealed class Parser
             {
                 Advance();  // consume Indent
                 Advance();  // consume Pipe
-                if (RejectForEachInPipeline("in a pipeline expression"))
-                    break;
-                var seg = ParseSegment();
-                var segComment = TryConsumeComment();
-                seg.Comment = segComment;
-                lastSegComment = segComment;
-                segments.Add(seg);
+                // A continuation line may carry several segments; the inline comment
+                // lands on the LAST segment of the line (capture B).
+                while (true)
+                {
+                    if (RejectForEachInPipeline("in a pipeline expression"))
+                        break;
+                    var seg = ParseSegment();
+                    var segComment = TryConsumeComment();
+                    if (segComment is not null)
+                        seg.Comment = segComment;
+                    lastSegComment = segComment;
+                    segments.Add(seg);
+                    if (!Match(KsTokenKind.Pipe))
+                        break;
+                }
                 continue;
             }
 

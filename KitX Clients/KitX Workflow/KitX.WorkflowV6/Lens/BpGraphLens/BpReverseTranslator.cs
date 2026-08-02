@@ -879,20 +879,28 @@ internal sealed class BpReverseTranslator
     /// <summary>Converts a data-source BP node into the corresponding KsNode expression.</summary>
     private KsNode NodeToKsNode(BlueprintNode node)
     {
-        switch (node)
+        KsNode result = node switch
         {
-            case VariableNode vn:
-                return new KsIdentifier { Name = vn.VarName ?? vn.Name, SourceText = vn.VarName ?? vn.Name };
-            case ConstNode cn:
-                return ParseDefaultValue(cn.ConstValue ?? cn.ConstName ?? "null");
-            case BuiltinFunctionNode fn:
-                return ReconstructPipelineOrCall(fn);
-            default:
-                // TODO(B3): silent fallback — BP graph is incomplete (unknown node type).
-                // Currently returns 'true' to keep round-trip tests green; ideally
-                // should surface a diagnostic. Revisit when BP editing UX matures.
-                return MakeBoolLiteral(true);
+            VariableNode vn => new KsIdentifier { Name = vn.VarName ?? vn.Name, SourceText = vn.VarName ?? vn.Name },
+            ConstNode cn => ParseDefaultValue(cn.ConstValue ?? cn.ConstName ?? "null"),
+            BuiltinFunctionNode fn => ReconstructPipelineOrCall(fn),
+            // TODO(B3): silent fallback — BP graph is incomplete (unknown node type).
+            // Currently returns 'true' to keep round-trip tests green; ideally
+            // should surface a diagnostic. Revisit when BP editing UX matures.
+            _ => MakeBoolLiteral(true),
+        };
+
+        // Source-node inline comment (multi-line source lists, `a, // cmt`): only
+        // NON-primary data-subgraph nodes carry it — the primary node's Comment is the
+        // statement's TrailingComment (set by BpRenderer). Restore it onto the KsNode so
+        // BP→KS round-trip keeps the source annotation.
+        if (node.Comment is { Length: > 0 }
+            && _bp.StatementNodeToPrimary.TryGetValue(node.Id, out var primaryId)
+            && primaryId != node.Id)
+        {
+            result.Comment = node.Comment;
         }
+        return result;
     }
 
     /// <summary>
