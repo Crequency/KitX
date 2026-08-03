@@ -161,6 +161,37 @@ internal abstract class CodegenBase
 
     public abstract string Generate(Workflow ir, LoweringResult? lowering, bool hasDebugger = false);
 
+    /// <summary>
+    /// Emits the user-defined helper functions as public methods on the generated G
+    /// class (shared by both codegen paths — Run and Debug must produce the same G
+    /// surface, otherwise debug runs fail with CS1061 for every helper call).
+    /// </summary>
+    protected void EmitHelperFunctions(Workflow ir)
+    {
+        if (ir.HelperFunctions.IsDefault || ir.HelperFunctions.Length == 0) return;
+        EmitLine("");
+        foreach (var func in ir.HelperFunctions)
+        {
+            var paramList = string.Join(", ",
+                func.Parameters.Select(p => $"{p.Type} {p.Name}"));
+            EmitLine($"public {func.ReturnType} {func.Name}({paramList})");
+            EmitLine("{");
+            Indent();
+            if (!string.IsNullOrWhiteSpace(func.Code))
+            {
+                foreach (var codeLine in func.Code.Split('\n'))
+                    EmitLine(codeLine.TrimEnd());
+            }
+            else
+            {
+                EmitLine($"return default({func.ReturnType});");
+            }
+            Dedent();
+            EmitLine("}");
+            EmitLine("");
+        }
+    }
+
     protected abstract void EmitPipeline(PipelineStatement p, int ordinal, int depth);
 
     protected virtual void EmitCheckpoint(string stmtId, string lexicalPath, int ordinal) { }

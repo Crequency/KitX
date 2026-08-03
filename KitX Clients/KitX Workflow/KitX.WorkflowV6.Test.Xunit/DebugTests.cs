@@ -385,6 +385,69 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains("hello", result.Output);
     }
 
+    [Fact]
+    public void Debug_Codegen_Emits_Helper_Functions()
+    {
+        // Regression: Debug codegen must emit helper methods on G — Run and Debug
+        // share the same G surface, otherwise every helper call fails with CS1061
+        // in debug mode (BP workflow with user helpers).
+        var ir = new Workflow
+        {
+            Body = [new PipelineStatement
+            {
+                Sources = [new KsCall { MethodName = "CreateMemory", Args = [new KsLiteral { Kind = KsLiteralKind.Integer, Value = 100, SourceText = "100" }] }],
+                Segments = [],
+                Fingerprint = Fingerprint.Compute("test-helper-debug"),
+            }],
+            HelperFunctions = [new HelperFunction
+            {
+                Name = "CreateMemory",
+                ReturnType = "string",
+                Parameters = [new HelperFunctionParameter { Name = "size", Type = "int" }],
+                Code = "return new string(' ', size);",
+            }],
+        };
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        Assert.Contains("public string CreateMemory(int size)", code);
+        Assert.Contains("return new string(' ', size);", code);
+    }
+
+    [Fact]
+    public async Task Debug_With_Helper_Function_Compiles_And_Runs()
+    {
+        // End-to-end: a BP-style workflow calling a user helper must COMPILE in debug
+        // mode (the CS1061 regression) and produce the expected output.
+        var ir = new Workflow
+        {
+            Body = [new PipelineStatement
+            {
+                Sources = [new KsCall
+                {
+                    MethodName = "HelperFn",
+                    Args = [new KsLiteral { Kind = KsLiteralKind.Integer, Value = 3, SourceText = "3" }],
+                }],
+                Segments = [new Segment { Target = "Print" }],
+                Fingerprint = Fingerprint.Compute("test-helper-e2e"),
+            }],
+            HelperFunctions = [new HelperFunction
+            {
+                Name = "HelperFn",
+                ReturnType = "int",
+                Parameters = [new HelperFunctionParameter { Name = "x", Type = "int" }],
+                Code = "return x * 2;",
+            }],
+        };
+        var backend = _fixture.MakeBackend();
+        var debugger = new MockDebugController();
+
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None, debugger);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Contains("6", result.Output.Select(o => o.Trim()));
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MockDebugController — minimal IBlueprintDebugController for E2E tests.
     // Records every NotifyValueChanged call so tests can assert on the wire/variable

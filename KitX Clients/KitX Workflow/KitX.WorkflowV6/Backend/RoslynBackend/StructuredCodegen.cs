@@ -32,32 +32,6 @@ internal sealed class StructuredCodegen : CodegenBase
         return _sb.ToString();
     }
 
-    private void EmitHelperFunctions(Workflow ir)
-    {
-        if (ir.HelperFunctions.IsDefault || ir.HelperFunctions.Length == 0) return;
-        EmitLine("");
-        foreach (var func in ir.HelperFunctions)
-        {
-            var paramList = string.Join(", ",
-                func.Parameters.Select(p => $"{p.Type} {p.Name}"));
-            EmitLine($"public {func.ReturnType} {func.Name}({paramList})");
-            EmitLine("{");
-            Indent();
-            if (!string.IsNullOrWhiteSpace(func.Code))
-            {
-                foreach (var codeLine in func.Code.Split('\n'))
-                    EmitLine(codeLine.TrimEnd());
-            }
-            else
-            {
-                EmitLine($"return default({func.ReturnType});");
-            }
-            Dedent();
-            EmitLine("}");
-            EmitLine("");
-        }
-    }
-
     private void EmitBody(ImmutableArray<Statement> body)
     {
         foreach (var s in body)

@@ -49,6 +49,9 @@ internal sealed class DebugCodegen : CodegenBase
         EmitCheckpoint(ExecutionEndCheckpointId, "end", 0);
         Dedent();
         EmitLine("}");
+        // Helpers MUST be emitted on the debug path too — Run and Debug generate the
+        // same G surface, otherwise every helper call fails with CS1061 in debug runs.
+        EmitHelperFunctions(ir);
         EmitClassFooter();
         return _sb.ToString();
     }
