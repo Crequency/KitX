@@ -49,6 +49,13 @@ public class ExecutionGlobals
     /// calls forward to it (breakpoints, step, pause).</summary>
     public IBlueprintDebugController? Debugger { get; set; }
 
+    /// <summary>
+    /// Cancellation token forwarded to every <see cref="Checkpoint"/> call. Set by the
+    /// execution backend before invoking the generated workflow; without it a paused
+    /// debug session could never be cancelled (the debugger's wait would block forever).
+    /// </summary>
+    public CancellationToken DebugToken { get; set; } = CancellationToken.None;
+
     /// <summary>Optional plugin host for plugin/service calls. When null, all
     /// plugin calls return defaults (null/false/"[]").</summary>
     public IPluginHost? PluginHost { get; set; }
@@ -59,7 +66,7 @@ public class ExecutionGlobals
     /// </summary>
     public void Checkpoint(string stmtId, string lexicalPath)
     {
-        Debugger?.CheckpointAsync(stmtId, lexicalPath, CancellationToken.None).GetAwaiter().GetResult();
+        Debugger?.CheckpointAsync(stmtId, lexicalPath, DebugToken).GetAwaiter().GetResult();
     }
 
     /// <summary>

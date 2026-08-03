@@ -98,6 +98,7 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
                 ?? throw new InvalidOperationException("Generated G type not found.");
             var g = (ExecutionGlobals)Activator.CreateInstance(gType)!;
             g.Debugger = debugger;
+            g.DebugToken = ct;
             g.PluginHost = _pluginHost;
 
             var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
@@ -117,6 +118,18 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
                 ExecutedBlockCount = 0,
                 ExecutionTimeMs = sw.ElapsedMilliseconds,
             };
+        }
+        catch (Exception ex) when (ct.IsCancellationRequested
+            && (ex is OperationCanceledException
+                || ex is TargetInvocationException { InnerException: OperationCanceledException }))
+        {
+            // Cancellation surfaces as an OperationCanceledException — wrapped by
+            // reflection's TargetInvocationException when it escapes the generated
+            // RunAsync (the checkpoint wait throws inside G.Checkpoint). Re-throw the
+            // OCE so callers can present "cancelled" instead of a generic failure.
+            throw ex is OperationCanceledException oce
+                ? oce
+                : ((TargetInvocationException)ex).InnerException!;
         }
         catch (Exception ex)
         {
