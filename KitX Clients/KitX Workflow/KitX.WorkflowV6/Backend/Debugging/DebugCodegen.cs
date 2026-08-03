@@ -196,6 +196,7 @@ internal sealed class DebugCodegen : CodegenBase
                 // upstream segment and this VariableNode shows the flowing value.
                 // The wireId uses the VariableNode's own path (matches BpRenderer:190).
                 EmitLine($"this.OnWireValue(\"w:{segNodeId}\", {outputVar});");
+                currentVar = outputVar;
             }
             else
             {
@@ -203,13 +204,43 @@ internal sealed class DebugCodegen : CodegenBase
                     ? p.Sources.Select(RenderKsNode)
                     : [currentVar!];
                 string args = BuildArgList(seg.Arguments, inputs);
-                EmitLine($"var {outputVar} = this.{MapMethodName(seg.Target)}({args});");
-                // Function call output wire — segment node's primary data output pin.
-                EmitLine($"this.OnWireValue(\"w:{segNodeId}\", {outputVar});");
-            }
+                string callExpr = $"this.{MapMethodName(seg.Target)}({args})";
 
-            currentVar = outputVar;
+                if (IsVoidFunction(seg.Target))
+                {
+                    // Void segment (Print / Pause / WriteTextFile / StartPlugin / ...):
+                    // no return value to bind into a __pipe variable or to publish as a
+                    // wire value. The pipeline's value stream ends here — a following
+                    // segment defensively receives null.
+                    EmitLine($"{callExpr};");
+                    currentVar = null;
+                }
+                else
+                {
+                    EmitLine($"var {outputVar} = {callExpr};");
+                    // Function call output wire — segment node's primary data output pin.
+                    EmitLine($"this.OnWireValue(\"w:{segNodeId}\", {outputVar});");
+                    currentVar = outputVar;
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// True when the named function returns no value (no output ports). Used to avoid
+    /// <c>var x = this.Print(...)</c> (CS0815) in debug codegen — void segments are
+    /// emitted as bare statements and the pipeline value stream ends there.
+    /// </summary>
+    private bool IsVoidFunction(string name)
+    {
+        if (_registry.Get(name) is { } bi)
+            return !bi.OutputPorts.Any();
+        foreach (var h in _ir.HelperFunctions)
+        {
+            if (string.Equals(h.Name, name, StringComparison.Ordinal))
+                return string.Equals(h.ReturnType, "void", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 
     private void EmitIf(IfStatement iff, string stmtPath)

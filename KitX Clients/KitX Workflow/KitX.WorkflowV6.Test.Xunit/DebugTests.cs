@@ -91,8 +91,8 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
                 int a
                 int b
             }
-            a > Print
-            b > Print
+            a > Add(_, 1)
+            b > Add(_, 1)
             """;
         var ir = Parse(src);
         var cg = new DebugCodegen(_fixture.Registry);
@@ -101,6 +101,41 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains("__pipe_0", code);
         Assert.Contains("__pipe_1", code);
         Assert.DoesNotContain("__pipe_0_0", code);
+    }
+
+    [Fact]
+    public void Debug_Codegen_Void_Segment_Is_Not_Bound_To_Pipe_Variable()
+    {
+        // Regression: `5 > Print` — Print has no output ports. Debug codegen must emit
+        // a bare call statement, NOT `var __pipe_N = this.Print(5);` which fails to
+        // compile with CS0815 (cannot assign void to an implicitly-typed variable).
+        var ir = Parse("5 > Print\n");
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        Assert.Contains("this.Print(5);", code);
+        Assert.DoesNotContain("__pipe_0", code);
+        Assert.DoesNotContain("OnWireValue", code);
+    }
+
+    [Fact]
+    public async Task Debug_Void_Segment_Compiles_And_Runs()
+    {
+        // End-to-end: `a > Print` under a debugger must COMPILE (the CS0815 regression)
+        // and produce the expected output.
+        var ir = Parse("""
+            var {
+                int a
+            }
+            a > Print
+            """);
+        var backend = _fixture.MakeBackend();
+        var debugger = new MockDebugController();
+
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None, debugger);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Contains(0, result.Output.Select(o => o.Trim()).Select(int.Parse));
     }
 
     [Fact]
