@@ -960,10 +960,12 @@ internal sealed class BpReverseTranslator
 
     /// <summary>Converts a data-source BP node into the corresponding KsNode expression.</summary>
     private KsNode NodeToKsNode(BlueprintNode node)
-    {
-        KsNode result = node switch
+    {        KsNode result = node switch
         {
-            VariableNode vn => new KsIdentifier { Name = vn.VarName ?? vn.Name, SourceText = vn.VarName ?? vn.Name },
+            // Defensive: a usage VariableNode whose name was never chosen (frontend
+            // palette creation leaves VarName empty until the user picks one) must not
+            // produce an empty identifier — fall back to the node's display name.
+            VariableNode vn => new KsIdentifier { Name = IdentifierOrFallback(vn), SourceText = IdentifierOrFallback(vn) },
             ConstNode cn => ParseDefaultValue(cn.ConstValue ?? cn.ConstName ?? "null"),
             BuiltinFunctionNode fn => ReconstructPipelineOrCall(fn),
             // Defensive fallback for malformed BP graphs (unknown node type). Returns
@@ -983,6 +985,13 @@ internal sealed class BpReverseTranslator
             result.Comment = node.Comment;
         }
         return result;
+    }
+
+    /// <summary>VarName with a defensive fallback for unnamed usage VariableNodes.</summary>
+    private static string IdentifierOrFallback(VariableNode vn)
+    {
+        var name = vn.VarName ?? vn.Name;
+        return string.IsNullOrEmpty(name) ? "var" : name;
     }
 
     /// <summary>
