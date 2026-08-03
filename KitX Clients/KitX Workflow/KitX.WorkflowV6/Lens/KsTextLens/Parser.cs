@@ -804,17 +804,23 @@ internal sealed class Parser
         }
         Match(KsTokenKind.Semicolon);
 
-        // KS053: reject bare literal/identifier statements (e.g. `0\n` or `counter\n`).
-        // A statement must either be a bare call (`Print("hello")`) or contain at least
-        // one pipe segment / terminal `= name` assignment. Bare expressions have no
-        // effect and produce dead C# (`/* bare expression: 0 */`); rejecting them here
-        // keeps BP projection sound (every statement yields at least one exec anchor).
-        // Note: Error() is non-fatal — diagnostics are collected, parsing continues.
-        if (segments.Count == 0 && !(sources.Count == 1 && sources[0] is KsCall))
+        // KS053: reject bare statements that are neither a bare call (`Print("hello")`),
+        // a single identifier/literal read (a no-op exec anchor — the BP-side counterpart
+        // of a usage node on the exec chain without data edges), nor a pipeline with
+        // segments. Multi-source bare lists (`a, b`) and placeholder-only lines (`_`)
+        // stay invalid. Note: Error() is non-fatal — diagnostics are collected, parsing
+        // continues (a bare multi-source list still yields a partial KsPipeline).
+        if (segments.Count == 0)
         {
-            Error("KS053",
-                "Bare literal/identifier is not a valid statement; a pipeline must contain " +
-                "at least one '>' segment or '= name' assignment, or be a single function call");
+            bool isBareCall = sources.Count == 1 && sources[0] is KsCall;
+            bool isNoOpRead = sources.Count == 1 && sources[0] is KsIdentifier or KsLiteral;
+            if (!isBareCall && !isNoOpRead)
+            {
+                Error("KS053",
+                    "Bare statement is not valid; a pipeline must contain at least one '>' " +
+                    "segment or '= name' assignment, be a single function call, or a single " +
+                    "identifier/literal read (no-op exec anchor)");
+            }
         }
 
         // Capture point C — end-of-statement trailing comment for the single-line form

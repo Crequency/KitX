@@ -797,19 +797,32 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
         Assert.Single(pipe2.Sources);
     }
 
-    // ── KS053: bare literal/identifier statement rejection ──
+    // ── KS053: bare statement rejection (single identifier/literal now legal no-op) ──
 
     [Fact]
-    public void Parse_Bare_Literal_Rejected_With_KS053()
+    public void Parse_Bare_Literal_Is_Now_A_NoOp_Statement()
     {
+        // 2026-08-03: a single literal line is a legal no-op exec anchor (the BP-side
+        // counterpart of a usage node on the exec chain without data edges).
         var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("0\n");
-        Assert.Contains(diag.Items, d => d.Code == "KS053");
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS053");
+        Assert.Single(ast.Body);
     }
 
     [Fact]
-    public void Parse_Bare_Identifier_Rejected_With_KS053()
+    public void Parse_Bare_Identifier_Is_Now_A_NoOp_Statement()
     {
+        // 2026-08-03: a single identifier line is a legal no-op exec anchor.
         var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("counter\n");
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS053");
+        Assert.Single(ast.Body);
+    }
+
+    [Fact]
+    public void Parse_Bare_MultiSource_List_Still_Rejected_With_KS053()
+    {
+        // Multi-source bare lists (no segments) remain invalid.
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("a, b\n");
         Assert.Contains(diag.Items, d => d.Code == "KS053");
     }
 

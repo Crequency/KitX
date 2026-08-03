@@ -421,7 +421,12 @@ internal sealed class BpReverseTranslator
         bool nextIsRead = IsReadSource(next);
 
         // Read → Read: a, b both sources of the same pipeline (e.g. `a, b > Compare`).
-        if (prevIsRead && nextIsRead) return true;
+        // Only when the previous read actually FLOWS somewhere (has an outgoing data
+        // edge) is it a genuine multi-source member; a read without any outgoing data
+        // edge is a no-op exec anchor (BP-side usage node on the chain with no data
+        // connections) and must be split into its own bare-line statement — otherwise
+        // the reverse would fabricate a data edge that never existed.
+        if (prevIsRead && nextIsRead && HasOutgoingDataEdge(prev)) return true;
 
         // Read → Function: function consumes prev's value (e.g. `a > Print`).
         if (prevIsRead && next is BuiltinFunctionNode fn)
@@ -459,6 +464,23 @@ internal sealed class BpReverseTranslator
     {
         if (node is ConstNode) return true;
         if (node is VariableNode vn && !HasIncomingDataEdge(vn)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// True when the node's data output (any non-Exec output pin) has at least one
+    /// outgoing data edge — i.e. the read's value actually flows to a consumer.
+    /// </summary>
+    private bool HasOutgoingDataEdge(BlueprintNode node)
+    {
+        foreach (var conn in _bp.Connections)
+        {
+            if (conn.SourceNodeId != node.Id) continue;
+            if (!_byId.ContainsKey(conn.TargetNodeId)) continue;
+            var srcPin = node.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+            return true;
+        }
         return false;
     }
 
