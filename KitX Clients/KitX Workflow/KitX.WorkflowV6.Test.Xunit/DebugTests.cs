@@ -582,6 +582,47 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             kv => kv.name == $"w:{NodeId.Of("/top/stmt/0/cond/seg/0")}");
     }
 
+    [Fact]
+    public void Debug_Codegen_ControlFlow_Checkpoint_Follows_Condition_Subgraph()
+    {
+        // Highlight order must match the BP exec chain (… → condition nodes →
+        // Branch/While → body), so the control-flow checkpoint is emitted AFTER the
+        // condition sub-graph checkpoints — not before them.
+        var ir = Parse("""
+            var {
+                bool c
+            }
+            if c:
+                Print("yes")
+            """);
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        var condCp = code.IndexOf($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/cond")}\"", StringComparison.Ordinal);
+        var branchCp = code.IndexOf($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0")}\"", StringComparison.Ordinal);
+        Assert.True(condCp >= 0 && branchCp > condCp,
+            "control-flow checkpoint must follow the condition sub-graph checkpoint");
+    }
+
+    [Fact]
+    public void Debug_Codegen_While_Checkpoint_Follows_Condition_Subgraph()
+    {
+        var ir = Parse("""
+            var {
+                int i
+            }
+            while i, 3 > Compare("BLT"):
+                i, 1 > Add > i
+            """);
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        var condCp = code.IndexOf($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/cond/seg/0")}\"", StringComparison.Ordinal);
+        var whileCp = code.IndexOf($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0")}\"", StringComparison.Ordinal);
+        Assert.True(condCp >= 0 && whileCp > condCp,
+            "While checkpoint must follow the condition sub-graph checkpoints");
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MockDebugController — minimal IBlueprintDebugController for E2E tests.
     // Records every NotifyValueChanged call so tests can assert on the wire/variable

@@ -94,17 +94,15 @@ internal sealed class DebugCodegen : CodegenBase
         // Pipeline statements checkpoint at NODE granularity — every source and
         // segment node gets its own stop point (the BP user's mental model is
         // node-by-node stepping: `a > Print` pauses on a, then on Print).
-        // Control-flow / break / continue statements keep the single statement-level
-        // checkpoint: the control-flow node (or terminator) itself sits at the
-        // statement's own path.
+        // Control-flow statements checkpoint INSIDE their Emit* method, AFTER the
+        // condition/source sub-graph evaluates — so the highlight order matches the
+        // BP exec chain (… → condition nodes → Branch/Each/While/Switch → body).
+        // break/continue (terminators, no sub-graph) keep the statement-level point.
         if (stmt is PipelineStatement p)
         {
             EmitPipeline(p, stmtPath);
             return;
         }
-
-        var stmtId = NodeId.Of(stmtPath);
-        EmitCheckpoint(stmtId, stmtPath, 0);
 
         switch (stmt)
         {
@@ -112,8 +110,14 @@ internal sealed class DebugCodegen : CodegenBase
             case ForEachStatement fe: EmitForEach(fe, stmtPath); break;
             case WhileStatement ws: EmitWhile(ws, stmtPath); break;
             case SwitchStatement sw: EmitSwitch(sw, stmtPath); break;
-            case BreakStatement: EmitLine("break;"); break;
-            case ContinueStatement: EmitLine("continue;"); break;
+            case BreakStatement:
+                EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+                EmitLine("break;");
+                break;
+            case ContinueStatement:
+                EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+                EmitLine("continue;");
+                break;
         }
     }
 
@@ -253,6 +257,9 @@ internal sealed class DebugCodegen : CodegenBase
         // Branch node + its Condition input pin, so the frontend can compose it
         // from BlueprintConnection.TargetNodeId + TargetPin.Name.
         EmitConditionEvaluation(iff.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        // Branch checkpoint AFTER the condition sub-graph (BP exec order:
+        // … → condition nodes → Branch → branches).
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
         EmitLine($"if (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
@@ -272,6 +279,9 @@ internal sealed class DebugCodegen : CodegenBase
     {
         // List wire: the data source feeding Each.List. Source path is {stmtPath}/src.
         EmitConditionEvaluation(fe.Source, stmtPath, "List", $"{stmtPath}/src");
+        // Each checkpoint AFTER the source sub-graph (BP exec order:
+        // … → source nodes → Each → body).
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
         EmitLine($"foreach (var {fe.ItemName} in __cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
@@ -291,10 +301,13 @@ internal sealed class DebugCodegen : CodegenBase
         // the condition at its initial value — a true initial condition then loops
         // forever (the generated `while (__cond_0)` never re-reads the variables).
         // The while(true) + break form keeps the per-iteration OnWireValue publication.
+        // The While checkpoint sits AFTER the condition sub-graph checkpoints, matching
+        // the BP exec order (… → condition nodes → While → body) on every iteration.
         EmitLine("while (true)");
         EmitLine("{");
         Indent();
         EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
         EmitLine($"if (!__cond_{_condCounter - 1}) break;");
         EmitBody(ws.Body, $"{stmtPath}/body");
         Dedent();
@@ -305,6 +318,9 @@ internal sealed class DebugCodegen : CodegenBase
     {
         // Selector wire: the data source feeding Switch.Selector. Source path is {stmtPath}/sel.
         EmitConditionEvaluation(sw.Selector, stmtPath, "Selector", $"{stmtPath}/sel");
+        // Switch checkpoint AFTER the selector sub-graph (BP exec order:
+        // … → selector nodes → Switch → arms).
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
         EmitLine($"switch (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
