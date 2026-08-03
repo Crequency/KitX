@@ -285,10 +285,17 @@ internal sealed class DebugCodegen : CodegenBase
     private void EmitWhile(WhileStatement ws, string stmtPath)
     {
         // Condition wire: the data source feeding While.Condition. Source path is {stmtPath}/cond.
-        EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
-        EmitLine($"while (__cond_{_condCounter - 1})");
+        //
+        // CRITICAL: the condition must be re-evaluated EVERY iteration (its variables
+        // typically change inside the body). Evaluating it before the loop would freeze
+        // the condition at its initial value — a true initial condition then loops
+        // forever (the generated `while (__cond_0)` never re-reads the variables).
+        // The while(true) + break form keeps the per-iteration OnWireValue publication.
+        EmitLine("while (true)");
         EmitLine("{");
         Indent();
+        EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        EmitLine($"if (!__cond_{_condCounter - 1}) break;");
         EmitBody(ws.Body, $"{stmtPath}/body");
         Dedent();
         EmitLine("}");

@@ -448,6 +448,51 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains("6", result.Output.Select(o => o.Trim()));
     }
 
+    [Fact]
+    public void Debug_Codegen_While_Condition_Is_Reevaluated_Each_Iteration()
+    {
+        // Regression: the while condition must be evaluated INSIDE the loop body
+        // (while(true) + break), not once before it — `while (__cond_0)` would freeze
+        // the condition at its initial value and loop forever when it starts true.
+        var ir = Parse("""
+            var {
+                int i
+            }
+            while i, 3 > Compare("BLT"):
+                i, 1 > Add > i
+            """);
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        // Condition evaluation must appear AFTER the loop opens.
+        var loopIdx = code.IndexOf("while (true)", StringComparison.Ordinal);
+        var condIdx = code.IndexOf("__cond_0 = this.Compare(\"BLT\"", StringComparison.Ordinal);
+        var breakIdx = code.IndexOf("if (!__cond_0) break;", StringComparison.Ordinal);
+        Assert.True(loopIdx >= 0 && condIdx > loopIdx && breakIdx > condIdx,
+            "while condition must be re-evaluated inside the loop (while(true) + break form)");
+    }
+
+    [Fact]
+    public async Task Debug_While_Loop_Terminates_With_Body_Changes()
+    {
+        // End-to-end: a while loop whose condition variable changes inside the body
+        // must terminate under the debugger (the BF-interpreter infinite-loop
+        // regression — condition was frozen at its initial value).
+        var ir = Parse("""
+            var {
+                int i
+            }
+            while i, 3 > Compare("BLT"):
+                i, 1 > Add > i
+            """);
+        var backend = _fixture.MakeBackend();
+        var debugger = new MockDebugController();
+
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None, debugger);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MockDebugController — minimal IBlueprintDebugController for E2E tests.
     // Records every NotifyValueChanged call so tests can assert on the wire/variable
