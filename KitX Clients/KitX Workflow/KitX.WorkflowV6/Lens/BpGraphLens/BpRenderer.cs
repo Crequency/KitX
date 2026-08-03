@@ -1,6 +1,5 @@
 namespace KitX.WorkflowV6.Lens.BpGraphLens;
 
-using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
@@ -111,15 +110,18 @@ internal sealed class BpRenderer
         // The KS script text is never rewritten from the user value.
         foreach (var (name, c) in ir.Constants)
         {
-            var defaultValue = c.DictInitializer is not null
-                ? JsonSerializer.Serialize(c.DictInitializer)
-                : c.InitialValueExpression;
+            if (c.DictInitializer is not null)
+            {
+                RenderDictNewDefinition(name, "const", c.DictInitializer,
+                    c.TrailingComment, c.LeadingComment, NodePath.DefConstOf(name));
+                continue;
+            }
             var node = Add(new ConstNode
             {
                 Name = name,
                 ConstName = name,
                 ConstType = c.Type,
-                DefaultValue = defaultValue,
+                DefaultValue = c.InitialValueExpression,
                 IsDefinition = true,
                 // 1:1 mapping: the row's inline comment lands on the definition node's
                 // Comment field (read back as TrailingComment by the reverse translator).
@@ -130,22 +132,83 @@ internal sealed class BpRenderer
 
         foreach (var (name, g) in ir.GlobalVars)
         {
-            var defaultValue = g.DictInitializer is not null
-                ? JsonSerializer.Serialize(g.DictInitializer)
-                : g.InitialValueExpression;
+            if (g.DictInitializer is not null)
+            {
+                RenderDictNewDefinition(name, "var", g.DictInitializer,
+                    g.TrailingComment, g.LeadingComment, NodePath.DefVarOf(name));
+                continue;
+            }
             var node = Add(new VariableNode
             {
                 Name = name,
                 VarName = name,
                 VarType = g.Type,
                 VarKind = VariableKind.PubVar,
-                DefaultValue = defaultValue,
+                DefaultValue = g.InitialValueExpression,
                 IsDefinition = true,
                 Comment = g.TrailingComment,
             }, NodePath.DefVarOf(name));
             EmitDeclLeadingComment(node, g.LeadingComment);
         }
     }
+
+    /// <summary>
+    /// Renders a dict declaration row (const/var block entry with a <c>{k: v}</c>
+    /// initialiser) as a DictNew definition node: one Key/Value input pin pair per
+    /// entry (scalar text in DefaultValue), a single Dict output pin, and NO Exec pins
+    /// — definition semantics identical to the ConstNode/VariableNode definition nodes.
+    /// The reverse translator folds the node back into a KsDictLiteral declaration.
+    /// Not registered in BuiltinFunctionRegistry: this is a declaration shape, not an
+    /// executable function.
+    /// </summary>
+    private void RenderDictNewDefinition(string name, string declKind,
+        KsDictLiteral dictInit, string? trailingComment, string? leadingComment, string path)
+    {
+        var node = Add(new BuiltinFunctionNode
+        {
+            Name = name,
+            FunctionName = "DictNew",
+            Comment = trailingComment,
+        }, path);
+        node.Properties["DeclKind"] = declKind;
+        node.Properties["DeclName"] = name;
+        for (int i = 0; i < dictInit.Entries.Length; i++)
+        {
+            var entry = dictInit.Entries[i];
+            var keyPin = MakePin($"Key{i}", PinDirection.Input, PinType.String);
+            keyPin.DefaultValue = DictKeyToText(entry.Key);
+            node.InputPins.Add(keyPin);
+            var valuePin = MakePin($"Value{i}", PinDirection.Input, PinType.Any);
+            valuePin.DefaultValue = DictValueToText(entry.Value);
+            node.InputPins.Add(valuePin);
+        }
+        node.OutputPins.Add(MakePin("Dict", PinDirection.Output, PinType.Dict));
+        EmitDeclLeadingComment(node, leadingComment);
+    }
+
+    /// <summary>
+    /// Key pin text: the raw string value without quotes (reverse translation treats it
+    /// as a string literal; round-trip equality is value-based, so the identifier/string
+    /// key distinction is presentation-only).
+    /// </summary>
+    private static string DictKeyToText(KsNode key)
+        => key is KsLiteral { Kind: KsLiteralKind.String } kl
+            ? (kl.Value as string) ?? string.Empty
+            : key.SourceText;
+
+    /// <summary>
+    /// Value pin text: the scalar literal's value in text form (same convention as
+    /// WireCallArgs' <c>lit.Value?.ToString()</c>), with bool lowercased to
+    /// <c>true/false</c> and null as <c>null</c>. Strings carry no quotes — the reverse
+    /// translator re-parses the text by type.
+    /// </summary>
+    private static string DictValueToText(KsNode value) => value switch
+    {
+        KsLiteral { Kind: KsLiteralKind.Null } => "null",
+        KsLiteral { Kind: KsLiteralKind.Boolean } lit => lit.Value is true ? "true" : "false",
+        KsLiteral lit => lit.Value?.ToString() ?? "null",
+        _ => "null",
+    };
 
     /// <summary>
     /// Emits a GroupComment anchoring a declaration row's leading comment to its

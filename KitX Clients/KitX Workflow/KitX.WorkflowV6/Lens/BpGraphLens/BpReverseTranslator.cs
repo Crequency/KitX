@@ -103,7 +103,7 @@ internal sealed class BpReverseTranslator
                         InitialValueExpression = cn.DefaultValue,
                         // Rebuild the structured dict initialiser from the JSON payload BpRenderer
                         // stored in DefaultValue (Dict-Type design §3.3). Non-dict consts leave null.
-                        DictInitializer = (cn.ConstType == "dict") ? TryDeserializeDictInit(cn.DefaultValue) : null,
+                        DictInitializer = IsDictTypeName(cn.ConstType) ? TryDeserializeDictInit(cn.DefaultValue) : null,
                         // 1:1 comment restoration: definition node Comment → trailing,
                         // anchored GroupComment → leading (mirrors statement ReadComments).
                         LeadingComment = GroupCommentFor(node.Id),
@@ -124,11 +124,61 @@ internal sealed class BpReverseTranslator
                         // user value (VarInitialValue) is an editor-layer override. (This
                         // also fixes the old bug where the scalar initialiser was dropped.)
                         InitialValueExpression = vn.DefaultValue,
-                        DictInitializer = (vn.VarType == "dict") ? TryDeserializeDictInit(vn.DefaultValue) : null,
+                        DictInitializer = IsDictTypeName(vn.VarType) ? TryDeserializeDictInit(vn.DefaultValue) : null,
                         LeadingComment = GroupCommentFor(node.Id),
                         TrailingComment = vn.Comment is { Length: > 0 } ? vn.Comment : null,
                     }),
                 };
+            }
+            else if (node is BuiltinFunctionNode fn
+                     && fn.FunctionName == "DictNew"
+                     && DictNewDeclName(fn) is { } dictName
+                     && !_graph.HasAnyConnection(node))
+            {
+                // DictNew: a dict declaration (const/var block row with a `{k: v}`
+                // initialiser) rendered as a definition node with a Key/Value pin group.
+                // No connections — definition semantics, same as the ConstNode/VariableNode
+                // branches. Restored into the declaration dictionary per Properties DeclKind.
+                var dictInit = RebuildDictInitializer(fn);
+                if (fn.Properties.TryGetValue("DeclKind", out var declKind) && declKind == "var")
+                {
+                    _nodeIdToCanonical[node.Id] = NodeId.Of(NodePath.DefVarOf(dictName));
+                    // First-seen-wins across definition nodes sharing the same name.
+                    if (!ir.GlobalVars.ContainsKey(dictName))
+                    {
+                        ir = ir with
+                        {
+                            GlobalVars = ir.GlobalVars.Add(dictName, new GlobalVar
+                            {
+                                Name = dictName,
+                                Type = "dict",
+                                InitialValueExpression = dictInit.SourceText,
+                                DictInitializer = dictInit,
+                                LeadingComment = GroupCommentFor(node.Id),
+                                TrailingComment = fn.Comment is { Length: > 0 } ? fn.Comment : null,
+                            }),
+                        };
+                    }
+                }
+                else
+                {
+                    _nodeIdToCanonical[node.Id] = NodeId.Of(NodePath.DefConstOf(dictName));
+                    if (!ir.Constants.ContainsKey(dictName))
+                    {
+                        ir = ir with
+                        {
+                            Constants = ir.Constants.Add(dictName, new Constant
+                            {
+                                Name = dictName,
+                                Type = "dict",
+                                InitialValueExpression = dictInit.SourceText,
+                                DictInitializer = dictInit,
+                                LeadingComment = GroupCommentFor(node.Id),
+                                TrailingComment = fn.Comment is { Length: > 0 } ? fn.Comment : null,
+                            }),
+                        };
+                    }
+                }
             }
         }
 
@@ -226,6 +276,10 @@ internal sealed class BpReverseTranslator
         if (n is ConstNode cn && cn.ConstName is not null && !_graph.HasAnyConnection(n)) return false;
         if (n is VariableNode vn && vn.VarName is not null && !_graph.HasAnyConnection(n)) return false;
         if (n is ConstNode { IsDefinition: true } or VariableNode { IsDefinition: true }) return false;
+        // DictNew definition nodes were folded into Constants/GlobalVars above
+        // (same predicate as the definition-restore loop) — they are NOT detached.
+        if (n is BuiltinFunctionNode dn && dn.FunctionName == "DictNew"
+            && DictNewDeclName(dn) is not null && !_graph.HasAnyConnection(n)) return false;
 
         if (_mainChainVisited.Contains(n.Id)) return false;
         if (_consumedNodes.Contains(n.Id)) return false;
@@ -242,6 +296,74 @@ internal sealed class BpReverseTranslator
         if (string.IsNullOrEmpty(json)) return null;
         try { return JsonSerializer.Deserialize<KsDictLiteral>(json); }
         catch (JsonException) { return null; }
+    }
+
+    /// <summary>
+    /// True when a ConstNode/VariableNode type name denotes a dict value. The declared
+    /// KS type is "dict", but TypeInferer's type propagation may rewrite it to the C#
+    /// field type "Dictionary&lt;string, object?&gt;" — both must restore the initialiser.
+    /// </summary>
+    private static bool IsDictTypeName(string? type)
+        => type is "dict" or "Dictionary<string, object?>";
+
+    /// <summary>
+    /// Resolves the declaration name of a DictNew node: Properties["DeclName"] (set by
+    /// the renderer / frontend palette) with a fallback to the node's display Name.
+    /// Returns null when neither is set — such a node is malformed and not a definition.
+    /// </summary>
+    private static string? DictNewDeclName(BuiltinFunctionNode fn)
+    {
+        if (fn.Properties.TryGetValue("DeclName", out var dn) && !string.IsNullOrEmpty(dn)) return dn;
+        return fn.Name is { Length: > 0 } ? fn.Name : null;
+    }
+
+    /// <summary>
+    /// Rebuilds the dict declaration initialiser from a DictNew node's Key{i}/Value{i}
+    /// pin group. Scans i from 0 until a Key pin is missing; each Value pin's text is
+    /// parsed as a scalar literal (bool/int/double/char/null, string fallback). The
+    /// initialiser's SourceText is the KS literal form (identifier keys, typed values),
+    /// matching the parser's InitialValueExpression convention.
+    /// </summary>
+    private static KsDictLiteral RebuildDictInitializer(BuiltinFunctionNode fn)
+    {
+        var entries = ImmutableArray.CreateBuilder<KsDictEntry>();
+        var parts = new List<string>();
+        for (int i = 0; ; i++)
+        {
+            var keyPin = fn.InputPins.Find(p => p.Name == $"Key{i}");
+            if (keyPin is null) break;
+            var key = new KsLiteral
+            {
+                Kind = KsLiteralKind.String,
+                Value = keyPin.DefaultValue ?? string.Empty,
+                SourceText = keyPin.DefaultValue ?? string.Empty,
+            };
+            var value = ParseDictValueText(fn.InputPins.Find(p => p.Name == $"Value{i}")?.DefaultValue);
+            entries.Add(new KsDictEntry { Key = key, Value = value });
+            parts.Add($"{key.SourceText}: {value.SourceText}");
+        }
+        var src = "{" + string.Join(", ", parts) + "}";
+        return new KsDictLiteral { Entries = entries.ToImmutable(), SourceText = src };
+    }
+
+    /// <summary>
+    /// Parses a DictNew Value pin's text back into a scalar literal. Order: null,
+    /// bool, int, double, char; anything else falls back to a string literal (raw
+    /// text, no quotes — the renderer's text convention).
+    /// </summary>
+    private static KsLiteral ParseDictValueText(string? text)
+    {
+        if (text is null || text == "null")
+            return new KsLiteral { Kind = KsLiteralKind.Null, Value = null, SourceText = "null" };
+        if (bool.TryParse(text, out var b))
+            return new KsLiteral { Kind = KsLiteralKind.Boolean, Value = b, SourceText = b ? "true" : "false" };
+        if (int.TryParse(text, out var i))
+            return new KsLiteral { Kind = KsLiteralKind.Integer, Value = i, SourceText = text };
+        if (double.TryParse(text, out var d))
+            return new KsLiteral { Kind = KsLiteralKind.Double, Value = d, SourceText = text };
+        if (char.TryParse(text, out var ch))
+            return new KsLiteral { Kind = KsLiteralKind.Char, Value = ch, SourceText = $"'{ch}'" };
+        return new KsLiteral { Kind = KsLiteralKind.String, Value = text, SourceText = $"\"{text}\"" };
     }
 
     // ── Graph indexing ──

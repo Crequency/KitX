@@ -238,6 +238,17 @@ internal static class StructuralReducer
                 && !string.IsNullOrEmpty(itemName))
                 defVarNames.Add(itemName);
         }
+        // var-block dict declarations (DictNew, DeclKind == "var") declare a global
+        // variable the same way a definition VariableNode does — register their
+        // DeclName so usage VariableNodes referencing them satisfy KS130.
+        foreach (var dictNew in blueprint.Nodes.OfType<BuiltinFunctionNode>()
+            .Where(n => n.FunctionName == "DictNew"))
+        {
+            if (dictNew.Properties.TryGetValue("DeclKind", out var declKind) && declKind == "var"
+                && dictNew.Properties.TryGetValue("DeclName", out var declName)
+                && !string.IsNullOrEmpty(declName))
+                defVarNames.Add(declName);
+        }
         foreach (var node in blueprint.Nodes.OfType<VariableNode>())
         {
             if (IsDefinitionNode(node)) continue;
@@ -259,6 +270,12 @@ internal static class StructuralReducer
             return true;
         if (node is VariableNode vn && !vn.InputPins.Any(p => p.Type == PinType.Execution)
             && !vn.OutputPins.Any(p => p.Type == PinType.Execution))
+            return true;
+        // DictNew: a dict declaration definition node (Key/Value pin group + Dict output,
+        // no Exec pins) — treated as a definition like ConstNode/VariableNode definitions.
+        if (node is BuiltinFunctionNode fn && fn.FunctionName == "DictNew"
+            && fn.InputPins.All(p => p.Type != PinType.Execution)
+            && fn.OutputPins.All(p => p.Type != PinType.Execution))
             return true;
         return false;
     }
