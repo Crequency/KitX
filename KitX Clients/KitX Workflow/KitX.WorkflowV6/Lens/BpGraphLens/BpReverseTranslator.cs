@@ -53,6 +53,19 @@ internal sealed class BpReverseTranslator
     // `visited` set; used to identify detached (exec-unreachable) components.
     private readonly HashSet<string> _mainChainVisited = new();
 
+    // Canvas node id → canonical id (FNV-1a of the node's BpRenderer path). Populated
+    // in lockstep with statement construction so the path assignment mirrors
+    // BpRenderer EXACTLY (same statements → same paths → same canonical ids). Consumers:
+    //   • Breakpoint migration across DebugRunAsync's ReloadCanvasFromIr re-projection
+    //     (frontend maps the pre-reload canvas id to the post-reload FNV id).
+    //   • Blueprint layout persistence (T5): layout keys are canonical ids, so random
+    //     palette ids never leak into the .kcs envelope.
+    // Excluded: Entry/PluginTriggerNode (root) and DetachedGraph nodes (no path).
+    private readonly Dictionary<string, string> _nodeIdToCanonical = new();
+
+    /// <summary>Canvas node id → canonical (FNV path) id, filled by <see cref="Reverse"/>.</summary>
+    public IReadOnlyDictionary<string, string> NodeIdToCanonicalId => _nodeIdToCanonical;
+
     public BpReverseTranslator(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -77,6 +90,7 @@ internal sealed class BpReverseTranslator
         {
             if (node is ConstNode cn && cn.ConstName is not null && !_graph.HasAnyConnection(node))
             {
+                _nodeIdToCanonical[node.Id] = NodeId.Of(NodePath.DefConstOf(cn.ConstName));
                 ir = ir with
                 {
                     Constants = ir.Constants.Add(cn.ConstName, new Constant
@@ -95,6 +109,7 @@ internal sealed class BpReverseTranslator
             }
             else if (node is VariableNode vn && vn.VarKind == VariableKind.PubVar && vn.VarName is not null && !_graph.HasAnyConnection(node))
             {
+                _nodeIdToCanonical[node.Id] = NodeId.Of(NodePath.DefVarOf(vn.VarName));
                 ir = ir with
                 {
                     GlobalVars = ir.GlobalVars.Add(vn.VarName, new GlobalVar
@@ -117,7 +132,7 @@ internal sealed class BpReverseTranslator
         var entry = bp.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
         if (entry is not null)
         {
-            var body = WalkExecChain(entry, BpPinNames.Exec);
+            var body = WalkExecChain(entry, BpPinNames.Exec, new ScopeContext(NodePath.Top));
             ir = ir with { Body = [.. body] };
         }
 
@@ -262,8 +277,11 @@ internal sealed class BpReverseTranslator
     /// Walks the exec chain starting from <paramref name="source"/>'s <paramref name="pinName"/>
     /// output pin, reconstructing the ordered list of IR statements. Consecutive nodes
     /// participating in the same KS pipeline are merged into a single PipelineStatement.
+    /// <paramref name="scope"/> carries the lexical path of the enclosing scope plus the
+    /// statement ordinal counter — it is SHARED by continuation walks (the control-flow
+    /// End-chain), so statement paths stay contiguous with BpRenderer's `{scope}/stmt/{i}`.
     /// </summary>
-    private List<Statement> WalkExecChain(BlueprintNode source, string pinName)
+    private List<Statement> WalkExecChain(BlueprintNode source, string pinName, ScopeContext scope)
     {
         var result = new List<Statement>();
         var group = new List<BlueprintNode>();
@@ -299,7 +317,9 @@ internal sealed class BpReverseTranslator
             {
                 PreMarkControlFlowConsumed(fn);
                 FlushGroup();
-                result.AddRange(WalkBuiltinFunction(fn));
+                string stmtPath = scope.NextStmt();
+                _nodeIdToCanonical[fn.Id] = NodeId.Of(stmtPath);
+                result.AddRange(WalkBuiltinFunction(fn, stmtPath, scope));
                 continue;  // control-flow node's downstream handled by WalkBuiltinFunction
             }
 
@@ -331,7 +351,7 @@ internal sealed class BpReverseTranslator
             var live = group.Where(n => !_consumedNodes.Contains(n.Id)).ToList();
             group.Clear();
             if (live.Count == 0) return;
-            result.Add(BuildPipelineFromGroup(live));
+            result.Add(BuildPipelineFromGroup(live, scope.NextStmt()));
         }
     }
 
@@ -432,8 +452,12 @@ internal sealed class BpReverseTranslator
     /// declaration order (BP data edges are the semantic truth), NOT the exec-chain
     /// order — a manually re-wired exec chain must not scramble which source lands on
     /// which argument placeholder (`b, a > Compare("BEQ", _, _)` would feed A=b).
+    ///
+    /// Also records <see cref="_nodeIdToCanonical"/> for every group node: sources →
+    /// <c>{stmtPath}/src/{i}</c>, segments → <c>{stmtPath}/seg/{j}</c>, bare-call
+    /// function → <c>{stmtPath}</c> (mirrors BpRenderer.RenderPipelineStmt).
     /// </summary>
-    private Statement BuildPipelineFromGroup(List<BlueprintNode> group)
+    private Statement BuildPipelineFromGroup(List<BlueprintNode> group, string stmtPath)
     {
         var primary = group[0];
         var sourceNodes = new List<BlueprintNode>();
@@ -458,6 +482,7 @@ internal sealed class BpReverseTranslator
                     {
                         // Var tap segment (write or tap); the tap node's Comment is its
                         // inline segment comment (`> x // cmt`).
+                        _nodeIdToCanonical[vn.Id] = NodeId.Of(NodePath.Segment(stmtPath, segments.Count));
                         segments.Add(new Segment
                         {
                             Target = vn.VarName ?? vn.Name,
@@ -484,6 +509,7 @@ internal sealed class BpReverseTranslator
                         break;
                     }
                     // Build the segment with full Arguments (preserves literals + placeholders).
+                    _nodeIdToCanonical[fn.Id] = NodeId.Of(NodePath.Segment(stmtPath, segments.Count));
                     var seg = BuildSegmentFromFunctionNode(fn);
                     // Sources that feed this function via wired inputs are collected
                     // when they appear earlier in the group as ConstNode/read VarNode.
@@ -499,6 +525,9 @@ internal sealed class BpReverseTranslator
         // declaration order (data edges = semantic truth; exec order may diverge after
         // manual rewiring and must not scramble placeholder assignment).
         ReorderSourcesByPinOrder(group, sourceNodes);
+        // Canvas → canonical mapping: sources occupy /src/{i} in semantic (render) order.
+        for (int i = 0; i < sourceNodes.Count; i++)
+            _nodeIdToCanonical[sourceNodes[i].Id] = NodeId.Of(NodePath.Source(stmtPath, i));
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         foreach (var n in sourceNodes)
         {
@@ -511,7 +540,7 @@ internal sealed class BpReverseTranslator
 
         // Determine bare call vs pipeline form.
         // Bare call: single function node with no wired inputs AND no preceding sources.
-        var bareCall = TryBuildBareCall(group);
+        var bareCall = TryBuildBareCall(group, stmtPath);
         if (bareCall is not null) return bareCall;
 
         // Pipeline form: Sources=[collected sources], Segments=[collected segments].
@@ -547,11 +576,14 @@ internal sealed class BpReverseTranslator
     /// with no wired inputs and no preceding sources. Returns null when the group is
     /// not in that form (caller falls through to the pipeline form).
     /// </summary>
-    private Statement? TryBuildBareCall(List<BlueprintNode> group)
+    private Statement? TryBuildBareCall(List<BlueprintNode> group, string stmtPath)
     {
         if (group.Count == 1 && group[0] is BuiltinFunctionNode singleFn
             && !_graph.HasWiredInputs(singleFn))
         {
+            // Bare call: the single function node hangs on the statement path itself
+            // (mirrors BpRenderer.RenderPipelineStmt's AddBuiltin(call.MethodName, path)).
+            _nodeIdToCanonical[singleFn.Id] = NodeId.Of(stmtPath);
             var (leading, trailing) = ReadComments(singleFn);
             var call = BuildKsCallFromFunctionNode(singleFn);
             return WithFingerprint(new PipelineStatement
@@ -700,33 +732,33 @@ internal sealed class BpReverseTranslator
         }
     }
 
-    private List<Statement> WalkBuiltinFunction(BuiltinFunctionNode fn)
+    private List<Statement> WalkBuiltinFunction(BuiltinFunctionNode fn, string stmtPath, ScopeContext scope)
     {
         var result = new List<Statement>();
         switch (fn.FunctionName)
         {
             case "Branch":
-                result.Add(ReverseIf(fn));
+                result.Add(ReverseIf(fn, stmtPath));
                 // v6 End-pin model: statements after the if/else connect to Branch.End,
                 // the single continuation point. Sub-scope body tails are dangling
                 // (naturally ended), so no merge-point coordination is needed.
-                result.AddRange(WalkExecChain(fn, BpPinNames.End));
+                result.AddRange(WalkExecChain(fn, BpPinNames.End, scope));
                 break;
             case "Each":
-                result.Add(ReverseForEach(fn));
+                result.Add(ReverseForEach(fn, stmtPath));
                 // Statements after the loop connect to Each.End.
-                result.AddRange(WalkExecChain(fn, BpPinNames.End));
+                result.AddRange(WalkExecChain(fn, BpPinNames.End, scope));
                 break;
             case "While":
-                result.Add(ReverseWhile(fn));
+                result.Add(ReverseWhile(fn, stmtPath));
                 // Statements after the loop connect to While.End.
-                result.AddRange(WalkExecChain(fn, BpPinNames.End));
+                result.AddRange(WalkExecChain(fn, BpPinNames.End, scope));
                 break;
             case "Switch":
-                result.Add(ReverseSwitch(fn));
+                result.Add(ReverseSwitch(fn, stmtPath));
                 // v6 End-pin model: statements after the switch connect to Switch.End,
                 // the single continuation point. Arm body tails are dangling.
-                result.AddRange(WalkExecChain(fn, BpPinNames.End));
+                result.AddRange(WalkExecChain(fn, BpPinNames.End, scope));
                 break;
             case "break":
                 result.Add(WithFingerprint(ApplyComments(new BreakStatement { Fingerprint = default }, fn)));
@@ -749,11 +781,11 @@ internal sealed class BpReverseTranslator
 
     // ── Control-flow reconstruction ──
 
-    private Statement ReverseIf(BuiltinFunctionNode br)
+    private Statement ReverseIf(BuiltinFunctionNode br, string stmtPath)
     {
-        var cond = ReadDataInput(br, BpPinNames.Condition);
-        var thenBody = WalkExecChain(br, BpPinNames.True);
-        var elseBody = WalkExecChain(br, BpPinNames.False);
+        var cond = ReadDataInput(br, BpPinNames.Condition, NodePath.Condition(stmtPath));
+        var thenBody = WalkExecChain(br, BpPinNames.True, new ScopeContext(NodePath.Then(stmtPath)));
+        var elseBody = WalkExecChain(br, BpPinNames.False, new ScopeContext(NodePath.Else(stmtPath)));
         var (leading, trailing) = ReadComments(br);
         var stmt = new IfStatement
         {
@@ -767,10 +799,10 @@ internal sealed class BpReverseTranslator
         return WithFingerprint(stmt);
     }
 
-    private Statement ReverseForEach(BuiltinFunctionNode each)
+    private Statement ReverseForEach(BuiltinFunctionNode each, string stmtPath)
     {
-        var source = ReadDataInput(each, BpPinNames.List);
-        var body = WalkExecChain(each, BpPinNames.Body);
+        var source = ReadDataInput(each, BpPinNames.List, NodePath.SourceRoot(stmtPath));
+        var body = WalkExecChain(each, BpPinNames.Body, new ScopeContext(NodePath.Body(stmtPath)));
         var itemName = each.Properties.TryGetValue("ItemName", out var n) && !string.IsNullOrEmpty(n)
             ? n : "item";
         var (leading, trailing) = ReadComments(each);
@@ -786,10 +818,10 @@ internal sealed class BpReverseTranslator
         return WithFingerprint(stmt);
     }
 
-    private Statement ReverseWhile(BuiltinFunctionNode wh)
+    private Statement ReverseWhile(BuiltinFunctionNode wh, string stmtPath)
     {
-        var cond = ReadDataInput(wh, BpPinNames.Condition);
-        var body = WalkExecChain(wh, BpPinNames.Body);
+        var cond = ReadDataInput(wh, BpPinNames.Condition, NodePath.Condition(stmtPath));
+        var body = WalkExecChain(wh, BpPinNames.Body, new ScopeContext(NodePath.Body(stmtPath)));
         var (leading, trailing) = ReadComments(wh);
         var stmt = new WhileStatement
         {
@@ -802,9 +834,9 @@ internal sealed class BpReverseTranslator
         return WithFingerprint(stmt);
     }
 
-    private Statement ReverseSwitch(BuiltinFunctionNode sw)
+    private Statement ReverseSwitch(BuiltinFunctionNode sw, string stmtPath)
     {
-        var selector = ReadDataInput(sw, BpPinNames.Selector);
+        var selector = ReadDataInput(sw, BpPinNames.Selector, NodePath.Selector(stmtPath));
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<Statement>>();
         var armLabels = ImmutableArray.CreateBuilder<int>();
 
@@ -820,11 +852,11 @@ internal sealed class BpReverseTranslator
         foreach (var (label, pinName) in armPins)
         {
             armLabels.Add(label);
-            arms.Add([.. WalkExecChain(sw, pinName)]);
+            arms.Add([.. WalkExecChain(sw, pinName, new ScopeContext(NodePath.Arm(stmtPath, arms.Count)))]);
         }
 
         var defaultBody = _graph.HasExecTargets(sw.Id, BpPinNames.Default)
-            ? WalkExecChain(sw, BpPinNames.Default)
+            ? WalkExecChain(sw, BpPinNames.Default, new ScopeContext(NodePath.Default(stmtPath)))
             : new List<Statement>();
         var (leading, trailing) = ReadComments(sw);
         var stmt = new SwitchStatement
@@ -870,8 +902,12 @@ internal sealed class BpReverseTranslator
     /// Reads the KsNode expression feeding a named data input pin on <paramref name="node"/>.
     /// Returns a KsIdentifier("true") fallback when the pin is unwired (e.g. literal condition
     /// collapsed to DefaultValue by BpRenderer).
+    /// <paramref name="subPath"/> is the path root of the feeding sub-graph (e.g.
+    /// <c>{stmtPath}/cond</c>); every node of the sub-graph is recorded into
+    /// <see cref="_nodeIdToCanonical"/> with the same path layout BpRenderer used
+    /// (single node → subPath itself; pipeline → subPath/src/{i} + subPath/seg/{j}).
     /// </summary>
-    private KsNode ReadDataInput(BlueprintNode node, string pinName)
+    private KsNode ReadDataInput(BlueprintNode node, string pinName, string subPath)
     {
         var pin = node.InputPins.Find(p => p.Name == pinName);
         if (pin is null)
@@ -894,6 +930,7 @@ internal sealed class BpReverseTranslator
                 // Consumption is marked once, in WalkExecChain, by PreMarkControlFlowConsumed
                 // before the control-flow node's sub-scope is walked — this method is only
                 // reachable through that path, so no defensive re-mark is needed here.
+                RecordDataSubgraph(e.Source, subPath);
                 return NodeToKsNode(e.Source);
             }
         }
@@ -906,9 +943,101 @@ internal sealed class BpReverseTranslator
         return MakeBoolLiteral(true);
     }
 
+    /// <summary>
+    /// Records every node of a control-flow data sub-graph (condition / forEach source /
+    /// switch selector) into <see cref="_nodeIdToCanonical"/>, mirroring BpRenderer's
+    /// path assignment for the same sub-graph: a single-node sub-graph hangs on
+    /// <paramref name="subPath"/> itself (RenderCondition/RenderSourceAsNode single-node
+    /// branches); a pipeline sub-graph gets <c>subPath/src/{i}</c> + <c>subPath/seg/{j}</c>
+    /// (RenderPipelineAsCondition). The exec-chain order of the sub-graph equals the
+    /// render order (sources first, then segments), so walking the exec chain backwards
+    /// from the last node yields the render order after reversal.
+    /// </summary>
+    private void RecordDataSubgraph(BlueprintNode root, string subPath)
+    {
+        var chain = CollectSubgraphChain(root);
+        if (chain.Count == 0) return;
+
+        if (chain.Count == 1)
+        {
+            _nodeIdToCanonical[chain[0].Id] = NodeId.Of(subPath);
+            return;
+        }
+
+        int srcIdx = 0, segIdx = 0;
+        for (int i = 0; i < chain.Count; i++)
+        {
+            // The group-leading node is always a source (the renderer renders all
+            // sources before any segment); a leading function node (bare call source)
+            // is not a "read" but still occupies a /src/{i} slot.
+            bool isSource = i == 0 || IsReadSource(chain[i]);
+            string path = isSource
+                ? NodePath.Source(subPath, srcIdx++)
+                : NodePath.Segment(subPath, segIdx++);
+            _nodeIdToCanonical[chain[i].Id] = NodeId.Of(path);
+        }
+    }
+
+    /// <summary>
+    /// Walks the exec chain BACKWARDS from <paramref name="root"/> (the sub-graph's last
+    /// node — the data source feeding the control-flow pin), collecting the contiguous
+    /// same-pipeline nodes in render order. Continuity uses the same data-flow rule as
+    /// the forward walk (<see cref="IsDataContinuous"/>), so the walk stops exactly at
+    /// the sub-graph boundary. Exec-incoming edges are resolved by scanning connections
+    /// (one-off O(E) per sub-graph; Reverse is already O(V+E) dominated).
+    /// </summary>
+    private List<BlueprintNode> CollectSubgraphChain(BlueprintNode root)
+    {
+        var chain = new List<BlueprintNode>();
+        BlueprintNode? current = root;
+        while (current is not null)
+        {
+            chain.Add(current);
+            BlueprintNode? pred = null;
+            foreach (var conn in _bp.Connections)
+            {
+                if (conn.TargetNodeId != current.Id) continue;
+                var src = _graph.GetNode(conn.SourceNodeId);
+                if (src is null) continue;
+                // The exec input of `current` (source node = predecessor on the exec chain).
+                var tgtPin = current.InputPins.Find(p => p.Id == conn.TargetPinId);
+                if (tgtPin is null || tgtPin.Type != PinType.Execution) continue;
+                pred = src;
+                break;
+            }
+            if (pred is null || !IsDataContinuous(pred, current)) break;
+            current = pred;
+        }
+        chain.Reverse();
+        return chain;
+    }
+
+    /// <summary>
+    /// Lexical path + statement ordinal counter of one exec scope. Shared across a
+    /// scope's continuation walks (the control-flow End chain) so statement paths stay
+    /// contiguous and identical to BpRenderer's <c>{scope}/stmt/{i}</c> allocation.
+    /// </summary>
+    private sealed class ScopeContext
+    {
+        private readonly string _path;
+        private int _ordinal;
+
+        public ScopeContext(string path)
+        {
+            _path = path;
+        }
+
+        public string NextStmt()
+        {
+            int i = _ordinal++;
+            return NodePath.Stmt(_path, i);
+        }
+    }
+
     /// <summary>Converts a data-source BP node into the corresponding KsNode expression.</summary>
     private KsNode NodeToKsNode(BlueprintNode node)
-    {        KsNode result = node switch
+    {
+        KsNode result = node switch
         {
             // Defensive: a usage VariableNode whose name was never chosen (frontend
             // palette creation leaves VarName empty until the user picks one) must not

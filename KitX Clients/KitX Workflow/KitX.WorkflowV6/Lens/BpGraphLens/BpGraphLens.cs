@@ -93,13 +93,30 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     /// (previously re-attached frontend-side via a ReverseWithHelpers wrapper).
     /// </param>
     public Workflow Reverse(Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null)
+        => ReverseWithNodePaths(bp, helpers).Ir;
+
+    /// <summary>
+    /// Like <see cref="Reverse"/>, but also returns the canvas-node-id → canonical-id
+    /// map built during the walk. The canonical id is the FNV-1a of the node's
+    /// BpRenderer path — the id the same node gets after <see cref="Project"/> (and the
+    /// id DebugCodegen emits checkpoints with). Consumers:
+    /// <list type="bullet">
+    /// <item>Breakpoint migration across DebugRunAsync's re-projection (canvas id →
+    /// canonical id keeps a breakpoint pinned to the same statement).</item>
+    /// <item>Blueprint layout persistence (T5): layout keys are canonical ids so random
+    /// palette ids never leak into the .kcs envelope.</item>
+    /// </list>
+    /// Entry/PluginTriggerNode and DetachedGraph nodes are NOT in the map.
+    /// </summary>
+    public (Workflow Ir, IReadOnlyDictionary<string, string> NodeIdToCanonicalId) ReverseWithNodePaths(
+        Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null)
     {
         ArgumentNullException.ThrowIfNull(bp);
         var translator = new BpReverseTranslator(_registry);
         var ir = translator.Reverse(bp);
         if (helpers is { Count: > 0 })
             ir = ir with { HelperFunctions = [.. helpers] };
-        return ir;
+        return (ir, translator.NodeIdToCanonicalId);
     }
 
     /// <summary>
