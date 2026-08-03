@@ -243,6 +243,17 @@ public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
         return n;
     }
 
+    private static BuiltinFunctionNode MakeBranch(string id)
+    {
+        var n = new BuiltinFunctionNode { Id = id, Name = "Branch", FunctionName = "Branch", NodeType = BlueprintNodeType.BuiltinFunction };
+        n.InputPins.Add(new BlueprintPin { Id = $"{id}-in", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        n.InputPins.Add(new BlueprintPin { Id = $"{id}-cond", Name = "Condition", Direction = PinDirection.Input, Type = PinType.Boolean });
+        n.OutputPins.Add(new BlueprintPin { Id = $"{id}-true", Name = "True", Direction = PinDirection.Output, Type = PinType.Execution });
+        n.OutputPins.Add(new BlueprintPin { Id = $"{id}-false", Name = "False", Direction = PinDirection.Output, Type = PinType.Execution });
+        n.OutputPins.Add(new BlueprintPin { Id = $"{id}-end", Name = "End", Direction = PinDirection.Output, Type = PinType.Execution });
+        return n;
+    }
+
     private static BlueprintConnection Conn(string srcNode, string srcPin, string tgtNode, string tgtPin)
         => new() { Id = Guid.NewGuid().ToString(), SourceNodeId = srcNode, SourcePinId = srcPin, TargetNodeId = tgtNode, TargetPinId = tgtPin };
 
@@ -373,5 +384,146 @@ public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
             """);
         var error = StructuralReducer.Check(bp);
         Assert.Null(error);
+    }
+
+    // ── D3 (KS112) / D4 (KS113) scope constraint tests ──
+
+    [Fact]
+    public void Structural_Rejects_Cross_Scope_Data_Edge_KS112()
+    {
+        // A node inside the Branch's then-body feeds a top-level node via a data edge:
+        // the source lives in an INNER scope while the consumer is in the OUTER scope
+        // → D3 violation. The graph is otherwise well-formed (no KS101/KS102/KS100...).
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var branch = MakeBranch("br");
+        var a = MakeNode("a", "A");
+        a.InputPins.Add(new BlueprintPin { Id = "a-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        a.OutputPins.Add(new BlueprintPin { Id = "a-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        var b = MakeNode("b", "B");
+        b.InputPins.Add(new BlueprintPin { Id = "b-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(branch); bp.Nodes.Add(a); bp.Nodes.Add(b);
+        bp.Connections.Add(Conn("e", "eo", "br", "br-in"));
+        bp.Connections.Add(Conn("br", "br-true", "a", "a-in"));
+        bp.Connections.Add(Conn("br", "br-end", "b", "b-in"));
+        bp.Connections.Add(Conn("a", "a-vout", "b", "b-vin"));  // then-body → top-level data edge
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS112", error!);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Condition_Subgraph_In_Body_KS113()
+    {
+        // A node inside br1's then-body feeds br2's Condition data pin (br2 sits at
+        // top level): the condition sub-graph node lives in the body scope, not in the
+        // control-flow node's scope → D4 violation.
+        // NOTE: feeding the branch's OWN body would first trip D1/KS110 (an exec+data
+        // mixed cycle br→body→br), so the condition source lives in a sibling branch's
+        // body — which is exactly the "condition sub-graph leaks into another scope"
+        // shape D4 guards against.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var br1 = MakeBranch("br1");
+        var br2 = MakeBranch("br2");
+        var a = MakeNode("a", "A");
+        a.InputPins.Add(new BlueprintPin { Id = "a-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        a.OutputPins.Add(new BlueprintPin { Id = "a-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(br1); bp.Nodes.Add(a); bp.Nodes.Add(br2);
+        bp.Connections.Add(Conn("e", "eo", "br1", "br1-in"));
+        bp.Connections.Add(Conn("br1", "br1-true", "a", "a-in"));
+        bp.Connections.Add(Conn("br1", "br1-end", "br2", "br2-in"));
+        bp.Connections.Add(Conn("a", "a-vout", "br2", "br2-cond"));  // body node feeds br2's condition
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS113", error!);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Cross_Branch_Data_Edge_KS112()
+    {
+        // A then-body node feeds an else-body node via a data edge: sibling scopes
+        // (neither is an ancestor of the other) → D3 violation.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var branch = MakeBranch("br");
+        var a = MakeNode("a", "A");
+        a.InputPins.Add(new BlueprintPin { Id = "a-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        a.OutputPins.Add(new BlueprintPin { Id = "a-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        var c = MakeNode("c", "C");
+        c.InputPins.Add(new BlueprintPin { Id = "c-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(branch); bp.Nodes.Add(a); bp.Nodes.Add(c);
+        bp.Connections.Add(Conn("e", "eo", "br", "br-in"));
+        bp.Connections.Add(Conn("br", "br-true", "a", "a-in"));
+        bp.Connections.Add(Conn("br", "br-false", "c", "c-in"));
+        bp.Connections.Add(Conn("a", "a-vout", "c", "c-vin"));  // then-body → else-body data edge
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS112", error!);
+    }
+
+    [Fact]
+    public void Structural_Allows_Outer_Scope_Data_Edge_KS112()
+    {
+        // Each.Current (outer scope) feeds a node inside the loop body: an outer→inner
+        // data edge is legal per D3. The body item VariableNode is declared by the
+        // Each's ItemName property, so KS130 also stays satisfied.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var each = new BuiltinFunctionNode { Id = "each", Name = "Each", FunctionName = "Each", NodeType = BlueprintNodeType.BuiltinFunction };
+        each.Properties["ItemName"] = "i";
+        each.InputPins.Add(new BlueprintPin { Id = "each-in", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        each.InputPins.Add(new BlueprintPin { Id = "each-list", Name = "List", Direction = PinDirection.Input, Type = PinType.Any });
+        each.OutputPins.Add(new BlueprintPin { Id = "each-body", Name = "Body", Direction = PinDirection.Output, Type = PinType.Execution });
+        each.OutputPins.Add(new BlueprintPin { Id = "each-end", Name = "End", Direction = PinDirection.Output, Type = PinType.Execution });
+        each.OutputPins.Add(new BlueprintPin { Id = "each-cur", Name = "Current", Direction = PinDirection.Output, Type = PinType.Any });
+        var item = new VariableNode { Id = "it", Name = "i", VarName = "i", VarKind = VariableKind.PubVar, NodeType = BlueprintNodeType.Variable };
+        item.InputPins.Add(new BlueprintPin { Id = "it-in", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        item.OutputPins.Add(new BlueprintPin { Id = "it-out", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        item.InputPins.Add(new BlueprintPin { Id = "it-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(each); bp.Nodes.Add(item);
+        bp.Connections.Add(Conn("e", "eo", "each", "each-in"));
+        bp.Connections.Add(Conn("each", "each-body", "it", "it-in"));
+        bp.Connections.Add(Conn("each", "each-cur", "it", "it-vin"));  // outer → body data edge
+        var result = StructuralReducer.Check(bp);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Structural_Allows_Same_Scope_Condition_Subgraph_KS113()
+    {
+        // Pipeline condition `a, b > Compare("BEQ")`: the condition source nodes are
+        // threaded into the exec chain in the SAME scope as the Branch → D4 satisfied.
+        var bp = ProjectKS("""
+            var {
+                bool a
+                bool b
+            }
+            if a, b > Compare("BEQ"):
+                Print("yes")
+            """);
+        var result = StructuralReducer.Check(bp);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Structural_Allows_Nested_If_KS112_KS113()
+    {
+        // Nested if: the inner condition and Branch share the outer body scope; every
+        // data edge is same-scope or outer→inner → both D3 and D4 satisfied.
+        var bp = ProjectKS("""
+            var {
+                bool c
+            }
+            if c:
+                if c:
+                    Print("x")
+            """);
+        var result = StructuralReducer.Check(bp);
+        Assert.Null(result);
     }
 }

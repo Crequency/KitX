@@ -3,9 +3,9 @@ namespace KitX.WorkflowV6.Lens.BpGraphLens;
 // ─────────────────────────────────────────────────────────────────────────────
 // KsConstraintErrors — single source of truth for the BP-side constraint error
 // codes (Kscript-Blueprint-GrammarRule.md §4.3). StructuralReducer emits the
-// nine "live" codes (KS100/101/102/105/110/111/120/130/140); the remaining codes
-// are design-reserved (KS103/104 covered indirectly by the E2 walk, KS112/113
-// not yet implemented, KS121 an internal mechanism rather than an error code).
+// eleven "live" codes (KS100/101/102/105/110/111/112/113/120/130/140); the
+// remaining codes are design-reserved (KS103/104 covered indirectly by the E2
+// walk, KS121 an internal mechanism rather than an error code).
 // ─────────────────────────────────────────────────────────────────────────────
 
 internal static class KsConstraintErrors
@@ -30,6 +30,12 @@ internal static class KsConstraintErrors
     /// <summary>D2 — Single data input: each data input pin has at most one incoming edge.</summary>
     public const string KS111 = "KS111";
 
+    /// <summary>D3 — Data-scope reachability: a data edge's source must be same-scope or outer relative to the consumer.</summary>
+    public const string KS112 = "KS112";
+
+    /// <summary>D4 — Condition sub-graph contained in the control-flow node's scope.</summary>
+    public const string KS113 = "KS113";
+
     /// <summary>C1 — Every non-definition node must have Exec pins.</summary>
     public const string KS120 = "KS120";
 
@@ -46,12 +52,6 @@ internal static class KsConstraintErrors
 
     /// <summary>E5 — Scope isolation: covered indirectly by the E2 walk, no standalone code.</summary>
     public const string KS104 = "KS104";
-
-    /// <summary>D3 — Data-scope reachability: not implemented.</summary>
-    public const string KS112 = "KS112";
-
-    /// <summary>D4 — Condition sub-graph contained in the same scope: not implemented.</summary>
-    public const string KS113 = "KS113";
 
     /// <summary>C2 — Data sub-graph not independently present: internal consumed-marking mechanism, not an error code.</summary>
     public const string KS121 = "KS121";

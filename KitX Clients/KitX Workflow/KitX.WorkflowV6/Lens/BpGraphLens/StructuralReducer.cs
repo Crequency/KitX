@@ -1,6 +1,7 @@
 namespace KitX.WorkflowV6.Lens.BpGraphLens;
 
 using KitX.Core.Contract.Workflow;
+using KitX.WorkflowV6.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StructuralReducer — validates that a Blueprint Exec graph is structurally
@@ -23,13 +24,13 @@ using KitX.Core.Contract.Workflow;
 //   E6  KS105  Back-edge rule — no explicit exec cycles; loops are implicit.
 //   D1  KS110  Data DAG — data graph must be acyclic.
 //   D2  KS111  Single data input — each data input pin ≤1 incoming edge.
+//   D3  KS112  Data-scope reachability — a data edge's source must be same-scope or
+//              outer relative to the consumer.
+//   D4  KS113  Condition sub-graph containment — a control-flow node's condition/
+//              source sub-graph nodes must share the control-flow node's scope.
 //   C1  KS120  Non-definition node must have Exec pins.
 //   N2  KS130  VarName consistency — usage VarNode has a matching definition VarNode.
 //   KS140      break/continue must be inside a loop scope.
-//
-// Not emitted (documented gaps, see KScript-Blueprint-Correspondence.md §5.5):
-//   KS112 (D3 data scope reachability) and KS113 (D4 condition subgraph contained)
-//   are not implemented.
 //
 // MVP: one-shot full-graph check; no incremental update (§十二-J).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,8 +195,19 @@ internal static class StructuralReducer
         // at EntryNode, sub-scope tails dangle, no scope leak, break/continue in loop.
         if (entry is not null)
         {
-            var walkError = CheckStructuredReducibility(blueprint, nodeById, entry);
+            var walkError = CheckStructuredReducibility(blueprint, nodeById, entry, out var nodeScope);
             if (walkError is not null) return walkError;
+
+            // ── D4 (KS113): Condition sub-graph containment ──
+            // Evaluated BEFORE D3/KS112: a condition source in the wrong scope also
+            // violates data-scope reachability, and D4 is the more specific constraint
+            // for control-flow condition/source sub-graphs.
+            var d4Error = CheckConditionSubgraphContained(blueprint, nodeById, nodeScope);
+            if (d4Error is not null) return d4Error;
+
+            // ── D3 (KS112): Data-scope reachability ──
+            var d3Error = CheckDataScopeReachability(blueprint, nodeById, nodeScope);
+            if (d3Error is not null) return d3Error;
         }
 
         // ── C1 (KS120): Non-definition node must have Exec pins ──
@@ -310,14 +322,19 @@ internal static class StructuralReducer
     /// at the EntryNode. Each control-flow node's sub-scope pins start independent
     /// sub-walks that terminate at dangling tails. The End pin continues to the
     /// post-construct statement. Also enforces break/continue inside loop scope.
+    /// Populates <paramref name="nodeScope"/> (node id → scope path) for the
+    /// D3/D4 scope checks.
     /// </summary>
     private static ConstraintViolation? CheckStructuredReducibility(Blueprint bp,
-        Dictionary<string, BlueprintNode> nodeById, BlueprintNode entry)
+        Dictionary<string, BlueprintNode> nodeById, BlueprintNode entry,
+        out Dictionary<string, string> nodeScope)
     {
         var visited = new HashSet<string>();
+        nodeScope = new Dictionary<string, string>();
         // The EntryNode itself is the root — mark it visited before walking its exec out.
         visited.Add(entry.Id);
-        var error = WalkStructured(bp, nodeById, entry.Id, BpPinNames.Exec, visited, new Stack<string>());
+        nodeScope[entry.Id] = NodePath.Top;
+        var error = WalkStructured(bp, nodeById, entry.Id, BpPinNames.Exec, visited, new Stack<string>(), NodePath.Top, nodeScope);
         if (error is not null) return error;
 
         // Data-reachable set: nodes proxied into exec graph via data edges (condition
@@ -373,10 +390,13 @@ internal static class StructuralReducer
     /// <summary>
     /// Recursive structured walk. Follows exec edges linearly; at control-flow nodes,
     /// recursively walks each sub-scope pin independently in a fresh sub-scope context,
-    /// then continues from End pin. Returns an error message on structural violation.
+    /// then continues from End pin. Records each visited node's scope path in
+    /// <paramref name="nodeScope"/> (scope segments match NodePath: /then /else /body
+    /// /arm/{label} /default). Returns an error message on structural violation.
     /// </summary>
     private static ConstraintViolation? WalkStructured(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
-        string sourceId, string pinName, HashSet<string> visited, Stack<string> loopScopeStack)
+        string sourceId, string pinName, HashSet<string> visited, Stack<string> loopScopeStack,
+        string scopePath, Dictionary<string, string> nodeScope)
     {
         // Find all exec edges leaving (sourceId, pinName). Match by pin *name* (not id)
         // because a node may have auto-generated pins from InitializePinsFromDescriptor
@@ -406,6 +426,12 @@ internal static class StructuralReducer
                 return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
             }
 
+            // Record the node's scope BEFORE recursing into any sub-scopes: a control-flow
+            // node belongs to its OUTER scope, while the nodes inside its bodies get the
+            // sub-scope paths appended below. A re-visit (diamond merge) never reaches
+            // here, so nodeScope is never overwritten.
+            nodeScope[targetId] = scopePath;
+
             if (!nodeById.TryGetValue(targetId, out var node))
                 return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 {targetId} 不存在。", new[] { targetId });
 
@@ -419,15 +445,19 @@ internal static class StructuralReducer
                 {
                     if (subPin.Name == BpPinNames.End) continue;
                     if (subPin.Type != PinType.Execution) continue;
+                    // Sub-scope path segment: True→/then, False→/else, Body→/body,
+                    // integer arm labels→/arm/{label}, Default→/default. Unmapped pins
+                    // (defensive; none in the v6 renderer) keep the current scope.
+                    var childScope = ScopeSegment(subPin.Name) is { } seg ? scopePath + seg : scopePath;
                     var subError = WalkStructured(bp, nodeById, targetId, subPin.Name,
-                        visited, loopScopeStack);
+                        visited, loopScopeStack, childScope, nodeScope);
                     if (subError is not null) return subError;
                 }
                 if (isLoop) loopScopeStack.Pop();
 
-                // Continue from End pin (the post-construct continuation).
+                // Continue from End pin (the post-construct continuation) — same scope.
                 var endError = WalkStructured(bp, nodeById, targetId, BpPinNames.End,
-                    visited, loopScopeStack);
+                    visited, loopScopeStack, scopePath, nodeScope);
                 if (endError is not null) return endError;
             }
             else if (IsTerminatorNode(node))
@@ -441,8 +471,84 @@ internal static class StructuralReducer
             {
                 // Ordinary node: continue the exec chain from its Exec output.
                 var contError = WalkStructured(bp, nodeById, targetId, BpPinNames.Exec,
-                    visited, loopScopeStack);
+                    visited, loopScopeStack, scopePath, nodeScope);
                 if (contError is not null) return contError;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Maps a control-flow output pin name to its scope-path segment, matching the
+    /// NodePath conventions (/then /else /body /arm/{label} /default). Returns null
+    /// for pins that do not open a sub-scope.
+    /// </summary>
+    private static string? ScopeSegment(string pinName) => pinName switch
+    {
+        BpPinNames.True => "/then",
+        BpPinNames.False => "/else",
+        BpPinNames.Body => "/body",
+        BpPinNames.Default => "/default",
+        _ => int.TryParse(pinName, out _) ? $"/arm/{pinName}" : null,
+    };
+
+    /// <summary>
+    /// D3 (KS112): Data-scope reachability — for every data edge, the source must
+    /// live in the consumer's scope or an outer scope. Edges whose source or consumer
+    /// has no recorded scope (e.g. DetachedGraph snapshot nodes) are skipped.
+    /// </summary>
+    private static ConstraintViolation? CheckDataScopeReachability(Blueprint bp,
+        Dictionary<string, BlueprintNode> nodeById, Dictionary<string, string> nodeScope)
+    {
+        foreach (var conn in bp.Connections)
+        {
+            if (!nodeById.TryGetValue(conn.SourceNodeId, out var src)) continue;
+            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
+            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
+            if (!nodeScope.TryGetValue(conn.SourceNodeId, out var sourceScope)) continue;
+            if (!nodeScope.TryGetValue(conn.TargetNodeId, out var consumerScope)) continue;
+            if (consumerScope == sourceScope
+                || consumerScope.StartsWith(sourceScope + "/", StringComparison.Ordinal)) continue;
+            return new ConstraintViolation(KsConstraintErrors.KS112, "D3",
+                $"{KsConstraintErrors.KS112}: 数据边从作用域 '{sourceScope}' 引用内层作用域 '{consumerScope}' 的节点，违反作用域可达性约束（D3）。建议：将该数据源移到与消费者同级或外层作用域。",
+                new[] { conn.SourceNodeId, conn.TargetNodeId }, null,
+                "将该数据源移到与消费者同级或外层作用域。", IsConnectionStructural: true);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// D4 (KS113): Condition sub-graph containment — every node in a control-flow
+    /// node's condition/source sub-graph (data ancestors of its data input pins) must
+    /// share the control-flow node's exact scope. Nodes without a recorded scope are
+    /// skipped (detached snapshots / definition nodes).
+    /// </summary>
+    private static ConstraintViolation? CheckConditionSubgraphContained(Blueprint bp,
+        Dictionary<string, BlueprintNode> nodeById, Dictionary<string, string> nodeScope)
+    {
+        foreach (var node in bp.Nodes)
+        {
+            if (node is not BuiltinFunctionNode fn || !BpPinNames.IsControlFlowName(fn.FunctionName)) continue;
+            if (!nodeScope.TryGetValue(fn.Id, out var ctrlScope)) continue;
+            var subgraph = new HashSet<string>();
+            foreach (var inPin in fn.InputPins)
+            {
+                if (inPin.Type == PinType.Execution) continue;
+                foreach (var conn in bp.Connections)
+                {
+                    if (conn.TargetNodeId != fn.Id || conn.TargetPinId != inPin.Id) continue;
+                    CollectDataAncestors(bp, nodeById, conn.SourceNodeId, subgraph);
+                }
+            }
+            foreach (var id in subgraph)
+            {
+                if (!nodeScope.TryGetValue(id, out var s)) continue;
+                if (s == ctrlScope) continue;
+                var n = nodeById.GetValueOrDefault(id);
+                return new ConstraintViolation(KsConstraintErrors.KS113, "D4",
+                    $"{KsConstraintErrors.KS113}: 控制流节点的条件/源子图节点越出同级作用域，违反条件子图 contained 约束（D4）。建议：将条件/源子图的所有节点连接到控制流节点的同级 exec 链。",
+                    new[] { fn.Id, id }, null,
+                    "将条件/源子图的所有节点连接到控制流节点的同级 exec 链。", IsConnectionStructural: true);
             }
         }
         return null;
