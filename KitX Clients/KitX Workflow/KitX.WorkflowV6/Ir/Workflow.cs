@@ -55,6 +55,16 @@ public sealed record Workflow
     /// </summary>
     public ImmutableArray<Annotation> Annotations { get; init; } = [];
 
+    /// <summary>
+    /// BP-side "privileged" exec sub-graphs that are NOT reachable from the Entry
+    /// node (see <see cref="DetachedGraph"/>). Preserved verbatim by Project and the
+    /// serializer so detached canvas work survives KS↔BP and file round-trips. Never
+    /// rendered to KS text and never compiled. EXCLUDED from record equality (like
+    /// <see cref="Annotations"/> — snapshots are reference-typed Contract objects;
+    /// structural comparison happens at the statement level).
+    /// </summary>
+    public ImmutableArray<DetachedGraph> DetachedGraphs { get; init; } = [];
+
     // ── Equality: every field EXCEPT Annotations. ──
 
     public bool Equals(Workflow? other)

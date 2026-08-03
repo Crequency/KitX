@@ -51,6 +51,7 @@ public static class WorkflowSerializer
             GlobalVars = ir.GlobalVars.Values,
             HelperFunctions = [.. ir.HelperFunctions],
             Annotations = [.. ir.Annotations],
+            DetachedGraphs = [.. ir.DetachedGraphs],
         };
         return JsonSerializer.Serialize(doc, Options);
     }
@@ -70,6 +71,7 @@ public static class WorkflowSerializer
             GlobalVars = globalVars,
             HelperFunctions = [.. (doc.HelperFunctions ?? [])],
             Annotations = [.. (doc.Annotations ?? [])],
+            DetachedGraphs = [.. (doc.DetachedGraphs ?? [])],
         };
     }
 }
@@ -83,6 +85,7 @@ internal sealed class WorkflowDocument
     public IEnumerable<GlobalVar>? GlobalVars { get; set; }
     public List<HelperFunction> HelperFunctions { get; set; } = [];
     public List<Annotation> Annotations { get; set; } = [];
+    public List<DetachedGraph> DetachedGraphs { get; set; } = [];
 }
 
 // ── JSON converters for value types that don't serialize natively ──

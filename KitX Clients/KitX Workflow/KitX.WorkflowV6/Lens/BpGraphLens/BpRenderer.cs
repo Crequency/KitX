@@ -79,6 +79,23 @@ internal sealed class BpRenderer
         }
 
         _layout.Layout(_bp);
+
+        // Re-emit BP-side detached (exec-unreachable) sub-graphs AFTER layout so their
+        // stored coordinates are preserved verbatim (layout must not re-arrange them).
+        // The snapshots are cloned — the projected blueprint is mutable canvas state and
+        // must never share node/connection instances with the immutable IR.
+        foreach (var graph in ir.DetachedGraphs)
+        {
+            foreach (var node in graph.Nodes)
+            {
+                var clone = DetachedGraphUtil.CloneNode(node);
+                clone.Blueprint = _bp;
+                _bp.Nodes.Add(clone);
+            }
+            foreach (var conn in graph.Connections)
+                _bp.Connections.Add(DetachedGraphUtil.CloneConnection(conn));
+        }
+
         return _bp;
     }
 

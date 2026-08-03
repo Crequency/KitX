@@ -52,6 +52,11 @@ internal sealed class BpReverseTranslator
     // Populated by MarkConsumedSubtree, called from ReadDataInput.
     private HashSet<string> _consumedNodes = new();
 
+    // Every node visited by any WalkExecChain call (the whole Entry-reachable exec
+    // graph, including sub-scope bodies). Populated alongside the per-call local
+    // `visited` set; used to identify detached (exec-unreachable) components.
+    private readonly HashSet<string> _mainChainVisited = new();
+
     public BpReverseTranslator(BuiltinFunctionRegistry registry)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -120,7 +125,94 @@ internal sealed class BpReverseTranslator
             ir = ir with { Body = [.. body] };
         }
 
+        // Preserve exec-unreachable sub-graphs as detached snapshots (BP-side privilege):
+        // nodes not visited by the main-chain walk and not consumed by control-flow data
+        // reads are grouped into connected components and carried in Workflow.DetachedGraphs
+        // so they survive KS↔BP and file round-trips instead of being silently dropped.
+        ir = ir with { DetachedGraphs = CollectDetachedGraphs() };
+
         return ir;
+    }
+
+    /// <summary>
+    /// Groups all exec-unreachable, non-consumed, non-definition nodes into connected
+    /// components (edges of BOTH kinds — exec and data — join a component, so no edge
+    /// between detached nodes is ever dropped). Definition-like nodes (const/var block
+    /// declarations, which the definition-restore loop above already folded into
+    /// Constants/GlobalVars) are excluded.
+    /// </summary>
+    private ImmutableArray<DetachedGraph> CollectDetachedGraphs()
+    {
+        var candidateIds = _bp.Nodes
+            .Where(IsDetachedCandidate)
+            .Select(n => n.Id)
+            .ToHashSet();
+        if (candidateIds.Count == 0) return [];
+
+        var adj = candidateIds.ToDictionary(id => id, _ => new List<string>());
+        foreach (var conn in _bp.Connections)
+        {
+            if (candidateIds.Contains(conn.SourceNodeId) && candidateIds.Contains(conn.TargetNodeId))
+            {
+                adj[conn.SourceNodeId].Add(conn.TargetNodeId);
+                adj[conn.TargetNodeId].Add(conn.SourceNodeId);
+            }
+        }
+
+        var visited = new HashSet<string>();
+        var result = new List<DetachedGraph>();
+        foreach (var id in candidateIds)
+        {
+            if (!visited.Add(id)) continue;
+
+            // BFS the undirected component.
+            var component = new List<string> { id };
+            var stack = new Stack<string>();
+            stack.Push(id);
+            while (stack.Count > 0)
+            {
+                var cur = stack.Pop();
+                foreach (var next in adj[cur])
+                    if (visited.Add(next))
+                    {
+                        component.Add(next);
+                        stack.Push(next);
+                    }
+            }
+
+            var componentSet = component.ToHashSet();
+            result.Add(new DetachedGraph
+            {
+                Id = component[0],
+                Nodes = component.Select(nid => DetachedGraphUtil.CloneNode(_byId[nid])).ToImmutableArray(),
+                Connections = _bp.Connections
+                    .Where(c => componentSet.Contains(c.SourceNodeId) && componentSet.Contains(c.TargetNodeId))
+                    .Select(DetachedGraphUtil.CloneConnection)
+                    .ToImmutableArray(),
+            });
+        }
+        return [.. result];
+    }
+
+    /// <summary>
+    /// True when the node belongs to a detached component: not definition-like, not on
+    /// the Entry-reachable exec chain, not consumed by a control-flow data read.
+    /// </summary>
+    private bool IsDetachedCandidate(BlueprintNode n)
+    {
+        // The exec-graph roots are never detached (WalkExecChain starts from them but
+        // never enqueues them, so they are absent from _mainChainVisited).
+        if (n is EntryNode or PluginTriggerNode) return false;
+
+        // Definition-like nodes were already folded into Constants/GlobalVars above
+        // (same predicates as the definition-restore loop) — they are NOT detached.
+        if (n is ConstNode cn && cn.ConstName is not null && HasNoConnections(n)) return false;
+        if (n is VariableNode vn && vn.VarName is not null && HasNoConnections(n)) return false;
+        if (n is ConstNode { IsDefinition: true } or VariableNode { IsDefinition: true }) return false;
+
+        if (_mainChainVisited.Contains(n.Id)) return false;
+        if (_consumedNodes.Contains(n.Id)) return false;
+        return true;
     }
 
     /// <summary>
@@ -143,6 +235,7 @@ internal sealed class BpReverseTranslator
         _execOut.Clear();
         _dataOut.Clear();
         _consumedNodes.Clear();
+        _mainChainVisited.Clear();
         _groupCommentsByAnchor = _bp.GroupComments
             .Where(g => !string.IsNullOrEmpty(g.AnchorNodeId))
             .GroupBy(g => g.AnchorNodeId)
@@ -231,6 +324,7 @@ internal sealed class BpReverseTranslator
         {
             var node = queue.Dequeue();
             if (!visited.Add(node.Id)) continue;  // already processed (e.g. if-merge node)
+            _mainChainVisited.Add(node.Id);       // detached-graph tracking (shared across sub-walks)
 
             // Already-consumed node (part of a control-flow condition sub-graph).
             if (_consumedNodes.Contains(node.Id))
