@@ -279,16 +279,29 @@ internal sealed class KsRenderer
     }
 
     /// <summary>
-    /// Renders an IR Segment (from the lowered <see cref="PipelineStatement"/>).
-    /// Not merged with <see cref="RenderAstSegmentText"/> because IR
-    /// <see cref="Segment.Arguments"/> and AST <see cref="KsPipelineSegment.Args"/>
-    /// are different property names on unrelated types — no common interface exists.
+    /// Renders an IR <see cref="Segment"/> (from the lowered <see cref="PipelineStatement"/>).
+    /// Delegates to the shared segment-text core; the two types (<see cref="Segment"/> with
+    /// <see cref="Segment.Arguments"/> and <see cref="KsPipelineSegment"/> with
+    /// <see cref="KsPipelineSegment.Args"/>) are unrelated, so the shared logic lives in
+    /// <see cref="RenderSegmentTextCore"/> and each type has a thin adapter overload.
     /// </summary>
     private static string RenderSegmentText(Segment seg)
+        => RenderSegmentTextCore(seg.IsVariableTap, seg.Target, seg.Arguments);
+
+    /// <summary>
+    /// Renders an AST <see cref="KsPipelineSegment"/> (from the <see cref="KsPipeline"/> AST).
+    /// Adapter overload of <see cref="RenderSegmentText(Segment)"/> over the shared core.
+    /// </summary>
+    private static string RenderSegmentText(KsPipelineSegment seg)
+        => RenderSegmentTextCore(seg.IsVariableTap, seg.Target, seg.Args);
+
+    /// <summary>Shared core of the two segment renderers: variable tap or bare <c>&gt; Func</c>
+    /// (implicit single arg) render as the bare target; a call renders with its args.</summary>
+    private static string RenderSegmentTextCore(bool isVariableTap, string target, ImmutableArray<KsNode> args)
     {
-        if (seg.IsVariableTap || seg.Arguments.Length == 0)
-            return seg.Target;  // variable tap, or bare `> Func` (implicit single arg)
-        return $"{seg.Target}({string.Join(", ", seg.Arguments.Select(RenderKsNode))})";
+        if (isVariableTap || args.Length == 0)
+            return target;  // variable tap, or bare `> Func` (implicit single arg)
+        return $"{target}({string.Join(", ", args.Select(RenderKsNode))})";
     }
 
     private static string RenderPipelineSingleLine(PipelineStatement p)
@@ -345,7 +358,7 @@ internal sealed class KsRenderer
                     sb.Append(Indent(level + 1)).Append("> ");
                 else
                     sb.Append(" > ");
-                sb.Append(RenderAstSegmentText(seg));
+                sb.Append(RenderSegmentText(seg));
                 if (i == lastIdx)
                 {
                     sb.Append(suffix).Append(':');
@@ -375,8 +388,7 @@ internal sealed class KsRenderer
         }
     }
 
-    /// <summary>
-    /// True when a pipeline header needs the multi-line form: a SOURCE comment or an
+    /// <summary>True when a pipeline header needs the multi-line form: a SOURCE comment or an
     /// INTERMEDIATE segment comment. A lone last-segment comment stays single-line
     /// (it renders post-colon: <c>if a &gt; FA: // cmt</c>).
     /// </summary>
@@ -384,19 +396,6 @@ internal sealed class KsRenderer
         => pipe.Sources.Any(s => s.Comment is { Length: > 0 })
         || (pipe.Segments.Length > 1
             && pipe.Segments.Take(pipe.Segments.Length - 1).Any(s => s.Comment is { Length: > 0 }));
-
-    /// <summary>
-    /// Renders an AST KsPipelineSegment (from the <see cref="KsPipeline"/> AST).
-    /// Not merged with <see cref="RenderSegmentText"/> because AST
-    /// <see cref="KsPipelineSegment.Args"/> and IR <see cref="Segment.Arguments"/>
-    /// are different property names on unrelated types — no common interface exists.
-    /// </summary>
-    private static string RenderAstSegmentText(KsPipelineSegment seg)
-    {
-        if (seg.IsVariableTap || seg.Args.Length == 0)
-            return seg.Target;
-        return $"{seg.Target}({string.Join(", ", seg.Args.Select(RenderKsNode))})";
-    }
 
     /// <summary>
     /// Renders a KsNode expression. Uses <see cref="KsNode.SourceText"/> when available

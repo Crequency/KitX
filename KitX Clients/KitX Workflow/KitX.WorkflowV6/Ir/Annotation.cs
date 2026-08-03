@@ -55,7 +55,8 @@ public abstract record AnnotationValue
     [JsonIgnore]
     public abstract AnnotationKind Kind { get; }
 
-    /// <summary>Convenience factory for a Layout annotation payload.</summary>
+    /// <summary>Convenience factory for a Layout annotation payload.
+    /// 零生产者（生产代码无 Layout annotation 产出），T5 位置持久化立项预留——勿删勿改。</summary>
     public static LayoutValue Layout(double x, double y) => new(x, y);
 
     /// <summary>Convenience factory for a Text annotation payload.</summary>

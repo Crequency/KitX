@@ -126,7 +126,7 @@ internal sealed class Parser
     {
         if (IsKeyword("forEach"))
         {
-            Error("KS061", $"'forEach' is not valid {context}. Use prefix form: 'forEach <source> as <item>'");
+            Error(KsErrors.ForEachInPipeline, $"'forEach' is not valid {context}. Use prefix form: 'forEach <source> as <item>'");
             return true;
         }
         return false;
@@ -177,7 +177,7 @@ internal sealed class Parser
             var indent = Current.IndentLevel;
             if (indent != 0)
             {
-                Error("KS010", $"Top-level statement must be at indent 0 (got {indent})");
+                Error(KsErrors.TopLevelStatementIndent, $"Top-level statement must be at indent 0 (got {indent})");
                 Advance();  // consume the wrong-level Indent to avoid infinite loop
                 while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
                 continue;
@@ -199,7 +199,7 @@ internal sealed class Parser
             {
                 commentAcc = new CommentAccumulator();
                 if (constBlock is not null)
-                    Error("KS011", "Duplicate const block");
+                    Error(KsErrors.DuplicateDeclBlock, "Duplicate const block");
                 constBlock = ParseConstBlock();
                 continue;
             }
@@ -207,7 +207,7 @@ internal sealed class Parser
             {
                 commentAcc = new CommentAccumulator();
                 if (varBlock is not null)
-                    Error("KS011", "Duplicate var block");
+                    Error(KsErrors.DuplicateDeclBlock, "Duplicate var block");
                 varBlock = ParseVarBlock();
                 continue;
             }
@@ -287,9 +287,9 @@ internal sealed class Parser
         var typeTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
         var nameTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
         if (typeTok.Kind != KsTokenKind.Identifier)
-            Error("KS012", "Declaration must start with a type name", typeTok);
+            Error(KsErrors.InvalidDeclaration, "Declaration must start with a type name", typeTok);
         if (nameTok.Kind != KsTokenKind.Identifier)
-            Error("KS012", "Declaration must have a name after the type", nameTok);
+            Error(KsErrors.InvalidDeclaration, "Declaration must have a name after the type", nameTok);
 
         string? initExpr = null;
         KsDictLiteral? dictInit = null;
@@ -313,11 +313,11 @@ internal sealed class Parser
                     Advance();
                     // Reject anything beyond a single literal on the line (e.g. `42 + 1`, `x`).
                     if (!AtEnd && Current.Kind != KsTokenKind.Indent && Current.Kind != KsTokenKind.RBrace)
-                        Error("KS076", "Scalar var/const initialiser must be a single literal — expressions/references are not allowed in decl blocks");
+                        Error(KsErrors.DeclInitMustBeSingleLiteral, "Scalar var/const initialiser must be a single literal — expressions/references are not allowed in decl blocks");
                 }
                 else
                 {
-                    Error("KS076", "Scalar var/const initialiser must be a literal — references/expressions are not allowed in decl blocks");
+                    Error(KsErrors.DeclInitMustBeSingleLiteral, "Scalar var/const initialiser must be a literal — references/expressions are not allowed in decl blocks");
                     // Skip to end of line for error recovery.
                     while (!AtEnd && Current.Kind != KsTokenKind.Indent
                                   && Current.Kind != KsTokenKind.RBrace) Advance();
@@ -357,13 +357,13 @@ internal sealed class Parser
         {
             var key = ParseDictKey(startTok.Line);
             if (!Match(KsTokenKind.Colon))
-                Error("KS070", "Expected ':' after dict key");
+                Error(KsErrors.ExpectedColonAfterDictKey, "Expected ':' after dict key");
             var value = ParseDictValue(startTok.Line);
             entries.Add(new KsDictEntry { Key = key, Value = value });
 
             if (Match(KsTokenKind.Comma)) continue;
             if (Match(KsTokenKind.RBrace)) break;
-            Error("KS071", "Expected ',' or '}' in dict literal");
+            Error(KsErrors.ExpectedCommaOrRBraceInDict, "Expected ',' or '}' in dict literal");
             break;
         }
 
@@ -385,7 +385,7 @@ internal sealed class Parser
             // Identifier key → string literal (syntactic sugar, equivalent to "key")
             return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Text, SourceText = t.Text, SourceLine = t.Line };
         }
-        Error("KS072", "Dict key must be a string literal or identifier");
+        Error(KsErrors.DictKeyMustBeStringOrIdentifier, "Dict key must be a string literal or identifier");
         Advance();
         return new KsLiteral { Kind = KsLiteralKind.String, Value = "?", SourceText = "\"?\"", SourceLine = line };
     }
@@ -405,15 +405,17 @@ internal sealed class Parser
                 // References (incl. const) are NOT allowed as dict values — a dict literal lives
                 // in a decl block, whose values must be literals so BP definition nodes can carry
                 // them as payloads (no data edges). (Dict-Type design §2.1 / §2.4.)
-                Error("KS077", "Dict value must be a literal — references/expressions are not allowed in dict literals");
+                Error(KsErrors.DictValueNoReferences, "Dict value must be a literal — references/expressions are not allowed in dict literals");
                 Advance();
                 return new KsLiteral { Kind = KsLiteralKind.Null, SourceText = "null", SourceLine = line };
             case KsTokenKind.LBrace:
-                Error("KS073", "Nested dict literal is not allowed — use JSON format for nested structures");
+                Error(KsErrors.NestedDictLiteralNotAllowed, "Nested dict literal is not allowed — use JSON format for nested structures");
                 Advance();
                 return new KsLiteral { Kind = KsLiteralKind.Null, SourceText = "null", SourceLine = line };
             default:
-                Error("KS074", "Dict value must be a scalar literal or const reference");
+                // KS077 forbids const references as dict values — the message must not
+                // suggest them (previously: "or const reference", self-contradictory).
+                Error(KsErrors.DictValueMustBeScalarLiteral, "Dict value must be a scalar literal");
                 Advance();
                 return new KsLiteral { Kind = KsLiteralKind.Null, SourceText = "null", SourceLine = line };
         }
@@ -422,7 +424,7 @@ internal sealed class Parser
     private void ExpectLBrace()
     {
         if (!Match(KsTokenKind.LBrace))
-            Error("KS013", "Expected '{' after const/var");
+            Error(KsErrors.ExpectedLBraceAfterConstVar, "Expected '{' after const/var");
     }
 
     private static string ReconstructText(List<KsToken> tokens, int from, int toExclusive)
@@ -474,7 +476,7 @@ internal sealed class Parser
         var ifTok = Advance();  // 'if'
         var (cond, lastSegComment) = ParseHeaderPipelineExpression();
         if (!Match(KsTokenKind.Colon))
-            Error("KS063", "Expected ':' after if-header expression");
+            Error(KsErrors.ExpectedColonAfterHeader, "Expected ':' after if-header expression");
         var trailing = TryConsumeComment();  // post-colon inline comment
         string? stmtTrailing = null;
         var lastComment = lastSegComment ?? trailing;
@@ -503,12 +505,12 @@ internal sealed class Parser
                     // bijection — both `else if c:` and `else:\n    if c:` lower to the
                     // same nested-If IR, so a round-trip would rewrite the text.
                     // Require the nested form instead.
-                    Error("KS064", "'else if' is not supported — write 'else:' followed by a nested 'if' block");
+                    Error(KsErrors.ElseIfUnsupported, "'else if' is not supported — write 'else:' followed by a nested 'if' block");
                 }
                 else
                 {
                     if (!Match(KsTokenKind.Colon))
-                        Error("KS063", "Expected ':' after 'else'");
+                        Error(KsErrors.ExpectedColonAfterHeader, "Expected ':' after 'else'");
                     TryConsumeComment();  // post-colon comment on `else:` line (not attached)
                     elseBody = ParseBody(keywordIndent + 1, $"else on line {elseTok.Line}");
                 }
@@ -530,7 +532,7 @@ internal sealed class Parser
         var swTok = Advance();  // 'switch'
         var selector = ParseExpression();
         if (!Match(KsTokenKind.Colon))
-            Error("KS063", "Expected ':' after switch selector");
+            Error(KsErrors.ExpectedColonAfterHeader, "Expected ':' after switch selector");
         TryConsumeComment();  // post-colon comment on the `switch` header line (not attached)
         int keywordIndent = LastConsumedIndentLevel();
         int armIndent = keywordIndent + 1;
@@ -544,25 +546,26 @@ internal sealed class Parser
             Advance();  // consume Indent(armIndent)
             if (MatchKeyword("default"))
             {
-                if (sawDefault) Error("KS022", "Duplicate default arm");
+                if (sawDefault) Error(KsErrors.DuplicateDefaultArm, "Duplicate default arm");
                 sawDefault = true;
                 if (!Match(KsTokenKind.Colon))
-                    Error("KS020", "Expected ':' after 'default'");
+                    Error(KsErrors.ExpectedColonAfterCaseLabel, "Expected ':' after 'default'");
                 defaultBody = ParseArmBody(armIndent);
             }
             else if (Current.Kind == KsTokenKind.IntegerLiteral)
             {
-                // Capture the arm label value (value-match semantics).
-                int label = Current.Value is int v ? v : int.TryParse(Current.Text, out var parsed) ? parsed : 0;
+                // Capture the arm label value (value-match semantics). The tokenizer
+                // guarantees IntegerLiteral tokens carry an int Value.
+                int label = (int)Current.Value!;
                 Advance();
                 if (!Match(KsTokenKind.Colon))
-                    Error("KS020", "Expected ':' after case label");
+                    Error(KsErrors.ExpectedColonAfterCaseLabel, "Expected ':' after case label");
                 armLabels.Add(label);
                 arms.Add(ParseArmBody(armIndent));
             }
             else
             {
-                Error("KS021", "Expected case label or 'default' in switch arm");
+                Error(KsErrors.ExpectedCaseLabelOrDefault, "Expected case label or 'default' in switch arm");
                 while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
             }
         }
@@ -599,12 +602,12 @@ internal sealed class Parser
         // between `forEach` and `as` is the source expression.
         var (source, lastSegComment) = ParseHeaderPipelineExpression();
         if (!MatchKeyword("as"))
-            Error("KS030", "Expected 'as' after forEach source");
+            Error(KsErrors.ExpectedAsAfterForEach, "Expected 'as' after forEach source");
         if (Current.Kind != KsTokenKind.Identifier)
-            Error("KS031", "Expected item name after 'as'");
+            Error(KsErrors.ExpectedItemNameAfterAs, "Expected item name after 'as'");
         var itemName = Advance().Text;
         if (!Match(KsTokenKind.Colon))
-            Error("KS063", "Expected ':' after forEach header");
+            Error(KsErrors.ExpectedColonAfterHeader, "Expected ':' after forEach header");
         var trailing = TryConsumeComment();
         string? stmtTrailing = null;
         var lastComment = lastSegComment ?? trailing;
@@ -629,7 +632,7 @@ internal sealed class Parser
         var whTok = Advance();  // 'while'
         var (cond, lastSegComment) = ParseHeaderPipelineExpression();
         if (!Match(KsTokenKind.Colon))
-            Error("KS063", "Expected ':' after while-header expression");
+            Error(KsErrors.ExpectedColonAfterHeader, "Expected ':' after while-header expression");
         var trailing = TryConsumeComment();
         string? stmtTrailing = null;
         var lastComment = lastSegComment ?? trailing;
@@ -677,119 +680,22 @@ internal sealed class Parser
         //
         // forEach is NOT a valid pipeline segment target — it is a prefix keyword
         // statement: `forEach <source> as <item>`. Use that form instead.
-        var sources = ImmutableArray.CreateBuilder<KsNode>();
-        sources.Add(ParseExpression());
-        int stmtIndent = LastConsumedIndentLevel();
-        while (true)
-        {
-            if (!Match(KsTokenKind.Comma)) break;
-
-            // Inline comment right after the comma attaches to the preceding source
-            // (`a, // cmt` → a.Comment), enabling multi-line source lists.
-            var srcTrailing = TryConsumeComment();
-            if (srcTrailing is not null && sources.Count > 0)
-                sources[^1].Comment = srcTrailing;
-
-            // Comma line-break: the next line continues the source list. Strict indent
-            // rule: the continuation line must be indented strictly deeper than the
-            // statement (statement indent + 1), mirroring the segment-continuation rule.
-            bool invalidContinuation = false;
-            while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind != KsTokenKind.Pipe)
-            {
-                if (Current.IndentLevel < stmtIndent + 1)
-                {
-                    Error("KS066",
-                        $"多行管道续源行缩进必须大于语句缩进（语句缩进 {stmtIndent}，实际 {Current.IndentLevel}）");
-                    // Recover: skip to the next line so it re-parses as its own statement.
-                    while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
-                    invalidContinuation = true;
-                    break;
-                }
-                // KS065: a full-line comment between source continuations is rejected —
-                // the trailing comma means the pipeline is unfinished, so the comment
-                // line is necessarily inside the pipeline.
-                if (Peek(1).Kind == KsTokenKind.Comment)
-                {
-                    Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或行内。");
-                    Advance();  // consume Indent
-                    Advance();  // consume Comment
-                    continue;
-                }
-                Advance();  // consume Indent
-                break;
-            }
-            if (invalidContinuation) break;
-            sources.Add(ParseExpression());
-        }
-
-        var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
-        while (Match(KsTokenKind.Pipe))
-        {
-            if (RejectForEachInPipeline("as a pipeline segment"))
-                break;
-            // An inline comment right after a same-line segment attaches to THAT
-            // segment (the nearest node), never to the statement — `a > FB // cmt`
-            // → FB.Comment. Capture point A below only sees comments that no segment
-            // could own (bare calls / source-list tails).
-            var seg = ParseSegment();
-            var cmt = TryConsumeComment();
-            if (cmt is not null)
-                seg.Comment = cmt;
-            segments.Add(seg);
-        }
+        var (sources, segments, lastSegComment) = ParsePipelineCore(ParseExpression(), "as a pipeline segment");
 
         // Capture point A — a trailing comment after the inline sources/segments. In a
         // multi-line pipeline this sits on the source line (e.g. `a, b // src cmt`); in
         // a single-line pipeline with no continuation it is the end-of-statement comment.
         // It is resolved against capture point C below (they are mutually exclusive).
+        // Must run BEFORE the continuation loop — the comment precedes the continuation
+        // lines, so the loop would otherwise never see its Indent + Pipe.
         string? sourceTrailing = TryConsumeComment();
-
-        // Multi-line pipeline continuation: if the next line starts with Indent + Pipe,
-        // treat it as a continuation of the current pipeline. This allows pipelines to
-        // span multiple lines (each segment on its own line), which is a prerequisite
-        // for per-segment comment preservation (Phase B).
-        while (true)
-        {
-            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
-            {
-                Advance(); // consume Indent
-                Advance(); // consume Pipe
-                // A continuation line may carry several segments (`> FA > FB // cmt`);
-                // the inline comment lands on the LAST segment of the line (capture B).
-                while (true)
-                {
-                    if (RejectForEachInPipeline("as a pipeline segment"))
-                        break;
-                    var seg = ParseSegment();
-                    var cmt = TryConsumeComment();
-                    if (cmt is not null)
-                        seg.Comment = cmt;
-                    segments.Add(seg);
-                    if (!Match(KsTokenKind.Pipe))
-                        break;
-                }
-                continue;
-            }
-
-            // KS065: a full-line comment BETWEEN continuation lines is rejected — a leading
-            // comment belongs to the whole statement (one line ⇔ one data subgraph); only
-            // per-segment inline comments are allowed inside a multi-line pipeline.
-            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Comment
-                && HasContinuationAfterCommentLine())
-            {
-                Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或续行段后（行内注释）。");
-                Advance(); // consume Indent
-                Advance(); // consume Comment
-                continue;
-            }
-            break;
-        }
+        ParsePipelineContinuations(segments, "as a pipeline segment", ref lastSegComment);
 
         // Terminal assignment `= name` becomes a variable-tap segment.
         if (Match(KsTokenKind.Assign))
         {
             if (Current.Kind != KsTokenKind.Identifier)
-                Error("KS040", "Expected variable name after '='");
+                Error(KsErrors.ExpectedVariableNameAfterAssign, "Expected variable name after '='");
             else
             {
                 var nameTok = Advance();
@@ -816,7 +722,7 @@ internal sealed class Parser
             bool isNoOpRead = sources.Count == 1 && sources[0] is KsIdentifier or KsLiteral;
             if (!isBareCall && !isNoOpRead)
             {
-                Error("KS053",
+                Error(KsErrors.BareStatementInvalid,
                     "Bare statement is not valid; a pipeline must contain at least one '>' " +
                     "segment or '= name' assignment, be a single function call, or a single " +
                     "identifier/literal read (no-op exec anchor)");
@@ -833,7 +739,7 @@ internal sealed class Parser
         {
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
-            SourceLine = sources.Count > 0 ? sources[0].SourceLine : Current.Line,
+            SourceLine = sources[0].SourceLine,
             TrailingComment = sourceTrailing ?? endTrailing,
         };
     }
@@ -845,7 +751,7 @@ internal sealed class Parser
         //   name                    — a variable tap
         if (Current.Kind != KsTokenKind.Identifier)
         {
-            Error("KS041", "Expected segment name after '>'");
+            Error(KsErrors.ExpectedSegmentNameAfterPipe, "Expected segment name after '>'");
             return new KsPipelineSegment { Target = "?", SourceLine = Current.Line };
         }
         var nameTok = Advance();
@@ -867,7 +773,7 @@ internal sealed class Parser
                 }
             }
             if (!Match(KsTokenKind.RParen))
-                Error("KS042", "Expected ')' to close call arguments");
+                Error(KsErrors.ExpectedRParenToCloseArgs, "Expected ')' to close call arguments");
         }
 
         var rawArgsArray = rawArgs.ToImmutable();
@@ -917,7 +823,7 @@ internal sealed class Parser
             case KsTokenKind.Placeholder:
                 { var t = Advance(); return new KsPlaceholder { SourceText = "_", SourceLine = t.Line }; }
             default:
-                Error("KS051", $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
+                Error(KsErrors.FunctionArgsOnlyLiteralsOrPlaceholders, $"Function arguments may only be literals or '_' placeholders (v6.0 rule); got: {Current.Kind} '{Current.Text}'. Use pipeline form: 'value > Func(...)'");
                 Advance();
                 return new KsLiteral { Kind = KsLiteralKind.Null, Value = null, SourceText = "null", SourceLine = Current.Line };
         }
@@ -962,7 +868,7 @@ internal sealed class Parser
                             }
                         }
                         if (!Match(KsTokenKind.RParen))
-                            Error("KS052", "Expected ')' to close call arguments");
+                            Error(KsErrors.ExpectedRParenToCloseCallArgs, "Expected ')' to close call arguments");
                         var rawArgsArray = rawArgs.ToImmutable();
                         return new KsCall
                         {
@@ -983,7 +889,7 @@ internal sealed class Parser
                     var t = Advance();  // consume '('
                     var (inner, _) = ParseHeaderPipelineExpression();
                     if (!Match(KsTokenKind.RParen))
-                        Error("KS075", "Expected ')' to close parenthesised pipeline source");
+                        Error(KsErrors.ExpectedRParenToCloseParenPipeline, "Expected ')' to close parenthesised pipeline source");
                     // Wrap a pipeline's source text in parens for lossless round-trip.
                     if (inner is KsPipeline)
                         inner.SourceText = $"({inner.SourceText})";
@@ -992,9 +898,140 @@ internal sealed class Parser
                     return inner;
                 }
             default:
-                Error("KS050", $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
+                Error(KsErrors.UnexpectedTokenInExpression, $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
                 Advance();
                 return new KsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
+        }
+    }
+
+    /// <summary>
+    /// Shared core of the two pipeline paths — statement pipelines
+    /// (<see cref="ParsePipelineOrAssignment"/>) and control-flow header pipelines.
+    /// Parses the comma-continued source list (KS066 continuation guard + KS065
+    /// comment rejection) and the inline <c>&gt; segment</c> list. The statement path
+    /// calls <see cref="ParsePipelineContinuations"/> AFTER its capture-point-A
+    /// comment check, which must run between the segment list and the multi-line
+    /// continuation loop (a source-line trailing comment precedes the continuation
+    /// lines); the header path calls it immediately. Returns the source/segment
+    /// builders (the statement path mutates <c>segments</c> with the terminal
+    /// <c>= name</c> tap) plus the last segment's inline comment (the header path
+    /// surfaces it; the statement path ignores it).
+    /// </summary>
+    private (ImmutableArray<KsNode>.Builder Sources, ImmutableArray<KsPipelineSegment>.Builder Segments, string? LastSegComment)
+        ParsePipelineCore(KsNode firstSource, string forEachContext)
+    {
+        var sources = ImmutableArray.CreateBuilder<KsNode>();
+        sources.Add(firstSource);
+        int stmtIndent = LastConsumedIndentLevel();
+        while (true)
+        {
+            if (!Match(KsTokenKind.Comma)) break;
+
+            // Inline comment right after the comma attaches to the preceding source
+            // (`a, // cmt` → a.Comment), enabling multi-line source lists.
+            var srcTrailing = TryConsumeComment();
+            if (srcTrailing is not null && sources.Count > 0)
+                sources[^1].Comment = srcTrailing;
+
+            // Comma line-break: the next line continues the source list. Strict indent
+            // rule: the continuation line must be indented strictly deeper than the
+            // statement (statement indent + 1), mirroring the segment-continuation rule.
+            bool invalidContinuation = false;
+            while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind != KsTokenKind.Pipe)
+            {
+                if (Current.IndentLevel < stmtIndent + 1)
+                {
+                    Error(KsErrors.ContinuationIndentTooShallow,
+                        $"多行管道续源行缩进必须大于语句缩进（语句缩进 {stmtIndent}，实际 {Current.IndentLevel}）");
+                    // Recover: skip to the next line so it re-parses as its own statement.
+                    while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
+                    invalidContinuation = true;
+                    break;
+                }
+                // KS065: a full-line comment between source continuations is rejected —
+                // the trailing comma means the pipeline is unfinished, so the comment
+                // line is necessarily inside the pipeline.
+                if (Peek(1).Kind == KsTokenKind.Comment)
+                {
+                    Error(KsErrors.CommentBetweenContinuations, "多行管道续行之间不允许整行注释；注释请放在语句前或续行段后（行内注释）。");
+                    Advance();  // consume Indent
+                    Advance();  // consume Comment
+                    continue;
+                }
+                Advance();  // consume Indent
+                break;
+            }
+            if (invalidContinuation) break;
+            sources.Add(ParseExpression());
+        }
+
+        var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
+        string? lastSegComment = null;
+        while (Match(KsTokenKind.Pipe))
+        {
+            if (RejectForEachInPipeline(forEachContext))
+                break;
+            // An inline comment right after a same-line segment attaches to THAT
+            // segment (the nearest node), never to the statement — `a > FB // cmt`
+            // → FB.Comment. Capture point A in the statement path only sees comments
+            // that no segment could own (bare calls / source-list tails).
+            var seg = ParseSegment();
+            var cmt = TryConsumeComment();
+            if (cmt is not null)
+                seg.Comment = cmt;
+            lastSegComment = cmt;
+            segments.Add(seg);
+        }
+
+        return (sources, segments, lastSegComment);
+    }
+
+    /// <summary>
+    /// Multi-line pipeline continuation loop, shared by the two pipeline paths: lines
+    /// starting with Indent + Pipe continue the current pipeline (each segment on its
+    /// own line — a prerequisite for per-segment comment preservation, Phase B).
+    /// Continuation lines may carry several segments; the inline comment lands on the
+    /// LAST segment of the line (capture B). A full-line comment BETWEEN continuation
+    /// lines is rejected (KS065). The caller invokes this AFTER capture point A on the
+    /// statement path (see <see cref="ParsePipelineCore"/>).
+    /// </summary>
+    private void ParsePipelineContinuations(
+        ImmutableArray<KsPipelineSegment>.Builder segments, string forEachContext, ref string? lastSegComment)
+    {
+        while (true)
+        {
+            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
+            {
+                Advance(); // consume Indent
+                Advance(); // consume Pipe
+                while (true)
+                {
+                    if (RejectForEachInPipeline(forEachContext))
+                        break;
+                    var seg = ParseSegment();
+                    var cmt = TryConsumeComment();
+                    if (cmt is not null)
+                        seg.Comment = cmt;
+                    lastSegComment = cmt;
+                    segments.Add(seg);
+                    if (!Match(KsTokenKind.Pipe))
+                        break;
+                }
+                continue;
+            }
+
+            // KS065: a full-line comment BETWEEN continuation lines is rejected — a leading
+            // comment belongs to the whole statement (one line ⇔ one data subgraph); only
+            // per-segment inline comments are allowed inside a multi-line pipeline.
+            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Comment
+                && HasContinuationAfterCommentLine())
+            {
+                Error(KsErrors.CommentBetweenContinuations, "多行管道续行之间不允许整行注释；注释请放在语句前或续行段后（行内注释）。");
+                Advance(); // consume Indent
+                Advance(); // consume Comment
+                continue;
+            }
+            break;
         }
     }
 
@@ -1016,102 +1053,11 @@ internal sealed class Parser
             return (firstSource, null);
 
         // Pipeline condition: build sources + segments.
-        var sources = ImmutableArray.CreateBuilder<KsNode>();
-        sources.Add(firstSource);
-        int stmtIndent = LastConsumedIndentLevel();
-        while (true)
-        {
-            if (!Match(KsTokenKind.Comma)) break;
-
-            // Inline comment after the comma attaches to the preceding source (multi-line
-            // source lists in control-flow headers, e.g. `if a, // cmt` + continuation).
-            var srcTrailing = TryConsumeComment();
-            if (srcTrailing is not null && sources.Count > 0)
-                sources[^1].Comment = srcTrailing;
-
-            bool invalidContinuation = false;
-            while (Current.Kind == KsTokenKind.Indent && Peek(1).Kind != KsTokenKind.Pipe)
-            {
-                if (Current.IndentLevel < stmtIndent + 1)
-                {
-                    Error("KS066",
-                        $"多行管道续源行缩进必须大于语句缩进（语句缩进 {stmtIndent}，实际 {Current.IndentLevel}）");
-                    while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
-                    invalidContinuation = true;
-                    break;
-                }
-                if (Peek(1).Kind == KsTokenKind.Comment)
-                {
-                    Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或行内。");
-                    Advance();  // consume Indent
-                    Advance();  // consume Comment
-                    continue;
-                }
-                Advance();  // consume Indent
-                break;
-            }
-            if (invalidContinuation) break;
-            sources.Add(ParseExpression());
-        }
-
-        var segments = ImmutableArray.CreateBuilder<KsPipelineSegment>();
-        string? lastSegComment = null;
-        while (Match(KsTokenKind.Pipe))
-        {
-            if (RejectForEachInPipeline("in a pipeline expression"))
-                break;
-            // Same-line segment inline comment attaches to THAT segment (nearest node).
-            var seg = ParseSegment();
-            var cmt = TryConsumeComment();
-            if (cmt is not null)
-                seg.Comment = cmt;
-            lastSegComment = cmt;
-            segments.Add(seg);
-        }
-
-        // Multi-line header continuation: lines at the body indent starting with '>'
-        // are additional segments. Each may carry an inline comment (intermediate
-        // segments). The last segment's comment is typically captured post-colon by
-        // the caller (the ':' sits on the last segment's line before the inline comment).
-        while (true)
-        {
-            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Pipe)
-            {
-                Advance();  // consume Indent
-                Advance();  // consume Pipe
-                // A continuation line may carry several segments; the inline comment
-                // lands on the LAST segment of the line (capture B).
-                while (true)
-                {
-                    if (RejectForEachInPipeline("in a pipeline expression"))
-                        break;
-                    var seg = ParseSegment();
-                    var segComment = TryConsumeComment();
-                    if (segComment is not null)
-                        seg.Comment = segComment;
-                    lastSegComment = segComment;
-                    segments.Add(seg);
-                    if (!Match(KsTokenKind.Pipe))
-                        break;
-                }
-                continue;
-            }
-
-            // KS065: no full-line comments between continuation lines (see statement
-            // pipeline — the leading comment belongs to the whole statement).
-            if (Current.Kind == KsTokenKind.Indent && Peek(1).Kind == KsTokenKind.Comment
-                && HasContinuationAfterCommentLine())
-            {
-                Error("KS065", "多行管道续行之间不允许整行注释；注释请放在语句前或续行段后（行内注释）。");
-                Advance();  // consume Indent
-                Advance();  // consume Comment
-                continue;
-            }
-            break;
-        }
+        var (sources, segments, lastSegComment) = ParsePipelineCore(firstSource, "in a pipeline expression");
+        ParsePipelineContinuations(segments, "in a pipeline expression", ref lastSegComment);
 
         if (segments.Count == 0)
-            Error("KS060", "Multiple sources in condition require a '>' pipeline segment");
+            Error(KsErrors.MultipleSourcesNeedSegment, "Multiple sources in condition require a '>' pipeline segment");
 
         return (new KsPipeline
         {
@@ -1171,7 +1117,7 @@ internal sealed class Parser
             body.Add(stmt);
         }
         if (body.Count == 0)
-            Error("KS062", $"{context} body is empty");
+            Error(KsErrors.EmptyBody, $"{context} body is empty");
         return body.ToImmutable();
     }
 }

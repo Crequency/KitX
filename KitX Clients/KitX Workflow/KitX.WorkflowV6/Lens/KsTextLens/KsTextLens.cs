@@ -63,7 +63,7 @@ public sealed class KsTextLens : ILens<string, string>
     /// <summary>
     /// Parses KS source into a structured IR. Convenience entry that combines
     /// tokenize + parse + lower. Returns the IR even when there are diagnostics —
-    /// the caller can inspect <see cref="KsParseResult.Diagnostics"/>.
+    /// the caller can inspect them via <see cref="ParseAstWithDiagnostics"/>.
     /// </summary>
     public Workflow Parse(string source, IReadOnlyList<HelperFunction> helpers)
         => ParseLowering(source, helpers).Ir;
@@ -91,7 +91,7 @@ public sealed class KsTextLens : ILens<string, string>
     }
 
     /// <summary>Parses KS source into the lossless KS AST (pre-lowering).</summary>
-    public KsNode ParseAst(string source)
+    public KsProgram ParseAst(string source)
     {
         var (ast, _) = ParseAstWithDiagnostics(source);
         return ast;
@@ -110,11 +110,4 @@ public sealed class KsTextLens : ILens<string, string>
         var (ast, parseDiag) = Parser.Parse(tokens, tokDiag);
         return (ast, parseDiag);
     }
-}
-
-/// <summary>Result of a KS parse (AST + diagnostics).</summary>
-public sealed record KsParseResult
-{
-    public required KsProgram Ast { get; init; }
-    public required IReadOnlyList<KsDiagnostic> Diagnostics { get; init; }
 }

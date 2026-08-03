@@ -34,14 +34,9 @@ internal sealed class BpReverseTranslator
     private readonly BuiltinFunctionRegistry _registry;
     private Blueprint _bp = null!;
 
-    // Node lookup by ID.
-    private Dictionary<string, BlueprintNode> _byId = new();
-
-    // Outgoing exec edges: sourceNodeId+pinName → list of target nodes (in connection order).
-    private Dictionary<(string, string), List<BlueprintNode>> _execOut = new();
-
-    // Outgoing data edges: sourceNodeId → list of (targetNode, targetPinName).
-    private Dictionary<string, List<(BlueprintNode Target, string TargetPin)>> _dataOut = new();
+    // Immutable graph index built once per Reverse call: node lookup, the outgoing
+    // exec-edge index, and all data-edge queries the walk performs (see GraphIndex).
+    private GraphIndex _graph = null!;
 
     // Leading comments keyed by their anchor (statement primary) node id.
     private Dictionary<string, BlueprintGroupComment> _groupCommentsByAnchor = new();
@@ -49,7 +44,8 @@ internal sealed class BpReverseTranslator
     // Nodes already consumed by a control-flow node's condition/selector read.
     // WalkExecChain skips these so condition sub-graphs (e.g. `a, b > Compare("BEQ")`
     // feeding Branch.Condition) don't get re-emitted as standalone PipelineStatements.
-    // Populated by MarkConsumedSubtree, called from ReadDataInput.
+    // Populated by MarkConsumedSubtree, called from PreMarkControlFlowConsumed when a
+    // control-flow node is reached on the exec chain.
     private HashSet<string> _consumedNodes = new();
 
     // Every node visited by any WalkExecChain call (the whole Entry-reachable exec
@@ -79,7 +75,7 @@ internal sealed class BpReverseTranslator
         // they are standalone declarations. Usage VariableNodes participate in data edges.
         foreach (var node in bp.Nodes)
         {
-            if (node is ConstNode cn && cn.ConstName is not null && HasNoConnections(node))
+            if (node is ConstNode cn && cn.ConstName is not null && !_graph.HasAnyConnection(node))
             {
                 ir = ir with
                 {
@@ -97,7 +93,7 @@ internal sealed class BpReverseTranslator
                     }),
                 };
             }
-            else if (node is VariableNode vn && vn.VarKind == VariableKind.PubVar && vn.VarName is not null && HasNoConnections(node))
+            else if (node is VariableNode vn && vn.VarKind == VariableKind.PubVar && vn.VarName is not null && !_graph.HasAnyConnection(node))
             {
                 ir = ir with
                 {
@@ -184,7 +180,7 @@ internal sealed class BpReverseTranslator
             result.Add(new DetachedGraph
             {
                 Id = component[0],
-                Nodes = component.Select(nid => DetachedGraphUtil.CloneNode(_byId[nid])).ToImmutableArray(),
+                Nodes = component.Select(nid => DetachedGraphUtil.CloneNode(_graph.GetNode(nid)!)).ToImmutableArray(),
                 Connections = _bp.Connections
                     .Where(c => componentSet.Contains(c.SourceNodeId) && componentSet.Contains(c.TargetNodeId))
                     .Select(DetachedGraphUtil.CloneConnection)
@@ -206,8 +202,8 @@ internal sealed class BpReverseTranslator
 
         // Definition-like nodes were already folded into Constants/GlobalVars above
         // (same predicates as the definition-restore loop) — they are NOT detached.
-        if (n is ConstNode cn && cn.ConstName is not null && HasNoConnections(n)) return false;
-        if (n is VariableNode vn && vn.VarName is not null && HasNoConnections(n)) return false;
+        if (n is ConstNode cn && cn.ConstName is not null && !_graph.HasAnyConnection(n)) return false;
+        if (n is VariableNode vn && vn.VarName is not null && !_graph.HasAnyConnection(n)) return false;
         if (n is ConstNode { IsDefinition: true } or VariableNode { IsDefinition: true }) return false;
 
         if (_mainChainVisited.Contains(n.Id)) return false;
@@ -224,60 +220,20 @@ internal sealed class BpReverseTranslator
     {
         if (string.IsNullOrEmpty(json)) return null;
         try { return JsonSerializer.Deserialize<KsDictLiteral>(json); }
-        catch { return null; }
+        catch (JsonException) { return null; }
     }
 
     // ── Graph indexing ──
 
     private void IndexGraph()
     {
-        _byId = _bp.Nodes.ToDictionary(n => n.Id);
-        _execOut.Clear();
-        _dataOut.Clear();
+        _graph = new GraphIndex(_bp);
         _consumedNodes.Clear();
         _mainChainVisited.Clear();
         _groupCommentsByAnchor = _bp.GroupComments
             .Where(g => !string.IsNullOrEmpty(g.AnchorNodeId))
             .GroupBy(g => g.AnchorNodeId)
             .ToDictionary(g => g.Key, g => g.First());
-
-        foreach (var conn in _bp.Connections)
-        {
-            if (!_byId.TryGetValue(conn.SourceNodeId, out var src)) continue;
-            if (!_byId.TryGetValue(conn.TargetNodeId, out var tgt)) continue;
-
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            var tgtPin = tgt.InputPins.Find(p => p.Id == conn.TargetPinId);
-            if (srcPin is null || tgtPin is null) continue;
-
-            if (srcPin.Type == PinType.Execution && tgtPin.Type == PinType.Execution)
-            {
-                var key = (conn.SourceNodeId, srcPin.Name);
-                if (!_execOut.TryGetValue(key, out var list))
-                {
-                    list = new List<BlueprintNode>();
-                    _execOut[key] = list;
-                }
-                list.Add(tgt);
-            }
-            else
-            {
-                if (!_dataOut.TryGetValue(conn.SourceNodeId, out var list))
-                {
-                    list = new List<(BlueprintNode, string)>();
-                    _dataOut[conn.SourceNodeId] = list;
-                }
-                list.Add((tgt, tgtPin.Name));
-            }
-        }
-    }
-
-    private bool HasNoConnections(BlueprintNode node)
-    {
-        foreach (var conn in _bp.Connections)
-            if (conn.SourceNodeId == node.Id || conn.TargetNodeId == node.Id)
-                return false;
-        return true;
     }
 
     // ── Exec chain walking (pipeline-merging model) ──
@@ -314,7 +270,7 @@ internal sealed class BpReverseTranslator
         var visited = new HashSet<string>();
 
         var queue = new Queue<BlueprintNode>();
-        if (_execOut.TryGetValue((source.Id, pinName), out var initialTargets))
+        if (_graph.TryGetExecTargets(source.Id, pinName, out var initialTargets))
         {
             foreach (var t in initialTargets)
                 queue.Enqueue(t);
@@ -336,7 +292,10 @@ internal sealed class BpReverseTranslator
             // Control-flow node: marks its own condition sub-graph as consumed, flushes
             // the in-progress group (filtering out newly-consumed nodes), then processes
             // the control-flow statement (which recursively walks its sub-scopes).
-            if (node is BuiltinFunctionNode fn && IsControlFlowName(fn.FunctionName))
+            // Note: break/continue are terminators, not control-flow statements, but
+            // WalkBuiltinFunction handles them too — the routing must accept both.
+            if (node is BuiltinFunctionNode fn
+                && (BpPinNames.IsControlFlowName(fn.FunctionName) || BpPinNames.IsTerminatorName(fn.FunctionName)))
             {
                 PreMarkControlFlowConsumed(fn);
                 FlushGroup();
@@ -351,11 +310,11 @@ internal sealed class BpReverseTranslator
             group.Add(node);
 
             // Write-type var tap closes the pipeline.
-            if (IsWriteVarTap(node))
+            if (_graph.IsWriteVarTap(node))
                 FlushGroup();
 
             // Continue the linear exec chain by following this node's exec out.
-            if (_execOut.TryGetValue((node.Id, BpPinNames.Exec), out var nextTargets))
+            if (_graph.TryGetExecTargets(node.Id, BpPinNames.Exec, out var nextTargets))
             {
                 foreach (var t in nextTargets)
                     queue.Enqueue(t);
@@ -376,10 +335,6 @@ internal sealed class BpReverseTranslator
         }
     }
 
-    /// <summary>True if <paramref name="name"/> is a control-flow node function name.</summary>
-    private static bool IsControlFlowName(string name)
-        => name is "Branch" or "Each" or "While" or "Switch" or "break" or "continue";
-
     /// <summary>
     /// Pre-marks the condition/selector sub-graph of a control-flow node as consumed,
     /// so that FlushGroup filters out nodes that were speculatively added to the group
@@ -399,13 +354,12 @@ internal sealed class BpReverseTranslator
 
         var pin = fn.InputPins.Find(p => p.Name == dataInputPin);
         if (pin is null) return;
-        foreach (var conn in _bp.Connections)
-        {
-            if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
-            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-            if (src is not null) MarkConsumedSubtree(src);
-            break;
-        }
+        // First connection (in connection order) targeting this pin — the original
+        // scan broke after the first match. GraphIndex's per-pin list preserves that
+        // order; see the GraphIndex header for the dangling-source convergence note.
+        var edges = _graph.IncomingTo(fn.Id, pin.Id);
+        if (edges is { Count: > 0 })
+            MarkConsumedSubtree(edges[0].Source);
     }
 
     /// <summary>
@@ -426,34 +380,34 @@ internal sealed class BpReverseTranslator
         // edge is a no-op exec anchor (BP-side usage node on the chain with no data
         // connections) and must be split into its own bare-line statement — otherwise
         // the reverse would fabricate a data edge that never existed.
-        if (prevIsRead && nextIsRead && HasOutgoingDataEdge(prev)) return true;
+        if (prevIsRead && nextIsRead && _graph.HasOutgoingDataEdge(prev)) return true;
 
         // Read → Function: function consumes prev's value (e.g. `a > Print`).
         if (prevIsRead && next is BuiltinFunctionNode fn)
-            return HasDataInputFrom(fn, prev);
+            return _graph.HasIncomingDataFrom(fn, prev);
 
         // Read → VarTap: var tap receives prev's value (e.g. `0 > counter`).
-        if (prevIsRead && next is VariableNode tapVn && HasIncomingDataEdge(tapVn))
-            return DataComesFrom(tapVn, prev);
+        if (prevIsRead && next is VariableNode tapVn && _graph.HasIncomingDataEdge(tapVn))
+            return _graph.HasIncomingDataFrom(tapVn, prev);
 
         // Function → Function: next function consumes prev function's output
         // (e.g. `Range > Print` — Range's output flows to Print's input).
         if (prev is BuiltinFunctionNode prevFn && next is BuiltinFunctionNode nextFn)
-            return HasDataInputFrom(nextFn, prevFn);
+            return _graph.HasIncomingDataFrom(nextFn, prevFn);
 
         // Function → VarTap: var tap receives prev function's output (e.g. `func > counter`).
-        if (prev is BuiltinFunctionNode prevFn2 && next is VariableNode vn2 && HasIncomingDataEdge(vn2))
-            return DataComesFrom(vn2, prevFn2);
+        if (prev is BuiltinFunctionNode prevFn2 && next is VariableNode vn2 && _graph.HasIncomingDataEdge(vn2))
+            return _graph.HasIncomingDataFrom(vn2, prevFn2);
 
         // VarTap → Function / VarTap → VarTap: tap-mode var tap (has outgoing data edge)
         // acts as pass-through — its Value output may feed the next segment. This keeps
         // multi-segment pipelines like `0 > counter > Print` merged into one statement.
-        if (prev is VariableNode prevTap && HasIncomingDataEdge(prevTap))
+        if (prev is VariableNode prevTap && _graph.HasIncomingDataEdge(prevTap))
         {
             if (next is BuiltinFunctionNode nextFnFromTap)
-                return HasDataInputFrom(nextFnFromTap, prevTap);
-            if (next is VariableNode nextVnFromTap && HasIncomingDataEdge(nextVnFromTap))
-                return DataComesFrom(nextVnFromTap, prevTap);
+                return _graph.HasIncomingDataFrom(nextFnFromTap, prevTap);
+            if (next is VariableNode nextVnFromTap && _graph.HasIncomingDataEdge(nextVnFromTap))
+                return _graph.HasIncomingDataFrom(nextVnFromTap, prevTap);
         }
 
         return false;
@@ -463,88 +417,8 @@ internal sealed class BpReverseTranslator
     private bool IsReadSource(BlueprintNode node)
     {
         if (node is ConstNode) return true;
-        if (node is VariableNode vn && !HasIncomingDataEdge(vn)) return true;
+        if (node is VariableNode vn && !_graph.HasIncomingDataEdge(vn)) return true;
         return false;
-    }
-
-    /// <summary>
-    /// True when the node's data output (any non-Exec output pin) has at least one
-    /// outgoing data edge — i.e. the read's value actually flows to a consumer.
-    /// </summary>
-    private bool HasOutgoingDataEdge(BlueprintNode node)
-    {
-        foreach (var conn in _bp.Connections)
-        {
-            if (conn.SourceNodeId != node.Id) continue;
-            if (!_byId.ContainsKey(conn.TargetNodeId)) continue;
-            var srcPin = node.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            return true;
-        }
-        return false;
-    }
-
-    /// <summary>True if <paramref name="vn"/> has an incoming data edge on its Value input.</summary>
-    private bool HasIncomingDataEdge(VariableNode vn)
-    {
-        foreach (var conn in _bp.Connections)
-        {
-            if (conn.TargetNodeId != vn.Id) continue;
-            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-            if (src is null) continue;
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            return true;
-        }
-        return false;
-    }
-
-    /// <summary>True if <paramref name="vn"/>'s Value input data edge originates from <paramref name="src"/>.</summary>
-    private bool DataComesFrom(VariableNode vn, BlueprintNode src)
-    {
-        foreach (var conn in _bp.Connections)
-        {
-            if (conn.TargetNodeId != vn.Id || conn.SourceNodeId != src.Id) continue;
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            return true;
-        }
-        return false;
-    }
-
-    /// <summary>True if <paramref name="fn"/> has at least one wired data input from <paramref name="src"/>.</summary>
-    private bool HasDataInputFrom(BuiltinFunctionNode fn, BlueprintNode src)
-    {
-        foreach (var conn in _bp.Connections)
-        {
-            if (conn.TargetNodeId != fn.Id || conn.SourceNodeId != src.Id) continue;
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// True if <paramref name="node"/> is a write-type var tap (Value input has incoming
-    /// data edge AND Value output has no outgoing data edge). Such nodes close the
-    /// pipeline because they're the assignment target.
-    /// </summary>
-    private bool IsWriteVarTap(BlueprintNode node)
-    {
-        if (node is not VariableNode vn) return false;
-        if (!HasIncomingDataEdge(vn)) return false;
-        // Check that Value output has no outgoing data edge.
-        foreach (var conn in _bp.Connections)
-        {
-            if (conn.SourceNodeId != vn.Id) continue;
-            var tgt = _byId.GetValueOrDefault(conn.TargetNodeId);
-            if (tgt is null) continue;
-            var tgtPin = tgt.InputPins.Find(p => p.Id == conn.TargetPinId);
-            if (tgtPin is null || tgtPin.Type == PinType.Execution) continue;
-            return false;  // has outgoing data edge → tap, not pure write
-        }
-        return true;
     }
 
     /// <summary>
@@ -580,7 +454,7 @@ internal sealed class BpReverseTranslator
                     sourceNodes.Add(cn);
                     break;
                 case VariableNode vn:
-                    if (HasIncomingDataEdge(vn))
+                    if (_graph.HasIncomingDataEdge(vn))
                     {
                         // Var tap segment (write or tap); the tap node's Comment is its
                         // inline segment comment (`> x // cmt`).
@@ -604,13 +478,13 @@ internal sealed class BpReverseTranslator
                     // must be restored as a KsCall source, otherwise the pipeline's
                     // leading call is dropped (round-trip produces `> PluginCall(...)`).
                     // The bare-call form (whole group = single function) is handled below.
-                    if (ReferenceEquals(group[0], fn) && !HasWiredInputs(fn))
+                    if (IsGroupLeadingFunctionSource(fn, group))
                     {
                         sourceNodes.Add(fn);
                         break;
                     }
                     // Build the segment with full Arguments (preserves literals + placeholders).
-                    var (seg, wiredSourceCount) = BuildSegmentFromFunctionNode(fn);
+                    var seg = BuildSegmentFromFunctionNode(fn);
                     // Sources that feed this function via wired inputs are collected
                     // when they appear earlier in the group as ConstNode/read VarNode.
                     // But if the function is the FIRST node in group (no preceding read
@@ -630,28 +504,15 @@ internal sealed class BpReverseTranslator
         {
             // Function sources keep the literal-inlined KsCall reconstruction (bare
             // `PluginCall(...)` at group head); read nodes convert via NodeToKsNode.
-            sources.Add(n is BuiltinFunctionNode fnSrc
-                        && ReferenceEquals(group[0], fnSrc) && !HasWiredInputs(fnSrc)
+            sources.Add(n is BuiltinFunctionNode fnSrc && IsGroupLeadingFunctionSource(fnSrc, group)
                 ? BuildKsCallFromFunctionNode(fnSrc)
                 : NodeToKsNode(n));
         }
 
         // Determine bare call vs pipeline form.
         // Bare call: single function node with no wired inputs AND no preceding sources.
-        if (group.Count == 1 && group[0] is BuiltinFunctionNode singleFn
-            && !HasWiredInputs(singleFn))
-        {
-            var (leading, trailing) = ReadComments(singleFn);
-            var call = BuildKsCallFromFunctionNode(singleFn);
-            return WithFingerprint(new PipelineStatement
-            {
-                Fingerprint = Fingerprint.Compute("placeholder"),
-                Sources = [call],
-                Segments = [],
-                LeadingComment = leading,
-                TrailingComment = trailing,
-            });
-        }
+        var bareCall = TryBuildBareCall(group);
+        if (bareCall is not null) return bareCall;
 
         // Pipeline form: Sources=[collected sources], Segments=[collected segments].
         // The primary node's Comment is the LAST SEGMENT's inline comment (rendered on
@@ -661,20 +522,64 @@ internal sealed class BpReverseTranslator
         // source list's final line), so we lift it off the final source here.
         var primaryForComments = lastFuncOrTap ?? primary;
         var leadingOnly = ReadComments(primaryForComments).Leading;
-        string? pipeTrailing = null;
-        if (sources.Count > 0 && sources[^1].Comment is { Length: > 0 })
-        {
-            pipeTrailing = sources[^1].Comment;
-            sources[^1] = sources[^1] with { Comment = null };
-        }
+        string? pipeTrailing = LiftTrailingSourceComment(sources);
         return WithFingerprint(new PipelineStatement
         {
-            Fingerprint = Fingerprint.Compute("placeholder"),
+            Fingerprint = default,
             Sources = sources.ToImmutable(),
             Segments = segments.ToImmutable(),
             LeadingComment = leadingOnly,
             TrailingComment = pipeTrailing,
         });
+    }
+
+    /// <summary>
+    /// True when <paramref name="fn"/> is the group-leading function source: it occupies
+    /// position 0 of the group AND has no wired data inputs. Such a function is restored
+    /// as a KsCall source rather than a pipeline segment (the bare-call / leading-call
+    /// forms), so it is never treated as a consuming segment.
+    /// </summary>
+    private bool IsGroupLeadingFunctionSource(BuiltinFunctionNode fn, List<BlueprintNode> group)
+        => ReferenceEquals(group[0], fn) && !_graph.HasWiredInputs(fn);
+
+    /// <summary>
+    /// Attempts to build the bare-call form: a group that is a SINGLE function node
+    /// with no wired inputs and no preceding sources. Returns null when the group is
+    /// not in that form (caller falls through to the pipeline form).
+    /// </summary>
+    private Statement? TryBuildBareCall(List<BlueprintNode> group)
+    {
+        if (group.Count == 1 && group[0] is BuiltinFunctionNode singleFn
+            && !_graph.HasWiredInputs(singleFn))
+        {
+            var (leading, trailing) = ReadComments(singleFn);
+            var call = BuildKsCallFromFunctionNode(singleFn);
+            return WithFingerprint(new PipelineStatement
+            {
+                Fingerprint = default,
+                Sources = [call],
+                Segments = [],
+                LeadingComment = leading,
+                TrailingComment = trailing,
+            });
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Lifts the statement TrailingComment off the LAST SOURCE node (parser capture
+    /// point A reads it back from the source list's final line) and clears the source's
+    /// own inline comment so it isn't duplicated on re-parse.
+    /// </summary>
+    private static string? LiftTrailingSourceComment(ImmutableArray<KsNode>.Builder sources)
+    {
+        if (sources.Count > 0 && sources[^1].Comment is { Length: > 0 })
+        {
+            var trailing = sources[^1].Comment;
+            sources[^1] = sources[^1] with { Comment = null };
+            return trailing;
+        }
+        return null;
     }
 
     /// <summary>
@@ -693,7 +598,7 @@ internal sealed class BpReverseTranslator
         foreach (var node in group)
         {
             if (node is not BuiltinFunctionNode fn) continue;
-            if (ReferenceEquals(group[0], fn) && !HasWiredInputs(fn)) continue;
+            if (IsGroupLeadingFunctionSource(fn, group)) continue;
             consumer = fn;
             break;
         }
@@ -704,13 +609,14 @@ internal sealed class BpReverseTranslator
         foreach (var pin in consumer.InputPins)
         {
             if (pin.Name == BpPinNames.Exec) continue;
-            foreach (var conn in _bp.Connections)
+            // First connection (in connection order) targeting this pin; the original
+            // scan broke after the first match regardless of source resolution.
+            var edges = _graph.IncomingTo(consumer.Id, pin.Id);
+            if (edges is { Count: > 0 })
             {
-                if (conn.TargetNodeId != consumer.Id || conn.TargetPinId != pin.Id) continue;
-                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null && sourceNodes.Contains(src) && seen.Add(src))
+                var src = edges[0].Source;
+                if (sourceNodes.Contains(src) && seen.Add(src))
                     pinOrdered.Add(src);
-                break;
             }
         }
         if (pinOrdered.Count == 0) return;
@@ -729,31 +635,23 @@ internal sealed class BpReverseTranslator
     /// KS source is in the append form `i > Print` and Arguments stays empty — this
     /// matches the parser's canonical append representation.
     /// </summary>
-    private (Segment Segment, int WiredCount) BuildSegmentFromFunctionNode(BuiltinFunctionNode fn)
+    private Segment BuildSegmentFromFunctionNode(BuiltinFunctionNode fn)
     {
         var args = ImmutableArray.CreateBuilder<KsNode>();
         var rawArgs = ImmutableArray.CreateBuilder<string>();
-        int wiredCount = 0;
         bool hasLiteralArg = false;
 
         foreach (var pin in fn.InputPins)
         {
             if (pin.Name == BpPinNames.Exec) continue;
 
-            // Check for a wired source.
-            bool isWired = false;
-            foreach (var conn in _bp.Connections)
-            {
-                if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
-                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) { isWired = true; break; }
-            }
+            // Check for a wired source (any resolved edge targeting this pin).
+            bool isWired = _graph.IncomingTo(fn.Id, pin.Id) is { Count: > 0 };
 
             if (isWired)
             {
                 args.Add(new KsPlaceholder { SourceText = "_" });
                 rawArgs.Add("_");
-                wiredCount++;
             }
             else if (pin.DefaultValue is not null)
             {
@@ -779,39 +677,26 @@ internal sealed class BpReverseTranslator
             RawArguments = finalRawArgs,
             Comment = segComment,
         };
-        return (seg, wiredCount);
-    }
-
-    /// <summary>True if <paramref name="fn"/> has any wired (non-default) data input.</summary>
-    private bool HasWiredInputs(BuiltinFunctionNode fn)
-    {
-        foreach (var pin in fn.InputPins)
-        {
-            if (pin.Name == BpPinNames.Exec) continue;
-            foreach (var conn in _bp.Connections)
-                if (conn.TargetNodeId == fn.Id && conn.TargetPinId == pin.Id)
-                    return true;
-        }
-        return false;
+        return seg;
     }
 
     /// <summary>
     /// Marks the entire condition/selector sub-graph rooted at <paramref name="node"/>
     /// as consumed so WalkExecChain skips it. Recursively walks upstream data edges.
-    /// Called from ReadDataInput when a control-flow node reads its condition.
+    /// Called from PreMarkControlFlowConsumed when a control-flow node is reached on
+    /// the exec chain.
     /// </summary>
     private void MarkConsumedSubtree(BlueprintNode node)
     {
         if (!_consumedNodes.Add(node.Id)) return;  // already marked
-        // Walk upstream data edges, mark all source nodes recursively.
-        foreach (var conn in _bp.Connections)
+        // Walk upstream data edges, mark all source nodes recursively. Edges whose
+        // source pin resolves to a data pin only (the original predicate).
+        var incoming = _graph.IncomingToNode(node.Id);
+        if (incoming is null) return;
+        foreach (var e in incoming)
         {
-            if (conn.TargetNodeId != node.Id) continue;
-            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-            if (src is null) continue;
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            MarkConsumedSubtree(src);
+            if (e.SourcePin is null || e.SourcePin.Type == PinType.Execution) continue;
+            MarkConsumedSubtree(e.Source);
         }
     }
 
@@ -844,10 +729,10 @@ internal sealed class BpReverseTranslator
                 result.AddRange(WalkExecChain(fn, BpPinNames.End));
                 break;
             case "break":
-                result.Add(WithFingerprint(ApplyComments(new BreakStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
+                result.Add(WithFingerprint(ApplyComments(new BreakStatement { Fingerprint = default }, fn)));
                 break;
             case "continue":
-                result.Add(WithFingerprint(ApplyComments(new ContinueStatement { Fingerprint = Fingerprint.Compute("placeholder") }, fn)));
+                result.Add(WithFingerprint(ApplyComments(new ContinueStatement { Fingerprint = default }, fn)));
                 break;
             default:
                 // Non-control-flow BuiltinFunctionNode must never reach here — the active
@@ -872,7 +757,7 @@ internal sealed class BpReverseTranslator
         var (leading, trailing) = ReadComments(br);
         var stmt = new IfStatement
         {
-            Fingerprint = Fingerprint.Compute("placeholder"),
+            Fingerprint = default,
             Condition = cond,
             ThenBody = [.. thenBody],
             ElseBody = [.. elseBody],
@@ -891,7 +776,7 @@ internal sealed class BpReverseTranslator
         var (leading, trailing) = ReadComments(each);
         var stmt = new ForEachStatement
         {
-            Fingerprint = Fingerprint.Compute("placeholder"),
+            Fingerprint = default,
             Source = source,
             ItemName = itemName,
             Body = [.. body],
@@ -908,7 +793,7 @@ internal sealed class BpReverseTranslator
         var (leading, trailing) = ReadComments(wh);
         var stmt = new WhileStatement
         {
-            Fingerprint = Fingerprint.Compute("placeholder"),
+            Fingerprint = default,
             Condition = cond,
             Body = [.. body],
             LeadingComment = leading,
@@ -938,13 +823,13 @@ internal sealed class BpReverseTranslator
             arms.Add([.. WalkExecChain(sw, pinName)]);
         }
 
-        var defaultBody = _execOut.ContainsKey((sw.Id, BpPinNames.Default))
+        var defaultBody = _graph.HasExecTargets(sw.Id, BpPinNames.Default)
             ? WalkExecChain(sw, BpPinNames.Default)
             : new List<Statement>();
         var (leading, trailing) = ReadComments(sw);
         var stmt = new SwitchStatement
         {
-            Fingerprint = Fingerprint.Compute("placeholder"),
+            Fingerprint = default,
             Selector = selector,
             Arms = arms.ToImmutable(),
             ArmLabels = armLabels.ToImmutable(),
@@ -997,21 +882,20 @@ internal sealed class BpReverseTranslator
             return MakeBoolLiteral(true);
         }
 
-        // Find the incoming data connection targeting this pin.
-        foreach (var conn in _bp.Connections)
+        // Find the incoming data connection targeting this pin. First edge (in
+        // connection order) whose source pin resolves to a data pin — GraphIndex's
+        // per-pin list preserves connection order, so this is the original first-match.
+        var incoming = _graph.IncomingTo(node.Id, pin.Id);
+        if (incoming is not null)
         {
-            if (conn.TargetNodeId != node.Id) continue;
-            var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-            if (src is null) continue;
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type == PinType.Execution) continue;
-            var tgtPin = src.InputPins.Find(p => p.Id == conn.TargetPinId);
-            // Confirm this connection targets our pin.
-            if (pin.Id != conn.TargetPinId) continue;
-            // Consumption is marked once, in WalkExecChain, by PreMarkControlFlowConsumed
-            // before the control-flow node's sub-scope is walked — this method is only
-            // reachable through that path, so no defensive re-mark is needed here.
-            return NodeToKsNode(src);
+            foreach (var e in incoming)
+            {
+                if (e.SourcePin is null || e.SourcePin.Type == PinType.Execution) continue;
+                // Consumption is marked once, in WalkExecChain, by PreMarkControlFlowConsumed
+                // before the control-flow node's sub-scope is walked — this method is only
+                // reachable through that path, so no defensive re-mark is needed here.
+                return NodeToKsNode(e.Source);
+            }
         }
 
         // No wired source — use the pin's DefaultValue if available.
@@ -1100,12 +984,10 @@ internal sealed class BpReverseTranslator
         {
             if (pin.Name == BpPinNames.Exec) continue;
             KsNode? wired = null;
-            foreach (var conn in _bp.Connections)
-            {
-                if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
-                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) { wired = NodeToKsNode(src); break; }
-            }
+            // First resolved edge (in connection order) targeting this pin.
+            var incoming = _graph.IncomingTo(fn.Id, pin.Id);
+            if (incoming is { Count: > 0 })
+                wired = NodeToKsNode(incoming[0].Source);
             if (wired is not null)
             {
                 anyWired = true;
@@ -1171,14 +1053,9 @@ internal sealed class BpReverseTranslator
         foreach (var pin in fn.InputPins)
         {
             if (pin.Name == BpPinNames.Exec) continue;
-            // Check for a wired data source first.
-            KsNode? wired = null;
-            foreach (var conn in _bp.Connections)
-            {
-                if (conn.TargetNodeId != fn.Id || conn.TargetPinId != pin.Id) continue;
-                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
-                if (src is not null) { wired = NodeToKsNode(src); break; }
-            }
+            // Check for a wired data source first (first resolved edge in connection order).
+            var incoming = _graph.IncomingTo(fn.Id, pin.Id);
+            KsNode? wired = incoming is { Count: > 0 } ? NodeToKsNode(incoming[0].Source) : null;
             args.Add(wired ?? ParseDefaultValue(pin.DefaultValue ?? "null"));
         }
         return new KsCall

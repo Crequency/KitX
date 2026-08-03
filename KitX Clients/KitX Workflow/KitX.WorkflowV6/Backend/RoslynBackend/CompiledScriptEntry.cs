@@ -31,9 +31,6 @@ internal sealed class CompiledScriptEntry
         _alc = alc;
     }
 
-    /// <summary>Always true while not explicitly unloaded.</summary>
-    public bool IsAlive => true;
-
     /// <summary>Unloads the assembly context, releasing the compiled assembly's memory.</summary>
     public void Unload()
     {

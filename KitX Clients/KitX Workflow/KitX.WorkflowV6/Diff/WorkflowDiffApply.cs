@@ -141,6 +141,7 @@ public static class WorkflowDiffApply
     /// Copies Layout annotations from <paramref name="baseline"/> to <paramref name="target"/>,
     /// preserving canvas positions when a statement is Modified in place. Only Layout
     /// annotations are copied (DebugHighlight etc. are not — they're runtime state).
+    /// 零生产者（生产代码无 Layout annotation 产出），T5 位置持久化立项预留——勿删勿改。
     /// </summary>
     private static Statement CopyLayoutFrom(Statement baseline, Statement target)
     {

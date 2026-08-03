@@ -78,7 +78,7 @@ internal static class StructuralReducer
             if (count > 1)
             {
                 var n = nodeById.GetValueOrDefault(nodeId);
-                return new ConstraintViolation("KS102", "E3", $"KS102: 节点 '{n?.Name ?? nodeId}' 的 Exec input 有 {count} 条 incoming edges，违反唯一前驱约束（E3）。v6 End-pin 模型不允许菱形合流；建议：让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", new[] { nodeId }, null, "让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
+                return new ConstraintViolation(KsConstraintErrors.KS102, "E3", $"{KsConstraintErrors.KS102}: 节点 '{n?.Name ?? nodeId}' 的 Exec input 有 {count} 条 incoming edges，违反唯一前驱约束（E3）。v6 End-pin 模型不允许菱形合流；建议：让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", new[] { nodeId }, null, "让子作用域末节点 exec-out 悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
             }
         }
 
@@ -97,20 +97,20 @@ internal static class StructuralReducer
             if (count > 1)
             {
                 var n = nodeById.GetValueOrDefault(nodeId);
-                return new ConstraintViolation("KS111", "D2", $"KS111: 节点 '{n?.Name ?? nodeId}' 的 data input pin 有 {count} 条 incoming edges，违反单输入约束（D2）。每个 data input pin 至多一条 incoming edge。", new[] { nodeId }, null, "每个 data input pin 至多一条 incoming edge，删除多余的连线。", IsConnectionStructural: true);
+                return new ConstraintViolation(KsConstraintErrors.KS111, "D2", $"{KsConstraintErrors.KS111}: 节点 '{n?.Name ?? nodeId}' 的 data input pin 有 {count} 条 incoming edges，违反单输入约束（D2）。每个 data input pin 至多一条 incoming edge。", new[] { nodeId }, null, "每个 data input pin 至多一条 incoming edge，删除多余的连线。", IsConnectionStructural: true);
             }
         }
 
         // ── E6 (KS105): No explicit exec back-edges ──
         var execCycle = FindCycle(blueprint, nodeById, execOnly: true);
         if (execCycle is not null)
-            return new ConstraintViolation("KS105", "E6", "KS105: 检测到显式 exec 回环，违反回边规则（E6）。循环的\"回到循环头\"语义应通过 body 末节点 exec-out 悬空隐式表达；不允许显式画从 body 末节点到循环节点的 exec edge。",
+            return new ConstraintViolation(KsConstraintErrors.KS105, "E6", $"{KsConstraintErrors.KS105}: 检测到显式 exec 回环，违反回边规则（E6）。循环的\"回到循环头\"语义应通过 body 末节点 exec-out 悬空隐式表达；不允许显式画从 body 末节点到循环节点的 exec edge。",
                 execCycle, null, "使用 Each/While 控制流节点表达循环，让 body 末节点 exec-out 悬空（自然结束）。", IsConnectionStructural: true);
 
         // ── D1 (KS110): Data DAG — data graph must be acyclic ──
         var dataCycle = FindCycle(blueprint, nodeById, execOnly: false);
         if (dataCycle is not null)
-            return new ConstraintViolation("KS110", "D1", "KS110: Data graph 成环，违反 DAG 约束（D1）。值的定义不能循环依赖。",
+            return new ConstraintViolation(KsConstraintErrors.KS110, "D1", $"{KsConstraintErrors.KS110}: Data graph 成环，违反 DAG 约束（D1）。值的定义不能循环依赖。",
                 dataCycle, null, "检查数据连线，消除循环依赖。", IsConnectionStructural: true);
 
         // ── E1 (KS100): Connectivity ──
@@ -185,7 +185,7 @@ internal static class StructuralReducer
                 if (IsDefinitionNode(node)) continue;
                 if (execReachable.Contains(node.Id)) continue;
                 if (dataReachable.Contains(node.Id)) continue;  // proxied via data edge
-                return new ConstraintViolation("KS100", "E1", $"KS100: 节点 '{node.Name ?? node.Id}' 未接入 exec graph，违反连通性约束（E1）。建议：将该节点的 Exec input 连接到上游节点的 Exec output。", new[] { node.Id }, null, "将该节点的 Exec input 连接到上游节点的 Exec output。");
+                return new ConstraintViolation(KsConstraintErrors.KS100, "E1", $"{KsConstraintErrors.KS100}: 节点 '{node.Name ?? node.Id}' 未接入 exec graph，违反连通性约束（E1）。建议：将该节点的 Exec input 连接到上游节点的 Exec output。", new[] { node.Id }, null, "将该节点的 Exec input 连接到上游节点的 Exec output。");
             }
         }
 
@@ -207,7 +207,7 @@ internal static class StructuralReducer
             bool hasExecOut = node.OutputPins.Any(p => p.Type == PinType.Execution)
                               || IsTerminatorNode(node);
             if (!hasExecIn || !hasExecOut)
-                return new ConstraintViolation("KS120", "C1", $"KS120: 节点 '{node.Name ?? node.Id}' 是使用型节点但缺少 Exec pin，违反双图耦合约束（C1）。除定义型节点（const/var 块声明）和终结符外，所有节点必须有 Exec input/output pin 并接入 exec graph。", new[] { node.Id }, null, "为该节点添加 Exec input/output pin 并接入执行流。");
+                return new ConstraintViolation(KsConstraintErrors.KS120, "C1", $"{KsConstraintErrors.KS120}: 节点 '{node.Name ?? node.Id}' 是使用型节点但缺少 Exec pin，违反双图耦合约束（C1）。除定义型节点（const/var 块声明）和终结符外，所有节点必须有 Exec input/output pin 并接入 exec graph。", new[] { node.Id }, null, "为该节点添加 Exec input/output pin 并接入执行流。");
         }
 
         // ── N2 (KS130): VarName consistency ──
@@ -231,7 +231,7 @@ internal static class StructuralReducer
             if (IsDefinitionNode(node)) continue;
             if (node.VarName is null) continue;
             if (!defVarNames.Contains(node.VarName))
-                return new ConstraintViolation("KS130", "N2", $"KS130: 使用型 VariableNode '{node.VarName}' 没有对应的定义型节点，违反 VarName 一致性约束（N2）。建议：在 var {{ ... }} 块中声明该变量。", new[] { node.Id }, null, "在 var { ... } 块中声明该变量。");
+                return new ConstraintViolation(KsConstraintErrors.KS130, "N2", $"{KsConstraintErrors.KS130}: 使用型 VariableNode '{node.VarName}' 没有对应的定义型节点，违反 VarName 一致性约束（N2）。建议：在 var {{ ... }} 块中声明该变量。", new[] { node.Id }, null, "在 var { ... } 块中声明该变量。");
         }
 
         return null;  // structurally valid
@@ -252,16 +252,7 @@ internal static class StructuralReducer
     }
 
     private static bool IsTerminatorNode(BlueprintNode node)
-        => node is BuiltinFunctionNode fn
-           && (fn.FunctionName == "break" || fn.FunctionName == "continue");
-
-    private static bool IsControlFlowNode(BlueprintNode node)
-        => node is BuiltinFunctionNode fn
-           && (fn.FunctionName == "Branch" || fn.FunctionName == "Each"
-               || fn.FunctionName == "While" || fn.FunctionName == "Switch");
-
-    private static bool IsControlFlowName(string name)
-        => name is "Branch" or "Each" or "While" or "Switch";
+        => node is BuiltinFunctionNode fn && BpPinNames.IsTerminatorName(fn.FunctionName);
 
     /// <summary>
     /// Cycle detection. When execOnly is true, follows only exec pins (E6);
@@ -354,7 +345,7 @@ internal static class StructuralReducer
             if (IsDefinitionNode(node)) continue;
             if (visited.Contains(node.Id)) continue;
             if (dataReachable.Contains(node.Id)) continue;
-            return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。", IsConnectionStructural: true);
+            return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。", IsConnectionStructural: true);
         }
         return null;
     }
@@ -412,13 +403,13 @@ internal static class StructuralReducer
             {
                 // Re-visiting a node in a *different* path = merge point = structural error.
                 var n = nodeById.GetValueOrDefault(targetId);
-                return new ConstraintViolation("KS101", "E2", $"KS101: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
+                return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
             }
 
             if (!nodeById.TryGetValue(targetId, out var node))
-                return new ConstraintViolation("KS101", "E2", $"KS101: 节点 {targetId} 不存在。", new[] { targetId });
+                return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 {targetId} 不存在。", new[] { targetId });
 
-            if (node is BuiltinFunctionNode fn && IsControlFlowName(fn.FunctionName))
+            if (node is BuiltinFunctionNode fn && BpPinNames.IsControlFlowName(fn.FunctionName))
             {
                 // Control-flow node: walk each sub-scope pin in a fresh context,
                 // then continue from End pin.
@@ -443,7 +434,7 @@ internal static class StructuralReducer
             {
                 // break/continue: must be inside a loop scope.
                 if (loopScopeStack.Count == 0)
-                    return new ConstraintViolation("KS140", "BreakContinue", $"KS140: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { targetId }, null, "将 break/continue 移到 forEach 或 while 的 body 内。", IsConnectionStructural: true);
+                    return new ConstraintViolation(KsConstraintErrors.KS140, "BreakContinue", $"{KsConstraintErrors.KS140}: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { targetId }, null, "将 break/continue 移到 forEach 或 while 的 body 内。", IsConnectionStructural: true);
                 // Terminator has no exec-out — walk ends here.
             }
             else

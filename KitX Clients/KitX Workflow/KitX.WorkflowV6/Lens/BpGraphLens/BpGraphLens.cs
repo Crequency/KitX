@@ -59,19 +59,6 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     }
 
     /// <summary>
-    /// Validates the Blueprint's structural integrity per the v6 End-pin model
-    /// (KScript-Blueprint-Correspondence.md §五). Returns null on success, or a
-    /// user-facing error message (with KS error code) on failure. The Dashboard
-    /// BP editor calls this on every connectivity edit to reject illegal graphs.
-    /// Pure: the blueprint is never mutated.
-    /// </summary>
-    public string? Validate(Blueprint blueprint)
-    {
-        ArgumentNullException.ThrowIfNull(blueprint);
-        return StructuralReducer.Check(blueprint);
-    }
-
-    /// <summary>
     /// Validates the blueprint and returns a structured violation (with node IDs for
     /// frontend highlighting) on failure, or null on success. Frontend BP editor calls
     /// this during connection hover-preview and on commit to enforce strong constraints.

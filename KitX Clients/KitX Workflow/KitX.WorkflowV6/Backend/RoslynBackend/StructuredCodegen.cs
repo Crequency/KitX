@@ -40,11 +40,10 @@ internal sealed class StructuredCodegen : CodegenBase
 
     private void EmitStatement(Statement stmt)
     {
-        EmitCheckpoint("", "", 0);
         switch (stmt)
         {
             case PipelineStatement p:
-                EmitPipeline(p, 0, 0);
+                EmitPipeline(p, "");
                 break;
             case IfStatement iff:
                 EmitLine($"if ({RenderKsNode(iff.Condition)})");
@@ -62,7 +61,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 EmitLine("}");
                 break;
             case ForEachStatement fe:
-                EmitLine($"foreach (var {fe.ItemName} in {RenderForEachSource(fe.Source)})");
+                EmitLine($"foreach (var {fe.ItemName} in {RenderKsNode(fe.Source)})");
                 EmitLine("{");
                 Indent();
                 PushLocal(fe.ItemName);
@@ -124,7 +123,7 @@ internal sealed class StructuredCodegen : CodegenBase
         EmitLine("}");
     }
 
-    protected override void EmitPipeline(PipelineStatement p, int ordinal, int depth)
+    protected override void EmitPipeline(PipelineStatement p, string stmtPath)
     {
         if (p.Segments.Length == 0)
         {

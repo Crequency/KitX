@@ -87,8 +87,6 @@ public class GuessNumberDemo : IClassFixture<WorkflowTestFixture>
             PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type)
                 .Concat(ir.Constants.ToDictionary(c => c.Key, c => c.Value.Type))
                 .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
-            HelperReturnTypes = new Dictionary<string, string>(),
-            InjectedVariableNames = new HashSet<string>(),
         };
         var csharp = codegen.Generate(ir, codegenLowering);
 

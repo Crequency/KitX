@@ -91,15 +91,6 @@ internal abstract class CodegenBase
         return IsLocal(id.Name) ? id.Name : $"this.{id.Name}";
     }
 
-    protected virtual string RenderForEachSource(KsNode source)
-    {
-        if (source is KsCall call && call.MethodName == "Range")
-        {
-            return $"this.Range({string.Join(", ", call.Args.Select(RenderKsNode))})";
-        }
-        return RenderKsNode(source);
-    }
-
     protected string RenderPipelineAsExpression(KsPipeline pipe)
     {
         if (pipe.Segments.Length == 0)
@@ -192,7 +183,7 @@ internal abstract class CodegenBase
         }
     }
 
-    protected abstract void EmitPipeline(PipelineStatement p, int ordinal, int depth);
+    protected abstract void EmitPipeline(PipelineStatement p, string stmtPath);
 
     protected virtual void EmitCheckpoint(string stmtId, string lexicalPath, int ordinal) { }
 

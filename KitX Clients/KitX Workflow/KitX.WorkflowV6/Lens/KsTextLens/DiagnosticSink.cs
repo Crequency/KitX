@@ -59,20 +59,4 @@ public sealed class KsDiagnosticSink
             Line = line,
             Column = column,
         });
-
-    public void AddWarning(string code, string message, int? line = null, int? column = null)
-        => _items.Add(new KsDiagnostic
-        {
-            Severity = KsDiagnosticSeverity.Warning,
-            Code = code,
-            Message = message,
-            Line = line,
-            Column = column,
-        });
-
-    public void AddRange(KsDiagnosticSink? other)
-    {
-        if (other is null) return;
-        _items.AddRange(other._items);
-    }
 }

@@ -14,8 +14,7 @@ namespace KitX.WorkflowV6.Lens.BpGraphLens;
 //     "0"/"1"/.../"Default" (Switch arms).
 //   • Data pins driven by control-flow nodes: "Condition" (Branch/While),
 //     "List" (Each), "Selector" (Switch), "Current" (Each element output).
-//   • Generic data pins: "Value" (default for Const/Variable/PassThrough),
-//     "Result" (default for function output).
+//   • Generic data pins: "Value" (default for Const/Variable/PassThrough).
 //   • Named multi-arg function pins: from builtin PortSpec (From/To/Step for Range,
 //     Op/A/B for Compare, Left/Right for StringConcat, etc.).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,24 +45,25 @@ internal static class BpPinNames
 
     // Generic data pin names.
     public const string Value = "Value";
-    public const string Result = "Result";
 
-    // Named builtin function pins (mirrors PortSpec.Name in Builtin/Functions/*).
-    public const string From = "From";
-    public const string To = "To";
-    public const string Step = "Step";
-    public const string Op = "Op";
-    public const string A = "A";
-    public const string B = "B";
-    public const string Left = "Left";
-    public const string Right = "Right";
+    // Control-flow node function names (BuiltinFunctionNode.FunctionName / RenderCtrlNode).
+    public const string Branch = "Branch";
+    public const string Each = "Each";
+    public const string While = "While";
+    public const string Switch = "Switch";
+    public const string Break = "break";
+    public const string Continue = "continue";
 
     /// <summary>
-    /// Whether the given pin name represents an Exec output pin of a control-flow
-    /// node. Includes the literal names plus Switch arm indices ("0", "1", ...).
+    /// True if <paramref name="name"/> is a control-flow node function name
+    /// (Branch/Each/While/Switch) — the functions that expand into structured IR
+    /// statements. Loop terminators are classified separately by
+    /// <see cref="IsTerminatorName"/>.
     /// </summary>
-    public static bool IsExecOutName(string name) =>
-        name == Exec || name == True || name == False
-        || name == Body || name == End || name == Default
-        || int.TryParse(name, out _);
+    public static bool IsControlFlowName(string name)
+        => name == Branch || name == Each || name == While || name == Switch;
+
+    /// <summary>True if <paramref name="name"/> is a loop terminator function name (break/continue).</summary>
+    public static bool IsTerminatorName(string name)
+        => name == Break || name == Continue;
 }

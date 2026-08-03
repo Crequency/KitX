@@ -42,7 +42,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine("public void RunAsync()");
         EmitLine("{");
         Indent();
-        EmitBody(ir.Body, "/top");
+        EmitBody(ir.Body, NodePath.Top);
         // Execution-complete stop point: in step-through mode the debugger pauses here
         // once more after the last node, so the user steps once to formally finish the
         // debug session (free-run / Continue passes straight through).
@@ -61,14 +61,15 @@ internal sealed class DebugCodegen : CodegenBase
 
     // ── Body / statement dispatch ──
     //
-    // Path convention mirrors BpRenderer exactly (Lens/BpGraphLens/BpRenderer.cs):
-    //   • top-level:      /top/stmt/{i}
-    //   • if-then body:   {parentPath}/then/stmt/{i}     (parentPath = the If statement's own path)
-    //   • if-else body:   {parentPath}/else/stmt/{i}
-    //   • forEach body:   {parentPath}/body/stmt/{i}
-    //   • while body:     {parentPath}/body/stmt/{i}
-    //   • switch arm i:   {parentPath}/arm/{i}/stmt/{j}
-    //   • switch default: {parentPath}/default/stmt/{j}
+    // Path convention mirrors BpRenderer exactly (Lens/BpGraphLens/BpRenderer.cs);
+    // all path shapes are centralised in Ir/NodePath.cs (single source of truth):
+    //   • top-level:      NodePath.Stmt(NodePath.Top, i)          → /top/stmt/{i}
+    //   • if-then body:   NodePath.Stmt(NodePath.Then(p), i)      → {parentPath}/then/stmt/{i}   (parentPath = the If statement's own path)
+    //   • if-else body:   NodePath.Stmt(NodePath.Else(p), i)      → {parentPath}/else/stmt/{i}
+    //   • forEach body:   NodePath.Stmt(NodePath.Body(p), i)      → {parentPath}/body/stmt/{i}
+    //   • while body:     NodePath.Stmt(NodePath.Body(p), i)      → {parentPath}/body/stmt/{i}
+    //   • switch arm i:   NodePath.Stmt(NodePath.Arm(p, i), j)    → {parentPath}/arm/{i}/stmt/{j}
+    //   • switch default: NodePath.Stmt(NodePath.Default(p), j)   → {parentPath}/default/stmt/{j}
     //
     // Control-flow node paths (used as the data-wire target identifier):
     //   • Branch (If):    {parentPath}                     — Condition wire: w:{NodeId.Of(parentPath)}:Condition
@@ -76,12 +77,12 @@ internal sealed class DebugCodegen : CodegenBase
     //   • While:          {parentPath}                     — Condition wire: w:{NodeId.Of(parentPath)}:Condition
     //   • Switch:         {parentPath}                     — Selector wire:   w:{NodeId.Of(parentPath)}:Selector
     //
-    // Pipeline segment path: {stmtPath}/seg/{i}            — output wire: w:{NodeId.Of(stmtPath + "/seg/" + i)}
+    // Pipeline segment path: NodePath.Segment(stmtPath, i)  — output wire: w:{NodeId.Of(stmtPath + "/seg/" + i)}
 
     private void EmitBody(ImmutableArray<Statement> body, string scopePath)
     {
         for (int i = 0; i < body.Length; i++)
-            EmitStatement(body[i], $"{scopePath}/stmt/{i}");
+            EmitStatement(body[i], NodePath.Stmt(scopePath, i));
     }
 
     private void EmitStatement(Statement stmt, string stmtPath)
@@ -126,15 +127,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine($"this.Checkpoint(\"{stmtId}\", \"{lexicalPath}\");");
     }
 
-    protected override void EmitPipeline(PipelineStatement p, int ordinal, int depth)
-    {
-        // Legacy 2-arg signature retained by CodegenBase; not used by DebugCodegen
-        // (which threads the full stmtPath through EmitPipeline(PipelineStatement, string) below).
-        throw new NotSupportedException(
-            "DebugCodegen.EmitPipeline requires a stmtPath; use the (PipelineStatement, string) overload.");
-    }
-
-    private void EmitPipeline(PipelineStatement p, string stmtPath)
+    protected override void EmitPipeline(PipelineStatement p, string stmtPath)
     {
         // Bare call: Print("hello") — one source that is a KsCall, no segments.
         // The function node occupies the statement's own path (mirrors BpRenderer:164).
@@ -149,7 +142,7 @@ internal sealed class DebugCodegen : CodegenBase
         if (p.Segments.Length == 0)
         {
             // No-op read (bare identifier/literal line): a single usage node at src/0.
-            var srcPath = $"{stmtPath}/src/0";
+            var srcPath = NodePath.Source(stmtPath, 0);
             EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
             EmitLine($"/* bare expression: {RenderKsNode(p.Sources[0])} */");
             return;
@@ -165,7 +158,7 @@ internal sealed class DebugCodegen : CodegenBase
         // evaluation is side-effect free.
         for (int i = 0; i < p.Sources.Length; i++)
         {
-            var srcPath = $"{stmtPath}/src/{i}";
+            var srcPath = NodePath.Source(stmtPath, i);
             EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
             EmitLine($"this.OnWireValue(\"w:{NodeId.Of(srcPath)}\", {RenderKsNode(p.Sources[i])});");
         }
@@ -175,7 +168,7 @@ internal sealed class DebugCodegen : CodegenBase
         for (int i = 0; i < p.Segments.Length; i++)
         {
             var seg = p.Segments[i];
-            string segPath = $"{stmtPath}/seg/{i}";
+            string segPath = NodePath.Segment(stmtPath, i);
             string segNodeId = NodeId.Of(segPath);
             EmitCheckpoint(segNodeId, segPath, 0);
             string outputVar = $"__pipe_{_pipeCounter++}";
@@ -256,20 +249,20 @@ internal sealed class DebugCodegen : CodegenBase
         // is {stmtPath}/cond (mirrors BpRenderer:323). The wireId targets the
         // Branch node + its Condition input pin, so the frontend can compose it
         // from BlueprintConnection.TargetNodeId + TargetPin.Name.
-        EmitConditionEvaluation(iff.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        EmitConditionEvaluation(iff.Condition, stmtPath, "Condition", NodePath.Condition(stmtPath));
         // Branch checkpoint AFTER the condition sub-graph (BP exec order:
         // … → condition nodes → Branch → branches).
         EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
         EmitLine($"if (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
-        EmitBody(iff.ThenBody, $"{stmtPath}/then");
+        EmitBody(iff.ThenBody, NodePath.Then(stmtPath));
         Dedent();
         if (iff.ElseBody.Length > 0)
         {
             EmitLine("} else {");
             Indent();
-            EmitBody(iff.ElseBody, $"{stmtPath}/else");
+            EmitBody(iff.ElseBody, NodePath.Else(stmtPath));
             Dedent();
         }
         EmitLine("}");
@@ -278,7 +271,7 @@ internal sealed class DebugCodegen : CodegenBase
     private void EmitForEach(ForEachStatement fe, string stmtPath)
     {
         // List wire: the data source feeding Each.List. Source path is {stmtPath}/src.
-        EmitConditionEvaluation(fe.Source, stmtPath, "List", $"{stmtPath}/src");
+        EmitConditionEvaluation(fe.Source, stmtPath, "List", NodePath.SourceRoot(stmtPath));
         // Each checkpoint AFTER the source sub-graph (BP exec order:
         // … → source nodes → Each → body).
         EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
@@ -286,7 +279,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine("{");
         Indent();
         PushLocal(fe.ItemName);
-        EmitBody(fe.Body, $"{stmtPath}/body");
+        EmitBody(fe.Body, NodePath.Body(stmtPath));
         PopLocal(fe.ItemName);
         Dedent();
         EmitLine("}");
@@ -306,10 +299,10 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine("while (true)");
         EmitLine("{");
         Indent();
-        EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", $"{stmtPath}/cond");
+        EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", NodePath.Condition(stmtPath));
         EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
         EmitLine($"if (!__cond_{_condCounter - 1}) break;");
-        EmitBody(ws.Body, $"{stmtPath}/body");
+        EmitBody(ws.Body, NodePath.Body(stmtPath));
         Dedent();
         EmitLine("}");
     }
@@ -317,7 +310,7 @@ internal sealed class DebugCodegen : CodegenBase
     private void EmitSwitch(SwitchStatement sw, string stmtPath)
     {
         // Selector wire: the data source feeding Switch.Selector. Source path is {stmtPath}/sel.
-        EmitConditionEvaluation(sw.Selector, stmtPath, "Selector", $"{stmtPath}/sel");
+        EmitConditionEvaluation(sw.Selector, stmtPath, "Selector", NodePath.Selector(stmtPath));
         // Switch checkpoint AFTER the selector sub-graph (BP exec order:
         // … → selector nodes → Switch → arms).
         EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
@@ -330,7 +323,7 @@ internal sealed class DebugCodegen : CodegenBase
             EmitLine($"case {label}:");
             EmitLine("{");
             Indent();
-            EmitBody(sw.Arms[i], $"{stmtPath}/arm/{i}");  // path stays index-based for stable diff
+            EmitBody(sw.Arms[i], NodePath.Arm(stmtPath, i));  // path stays index-based for stable diff
             EmitLine("break;");
             Dedent();
             EmitLine("}");
@@ -340,7 +333,7 @@ internal sealed class DebugCodegen : CodegenBase
             EmitLine("default:");
             EmitLine("{");
             Indent();
-            EmitBody(sw.Default, $"{stmtPath}/default");
+            EmitBody(sw.Default, NodePath.Default(stmtPath));
             EmitLine("break;");
             Dedent();
             EmitLine("}");
@@ -374,7 +367,7 @@ internal sealed class DebugCodegen : CodegenBase
         {
             for (int i = 0; i < pipe.Sources.Length; i++)
             {
-                var srcPath = $"{condPath}/src/{i}";
+                var srcPath = NodePath.Source(condPath, i);
                 EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
                 // Sources are identifiers / literals / literal-arg calls (KS051), so the
                 // extra evaluation for the wire publication is side-effect free.
@@ -382,11 +375,11 @@ internal sealed class DebugCodegen : CodegenBase
             }
             for (int i = 0; i < pipe.Segments.Length; i++)
             {
-                var segPath = $"{condPath}/seg/{i}";
+                var segPath = NodePath.Segment(condPath, i);
                 EmitCheckpoint(NodeId.Of(segPath), segPath, 0);
             }
             EmitLine($"var {condVar} = {RenderKsNode(cond)};");
-            var lastSegPath = $"{condPath}/seg/{pipe.Segments.Length - 1}";
+            var lastSegPath = NodePath.Segment(condPath, pipe.Segments.Length - 1);
             EmitLine($"this.OnWireValue(\"w:{NodeId.Of(lastSegPath)}\", {condVar});");
         }
         else

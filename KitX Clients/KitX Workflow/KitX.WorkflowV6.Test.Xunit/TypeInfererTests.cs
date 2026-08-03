@@ -38,8 +38,6 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             new LoweringResult
             {
                 PubVarTypes = declaredTypes,
-                HelperReturnTypes = new Dictionary<string, string>(),
-                InjectedVariableNames = new HashSet<string>(),
             },
             _fixture.Registry,
             []);
@@ -66,8 +64,6 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             new LoweringResult
             {
                 PubVarTypes = declaredTypes,
-                HelperReturnTypes = new Dictionary<string, string>(),
-                InjectedVariableNames = new HashSet<string>(),
             },
             _fixture.Registry,
             helpers);

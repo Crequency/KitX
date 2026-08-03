@@ -34,7 +34,6 @@ using KitX.WorkflowV6.Ir.Statements;
 internal sealed class KsLowerer
 {
     private readonly BuiltinFunctionRegistry? _registry;
-    private HashSet<string> _helperNames = new(StringComparer.Ordinal);
 
     public KsLowerer(BuiltinFunctionRegistry? registry = null) => _registry = registry;
 
@@ -50,7 +49,6 @@ internal sealed class KsLowerer
         // Build a set of helper function names for segment-tap disambiguation:
         // `5 > Double > Print` — "Double" has no parens but is a helper, not a variable.
         var helperNames = new HashSet<string>(helpers.Select(h => h.Name), StringComparer.Ordinal);
-        _helperNames = helperNames;
         // ── Declarations ──
         var constants = ImmutableDictionary.CreateBuilder<string, Constant>();
         var globalVars = ImmutableDictionary.CreateBuilder<string, GlobalVar>();
@@ -86,7 +84,7 @@ internal sealed class KsLowerer
         }
 
         // ── Body ──
-        var body = LowerStatements(program.Body);
+        var body = LowerStatements(program.Body, helperNames);
 
         // ── Type inference: two-pass (Source + Demand) via TypeInferer. ──
         // Seeds from declared types, then refines from pipeline assignments and
@@ -94,7 +92,7 @@ internal sealed class KsLowerer
         var seedTypes = new Dictionary<string, string>(pubVarTypes, StringComparer.Ordinal);
         var inferredTypes = TypeInferer.Infer(
             new Workflow { Body = body, Constants = constants.ToImmutable(), GlobalVars = globalVars.ToImmutable(), HelperFunctions = helpers.ToImmutableArray() },
-            new LoweringResult { PubVarTypes = seedTypes, HelperReturnTypes = new Dictionary<string, string>(), InjectedVariableNames = new HashSet<string>() },
+            new LoweringResult { PubVarTypes = seedTypes },
             _registry,
             helpers);
         pubVarTypes = inferredTypes;
@@ -118,76 +116,75 @@ internal sealed class KsLowerer
         var result = new LoweringResult
         {
             PubVarTypes = pubVarTypes,
-            HelperReturnTypes = new Dictionary<string, string>(),
-            InjectedVariableNames = new HashSet<string>(),
         };
 
         return (ir, result);
     }
 
-    private ImmutableArray<Statement> LowerStatements(IReadOnlyList<KsStatement> statements)
+    private ImmutableArray<Statement> LowerStatements(
+        IReadOnlyList<KsStatement> statements, HashSet<string> helperNames)
     {
         var builder = ImmutableArray.CreateBuilder<Statement>(statements.Count);
         foreach (var s in statements)
-            builder.Add(LowerStatement(s));
+            builder.Add(LowerStatement(s, helperNames));
         return builder.ToImmutable();
     }
 
-    private Statement LowerStatement(KsStatement stmt)
+    private Statement LowerStatement(KsStatement stmt, HashSet<string> helperNames)
     {
         Statement ir = stmt switch
         {
-            KsPipeline pipe => LowerPipeline(pipe),
+            KsPipeline pipe => LowerPipeline(pipe, helperNames),
             KsIf iff => WithFingerprint(new IfStatement
             {
-                Fingerprint = Fingerprint.Compute("placeholder"),
+                Fingerprint = default,
                 Condition = iff.Condition,
-                ThenBody = LowerStatements(iff.ThenBody),
-                ElseBody = LowerStatements(iff.ElseBody),
+                ThenBody = LowerStatements(iff.ThenBody, helperNames),
+                ElseBody = LowerStatements(iff.ElseBody, helperNames),
                 SourceLine = iff.SourceLine,
                 LeadingComment = iff.LeadingComment,
                 TrailingComment = iff.TrailingComment,
             }),
             KsSwitch sw => WithFingerprint(new SwitchStatement
             {
-                Fingerprint = Fingerprint.Compute("placeholder"),
+                Fingerprint = default,
                 Selector = sw.Selector,
-                Arms = LowerArms(sw.Arms),
+                Arms = LowerArms(sw.Arms, helperNames),
                 ArmLabels = sw.ArmLabels,
-                Default = LowerStatements(sw.Default),
+                Default = LowerStatements(sw.Default, helperNames),
                 SourceLine = sw.SourceLine,
                 LeadingComment = sw.LeadingComment,
                 TrailingComment = sw.TrailingComment,
             }),
             KsForEach fe => WithFingerprint(new ForEachStatement
             {
-                Fingerprint = Fingerprint.Compute("placeholder"),
+                Fingerprint = default,
                 Source = fe.Source,
                 ItemName = fe.ItemName,
-                Body = LowerStatements(fe.Body),
+                Body = LowerStatements(fe.Body, helperNames),
                 SourceLine = fe.SourceLine,
                 LeadingComment = fe.LeadingComment,
                 TrailingComment = fe.TrailingComment,
             }),
             KsWhile ws => WithFingerprint(new WhileStatement
             {
-                Fingerprint = Fingerprint.Compute("placeholder"),
+                Fingerprint = default,
                 Condition = ws.Condition,
-                Body = LowerStatements(ws.Body),
+                Body = LowerStatements(ws.Body, helperNames),
                 SourceLine = ws.SourceLine,
                 LeadingComment = ws.LeadingComment,
                 TrailingComment = ws.TrailingComment,
             }),
             KsBreak => WithFingerprint(new BreakStatement
             {
-                Fingerprint = Fingerprint.Compute("placeholder"),
+                Fingerprint = default,
                 SourceLine = stmt.SourceLine,
                 LeadingComment = stmt.LeadingComment,
                 TrailingComment = stmt.TrailingComment,
             }),
             KsContinue => WithFingerprint(new ContinueStatement
             {
-                Fingerprint = Fingerprint.Compute("placeholder"),
+                Fingerprint = default,
                 SourceLine = stmt.SourceLine,
                 LeadingComment = stmt.LeadingComment,
                 TrailingComment = stmt.TrailingComment,
@@ -197,25 +194,26 @@ internal sealed class KsLowerer
         return ir;
     }
 
-    /// <summary>Replaces the placeholder fingerprint with the real structural one.</summary>
+    /// <summary>Computes the structural fingerprint and returns the statement carrying it.</summary>
     private static Statement WithFingerprint(Statement stmt) =>
         stmt with { Fingerprint = Fingerprint.Compute(stmt) };
 
-    private ImmutableArray<ImmutableArray<Statement>> LowerArms(ImmutableArray<ImmutableArray<KsStatement>> arms)
+    private ImmutableArray<ImmutableArray<Statement>> LowerArms(
+        ImmutableArray<ImmutableArray<KsStatement>> arms, HashSet<string> helperNames)
     {
         var builder = ImmutableArray.CreateBuilder<ImmutableArray<Statement>>(arms.Length);
         foreach (var arm in arms)
-            builder.Add(LowerStatements(arm));
+            builder.Add(LowerStatements(arm, helperNames));
         return builder.ToImmutable();
     }
 
-    private Statement LowerPipeline(KsPipeline pipe)
+    private Statement LowerPipeline(KsPipeline pipe, HashSet<string> helperNames)
     {
         var sources = ImmutableArray.CreateRange(pipe.Sources);
-        var segments = ImmutableArray.CreateRange(pipe.Segments.Select(LowerSegment));
+        var segments = ImmutableArray.CreateRange(pipe.Segments.Select(s => LowerSegment(s, helperNames)));
         var stmt = new PipelineStatement
         {
-            Fingerprint = Fingerprint.Compute("placeholder"),
+            Fingerprint = default,
             Sources = sources,
             Segments = segments,
             SourceLine = pipe.SourceLine,
@@ -225,13 +223,13 @@ internal sealed class KsLowerer
         return WithFingerprint(stmt);
     }
 
-    private Segment LowerSegment(KsPipelineSegment seg)
+    private Segment LowerSegment(KsPipelineSegment seg, HashSet<string> helperNames)
     {
         var args = ImmutableArray.CreateRange(seg.Args);
         var rawArgs = ImmutableArray.CreateRange(seg.RawArgs);
         // Disambiguate: a bare name without parens is a variable tap UNLESS it's a
         // known helper function (helpers are passed externally; Parser can't know).
-        bool isVarTap = seg.IsVariableTap && !_helperNames.Contains(seg.Target);
+        bool isVarTap = seg.IsVariableTap && !helperNames.Contains(seg.Target);
         return new Segment
         {
             Target = seg.Target,

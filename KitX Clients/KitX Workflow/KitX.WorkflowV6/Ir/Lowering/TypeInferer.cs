@@ -77,70 +77,45 @@ public static class TypeInferer
         IReadOnlyDictionary<string, HelperFunction> helperMap)
     {
         foreach (var stmt in body)
-            SourceStatement(stmt, pubVarTypes, registry, helperMap);
-    }
-
-    private static void SourceStatement(
-        Statement stmt,
-        Dictionary<string, string> pubVarTypes,
-        BuiltinFunctionRegistry? registry,
-        IReadOnlyDictionary<string, HelperFunction> helperMap)
-    {
-        if (stmt is PipelineStatement pipe)
         {
-            // Find the terminal variable tap (assignment target) and the producing call.
-            // IsVariableTap is classified structurally (see KsSegmentClassifier) instead
-            // of trusting the flag alone — the forward (Parser) and reverse paths set it
-            // asymmetrically for the `> name` form (KScript-Blueprint-Correspondence §7.1-2).
-            string? target = null;
-            string? producingFunc = null;
-            ImmutableArray<KsNode> producingArgs = [];
-
-            foreach (var seg in pipe.Segments)
+            if (stmt is PipelineStatement pipe)
             {
-                if (KsSegmentClassifier.IsVariableTap(seg, registry, helperMap.Keys))
-                    target = seg.Target;
-                else
+                // Find the terminal variable tap (assignment target) and the producing call.
+                // IsVariableTap is classified structurally (see KsSegmentClassifier) instead
+                // of trusting the flag alone — the forward (Parser) and reverse paths set it
+                // asymmetrically for the `> name` form (KScript-Blueprint-Correspondence §7.1-2).
+                string? target = null;
+                string? producingFunc = null;
+                ImmutableArray<KsNode> producingArgs = [];
+
+                foreach (var seg in pipe.Segments)
                 {
-                    producingFunc = seg.Target;
-                    producingArgs = seg.Arguments;
+                    if (KsSegmentClassifier.IsVariableTap(seg, registry, helperMap.Keys))
+                        target = seg.Target;
+                    else
+                    {
+                        producingFunc = seg.Target;
+                        producingArgs = seg.Arguments;
+                    }
+                }
+
+                if (target is not null && producingFunc is not null && pubVarTypes.ContainsKey(target))
+                {
+                    // (a) Helper function return type.
+                    if (helperMap.TryGetValue(producingFunc, out var helper))
+                    {
+                        pubVarTypes[target] = helper.ReturnType;
+                    }
+                    // (b) Builtin return PinType.
+                    else if (registry?.Get(producingFunc) is { } builtin
+                        && FirstDataOutputPin(builtin) is { } retPin)
+                    {
+                        pubVarTypes[target] = PinTypeToCSharp(retPin.Type);
+                    }
                 }
             }
 
-            if (target is not null && producingFunc is not null && pubVarTypes.ContainsKey(target))
-            {
-                // (a) Helper function return type.
-                if (helperMap.TryGetValue(producingFunc, out var helper))
-                {
-                    pubVarTypes[target] = helper.ReturnType;
-                }
-                // (b) Builtin return PinType.
-                else if (registry?.Get(producingFunc) is { } builtin
-                    && FirstDataOutputPin(builtin) is { } retPin)
-                {
-                    pubVarTypes[target] = PinTypeToCSharp(retPin.Type);
-                }
-            }
-        }
-
-        // Recurse into structured bodies.
-        switch (stmt)
-        {
-            case IfStatement iff:
-                SourcePass(iff.ThenBody, pubVarTypes, registry, helperMap);
-                SourcePass(iff.ElseBody, pubVarTypes, registry, helperMap);
-                break;
-            case ForEachStatement fe:
-                SourcePass(fe.Body, pubVarTypes, registry, helperMap);
-                break;
-            case WhileStatement ws:
-                SourcePass(ws.Body, pubVarTypes, registry, helperMap);
-                break;
-            case SwitchStatement sw:
-                for (int i = 0; i < sw.Arms.Length; i++)
-                    SourcePass(sw.Arms[i], pubVarTypes, registry, helperMap);
-                SourcePass(sw.Default, pubVarTypes, registry, helperMap);
-                break;
+            VisitBodies(stmt, b => SourcePass(b, pubVarTypes, registry, helperMap));
         }
     }
 
@@ -153,42 +128,51 @@ public static class TypeInferer
         IReadOnlyDictionary<string, HelperFunction> helperMap)
     {
         foreach (var stmt in body)
-            DemandStatement(stmt, pubVarTypes, registry, helperMap);
+        {
+            switch (stmt)
+            {
+                // if/while condition: if the condition is a bare KsIdentifier referencing
+                // an object-typed PubVar, demand it to bool.
+                case IfStatement iff:
+                    DemandConditionBool(iff.Condition, pubVarTypes);
+                    break;
+
+                case WhileStatement ws:
+                    DemandConditionBool(ws.Condition, pubVarTypes);
+                    break;
+
+                case PipelineStatement pipe:
+                    DemandPipelineHelperArgs(pipe, pubVarTypes, registry, helperMap);
+                    break;
+            }
+
+            VisitBodies(stmt, b => DemandPass(b, pubVarTypes, registry, helperMap));
+        }
     }
 
-    private static void DemandStatement(
-        Statement stmt,
-        Dictionary<string, string> pubVarTypes,
-        BuiltinFunctionRegistry? registry,
-        IReadOnlyDictionary<string, HelperFunction> helperMap)
+    /// <summary>
+    /// Recurses into the child bodies of a composite statement by invoking
+    /// <paramref name="visit"/> once per child body. Shared by the SOURCE and DEMAND
+    /// passes so the if/forEach/while/switch traversal skeleton exists exactly once.
+    /// </summary>
+    private static void VisitBodies(Statement stmt, Action<ImmutableArray<Statement>> visit)
     {
         switch (stmt)
         {
-            // if/while condition: if the condition is a bare KsIdentifier referencing
-            // an object-typed PubVar, demand it to bool.
             case IfStatement iff:
-                DemandConditionBool(iff.Condition, pubVarTypes);
-                DemandPass(iff.ThenBody, pubVarTypes, registry, helperMap);
-                DemandPass(iff.ElseBody, pubVarTypes, registry, helperMap);
+                visit(iff.ThenBody);
+                visit(iff.ElseBody);
                 break;
-
-            case WhileStatement ws:
-                DemandConditionBool(ws.Condition, pubVarTypes);
-                DemandPass(ws.Body, pubVarTypes, registry, helperMap);
-                break;
-
             case ForEachStatement fe:
-                DemandPass(fe.Body, pubVarTypes, registry, helperMap);
+                visit(fe.Body);
                 break;
-
+            case WhileStatement ws:
+                visit(ws.Body);
+                break;
             case SwitchStatement sw:
                 for (int i = 0; i < sw.Arms.Length; i++)
-                    DemandPass(sw.Arms[i], pubVarTypes, registry, helperMap);
-                DemandPass(sw.Default, pubVarTypes, registry, helperMap);
-                break;
-
-            case PipelineStatement pipe:
-                DemandPipelineHelperArgs(pipe, pubVarTypes, registry, helperMap);
+                    visit(sw.Arms[i]);
+                visit(sw.Default);
                 break;
         }
     }

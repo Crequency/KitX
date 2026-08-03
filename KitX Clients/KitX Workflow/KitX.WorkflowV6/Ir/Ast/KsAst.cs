@@ -63,15 +63,14 @@ public abstract record KsNode
     /// Verbatim source text this node was parsed from. Set at the parse boundary.
     /// </summary>
     /// <remarks>
-    /// Kept as a property (not excluded from record equality) so JSON serialisation
-    /// round-trips it correctly. Two ASTs that differ only in SourceText/SourceLine
-    /// are semantically equal WHEN those values are the same — which is always true
-    /// in the parse-to-render-to-reparse path (the same source text produces the same
-    /// SourceText values). The field-vs-property distinction would only matter if we
-    /// expected two structurally identical ASTs with different SourceText to be equal,
-    /// which is not a goal: the canonical source of truth is the structured IR, and
-    /// SourceText is a lossless round-trip aid that happens to be deterministic from
-    /// the source.
+    /// Excluded from record equality: every concrete node type overrides
+    /// <see cref="object.Equals(object?)"/> to compare only semantic content —
+    /// SourceText/SourceLine are location/presentation metadata, deliberately not
+    /// part of equality, so two structurally identical ASTs parsed from different
+    /// text (or after re-formatting) compare equal. The overrides also keep the
+    /// values out of <see cref="object.GetHashCode"/> so hashing stays consistent.
+    /// JSON serialisation round-trips them regardless, because they are ordinary
+    /// public properties.
     /// </remarks>
     public string SourceText { get; set; } = string.Empty;
     public int SourceLine { get; set; }
@@ -637,32 +636,5 @@ public sealed record KsProgram : KsNode
         h.Add(ConstBlock); h.Add(VarBlock);
         foreach (var s in Body) h.Add(s);
         return h.ToHashCode();
-    }
-}
-
-// ── Extension helpers over KsNode (replaces the old ExprUtils Roslyn helpers) ──
-
-/// <summary>Extension helpers over <see cref="KsNode"/>.</summary>
-public static class KsNodeExtensions
-{
-    /// <summary>The string value when the node is a string literal, else null.</summary>
-    public static string? AsStringLiteral(this KsNode? node)
-        => node is KsLiteral { Kind: KsLiteralKind.String } lit ? lit.Value as string : null;
-
-    /// <summary>The typed literal value (string/int/double/bool/char/null), else null.</summary>
-    public static object? LiteralValue(this KsNode? node)
-        => node is KsLiteral lit ? lit.Value : null;
-
-    /// <summary>
-    /// True when the source text is a C# character literal (e.g. <c>'\0'</c>, <c>'a'</c>).
-    /// Lightweight structural test: char literals start/end with single quote, content is
-    /// either one char or a backslash-escape pair. Inherited from v5.
-    /// </summary>
-    public static bool IsCharacterLiteral(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return false;
-        if (value.Length < 3 || value[0] != '\'' || value[^1] != '\'') return false;
-        var inner = value[1..^1];
-        return inner.Length == 1 || (inner.Length == 2 && inner[0] == '\\');
     }
 }

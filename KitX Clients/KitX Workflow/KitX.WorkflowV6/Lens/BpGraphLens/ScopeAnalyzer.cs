@@ -168,7 +168,7 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
             if (!globalVisited.Add(targetId)) continue;
             if (!byId.TryGetValue(targetId, out var node)) continue;
 
-            if (node is BuiltinFunctionNode fn && IsControlFlowName(fn.FunctionName))
+            if (node is BuiltinFunctionNode fn && BpPinNames.IsControlFlowName(fn.FunctionName))
             {
                 // The control-flow node itself belongs to the current scope.
                 currentScope?.Add(targetId);
@@ -221,12 +221,8 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
 
     // ── Helpers ──
 
-    private static bool IsControlFlowName(string name)
-        => name is "Branch" or "Each" or "While" or "Switch";
-
     private static bool IsTerminator(BlueprintNode node)
-        => node is BuiltinFunctionNode fn
-           && (fn.FunctionName == "break" || fn.FunctionName == "continue");
+        => node is BuiltinFunctionNode fn && BpPinNames.IsTerminatorName(fn.FunctionName);
 
     /// <summary>
     /// Maps a control-flow function name + sub-scope pin name to a human-readable label.

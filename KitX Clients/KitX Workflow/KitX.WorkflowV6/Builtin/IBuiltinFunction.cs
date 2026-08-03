@@ -6,7 +6,7 @@ using KitX.Core.Contract.Workflow;
 // Builtin function descriptor system.
 //
 // v6 model: every builtin implements only IBuiltinFunction (identity + ports).
-// There is no per-role handler split in v6 — all 32 builtins use the default
+// There is no per-role handler split in v6 — all 41 builtins use the default
 // parse / lower / codegen / bp-render paths. Control-flow primitives
 // (if/switch/forEach/while/break/continue) are NOT routed through the registry
 // at all; they are first-class IR statement kinds (see StatementKind).
@@ -17,8 +17,9 @@ using KitX.Core.Contract.Workflow;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// The behavioural kind of a builtin — drives BP node colouring and codegen.
-/// Inherited from v5; the v6 structured model may collapse some of these distinctions.
+/// The behavioural kind of a builtin — 供前端着色与测试规格验证的元数据 (codegen
+/// never reads Kind). Inherited from v5; the v6 structured model may collapse some
+/// of these distinctions.
 /// </summary>
 public enum FunctionKind
 {
@@ -59,13 +60,10 @@ public interface IBuiltinFunction
 
     /// <summary>Optional variadic input spec (e.g. StringConcat's N extra string pins).</summary>
     VariadicPinSpec? InputVariadic => null;
-
-    /// <summary>Optional variadic output spec.</summary>
-    VariadicPinSpec? OutputVariadic => null;
 }
 
 /// <summary>
 /// A port (pin) descriptor: name + type + relative vertical position on the BP node.
-/// Inherited shape from KitX.WorkflowR6.PortSpec.
+/// Inherited shape from KitX.WorkflowV6.PortSpec.
 /// </summary>
 public readonly record struct PortSpec(string Name, PinType Type, double RelativeY);

@@ -75,7 +75,7 @@ internal sealed class BpRenderer
         if (ir.Body.Length > 0)
         {
             var entry = Add(new EntryNode { Name = "Entry" }, "/entry");
-            RenderScope(ir.Body, "/top", [new ExecTail(entry, BpPinNames.Exec)]);
+            RenderScope(ir.Body, NodePath.Top, [new ExecTail(entry, BpPinNames.Exec)]);
         }
 
         _layout.Layout(_bp);
@@ -121,7 +121,7 @@ internal sealed class BpRenderer
                 ConstType = c.Type,
                 DefaultValue = defaultValue,
                 IsDefinition = true,
-            }, $"/def/const/{name}");
+            }, NodePath.DefConstOf(name));
         }
 
         foreach (var (name, g) in ir.GlobalVars)
@@ -137,7 +137,7 @@ internal sealed class BpRenderer
                 VarKind = VariableKind.PubVar,
                 DefaultValue = defaultValue,
                 IsDefinition = true,
-            }, $"/def/var/{name}");
+            }, NodePath.DefVarOf(name));
         }
     }
 
@@ -147,7 +147,7 @@ internal sealed class BpRenderer
     {
         var tails = entryTails;
         for (int i = 0; i < body.Length; i++)
-            tails = RenderStatement(body[i], $"{scopePath}/stmt/{i}", tails);
+            tails = RenderStatement(body[i], NodePath.Stmt(scopePath, i), tails);
     }
 
     /// <summary>Renders a sub-scope (if-then/else body, loop body). No Entry node.</summary>
@@ -155,7 +155,7 @@ internal sealed class BpRenderer
     {
         var tails = entryTails;
         for (int i = 0; i < body.Length; i++)
-            tails = RenderStatement(body[i], $"{scopePath}/stmt/{i}", tails);
+            tails = RenderStatement(body[i], NodePath.Stmt(scopePath, i), tails);
         return tails;
     }
 
@@ -273,7 +273,7 @@ internal sealed class BpRenderer
         {
             var func = AddBuiltin(call.MethodName, path);
             _currentPrimaryNode = func;
-            WireCallArgs(func, call.Args, $"{path}/args");
+            WireCallArgs(func, call.Args, NodePath.Args(path));
             ConnectExecTails(prevTails, func);
             // Bare call: the trailing comment lands on the single function node
             // (there is no source node; the reverse translator reads it back here).
@@ -294,7 +294,7 @@ internal sealed class BpRenderer
         // 1. Render every source as a node and chain it into the exec flow.
         for (int i = 0; i < p.Sources.Length; i++)
         {
-            var srcNode = RenderSourceAsNode(p.Sources[i], $"{path}/src/{i}");
+            var srcNode = RenderSourceAsNode(p.Sources[i], NodePath.Source(path, i));
             sourceNodes.Add(srcNode);
             // Statement TrailingComment lands on the LAST source node (parser capture
             // point A reads it back from the source list's final line) — unless the
@@ -314,7 +314,12 @@ internal sealed class BpRenderer
         for (int i = 0; i < p.Segments.Length; i++)
         {
             var seg = p.Segments[i];
-            string segPath = $"{path}/seg/{i}";
+            string segPath = NodePath.Segment(path, i);
+            // The flag-OR is intentional: seg.IsVariableTap marks the KS `= name`
+            // assignment form (Parser sets it; KsLowerer clears it for helper-colliding
+            // names only). A target that collides with a BUILTIN name (`a = Print`) must
+            // still render as a variable tap — KsSegmentClassifier alone would classify
+            // it as a function call and break the `a = Print` round-trip.
             bool isVarTap = seg.IsVariableTap
                          || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);
 
@@ -339,7 +344,7 @@ internal sealed class BpRenderer
                 // Per-segment inline comment → this segment's function node Comment.
                 if (seg.Comment is { Length: > 0 })
                     fn.Comment = seg.Comment;
-                WireCallArgs(fn, seg.Arguments, $"{segPath}/args");
+                WireCallArgs(fn, seg.Arguments, NodePath.Args(segPath));
                 if (i == 0)
                 {
                     ConnectPipelineSources(fn, seg.Arguments, sourceNodes);
@@ -507,11 +512,12 @@ internal sealed class BpRenderer
         // graph", the condition node (VariableNode / ConstNode / pipeline of function nodes)
         // is a usage node with Exec pins and is reached by the exec flow before Branch.
         //
-        // The BpReverseTranslator correctly handles this via _consumedNodes tracking: when
-        // ReverseIf reads the condition via ReadDataInput, it marks the entire condition
-        // sub-graph as consumed; WalkExecChain then skips those nodes, avoiding spurious
-        // standalone PipelineStatements for the condition expression.
-        var condNode = RenderCondition(iff.Condition, $"{path}/cond", prevTails);
+        // The BpReverseTranslator handles this via _consumedNodes tracking: when
+        // WalkExecChain reaches the Branch node it calls PreMarkControlFlowConsumed,
+        // which marks the entire condition sub-graph as consumed BEFORE ReverseIf reads
+        // the condition via ReadDataInput; WalkExecChain then skips those nodes,
+        // avoiding spurious standalone PipelineStatements for the condition expression.
+        var condNode = RenderCondition(iff.Condition, NodePath.Condition(path), prevTails);
         var afterCondTails = new List<ExecTail> { new(condNode, BpPinNames.Exec) };
 
         var br = Add(new BuiltinFunctionNode { Name = "Branch", FunctionName = "Branch" }, path);
@@ -529,11 +535,11 @@ internal sealed class BpRenderer
         // End-pin model: a branch body naturally ends → control returns to Branch.End,
         // which is the single continuation point. The dangling tails are intentionally
         // discarded here — the caller threads the post-if statement from Branch.End.
-        _ = RenderSubScope(iff.ThenBody, $"{path}/then",
+        _ = RenderSubScope(iff.ThenBody, NodePath.Then(path),
             [new ExecTail(br, BpPinNames.True)]);
         if (iff.ElseBody.Length > 0)
         {
-            _ = RenderSubScope(iff.ElseBody, $"{path}/else",
+            _ = RenderSubScope(iff.ElseBody, NodePath.Else(path),
                 [new ExecTail(br, BpPinNames.False)]);
         }
 
@@ -546,7 +552,7 @@ internal sealed class BpRenderer
     {
         // Source node threaded into exec chain before Each. See RenderIfElse comment for
         // the _consumedNodes-based reverse-translation rationale.
-        var sourceNode = RenderSourceAsNode(fe.Source, $"{path}/src", prevTails);
+        var sourceNode = RenderSourceAsNode(fe.Source, NodePath.SourceRoot(path), prevTails);
         var afterSrcTails = new List<ExecTail> { new(sourceNode, BpPinNames.Exec) };
 
         var each = Add(new BuiltinFunctionNode { Name = "Each", FunctionName = "Each" }, path);
@@ -561,7 +567,7 @@ internal sealed class BpRenderer
         ConnectExecTails(afterSrcTails, each);
         ConnectToInput(sourceNode, each, BpPinNames.List);
 
-        RenderSubScope(fe.Body, $"{path}/body", [new ExecTail(each, BpPinNames.Body)]);
+        RenderSubScope(fe.Body, NodePath.Body(path), [new ExecTail(each, BpPinNames.Body)]);
 
         return [new ExecTail(each, BpPinNames.End)];
     }
@@ -571,7 +577,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderWhile(WhileStatement ws, string path, List<ExecTail> prevTails)
     {
         // Condition node threaded into exec chain before While.
-        var condNode = RenderCondition(ws.Condition, $"{path}/cond", prevTails);
+        var condNode = RenderCondition(ws.Condition, NodePath.Condition(path), prevTails);
         var afterCondTails = new List<ExecTail> { new(condNode, BpPinNames.Exec) };
 
         var wh = Add(new BuiltinFunctionNode { Name = "While", FunctionName = "While" }, path);
@@ -584,7 +590,7 @@ internal sealed class BpRenderer
         ConnectExecTails(afterCondTails, wh);
         ConnectToInput(condNode, wh, BpPinNames.Condition);
 
-        RenderSubScope(ws.Body, $"{path}/body", [new ExecTail(wh, BpPinNames.Body)]);
+        RenderSubScope(ws.Body, NodePath.Body(path), [new ExecTail(wh, BpPinNames.Body)]);
 
         return [new ExecTail(wh, BpPinNames.End)];
     }
@@ -594,7 +600,7 @@ internal sealed class BpRenderer
     private List<ExecTail> RenderSwitch(SwitchStatement sw, string path, List<ExecTail> prevTails)
     {
         // Selector node threaded into exec chain before Switch.
-        var selNode = RenderCondition(sw.Selector, $"{path}/sel", prevTails);
+        var selNode = RenderCondition(sw.Selector, NodePath.Selector(path), prevTails);
         var afterSelTails = new List<ExecTail> { new(selNode, BpPinNames.Exec) };
 
         var sn = Add(new BuiltinFunctionNode { Name = "Switch", FunctionName = "Switch" }, path);
@@ -615,13 +621,13 @@ internal sealed class BpRenderer
             var label = i < sw.ArmLabels.Length ? sw.ArmLabels[i] : i;
             var pinName = label.ToString();
             sn.OutputPins.Add(MakePin(pinName, PinDirection.Output, PinType.Execution));
-            _ = RenderSubScope(sw.Arms[i], $"{path}/arm/{i}",
+            _ = RenderSubScope(sw.Arms[i], NodePath.Arm(path, i),
                 [new ExecTail(sn, pinName)]);
         }
         if (sw.Default.Length > 0)
         {
             sn.OutputPins.Add(MakePin(BpPinNames.Default, PinDirection.Output, PinType.Execution));
-            _ = RenderSubScope(sw.Default, $"{path}/default",
+            _ = RenderSubScope(sw.Default, NodePath.Default(path),
                 [new ExecTail(sn, BpPinNames.Default)]);
         }
         sn.OutputPins.Add(MakePin(BpPinNames.End, PinDirection.Output, PinType.Execution));
@@ -669,7 +675,7 @@ internal sealed class BpRenderer
             case KsCall call:
                 {
                     var fn = AddBuiltin(call.MethodName, path);
-                    WireCallArgs(fn, call.Args, $"{path}/args");
+                    WireCallArgs(fn, call.Args, NodePath.Args(path));
                     ConnectExecTails(prevTails, fn);
                     return fn;
                 }
@@ -698,7 +704,7 @@ internal sealed class BpRenderer
 
         for (int i = 0; i < pipe.Sources.Length; i++)
         {
-            var srcNode = RenderSourceAsNode(pipe.Sources[i], $"{path}/src/{i}");
+            var srcNode = RenderSourceAsNode(pipe.Sources[i], NodePath.Source(path, i));
             sourceNodes.Add(srcNode);
             ConnectExecTails(currentTails, srcNode);
             currentTails = [new ExecTail(srcNode, BpPinNames.Exec)];
@@ -713,7 +719,7 @@ internal sealed class BpRenderer
                 {
                     Name = seg.Target, VarName = seg.Target,
                     VarKind = VariableKind.PubVar,
-                }, $"{path}/seg/{i}");
+                }, NodePath.Segment(path, i));
                 if (lastFunc is not null) ConnectValue(lastFunc, vn);
                 ConnectExecTails(currentTails, vn);
                 currentTails = [new ExecTail(vn, BpPinNames.Exec)];
@@ -721,11 +727,11 @@ internal sealed class BpRenderer
             }
             else
             {
-                var fn = AddBuiltin(seg.Target, $"{path}/seg/{i}");
+                var fn = AddBuiltin(seg.Target, NodePath.Segment(path, i));
                 // Per-segment inline comment (condition pipeline) → this segment's node Comment.
                 if (seg.Comment is { Length: > 0 })
                     fn.Comment = seg.Comment;
-                WireCallArgs(fn, seg.Args, $"{path}/seg/{i}/args");
+                WireCallArgs(fn, seg.Args, NodePath.SegmentArgs(path, i));
                 if (lastFunc is null)
                 {
                     ConnectPipelineSources(fn, seg.Args, sourceNodes);
@@ -747,7 +753,7 @@ internal sealed class BpRenderer
             return sourceNodes[0];
 
         // No sources and no segments — safety net (Parser rejects empty conditions).
-        var fallback = AddUsageNode(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, $"{path}/fallback");
+        var fallback = AddUsageNode(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, NodePath.Fallback(path));
         ConnectExecTails(currentTails, fallback);
         return fallback;
     }
@@ -791,7 +797,7 @@ internal sealed class BpRenderer
                     var fn = AddBuiltin(call.MethodName, path);
                     if (call.Comment is { Length: > 0 })
                         fn.Comment = call.Comment;
-                    WireCallArgs(fn, call.Args, $"{path}/args");
+                    WireCallArgs(fn, call.Args, NodePath.Args(path));
                     if (prevTails is not null) ConnectExecTails(prevTails, fn);
                     return fn;
                 }

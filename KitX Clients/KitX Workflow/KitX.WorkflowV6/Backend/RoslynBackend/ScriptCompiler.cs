@@ -78,7 +78,7 @@ internal sealed class ScriptCompiler
         var hash = isDebug ? $"debug_{baseHash}" : baseHash;
 
         // Step 1: in-memory cache.
-        if (_cache.TryGetValue(hash, out var entry) && entry.IsAlive)
+        if (_cache.TryGetValue(hash, out var entry))
         {
             Log.Debug("[ScriptCompiler] Memory cache hit for hash '{Hash}'", hash);
             return (entry.Assembly, null, Array.Empty<string>());
@@ -103,8 +103,6 @@ internal sealed class ScriptCompiler
                 PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type)
                     .Concat(ir.Constants.ToDictionary(c => c.Key, c => c.Value.Type))
                     .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
-                HelperReturnTypes = new Dictionary<string, string>(),
-                InjectedVariableNames = new HashSet<string>(),
             };
 
             // Run TypeInferer for complete type inference (Source + Demand passes).

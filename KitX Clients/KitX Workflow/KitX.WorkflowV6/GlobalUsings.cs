@@ -17,7 +17,7 @@
 //
 // Implementation status (see Package/Archive/WorkflowV6-Docs/WorkflowV6-Handoff.md
 // for full reference):
-//   • Phase 1-10 fully implemented (449 tests passing).
+//   • Phase 1-10 fully implemented (476 tests passing).
 //   • KsTextLens + BpGraphLens (Project/Reverse) fully implemented.
 //   • StructuredRoslynBackend (IExecutionBackend) fully implemented.
 //   • SyncService.ApplyKsEdit fully functional; ApplyBpEdits deferred to project P2

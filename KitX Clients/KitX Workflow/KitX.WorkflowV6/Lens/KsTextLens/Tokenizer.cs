@@ -17,8 +17,8 @@ namespace KitX.WorkflowV6.Lens.KsTextLens;
 //   • IntegerLiteral(n)
 //   • DoubleLiteral(d)
 //   • CharLiteral(c)
-//   • Boolean: true / false (lexed as Identifier; Parser maps to KsLiteral)
-//   • null            (lexed as Identifier; Parser maps to KsLiteral Null)
+//   • BooleanLiteral — true / false (lexed directly; the token payload is the bool)
+//   • NullLiteral    — null (lexed directly; the token payload is null)
 //   • Pipe            — `>`
 //   • Comma           — `,`
 //   • Colon           — `:` (used only by switch arms)
@@ -35,6 +35,7 @@ namespace KitX.WorkflowV6.Lens.KsTextLens;
 //   • KS003 Unterminated string literal
 //   • KS004 Unterminated char literal
 //   • KS005 Unexpected character (anything not in the grammar's alphabet)
+//   • KS006 Malformed numeric literal (e.g. a lone "." — unparsable double/int)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>A token produced by the v6 KS tokenizer.</summary>
@@ -113,7 +114,7 @@ internal static class Tokenizer
 
             if (sawTab)
             {
-                sink.AddError("KS001", "Tab character is not allowed in indentation; use 4 spaces per level", lineNo, indentSpaces + 1);
+                sink.AddError(KsErrors.TabNotAllowed, "Tab character is not allowed in indentation; use 4 spaces per level", lineNo, indentSpaces + 1);
                 // Skip the whole line — there's no point tokenising past an indent error.
                 continue;
             }
@@ -149,7 +150,7 @@ internal static class Tokenizer
             // Indent must be a multiple of 4 (§十二-A).
             if (indentSpaces % 4 != 0)
             {
-                sink.AddError("KS002",
+                sink.AddError(KsErrors.IndentNotMultipleOf4,
                     $"Indentation must be a multiple of 4 spaces (got {indentSpaces})", lineNo, 1);
                 continue;
             }
@@ -182,7 +183,7 @@ internal static class Tokenizer
             if (c == ' ') { i++; continue; }
             if (c == '\t')
             {
-                sink.AddError("KS001", "Tab character is not allowed; use spaces", lineNo, columnBase + i);
+                sink.AddError(KsErrors.TabNotAllowed, "Tab character is not allowed; use spaces", lineNo, columnBase + i);
                 i++;
                 continue;
             }
@@ -291,7 +292,7 @@ internal static class Tokenizer
                     i++;
                     continue;
                 default:
-                    sink.AddError("KS005", $"Unexpected character '{c}'", lineNo, col);
+                    sink.AddError(KsErrors.UnexpectedCharacter, $"Unexpected character '{c}'", lineNo, col);
                     i++;
                     continue;
             }
@@ -318,7 +319,7 @@ internal static class Tokenizer
             {
                 if (j + 1 >= line.Length)
                 {
-                    sink.AddError("KS003", "Unterminated string literal", lineNo, col);
+                    sink.AddError(KsErrors.UnterminatedStringLiteral, "Unterminated string literal", lineNo, col);
                     return (null, line.Length);
                 }
                 // Decode common C# escapes.
@@ -344,7 +345,7 @@ internal static class Tokenizer
             sb.Append(c);
             j++;
         }
-        sink.AddError("KS003", "Unterminated string literal", lineNo, col);
+        sink.AddError(KsErrors.UnterminatedStringLiteral, "Unterminated string literal", lineNo, col);
         return (null, line.Length);
     }
 
@@ -354,7 +355,7 @@ internal static class Tokenizer
         int j = i + 1;
         if (j >= line.Length)
         {
-            sink.AddError("KS004", "Unterminated char literal", lineNo, col);
+            sink.AddError(KsErrors.UnterminatedCharLiteral, "Unterminated char literal", lineNo, col);
             return (null, line.Length);
         }
         char first = line[j];
@@ -362,7 +363,7 @@ internal static class Tokenizer
         {
             if (j + 2 >= line.Length || line[j + 2] != '\'')
             {
-                sink.AddError("KS004", "Unterminated char literal", lineNo, col);
+                sink.AddError(KsErrors.UnterminatedCharLiteral, "Unterminated char literal", lineNo, col);
                 return (null, line.Length);
             }
             char esc = line[j + 1];
@@ -381,7 +382,7 @@ internal static class Tokenizer
         }
         if (j + 1 >= line.Length || line[j + 1] != '\'')
         {
-            sink.AddError("KS004", "Unterminated char literal", lineNo, col);
+            sink.AddError(KsErrors.UnterminatedCharLiteral, "Unterminated char literal", lineNo, col);
             return (null, line.Length);
         }
         return (first, j + 2);
@@ -405,14 +406,14 @@ internal static class Tokenizer
             {
                 return (new KsToken { Kind = KsTokenKind.DoubleLiteral, Text = text, Value = d, Line = lineNo, Column = col }, i);
             }
-            sink.AddError("KS006", $"Malformed double literal: {text}", lineNo, col);
+            sink.AddError(KsErrors.MalformedNumericLiteral, $"Malformed double literal: {text}", lineNo, col);
             return (new KsToken { Kind = KsTokenKind.DoubleLiteral, Text = text, Value = 0.0, Line = lineNo, Column = col }, i);
         }
         if (int.TryParse(text, out var n))
         {
             return (new KsToken { Kind = KsTokenKind.IntegerLiteral, Text = text, Value = n, Line = lineNo, Column = col }, i);
         }
-        sink.AddError("KS006", $"Malformed integer literal: {text}", lineNo, col);
+        sink.AddError(KsErrors.MalformedNumericLiteral, $"Malformed integer literal: {text}", lineNo, col);
         return (new KsToken { Kind = KsTokenKind.IntegerLiteral, Text = text, Value = 0, Line = lineNo, Column = col }, i);
     }
 }
