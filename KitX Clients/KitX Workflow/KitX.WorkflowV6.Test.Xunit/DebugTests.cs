@@ -109,13 +109,15 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // Regression: `5 > Print` — Print has no output ports. Debug codegen must emit
         // a bare call statement, NOT `var __pipe_N = this.Print(5);` which fails to
         // compile with CS0815 (cannot assign void to an implicitly-typed variable).
+        // The SEGMENT publishes no wire value (nothing to publish); the source node's
+        // own wire publication is unaffected.
         var ir = Parse("5 > Print\n");
         var cg = new DebugCodegen(_fixture.Registry);
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains("this.Print(5);", code);
         Assert.DoesNotContain("__pipe_0", code);
-        Assert.DoesNotContain("OnWireValue", code);
+        Assert.DoesNotContain($"this.OnWireValue(\"w:{NodeId.Of("/top/stmt/0/seg/0")}\"", code);
     }
 
     [Fact]
@@ -341,6 +343,46 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         var missing = checkpointIds.Where(id => !bpNodeIds.Contains(id)).ToList();
         Assert.True(missing.Count == 0,
             $"checkpoint ids not found in BP node ids: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
+    public void Debug_Codegen_Publishes_Source_Node_Wire_Value()
+    {
+        // `5 > Print` — the source node must publish its value on w:{src/0} so the BP
+        // source node's data port tooltip shows it (previously only segment outputs
+        // published, leaving source ports empty).
+        var ir = Parse("5 > Print\n");
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        Assert.Contains($"this.OnWireValue(\"w:{NodeId.Of("/top/stmt/0/src/0")}\", 5);", code);
+    }
+
+    [Fact]
+    public async Task Debug_Print_Output_Streams_Live_To_Debugger()
+    {
+        // ExecutionGlobals.Print must forward each line to the debug controller with
+        // the "print:" prefix so the frontend can stream it into the Output panel
+        // during the session (not only after completion).
+        var ir = Parse("Print(\"hello\")\nPrint(\"world\")\n");
+        var backend = _fixture.MakeBackend();
+        var debugger = new MockDebugController();
+
+        await backend.ExecuteAsync(ir, null, CancellationToken.None, debugger);
+
+        Assert.Contains(debugger.ValueChanges, kv => kv.name == "print:hello");
+        Assert.Contains(debugger.ValueChanges, kv => kv.name == "print:world");
+    }
+
+    [Fact]
+    public async Task Debug_Run_Without_Debugger_Does_Not_Stream_Print()
+    {
+        // Non-debug runs must NOT go through the debug controller (no NotifyValueChanged).
+        var ir = Parse("Print(\"hello\")\n");
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        Assert.Contains("hello", result.Output);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

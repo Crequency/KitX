@@ -151,11 +151,16 @@ internal sealed class DebugCodegen : CodegenBase
         // Node-granularity checkpoints: every source node and every segment node gets
         // its own stop point before it "executes". A source's value is read inside the
         // first segment's argument list, so its checkpoint is a pacing point; segment
-        // checkpoints bracket the actual call.
+        // checkpoints bracket the actual call. Each source ALSO publishes its value on
+        // its data-output wire (w:{srcPath}) so the BP source node's data port tooltip
+        // shows the flowing value — without this the source port would stay empty.
+        // Sources are identifiers / literals / literal-arg calls (KS051), so the extra
+        // evaluation is side-effect free.
         for (int i = 0; i < p.Sources.Length; i++)
         {
             var srcPath = $"{stmtPath}/src/{i}";
             EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
+            EmitLine($"this.OnWireValue(\"w:{NodeId.Of(srcPath)}\", {RenderKsNode(p.Sources[i])});");
         }
 
         string? currentVar = null;

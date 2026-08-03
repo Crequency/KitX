@@ -124,6 +124,11 @@ public class ExecutionGlobals
     {
         var line = value?.ToString() ?? string.Empty;
         OutputLines.Add(line);
+        // Live output streaming: forward every printed line to the debug controller
+        // (name = "print:" + line) so the frontend's Output panel can show the output
+        // IN the debug session instead of only after completion. The "print:" prefix
+        // can never collide with a variable name (identifiers contain no colon).
+        Debugger?.NotifyValueChanged("print:" + line, null);
     }
 
     /// <summary>Sets a PubVar by name (dictionary fallback path).</summary>
