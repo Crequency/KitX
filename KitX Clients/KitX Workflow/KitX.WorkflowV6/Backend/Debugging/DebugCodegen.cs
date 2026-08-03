@@ -43,11 +43,18 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine("{");
         Indent();
         EmitBody(ir.Body, "/top");
+        // Execution-complete stop point: in step-through mode the debugger pauses here
+        // once more after the last node, so the user steps once to formally finish the
+        // debug session (free-run / Continue passes straight through).
+        EmitCheckpoint(ExecutionEndCheckpointId, "end", 0);
         Dedent();
         EmitLine("}");
         EmitClassFooter();
         return _sb.ToString();
     }
+
+    /// <summary>Checkpoint id for the execution-complete stop point (never collides with n_XXXXXXXX node ids).</summary>
+    private const string ExecutionEndCheckpointId = "end";
 
     // ── Body / statement dispatch ──
     //
@@ -76,24 +83,28 @@ internal sealed class DebugCodegen : CodegenBase
 
     private void EmitStatement(Statement stmt, string stmtPath)
     {
-        // Checkpoint id now equals the BP node id (both derive from the same path
-        // via NodeId.Of — see Ir/NodeId.cs). This is the foundation that lets a
+        // Checkpoint ids equal BP node ids (both derive from the same path via
+        // NodeId.Of — see Ir/NodeId.cs). This is the foundation that lets a
         // breakpoint set on a BP node fire when execution reaches the matching
         // IR statement. (Discussion notes §十二-I MVP-required debug UX.)
         //
-        // The path passed to NodeId.Of is the statement's *primary node path* —
-        // the BP node that visually represents the statement. For most statements
-        // this is the statement's own path; for a PipelineStatement it is the
-        // last segment's path (mirrors BpRenderer's _currentPrimaryNode tracking,
-        // BpRenderer.cs:213). For bare calls (Print("hello")) there are no
-        // segments so the primary node sits at the statement's own path.
-        var primaryPath = GetPrimaryNodePath(stmt, stmtPath);
-        var stmtId = NodeId.Of(primaryPath);
-        EmitCheckpoint(stmtId, primaryPath, 0);
+        // Pipeline statements checkpoint at NODE granularity — every source and
+        // segment node gets its own stop point (the BP user's mental model is
+        // node-by-node stepping: `a > Print` pauses on a, then on Print).
+        // Control-flow / break / continue statements keep the single statement-level
+        // checkpoint: the control-flow node (or terminator) itself sits at the
+        // statement's own path.
+        if (stmt is PipelineStatement p)
+        {
+            EmitPipeline(p, stmtPath);
+            return;
+        }
+
+        var stmtId = NodeId.Of(stmtPath);
+        EmitCheckpoint(stmtId, stmtPath, 0);
 
         switch (stmt)
         {
-            case PipelineStatement p: EmitPipeline(p, stmtPath); break;
             case IfStatement iff: EmitIf(iff, stmtPath); break;
             case ForEachStatement fe: EmitForEach(fe, stmtPath); break;
             case WhileStatement ws: EmitWhile(ws, stmtPath); break;
@@ -101,37 +112,6 @@ internal sealed class DebugCodegen : CodegenBase
             case BreakStatement: EmitLine("break;"); break;
             case ContinueStatement: EmitLine("continue;"); break;
         }
-    }
-
-    /// <summary>
-    /// Computes the BP-node path that visually represents this statement — i.e.
-    /// the path whose FNV-1a hash becomes both the BP node id (BpRenderer) and
-    /// the Checkpoint statement id (this codegen). Keep in sync with
-    /// BpRenderer.RenderStatement's <c>_currentPrimaryNode</c> tracking.
-    ///
-    /// Since BpRenderer now threads every usage node (including variable taps) into
-    /// the exec chain, the primary node is always the last node of the pipeline
-    /// (function call OR variable tap) — both cases share the same path scheme.
-    /// </summary>
-    private string GetPrimaryNodePath(Statement stmt, string stmtPath)
-    {
-        if (stmt is not PipelineStatement p)
-            return stmtPath;  // control-flow + break/continue: primary node sits at stmtPath.
-
-        // Bare call: Print("hello") — one source that is a KsCall, no segments.
-        // The function node occupies the statement's own path (BpRenderer.cs:164).
-        if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall)
-            return stmtPath;
-
-        // General pipeline (incl. pure assignment `0 > counter`): primary = last segment.
-        // After the BP-renderer change, every segment node (function or var tap) is in
-        // the exec chain, so the last segment is always the primary anchor.
-        if (p.Segments.Length > 0)
-            return $"{stmtPath}/seg/{p.Segments.Length - 1}";
-
-        // Fallback for any direct-IR-constructed edge case (Parser rejects bare
-        // expressions via KS053, so this path is unreachable from KS text).
-        return stmtPath;
     }
 
     protected override void EmitCheckpoint(string stmtId, string lexicalPath, int ordinal)
@@ -153,6 +133,7 @@ internal sealed class DebugCodegen : CodegenBase
         // The function node occupies the statement's own path (mirrors BpRenderer:164).
         if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
+            EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
             EmitLine($"this.{MapMethodName(call.MethodName)}({string.Join(", ", call.Args.Select(RenderKsNode))});");
             // No data output to record (bare call has no Value pin consumer).
             return;
@@ -160,8 +141,21 @@ internal sealed class DebugCodegen : CodegenBase
 
         if (p.Segments.Length == 0)
         {
+            // No-op read (bare identifier/literal line): a single usage node at src/0.
+            var srcPath = $"{stmtPath}/src/0";
+            EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
             EmitLine($"/* bare expression: {RenderKsNode(p.Sources[0])} */");
             return;
+        }
+
+        // Node-granularity checkpoints: every source node and every segment node gets
+        // its own stop point before it "executes". A source's value is read inside the
+        // first segment's argument list, so its checkpoint is a pacing point; segment
+        // checkpoints bracket the actual call.
+        for (int i = 0; i < p.Sources.Length; i++)
+        {
+            var srcPath = $"{stmtPath}/src/{i}";
+            EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
         }
 
         string? currentVar = null;
@@ -171,6 +165,7 @@ internal sealed class DebugCodegen : CodegenBase
             var seg = p.Segments[i];
             string segPath = $"{stmtPath}/seg/{i}";
             string segNodeId = NodeId.Of(segPath);
+            EmitCheckpoint(segNodeId, segPath, 0);
             string outputVar = $"__pipe_{_pipeCounter++}";
             bool isVarTap = (seg.IsVariableTap && !_helperNames.Contains(seg.Target))
                          || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);

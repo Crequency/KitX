@@ -292,6 +292,57 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains($"this.OnWireValue(\"w:{branchNode.Id}:Condition\",", code2);
     }
 
+    [Fact]
+    public void Debug_Codegen_Checkpoints_At_Node_Granularity()
+    {
+        // `5 > Print` — the source node AND the Print segment node each get a stop
+        // point (the BP user's mental model is node-by-node stepping).
+        var ir = Parse("5 > Print\n");
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        Assert.Contains($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/src/0")}\"", code);
+        Assert.Contains($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/seg/0")}\"", code);
+    }
+
+    [Fact]
+    public void Debug_Codegen_Emits_Execution_End_Checkpoint()
+    {
+        var ir = Parse("Print(\"hello\")\n");
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        // The execution-complete stop point lets the user step once more to formally
+        // finish the debug session.
+        Assert.Contains("this.Checkpoint(\"end\", \"end\");", code);
+    }
+
+    [Fact]
+    public void Debug_Codegen_Checkpoint_Ids_All_Exist_In_Bp_Nodes()
+    {
+        // Node-granularity checkpoints (src/seg paths) must ALL resolve to BP node ids —
+        // otherwise the frontend cannot highlight them and breakpoints cannot fire.
+        var ir = Parse("""
+            var {
+                int a
+                int b
+            }
+            a, b > Compare("BEQ", _, _) > Print
+            """);
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+        var checkpointIds = Regex.Matches(code, @"this\.Checkpoint\(""(n_[0-9A-F]{8})""")
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet();
+
+        var bp = _fixture.BpLens.Project(ir);
+        var bpNodeIds = bp.Nodes.Select(n => n.Id).ToHashSet();
+
+        var missing = checkpointIds.Where(id => !bpNodeIds.Contains(id)).ToList();
+        Assert.True(missing.Count == 0,
+            $"checkpoint ids not found in BP node ids: {string.Join(", ", missing)}");
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MockDebugController — minimal IBlueprintDebugController for E2E tests.
     // Records every NotifyValueChanged call so tests can assert on the wire/variable
