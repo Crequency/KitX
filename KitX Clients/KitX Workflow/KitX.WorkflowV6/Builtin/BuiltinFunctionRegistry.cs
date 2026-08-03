@@ -7,13 +7,15 @@ using Serilog;
 // BuiltinFunctionRegistry — reflection-based discovery + per-role lookup tables.
 //
 // Inherited concept from KitX.WorkflowIR.Builtin.BuiltinFunctionRegistry: one
-// reflection-discovered registry indexes each builtin by name. V6 ships 32 builtin
-// functions across 22 source files: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/
+// reflection-discovered registry indexes each builtin by name. V6 ships 41 builtin
+// functions across 25 source files: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/
 // StringConcat + Pause/ReadTextFile/WriteTextFile + 7 JSON functions (JsonGetField/
 // JsonArrayAt/JsonObjectKeys/JsonAsString/JsonAsInt/JsonAsBool/JsonContains) +
-// 3 plugin-call functions (PluginCall/PluginCallWithTarget/TryGetDevice) +
-// 9 service-management functions (StartPlugin/StopPlugin/StopWorkflow/CreateWorkflow/
-// RunWorkflow/InstallPlugin/GetPluginInfoByName/ListPluginNames/ListWorkflows).
+// 9 dict functions (DictGetValue/DictSetValue/DictGetValues/DictMerge/DictContainsKey/
+// DictKeys/DictRemove/DictToJson/JsonToDict) + 3 plugin-call functions (PluginCall/
+// PluginCallWithTarget/TryGetDevice) + 9 service-management functions (StartPlugin/
+// StopPlugin/StopWorkflow/CreateWorkflow/RunWorkflow/InstallPlugin/GetPluginInfoByName/
+// ListPluginNames/ListWorkflows).
 //
 // V6 control-flow primitives (if/switch/forEach/while/break/continue) are NOT
 // registered here — they are first-class IR statement types (Ir/Statements/*.cs),
@@ -35,7 +37,7 @@ public sealed class BuiltinFunctionRegistry
     /// Reflects over <paramref name="assemblies"/>, instantiates every concrete
     /// <see cref="IBuiltinFunction"/> type, and registers it. Construction failures
     /// are logged (treated as backend bugs) but do not abort discovery. Discovers
-    /// the 32 v6 builtins from the WorkflowV6 assembly.
+    /// the 41 v6 builtins from the WorkflowV6 assembly.
     /// </summary>
     public static BuiltinFunctionRegistry Discover(params Assembly[] assemblies)
     {

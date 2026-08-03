@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 // ─────────────────────────────────────────────────────────────────────────────
 // ServiceCollectionExtensions — DI entry point for KitX.WorkflowV6.
 //
-// Registers the reflection-discovered builtin registry (32 v6 builtin functions),
+// Registers the reflection-discovered builtin registry (41 v6 builtin functions),
 // both lenses (KsTextLens + BpGraphLens), the SyncService, and the default v6
 // execution backend (StructuredRoslynBackend — structured IR → structured C# via
 // Roslyn, loaded into a collectible AssemblyLoadContext).
@@ -30,16 +30,16 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
-    /// (reflection-discovered, 32 functions across 22 source files), the two lenses
+    /// (reflection-discovered, 41 functions across 25 source files), the two lenses
     /// (KS text + BP graph), the session sync service, and the default
     /// IExecutionBackend (StructuredRoslynBackend).
     /// </summary>
     public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
     {
         // BuiltinFunctionRegistry — single reflection-discovered instance. Discovers
-        // the 32 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
-        // + Pause/ReadTextFile/WriteTextFile + 7 JSON functions + 3 plugin-call
-        // functions + 9 service-management functions.
+        // the 41 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
+        // + Pause/ReadTextFile/WriteTextFile + 7 JSON functions + 9 dict functions
+        // + 3 plugin-call functions + 9 service-management functions.
         services.AddSingleton(sp =>
             BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
 
