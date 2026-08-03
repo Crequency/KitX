@@ -334,22 +334,55 @@ internal sealed class DebugCodegen : CodegenBase
     }
 
     /// <summary>
-    /// Evaluates a control-flow condition/selector expression into a fresh local
-    /// (<c>__cond_N</c>) and emits an <see cref="ExecutionGlobals.OnWireValue"/>
-    /// notification tagged with the target control-flow node's id and input pin
-    /// name. This exposes the runtime value flowing on the wire that BP renders
-    /// as `dataSource → Branch.Condition` / `→ Each.List` / `→ While.Condition`
-    /// / `→ Switch.Selector`.
+    /// Evaluates a control-flow condition/selector/source expression into a fresh local
+    /// (<c>__cond_N</c>), emitting node-granularity checkpoints and wire publications
+    /// that mirror BpRenderer's condition sub-graph paths:
+    ///   • single expression (`while i:`)           → one node at {condPath}
+    ///   • pipeline (`while i, 3 > Compare(...)`)   → {condPath}/src/{i} + {condPath}/seg/{i}
+    /// Every condition/source node therefore gets its own StepOver stop point and its
+    /// data port shows the runtime value — previously the whole condition was one
+    /// inlined expression, so StepOver jumped over the condition nodes and their ports
+    /// stayed empty. Also emits the control-flow input wire
+    /// (w:{ctrlNodeId}:{pinName}) that feeds the Branch/While/Switch/Each data pin.
     /// </summary>
     /// <param name="cond">The condition/selector KsNode (Identifier / Literal / Call / Pipeline).</param>
     /// <param name="ctrlNodePath">Path of the control-flow node itself (used to compute its nodeId).</param>
     /// <param name="inputPinName">Name of the input pin this value feeds (Condition / List / Selector).</param>
-    /// <param name="condPath">Path of the condition data-source node (for diagnostic use only).</param>
+    /// <param name="condPath">Path of the condition data-source node (mirrors BpRenderer's {path}/cond|src|sel).</param>
     private void EmitConditionEvaluation(KsNode cond, string ctrlNodePath, string inputPinName, string condPath)
     {
         string ctrlNodeId = NodeId.Of(ctrlNodePath);
         string condVar = $"__cond_{_condCounter++}";
-        EmitLine($"var {condVar} = {RenderKsNode(cond)};");
+
+        if (cond is KsPipeline pipe && pipe.Segments.Length > 0)
+        {
+            for (int i = 0; i < pipe.Sources.Length; i++)
+            {
+                var srcPath = $"{condPath}/src/{i}";
+                EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
+                // Sources are identifiers / literals / literal-arg calls (KS051), so the
+                // extra evaluation for the wire publication is side-effect free.
+                EmitLine($"this.OnWireValue(\"w:{NodeId.Of(srcPath)}\", {RenderKsNode(pipe.Sources[i])});");
+            }
+            for (int i = 0; i < pipe.Segments.Length; i++)
+            {
+                var segPath = $"{condPath}/seg/{i}";
+                EmitCheckpoint(NodeId.Of(segPath), segPath, 0);
+            }
+            EmitLine($"var {condVar} = {RenderKsNode(cond)};");
+            var lastSegPath = $"{condPath}/seg/{pipe.Segments.Length - 1}";
+            EmitLine($"this.OnWireValue(\"w:{NodeId.Of(lastSegPath)}\", {condVar});");
+        }
+        else
+        {
+            EmitCheckpoint(NodeId.Of(condPath), condPath, 0);
+            EmitLine($"var {condVar} = {RenderKsNode(cond)};");
+            EmitLine($"this.OnWireValue(\"w:{NodeId.Of(condPath)}\", {condVar});");
+        }
+
+        // The control-flow input wire: value flowing into the Branch/While/Switch/Each
+        // data input pin (the frontend composes this id from the connection's target
+        // node + pin name).
         EmitLine($"this.OnWireValue(\"w:{ctrlNodeId}:{inputPinName}\", {condVar});");
     }
 }

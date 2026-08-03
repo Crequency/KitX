@@ -493,6 +493,95 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         Assert.True(result.IsSuccess, result.ErrorMessage);
     }
 
+    [Fact]
+    public void Debug_Codegen_While_Condition_Subgraph_Is_Node_Granular()
+    {
+        // `while i, 3 > Compare("BLT"):` — the condition sub-graph nodes (src0/src1/
+        // seg0) must each get a checkpoint + wire publication so StepOver passes
+        // THROUGH them (previously the whole condition was one inlined expression).
+        var ir = Parse("""
+            var {
+                int i
+            }
+            while i, 3 > Compare("BLT"):
+                i, 1 > Add > i
+            """);
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+        var p = "/top/stmt/0/cond";
+
+        Assert.Contains($"this.Checkpoint(\"{NodeId.Of($"{p}/src/0")}\"", code);
+        Assert.Contains($"this.Checkpoint(\"{NodeId.Of($"{p}/src/1")}\"", code);
+        Assert.Contains($"this.Checkpoint(\"{NodeId.Of($"{p}/seg/0")}\"", code);
+        Assert.Contains($"this.OnWireValue(\"w:{NodeId.Of($"{p}/src/0")}\", this.i);", code);
+        Assert.Contains($"this.OnWireValue(\"w:{NodeId.Of($"{p}/seg/0")}\", __cond_0);", code);
+        // The While node's Condition input wire is preserved.
+        Assert.Contains($"this.OnWireValue(\"w:{NodeId.Of("/top/stmt/0")}:Condition\"", code);
+    }
+
+    [Fact]
+    public void Debug_Codegen_ForEach_Source_Subgraph_Is_Node_Granular()
+    {
+        // `forEach Range(0, 3, 1) as i:` — the source (Range call) gets its own
+        // checkpoint + wire so StepOver does not jump over the source node.
+        var ir = Parse("forEach Range(0, 3, 1) as i:\n    i > Print\n");
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+
+        Assert.Contains($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/src")}\"", code);
+        Assert.Contains($"var __cond_0 = this.Range(0, 3, 1);", code);
+        Assert.Contains($"this.OnWireValue(\"w:{NodeId.Of("/top/stmt/0/src")}\", __cond_0);", code);
+    }
+
+    [Fact]
+    public void Debug_Codegen_Condition_Subgraph_Ids_Exist_In_Bp_Nodes()
+    {
+        // Condition sub-graph checkpoint ids must ALL resolve to BP node ids.
+        var ir = Parse("""
+            var {
+                int i
+            }
+            while i, 3 > Compare("BLT"):
+                i, 1 > Add > i
+            """);
+        var cg = new DebugCodegen(_fixture.Registry);
+        var code = cg.Generate(ir, null, hasDebugger: true);
+        var checkpointIds = Regex.Matches(code, @"this\.Checkpoint\(""(n_[0-9A-F]{8})""")
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet();
+
+        var bp = _fixture.BpLens.Project(ir);
+        var bpNodeIds = bp.Nodes.Select(n => n.Id).ToHashSet();
+
+        var missing = checkpointIds.Where(id => !bpNodeIds.Contains(id)).ToList();
+        Assert.True(missing.Count == 0,
+            $"checkpoint ids not found in BP node ids: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
+    public async Task Debug_While_Condition_Wires_Reach_Debugger()
+    {
+        // E2E: while condition sub-graph wires (src/seg + the While Condition input)
+        // must reach the debug controller.
+        var ir = Parse("""
+            var {
+                int i
+            }
+            while i, 2 > Compare("BLT"):
+                i, 1 > Add > i
+            """);
+        var backend = _fixture.MakeBackend();
+        var debugger = new MockDebugController();
+
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None, debugger);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Contains(debugger.ValueChanges,
+            kv => kv.name == $"w:{NodeId.Of("/top/stmt/0")}:Condition");
+        Assert.Contains(debugger.ValueChanges,
+            kv => kv.name == $"w:{NodeId.Of("/top/stmt/0/cond/seg/0")}");
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MockDebugController — minimal IBlueprintDebugController for E2E tests.
     // Records every NotifyValueChanged call so tests can assert on the wire/variable
