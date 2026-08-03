@@ -141,4 +141,130 @@ public class NoOpStatementTests : IClassFixture<WorkflowTestFixture>
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Output);
     }
+
+    // ── Multi-input function source order follows PIN order, not exec order ──
+
+    private static BlueprintPin ExecPin(BlueprintNode node, bool output)
+    {
+        var pins = output ? node.OutputPins : node.InputPins;
+        return pins.First(p => p.Type == PinType.Execution);
+    }
+
+    /// <summary>The unique EXEC edge between two nodes (data edges share the same node pair).</summary>
+    private static BlueprintConnection ExecEdge(Blueprint bp, string srcId, string tgtId)
+        => bp.Connections.Single(c => c.SourceNodeId == srcId && c.TargetNodeId == tgtId
+                                     && bp.Nodes.First(n => n.Id == c.SourceNodeId)
+                                         .OutputPins.First(p => p.Id == c.SourcePinId).Type == PinType.Execution);
+
+    /// <summary>Swaps the exec order between the two usage VariableNodes feeding a function
+    /// (entry → a → b → cmp becomes entry → b → a → cmp).</summary>
+    private static void SwapExecOrder(Blueprint bp, VariableNode a, VariableNode b, BuiltinFunctionNode cmp)
+    {
+        var entry = bp.Nodes.OfType<EntryNode>().Single();
+        var entryToA = ExecEdge(bp, entry.Id, a.Id);
+        var aToB = ExecEdge(bp, a.Id, b.Id);
+        var bToCmp = ExecEdge(bp, b.Id, cmp.Id);
+        bp.Connections.Remove(entryToA);
+        bp.Connections.Remove(aToB);
+        bp.Connections.Remove(bToCmp);
+        bp.Connections.Add(new BlueprintConnection
+        {
+            Id = Guid.NewGuid().ToString(),
+            SourceNodeId = entry.Id,
+            SourcePinId = ExecPin(entry, output: true).Id,
+            TargetNodeId = b.Id,
+            TargetPinId = ExecPin(b, output: false).Id,
+        });
+        bp.Connections.Add(new BlueprintConnection
+        {
+            Id = Guid.NewGuid().ToString(),
+            SourceNodeId = b.Id,
+            SourcePinId = ExecPin(b, output: true).Id,
+            TargetNodeId = a.Id,
+            TargetPinId = ExecPin(a, output: false).Id,
+        });
+        bp.Connections.Add(new BlueprintConnection
+        {
+            Id = Guid.NewGuid().ToString(),
+            SourceNodeId = a.Id,
+            SourcePinId = ExecPin(a, output: true).Id,
+            TargetNodeId = cmp.Id,
+            TargetPinId = ExecPin(cmp, output: false).Id,
+        });
+    }
+
+    [Fact]
+    public void Reverse_Respects_Wired_Pin_Order_Not_Exec_Chain_Order()
+    {
+        // User scenario: a manual exec re-wire makes the exec chain run srcB before
+        // srcA, while the DATA edges still feed Compare.A from a and Compare.B from b.
+        // Reverse must emit `a, b > Compare(...)` (pin order) — the exec order must
+        // not scramble which source lands on which placeholder.
+        var bp = _fixture.BpLens.Project(ParseKS("""
+            var {
+                int a
+                int b
+            }
+            a, b > Compare("BEQ", _, _)
+            """));
+        var a = bp.Nodes.OfType<VariableNode>().Single(n => n.VarName == "a" && !n.IsDefinition);
+        var b = bp.Nodes.OfType<VariableNode>().Single(n => n.VarName == "b" && !n.IsDefinition);
+        var cmp = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Compare");
+
+        // Swap exec order: a → b → Compare becomes b → a → Compare.
+        SwapExecOrder(bp, a, b, cmp);
+
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var pipe = Assert.IsType<PipelineStatement>(reversed.Body[0]);
+
+        // Sources follow the wired pin declaration order (A feeds a, B feeds b) — NOT
+        // the exec chain order (b first).
+        Assert.Equal(2, pipe.Sources.Length);
+        Assert.Equal("a", pipe.Sources[0].SourceText);
+        Assert.Equal("b", pipe.Sources[1].SourceText);
+        var seg = Assert.Single(pipe.Segments);
+        Assert.Equal("Compare", seg.Target);
+    }
+
+    [Fact]
+    public void MultiInput_Pipeline_RoundTrip_Is_Still_Diff_Empty()
+    {
+        // Regression: when exec order == pin order (the renderer's natural output),
+        // the pin-order reordering is a no-op and the round-trip stays diff-empty.
+        var ir = ParseKS("""
+            var {
+                int a
+                int b
+            }
+            a, b > Compare("BEQ", _, _)
+            """);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes");
+    }
+
+    [Fact]
+    public void Reordered_Exec_Chain_Normalises_On_RoundTrip()
+    {
+        // After Reverse (pin order) → Project, the exec chain is re-normalised to the
+        // pin order; the reordered BP and the round-tripped BP are then equivalent.
+        var bp = _fixture.BpLens.Project(ParseKS("""
+            var {
+                int a
+                int b
+            }
+            a, b > Compare("BEQ", _, _)
+            """));
+        var a = bp.Nodes.OfType<VariableNode>().Single(n => n.VarName == "a" && !n.IsDefinition);
+        var b = bp.Nodes.OfType<VariableNode>().Single(n => n.VarName == "b" && !n.IsDefinition);
+        var cmp = bp.Nodes.OfType<BuiltinFunctionNode>().Single(n => n.FunctionName == "Compare");
+        SwapExecOrder(bp, a, b, cmp);
+
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var bp2 = _fixture.BpLens.Project(reversed);
+        var reversed2 = _fixture.BpLens.Reverse(bp2);
+        var diff = WorkflowDiffer.Compute(reversed, reversed2);
+        Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes");
+    }
 }

@@ -553,15 +553,20 @@ internal sealed class BpReverseTranslator
     /// function/var-tap → goes into Segments). Subsequent nodes append to Segments.
     /// Bare call form (Sources=[KsCall], Segments=[]) is preserved when the group is
     /// a single function node with no wired inputs.
+    ///
+    /// Source ORDER follows the first consuming function segment's WIRED INPUT PIN
+    /// declaration order (BP data edges are the semantic truth), NOT the exec-chain
+    /// order — a manually re-wired exec chain must not scramble which source lands on
+    /// which argument placeholder (`b, a > Compare("BEQ", _, _)` would feed A=b).
     /// </summary>
     private Statement BuildPipelineFromGroup(List<BlueprintNode> group)
     {
         var primary = group[0];
-        var sources = ImmutableArray.CreateBuilder<KsNode>();
+        var sourceNodes = new List<BlueprintNode>();
         var segments = ImmutableArray.CreateBuilder<Segment>();
 
         // Walk the group left-to-right, dispatching by node type.
-        // Read ConstNode / read VariableNode → Sources.Add
+        // Read ConstNode / read VariableNode → Sources
         // Function node → Segments.Add (with Arguments reconstructed)
         // Var tap VariableNode → Segments.Add (IsVariableTap=true)
         // Write VariableNode (no outgoing data) → Segments.Add (IsVariableTap=true, closes pipeline)
@@ -572,7 +577,7 @@ internal sealed class BpReverseTranslator
             switch (node)
             {
                 case ConstNode cn:
-                    sources.Add(NodeToKsNode(cn));
+                    sourceNodes.Add(cn);
                     break;
                 case VariableNode vn:
                     if (HasIncomingDataEdge(vn))
@@ -590,7 +595,7 @@ internal sealed class BpReverseTranslator
                     else
                     {
                         // Read VariableNode → source identifier.
-                        sources.Add(NodeToKsNode(vn));
+                        sourceNodes.Add(vn);
                     }
                     break;
                 case BuiltinFunctionNode fn:
@@ -601,7 +606,7 @@ internal sealed class BpReverseTranslator
                     // The bare-call form (whole group = single function) is handled below.
                     if (ReferenceEquals(group[0], fn) && !HasWiredInputs(fn))
                     {
-                        sources.Add(BuildKsCallFromFunctionNode(fn));
+                        sourceNodes.Add(fn);
                         break;
                     }
                     // Build the segment with full Arguments (preserves literals + placeholders).
@@ -614,6 +619,21 @@ internal sealed class BpReverseTranslator
                     lastFuncOrTap = fn;
                     break;
             }
+        }
+
+        // Source order follows the first consuming function segment's wired input pin
+        // declaration order (data edges = semantic truth; exec order may diverge after
+        // manual rewiring and must not scramble placeholder assignment).
+        ReorderSourcesByPinOrder(group, sourceNodes);
+        var sources = ImmutableArray.CreateBuilder<KsNode>();
+        foreach (var n in sourceNodes)
+        {
+            // Function sources keep the literal-inlined KsCall reconstruction (bare
+            // `PluginCall(...)` at group head); read nodes convert via NodeToKsNode.
+            sources.Add(n is BuiltinFunctionNode fnSrc
+                        && ReferenceEquals(group[0], fnSrc) && !HasWiredInputs(fnSrc)
+                ? BuildKsCallFromFunctionNode(fnSrc)
+                : NodeToKsNode(n));
         }
 
         // Determine bare call vs pipeline form.
@@ -655,6 +675,50 @@ internal sealed class BpReverseTranslator
             LeadingComment = leadingOnly,
             TrailingComment = pipeTrailing,
         });
+    }
+
+    /// <summary>
+    /// Reorders <paramref name="sourceNodes"/> so that sources feeding the first
+    /// consuming function segment appear in that segment's WIRED INPUT PIN declaration
+    /// order (the order the KS placeholder `_` slots will be filled). Sources not wired
+    /// to any input pin of the consumer keep their relative order afterwards.
+    /// Var-tap segments consume a single upstream value and never participate.
+    /// </summary>
+    private void ReorderSourcesByPinOrder(List<BlueprintNode> group, List<BlueprintNode> sourceNodes)
+    {
+        // The first consuming function segment: a BuiltinFunctionNode that is NOT the
+        // group-leading function source (bare `PluginCall(...)` at position 0 with no
+        // wired inputs is a source itself, not a consumer).
+        BuiltinFunctionNode? consumer = null;
+        foreach (var node in group)
+        {
+            if (node is not BuiltinFunctionNode fn) continue;
+            if (ReferenceEquals(group[0], fn) && !HasWiredInputs(fn)) continue;
+            consumer = fn;
+            break;
+        }
+        if (consumer is null || sourceNodes.Count <= 1) return;
+
+        var pinOrdered = new List<BlueprintNode>();
+        var seen = new HashSet<BlueprintNode>();
+        foreach (var pin in consumer.InputPins)
+        {
+            if (pin.Name == BpPinNames.Exec) continue;
+            foreach (var conn in _bp.Connections)
+            {
+                if (conn.TargetNodeId != consumer.Id || conn.TargetPinId != pin.Id) continue;
+                var src = _byId.GetValueOrDefault(conn.SourceNodeId);
+                if (src is not null && sourceNodes.Contains(src) && seen.Add(src))
+                    pinOrdered.Add(src);
+                break;
+            }
+        }
+        if (pinOrdered.Count == 0) return;
+
+        var remaining = sourceNodes.Where(n => !pinOrdered.Contains(n)).ToList();
+        sourceNodes.Clear();
+        sourceNodes.AddRange(pinOrdered);
+        sourceNodes.AddRange(remaining);
     }
 
     /// <summary>
