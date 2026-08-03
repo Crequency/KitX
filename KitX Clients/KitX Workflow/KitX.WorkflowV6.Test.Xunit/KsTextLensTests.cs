@@ -708,6 +708,126 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public void Error_KS064_Else_If_Rejected()
+    {
+        // `else if` is not supported — the renderer always emits nested form and the
+        // parser rejects the sugar (bijection guarantee: else-if and nested if map to
+        // the same IR, which would break Get-Get idempotence).
+        var src = """
+            if c:
+                Print("then")
+            else if c2:
+                Print("else")
+            """;
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS064");
+    }
+
+    [Fact]
+    public void Error_KS070_Dict_Key_Missing_Colon()
+    {
+        // Dict key must be followed by ':'.
+        var src = "var {\n    dict d = {a 1}\n}\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS070");
+    }
+
+    [Fact]
+    public void Error_KS071_Dict_Missing_Comma_Or_Brace()
+    {
+        // After a key-value pair, the dict literal must continue with ',' or close with '}'.
+        var src = "var {\n    dict d = {a: 1 b: 2}\n}\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS071");
+    }
+
+    [Fact]
+    public void Error_KS072_Dict_Key_Must_Be_String_Or_Identifier()
+    {
+        // Dict keys are string literals or identifiers only — an integer key is illegal.
+        var src = "var {\n    dict d = {1: 2}\n}\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS072");
+    }
+
+    [Fact]
+    public void Error_KS073_Nested_Dict_Rejected()
+    {
+        // Dict values are flat scalars only — nested dicts are rejected (use JSON format).
+        var src = "var {\n    dict d = {a: {b: 1}}\n}\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS073");
+    }
+
+    [Fact]
+    public void Error_KS074_Dict_Value_Not_Scalar()
+    {
+        // Dict values must be scalar literals — the placeholder `_` is not a value.
+        var src = "var {\n    dict d = {a: _}\n}\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS074");
+    }
+
+    [Fact]
+    public void Error_KS075_Parenthesised_Source_Missing_Close()
+    {
+        // Parenthesised pipeline source `(a > Func` must be closed with ')'.
+        var src = "(1 > Add(_, 1) > Print\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS075");
+    }
+
+    [Fact]
+    public void Error_KS076_Decl_Initialiser_Must_Be_Literal()
+    {
+        // Decl-block initialisers are literal-only — references/expressions are illegal
+        // (a BP definition node can only carry a payload, not data edges).
+        var src = """
+            const {
+                int MAX = 99
+            }
+            var {
+                int x = MAX
+            }
+            """;
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS076");
+    }
+
+    [Fact]
+    public void Parse_String_Escape_Codes_Decoded()
+    {
+        // Tokenizer decodes C#-style escapes in string literals (payload = decoded text).
+        var src = "Print(\"a\\nb\\tc\\\\d\\\"e\\'f\\0g\")\n";
+        var ir = _fixture.KsLens.Parse(src, []);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        var call = Assert.IsType<KsCall>(pipe.Sources[0]);
+        var lit = Assert.IsType<KsLiteral>(call.Args[0]);
+        Assert.Equal(KsLiteralKind.String, lit.Kind);
+        Assert.Equal("a\nb\tc\\d\"e'f\0g", lit.Value);
+    }
+
+    [Fact]
+    public void Parse_Unknown_Escape_Passes_Through_Verbatim()
+    {
+        // Unknown escapes (e.g. \x) pass through verbatim per the tokenizer contract.
+        var src = "Print(\"\\x\")\n";
+        var ir = _fixture.KsLens.Parse(src, []);
+        var pipe = Assert.IsType<PipelineStatement>(ir.Body[0]);
+        var call = Assert.IsType<KsCall>(pipe.Sources[0]);
+        var lit = Assert.IsType<KsLiteral>(call.Args[0]);
+        Assert.Equal("x", lit.Value);
+    }
+
+    [Fact]
     public void Multiline_Condition_With_Segment_Comment_Trip()
     {
         // Multi-line condition with intermediate + last segment comments round-trips.

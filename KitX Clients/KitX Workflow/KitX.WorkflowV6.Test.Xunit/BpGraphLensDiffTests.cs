@@ -91,6 +91,7 @@ public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
         bp.Connections.Add(Conn("b", "b-out", "entry", "entry-in"));
         var error = StructuralReducer.Check(bp);
         Assert.NotNull(error);  // E3: assert error exists; don't freeze UX wording
+        Assert.Contains("KS105", error);  // explicit exec back-edge → KS105 (E6)
     }
 
     [Fact]
@@ -106,6 +107,132 @@ public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
         bp.Connections.Add(Conn("n", "n-out", "n", "n-in")); // self-loop
         var error = StructuralReducer.Check(bp);
         Assert.NotNull(error);  // E3: assert error exists; don't freeze UX wording
+        // The self-loop makes the node's Exec input have 2 incoming edges — E3/KS102
+        // fires before the E6/KS105 cycle check (check order is by design).
+        Assert.Contains("KS102", error);
+    }
+
+    // ── Per-code constraint tests (KS100-KS140 coverage) ──
+
+    [Fact]
+    public void Structural_Rejects_Isolated_Node_KS100()
+    {
+        // A non-definition node with no exec/data path from Entry violates E1 connectivity.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var linked = MakeNode("l", "Linked");
+        var orphan = MakeNode("o", "Orphan");
+        bp.Nodes.Add(entry); bp.Nodes.Add(linked); bp.Nodes.Add(orphan);
+        bp.Connections.Add(Conn("e", "eo", "l", "l-in"));
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS100", error);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Explicit_Exec_Back_Edge_KS105()
+    {
+        // Explicit exec cycle (Entry → A → B → Entry) must be reported as KS105 (E6),
+        // not merely as a generic error.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var a = MakeNode("a", "A");
+        var b = MakeNode("b", "B");
+        bp.Nodes.Add(entry); bp.Nodes.Add(a); bp.Nodes.Add(b);
+        bp.Connections.Add(Conn("e", "eo", "a", "a-in"));
+        bp.Connections.Add(Conn("a", "a-out", "b", "b-in"));
+        bp.Connections.Add(Conn("b", "b-out", "e", "eo"));  // back to Entry's exec out
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS105", error);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Data_Cycle_KS110()
+    {
+        // A data-edge cycle (values depending on themselves) violates D1/DAG → KS110.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var a = MakeNode("a", "A");
+        var b = MakeNode("b", "B");
+        a.InputPins.Add(new BlueprintPin { Id = "a-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        a.OutputPins.Add(new BlueprintPin { Id = "a-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        b.InputPins.Add(new BlueprintPin { Id = "b-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        b.OutputPins.Add(new BlueprintPin { Id = "b-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(a); bp.Nodes.Add(b);
+        bp.Connections.Add(Conn("e", "eo", "a", "a-in"));
+        bp.Connections.Add(Conn("a", "a-out", "b", "b-in"));
+        bp.Connections.Add(Conn("a", "a-vout", "b", "b-vin"));
+        bp.Connections.Add(Conn("b", "b-vout", "a", "a-vin"));  // data cycle: a → b → a
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS110", error);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Usage_Node_Without_Exec_Pin_KS120()
+    {
+        // A non-definition node with no Exec pins is data-reachable (it feeds an
+        // exec-reachable consumer), so KS100 does not fire — but C1 demands Exec pins
+        // on every non-definition node → KS120.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var a = MakeNode("a", "A");
+        a.InputPins.Add(new BlueprintPin { Id = "a-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        var noExec = new BuiltinFunctionNode { Id = "ne", Name = "NoExec", FunctionName = "NoExec", NodeType = BlueprintNodeType.BuiltinFunction };
+        noExec.OutputPins.Add(new BlueprintPin { Id = "ne-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(a); bp.Nodes.Add(noExec);
+        bp.Connections.Add(Conn("e", "eo", "a", "a-in"));
+        bp.Connections.Add(Conn("ne", "ne-vout", "a", "a-vin"));  // noExec feeds a's data input
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS120", error);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Unmatched_VarName_KS130()
+    {
+        // A usage VariableNode whose VarName has no matching definition node violates N2 → KS130.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var a = MakeNode("a", "A");
+        var usage = new VariableNode { Id = "v", Name = "ghost", VarName = "ghost", VarKind = VariableKind.PubVar, NodeType = BlueprintNodeType.Variable };
+        usage.InputPins.Add(new BlueprintPin { Id = "v-in", Name = "Exec", Direction = PinDirection.Input, Type = PinType.Execution });
+        usage.OutputPins.Add(new BlueprintPin { Id = "v-out", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        usage.InputPins.Add(new BlueprintPin { Id = "v-vin", Name = "Value", Direction = PinDirection.Input, Type = PinType.Any });
+        usage.OutputPins.Add(new BlueprintPin { Id = "v-vout", Name = "Value", Direction = PinDirection.Output, Type = PinType.Any });
+        bp.Nodes.Add(entry); bp.Nodes.Add(a); bp.Nodes.Add(usage);
+        bp.Connections.Add(Conn("e", "eo", "a", "a-in"));
+        bp.Connections.Add(Conn("a", "a-out", "v", "v-in"));
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS130", error);
+    }
+
+    [Fact]
+    public void Structural_Rejects_Multi_Path_Access_KS101()
+    {
+        // A node reachable only via a NON-"Exec"-named exec pin: the KS100 BFS follows
+        // every exec-typed pin (so connectivity passes), but the structured walk only
+        // follows pins named "Exec" — the node is never visited → KS101 (E2) fires.
+        var bp = new Blueprint();
+        var entry = new EntryNode { Id = "e", Name = "Entry", NodeType = BlueprintNodeType.Entry };
+        entry.OutputPins.Add(new BlueprintPin { Id = "eo", Name = "Exec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var a = MakeNode("a", "A");
+        a.OutputPins.Clear();  // drop the standard "Exec" out; expose a non-standard exec pin
+        a.OutputPins.Add(new BlueprintPin { Id = "a-cout", Name = "CustomExec", Direction = PinDirection.Output, Type = PinType.Execution });
+        var b = MakeNode("b", "B");
+        bp.Nodes.Add(entry); bp.Nodes.Add(a); bp.Nodes.Add(b);
+        bp.Connections.Add(Conn("e", "eo", "a", "a-in"));
+        bp.Connections.Add(Conn("a", "a-cout", "b", "b-in"));
+        var error = StructuralReducer.Check(bp);
+        Assert.NotNull(error);
+        Assert.Contains("KS101", error);
     }
 
     private static BuiltinFunctionNode MakeNode(string id, string name)

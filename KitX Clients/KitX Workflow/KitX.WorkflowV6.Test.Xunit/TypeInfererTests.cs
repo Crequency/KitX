@@ -497,4 +497,42 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
         Assert.True(result.ContainsKey("result"));
         Assert.Equal("string", result["result"]);
     }
+
+    [Fact]
+    public void Infer_Dict_Output_Type_Normalisation()
+    {
+        // JsonToDict's Dict output pin must normalise to the C# Dictionary type —
+        // PinTypeToCSharp(PinType.Dict) = "Dictionary<string, object?>". The declared
+        // `dict d2` seed ("dict") is refined by the producing function's return pin.
+        var source = """
+            var {
+                dict d = {a: 1}
+                dynamic j
+                dict d2
+            }
+            d > DictToJson > j
+            j > JsonToDict > d2
+            """;
+        var result = InferFromDeclared(source);
+        Assert.True(result.ContainsKey("d2"));
+        Assert.Equal("Dictionary<string, object?>", result["d2"]);
+    }
+
+    [Fact]
+    public void Infer_Dict_Declared_Type_Is_Seeded_Verbatim()
+    {
+        // A dict variable consumed by dict builtins keeps its declared "dict" seed —
+        // the SourcePass only refines vars that a producing call writes (colors is a
+        // source, not a tap target, so nothing overrides the declaration).
+        var source = """
+            var {
+                dict colors = {red: 0, green: 1}
+                int r
+            }
+            colors, "red" > DictGetValue > r
+            """;
+        var result = InferFromDeclared(source);
+        Assert.True(result.ContainsKey("colors"));
+        Assert.Equal("dict", result["colors"]);
+    }
 }

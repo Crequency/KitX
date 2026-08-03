@@ -87,9 +87,9 @@ public class NoOpStatementTests : IClassFixture<WorkflowTestFixture>
 
         // Exec chain: a → b → Print; data edge: b → Print only.
         var aNode = Assert.Single(bp.Nodes, n => n is VariableNode { IsDefinition: false } vn && vn.VarName == "a");
-        Assert.False(bp.Connections.Any(c => c.SourceNodeId == aNode.Id
+        Assert.DoesNotContain(bp.Connections, c => c.SourceNodeId == aNode.Id
                                              && !bp.Nodes.First(n => n.Id == c.SourceNodeId).OutputPins
-                                                 .First(p => p.Id == c.SourcePinId).Type.Equals(PinType.Execution)));
+                                                 .First(p => p.Id == c.SourcePinId).Type.Equals(PinType.Execution));
 
         var reversed = lens.Reverse(bp);
         Assert.Equal(2, reversed.Body.Length);

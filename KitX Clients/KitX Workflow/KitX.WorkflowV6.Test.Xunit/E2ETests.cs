@@ -447,6 +447,32 @@ public class E2ETests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public async Task E2E_Cache_Invalidation_On_Constant_Override()
+    {
+        // Overriding a constant's InitialValueExpression must invalidate the compile
+        // cache (ComputeIrHash folds the value in) — the second run must execute with
+        // the NEW value, not a stale cached assembly (P4-α-2 regression).
+        var src = """
+            const {
+                int x = 1
+            }
+            x > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result1 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result1.IsSuccess, $"First run failed: {result1.ErrorMessage}");
+        Assert.Contains("1", result1.Output);
+
+        var overridden = WorkflowOverrides.ApplyConstantOverrides(
+            ir, new Dictionary<string, string?> { ["x"] = "2" });
+        var result2 = await backend.ExecuteAsync(overridden, null, CancellationToken.None);
+        Assert.True(result2.IsSuccess, $"Overridden run failed: {result2.ErrorMessage}");
+        Assert.Contains("2", result2.Output);
+        Assert.DoesNotContain("1", result2.Output);
+    }
+
+    [Fact]
     public async Task E2E_Arithmetic_Four_Operations()
     {
         var src = """

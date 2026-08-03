@@ -447,6 +447,107 @@ public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains("tab", line);
     }
 
+    // ── Plugin/Service function E2E execution (MockHost coverage) ──
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_PluginCallWithTarget_E2E()
+    {
+        // Remote plugin invocation: CallWithTarget returns "{}" → AsJsonElement → Print.
+        var ir = _fixture.KsLens.Parse("PluginCallWithTarget(\"p\", \"m\", \"dev\") > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("{}", result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_TryGetDevice_E2E()
+    {
+        // TryGetDevice returns null for an unknown device — the pipeline must still
+        // execute (Print(null) emits an empty line).
+        var ir = _fixture.KsLens.Parse("TryGetDevice(\"dev\") > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Single(result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_StopWorkflow_E2E()
+    {
+        var ir = _fixture.KsLens.Parse("\"wf-1\" > StopWorkflow > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_CreateWorkflow_E2E()
+    {
+        var ir = _fixture.KsLens.Parse("CreateWorkflow(\"wf\", \"Print(\\\"x\\\")\") > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("wf-001", result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_RunWorkflow_E2E()
+    {
+        var ir = _fixture.KsLens.Parse("\"wf-1\" > RunWorkflow > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_InstallPlugin_E2E()
+    {
+        var ir = _fixture.KsLens.Parse("\"x.kxp\" > InstallPlugin > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_GetPluginInfoByName_E2E()
+    {
+        var ir = _fixture.KsLens.Parse("GetPluginInfoByName(\"p\") > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("{}", result.Output);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Builtin_ListWorkflows_E2E()
+    {
+        var ir = _fixture.KsLens.Parse("ListWorkflows() > Print\n", []);
+        var host = new E2ETests_Inner_Host();
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains(result.Output, s => s.Contains("wf-001"));
+    }
+
     private sealed class E2ETests_Inner_Host : IPluginHost
     {
         public object? Call(string pluginName, string methodName, params object[] args) => "{}";
