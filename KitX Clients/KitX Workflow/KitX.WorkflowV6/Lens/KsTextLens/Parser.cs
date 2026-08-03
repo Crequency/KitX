@@ -193,22 +193,30 @@ internal sealed class Parser
                 continue;
             }
 
-            // Comments directly above a const/var block are out of scope (declaration-
-            // block comment preservation is deferred); drop pending there.
+            // Comments directly above a const/var block become the block's doc comment
+            // (KS-side privileged — never projected to the BP graph). The accumulation
+            // is consumed here so it can never leak onto a following statement; comments
+            // between the const block and the var block go to the var block.
             if (MatchKeyword("const"))
             {
-                commentAcc = new CommentAccumulator();
+                var doc = commentAcc.Detach();
                 if (constBlock is not null)
                     Error(KsErrors.DuplicateDeclBlock, "Duplicate const block");
-                constBlock = ParseConstBlock();
+                var block = ParseConstBlock();
+                // Block-preceding doc text comes first; free-floating comments found
+                // inside the block (block tail etc.) are appended after it.
+                block.LeadingComment = MergeDocComments(doc, block.LeadingComment);
+                constBlock = block;
                 continue;
             }
             if (MatchKeyword("var"))
             {
-                commentAcc = new CommentAccumulator();
+                var doc = commentAcc.Detach();
                 if (varBlock is not null)
                     Error(KsErrors.DuplicateDeclBlock, "Duplicate var block");
-                varBlock = ParseVarBlock();
+                var block = ParseVarBlock();
+                block.LeadingComment = MergeDocComments(doc, block.LeadingComment);
+                varBlock = block;
                 continue;
             }
             var stmt = ParseStatement();
@@ -222,45 +230,74 @@ internal sealed class Parser
             VarBlock = varBlock,
             Body = body.ToImmutable(),
             SourceLine = 1,
+            // Whatever remains in the accumulator at end of input has no following
+            // statement or decl block — a file-end free-floating comment run.
+            TrailingDocComment = commentAcc.Detach(),
         };
+    }
+
+    /// <summary>Joins a block-preceding doc text with an inside-block free-floating comment
+    /// run, preserving source order (block doc first, inside-block appends after).</summary>
+    private static string? MergeDocComments(string? before, string? after)
+    {
+        if (before is null) return after;
+        if (after is null) return before;
+        return before + "\n" + after;
     }
 
     // ── Decl blocks ──
 
     private TBlock ParseDeclBlock<TBlock, TRow>(
-        Func<TRow> rowParser,
-        Func<ImmutableArray<TRow>, TBlock> blockFactory)
+        Func<string?, TRow> rowParser,
+        Func<ImmutableArray<TRow>, string?, TBlock> blockFactory)
+        where TRow : KsNode
     {
         var decls = ImmutableArray.CreateBuilder<TRow>();
+        var commentAcc = new CommentAccumulator();
         ExpectLBrace();
         while (!AtEnd && Current.Kind != KsTokenKind.RBrace)
         {
             if (Current.Kind == KsTokenKind.Indent) Advance();
             if (Current.Kind == KsTokenKind.RBrace) break;
-            decls.Add(rowParser());
+            // A full-line comment accumulates as the leading comment of the NEXT decl
+            // row (same "immediately preceding" semantics as statement comments — blank
+            // lines emit no tokens, so they never break the run).
+            if (Current.Kind == KsTokenKind.Comment)
+            {
+                commentAcc.Add(Current.Text);
+                Advance();
+                continue;
+            }
+            decls.Add(rowParser(commentAcc.Detach()));
             while (!AtEnd && Current.Kind != KsTokenKind.Indent
                           && Current.Kind != KsTokenKind.RBrace) Advance();
         }
         Match(KsTokenKind.RBrace);
-        return blockFactory(decls.ToImmutable());
+        // A comment run that never led a decl row (block tail / free-floating) becomes
+        // part of the block's doc comment.
+        return blockFactory(decls.ToImmutable(), commentAcc.Detach());
     }
 
     private KsConstBlock ParseConstBlock() =>
         ParseDeclBlock<KsConstBlock, KsConstDecl>(
-            ParseConstRow, decls => new KsConstBlock { Declarations = decls });
+            ParseConstRow, (decls, freeDoc) => new KsConstBlock { Declarations = decls, LeadingComment = freeDoc });
 
     private KsVarBlock ParseVarBlock() =>
         ParseDeclBlock<KsVarBlock, KsVarDecl>(
-            ParseVarRow, decls => new KsVarBlock { Declarations = decls });
+            ParseVarRow, (decls, freeDoc) => new KsVarBlock { Declarations = decls, LeadingComment = freeDoc });
 
-    private T ParseDeclRow<T>(Func<string, string, string?, KsDictLiteral?, string, int, T> factory)
+    private T ParseDeclRow<T>(string? leading, Func<string, string, string?, KsDictLiteral?, string, int, T> factory)
+        where T : KsNode
     {
-        var (typeTok, nameTok, initExpr, dictInit, src) = ParseDeclRowCore();
-        return factory(typeTok.Text, nameTok.Text, initExpr, dictInit, src, typeTok.Line);
+        var (typeTok, nameTok, initExpr, dictInit, src, trailing) = ParseDeclRowCore();
+        var row = factory(typeTok.Text, nameTok.Text, initExpr, dictInit, src, typeTok.Line);
+        if (row is KsConstDecl cd) { cd.LeadingComment = leading; cd.TrailingComment = trailing; }
+        else if (row is KsVarDecl vd) { vd.LeadingComment = leading; vd.TrailingComment = trailing; }
+        return row;
     }
 
-    private KsConstDecl ParseConstRow() =>
-        ParseDeclRow<KsConstDecl>((type, name, init, dictInit, src, line) => new KsConstDecl
+    private KsConstDecl ParseConstRow(string? leading) =>
+        ParseDeclRow<KsConstDecl>(leading, (type, name, init, dictInit, src, line) => new KsConstDecl
         {
             Name = name,
             Type = type,
@@ -270,8 +307,8 @@ internal sealed class Parser
             SourceLine = line,
         });
 
-    private KsVarDecl ParseVarRow() =>
-        ParseDeclRow<KsVarDecl>((type, name, init, dictInit, src, line) => new KsVarDecl
+    private KsVarDecl ParseVarRow(string? leading) =>
+        ParseDeclRow<KsVarDecl>(leading, (type, name, init, dictInit, src, line) => new KsVarDecl
         {
             Name = name,
             Type = type,
@@ -281,7 +318,7 @@ internal sealed class Parser
             SourceLine = line,
         });
 
-    private (KsToken typeTok, KsToken nameTok, string? initExpr, KsDictLiteral? dictInit, string src) ParseDeclRowCore()
+    private (KsToken typeTok, KsToken nameTok, string? initExpr, KsDictLiteral? dictInit, string src, string? trailing) ParseDeclRowCore()
     {
         // Form: <type> <name> ['=' <initialiser>]
         var typeTok = Current.Kind == KsTokenKind.Identifier ? Advance() : Current;
@@ -293,6 +330,7 @@ internal sealed class Parser
 
         string? initExpr = null;
         KsDictLiteral? dictInit = null;
+        string? trailing = null;
         if (Match(KsTokenKind.Assign))
         {
             if (typeTok.Text == "dict" && Current.Kind == KsTokenKind.LBrace)
@@ -311,8 +349,12 @@ internal sealed class Parser
                 {
                     initExpr = ReconstructText(_tokens, _pos, _pos + 1).Trim();
                     Advance();
+                    // Consume the row's inline comment (`int x = 5 // note`) BEFORE the
+                    // "anything beyond a single literal" check — a comment must not be
+                    // misread as a trailing expression (KS076 false positive).
+                    trailing = TryConsumeComment();
                     // Reject anything beyond a single literal on the line (e.g. `42 + 1`, `x`).
-                    if (!AtEnd && Current.Kind != KsTokenKind.Indent && Current.Kind != KsTokenKind.RBrace)
+                    if (trailing is null && !AtEnd && Current.Kind != KsTokenKind.Indent && Current.Kind != KsTokenKind.RBrace)
                         Error(KsErrors.DeclInitMustBeSingleLiteral, "Scalar var/const initialiser must be a single literal — expressions/references are not allowed in decl blocks");
                 }
                 else
@@ -325,8 +367,11 @@ internal sealed class Parser
             }
         }
 
+        // Rows without an initialiser (or with a dict initialiser) still carry their
+        // inline comment (`int counter // note`) — capture it here.
+        trailing ??= TryConsumeComment();
         var src = $"{typeTok.Text} {nameTok.Text}{(initExpr is null ? "" : " = " + initExpr)}";
-        return (typeTok, nameTok, initExpr, dictInit, src);
+        return (typeTok, nameTok, initExpr, dictInit, src, trailing);
     }
 
     /// <summary>True for the six scalar-literal token kinds usable as a decl-block initialiser.</summary>

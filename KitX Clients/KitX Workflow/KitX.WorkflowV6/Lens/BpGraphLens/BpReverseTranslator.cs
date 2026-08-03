@@ -104,6 +104,10 @@ internal sealed class BpReverseTranslator
                         // Rebuild the structured dict initialiser from the JSON payload BpRenderer
                         // stored in DefaultValue (Dict-Type design §3.3). Non-dict consts leave null.
                         DictInitializer = (cn.ConstType == "dict") ? TryDeserializeDictInit(cn.DefaultValue) : null,
+                        // 1:1 comment restoration: definition node Comment → trailing,
+                        // anchored GroupComment → leading (mirrors statement ReadComments).
+                        LeadingComment = GroupCommentFor(node.Id),
+                        TrailingComment = cn.Comment is { Length: > 0 } ? cn.Comment : null,
                     }),
                 };
             }
@@ -121,6 +125,8 @@ internal sealed class BpReverseTranslator
                         // also fixes the old bug where the scalar initialiser was dropped.)
                         InitialValueExpression = vn.DefaultValue,
                         DictInitializer = (vn.VarType == "dict") ? TryDeserializeDictInit(vn.DefaultValue) : null,
+                        LeadingComment = GroupCommentFor(node.Id),
+                        TrailingComment = vn.Comment is { Length: > 0 } ? vn.Comment : null,
                     }),
                 };
             }
@@ -884,9 +890,15 @@ internal sealed class BpReverseTranslator
     private (string? Leading, string? Trailing) ReadComments(BlueprintNode primary)
     {
         string? trailing = primary.Comment is { Length: > 0 } ? primary.Comment : null;
-        _groupCommentsByAnchor.TryGetValue(primary.Id, out var gc);
-        string? leading = gc?.Comment is { Length: > 0 } ? gc.Comment : null;
+        string? leading = GroupCommentFor(primary.Id);
         return (leading, trailing);
+    }
+
+    /// <summary>Reads the GroupComment anchored at <paramref name="nodeId"/> (if any).</summary>
+    private string? GroupCommentFor(string nodeId)
+    {
+        _groupCommentsByAnchor.TryGetValue(nodeId, out var gc);
+        return gc?.Comment is { Length: > 0 } ? gc.Comment : null;
     }
 
     /// <summary>Sets LeadingComment/TrailingComment on a statement from its primary node.</summary>

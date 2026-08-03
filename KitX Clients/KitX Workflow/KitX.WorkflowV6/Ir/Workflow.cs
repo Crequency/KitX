@@ -65,7 +65,27 @@ public sealed record Workflow
     /// </summary>
     public ImmutableArray<DetachedGraph> DetachedGraphs { get; init; } = [];
 
-    // ── Equality: every field EXCEPT Annotations. ──
+    /// <summary>
+    /// Full-line comment run immediately above the <c>const { ... }</c> block (the
+    /// block's doc comment; multiple lines joined by <c>\n</c>). KS-side privileged:
+    /// rendered back before <c>const {</c> but NEVER projected to the BP graph and
+    /// EXCLUDED from record equality (doc comments are presentation metadata, treated
+    /// like <see cref="Annotations"/>/<see cref="DetachedGraphs"/>).
+    /// </summary>
+    public string? ConstantsDocComment { get; init; }
+
+    /// <summary>Doc comment above the <c>var { ... }</c> block (see <see cref="ConstantsDocComment"/>).</summary>
+    public string? GlobalVarsDocComment { get; init; }
+
+    /// <summary>
+    /// Free-floating full-line comment run at the end of the file with no following
+    /// statement or decl block (multiple lines joined by <c>\n</c>). KS-side
+    /// privileged: rendered back at the end of the document but never projected to
+    /// the BP graph; EXCLUDED from record equality.
+    /// </summary>
+    public string? TrailingDocComment { get; init; }
+
+    // ── Equality: every field EXCEPT Annotations / DetachedGraphs / doc comments. ──
 
     public bool Equals(Workflow? other)
     {
@@ -114,6 +134,20 @@ public sealed record Constant
     /// <summary>Evaluated default value, when known at lowering time. Null when dynamic.</summary>
     public object? DefaultValue { get; init; }
 
+    /// <summary>
+    /// Full-line comment run immediately above this declaration row (multiple lines
+    /// joined by <c>\n</c>). 1:1 mapped to the BP definition node's GroupComment and
+    /// back; participates in record structural equality (like statement comments).
+    /// </summary>
+    public string? LeadingComment { get; init; }
+
+    /// <summary>
+    /// Inline <c>//</c> comment on this declaration row's line. 1:1 mapped to the BP
+    /// definition node's <c>Comment</c> field and back; participates in structural
+    /// equality.
+    /// </summary>
+    public string? TrailingComment { get; init; }
+
     /// <summary>True when the constant has any kind of initial value.</summary>
     public bool HasInitialValue =>
         DefaultValue is not null || !string.IsNullOrEmpty(InitialValueExpression) || DictInitializer is not null;
@@ -137,4 +171,10 @@ public sealed record GlobalVar
     /// </summary>
     public KsDictLiteral? DictInitializer { get; init; }
     public object? DefaultValue { get; init; }
+
+    /// <summary>Full-line comment run above this declaration row (see <see cref="Constant.LeadingComment"/>).</summary>
+    public string? LeadingComment { get; init; }
+
+    /// <summary>Inline <c>//</c> comment on this declaration row's line (see <see cref="Constant.TrailingComment"/>).</summary>
+    public string? TrailingComment { get; init; }
 }

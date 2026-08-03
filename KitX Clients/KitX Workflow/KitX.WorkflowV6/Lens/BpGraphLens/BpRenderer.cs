@@ -114,14 +114,18 @@ internal sealed class BpRenderer
             var defaultValue = c.DictInitializer is not null
                 ? JsonSerializer.Serialize(c.DictInitializer)
                 : c.InitialValueExpression;
-            Add(new ConstNode
+            var node = Add(new ConstNode
             {
                 Name = name,
                 ConstName = name,
                 ConstType = c.Type,
                 DefaultValue = defaultValue,
                 IsDefinition = true,
+                // 1:1 mapping: the row's inline comment lands on the definition node's
+                // Comment field (read back as TrailingComment by the reverse translator).
+                Comment = c.TrailingComment,
             }, NodePath.DefConstOf(name));
+            EmitDeclLeadingComment(node, c.LeadingComment);
         }
 
         foreach (var (name, g) in ir.GlobalVars)
@@ -129,7 +133,7 @@ internal sealed class BpRenderer
             var defaultValue = g.DictInitializer is not null
                 ? JsonSerializer.Serialize(g.DictInitializer)
                 : g.InitialValueExpression;
-            Add(new VariableNode
+            var node = Add(new VariableNode
             {
                 Name = name,
                 VarName = name,
@@ -137,7 +141,27 @@ internal sealed class BpRenderer
                 VarKind = VariableKind.PubVar,
                 DefaultValue = defaultValue,
                 IsDefinition = true,
+                Comment = g.TrailingComment,
             }, NodePath.DefVarOf(name));
+            EmitDeclLeadingComment(node, g.LeadingComment);
+        }
+    }
+
+    /// <summary>
+    /// Emits a GroupComment anchoring a declaration row's leading comment to its
+    /// definition node (single-node anchor, mirroring the statement GroupComment
+    /// pattern — the reverse translator reattaches it by AnchorNodeId).
+    /// </summary>
+    private void EmitDeclLeadingComment(BlueprintNode node, string? leading)
+    {
+        if (leading is { Length: > 0 })
+        {
+            _bp.GroupComments.Add(new BlueprintGroupComment
+            {
+                Comment = leading,
+                AnchorNodeId = node.Id,
+                NodeIds = [node.Id],
+            });
         }
     }
 

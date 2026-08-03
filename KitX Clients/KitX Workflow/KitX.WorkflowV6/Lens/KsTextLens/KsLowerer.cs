@@ -64,6 +64,8 @@ internal sealed class KsLowerer
                     Type = d.Type,
                     InitialValueExpression = d.InitialValueExpression,
                     DictInitializer = d.DictInitializer,
+                    LeadingComment = d.LeadingComment,
+                    TrailingComment = d.TrailingComment,
                 });
                 pubVarTypes[d.Name] = d.Type;
             }
@@ -78,6 +80,8 @@ internal sealed class KsLowerer
                     Type = d.Type,
                     InitialValueExpression = d.InitialValueExpression,
                     DictInitializer = d.DictInitializer,
+                    LeadingComment = d.LeadingComment,
+                    TrailingComment = d.TrailingComment,
                 });
                 pubVarTypes[d.Name] = d.Type;
             }
@@ -111,6 +115,11 @@ internal sealed class KsLowerer
             Constants = constants.ToImmutable(),
             GlobalVars = globalVars.ToImmutable(),
             HelperFunctions = helpers.ToImmutableArray(),
+            // KS-side privileged doc comments: carried verbatim, excluded from equality,
+            // never projected to the BP graph.
+            ConstantsDocComment = program.ConstBlock?.LeadingComment,
+            GlobalVarsDocComment = program.VarBlock?.LeadingComment,
+            TrailingDocComment = program.TrailingDocComment,
         };
 
         var result = new LoweringResult

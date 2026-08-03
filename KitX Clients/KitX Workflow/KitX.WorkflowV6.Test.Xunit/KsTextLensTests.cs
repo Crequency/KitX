@@ -13,6 +13,7 @@
 //   • Comments are preserved through round-trip
 // ─────────────────────────────────────────────────────────────────────────────
 
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
@@ -961,5 +962,289 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
         // `0 > counter` is a pipeline assignment — must not trigger KS053.
         var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics("var {\n    int counter\n}\n0 > counter\n");
         Assert.DoesNotContain(diag.Items, d => d.Code == "KS053");
+    }
+
+    // ── T7: decl-block comment system (block doc / row leading / row trailing / file-end) ──
+
+    [Fact]
+    public void DeclBlock_Leading_Comment_Maps_To_Const_LeadingComment()
+    {
+        // Block-preceding comment run becomes the block's doc comment; a comment run
+        // directly above a declaration row becomes that row's LeadingComment.
+        var src = """
+            // block doc line
+            const {
+                // row comment
+                int x = 5
+            }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("block doc line", ir.ConstantsDocComment);
+        Assert.Equal("row comment", ir.Constants["x"].LeadingComment);
+        Assert.Null(ir.Constants["x"].TrailingComment);
+
+        // Comment run between the const block and the var block goes to the var block doc.
+        var src2 = """
+            const {
+                int x = 5
+            }
+            // var block doc
+            var {
+                // var row comment
+                int counter // counter note
+            }
+            """;
+        var ir2 = _fixture.KsLens.Parse(src2, []);
+        Assert.Null(ir2.ConstantsDocComment);
+        Assert.Equal("var block doc", ir2.GlobalVarsDocComment);
+        Assert.Equal("var row comment", ir2.GlobalVars["counter"].LeadingComment);
+        Assert.Equal("counter note", ir2.GlobalVars["counter"].TrailingComment);
+    }
+
+    [Fact]
+    public void DeclBlock_Trailing_Comment_Maps_To_Node_Comment()
+    {
+        // An inline comment on a declaration row is its TrailingComment — and must NOT
+        // trigger KS076 (previously the comment was misread as a trailing expression).
+        var src = """
+            const {
+                int x = 5 // note
+            }
+            """;
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.False(diag.HasErrors);
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS076");
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("note", ir.Constants["x"].TrailingComment);
+    }
+
+    [Fact]
+    public void DeclBlock_Comment_Projects_To_Definition_Node()
+    {
+        var src = """
+            const {
+                // leading note
+                int x = 5 // trailing note
+            }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var defNode = Assert.Single(bp.Nodes.OfType<ConstNode>(), n => n.ConstName == "x" && n.IsDefinition);
+        Assert.Equal("trailing note", defNode.Comment);
+        var gc = Assert.Single(bp.GroupComments, g => g.AnchorNodeId == defNode.Id);
+        Assert.Equal("leading note", gc.Comment);
+        Assert.Single(gc.NodeIds);
+        Assert.Equal(defNode.Id, gc.NodeIds[0]);
+    }
+
+    [Fact]
+    public void DeclBlock_Comment_Reverse_Restores()
+    {
+        var src = """
+            const {
+                // leading note
+                int x = 5 // trailing note
+            }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        Assert.Equal("leading note", reversed.Constants["x"].LeadingComment);
+        Assert.Equal("trailing note", reversed.Constants["x"].TrailingComment);
+        Assert.Equal(ir.Constants["x"], reversed.Constants["x"]);
+    }
+
+    [Fact]
+    public void DeclBlock_Doc_Not_Projected_To_BP()
+    {
+        var src = """
+            // block doc
+            const {
+                int x = 5
+            }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        Assert.DoesNotContain(bp.GroupComments, g => g.Comment.Contains("block doc"));
+        Assert.DoesNotContain(bp.Nodes, n => n.Comment is { Length: > 0 } && n.Comment.Contains("block doc"));
+    }
+
+    [Fact]
+    public void DeclBlock_Doc_RoundTrip()
+    {
+        var src = """
+            // first doc line
+            // second doc line
+            const {
+                int x = 5
+            }
+            // file end note
+            """;
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("first doc line\nsecond doc line", ir1.ConstantsDocComment);
+        Assert.Equal("file end note", ir1.TrailingDocComment);
+        var rendered = _fixture.KsLens.Project(ir1);
+        Assert.Contains("// first doc line", rendered);
+        Assert.Contains("// second doc line", rendered);
+        Assert.Contains("// file end note", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+        Assert.Equal("first doc line\nsecond doc line", ir2.ConstantsDocComment);
+        Assert.Equal("file end note", ir2.TrailingDocComment);
+    }
+
+    [Fact]
+    public void Trailing_File_End_Comment_Preserved()
+    {
+        var src = """
+            Print("done")
+            // file end comment
+            """;
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("file end comment", ir1.TrailingDocComment);
+        var rendered = _fixture.KsLens.Project(ir1);
+        Assert.Contains("// file end comment", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+        Assert.Equal("file end comment", ir2.TrailingDocComment);
+    }
+
+    [Fact]
+    public void File_Only_Comments_Go_To_TrailingDoc()
+    {
+        // A comment-only file has no statements and no decl blocks — everything lands
+        // in TrailingDocComment.
+        var src = """
+            // only a comment
+            // and another
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Empty(ir.Body);
+        Assert.Empty(ir.Constants);
+        Assert.Equal("only a comment\nand another", ir.TrailingDocComment);
+        var rendered = _fixture.KsLens.Project(ir);
+        Assert.Contains("// only a comment", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir, ir2);
+        Assert.Equal("only a comment\nand another", ir2.TrailingDocComment);
+    }
+
+    [Fact]
+    public void DeclBlock_Free_Comment_Inside_Block_Joins_Doc()
+    {
+        // A free-floating comment inside the block (block tail, not leading any row)
+        // folds into the block doc; on re-render it is normalised to the block front
+        // (content preserved).
+        var src = """
+            const {
+                int x = 5
+                // free floating at block tail
+            }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("free floating at block tail", ir.ConstantsDocComment);
+        Assert.Null(ir.Constants["x"].LeadingComment);
+        var rendered = _fixture.KsLens.Project(ir);
+        Assert.Matches("(?s)// free floating at block tail.*const \\{" , rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir, ir2);
+        Assert.Equal("free floating at block tail", ir2.ConstantsDocComment);
+    }
+
+    [Fact]
+    public void DeclBlock_No_KS012_For_Comment_Lines()
+    {
+        // Comment lines inside a decl block must not be parsed as declarations (which
+        // previously emitted 2x KS012 and, for identical texts, crashed the lowerer
+        // with a duplicate dictionary key).
+        var src = """
+            const {
+                // shared note
+                int x = 5
+                // shared note
+                int y = 6
+            }
+            """;
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS012");
+        // Lowering must not throw (identical comment texts used to collide on the
+        // constants dictionary key).
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("shared note", ir.Constants["x"].LeadingComment);
+        Assert.Equal("shared note", ir.Constants["y"].LeadingComment);
+    }
+
+    [Fact]
+    public void DeclBlock_Dict_Init_With_Comments()
+    {
+        // A dict-initialised row with an inline comment coexists with a block doc.
+        // (String-literal keys keep the rendered form identical to the source form —
+        // identifier keys are canonicalised to quoted strings by the renderer.)
+        var src = """
+            // dict const doc
+            const {
+                dict config = {"a": 1} // inline note
+            }
+            """;
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.False(diag.HasErrors);
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Equal("dict const doc", ir.ConstantsDocComment);
+        Assert.Equal("inline note", ir.Constants["config"].TrailingComment);
+        var rendered = _fixture.KsLens.Project(ir);
+        Assert.Contains("// dict const doc", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir, ir2);
+    }
+
+    [Fact]
+    public void DeclBlock_Empty_Block_Doc_Preserved()
+    {
+        // An empty block with a preceding comment keeps its doc (renders as an empty
+        // block so the comment cannot drift onto the next statement / file end).
+        var src = """
+            // empty block doc
+            const {
+            }
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        Assert.Empty(ir.Constants);
+        Assert.Equal("empty block doc", ir.ConstantsDocComment);
+        var rendered = _fixture.KsLens.Project(ir);
+        Assert.Contains("const {", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir, ir2);
+        Assert.Equal("empty block doc", ir2.ConstantsDocComment);
+    }
+
+    [Fact]
+    public void DeclBlock_Comment_Row_RoundTrip_Through_BP()
+    {
+        // Full BP round-trip: KS -> IR -> BP -> IR -> KS -> IR keeps both comment kinds.
+        var src = """
+            // block doc
+            const {
+                // row leading
+                int x = 5 // row trailing
+            }
+            var {
+                int counter // var note
+            }
+            Print("start")
+            """;
+        var ir1 = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir1);
+        var mid = _fixture.BpLens.Reverse(bp);
+        Assert.Equal("row leading", mid.Constants["x"].LeadingComment);
+        Assert.Equal("row trailing", mid.Constants["x"].TrailingComment);
+        Assert.Equal("var note", mid.GlobalVars["counter"].TrailingComment);
+        var rendered = _fixture.KsLens.Project(mid);
+        Assert.Contains("// row leading", rendered);
+        Assert.Contains("// row trailing", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir1, ir2);
+        Assert.Equal("row leading", ir2.Constants["x"].LeadingComment);
+        Assert.Equal("row trailing", ir2.Constants["x"].TrailingComment);
+        Assert.Equal("var note", ir2.GlobalVars["counter"].TrailingComment);
     }
 }

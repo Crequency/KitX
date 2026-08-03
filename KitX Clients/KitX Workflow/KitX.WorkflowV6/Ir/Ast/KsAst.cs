@@ -331,6 +331,13 @@ public sealed record KsConstDecl : KsNode
     /// </summary>
     public KsDictLiteral? DictInitializer { get; init; }
 
+    /// <summary>Full-line comment run immediately above this row (joined by <c>\n</c>).
+    /// Excluded from record equality (like <see cref="KsStatement.LeadingComment"/>).</summary>
+    public string? LeadingComment { get; set; }
+
+    /// <summary>Inline <c>//</c> comment on this row's line. Excluded from record equality.</summary>
+    public string? TrailingComment { get; set; }
+
     public bool Equals(KsConstDecl? other)
     {
         if (other is null) return false;
@@ -364,6 +371,13 @@ public sealed record KsVarDecl : KsNode
     /// </summary>
     public KsDictLiteral? DictInitializer { get; init; }
 
+    /// <summary>Full-line comment run immediately above this row (joined by <c>\n</c>).
+    /// Excluded from record equality (like <see cref="KsStatement.LeadingComment"/>).</summary>
+    public string? LeadingComment { get; set; }
+
+    /// <summary>Inline <c>//</c> comment on this row's line. Excluded from record equality.</summary>
+    public string? TrailingComment { get; set; }
+
     public bool Equals(KsVarDecl? other)
     {
         if (other is null) return false;
@@ -394,6 +408,14 @@ public sealed record KsConstBlock : KsNode
 {
     public ImmutableArray<KsConstDecl> Declarations { get; init; } = [];
 
+    /// <summary>
+    /// Doc comment for the block: the block-preceding full-line comment run PLUS any
+    /// free-floating comment run inside the block that does not lead a declaration row
+    /// (block tail / rows separated by blank lines), joined by <c>\n</c> in source
+    /// order. Excluded from record equality (doc comments are presentation metadata).
+    /// </summary>
+    public string? LeadingComment { get; set; }
+
     public bool Equals(KsConstBlock? other)
     {
         if (other is null) return false;
@@ -417,6 +439,10 @@ public sealed record KsConstBlock : KsNode
 public sealed record KsVarBlock : KsNode
 {
     public ImmutableArray<KsVarDecl> Declarations { get; init; } = [];
+
+    /// <summary>Doc comment for the block (see <see cref="KsConstBlock.LeadingComment"/>).
+    /// Excluded from record equality.</summary>
+    public string? LeadingComment { get; set; }
 
     public bool Equals(KsVarBlock? other)
     {
@@ -620,6 +646,12 @@ public sealed record KsProgram : KsNode
     public KsConstBlock? ConstBlock { get; init; }
     public KsVarBlock? VarBlock { get; init; }
     public required ImmutableArray<KsStatement> Body { get; init; } = [];
+
+    /// <summary>
+    /// Free-floating full-line comment run at the end of the file with no following
+    /// statement or decl block (joined by <c>\n</c>). Excluded from record equality.
+    /// </summary>
+    public string? TrailingDocComment { get; init; }
 
     public bool Equals(KsProgram? other)
     {

@@ -174,4 +174,38 @@ public class SerializationTests : IClassFixture<WorkflowTestFixture>
         var boolVal = Assert.IsType<BoolValue>(roundTripped.Annotations[3].Value);
         Assert.True(boolVal.Value);
     }
+
+    [Fact]
+    public void Serialize_Deserialize_Decl_Doc_Comments()
+    {
+        // .kcs JSON round-trip of the T7 decl-block comment system: block doc, row
+        // leading/trailing comments, and the file-end comment all survive.
+        var ir = Parse(
+            "// const block doc",
+            "const {",
+            "    // row leading",
+            "    int x = 5 // row trailing",
+            "}",
+            "// file end note");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Equal("const block doc", result.ConstantsDocComment);
+        Assert.Equal("file end note", result.TrailingDocComment);
+        Assert.Equal("row leading", result.Constants["x"].LeadingComment);
+        Assert.Equal("row trailing", result.Constants["x"].TrailingComment);
+    }
+
+    [Fact]
+    public void Serialize_Deserialize_Var_Block_Doc_Comment()
+    {
+        var ir = Parse(
+            "// var block doc",
+            "var {",
+            "    int counter // inline",
+            "}");
+        var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
+        Assert.Equal(ir, result);
+        Assert.Equal("var block doc", result.GlobalVarsDocComment);
+        Assert.Equal("inline", result.GlobalVars["counter"].TrailingComment);
+    }
 }

@@ -33,36 +33,91 @@ internal sealed class KsRenderer
         var sb = new StringBuilder();
 
         // ── const { ... } ──
-        if (ir.Constants.Count > 0)
+        // The block renders whenever it has declarations OR a doc comment (an empty
+        // block with only a doc comment must round-trip as `const {\n}\n`, otherwise
+        // the comment would drift onto the next statement / file end on re-parse).
+        if (ir.ConstantsDocComment is { Length: > 0 } || ir.Constants.Count > 0)
         {
+            if (ir.ConstantsDocComment is { Length: > 0 } cdoc)
+                RenderDocLines(sb, cdoc);
             sb.Append("const {").Append('\n');
             foreach (var c in ir.Constants.Values)
-                sb.Append(Indent(1)).Append(RenderConstant(c)).Append('\n');
+                sb.Append(RenderConstant(c)).Append('\n');
             sb.Append('}').Append('\n');
         }
 
         // ── var { ... } ──
-        if (ir.GlobalVars.Count > 0)
+        if (ir.GlobalVarsDocComment is { Length: > 0 } || ir.GlobalVars.Count > 0)
         {
+            if (ir.GlobalVarsDocComment is { Length: > 0 } gdoc)
+                RenderDocLines(sb, gdoc);
             sb.Append("var {").Append('\n');
             foreach (var g in ir.GlobalVars.Values)
-                sb.Append(Indent(1)).Append(RenderGlobalVar(g)).Append('\n');
+                sb.Append(RenderGlobalVar(g)).Append('\n');
             sb.Append('}').Append('\n');
         }
 
         // ── top-level body ──
         RenderBody(sb, ir.Body, 0);
 
+        // File-end free-floating comment run.
+        if (ir.TrailingDocComment is { Length: > 0 } tdoc)
+            RenderDocLines(sb, tdoc);
+
         // Trim trailing whitespace and ensure single trailing newline.
         var text = sb.ToString().TrimEnd();
         return text + "\n";
     }
 
-    private static string RenderConstant(Constant c) =>
-        $"{c.Type} {c.Name}{RenderDeclInit(c.DictInitializer, c.InitialValueExpression)}";
+    private static string RenderConstant(Constant c)
+    {
+        var sb = new StringBuilder();
+        if (c.LeadingComment is { Length: > 0 } lc)
+        {
+            foreach (var line in lc.Split('\n'))
+            {
+                sb.Append(Indent(1));
+                if (line.Length == 0) sb.Append("//");
+                else sb.Append("// ").Append(line);
+                sb.Append('\n');
+            }
+        }
+        sb.Append(Indent(1)).Append($"{c.Type} {c.Name}{RenderDeclInit(c.DictInitializer, c.InitialValueExpression)}");
+        if (c.TrailingComment is { Length: > 0 } tc)
+            sb.Append(" // ").Append(tc);
+        return sb.ToString();
+    }
 
-    private static string RenderGlobalVar(GlobalVar g) =>
-        $"{g.Type} {g.Name}{RenderDeclInit(g.DictInitializer, g.InitialValueExpression)}";
+    private static string RenderGlobalVar(GlobalVar g)
+    {
+        var sb = new StringBuilder();
+        if (g.LeadingComment is { Length: > 0 } lc)
+        {
+            foreach (var line in lc.Split('\n'))
+            {
+                sb.Append(Indent(1));
+                if (line.Length == 0) sb.Append("//");
+                else sb.Append("// ").Append(line);
+                sb.Append('\n');
+            }
+        }
+        sb.Append(Indent(1)).Append($"{g.Type} {g.Name}{RenderDeclInit(g.DictInitializer, g.InitialValueExpression)}");
+        if (g.TrailingComment is { Length: > 0 } tc)
+            sb.Append(" // ").Append(tc);
+        return sb.ToString();
+    }
+
+    /// <summary>Emits a doc comment (block-preceding / file-end) as full-line <c>//</c>
+    /// lines at indent 0, one line per <c>\n</c>-separated segment.</summary>
+    private static void RenderDocLines(StringBuilder sb, string doc)
+    {
+        foreach (var line in doc.Split('\n'))
+        {
+            if (line.Length == 0) sb.Append("//");
+            else sb.Append("// ").Append(line);
+            sb.Append('\n');
+        }
+    }
 
     /// <summary>
     /// Renders the <c>= &lt;initialiser&gt;</c> suffix for a declaration row: a dict literal

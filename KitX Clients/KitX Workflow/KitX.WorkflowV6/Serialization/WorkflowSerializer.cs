@@ -52,6 +52,9 @@ public static class WorkflowSerializer
             HelperFunctions = [.. ir.HelperFunctions],
             Annotations = [.. ir.Annotations],
             DetachedGraphs = [.. ir.DetachedGraphs],
+            ConstantsDocComment = ir.ConstantsDocComment,
+            GlobalVarsDocComment = ir.GlobalVarsDocComment,
+            TrailingDocComment = ir.TrailingDocComment,
         };
         return JsonSerializer.Serialize(doc, Options);
     }
@@ -72,6 +75,11 @@ public static class WorkflowSerializer
             HelperFunctions = [.. (doc.HelperFunctions ?? [])],
             Annotations = [.. (doc.Annotations ?? [])],
             DetachedGraphs = [.. (doc.DetachedGraphs ?? [])],
+            // Nullable: old .kcs files lacking these fields deserialise to null
+            // (backward compatible).
+            ConstantsDocComment = doc.ConstantsDocComment,
+            GlobalVarsDocComment = doc.GlobalVarsDocComment,
+            TrailingDocComment = doc.TrailingDocComment,
         };
     }
 }
@@ -86,6 +94,9 @@ internal sealed class WorkflowDocument
     public List<HelperFunction> HelperFunctions { get; set; } = [];
     public List<Annotation> Annotations { get; set; } = [];
     public List<DetachedGraph> DetachedGraphs { get; set; } = [];
+    public string? ConstantsDocComment { get; set; }
+    public string? GlobalVarsDocComment { get; set; }
+    public string? TrailingDocComment { get; set; }
 }
 
 // ── JSON converters for value types that don't serialize natively ──
