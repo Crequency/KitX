@@ -209,4 +209,42 @@ public class DetachedGraphTests : IClassFixture<WorkflowTestFixture>
         Assert.Empty(ir.DetachedGraphs);
         Assert.True(ir.Constants.ContainsKey("max"));
     }
+
+    [Fact]
+    public void Detached_Graphs_Survive_KS_Text_RoundTrip_With_Baseline()
+    {
+        // Symmetry fix (2026-08-04, counterpart of the KS doc-comment privilege): a
+        // detached graph is invisible to KS text by design (B1), so a cross-privilege
+        // trip through the KS text (BP → KS text → re-parse) drops it — unless the
+        // caller re-attaches it from the pre-parse IR via ParseLowering's bpPrivileged
+        // parameter (same re-attachment pattern as the doc comments' ksPrivileged).
+        var (bp, p1Id) = BuildBlueprintWithDetachedComponent();
+        var ir = _fixture.BpLens.Reverse(bp);
+        Assert.Single(ir.DetachedGraphs);
+
+        var ksText = _fixture.KsLens.Project(ir);
+        var reParsed = _fixture.ParseKS(ir, ksText);
+        Assert.Single(reParsed.DetachedGraphs);
+        Assert.Contains(reParsed.DetachedGraphs[0].Nodes, n => n.Id == p1Id);
+
+        // The re-projected BP still shows the detached component.
+        var bp2 = _fixture.BpLens.Project(reParsed);
+        Assert.Contains(bp2.Nodes, n => n.Id == p1Id);
+    }
+
+    [Fact]
+    public void Detached_Graphs_Dropped_Without_Baseline()
+    {
+        // Backward compatibility: the no-baseline overload keeps the previous behaviour
+        // (detached graphs are lost on a trip through the KS text) — callers must opt
+        // in by passing the pre-parse IR.
+        var (bp, p1Id) = BuildBlueprintWithDetachedComponent();
+        var ir = _fixture.BpLens.Reverse(bp);
+        var ksText = _fixture.KsLens.Project(ir);
+
+        var reParsed = _fixture.ParseKS(ksText);
+        Assert.Empty(reParsed.DetachedGraphs);
+        var bp2 = _fixture.BpLens.Project(reParsed);
+        Assert.DoesNotContain(bp2.Nodes, n => n.Id == p1Id);
+    }
 }

@@ -23,6 +23,9 @@ public sealed class WorkflowTestFixture
     public Workflow ParseKS(params string[] lines)
         => KsLens.Parse(string.Join("\n", lines), []);
 
+    public Workflow ParseKS(Workflow bpPrivileged, params string[] lines)
+        => KsLens.Parse(string.Join("\n", lines), [], bpPrivileged);
+
     public StructuredRoslynBackend MakeBackend()
         => new(Registry);
 

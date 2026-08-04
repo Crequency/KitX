@@ -65,8 +65,16 @@ public sealed class KsTextLens : ILens<string, string>
     /// tokenize + parse + lower. Returns the IR even when there are diagnostics —
     /// the caller can inspect them via <see cref="ParseAstWithDiagnostics"/>.
     /// </summary>
-    public Workflow Parse(string source, IReadOnlyList<HelperFunction> helpers)
-        => ParseLowering(source, helpers).Ir;
+    /// <param name="bpPrivileged">
+    /// The pre-parse IR carrying BP-side privileged content that the KS text does NOT
+    /// express (detached sub-graphs, B1). Re-parsing rebuilds the IR from scratch, so
+    /// without this a KS-mode save/edit after a BP round-trip would silently drop the
+    /// detached graphs — same re-attachment pattern as <see cref="BpGraphLens"/>'s
+    /// <c>ksPrivileged</c> parameter (the two privileges are symmetric). Null keeps
+    /// the previous behaviour (DetachedGraphs stay empty).
+    /// </param>
+    public Workflow Parse(string source, IReadOnlyList<HelperFunction> helpers, Workflow? bpPrivileged = null)
+        => ParseLowering(source, helpers, bpPrivileged).Ir;
 
     /// <summary>
     /// Parses KS source into a structured IR and returns both the IR and the
@@ -76,7 +84,7 @@ public sealed class KsTextLens : ILens<string, string>
     /// carry the IR — callers receive a <c>(Workflow, LoweringResult)</c> tuple instead.
     /// </summary>
     public (Workflow Ir, LoweringResult Lowering) ParseLowering(
-        string source, IReadOnlyList<HelperFunction> helpers)
+        string source, IReadOnlyList<HelperFunction> helpers, Workflow? bpPrivileged = null)
     {
         var (ast, diagnostics) = ParseAstWithDiagnostics(source);
         if (diagnostics.HasErrors)
@@ -87,7 +95,13 @@ public sealed class KsTextLens : ILens<string, string>
             Log.Warning("[KsTextLens] Parse errors ({Count}) — IR may be incomplete:\n{Detail}",
                 diagnostics.ErrorCount, detail);
         }
-        return new KsLowerer(_registry).Lower(ast, helpers);
+        var (ir, lowering) = new KsLowerer(_registry).Lower(ast, helpers);
+        // BP-side privileged detached graphs (B1): not expressed in KS text, so a
+        // re-parse drops them unless re-attached from the pre-parse IR — the symmetric
+        // counterpart of the KS doc-comment re-attachment in BpGraphLens.Reverse*.
+        if (bpPrivileged is { DetachedGraphs.Length: > 0 })
+            ir = ir with { DetachedGraphs = bpPrivileged.DetachedGraphs };
+        return (ir, lowering);
     }
 
     /// <summary>Parses KS source into the lossless KS AST (pre-lowering).</summary>
