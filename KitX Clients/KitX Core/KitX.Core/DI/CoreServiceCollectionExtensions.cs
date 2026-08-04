@@ -43,6 +43,14 @@ public static class CoreServiceCollectionExtensions
     {
         Log.Information("AddCoreServices started...");
 
+        // ServerBuildTime marks the startup time of this process.
+        // Assign it here (the earliest DI assembly point, before any service instance
+        // is constructed) so that NetworkHelper.GetDeviceInfo() and
+        // DevicesDiscoveryServer.UpdateDefaultDeviceInfo() always read a meaningful value.
+        // Guarded to keep the very first assignment when AddCoreServices runs multiple times.
+        if (ConstantTable.ServerBuildTime == DateTime.MinValue)
+            ConstantTable.ServerBuildTime = DateTime.Now;
+
         // Register all core services as singletons
         // These services maintain state and should have only one instance throughout the application lifetime
 

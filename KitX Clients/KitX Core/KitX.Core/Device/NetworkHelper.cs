@@ -189,7 +189,9 @@ internal static class NetworkHelper
             DeviceOSVersion = TryGetOsVersionString() ?? "",
             PluginsServerPort = 7777, // Default port
             DevicesServerPort = 8888,  // Default port
-            DevicesServerBuildTime = DateTime.Now,
+            // Read from ConstantTable so the initial DeviceInfo matches what the
+            // discovery server broadcasts (DevicesDiscoveryServer.UpdateDefaultDeviceInfo).
+            DevicesServerBuildTime = ConstantTable.ServerBuildTime,
             PluginsCount = 0, // Will be updated from PluginsManager
         };
     }

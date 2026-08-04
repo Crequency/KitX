@@ -2,6 +2,7 @@
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Event;
+using KitX.Core.Contract.Security;
 using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using Serilog;
@@ -18,11 +19,16 @@ public class DevicesOrganizer : IDevicesOrganizer
     private readonly IConfigService _configService;
     private readonly IEventService _eventService;
     private readonly IDeviceDiscoveryService _deviceDiscoveryService;
+    private readonly IDeviceKeyService _deviceKeyService;
     private readonly object _receivedDeviceInfo4WatchLock = new();
     private readonly Queue<DeviceInfo> _deviceInfosQueue = new();
-    private readonly object _addDeviceCardLock = new();
     private bool _keepCheckAndRemoveTaskRunning = false;
     private List<DeviceInfo>? _receivedDeviceInfo4Watch;
+
+    /// <summary>
+    /// Max queued device infos before dropping the oldest one
+    /// </summary>
+    private const int MaxQueuedDeviceInfos = 1024;
 
     /// <summary>
     /// Event raised when a device is discovered
@@ -37,11 +43,12 @@ public class DevicesOrganizer : IDevicesOrganizer
     /// <summary>
     /// Creates a new devices organizer with dependency injection
     /// </summary>
-    public DevicesOrganizer(IConfigService configService, IEventService eventService, IDeviceDiscoveryService deviceDiscoveryService)
+    public DevicesOrganizer(IConfigService configService, IEventService eventService, IDeviceDiscoveryService deviceDiscoveryService, IDeviceKeyService deviceKeyService)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
         _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
+        _deviceKeyService = deviceKeyService ?? throw new ArgumentNullException(nameof(deviceKeyService));
         Initialize();
     }
 
@@ -67,6 +74,10 @@ public class DevicesOrganizer : IDevicesOrganizer
         {
             if (args.DeviceInfo is null) return;
 
+            // Bounded queue: drop the oldest entries if the queue grows too large
+            while (_deviceInfosQueue.Count >= MaxQueuedDeviceInfos)
+                _deviceInfosQueue.Dequeue();
+
             _deviceInfosQueue.Enqueue(args.DeviceInfo);
 
             lock (_receivedDeviceInfo4WatchLock)
@@ -77,35 +88,32 @@ public class DevicesOrganizer : IDevicesOrganizer
             // Check for main device changes
             if (args.DeviceInfo.IsMainDevice && args.DeviceInfo.DevicesServerBuildTime < ConstantTable.ServerBuildTime)
             {
-                ConstantTable.IsMainMachine = false;
+                // Only authorized devices may claim the main device role.
+                // A forged IsMainDevice broadcast from an unauthorized device
+                // must not make this machine yield its main device identity.
+                if (!_deviceKeyService.IsDeviceAuthorized(args.DeviceInfo.Device))
+                {
+                    Log.Debug(
+                        $"In {nameof(DevicesOrganizer)}.{nameof(InitEvents)}: " +
+                        $"Ignoring main device claim from unauthorized device {args.DeviceInfo.Device.IPv4}:{args.DeviceInfo.DevicesServerPort}."
+                    );
+                }
+                else
+                {
+                    ConstantTable.IsMainMachine = false;
 
-                ObserveMainDevice();
+                    ObserveMainDevice();
 
-                Log.Information(
-                    new StringBuilder()
-                        .AppendLine("Watched earlier built server.")
-                        .AppendLine($"DevicesServerAddress: {args.DeviceInfo.Device.IPv4}:{args.DeviceInfo.DevicesServerPort}")
-                        .AppendLine($"DevicesServerBuildTime: {args.DeviceInfo.DevicesServerBuildTime}")
-                        .ToString()
-                );
+                    Log.Information(
+                        new StringBuilder()
+                            .AppendLine("Watched earlier built server.")
+                            .AppendLine($"DevicesServerAddress: {args.DeviceInfo.Device.IPv4}:{args.DeviceInfo.DevicesServerPort}")
+                            .AppendLine($"DevicesServerBuildTime: {args.DeviceInfo.DevicesServerBuildTime}")
+                            .ToString()
+                    );
+                }
             }
         };
-    }
-
-    /// <summary>
-    /// Updates the source and adds device cards
-    /// </summary>
-    /// <param name="deviceInfo">The device information</param>
-    public void UpdateSourceAndAddCards(DeviceInfo deviceInfo)
-    {
-        lock (_addDeviceCardLock)
-        {
-            // Trigger event to notify UI layer
-            DeviceDiscovered?.Invoke(this, new DeviceDiscoveredEventArgs
-            {
-                DeviceInfo = deviceInfo
-            });
-        }
     }
 
     /// <summary>
@@ -235,6 +243,23 @@ public class DevicesOrganizer : IDevicesOrganizer
                     {
                         foreach (var item in _receivedDeviceInfo4Watch)
                         {
+                            // Only authorized devices may participate in the main device decision.
+                            // Forged IsMainDevice broadcasts from unauthorized devices must not
+                            // contribute to hadMainDevice / earliestBuiltServerTime, and must not
+                            // redirect MainMachineAddress / MainMachinePort.
+                            if (!_deviceKeyService.IsDeviceAuthorized(item.Device))
+                            {
+                                if (item.IsMainDevice)
+                                {
+                                    Log.Debug(
+                                        $"In {location}: Ignoring main device claim from unauthorized device " +
+                                        $"{item.Device.IPv4}:{item.DevicesServerPort}."
+                                    );
+                                }
+
+                                continue;
+                            }
+
                             if (item.IsMainDevice)
                             {
                                 if (item.DevicesServerBuildTime.ToUniversalTime() < earliestBuiltServerTime)
