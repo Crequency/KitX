@@ -229,6 +229,14 @@ internal static class StructuralReducer
             if (IsDefinitionNode(node) && node.VarName is not null)
                 defVarNames.Add(node.VarName);
         }
+        // const declarations (ConstNode definition nodes) are read-only, but a const
+        // reference is still rendered as a VariableNode usage (VarKind=Const) — register
+        // their names too, otherwise const references trip a KS130 false positive.
+        foreach (var cn in blueprint.Nodes.OfType<ConstNode>())
+        {
+            if (cn.IsDefinition && cn.ConstName is { Length: > 0 })
+                defVarNames.Add(cn.ConstName);
+        }
         // ForEach Current item variable: declared via Each.Properties["ItemName"],
         // not via a definition VariableNode.
         foreach (var each in blueprint.Nodes.OfType<BuiltinFunctionNode>()
@@ -238,14 +246,13 @@ internal static class StructuralReducer
                 && !string.IsNullOrEmpty(itemName))
                 defVarNames.Add(itemName);
         }
-        // var-block dict declarations (DictNew, DeclKind == "var") declare a global
-        // variable the same way a definition VariableNode does — register their
-        // DeclName so usage VariableNodes referencing them satisfy KS130.
+        // dict declarations (DictNew) declare a variable the same way a definition
+        // VariableNode does — register their DeclName (both DeclKind "var" and "const")
+        // so usage VariableNodes referencing them satisfy KS130.
         foreach (var dictNew in blueprint.Nodes.OfType<BuiltinFunctionNode>()
             .Where(n => n.FunctionName == "DictNew"))
         {
-            if (dictNew.Properties.TryGetValue("DeclKind", out var declKind) && declKind == "var"
-                && dictNew.Properties.TryGetValue("DeclName", out var declName)
+            if (dictNew.Properties.TryGetValue("DeclName", out var declName)
                 && !string.IsNullOrEmpty(declName))
                 defVarNames.Add(declName);
         }

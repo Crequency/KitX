@@ -526,4 +526,36 @@ public class BpGraphLensDiffTests : IClassFixture<WorkflowTestFixture>
         var result = StructuralReducer.Check(bp);
         Assert.Null(result);
     }
+
+    [Fact]
+    public void Structural_Allows_Const_Reference_Usage_Node()
+    {
+        // A const-block reference renders as a VariableNode usage (VarKind=Const). Its
+        // name must satisfy KS130 (previously const names were missing from defVarNames,
+        // so every const reference tripped a false positive).
+        var bp = ProjectKS("""
+            const {
+                int guessNum = 5
+                int targetNum = 7
+            }
+            guessNum, targetNum > Compare("BEQ") > Print
+            """);
+        var result = StructuralReducer.Check(bp);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Structural_Allows_Const_Dict_Reference_Usage_Node()
+    {
+        // A const dict declaration (DictNew DeclKind="const") registers its DeclName in
+        // defVarNames too — referencing it as a usage VariableNode must satisfy KS130.
+        var bp = ProjectKS("""
+            const {
+                dict settings = {a: 1}
+            }
+            settings, "a" > DictGetValue > Print
+            """);
+        var result = StructuralReducer.Check(bp);
+        Assert.Null(result);
+    }
 }

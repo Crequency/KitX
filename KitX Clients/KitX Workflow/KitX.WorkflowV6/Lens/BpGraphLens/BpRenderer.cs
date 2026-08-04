@@ -33,6 +33,11 @@ internal sealed class BpRenderer
     /// must NOT be misread as a variable tap (registry only knows builtins).</summary>
     private readonly HashSet<string> _helperNames = new(StringComparer.Ordinal);
 
+    /// <summary>const-block declaration names — a read reference to one of these renders
+    /// as a VariableNode with VarKind=Const (read-only: no Value input pin, so a data edge
+    /// into it — a write — is structurally impossible on the BP side).</summary>
+    private readonly HashSet<string> _constNames = new(StringComparer.Ordinal);
+
     /// <summary>Helper metadata (name → definition) so BP nodes get one pin per parameter.</summary>
     private readonly Dictionary<string, KitX.Core.Contract.Workflow.HelperFunction> _helpersByName = new(StringComparer.Ordinal);
 
@@ -60,6 +65,9 @@ internal sealed class BpRenderer
 
         _helperNames.Clear();
         _helpersByName.Clear();
+        _constNames.Clear();
+        foreach (var name in ir.Constants.Keys)
+            _constNames.Add(name);
         foreach (var h in ir.HelperFunctions)
         {
             if (!string.IsNullOrEmpty(h.Name))
@@ -510,11 +518,7 @@ internal sealed class BpRenderer
                     pin.DefaultValue = lit.Value?.ToString() ?? "null";
                     break;
                 case KsIdentifier id:
-                    var vn = AddUsageNode(new VariableNode
-                    {
-                        Name = id.Name, VarName = id.Name,
-                        VarKind = VariableKind.PubVar,
-                    }, $"{path}/{i}");
+                    var vn = MakeIdentifierUsageNode(id.Name, $"{path}/{i}");
                     if (id.Comment is { Length: > 0 })
                         vn.Comment = id.Comment;
                     ConnectToInput(vn, func, pin.Name);
@@ -740,11 +744,7 @@ internal sealed class BpRenderer
         {
             case KsIdentifier id:
                 {
-                    var vn = AddUsageNode(new VariableNode
-                    {
-                        Name = id.Name, VarName = id.Name,
-                        VarKind = VariableKind.PubVar,
-                    }, path);
+                    var vn = MakeIdentifierUsageNode(id.Name, path);
                     ConnectExecTails(prevTails, vn);
                     return vn;
                 }
@@ -869,11 +869,7 @@ internal sealed class BpRenderer
                 }
             case KsIdentifier id:
                 {
-                    var vn = AddUsageNode(new VariableNode
-                    {
-                        Name = id.Name, VarName = id.Name,
-                        VarKind = VariableKind.PubVar,
-                    }, path);
+                    var vn = MakeIdentifierUsageNode(id.Name, path);
                     if (id.Comment is { Length: > 0 })
                         vn.Comment = id.Comment;
                     if (prevTails is not null) ConnectExecTails(prevTails, vn);
@@ -961,6 +957,33 @@ internal sealed class BpRenderer
         node.InputPins.Insert(0, MakePin(BpPinNames.Exec, PinDirection.Input, PinType.Execution));
         node.OutputPins.Insert(0, MakePin(BpPinNames.Exec, PinDirection.Output, PinType.Execution));
         return Add(node, path);
+    }
+
+    /// <summary>
+    /// Creates the usage VariableNode for a KsIdentifier read reference. References to
+    /// const-block declarations (VarKind=Const) are READ-ONLY on the BP side: their Value
+    /// INPUT pin is removed, so no data edge can ever enter the node — a write to a const
+    /// is structurally impossible (previously every identifier rendered as a PubVar with a
+    /// Value input pin, implying const was mutable). The reverse translator restores a
+    /// const reference as a plain identifier (VarKind is not consulted on the usage
+    /// path), so round-trips are unaffected.
+    /// </summary>
+    private VariableNode MakeIdentifierUsageNode(string name, string path)
+    {
+        var vn = new VariableNode
+        {
+            Name = name,
+            VarName = name,
+            VarKind = _constNames.Contains(name) ? VariableKind.Const : VariableKind.PubVar,
+        };
+        if (vn.VarKind == VariableKind.Const)
+        {
+            // Keep only the Value OUTPUT pin (read source). The descriptor seeded Value
+            // in + Value out; remove the input so the node exposes a single data out.
+            var valueIn = vn.InputPins.Find(p => p.Name == "Value" && p.Direction == PinDirection.Input);
+            if (valueIn is not null) vn.InputPins.Remove(valueIn);
+        }
+        return AddUsageNode(vn, path);
     }
 
     private BuiltinFunctionNode AddCtrlNode(string name, string path)

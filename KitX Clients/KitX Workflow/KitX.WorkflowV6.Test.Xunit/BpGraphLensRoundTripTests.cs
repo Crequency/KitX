@@ -593,4 +593,48 @@ public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
         var diff = WorkflowDiffer.Compute(ir, reversed);
         Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes: {string.Join(", ", diff.StatementChanges.Select(c => $"{c.Kind}@{c.LexicalPath}"))}");
     }
+
+    [Fact]
+    public void Const_Reference_Usage_Node_Is_Readonly_Shape()
+    {
+        // A const-block reference renders as a VariableNode usage with VarKind=Const and
+        // NO Value INPUT pin — a write into a const is structurally impossible on the BP
+        // side (previously every identifier was a PubVar with a Value input, implying
+        // const was mutable). The read path keeps the Value OUTPUT pin.
+        var ir = ParseKS("""
+            const {
+                int guessNum = 5
+            }
+            guessNum > Print
+            """);
+        var bp = _fixture.BpLens.Project(ir);
+
+        var usage = Assert.Single(bp.Nodes.OfType<VariableNode>(), n => n.VarName == "guessNum" && !n.IsDefinition);
+        Assert.Equal(VariableKind.Const, usage.VarKind);
+        Assert.DoesNotContain(usage.InputPins, p => p.Name == "Value" && p.Direction == PinDirection.Input);
+        Assert.Contains(usage.OutputPins, p => p.Name == "Value" && p.Direction == PinDirection.Output);
+
+        // Round-trip: the const reference still reverses as a plain identifier.
+        var reversed = _fixture.BpLens.Reverse(bp);
+        var diff = WorkflowDiffer.Compute(ir, reversed);
+        Assert.True(diff.IsEmpty, $"Round-trip diff should be empty: {diff.StatementChanges.Length} changes");
+    }
+
+    [Fact]
+    public void Var_Reference_Usage_Node_Keeps_Value_Input_For_Write()
+    {
+        // var references remain PubVar with the Value input pin — writes/taps are legal.
+        var ir = ParseKS("""
+            var {
+                int counter
+            }
+            0 > counter > Print
+            """);
+        var bp = _fixture.BpLens.Project(ir);
+
+        var usage = Assert.Single(bp.Nodes.OfType<VariableNode>(), n => n.VarName == "counter" && !n.IsDefinition);
+        Assert.Equal(VariableKind.PubVar, usage.VarKind);
+        Assert.Contains(usage.InputPins, p => p.Name == "Value" && p.Direction == PinDirection.Input);
+        Assert.Contains(usage.OutputPins, p => p.Name == "Value" && p.Direction == PinDirection.Output);
+    }
 }
