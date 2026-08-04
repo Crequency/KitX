@@ -29,7 +29,7 @@ using Serilog;
 //   • LoweringResult-driven strong-typed PubVar fields on the generated G subclass
 //     (§十二-F).
 //   • Collectible ALC for unload.
-//   • In-memory + disk compilation cache (ScriptCompiler + ScriptPersistenceManager).
+//   • In-memory LRU compilation cache (ScriptCompiler).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -59,9 +59,6 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
     /// <summary>Unloads and drops all cached compiled assemblies.</summary>
     public void ClearCache() => _compiler.ClearCache();
 
-    /// <summary>Preloads persisted compiled scripts for a workflow from disk.</summary>
-    public int PreloadFromDisk(string workflowId) => _compiler.PreloadFromDisk(workflowId);
-
     public Task<BlockScriptExecutionResult> ExecuteAsync(
         Workflow ir,
         LoweringResult? lowering,
@@ -79,8 +76,8 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
 
         var hasDebugger = debugger is not null;
 
-        // Use ScriptCompiler for cached compilation (memory + disk).
-        var (assembly, loadContext, compileErrors) = _compiler.Compile(ir, lowering, null, hasDebugger);
+        // Use ScriptCompiler for cached compilation (in-memory LRU).
+        var (assembly, loadContext, compileErrors) = _compiler.Compile(ir, lowering, hasDebugger);
         if (assembly is null)
         {
             Log.Error("StructuredRoslynBackend: compilation failed. Errors: {Errors}",
@@ -142,8 +139,10 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         }
         finally
         {
-            // Only unload if we created a fresh load context (cache miss).
-            // Cache hits return null loadContext — the assembly stays loaded for reuse.
+            // Successful compiles are owned by the ScriptCompiler cache — the cache
+            // entry unloads its ALC on LRU eviction (loadContext is null on those
+            // paths). Only the failure path returns an unregistered load context,
+            // which is dropped here.
             loadContext?.Unload();
         }
     }

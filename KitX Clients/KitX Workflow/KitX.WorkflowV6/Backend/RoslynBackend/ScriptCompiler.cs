@@ -17,7 +17,7 @@ using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ScriptCompiler — coordinates compilation of Workflow IR into a loaded
-// Assembly, with in-memory caching and optional disk persistence.
+// Assembly, with an in-memory LRU cache.
 //
 // Adapted from v5.1 WorkflowIR's ScriptCompiler (188 lines). Key v6 differences:
 //   • v6 compiles from C# source string (StructuredCodegen/DebugCodegen output),
@@ -25,28 +25,28 @@ using Serilog;
 //   • v6 caches the Assembly (not ICompiledBlockScript) because the G class is
 //     instantiated per-execution to wire different debugger configurations.
 //   • v6's ComputeIrHash traverses the structured AST body (not flat block list).
+//   • The cache is bounded (LRU, see <see cref="MaxCacheEntries"/>) so evicted
+//     entries unload their collectible ALCs instead of pinning them forever.
 //
-// Three-level lookup: in-memory cache → disk cache → compile + cache + persist.
+// Lookup: in-memory LRU cache → compile.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
 /// Compiles a <see cref="Workflow"/> into a loaded <see cref="Assembly"/> via Roslyn,
-/// with caching and optional disk persistence. Results are cached by a deterministic
-/// IR hash.
+/// with an in-memory LRU cache. Results are cached by a deterministic IR hash.
 /// </summary>
 internal sealed class ScriptCompiler
 {
+    /// <summary>Maximum number of compiled assemblies kept in memory.</summary>
+    private const int MaxCacheEntries = 16;
+
     private readonly Dictionary<string, CompiledScriptEntry> _cache = new(StringComparer.Ordinal);
-    private readonly ScriptPersistenceManager _persistence;
+    private readonly LinkedList<string> _lruOrder = new();
     private readonly BuiltinFunctionRegistry _registry;
 
     public ScriptCompiler(BuiltinFunctionRegistry registry)
     {
         _registry = registry;
-        _persistence = new ScriptPersistenceManager(
-            registerCacheEntry: (hash, entry) => _cache[hash] = entry,
-            getKitXVersion: () => GetType().Assembly.GetName().Version?.ToString() ?? "0.0.0.0",
-            tryGetCacheEntry: hash => _cache.TryGetValue(hash, out var entry) ? entry : null);
     }
 
     /// <summary>Unloads and drops all cached compiled assemblies.</summary>
@@ -54,48 +54,35 @@ internal sealed class ScriptCompiler
     {
         foreach (var entry in _cache.Values) entry.Unload();
         _cache.Clear();
+        _lruOrder.Clear();
     }
-
-    /// <summary>Preloads all persisted compiled scripts for a workflow from disk.</summary>
-    public int PreloadFromDisk(string workflowId) => _persistence.PreloadFromDisk(workflowId);
 
     /// <summary>
     /// Compiles the IR into a loaded assembly, with caching. Returns the assembly
-    /// (from cache or freshly compiled) and its load context, or null on failure.
+    /// (from cache or freshly compiled) or null on failure. On a cache miss the
+    /// compiled load context is owned by the cache entry and unloaded on LRU
+    /// eviction — callers must not unload it.
     /// </summary>
     /// <param name="ir">The workflow IR to compile.</param>
     /// <param name="lowering">Optional lowering result for PubVar type inference.</param>
-    /// <param name="workflowId">Optional workflow id; enables disk persistence.</param>
     /// <param name="isDebug">When true, emits debug checkpoint calls.</param>
     /// <param name="compileErrors">Receives Roslyn error diagnostics on failure.</param>
     public (Assembly? Assembly, CollectibleAssemblyLoadContext? LoadContext, IReadOnlyList<string> Errors) Compile(
         Workflow ir,
         LoweringResult? lowering,
-        string? workflowId,
         bool isDebug)
     {
         var baseHash = ComputeIrHash(ir);
         var hash = isDebug ? $"debug_{baseHash}" : baseHash;
 
         // Step 1: in-memory cache.
-        if (_cache.TryGetValue(hash, out var entry))
+        if (TryGetCached(hash, out var entry))
         {
             Log.Debug("[ScriptCompiler] Memory cache hit for hash '{Hash}'", hash);
             return (entry.Assembly, null, Array.Empty<string>());
         }
 
-        // Step 2: disk cache (when a workflow id is provided).
-        if (workflowId != null)
-        {
-            var diskEntry = _persistence.TryLoadFromDisk(workflowId, hash);
-            if (diskEntry != null)
-            {
-                Log.Debug("[ScriptCompiler] Disk cache hit for hash '{Hash}' (workflow: {WfId})", hash, workflowId);
-                return (diskEntry.Assembly, null, Array.Empty<string>());
-            }
-        }
-
-        // Step 3: type-infer → codegen → Roslyn compile.
+        // Step 2: type-infer → codegen → Roslyn compile.
         try
         {
             var effectiveLowering = lowering ?? new LoweringResult
@@ -119,28 +106,54 @@ internal sealed class ScriptCompiler
                 return (null, loadContext, errors);
             }
 
-            // Cache the assembly.
-            var cacheContext = loadContext ?? new CollectibleAssemblyLoadContext(hash);
-            _cache[hash] = new CompiledScriptEntry(assembly, cacheContext);
-
-            // Step 4: persist to disk.
-            if (workflowId != null)
-            {
-                // Re-emit to a MemoryStream for persistence (the compilation stream
-                // was already consumed by LoadFromStream).
-                using var persistStream = new MemoryStream();
-                var compilation = BuildCompilation(source, hash);
-                compilation.Emit(persistStream);
-                _persistence.SaveToDisk(workflowId, hash, persistStream, "KitX.WorkflowV6.Generated.G");
-            }
+            // Cache the assembly; the cache entry owns the load context and unloads
+            // it on eviction.
+            AddToCache(hash, new CompiledScriptEntry(assembly, loadContext));
 
             Log.Debug("[ScriptCompiler] Compiled and cached hash '{Hash}'", hash);
-            return (assembly, loadContext, Array.Empty<string>());
+            return (assembly, null, Array.Empty<string>());
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "[ScriptCompiler] Compilation threw an exception");
             return (null, null, new[] { $"Compilation threw an exception: {ex.Message}" });
+        }
+    }
+
+    // ── LRU cache ──
+
+    private bool TryGetCached(string hash, out CompiledScriptEntry entry)
+    {
+        if (!_cache.TryGetValue(hash, out entry!)) return false;
+
+        // Touch: move to most-recently-used position.
+        var node = _lruOrder.Find(hash);
+        if (node is not null && node != _lruOrder.Last)
+        {
+            _lruOrder.Remove(node);
+            _lruOrder.AddLast(node);
+        }
+        return true;
+    }
+
+    private void AddToCache(string hash, CompiledScriptEntry entry)
+    {
+        if (_cache.ContainsKey(hash))
+        {
+            _cache[hash] = entry;
+            return;
+        }
+
+        _cache[hash] = entry;
+        _lruOrder.AddLast(hash);
+
+        // Evict least-recently-used entries beyond the capacity limit.
+        while (_lruOrder.Count > MaxCacheEntries)
+        {
+            var oldest = _lruOrder.First!;
+            _lruOrder.RemoveFirst();
+            if (_cache.Remove(oldest.Value, out var evicted))
+                evicted.Unload();
         }
     }
 
