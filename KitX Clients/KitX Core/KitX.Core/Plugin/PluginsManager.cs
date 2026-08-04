@@ -286,23 +286,8 @@ public class PluginsManager : IPluginService
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to decode KXP file, trying as direct files...");
-
-                // If KXP decode fails, assume it's a directory with files already extracted
-                var sourceDir = Path.GetDirectoryName(kxpFilePath);
-                if (sourceDir != null && Directory.Exists(sourceDir))
-                {
-                    foreach (var file in Directory.GetFiles(sourceDir))
-                    {
-                        var destFile = Path.Combine(pluginDir, Path.GetFileName(file));
-                        if (!File.Exists(destFile))
-                        {
-                            File.Copy(file, destFile);
-                        }
-                    }
-                }
-
-                return await FinalizeImport(pluginDir, kxpFilePath, null, null);
+                Log.Warning(ex, "Failed to decode KXP file: {KxpFile}", kxpFilePath);
+                return false;
             }
         }
         catch (Exception ex)
@@ -401,7 +386,15 @@ public class PluginsManager : IPluginService
                 return false;
             }
 
-            var pluginFilePath = Path.Combine(pluginDir, pluginInfo.RootStartupFileName);
+            // Defend against path traversal: RootStartupFileName must resolve inside the plugin directory
+            if (!IsPathInsideDirectory(pluginDir, pluginInfo.RootStartupFileName))
+            {
+                Log.Error($"Plugin import failed: RootStartupFileName '{pluginInfo.RootStartupFileName}' points outside the plugin directory in plugin {pluginInfo.Name}.");
+                try { Directory.Delete(pluginDir, true); } catch { }
+                return false;
+            }
+
+            var pluginFilePath = Path.GetFullPath(Path.Combine(pluginDir, pluginInfo.RootStartupFileName));
             if (!File.Exists(pluginFilePath))
             {
                 Log.Error($"Plugin import failed: RootStartupFileName '{pluginInfo.RootStartupFileName}' points to a non-existent file in plugin {pluginInfo.Name}. File not found at: {pluginFilePath}");
@@ -586,10 +579,20 @@ public class PluginsManager : IPluginService
                 return false;
             }
 
-            // Build the plugin root startup file path
-            var pluginRootFile = !string.IsNullOrEmpty(plugin.PluginInfo?.RootStartupFileName)
-                ? Path.Combine(plugin.InstallPath!, plugin.PluginInfo!.RootStartupFileName)
-                : "";
+            // Build the plugin root startup file path (defend against path traversal)
+            var rootStartupFileName = plugin.PluginInfo?.RootStartupFileName;
+            var pluginRootFile = "";
+            if (!string.IsNullOrEmpty(rootStartupFileName))
+            {
+                if (!IsPathInsideDirectory(plugin.InstallPath!, rootStartupFileName))
+                {
+                    Log.Error("[PluginsManager] Cannot start plugin '{PluginName}': " +
+                        "RootStartupFileName '{RootStartup}' points outside the plugin directory",
+                        plugin.PluginInfo?.Name, rootStartupFileName);
+                    return false;
+                }
+                pluginRootFile = Path.GetFullPath(Path.Combine(plugin.InstallPath!, rootStartupFileName));
+            }
 
             // Build command-line arguments: --load <plugin> --connect <IP>:<Port>
             var startArgs = BuildStartArguments(pluginRootFile, serverPort.Value);
@@ -1103,6 +1106,22 @@ public class PluginsManager : IPluginService
     }
 
     // ──────────────────────────── Private Helpers ────────────────────────────
+
+    /// <summary>
+    /// Checks whether the candidate path, resolved relative to the root directory,
+    /// stays inside the root directory. Defends against path traversal ("..") and
+    /// absolute paths.
+    /// </summary>
+    private static bool IsPathInsideDirectory(string root, string candidate)
+    {
+        var fullRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+
+        var fullCandidate = Path.GetFullPath(Path.Combine(root, candidate));
+
+        return fullCandidate.StartsWith(fullRoot, StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// Resolves the PluginsServer instance from the DI container.
