@@ -1247,4 +1247,50 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
         Assert.Equal("row trailing", ir2.Constants["x"].TrailingComment);
         Assert.Equal("var note", ir2.GlobalVars["counter"].TrailingComment);
     }
+
+    [Fact]
+    public void DeclBlock_Doc_Survives_Bp_RoundTrip_With_Baseline()
+    {
+        // BP does NOT project KS-side privileged doc comments (block doc / file-end),
+        // so a full reversal rebuilds the IR without them — the caller must re-attach
+        // them from the pre-reversal IR via ReverseWithNodePaths' ksPrivileged parameter
+        // (same pattern as the helper functions re-attachment).
+        var src = """
+            // const block doc
+            const {
+                int x = 5
+            }
+            // file end note
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var (reversed, _) = _fixture.BpLens.ReverseWithNodePaths(bp, [], ir);
+        Assert.Equal("const block doc", reversed.ConstantsDocComment);
+        Assert.Equal("file end note", reversed.TrailingDocComment);
+        var rendered = _fixture.KsLens.Project(reversed);
+        Assert.Contains("// const block doc", rendered);
+        Assert.Contains("// file end note", rendered);
+        var ir2 = _fixture.KsLens.Parse(rendered, []);
+        Assert.Equal(ir, ir2);
+    }
+
+    [Fact]
+    public void DeclBlock_Doc_Dropped_Without_Baseline()
+    {
+        // Backward compatibility: the no-baseline overload keeps the previous behaviour
+        // (privileged doc fields are lost on the BP round-trip) — callers must opt in
+        // by passing the pre-reversal IR.
+        var src = """
+            // const block doc
+            const {
+                int x = 5
+            }
+            // file end note
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var bp = _fixture.BpLens.Project(ir);
+        var reversed = _fixture.BpLens.Reverse(bp);
+        Assert.Null(reversed.ConstantsDocComment);
+        Assert.Null(reversed.TrailingDocComment);
+    }
 }

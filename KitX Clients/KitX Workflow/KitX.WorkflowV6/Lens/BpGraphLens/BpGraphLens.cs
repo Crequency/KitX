@@ -92,8 +92,8 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     /// them — the Dashboard BP-mode Run/Save/Debug paths pass them through here
     /// (previously re-attached frontend-side via a ReverseWithHelpers wrapper).
     /// </param>
-    public Workflow Reverse(Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null)
-        => ReverseWithNodePaths(bp, helpers).Ir;
+    public Workflow Reverse(Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null, Workflow? ksPrivileged = null)
+        => ReverseWithNodePaths(bp, helpers, ksPrivileged).Ir;
 
     /// <summary>
     /// Like <see cref="Reverse"/>, but also returns the canvas-node-id → canonical-id
@@ -108,14 +108,32 @@ public sealed class BpGraphLens : ILens<Blueprint, IReadOnlyList<BpEditAction>>
     /// </list>
     /// Entry/PluginTriggerNode and DetachedGraph nodes are NOT in the map.
     /// </summary>
+    /// <param name="ksPrivileged">
+    /// The pre-reversal IR carrying KS-side privileged content that the BP graph does
+    /// NOT project (block doc / file-end comments, T7 K5). A full reversal rebuilds the
+    /// IR from scratch, so without this the privileged comments would be silently lost
+    /// on the BP round-trip — same re-attachment pattern as <paramref name="helpers"/>.
+    /// Null keeps the previous behaviour (privileged fields stay null).
+    /// </param>
     public (Workflow Ir, IReadOnlyDictionary<string, string> NodeIdToCanonicalId) ReverseWithNodePaths(
-        Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null)
+        Blueprint bp, IReadOnlyList<HelperFunction>? helpers = null, Workflow? ksPrivileged = null)
     {
         ArgumentNullException.ThrowIfNull(bp);
         var translator = new BpReverseTranslator(_registry);
         var ir = translator.Reverse(bp);
         if (helpers is { Count: > 0 })
             ir = ir with { HelperFunctions = [.. helpers] };
+        // KS-side privileged doc comments (T7): not projected to the BP graph, so they
+        // are re-attached from the pre-reversal IR (same pattern as the helpers above).
+        if (ksPrivileged is not null)
+        {
+            ir = ir with
+            {
+                ConstantsDocComment = ksPrivileged.ConstantsDocComment,
+                GlobalVarsDocComment = ksPrivileged.GlobalVarsDocComment,
+                TrailingDocComment = ksPrivileged.TrailingDocComment,
+            };
+        }
         return (ir, translator.NodeIdToCanonicalId);
     }
 
