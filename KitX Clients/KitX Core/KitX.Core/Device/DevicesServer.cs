@@ -399,7 +399,7 @@ public class DevicesServer : ServerBase, IDeviceServer
         if (!_signedDeviceTokens.TryAdd(locator, token))
             _signedDeviceTokens[locator] = token;
 
-        Log.Information($"Device {locator} signed in with token {token}");
+        Log.Information("Device {Locator} signed in", locator);
 
         return token;
     }
@@ -881,7 +881,7 @@ public class DevicesServer : ServerBase, IDeviceServer
         {
             Log.Error(ex, "Error in HandleConnectAsync");
             context.Response.StatusCode = 500;
-            await context.Response.WriteAsync($"Error: {ex.Message}");
+            await context.Response.WriteAsync("Failed to connect. Please try again.");
         }
     }
 
@@ -1069,7 +1069,7 @@ public class DevicesServer : ServerBase, IDeviceServer
         {
             Log.Error(ex, "[{Location}] Error handling Plugin/Invoke request", location);
             context.Response.StatusCode = 500;
-            await context.Response.WriteAsync($"Error: {ex.Message}");
+            await context.Response.WriteAsync("Failed to invoke plugin. Please try again.");
         }
     }
 

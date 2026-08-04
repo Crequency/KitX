@@ -71,7 +71,7 @@ public class DeviceHttpClient : IDeviceHttpClient
             var url = $"http://{ipv4}:{port}/Api/V1/Plugin/Invoke?token={token}";
 
             Log.Debug("[DeviceHttpClient] Sending plugin invoke to {Url}, Target={Target}, Function={Function}",
-                url, request.Target, request.Content);
+                url.Split('?')[0], request.Target, request.Content);
 
             // Step 4: Send HTTP POST
             var response = await _httpClient.PostAsync(
@@ -80,7 +80,7 @@ public class DeviceHttpClient : IDeviceHttpClient
                 ct);
 
             Log.Debug("[DeviceHttpClient] Received response from {Url}: Status={Status}",
-                url, response.StatusCode);
+                url.Split('?')[0], response.StatusCode);
 
             return response;
         }
