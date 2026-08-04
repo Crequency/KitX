@@ -407,24 +407,6 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Computes SHA1 hash of a string
-    /// </summary>
-    /// <param name="data">The data to hash</param>
-    /// <returns>The SHA1 hash string</returns>
-    public string GetSHA1(string data)
-    {
-        var hash = SHA1.HashData(Encoding.UTF8.GetBytes(data));
-        var sb = new StringBuilder();
-
-        foreach (var item in hash)
-        {
-            sb.Append(item.ToString("x2"));
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
     /// Searches for a device key by device locator (instance method for interface)
     /// </summary>
     /// <param name="locator">The device locator</param>
@@ -445,6 +427,26 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
+    /// Salt size in bytes for AES key derivation
+    /// </summary>
+    private const int AesSaltSize = 16;
+
+    /// <summary>
+    /// AES IV size in bytes
+    /// </summary>
+    private const int AesIvSize = 16;
+
+    /// <summary>
+    /// AES key size in bytes (AES-256)
+    /// </summary>
+    private const int AesKeySize = 32;
+
+    /// <summary>
+    /// PBKDF2 iteration count for AES key derivation
+    /// </summary>
+    private const int Pbkdf2Iterations = 100_000;
+
+    /// <summary>
     /// Encrypts a string with AES
     /// </summary>
     /// <param name="source">The source string</param>
@@ -453,15 +455,25 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     public string AesEncrypt(string source, string key)
     {
         var data = Encoding.UTF8.GetBytes(source);
-        var expandedKey = ExpandKey(key, 16);
-        var keyData = expandedKey;
-        var iv = expandedKey;
+
+        // Random salt and IV per encryption: [salt(16B)][iv(16B)][ciphertext]
+        var salt = new byte[AesSaltSize];
+        var iv = new byte[AesIvSize];
+        RandomNumberGenerator.Fill(salt);
+        RandomNumberGenerator.Fill(iv);
+
+        var aesKey = DeriveAesKey(key, salt);
 
         using var aes = Aes.Create();
-        aes.Key = keyData;
-        aes.IV = iv;
+        aes.Key = aesKey;
 
-        var result = aes.EncryptCbc(data, iv, PaddingMode.ISO10126);
+        var encrypted = aes.EncryptCbc(data, iv, PaddingMode.PKCS7);
+
+        var result = new byte[salt.Length + iv.Length + encrypted.Length];
+        Buffer.BlockCopy(salt, 0, result, 0, salt.Length);
+        Buffer.BlockCopy(iv, 0, result, salt.Length, iv.Length);
+        Buffer.BlockCopy(encrypted, 0, result, salt.Length + iv.Length, encrypted.Length);
+
         return Convert.ToBase64String(result);
     }
 
@@ -475,34 +487,31 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     public string AesDecrypt(string source, string key, bool isSourceInBase64 = true)
     {
         var data = isSourceInBase64 ? Convert.FromBase64String(source) : Encoding.UTF8.GetBytes(source);
-        var expandedKey = ExpandKey(key, 16);
-        var keyData = expandedKey;
-        var iv = expandedKey;
+        if (data.Length < AesSaltSize + AesIvSize)
+            throw new CryptographicException("Encrypted data is too short.");
+
+        var salt = new byte[AesSaltSize];
+        var iv = new byte[AesIvSize];
+        Buffer.BlockCopy(data, 0, salt, 0, AesSaltSize);
+        Buffer.BlockCopy(data, AesSaltSize, iv, 0, AesIvSize);
+
+        var aesKey = DeriveAesKey(key, salt);
+
+        var encrypted = new byte[data.Length - AesSaltSize - AesIvSize];
+        Buffer.BlockCopy(data, AesSaltSize + AesIvSize, encrypted, 0, encrypted.Length);
 
         using var aes = Aes.Create();
-        aes.Key = keyData;
-        aes.IV = iv;
+        aes.Key = aesKey;
 
-        var result = aes.DecryptCbc(data, iv, PaddingMode.ISO10126);
+        var result = aes.DecryptCbc(encrypted, iv, PaddingMode.PKCS7);
         return Encoding.UTF8.GetString(result);
     }
 
-    private static byte[] ExpandKey(string key, int length)
-    {
-        var expandedKey = key.Length <= length ? key : key[..length];
-        var expandIndex = 0;
-
-        while (expandedKey.Length < length)
-        {
-            if (expandIndex == key.Length)
-                expandIndex = 0;
-
-            expandedKey += key[expandIndex];
-            expandIndex++;
-        }
-
-        return Encoding.ASCII.GetBytes(expandedKey);
-    }
+    /// <summary>
+    /// Derives an AES key from a password using PBKDF2 with a per-message salt
+    /// </summary>
+    private static byte[] DeriveAesKey(string key, byte[] salt) =>
+        Rfc2898DeriveBytes.Pbkdf2(key, salt, Pbkdf2Iterations, HashAlgorithmName.SHA256, AesKeySize);
 
     private string GetMacAddress()
     {
