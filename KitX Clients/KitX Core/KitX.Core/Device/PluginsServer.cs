@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Fleck;
 using KitX.Core.Contract.Plugin;
@@ -23,7 +24,7 @@ public class PluginsServer : ServerBase, IPluginServer
 {
     private readonly IEventService _eventService;
     private WebSocketServer? _server;
-    private readonly List<KitX.Core.Contract.Plugin.IPluginConnection> _connections = new();
+    private readonly ConcurrentDictionary<string, KitX.Core.Contract.Plugin.IPluginConnection> _connections = new();
 
     /// <summary>
     /// JSON serializer options (accessible from PluginConnection)
@@ -65,7 +66,7 @@ public class PluginsServer : ServerBase, IPluginServer
     /// IPluginServer.Connections — returns connected plugins as IPluginConnection list
     /// </summary>
     IReadOnlyList<IPluginConnection> IPluginServer.Connections =>
-        _connections.ToList().AsReadOnly();
+        _connections.Values.ToList().AsReadOnly();
 
     /// <summary>
     /// Event raised when a plugin connects
@@ -104,8 +105,6 @@ public class PluginsServer : ServerBase, IPluginServer
     public PluginsServer(IEventService eventService)
     {
         _eventService = eventService ?? throw new ArgumentNullException(nameof(eventService));
-        Log.Information("[PluginsServer] Constructor called. HashCode: {HashCode}, EventService HashCode: {EventServiceHashCode}",
-            GetHashCode(), eventService.GetHashCode());
     }
 
     /// <summary>
@@ -160,7 +159,7 @@ public class PluginsServer : ServerBase, IPluginServer
     {
         try
         {
-            _server = new WebSocketServer($"ws://0.0.0.0:{currentPort}");
+            _server = new WebSocketServer($"ws://127.0.0.1:{currentPort}");
 
             _server!.Start(socket =>
             {
@@ -168,19 +167,18 @@ public class PluginsServer : ServerBase, IPluginServer
 
                 if (RegexToVerifyConnectionId().IsMatch(connectionId) == false)
                 {
-                    socket.Send("Invalid connection id.");
+                    socket.Send("Connection rejected.");
                     socket.Close();
                     return;
                 }
 
-                Log.Information($"[PluginsServer] About to add connection {connectionId}. _connections count before: {_connections.Count}, this HashCode: {GetHashCode()}");
                 var connection = new PluginConnection(socket, connectionId);
-                _connections.Add(connection);
-                Log.Information($"[PluginsServer] Added connection {connectionId}. _connections count after: {_connections.Count}");
+                _connections.TryAdd(connectionId, connection);
+                Log.Debug("[PluginsServer] Added connection {ConnectionId}", connectionId);
 
                 connection.Closed += (sender, args) =>
                 {
-                    _connections.Remove(connection);
+                    _connections.TryRemove(connectionId, out _);
 
                     Log.Information($"[PluginsServer] Connection closed: {connectionId}, PluginInfo: {connection.PluginInfo?.Name}");
 
@@ -211,7 +209,8 @@ public class PluginsServer : ServerBase, IPluginServer
                         if (kwc?.Content is not null)
                         {
                             var cmd = System.Text.Json.JsonSerializer.Deserialize<Command>(kwc.Content);
-                            Log.Information($"[PluginsServer] MessageReceived: cmd.Request = {cmd.Request}, expected = {KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin}");
+                            Log.Debug("[PluginsServer] MessageReceived: cmd.Request = {Request}, expected = {Expected}",
+                                cmd.Request, KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin);
                             if (cmd.Request == KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin)
                             {
                                 Log.Information($"[PluginsServer] Processing RegisterPlugin message");
@@ -251,7 +250,7 @@ public class PluginsServer : ServerBase, IPluginServer
                         Log.Warning(ex, "[PluginsServer] Error handling plugin message");
                     }
 
-                    Log.Information($"[PluginsServer] Invoking PluginMessageReceived event for connection {connectionId}");
+                    Log.Debug("[PluginsServer] Invoking PluginMessageReceived event for connection {ConnectionId}", connectionId);
                     PluginMessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
                     {
                         ConnectionId = connectionId,
@@ -340,8 +339,10 @@ public class PluginsServer : ServerBase, IPluginServer
     /// </summary>
     /// <param name="connectionId">The connection ID</param>
     /// <returns>The plugin connection or null if not found</returns>
-    public KitX.Core.Contract.Plugin.IPluginConnection? FindConnection(string connectionId) =>
-        _connections.FirstOrDefault(x => x.ConnectionId?.Equals(connectionId) ?? false);
+    public KitX.Core.Contract.Plugin.IPluginConnection? FindConnection(string connectionId)
+    {
+        return _connections.TryGetValue(connectionId, out var connection) ? connection : null;
+    }
 
     /// <summary>
     /// Finds a connector for a specific plugin (implementation of IPluginServer)
@@ -362,7 +363,7 @@ public class PluginsServer : ServerBase, IPluginServer
     /// <returns>The plugin connection or null if not found</returns>
     public KitX.Core.Contract.Plugin.IPluginConnection? FindConnection(PluginInfo pluginInfo)
     {
-        return _connections.FirstOrDefault(x => x.PluginInfo is not null && x.PluginInfo.Equals(pluginInfo));
+        return _connections.Values.FirstOrDefault(x => x.PluginInfo is not null && x.PluginInfo.Equals(pluginInfo));
     }
 
     /// <summary>
@@ -378,7 +379,7 @@ public class PluginsServer : ServerBase, IPluginServer
             _server?.Dispose();
             _server = null;
 
-            foreach (var connection in _connections)
+            foreach (var connection in _connections.Values)
             {
                 connection.CloseAsync().Wait();
             }
@@ -401,7 +402,7 @@ public class PluginsServer : ServerBase, IPluginServer
     {
         await CTask.Run(() =>
         {
-            CTask.WaitAll(_connections.Select(c => c.CloseAsync()).ToArray());
+            CTask.WaitAll(_connections.Values.Select(c => c.CloseAsync()).ToArray());
 
             _connections.Clear();
 
