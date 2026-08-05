@@ -104,6 +104,12 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IPluginServer...");
         services.AddSingleton<IPluginServer, PluginsServer>();
 
+        // Network orchestration — single entry point for starting/stopping the
+        // discovery, devices and plugins servers (replaces the Dashboard's
+        // AppFramework "Initialize WebManager" orchestration).
+        Log.Information("Registering INetworkService...");
+        services.AddSingleton<INetworkService, NetworkService>();
+
         // Kscript plugin bridge → Core: DashboardPluginServiceProvider wires IPluginServer +
         // IEventService to Kscript's IPluginServiceProvider; RealPluginManager is the live
         // IPluginManager; PluginHostAdapter bridges it to WorkflowV6's IPluginHost so

@@ -65,6 +65,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StructuredRoslynBackend>();
         services.AddSingleton<IExecutionBackend>(sp => sp.GetRequiredService<StructuredRoslynBackend>());
 
+        // WorkflowRunner — single shared execution path (ApplyConstantOverrides +
+        // ExecuteAsync) used by the editor Run/DebugRun and by WorkflowSessionManager's
+        // run-by-id path.
+        services.AddSingleton<Services.WorkflowRunner>();
+
         // Workflow services (migrated from KitX.Dashboard.Services — zero UI deps):
         //   • WorkflowStorageService — file-based IWorkflowStorageService for KcsFileFormat v2.
         //   • WorkflowSessionManager — IWorkflowManagementService run/stop-by-id orchestrator

@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowV6.Backend.RoslynBackend;
 using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,7 +20,8 @@ using Serilog;
 // The manager always dispatches v6 workflows (v5.1 archived — the v6 path is the
 // only one, no IrVersion branching): it deserializes via the v6 WorkflowSerializer,
 // applies the persisted VariableConstants overrides (the same semantics the editor
-// uses at Run-time), and executes through StructuredRoslynBackend. This closes the
+// uses at Run-time), and executes through WorkflowRunner — the single shared
+// execution path (ApplyConstantOverrides + backend ExecuteAsync). This closes the
 // "run-by-id for v6" gap that the ITriggerManager routing path depends on.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -32,13 +32,13 @@ using Serilog;
 public sealed class WorkflowSessionManager : IWorkflowManagementService
 {
     private readonly IWorkflowStorageService _storage;
-    private readonly StructuredRoslynBackend _v6Backend;
+    private readonly WorkflowRunner _runner;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
-    public WorkflowSessionManager(IWorkflowStorageService storage, StructuredRoslynBackend v6Backend)
+    public WorkflowSessionManager(IWorkflowStorageService storage, WorkflowRunner runner)
     {
         _storage = storage ?? throw new System.ArgumentNullException(nameof(storage));
-        _v6Backend = v6Backend ?? throw new System.ArgumentNullException(nameof(v6Backend));
+        _runner = runner ?? throw new System.ArgumentNullException(nameof(runner));
     }
 
     /// <inheritdoc/>
@@ -68,11 +68,9 @@ public sealed class WorkflowSessionManager : IWorkflowManagementService
             if (v6Ir is null)
                 return new WorkflowRunResult(false, $"Workflow '{workflowId}' IR invalid", null);
 
-            v6Ir = KitX.WorkflowV6.Ir.WorkflowOverrides.ApplyConstantOverrides(
-                v6Ir, ToStringOverrides(data.VariableConstants));
-
             Log.Information("[WorkflowSessionManager] Running workflow {Id}", workflowId);
-            var result = await _v6Backend.ExecuteAsync(v6Ir, null, cts.Token);
+            var result = await _runner.ExecuteAsync(
+                v6Ir, null, ToStringOverrides(data.VariableConstants), cts.Token);
             return new WorkflowRunResult(result.IsSuccess, result.ErrorMessage, result.Output);
         }
         catch (System.OperationCanceledException)

@@ -161,6 +161,10 @@ public class Program
         TestResolve(sp, "IScopeAnalyzer", typeof(KitX.WorkflowV6.Lens.BpGraphLens.IScopeAnalyzer));
         TestResolve(sp, "StructuredRoslynBackend", typeof(KitX.WorkflowV6.Backend.RoslynBackend.StructuredRoslynBackend));
         TestResolve(sp, "IPluginHost (v6)", typeof(KitX.WorkflowV6.Backend.Runtime.IPluginHost));
+        // C4: the network stack is orchestrated by the Core-level INetworkService.
+        TestResolve(sp, "INetworkService", typeof(KitX.Core.Contract.Device.INetworkService));
+        // C2: the shared execution path used by the editor and run-by-id services.
+        TestResolve(sp, "WorkflowRunner", typeof(KitX.WorkflowV6.Services.WorkflowRunner));
 
         Console.WriteLine("\n✅ Test 3 Passed: Full host workflow graph resolved\n");
     }
