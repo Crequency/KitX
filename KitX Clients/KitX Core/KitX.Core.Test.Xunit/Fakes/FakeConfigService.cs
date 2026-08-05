@@ -28,5 +28,7 @@ public class FakeConfigService : IConfigService
 
     public void Reload() { }
 
+#pragma warning disable CS0067
     public event EventHandler<ConfigChangedEventArgs>? ConfigChanged;
+#pragma warning restore CS0067
 }

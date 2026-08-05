@@ -22,7 +22,9 @@ public class FakeDeviceDiscoveryService : IDeviceDiscoveryService
 
     public event EventHandler<DeviceDiscoveredEventArgs>? DeviceDiscovered;
 
+#pragma warning disable CS0067
     public event EventHandler<DeviceOfflineEventArgs>? DeviceOffline;
+#pragma warning restore CS0067
 
     public IDeviceDiscoveryService Run() => this;
 
