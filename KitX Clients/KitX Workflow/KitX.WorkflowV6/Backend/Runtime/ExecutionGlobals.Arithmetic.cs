@@ -2,7 +2,7 @@ namespace KitX.WorkflowV6.Backend.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExecutionGlobals.Arithmetic — the numeric/string operator dispatchers
-// (Compare / Add / Sub / Mul / Div / Mod / StringConcatMethod / Range).
+// (Compare / Add / Sub / Mul / Div / Mod / StringConcat / Range).
 // Partial of ExecutionGlobals (see ExecutionGlobals.cs).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -94,7 +94,7 @@ public partial class ExecutionGlobals
     public int Mod(int a, int b) => a % b;
 
     /// <summary>StringConcat dispatcher: concatenates N string arguments.</summary>
-    public string StringConcatMethod(params object?[] args)
+    public string StringConcat(params object?[] args)
         => string.Concat(args.Select(a => a?.ToString() ?? string.Empty));
 
     /// <summary>

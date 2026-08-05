@@ -12,7 +12,7 @@ public partial class ExecutionGlobals
     public object? PluginCall(string pluginName, string methodName, params object[] args)
     {
         if (PluginHost is null) return null;
-        try { return AsJsonElement(PluginHost.Call(pluginName, methodName, args ?? [])); }
+        try { return AsJsonElement(PluginHost.Call(pluginName, methodName, args)); }
         catch { return null; }
     }
 
@@ -20,7 +20,7 @@ public partial class ExecutionGlobals
     public object? PluginCallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
     {
         if (PluginHost is null) return null;
-        try { return AsJsonElement(PluginHost.CallWithTarget(pluginName, methodName, targetDevice, args ?? [])); }
+        try { return AsJsonElement(PluginHost.CallWithTarget(pluginName, methodName, targetDevice, args)); }
         catch { return null; }
     }
 

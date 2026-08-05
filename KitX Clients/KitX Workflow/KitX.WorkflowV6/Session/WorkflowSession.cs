@@ -6,7 +6,7 @@ using KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkflowSession — one live editing session for one workflow document.
 //
-// Inherited contract from KitX.WorkflowIR.Session.WorkflowSession: holds the
+// Ported contract from archived v5.1 KitX.WorkflowIR.Session.WorkflowSession: holds the
 // single-truth IR and fires IrChanged whenever either side (KS or BP) writes a
 // change back through the SyncService. Lifecycle = one open workflow document.
 // Because the IR is immutable, a "write" is a wholesale replacement of the IR

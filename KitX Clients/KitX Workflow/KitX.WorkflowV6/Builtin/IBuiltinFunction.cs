@@ -18,8 +18,7 @@ using KitX.Core.Contract.Workflow;
 
 /// <summary>
 /// The behavioural kind of a builtin — 供前端着色与测试规格验证的元数据 (codegen
-/// never reads Kind). Inherited from v5; the v6 structured model may collapse some
-/// of these distinctions.
+/// never reads Kind). Carried over from v5 for the same purposes.
 /// </summary>
 public enum FunctionKind
 {
@@ -28,8 +27,8 @@ public enum FunctionKind
 
     /// <summary>
     /// A control-flow primitive (if/switch/forEach/while/break/continue). In v6
-    /// these are structural (own their body); whether they remain in the function
-    /// registry or become first-class IR statement kinds is open (discussion notes §10.7).
+    /// these are structural (own their body): they are first-class IR statement
+    /// kinds (see StatementKind), not registry entries.
     /// </summary>
     ControlFlow,
 
@@ -64,6 +63,5 @@ public interface IBuiltinFunction
 
 /// <summary>
 /// A port (pin) descriptor: name + type + relative vertical position on the BP node.
-/// Inherited shape from KitX.WorkflowV6.PortSpec.
 /// </summary>
 public readonly record struct PortSpec(string Name, PinType Type, double RelativeY);

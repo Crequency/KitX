@@ -6,7 +6,7 @@ using KitX.WorkflowV6.Ir;
 // WorkflowDiff — the immutable, content-addressed delta between two structured
 // workflows.
 //
-// Inherited concept from KitX.WorkflowIR's IrDiff, re-typed for the structured IR:
+// Ported concept from archived v5.1 KitX.WorkflowIR's IrDiff, re-typed for the structured IR:
 // where v5 keyed block-level changes by Name (block identity = name), v6 keys
 // statement-level changes by lexical path (the path of nested scopes containing the
 // statement). There are no block-level add/remove operations — the IR is a tree, not

@@ -7,7 +7,7 @@
 // (if/switch/forEach/while/break/continue), IR as a structured AST (not block +
 // Goto), and structured C# as the compile target.
 //
-// Conventions inherited from KitX.WorkflowIR (the immediate predecessor):
+// Conventions ported from archived v5.1 KitX.WorkflowIR (the immediate predecessor):
 //   • The IR is immutable (records + ImmutableArray/Dictionary).
 //   • View state (canvas positions, comments) lives in Annotations, separated from
 //     semantic fields so that structural equality is unaffected by view state.
@@ -16,8 +16,8 @@
 //     Pause/File I/O + 7 JSON + 9 dict + 3 plugin-call + 9 service-management).
 //
 // Implementation status (see Package/Archive/WorkflowV6-Docs/WorkflowV6-Handoff.md
-// for full reference):
-//   • Phase 1-10 fully implemented (476 tests passing).
+// for full reference; test count is tracked in CI):
+//   • Phase 1-10 fully implemented.
 //   • KsTextLens + BpGraphLens (Project/Reverse) fully implemented.
 //   • StructuredRoslynBackend (IExecutionBackend) fully implemented.
 //   • SyncService.ApplyKsEdit fully functional; ApplyBpEdits deferred to project P2

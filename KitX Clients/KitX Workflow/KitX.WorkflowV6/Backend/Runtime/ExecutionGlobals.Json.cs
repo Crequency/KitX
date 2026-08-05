@@ -39,11 +39,14 @@ public partial class ExecutionGlobals
         return je.ValueKind == JsonValueKind.String ? je.GetString() ?? "" : je.GetRawText();
     }
 
-    /// <summary>JsonAsInt: extracts an integer from a JSON value.</summary>
+    /// <summary>JsonAsInt: extracts an integer from a JSON value. Non-integral numbers
+    /// truncate toward zero (matching <see cref="JsonElementToObject"/>'s int fallback);
+    /// non-numbers yield 0.</summary>
     public int JsonAsInt(object? json)
     {
         var je = AsJsonElement(json);
-        return je.ValueKind == JsonValueKind.Number ? je.GetInt32() : 0;
+        if (je.ValueKind != JsonValueKind.Number) return 0;
+        return je.TryGetInt32(out var i) ? i : (int)je.GetDouble();
     }
 
     /// <summary>JsonAsBool: extracts a boolean from a JSON value.</summary>
@@ -78,23 +81,24 @@ public partial class ExecutionGlobals
 
     /// <summary>JsonGetField: traverses a JSON object by dotted path and returns the value.</summary>
     public JsonElement JsonGetField(object? json, string fieldPath)
-    {
-        var je = AsJsonElement(json);
-        foreach (var part in fieldPath.Split('.'))
-        {
-            if (je.ValueKind != JsonValueKind.Object || !je.TryGetProperty(part, out je))
-                return default;
-        }
-        return je;
-    }
+        => TryGetPropertyPath(AsJsonElement(json), fieldPath, out var result) ? result : default;
 
     /// <summary>JsonContains: checks whether a dotted path exists in a JSON object.</summary>
     public bool JsonContains(object? json, string path)
+        => TryGetPropertyPath(AsJsonElement(json), path, out _);
+
+    /// <summary>
+    /// Walks <paramref name="path"/> (dot-separated property names) from <paramref name="root"/>.
+    /// Returns false (and leaves <paramref name="result"/> undefined) when any segment is
+    /// missing or the traversal hits a non-object. Shared by <see cref="JsonGetField"/> and
+    /// <see cref="JsonContains"/>.
+    /// </summary>
+    private static bool TryGetPropertyPath(JsonElement root, string path, out JsonElement result)
     {
-        var je = AsJsonElement(json);
+        result = root;
         foreach (var part in path.Split('.'))
         {
-            if (je.ValueKind != JsonValueKind.Object || !je.TryGetProperty(part, out je))
+            if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty(part, out result))
                 return false;
         }
         return true;

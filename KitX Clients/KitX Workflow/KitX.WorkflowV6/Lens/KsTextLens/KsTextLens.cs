@@ -11,7 +11,7 @@ using Serilog;
 // ─────────────────────────────────────────────────────────────────────────────
 // KsTextLens — KS text ↔ structured IR (v6).
 //
-// Inherited contract from KitX.WorkflowIR.Lens.KsTextLens.KsTextLens: this is the
+// Ported contract from archived v5.1 KitX.WorkflowIR.Lens.KsTextLens.KsTextLens: this is the
 // bidirectional bridge between the structured IR and the KS source text. The two
 // hard responsibilities are:
 //

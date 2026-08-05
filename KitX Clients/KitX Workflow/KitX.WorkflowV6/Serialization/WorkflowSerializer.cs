@@ -9,7 +9,7 @@ using KitX.WorkflowV6.Ir.Statements;
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkflowSerializer — bidirectional Workflow ↔ JSON.
 //
-// Inherited concept from KitX.WorkflowIR.Serialization.IrSerializer: serialise the
+// Ported concept from archived v5.1 KitX.WorkflowIR.Serialization.IrSerializer: serialise the
 // structured IR to JSON via a DTO layer (so the wire format is explicit and decoupled
 // from the immutable model) and deserialise back. Used by the on-disk workflow file
 // format (KitX.FileFormats) and by the Dashboard's storage service.

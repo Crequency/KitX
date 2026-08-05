@@ -5,7 +5,7 @@ namespace KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 // Workflow — the top-level immutable container. The single source of truth.
 //
-// Inherited concept from KitX.WorkflowIR.IrWorkflow: the IR is the canonical
+// Ported concept from archived v5.1 KitX.WorkflowIR.IrWorkflow: the IR is the canonical
 // representation that KS text, BP graph, and the execution backend all project from
 // or write back to. Equality is structural; canvas layout (in Annotations) does not
 // affect equality.

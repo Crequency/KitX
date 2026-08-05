@@ -164,7 +164,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 ? p.Sources.Select(RenderKsNode)
                 : new[] { currentExpr ?? "null" };
             var allArgs = BuildArgList(seg.Arguments, inputArgs);
-            currentExpr = $"this.{MapMethodName(seg.Target)}({allArgs})";
+            currentExpr = $"this.{seg.Target}({allArgs})";
         }
 
         if (!lastWasAssignment && currentExpr is not null)

@@ -8,7 +8,7 @@ using KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 // BpGraphLens — BP graph ↔ structured IR (v6).
 //
-// Inherited contract from KitX.WorkflowIR.Lens.BpGraphLens.BpGraphLens: this lens is
+// Ported contract from archived v5.1 KitX.WorkflowIR.Lens.BpGraphLens.BpGraphLens: this lens is
 // the bidirectional bridge between the structured IR and the on-canvas Blueprint graph.
 // Project renders the IR as a Blueprint; Diff folds a stream of BP edits back into the
 // IR as a WorkflowDiff.

@@ -7,11 +7,11 @@ using KitX.WorkflowV6.Ir.Lowering;
 // ─────────────────────────────────────────────────────────────────────────────
 // IExecutionBackend — pluggable execution backend (v6).
 //
-// Inherited contract from KitX.WorkflowIR.Backend.IExecutionBackend: execution is
-// hidden behind a pluggable interface so a future interpreter, WASM backend, or
+// Ported contract from archived v5.1 KitX.WorkflowIR.Backend.IExecutionBackend: execution
+// is hidden behind a pluggable interface so a future interpreter, WASM backend, or
 // remote runner can slot in without touching the IR / Lens layers.
 //
-// The v6 default backend (not yet implemented) compiles the structured IR to
+// The v6 default backend (StructuredRoslynBackend) compiles the structured IR to
 // *structured* C# (if/foreach/while/break), as opposed to v5's while-switch
 // trampoline (see discussion notes §5.3). Without the trampoline there is no
 // global G.NextBlock cursor; resumability is rebuilt around checkpoint hooks
@@ -19,8 +19,9 @@ using KitX.WorkflowV6.Ir.Lowering;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// A pluggable workflow execution backend. The default implementation (added in the
-/// implementation phase) will compile the structured IR to structured C# via Roslyn.
+/// A pluggable workflow execution backend. The default implementation is
+/// <see cref="RoslynBackend.StructuredRoslynBackend"/>, which compiles the
+/// structured IR to structured C# via Roslyn.
 /// </summary>
 public interface IExecutionBackend
 {

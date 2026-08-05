@@ -3,7 +3,7 @@ namespace KitX.WorkflowV6.Lens.KsTextLens;
 // ─────────────────────────────────────────────────────────────────────────────
 // KsDiagnostic — parse / lower time diagnostic message.
 //
-// Inherited shape from KitX.WorkflowIR.Ir.Lowering.LoweringDiagnostic, re-namespaced
+// Ported shape from archived v5.1 KitX.WorkflowIR.Ir.Lowering.LoweringDiagnostic, re-namespaced
 // to the v6 KS text lens so the parser, lowerer, and lens can all emit diagnostics
 // without pulling in the lowering namespace at every call site.
 //

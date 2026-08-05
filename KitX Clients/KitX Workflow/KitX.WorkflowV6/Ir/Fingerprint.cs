@@ -9,14 +9,14 @@ namespace KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 // Fingerprint — content-derived stable identity for IR statements.
 //
-// Inherited concept from KitX.WorkflowIR's IrFingerprint: identity is derived from
+// Ported concept from archived v5.1 KitX.WorkflowIR's IrFingerprint: identity is derived from
 // semantic content, not from a random Guid. This makes re-parsing the same KS text
 // produce the same identities, which is the precondition for diff alignment and
 // stable BP node correlation.
 //
 // The v6 IR is structured (nested AST, not block + Goto). Fingerprint scope therefore
 // follows the lexical path of the statement (parent block path + ordinal), not the
-// v5 (blockName, ordinal) pair. The DeriveStableId signature below reflects that.
+// v5 (blockName, ordinal) pair.
 //
 // The <see cref="Compute(Statement)"/> algorithm walks the structured Statement tree
 // (depth-first) and folds each node's kind + content fields + child fingerprints into
@@ -254,25 +254,6 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
     /// </summary>
     public static Fingerprint Compute(string textualForm)
         => new(textualForm ?? string.Empty);
-
-    /// <summary>
-    /// Derives a short, stable correlation id for a statement living at
-    /// <paramref name="lexicalPath"/> (a "/"-separated scope path inside the
-    /// structured AST) at <paramref name="ordinal"/>. Used as the BP-node-id and
-    /// the per-node-layout key. Stable across KS re-parse because it only depends
-    /// on (lexical path, statement fingerprint, in-scope position).
-    /// </summary>
-    [Obsolete("Replaced by KitX.WorkflowV6.Ir.NodeId.Of. The debug codegen now derives " +
-              "statementId via FNV-1a over the lexical path alone, identical to BpRenderer's " +
-              "BP-node id. This keeps statementId == nodeId so breakpoints set on a BP node " +
-              "fire when execution reaches the matching IR statement. Scheduled for removal.")]
-    public static string DeriveStableId(string lexicalPath, Fingerprint fingerprint, int ordinal)
-    {
-        var raw = $"{lexicalPath}\u001F{fingerprint.Value}\u001F{ordinal}";
-        var bytes = Encoding.UTF8.GetBytes(raw);
-        var hash = SHA256.HashData(bytes);
-        return Convert.ToHexString(hash, 0, 6); // 12 hex chars
-    }
 
     // ── Hash accumulator helper ──
 

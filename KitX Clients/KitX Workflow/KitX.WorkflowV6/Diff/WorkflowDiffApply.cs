@@ -8,7 +8,7 @@ using KitX.WorkflowV6.Ir;
 // WorkflowDiffApply — the pure applier that turns a WorkflowDiff + baseline into a
 // new immutable Workflow.
 //
-// Inherited concept from KitX.WorkflowIR.Diff.IrDiffApply, re-targeted at the
+// Ported concept from archived v5.1 KitX.WorkflowIR.Diff.IrDiffApply, re-targeted at the
 // structured IR. For each scope (list of statements), the applier REBUILDS the
 // target list position by position instead of applying remove-then-insert in some
 // order:

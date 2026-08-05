@@ -10,7 +10,7 @@ using KitX.WorkflowV6.Lens.BpGraphLens;
 // ─────────────────────────────────────────────────────────────────────────────
 // SyncService — the top-level coordinator that turns KS/BP edits into IR updates.
 //
-// Inherited concept from KitX.WorkflowIR.Session.SyncService, re-typed for the
+// Ported concept from archived v5.1 KitX.WorkflowIR.Session.SyncService, re-typed for the
 // structured IR. Both KS edits and BP edits go through the same shape: produce a
 // WorkflowDiff, apply it via the pure applier, replace the session's IR, fire
 // IrChanged.

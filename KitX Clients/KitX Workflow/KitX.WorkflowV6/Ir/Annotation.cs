@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 // ─────────────────────────────────────────────────────────────────────────────
 // Annotation — view/render metadata attached to a Statement or a Workflow.
 //
-// Inherited design from KitX.WorkflowIR.IrAnnotation: view state (canvas position,
+// Ported design from archived v5.1 KitX.WorkflowIR.IrAnnotation: view state (canvas position,
 // collapsed state, debug highlight, source-position markers, ...) is deliberately
 // separated from semantic fields so it never participates in structural equality.
 // Two workflows that differ only in canvas layout are semantically equal.

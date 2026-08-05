@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 // ─────────────────────────────────────────────────────────────────────────────
 // KS AST — KScript source tree (lossless), distinct from the structured IR.
 //
-// Inherited split from KitX.WorkflowIR: the AST mirrors KS source 1:1 (so KS round-
+// Ported split from archived v5.1 KitX.WorkflowIR: the AST mirrors KS source 1:1 (so KS round-
 // trip is lossless and the indented parser can carry verbatim text on every node),
 // while the IR is the canonical lowered form. Lowering is a one-way transform
 // (AST → IR); rendering IR → KS text does not need the AST.

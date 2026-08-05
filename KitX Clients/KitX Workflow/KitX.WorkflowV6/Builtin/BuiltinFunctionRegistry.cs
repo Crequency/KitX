@@ -6,7 +6,7 @@ using Serilog;
 // ─────────────────────────────────────────────────────────────────────────────
 // BuiltinFunctionRegistry — reflection-based discovery + per-role lookup tables.
 //
-// Inherited concept from KitX.WorkflowIR.Builtin.BuiltinFunctionRegistry: one
+// Ported concept from archived v5.1 KitX.WorkflowIR.Builtin.BuiltinFunctionRegistry: one
 // reflection-discovered registry indexes each builtin by name. V6 ships 41 builtin
 // functions across 25 source files: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/
 // StringConcat + Pause/ReadTextFile/WriteTextFile + 7 JSON functions (JsonGetField/

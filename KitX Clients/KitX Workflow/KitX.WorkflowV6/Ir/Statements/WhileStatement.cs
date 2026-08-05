@@ -5,9 +5,8 @@ using KitX.WorkflowV6.Ir.Ast;
 // ─────────────────────────────────────────────────────────────────────────────
 // WhileStatement — structured conditional loop (discussion notes §3.3 #5, §十二-E).
 //
-// Carried as a first-class IR statement kind per §十二-K (NOT an IBuiltinFunction).
-// Whether MVP includes it is open (discussion notes §10.1: "while 是否需要"); the
-// shape is reserved here so Phase 4 codegen can emit `while` directly.
+// Carried as a first-class IR statement kind per §十二-K (NOT an IBuiltinFunction);
+// the codegen emits `while` directly (see StructuredCodegen / DebugCodegen).
 //
 // Unlike forEach, while carries a dynamic condition and no element binding. Break
 // and Continue escape the body; see <see cref="BreakStatement"/> and

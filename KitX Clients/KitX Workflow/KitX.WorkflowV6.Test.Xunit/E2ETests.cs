@@ -578,6 +578,19 @@ public class E2ETests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public async Task E2E_JsonAsInt_From_NonIntegral_Number_Truncates()
+    {
+        var src = """
+            "1.5" > JsonAsInt > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("1", result.Output);
+    }
+
+    [Fact]
     public async Task E2E_JsonGetField_Then_AsString()
     {
         var src = """

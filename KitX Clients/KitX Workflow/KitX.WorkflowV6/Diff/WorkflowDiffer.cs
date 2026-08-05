@@ -7,7 +7,7 @@ using KitX.WorkflowV6.Ir.Statements;
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkflowDiffer — the semantic diff engine for the structured IR.
 //
-// Inherited concept from KitX.WorkflowIR.Diff.IrDiffer, re-targeted at the structured
+// Ported concept from archived v5.1 KitX.WorkflowIR.Diff.IrDiffer, re-targeted at the structured
 // AST. The v5 algorithm aligned two block lists by Name and ran LCS over the
 // fingerprint sequence of each common block; v6 aligns two trees by walking them in
 // lexical order (depth-first pre-order over the structured statements) and running

@@ -6,7 +6,7 @@ using KitX.WorkflowV6.Diff;
 // ─────────────────────────────────────────────────────────────────────────────
 // ILens — the projection/absorption contract for an IR view.
 //
-// Inherited concept from KitX.WorkflowIR.Lens.ILens, unchanged in shape: the
+// Ported concept from archived v5.1 KitX.WorkflowIR.Lens.ILens, unchanged in shape: the
 // immutable <see cref="Workflow"/> IR is the single source of truth, and every
 // external representation (KS text, BP graph, C# source) is a *view* projected from
 // it. A lens is the bidirectional bridge between the IR and one view:

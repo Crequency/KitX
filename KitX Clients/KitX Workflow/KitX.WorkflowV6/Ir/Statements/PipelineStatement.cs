@@ -4,7 +4,7 @@ using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PipelineStatement — the v5 functional `>` / `=` data-flow syntax, carried as a
-// structured AST (not raw text). Inherited from KitX.WorkflowIR.IrPipelineStatement.
+// structured AST (not raw text). Ported from archived v5.1 KitX.WorkflowIR.IrPipelineStatement.
 //
 // The pipeline is the *only* data-flow construct in v6 (same as v5 §1). Plain
 // assignment `x = Func(args)` is a pipeline with one source and one variable-tap

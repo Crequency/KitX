@@ -46,7 +46,7 @@ internal sealed class DebugCodegen : CodegenBase
         // Execution-complete stop point: in step-through mode the debugger pauses here
         // once more after the last node, so the user steps once to formally finish the
         // debug session (free-run / Continue passes straight through).
-        EmitCheckpoint(ExecutionEndCheckpointId, "end", 0);
+        EmitCheckpoint(ExecutionEndCheckpointId, "end");
         Dedent();
         EmitLine("}");
         // Helpers MUST be emitted on the debug path too — Run and Debug generate the
@@ -112,11 +112,11 @@ internal sealed class DebugCodegen : CodegenBase
             case WhileStatement ws: EmitWhile(ws, stmtPath); break;
             case SwitchStatement sw: EmitSwitch(sw, stmtPath); break;
             case BreakStatement:
-                EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+                EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
                 EmitLine("break;");
                 break;
             case ContinueStatement:
-                EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+                EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
                 EmitLine("continue;");
                 break;
             default:
@@ -124,7 +124,7 @@ internal sealed class DebugCodegen : CodegenBase
         }
     }
 
-    protected override void EmitCheckpoint(string stmtId, string lexicalPath, int ordinal)
+    protected override void EmitCheckpoint(string stmtId, string lexicalPath)
     {
         EmitLine($"this.Checkpoint(\"{stmtId}\", \"{lexicalPath}\");");
     }
@@ -135,8 +135,8 @@ internal sealed class DebugCodegen : CodegenBase
         // The function node occupies the statement's own path (mirrors BpRenderer:164).
         if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
-            EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
-            EmitLine($"this.{MapMethodName(call.MethodName)}({string.Join(", ", call.Args.Select(RenderKsNode))});");
+            EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
+            EmitLine($"this.{call.MethodName}({string.Join(", ", call.Args.Select(RenderKsNode))});");
             // No data output to record (bare call has no Value pin consumer).
             return;
         }
@@ -145,7 +145,7 @@ internal sealed class DebugCodegen : CodegenBase
         {
             // No-op read (bare identifier/literal line): a single usage node at src/0.
             var srcPath = NodePath.Source(stmtPath, 0);
-            EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
+            EmitCheckpoint(NodeId.Of(srcPath), srcPath);
             EmitLine($"/* bare expression: {RenderKsNode(p.Sources[0])} */");
             return;
         }
@@ -161,7 +161,7 @@ internal sealed class DebugCodegen : CodegenBase
         for (int i = 0; i < p.Sources.Length; i++)
         {
             var srcPath = NodePath.Source(stmtPath, i);
-            EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
+            EmitCheckpoint(NodeId.Of(srcPath), srcPath);
             EmitLine($"this.OnWireValue(\"w:{NodeId.Of(srcPath)}\", {RenderKsNode(p.Sources[i])});");
         }
 
@@ -172,7 +172,7 @@ internal sealed class DebugCodegen : CodegenBase
             var seg = p.Segments[i];
             string segPath = NodePath.Segment(stmtPath, i);
             string segNodeId = NodeId.Of(segPath);
-            EmitCheckpoint(segNodeId, segPath, 0);
+            EmitCheckpoint(segNodeId, segPath);
             string outputVar = $"__pipe_{_pipeCounter++}";
             bool isVarTap = (seg.IsVariableTap && !_helperNames.Contains(seg.Target))
                          || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);
@@ -206,7 +206,7 @@ internal sealed class DebugCodegen : CodegenBase
                     ? p.Sources.Select(RenderKsNode)
                     : [currentVar!];
                 string args = BuildArgList(seg.Arguments, inputs);
-                string callExpr = $"this.{MapMethodName(seg.Target)}({args})";
+                string callExpr = $"this.{seg.Target}({args})";
 
                 if (IsVoidFunction(seg.Target))
                 {
@@ -254,7 +254,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitConditionEvaluation(iff.Condition, stmtPath, "Condition", NodePath.Condition(stmtPath));
         // Branch checkpoint AFTER the condition sub-graph (BP exec order:
         // … → condition nodes → Branch → branches).
-        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
         EmitLine($"if (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
@@ -276,7 +276,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitConditionEvaluation(fe.Source, stmtPath, "List", NodePath.SourceRoot(stmtPath));
         // Each checkpoint AFTER the source sub-graph (BP exec order:
         // … → source nodes → Each → body).
-        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
         EmitLine($"foreach (var {fe.ItemName} in __cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
@@ -302,7 +302,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitLine("{");
         Indent();
         EmitConditionEvaluation(ws.Condition, stmtPath, "Condition", NodePath.Condition(stmtPath));
-        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
         EmitLine($"if (!__cond_{_condCounter - 1}) break;");
         EmitBody(ws.Body, NodePath.Body(stmtPath));
         Dedent();
@@ -315,7 +315,7 @@ internal sealed class DebugCodegen : CodegenBase
         EmitConditionEvaluation(sw.Selector, stmtPath, "Selector", NodePath.Selector(stmtPath));
         // Switch checkpoint AFTER the selector sub-graph (BP exec order:
         // … → selector nodes → Switch → arms).
-        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
+        EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
         EmitLine($"switch (__cond_{_condCounter - 1})");
         EmitLine("{");
         Indent();
@@ -370,7 +370,7 @@ internal sealed class DebugCodegen : CodegenBase
             for (int i = 0; i < pipe.Sources.Length; i++)
             {
                 var srcPath = NodePath.Source(condPath, i);
-                EmitCheckpoint(NodeId.Of(srcPath), srcPath, 0);
+                EmitCheckpoint(NodeId.Of(srcPath), srcPath);
                 // Sources are identifiers / literals / literal-arg calls (KS051), so the
                 // extra evaluation for the wire publication is side-effect free.
                 EmitLine($"this.OnWireValue(\"w:{NodeId.Of(srcPath)}\", {RenderKsNode(pipe.Sources[i])});");
@@ -378,7 +378,7 @@ internal sealed class DebugCodegen : CodegenBase
             for (int i = 0; i < pipe.Segments.Length; i++)
             {
                 var segPath = NodePath.Segment(condPath, i);
-                EmitCheckpoint(NodeId.Of(segPath), segPath, 0);
+                EmitCheckpoint(NodeId.Of(segPath), segPath);
             }
             EmitLine($"var {condVar} = {RenderKsNode(cond)};");
             var lastSegPath = NodePath.Segment(condPath, pipe.Segments.Length - 1);
@@ -386,7 +386,7 @@ internal sealed class DebugCodegen : CodegenBase
         }
         else
         {
-            EmitCheckpoint(NodeId.Of(condPath), condPath, 0);
+            EmitCheckpoint(NodeId.Of(condPath), condPath);
             EmitLine($"var {condVar} = {RenderKsNode(cond)};");
             EmitLine($"this.OnWireValue(\"w:{NodeId.Of(condPath)}\", {condVar});");
         }

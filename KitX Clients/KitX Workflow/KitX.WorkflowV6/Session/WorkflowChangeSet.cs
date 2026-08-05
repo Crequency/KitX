@@ -6,7 +6,7 @@ using KitX.WorkflowV6.Diff;
 // WorkflowChangeSet — the session-level description of one IR change, surfaced to
 // renderers and the host so each side can do a focused re-render.
 //
-// Inherited contract from KitX.WorkflowIR.Session.IrChangeSet: carries the semantic
+// Ported contract from archived v5.1 KitX.WorkflowIR.Session.IrChangeSet: carries the semantic
 // diff plus the derived list of lexical paths whose rendered view changed. Immutable
 // record; built by the SyncService after applying a WorkflowDiff.
 // ─────────────────────────────────────────────────────────────────────────────
