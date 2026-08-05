@@ -99,7 +99,16 @@ public class EventService : IEventService
 
             foreach (var handler in snapshot)
             {
-                handler.Invoke(this, args);
+                // Isolate each handler: a single faulty handler must not prevent
+                // subsequent handlers from receiving the event.
+                try
+                {
+                    handler.Invoke(this, args);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[EventService] Handler threw while processing event {EventName}", eventName);
+                }
             }
         }
         finally
@@ -132,7 +141,16 @@ public class EventService : IEventService
                 }
             };
 
-            _typedWrapperMap[(eventName, handler)] = wrapper;
+            // Re-subscribing with the same (eventName, handler) must replace the old
+            // wrapper instead of stacking a second subscription — otherwise a single
+            // Subscribe call would trigger the handler multiple times per publish.
+            var key = (eventName, handler);
+            if (_typedWrapperMap.TryGetValue(key, out var existingWrapper))
+            {
+                _eventHandlers[eventName].Remove(existingWrapper);
+            }
+
+            _typedWrapperMap[key] = wrapper;
             _eventHandlers[eventName].Add(wrapper);
         }
     }

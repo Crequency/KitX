@@ -5,7 +5,6 @@ using Fleck;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
 using KitX.Core.Contract.Event;
-using KitX.Core.Event;
 using KitX.Shared.CSharp.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using Serilog;
@@ -27,14 +26,10 @@ public class PluginsServer : ServerBase, IPluginServer
     private readonly ConcurrentDictionary<string, KitX.Core.Contract.Plugin.IPluginConnection> _connections = new();
 
     /// <summary>
-    /// JSON serializer options (accessible from PluginConnection)
+    /// JSON serializer options (accessible from PluginConnection).
+    /// C-15.8: shared instance.
     /// </summary>
-    internal static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-        IncludeFields = true,
-        PropertyNameCaseInsensitive = true,
-    };
+    internal static readonly JsonSerializerOptions SerializerOptions = KitX.Core.Configuration.NetworkSerialization.Options;
 
     /// <summary>
     /// Gets or sets the port
@@ -363,11 +358,20 @@ public class PluginsServer : ServerBase, IPluginServer
     /// <returns>The plugin connection or null if not found</returns>
     public KitX.Core.Contract.Plugin.IPluginConnection? FindConnection(PluginInfo pluginInfo)
     {
-        return _connections.Values.FirstOrDefault(x => x.PluginInfo is not null && x.PluginInfo.Equals(pluginInfo));
+        // C-9: match by Name, NOT by PluginInfo.Equals — the registered connection's
+        // PluginInfo carries extra Tags (connectionId/JoinTime), and PluginInfo does not
+        // override Equals, so a reference comparison always missed (returned null).
+        // Callers usually hold an independently-deserialized PluginInfo instance.
+        if (pluginInfo is null || string.IsNullOrEmpty(pluginInfo.Name))
+            return null;
+
+        return _connections.Values.FirstOrDefault(x =>
+            x.PluginInfo is not null && x.PluginInfo.Name == pluginInfo.Name);
     }
 
     /// <summary>
-    /// Stops the plugin server (implementation of IPluginServer)
+    /// Stops the plugin server. Single source of truth for shutdown —
+    /// <see cref="Close"/> delegates here (C-15.7).
     /// </summary>
     public void Stop()
     {
@@ -396,23 +400,13 @@ public class PluginsServer : ServerBase, IPluginServer
     }
 
     /// <summary>
-    /// Closes the plugins server
+    /// Closes the plugins server. Legacy async entry point — converges onto
+    /// <see cref="Stop"/> so there is only one shutdown path (C-15.7).
     /// </summary>
     public async Task<PluginsServer> Close()
     {
-        await CTask.Run(() =>
-        {
-            CTask.WaitAll(_connections.Values.Select(c => c.CloseAsync()).ToArray());
-
-            _connections.Clear();
-
-            _server?.Dispose();
-
-            _server = null;
-
-            SetPending();
-        });
-
+        Stop();
+        await CTask.CompletedTask;
         return this;
     }
 

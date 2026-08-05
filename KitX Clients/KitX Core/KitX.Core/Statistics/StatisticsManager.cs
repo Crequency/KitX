@@ -28,6 +28,13 @@ public class StatisticsManager : IStatisticsService
 
     private Dictionary<string, double>? _useStatistics = [];
 
+    // C-15.6: usage keys are "yyyy.MM.dd" (year included). Legacy files (written by the
+    // old code) used "MM.dd" — RecoverPreviousStatistics migrates them on load.
+    private static readonly string DateKeyFormat = "yyyy.MM.dd";
+
+    // C-15.6: named constant — the timer interval was a magic expression (1000 * 60 * 0.6).
+    private const double RecordIntervalMilliseconds = 1000 * 60 * 0.6; // Update per 0.6 minutes
+
     /// <summary>
     /// Gets the raw usage statistics dictionary (for backward compatibility)
     /// </summary>
@@ -89,7 +96,9 @@ public class StatisticsManager : IStatisticsService
 
         foreach (var kvp in _useStatistics)
         {
-            if (DateTime.TryParse(kvp.Key, out var date))
+            // C-15.6: keys are "yyyy.MM.dd"; parse exactly so legacy "MM.dd" keys
+            // (if any slipped through) do not silently shift a year.
+            if (DateTime.TryParseExact(kvp.Key, DateKeyFormat, null, System.Globalization.DateTimeStyles.None, out var date))
             {
                 if (date >= startDate && date <= endDate)
                 {
@@ -119,24 +128,63 @@ public class StatisticsManager : IStatisticsService
             if (File.Exists(usePath))
             {
                 var useCountJson = File.ReadAllText(usePath);
-                _useStatistics = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, double>>(useCountJson);
+                var loaded = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, double>>(useCountJson);
 
-                if (_useStatistics != null)
+                if (loaded != null)
                 {
-                    var lastDT = DateTime.Parse(_useStatistics.Keys.Last()!);
-                    var nowDate = DateTime.Now;
-
-                    while (!lastDT.ToString("MM.dd").Equals(nowDate.ToString("MM.dd")))
+                    // C-15.6: migrate legacy "MM.dd" keys to "yyyy.MM.dd" (no-year keys
+                    // are assumed to be in the same year as their newest sibling).
+                    var lastDate = DateTime.MinValue;
+                    var normalized = new Dictionary<string, double>();
+                    foreach (var kvp in loaded)
                     {
-                        lastDT = lastDT.AddDays(1);
-                        _useStatistics[lastDT.ToString("MM.dd")] = 0;
+                        DateTime keyDate;
+                        if (DateTime.TryParseExact(kvp.Key, "MM.dd", null,
+                            System.Globalization.DateTimeStyles.None, out var legacyDate))
+                        {
+                            keyDate = lastDate == DateTime.MinValue
+                                ? legacyDate
+                                : new DateTime(lastDate.Year, legacyDate.Month, legacyDate.Day);
+                        }
+                        else if (DateTime.TryParseExact(kvp.Key, DateKeyFormat, null,
+                            System.Globalization.DateTimeStyles.None, out var fullDate))
+                        {
+                            keyDate = fullDate;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+
+                        if (keyDate > lastDate)
+                            lastDate = keyDate;
+
+                        normalized[keyDate.ToString(DateKeyFormat)] = kvp.Value;
+                    }
+
+                    _useStatistics = normalized;
+
+                    if (_useStatistics.Count > 0)
+                    {
+                        var lastDT = DateTime.ParseExact(_useStatistics.Keys.Last()!, DateKeyFormat, null);
+                        var nowDate = DateTime.Now;
+
+                        // Guard against a future-dated key looping forever.
+                        if (lastDT > nowDate)
+                            lastDT = nowDate;
+
+                        while (!lastDT.ToString(DateKeyFormat).Equals(nowDate.ToString(DateKeyFormat)))
+                        {
+                            lastDT = lastDT.AddDays(1);
+                            _useStatistics[lastDT.ToString(DateKeyFormat)] = 0;
+                        }
                     }
                 }
             }
             else
             {
                 _useStatistics = new Dictionary<string, double>();
-                var today = DateTime.Now.ToString("MM.dd");
+                var today = DateTime.Now.ToString(DateKeyFormat);
                 _useStatistics[today] = 0;
 
                 SaveStatistics();
@@ -155,7 +203,7 @@ public class StatisticsManager : IStatisticsService
 
         _timer = new STimer
         {
-            Interval = 1000 * 60 * 0.6 // Update per 0.6 minutes
+            Interval = RecordIntervalMilliseconds
         };
 
         _timer.Elapsed += OnTimerElapsed;
@@ -168,7 +216,7 @@ public class StatisticsManager : IStatisticsService
 
         try
         {
-            var today = DateTime.Now.ToString("MM.dd");
+            var today = DateTime.Now.ToString(DateKeyFormat);
 
             if (_useStatistics == null)
                 return;
@@ -202,7 +250,12 @@ public class StatisticsManager : IStatisticsService
             var usePath = Path.Combine(dataDir, useFile);
 
             var json = System.Text.Json.JsonSerializer.Serialize(_useStatistics);
-            File.WriteAllText(usePath, json);
+
+            // C-15.6: atomic write — write a temp file then rename, so a crash mid-write
+            // cannot corrupt UseCount.json.
+            var tmpPath = usePath + ".tmp";
+            File.WriteAllText(tmpPath, json);
+            File.Move(tmpPath, usePath, overwrite: true);
         }
         catch (Exception ex)
         {

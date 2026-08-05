@@ -187,8 +187,11 @@ internal static class NetworkHelper
             SendTime = DateTime.UtcNow,
             DeviceOSType = osType,
             DeviceOSVersion = TryGetOsVersionString() ?? "",
-            PluginsServerPort = 7777, // Default port
-            DevicesServerPort = 8888,  // Default port
+            // C-15.11: reference ConstantTable (single source of truth for the actual
+            // ports, set by the servers at start) with the legacy defaults as fallback
+            // instead of hardcoded literals.
+            PluginsServerPort = ConstantTable.PluginsServerPort > 0 ? ConstantTable.PluginsServerPort : 7777,
+            DevicesServerPort = ConstantTable.DevicesServerPort > 0 ? ConstantTable.DevicesServerPort : 8888,
             // Read from ConstantTable so the initial DeviceInfo matches what the
             // discovery server broadcasts (DevicesDiscoveryServer.UpdateDefaultDeviceInfo).
             DevicesServerBuildTime = ConstantTable.ServerBuildTime,

@@ -8,7 +8,6 @@ using KitX.Core.Contract.Event;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
 using KitX.Core.Contract.Security;
-using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Security;
 using KitX.Shared.CSharp.WebCommand;
@@ -35,7 +34,18 @@ public class DevicesServer : ServerBase, IDeviceServer
     private readonly IPluginServer _pluginServer;
     private readonly IDeviceDiscoveryService _deviceDiscoveryService;
 
-    private readonly Dictionary<DeviceLocator, string> _signedDeviceTokens = new();
+    private readonly ConcurrentDictionary<DeviceLocator, string> _signedDeviceTokens = new();
+
+    /// <summary>
+    /// Reverse index token → device locator, so token lookups are O(1) and atomic.
+    /// Kept in sync with <see cref="_signedDeviceTokens"/> under <see cref="_signedDeviceTokensLock"/>.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, DeviceLocator> _tokenToLocator = new();
+
+    /// <summary>
+    /// Serializes multi-entry updates of the token maps (AddDeviceToken / SignInDevice).
+    /// </summary>
+    private readonly object _signedDeviceTokensLock = new();
     private IWebHost? _host;
     private int? _configuredPort;
 
@@ -91,15 +101,10 @@ public class DevicesServer : ServerBase, IDeviceServer
     private static readonly TimeSpan ExchangeKeyConfirmationTimeout = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// JSON serializer options for network protocol (compatible with legacy KitX)
+    /// JSON serializer options for network protocol (compatible with legacy KitX).
+    /// C-15.8: shared instance.
     /// </summary>
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-        IncludeFields = true,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
+    private static readonly JsonSerializerOptions SerializerOptions = KitX.Core.Configuration.NetworkSerialization.Options;
 
     /// <summary>
     /// Pending plugin invoke responses, keyed by RequestId, for correlating async responses
@@ -139,7 +144,9 @@ public class DevicesServer : ServerBase, IDeviceServer
     /// <param name="port">The port number</param>
     public void ConfigurePort(int port)
     {
-        _configuredPort = port is >= 0 and <= 65535 ? port : 8888;
+        // C-15.12: invalid input clears the configured port so the fallback chain
+        // (ConstantTable.DevicesServerPort -> 8888) applies — same policy as PluginsServer.
+        _configuredPort = port is >= 0 and <= 65535 ? port : null;
     }
 
     /// <summary>
@@ -151,7 +158,9 @@ public class DevicesServer : ServerBase, IDeviceServer
         if (!TryStart())
             return this;
 
-        var port = _configuredPort ?? 8888;
+        // C-15.12: unified fallback chain — explicit config wins, then the runtime port
+        // recorded in ConstantTable, then the default 8888 (mirrors PluginsServer).
+        var port = _configuredPort ?? (ConstantTable.DevicesServerPort > 0 ? ConstantTable.DevicesServerPort : 8888);
 
         try
         {
@@ -179,7 +188,7 @@ public class DevicesServer : ServerBase, IDeviceServer
                         });
 
                         // Device controller endpoints (旧架构 API 标准)
-                        // GET /Api/V1/Device?token=xxx
+                        // GET /Api/V1/Device (token in Authorization: Bearer header)
                         // POST /Api/V1/Device/ExchangeKey?verifyCodeSHA1=xxx&address=xxx
                         // POST /Api/V1/Device/ExchangeKeyBack
                         // POST /Api/V1/Device/CancelExchangingKey
@@ -214,7 +223,7 @@ public class DevicesServer : ServerBase, IDeviceServer
                         });
 
                         // Plugin controller endpoints (旧架构 API 标准)
-                        // POST /Api/V1/Plugin/Invoke?token=xxx
+                        // POST /Api/V1/Plugin/Invoke (token in Authorization: Bearer header)
                         endpoints.MapPost("/Api/V1/Plugin/{action}", async context =>
                         {
                             var action = context.Request.RouteValues["action"]?.ToString();
@@ -333,7 +342,7 @@ public class DevicesServer : ServerBase, IDeviceServer
     /// </summary>
     /// <param name="token">The token to check</param>
     /// <returns>True if the token exists</returns>
-    public bool IsDeviceTokenExist(string token) => _signedDeviceTokens.ContainsValue(token);
+    public bool IsDeviceTokenExist(string token) => _tokenToLocator.ContainsKey(token);
 
     /// <summary>
     /// Searches for a device by token
@@ -342,10 +351,7 @@ public class DevicesServer : ServerBase, IDeviceServer
     /// <returns>The device locator or null if not found</returns>
     public DeviceLocator? SearchDeviceByToken(string token)
     {
-        if (!IsDeviceTokenExist(token))
-            return null;
-
-        return _signedDeviceTokens.First(x => x.Value.Equals(token)).Key;
+        return _tokenToLocator.TryGetValue(token, out var locator) ? locator : null;
     }
 
     /// <summary>
@@ -371,11 +377,20 @@ public class DevicesServer : ServerBase, IDeviceServer
         _signedDeviceTokens.Keys.ToList().AsReadOnly();
 
     /// <summary>
-    /// Adds a device token
+    /// Adds a device token.
+    /// Internal: no caller currently exists — if a future feature needs to seed a token
+    /// programmatically it must go through <see cref="SignInDevice"/> (which keeps the
+    /// reverse index consistent). Exposing this publicly would allow unauthenticated
+    /// token injection into the signed-in table.
     /// </summary>
-    /// <param name="locator">The device locator</param>
-    /// <param name="token">The token</param>
-    public void AddDeviceToken(DeviceLocator locator, string token) => _signedDeviceTokens.Add(locator, token);
+    internal void AddDeviceToken(DeviceLocator locator, string token)
+    {
+        lock (_signedDeviceTokensLock)
+        {
+            _signedDeviceTokens[locator] = token;
+            _tokenToLocator[token] = locator;
+        }
+    }
 
     /// <summary>
     /// Signs in a device
@@ -386,11 +401,24 @@ public class DevicesServer : ServerBase, IDeviceServer
     {
         var token = Guid.NewGuid().ToString();
 
-        while (_signedDeviceTokens.ContainsValue(token))
+        while (_tokenToLocator.ContainsKey(token))
             token = Guid.NewGuid().ToString();
 
-        if (!_signedDeviceTokens.TryAdd(locator, token))
+        lock (_signedDeviceTokensLock)
+        {
+            // Re-check under the lock in case of a concurrent sign-in for the same device
+            if (_signedDeviceTokens.TryGetValue(locator, out var existingToken) &&
+                _tokenToLocator.TryGetValue(existingToken, out var existingLocator) &&
+                existingLocator.Equals(locator))
+            {
+                // Device already signed in — return the existing token
+                Log.Information("Device {Locator} already signed in", locator);
+                return existingToken;
+            }
+
             _signedDeviceTokens[locator] = token;
+            _tokenToLocator[token] = locator;
+        }
 
         Log.Information("Device {Locator} signed in", locator);
 
@@ -398,12 +426,31 @@ public class DevicesServer : ServerBase, IDeviceServer
     }
 
     /// <summary>
+    /// Extracts the device token from an HTTP request. Preferred: the
+    /// <c>Authorization: Bearer {token}</c> header (or the <c>X-Device-Token</c> header),
+    /// so the token never appears in the URL. A legacy <c>?token=</c> query fallback is
+    /// kept for older KitX clients that predate the header migration.
+    /// </summary>
+    private static string GetTokenFromRequest(HttpContext context)
+    {
+        var authHeader = context.Request.Headers.Authorization.ToString();
+        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return authHeader["Bearer ".Length..].Trim();
+
+        var deviceTokenHeader = context.Request.Headers["X-Device-Token"].ToString();
+        if (!string.IsNullOrEmpty(deviceTokenHeader))
+            return deviceTokenHeader.Trim();
+
+        return context.Request.Query["token"].ToString();
+    }
+
+    /// <summary>
     /// Handles GetDeviceInfo request (旧架构 API)
-    /// GET /Api/V1/Device?token=xxx
+    /// GET /Api/V1/Device
     /// </summary>
     private async System.Threading.Tasks.Task HandleGetDeviceInfoAsync(HttpContext context)
     {
-        var token = context.Request.Query["token"].ToString();
+        var token = GetTokenFromRequest(context);
         if (string.IsNullOrEmpty(token))
         {
             context.Response.StatusCode = 400;
@@ -881,7 +928,7 @@ public class DevicesServer : ServerBase, IDeviceServer
     /// <summary>
     /// Handles Plugin/Invoke request — routes plugin command to local PluginsServer connection.
     /// Protocol compatible with legacy PluginController.Invoke.
-    /// POST /Api/V1/Plugin/Invoke?token=xxx
+    /// POST /Api/V1/Plugin/Invoke (token in Authorization: Bearer header)
     /// </summary>
     private async Task HandlePluginInvokeAsync(HttpContext context)
     {
@@ -890,7 +937,7 @@ public class DevicesServer : ServerBase, IDeviceServer
         try
         {
             // 1. Validate token
-            var token = context.Request.Query["token"].ToString();
+            var token = GetTokenFromRequest(context);
             if (string.IsNullOrEmpty(token))
             {
                 Log.Warning("[{Location}] Missing token in Plugin/Invoke request", location);
@@ -975,8 +1022,15 @@ public class DevicesServer : ServerBase, IDeviceServer
 
             // 6. Deserialize Command
             var command = JsonSerializer.Deserialize<Command>(content, SerializerOptions);
-            if (command.Equals(default(Command)))
+            // C-15.9: Command is a struct — Equals(default(Command)) treated the empty
+            // object {} (deserialized from "null"/"{}" content) as invalid, which is
+            // correct, but a populated object with missing fields was indistinguishable.
+            // Validate the fields this handler actually consumes instead.
+            if (string.IsNullOrEmpty(command.PluginConnectionId) || string.IsNullOrEmpty(command.FunctionName))
             {
+                Log.Warning("[{Location}] Command missing required fields " +
+                    "(PluginConnectionId='{PluginConnectionId}', FunctionName='{FunctionName}')",
+                    location, command.PluginConnectionId, command.FunctionName);
                 context.Response.StatusCode = 400;
                 await context.Response.WriteAsync("Invalid command format");
                 return;

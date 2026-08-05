@@ -3,7 +3,6 @@ using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Event;
 using KitX.Core.Contract.Security;
-using KitX.Core.Event;
 using KitX.Shared.CSharp.Device;
 using Serilog;
 using Timer = System.Timers.Timer;
@@ -14,16 +13,25 @@ namespace KitX.Core.Device;
 /// Devices organizer for managing discovered devices
 /// Phase 6.5: Aligned with legacy DevicesOrganizer functionality
 /// </summary>
-public class DevicesOrganizer : IDevicesOrganizer
+public class DevicesOrganizer : IDevicesOrganizer, IDisposable
 {
     private readonly IConfigService _configService;
     private readonly IEventService _eventService;
     private readonly IDeviceDiscoveryService _deviceDiscoveryService;
     private readonly IDeviceKeyService _deviceKeyService;
     private readonly object _receivedDeviceInfo4WatchLock = new();
-    private readonly Queue<DeviceInfo> _deviceInfosQueue = new();
+
+    // C-10: concurrent queue — the UDP receive path (DeviceDiscovered handler)
+    // enqueues while the timer path dequeues, previously unsynchronized.
+    private readonly System.Collections.Concurrent.ConcurrentQueue<DeviceInfo> _deviceInfosQueue = new();
     private bool _keepCheckAndRemoveTaskRunning = false;
     private List<DeviceInfo>? _receivedDeviceInfo4Watch;
+
+    // C-10: guards that at most one main-device observation thread is alive
+    // (the old recursive restart leaked a new thread per failure).
+    private int _observingMainDevice;
+
+    private System.Timers.Timer? _keepCheckAndRemoveTimer;
 
     /// <summary>
     /// Max queued device infos before dropping the oldest one
@@ -76,7 +84,10 @@ public class DevicesOrganizer : IDevicesOrganizer
 
             // Bounded queue: drop the oldest entries if the queue grows too large
             while (_deviceInfosQueue.Count >= MaxQueuedDeviceInfos)
-                _deviceInfosQueue.Dequeue();
+            {
+                if (!_deviceInfosQueue.TryDequeue(out DeviceInfo _))
+                    break;
+            }
 
             _deviceInfosQueue.Enqueue(args.DeviceInfo);
 
@@ -129,6 +140,8 @@ public class DevicesOrganizer : IDevicesOrganizer
             AutoReset = true
         };
 
+        _keepCheckAndRemoveTimer = timer;
+
         timer.Elapsed += (_, _) =>
         {
             try
@@ -173,9 +186,8 @@ public class DevicesOrganizer : IDevicesOrganizer
     {
         var thisTurnAdded = new List<int>();
 
-        while (_deviceInfosQueue.Count > 0)
+        while (_deviceInfosQueue.TryDequeue(out var info))
         {
-            var info = _deviceInfosQueue.Dequeue();
             var hashCode = info.GetHashCode();
 
             if (thisTurnAdded.Contains(hashCode))
@@ -222,83 +234,105 @@ public class DevicesOrganizer : IDevicesOrganizer
     {
         const string location = $"{nameof(DevicesOrganizer)}.{nameof(ObserveMainDevice)}";
 
+        // C-10: only one observation thread at a time. The old implementation restarted
+        // itself recursively on failure (leaking a thread per failure) and could be invoked
+        // again from the DeviceDiscovered handler while an earlier pass was still running,
+        // letting two threads fight over _receivedDeviceInfo4Watch.
+        if (Interlocked.CompareExchange(ref _observingMainDevice, 1, 0) != 0)
+            return;
+
         new Thread(() =>
         {
-            _receivedDeviceInfo4Watch = [];
-
-            var checkedTime = 0;
-            var hadMainDevice = false;
-            var earliestBuiltServerTime = DateTime.UtcNow;
-            var serverPort = 0;
-            var serverAddress = string.Empty;
-
-            while (checkedTime < 7 && token.IsCancellationRequested == false)
+            try
             {
-                try
+                // C-10: retry loop replaces the recursive restart — on failure, wait and
+                // retry on this same thread instead of spawning a new one.
+                while (!token.IsCancellationRequested)
                 {
-                    if (_receivedDeviceInfo4Watch is null)
-                        continue;
+                    _receivedDeviceInfo4Watch = [];
 
-                    lock (_receivedDeviceInfo4WatchLock)
+                    var checkedTime = 0;
+                    var hadMainDevice = false;
+                    var earliestBuiltServerTime = DateTime.UtcNow;
+                    var serverPort = 0;
+                    var serverAddress = string.Empty;
+
+                    try
                     {
-                        foreach (var item in _receivedDeviceInfo4Watch)
+                        while (checkedTime < 7 && token.IsCancellationRequested == false)
                         {
-                            // Only authorized devices may participate in the main device decision.
-                            // Forged IsMainDevice broadcasts from unauthorized devices must not
-                            // contribute to hadMainDevice / earliestBuiltServerTime, and must not
-                            // redirect MainMachineAddress / MainMachinePort.
-                            if (!_deviceKeyService.IsDeviceAuthorized(item.Device))
-                            {
-                                if (item.IsMainDevice)
-                                {
-                                    Log.Debug(
-                                        $"In {location}: Ignoring main device claim from unauthorized device " +
-                                        $"{item.Device.IPv4}:{item.DevicesServerPort}."
-                                    );
-                                }
-
+                            if (_receivedDeviceInfo4Watch is null)
                                 continue;
-                            }
 
-                            if (item.IsMainDevice)
+                            lock (_receivedDeviceInfo4WatchLock)
                             {
-                                if (item.DevicesServerBuildTime.ToUniversalTime() < earliestBuiltServerTime)
+                                foreach (var item in _receivedDeviceInfo4Watch)
                                 {
-                                    serverPort = item.DevicesServerPort;
-                                    serverAddress = item.Device.IPv4;
+                                    // Only authorized devices may participate in the main device decision.
+                                    // Forged IsMainDevice broadcasts from unauthorized devices must not
+                                    // contribute to hadMainDevice / earliestBuiltServerTime, and must not
+                                    // redirect MainMachineAddress / MainMachinePort.
+                                    if (!_deviceKeyService.IsDeviceAuthorized(item.Device))
+                                    {
+                                        if (item.IsMainDevice)
+                                        {
+                                            Log.Debug(
+                                                $"In {location}: Ignoring main device claim from unauthorized device " +
+                                                $"{item.Device.IPv4}:{item.DevicesServerPort}."
+                                            );
+                                        }
+
+                                        continue;
+                                    }
+
+                                    if (item.IsMainDevice)
+                                    {
+                                        if (item.DevicesServerBuildTime.ToUniversalTime() < earliestBuiltServerTime)
+                                        {
+                                            serverPort = item.DevicesServerPort;
+                                            serverAddress = item.Device.IPv4;
+                                        }
+                                        hadMainDevice = true;
+                                    }
                                 }
-                                hadMainDevice = true;
                             }
+
+                            ++checkedTime;
+
+                            Log.Information($"In {location}: Watched for {checkedTime} times.");
+
+                            if (checkedTime == 7)
+                            {
+                                _receivedDeviceInfo4Watch?.Clear();
+                                _receivedDeviceInfo4Watch = null;
+
+                                if (token.IsCancellationRequested == false)
+                                    WatchingOver(hadMainDevice, serverAddress, serverPort);
+                            }
+
+                            // Dedicated observation thread — a blocking sleep is intentional
+                            // (C-10: keep, converting to Task.Delay would require async plumbing
+                            // for no benefit on this long-lived thread).
+                            Thread.Sleep(1 * 1000); // Sleep 1 second
                         }
+
+                        break; // observation pass completed (or cancelled)
                     }
-
-                    ++checkedTime;
-
-                    Log.Information($"In {location}: Watched for {checkedTime} times.");
-
-                    if (checkedTime == 7)
+                    catch (Exception e)
                     {
                         _receivedDeviceInfo4Watch?.Clear();
                         _receivedDeviceInfo4Watch = null;
 
-                        if (token.IsCancellationRequested == false)
-                            WatchingOver(hadMainDevice, serverAddress, serverPort);
+                        Log.Error(e, $"In {location}: {e.Message} Rewatch.");
+
+                        // Retry on this thread after a brief pause (was: recursive ObserveMainDevice()).
+                        Thread.Sleep(1 * 1000);
                     }
-
-                    Thread.Sleep(1 * 1000); // Sleep 1 second
                 }
-                catch (Exception e)
-                {
-                    _receivedDeviceInfo4Watch?.Clear();
-                    _receivedDeviceInfo4Watch = null;
-
-                    Log.Error(e, $"In {location}: {e.Message} Rewatch.");
-
-                    if (token.IsCancellationRequested == false)
-                        ObserveMainDevice();
-
-                    break;
-                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _observingMainDevice, 0);
             }
         }).Start();
     }
@@ -330,5 +364,18 @@ public class DevicesOrganizer : IDevicesOrganizer
         {
             ConstantTable.IsMainMachine = true;
         }
+    }
+
+    /// <summary>
+    /// C-10: releases the resident check-and-remove timer. Registered as a singleton in DI;
+    /// the container disposes it on shutdown. (The main-device observation thread is
+    /// short-lived and needs no disposal.)
+    /// </summary>
+    public void Dispose()
+    {
+        _keepCheckAndRemoveTimer?.Stop();
+        _keepCheckAndRemoveTimer?.Dispose();
+        _keepCheckAndRemoveTimer = null;
+        GC.SuppressFinalize(this);
     }
 }

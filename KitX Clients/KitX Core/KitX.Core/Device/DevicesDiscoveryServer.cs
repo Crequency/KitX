@@ -24,6 +24,12 @@ public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
     private UdpClient? _udpReceiver;
     private System.Timers.Timer? _udpSendTimer;
     private readonly List<int> _supportedNetworkInterfacesIndexes = new();
+
+    // C-15.10: handle on the Stop() grace task so a subsequent Run() can cancel it and
+    // no orphan continuation lingers after shutdown.
+    private CTask? _stopGraceTask;
+    private CancellationTokenSource? _stopGraceCts;
+
     private bool _disposed;
     private int _deviceInfoUpdatedTimes = 0;
     private int _lastTimeToOSVersionUpdated = 0;
@@ -100,6 +106,12 @@ public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
         if (!TryStart())
             return this;
 
+        // C-15.10: cancel a pending stop-grace wait from an earlier Stop().
+        _stopGraceCts?.Cancel();
+        _stopGraceCts?.Dispose();
+        _stopGraceCts = null;
+        _stopGraceTask = null;
+
         Initialize();
 
         // Read configuration from IConfigService
@@ -151,10 +163,27 @@ public class DevicesDiscoveryServer : ServerBase, IDeviceDiscoveryService
 
         CloseDevicesDiscoveryServerRequest = true;
 
-        CTask.Run(async () =>
+        // C-15.10: cancellable grace period instead of a fire-and-forget. The broadcast/
+        // receive loops observe CloseDevicesDiscoveryServerRequest asynchronously; status
+        // flips to Pending only after they had one cycle to shut down. A subsequent
+        // Run() cancels this wait instead of racing it.
+        _stopGraceCts?.Cancel();
+        _stopGraceCts?.Dispose();
+
+        var cts = new CancellationTokenSource();
+        _stopGraceCts = cts;
+
+        _stopGraceTask = CTask.Run(async () =>
         {
-            await CTask.Delay(1000); // Wait for threads to finish
-            SetPending();
+            try
+            {
+                await CTask.Delay(1000, cts.Token); // Wait for threads to finish
+                SetPending();
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelled by a subsequent Run() — nothing to do.
+            }
         });
     }
 

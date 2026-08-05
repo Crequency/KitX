@@ -16,21 +16,22 @@ namespace KitX.Core.Device;
 /// </summary>
 public class DeviceHttpClient : IDeviceHttpClient
 {
-    private static readonly HttpClient _httpClient = new()
+    // C-15.3: cap per-server connections so fan-out plugin invokes to one device
+    // cannot exhaust the connection pool.
+    private static readonly HttpClient _httpClient = new(new SocketsHttpHandler
+    {
+        MaxConnectionsPerServer = 8,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+    })
     {
         Timeout = TimeSpan.FromSeconds(35)
     };
 
     /// <summary>
-    /// JSON serializer options (compatible with legacy KitX network protocol)
+    /// JSON serializer options (compatible with legacy KitX network protocol).
+    /// C-15.8: shared instance.
     /// </summary>
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = false,
-        IncludeFields = true,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
+    private static readonly JsonSerializerOptions SerializerOptions = KitX.Core.Configuration.NetworkSerialization.Options;
 
     /// <summary>
     /// Invokes a plugin method on a remote device.
@@ -67,20 +68,26 @@ public class DeviceHttpClient : IDeviceHttpClient
             var requestJsonBase64 = Convert.ToBase64String(requestJsonBytes);
             var wrappedJson = JsonSerializer.Serialize(requestJsonBase64);
 
-            // Step 3: Build URL
-            var url = $"http://{ipv4}:{port}/Api/V1/Plugin/Invoke?token={token}";
+            // Step 3: Build URL — the token is deliberately NOT placed in the URL query
+            // (tokens in URLs leak via logs/history). It travels in the Authorization
+            // header as a bearer credential.
+            var url = $"http://{ipv4}:{port}/Api/V1/Plugin/Invoke";
 
             Log.Debug("[DeviceHttpClient] Sending plugin invoke to {Url}, Target={Target}, Function={Function}",
-                url.Split('?')[0], request.Target, request.Content);
+                url, request.Target, request.Content);
 
-            // Step 4: Send HTTP POST
-            var response = await _httpClient.PostAsync(
-                url,
-                new StringContent(wrappedJson, Encoding.UTF8, "application/json"),
-                ct);
+            // Step 4: Send HTTP POST with the token in the header
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = new StringContent(wrappedJson, Encoding.UTF8, "application/json")
+            };
+            httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+            httpRequest.Headers.TryAddWithoutValidation("X-Device-Token", token);
+
+            var response = await _httpClient.SendAsync(httpRequest, ct);
 
             Log.Debug("[DeviceHttpClient] Received response from {Url}: Status={Status}",
-                url.Split('?')[0], response.StatusCode);
+                url, response.StatusCode);
 
             return response;
         }

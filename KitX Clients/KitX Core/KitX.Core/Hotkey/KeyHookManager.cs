@@ -31,9 +31,12 @@ public class KeyHookManager : IKeyHookService
 
     private readonly Queue<KeyCode> _keyPressed = new();
 
-    private readonly Dictionary<string, Action> _hotKeyHandlers = new();
+    // C-15.5: handler registries are written from the UI thread (Register/Unregister)
+    // and read from the hook thread (VerifyKeys) — ConcurrentDictionary removes the
+    // unsynchronized read/write race on the plain Dictionary.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Action> _hotKeyHandlers = new();
 
-    private readonly Dictionary<string, Action<string[]>> _hotKeyHandlersWithParams = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Action<string[]>> _hotKeyHandlersWithParams = new();
 
     private TaskPoolGlobalHook? _hook;
 
@@ -98,10 +101,7 @@ public class KeyHookManager : IKeyHookService
     /// <param name="keysSequence">The keys sequence</param>
     public void UnregisterHotKeyHandler(string keysSequence)
     {
-        if (_hotKeyHandlers.ContainsKey(keysSequence))
-        {
-            _hotKeyHandlers.Remove(keysSequence);
-        }
+        _hotKeyHandlers.TryRemove(keysSequence, out _);
     }
 
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs args)

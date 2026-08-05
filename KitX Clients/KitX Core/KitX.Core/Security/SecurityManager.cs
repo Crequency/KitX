@@ -141,7 +141,10 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             RsaPrivateKeyPem = _rsaInstance.ExportRSAPrivateKeyPem()
         };
 
-        // Add to SecurityConfig and save
+        // Add to SecurityConfig and save.
+        // Use the typed config (not the ISecurityConf interface): the interface's
+        // DeviceKeys getter returns a snapshot copy, so adding through it would not
+        // persist the key.
         var deviceKeyImpl = new DeviceKeyImpl
         {
             Device = device,
@@ -150,7 +153,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             AddedAt = DateTime.Now
         };
 
-        _configService.SecurityConfig.DeviceKeys.Add(deviceKeyImpl);
+        TypedSecurityConfig?.DeviceKeys.Add(deviceKeyImpl);
         _configService.SaveAll();
 
         Log.Information($"Generated and saved new local device key. Keys count: {_configService.SecurityConfig.DeviceKeys.Count}");
@@ -192,7 +195,9 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
                 AddedAt = DateTime.Now
             };
 
-            _configService.SecurityConfig.DeviceKeys.Add(deviceKey);
+            // Use the typed config — the ISecurityConf.DeviceKeys getter returns a
+            // snapshot copy, so adding through the interface would silently drop the key.
+            TypedSecurityConfig?.DeviceKeys.Add(deviceKey);
             _configService.SaveAll();
 
             Log.Information($"Added device key for {deviceName} ({macAddress})");
@@ -224,7 +229,8 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             {
                 foreach (var key in keysToRemove)
                 {
-                    _configService.SecurityConfig.DeviceKeys.Remove(key);
+                    // Same snapshot-copy caveat as AddDeviceKey: remove via the typed list.
+                    typedSecurityConfig?.DeviceKeys.Remove(key);
                 }
                 _configService.SaveAll();
             }
@@ -285,7 +291,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Encrypts a string. Uses RSA-only for short content (< 90 chars, backward compatible),
+    /// Encrypts a string. Uses RSA-only for short content (byte length &lt; 90, backward compatible),
     /// and RSA+AES hybrid encryption for long content.
     /// </summary>
     /// <param name="content">The content to encrypt</param>
@@ -300,11 +306,22 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
 
         try
         {
-            if (content.Length < 90)
+            // Length is measured in UTF-8 bytes, not characters: a 2048-bit RSA-OAEP-SHA256
+            // key can encrypt at most 190 bytes, and multi-byte content (e.g. Chinese, 3 bytes
+            // per char) would overflow the limit at ~64 characters.
+            if (Encoding.UTF8.GetByteCount(content) < 90)
             {
-                // RSA-only encryption (backward compatible)
+                // RSA-only encryption (backward compatible) — always encrypt with the
+                // TARGET device's public key (same lookup as the hybrid branch), never the
+                // local key pair, otherwise the remote device cannot decrypt the token.
+                var deviceKeys = GetDeviceKeys();
+                var targetKey = deviceKeys.FirstOrDefault(k => IsSameDevice(k.MacAddress, targetDeviceMacAddress))
+                    ?? throw new InvalidOperationException($"No device key found for target MAC: {targetDeviceMacAddress}");
+
+                using var rsa = RSA.Create(2048);
+                rsa.ImportFromPem(targetKey.RsaPublicKeyPem);
                 var dataBytes = Encoding.UTF8.GetBytes(content);
-                var encrypted = _rsaInstance.Encrypt(dataBytes, RSAEncryptionPadding.OaepSHA256);
+                var encrypted = rsa.Encrypt(dataBytes, RSAEncryptionPadding.OaepSHA256);
                 var encryptedBytes = Convert.FromBase64String(Convert.ToBase64String(encrypted));
                 // Prepend flag byte 0 (RSA-only)
                 var result = new byte[1 + encryptedBytes.Length];
@@ -575,7 +592,9 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     /// <returns>The encrypted data as Base64 string</returns>
     public string? RsaEncryptString(DeviceKey key, string data)
     {
-        if (data.Length >= 90)
+        // Measure in UTF-8 bytes (not chars) so multi-byte content matches the 190-byte
+        // RSA-OAEP-SHA256 limit of a 2048-bit key.
+        if (Encoding.UTF8.GetByteCount(data) >= 90)
             throw new ArgumentOutOfRangeException(nameof(data), "Data length is too long.");
 
         using var rsa = RSA.Create(2048);

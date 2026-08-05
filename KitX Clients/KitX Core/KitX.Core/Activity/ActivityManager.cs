@@ -15,7 +15,21 @@ public class ActivityManager : IActivityService
 {
     private static readonly object _activityRecordLock = new();
 
+    // NOTE (C-13.3, D1): _activitiesDatabase is a static field assigned externally by the
+    // Dashboard (AppFramework). Convergence direction: make it an instance field owned by
+    // this manager (LiteDB open/close lifecycle managed here) — D1 owns the assignment
+    // migration; Core keeps the current shape untouched this round.
     private static LiteDatabase? _activitiesDatabase;
+
+    // C-13.2: in-process registry of the exact recorded time per activity Id. The Id is an
+    // int (LiteDB row key) and cannot carry a timestamp; this registry lets the adapter
+    // read the real timestamp instead of reverse-engineering it from a lossy hash.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _activityTimestamps = new();
+
+    // C-13.2: monotonic counter mixed into the Id so two records in one process never
+    // collide (LiteDB throws on duplicate _id), while the clock component keeps Ids
+    // distinct across restarts within the month collection.
+    private static int _activityIdCounter;
 
     /// <summary>
     /// Gets or sets the activities database
@@ -132,14 +146,31 @@ public class ActivityManager : IActivityService
         // Actual implementation should use Record() with Activity objects
         var activity = new CActivity()
         {
-            Id = DateTime.UtcNow.Ticks.GetHashCode(), // Simple ID generation
+            Id = NextActivityId(),
             Name = type,
             Author = "KitX",
             Title = type,
             Category = "General"
         };
 
+        // C-13.2: remember the exact record time (the int Id cannot carry it).
+        _activityTimestamps[activity.Id] = DateTime.UtcNow;
+
         Record(activity, x => x.Id);
+    }
+
+    /// <summary>
+    /// C-13.2: generates a collision-free int activity Id (LiteDB row key).
+    /// Clock + per-process counter mixing: unique within a process, and the clock
+    /// component makes Ids unlikely to repeat across restarts in the same month collection.
+    /// </summary>
+    private static int NextActivityId()
+    {
+        var ticks = DateTime.UtcNow.Ticks;
+        var counter = Interlocked.Increment(ref _activityIdCounter);
+        // 2654435761 = Knuth's multiplicative hash constant, scrambles the counter
+        // so consecutive Ids do not form a simple visible pattern.
+        return unchecked((int)(ticks ^ ((long)counter * 2654435761)));
     }
 
     /// <summary>
@@ -229,13 +260,19 @@ public class ActivityManager : IActivityService
     {
         var activity = new CActivity()
         {
-            Id = DateTime.UtcNow.Ticks.GetHashCode(),
+            Id = NextActivityId(),
             Name = "AppLifetime",
             Author = "KitX Dashboard",
             Title = "Application Started",
-            Category = "DashboardEvent",
-            IconKind = Material.Icons.MaterialIconKind.RocketLaunch,
+            Category = "DashboardEvent"
+            // C-13.1: IconKind removed — Core no longer references the Material.Icons
+            // enum (a UI-adjacent dependency resolved transitively via Common.Activity).
+            // The icon is cosmetic; D1 may re-attach an icon mapping on the Dashboard side
+            // (currently nothing reads activity.IconKind — verified by grep).
         }.Open("KitX Dashboard");
+
+        // C-13.2: remember the exact record time (the int Id cannot carry it).
+        _activityTimestamps[activity.Id] = DateTime.UtcNow;
 
         _appActivity = activity;
 
@@ -268,9 +305,10 @@ public class ActivityManager : IActivityService
         {
             _activity = activity;
 
-            // Extract the earliest ExecuteTime from OpenAndCloseOperations as the timestamp.
-            // If no operations exist, fall back to decoding the timestamp from the Id,
-            // which is derived from DateTime.UtcNow.Ticks.GetHashCode().
+            // C-13.2: timestamp resolution order:
+            //   1. the exact ExecuteTime of an Open/Close operation (if any);
+            //   2. the in-process registry of records created by this manager;
+            //   3. legacy rows: best-effort decode of the old ticks-hash Id.
             var openCloseOps = activity.Operations?.OpenAndCloseOperations;
 
             if (openCloseOps is { Count: > 0 })
@@ -280,13 +318,18 @@ public class ActivityManager : IActivityService
                     .MinBy(op => op.ExecuteTime);
 
                 _timestamp = earliest?.ExecuteTime
-                    ?? DecodeTimestampFromId(activity.Id);
+                    ?? ResolveFallbackTimestamp(activity.Id);
             }
             else
             {
-                _timestamp = DecodeTimestampFromId(activity.Id);
+                _timestamp = ResolveFallbackTimestamp(activity.Id);
             }
         }
+
+        private static DateTime ResolveFallbackTimestamp(int id) =>
+            _activityTimestamps.TryGetValue(id, out var recorded)
+                ? recorded
+                : DecodeTimestampFromId(id);
 
         public CActivity Activity => _activity;
 
@@ -305,10 +348,10 @@ public class ActivityManager : IActivityService
         };
 
         /// <summary>
-        /// Decodes a timestamp from the activity Id, which is generated from
-        /// <c>DateTime.UtcNow.Ticks.GetHashCode()</c>. Since GetHashCode() is lossy,
-        /// this provides a best-effort approximation by reversing the hash operation
-        /// using the lower 32 bits of the ticks.
+        /// C-13.2: legacy fallback only. Decodes a timestamp from the old-style activity Id
+        /// (generated from <c>DateTime.UtcNow.Ticks.GetHashCode()</c>). New records use
+        /// <see cref="_activityTimestamps"/>; this remains only so historical rows still
+        /// produce an approximate timestamp for date-range filtering.
         /// </summary>
         private static DateTime DecodeTimestampFromId(int id)
         {
