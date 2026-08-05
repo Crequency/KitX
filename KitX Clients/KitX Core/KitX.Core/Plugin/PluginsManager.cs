@@ -8,7 +8,7 @@ using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
 using KitX.Core.Device;
 using KitX.Core.DI;
-using KitX.Core.Event;
+using EventService = KitX.Core.Event.EventService;
 using KitX.Shared.CSharp.Device;
 using KitX.Shared.CSharp.Loader;
 using KitX.Shared.CSharp.Plugin;
@@ -23,7 +23,17 @@ namespace KitX.Core.Plugin;
 /// </summary>
 public class PluginsManager : IPluginService
 {
-    private readonly List<PluginInstallation> _plugins = new();
+    // C-7: concurrent dictionary keyed by plugin Id. The plugin list is touched by the
+    // UI thread (Start/Stop/Import/Remove) AND the plugin WebSocket threads
+    // (PluginsServer -> OnPluginStatusChanged); a plain List allowed enumeration-during-
+    // modification InvalidOperationException. Snapshot reads via _plugins.Values.ToList().
+    private readonly ConcurrentDictionary<Guid, PluginInstallation> _plugins = new();
+
+    /// <summary>
+    /// Secondary index: plugin Name -> installation (for OnPluginStatusChanged /
+    /// PluginHostAdapter lookups that only know the plugin name).
+    /// </summary>
+    private readonly ConcurrentDictionary<string, PluginInstallation> _pluginsByName = new();
 
     /// <summary>
     /// Tracks running loader processes keyed by plugin ID.
@@ -125,7 +135,15 @@ public class PluginsManager : IPluginService
                         InstalledDevices = new List<DeviceLocator>()
                     };
 
-                    _plugins.Add(installation);
+                    if (_plugins.TryGetValue(installation.Id, out _))
+                    {
+                        Log.Warning("Duplicate plugin identity detected for {Name} v{Version} " +
+                            "(publisher/author/name/version collide) — the newer directory wins",
+                            pluginInfo.Name, pluginInfo.Version);
+                    }
+
+                    _plugins[installation.Id] = installation;
+                    _pluginsByName[pluginInfo.Name] = installation;
                     Log.Information("Loaded plugin: {Name} v{Version} from {Dir}", pluginInfo.Name, pluginInfo.Version, pluginDir);
                 }
                 catch (Exception ex)
@@ -145,13 +163,20 @@ public class PluginsManager : IPluginService
     /// <summary>
     /// Gets all installed plugins (alias for GetInstalledPlugins)
     /// </summary>
-    public IReadOnlyList<IPluginInstallation> Plugins => _plugins.ToList();
+    public IReadOnlyList<IPluginInstallation> Plugins => _plugins.Values.ToList();
 
     /// <summary>
     /// Imports a plugin (synchronous version for backward compatibility)
     /// </summary>
     /// <param name="kxpFilePath">Path to the plugin file</param>
     /// <returns>True if import succeeded</returns>
+    /// <remarks>
+    /// C-15.14: callers should prefer <see cref="ImportPluginAsync"/>. This wrapper blocks
+    /// via GetAwaiter().GetResult() and risks deadlock when called from a
+    /// SynchronizationContext-bound thread (UI). Known callers: the IEnumerable overload
+    /// below (no sync context — safe) and nothing in the Dashboard (Dashboard's
+    /// AppFramework.ImportPlugin is async and calls ImportPluginAsync directly).
+    /// </remarks>
     public bool ImportPlugin(string kxpFilePath)
     {
         return ImportPluginAsync(kxpFilePath).GetAwaiter().GetResult();
@@ -178,7 +203,7 @@ public class PluginsManager : IPluginService
     /// <returns>List of plugin installations</returns>
     public IReadOnlyList<IPluginInstallation> GetInstalledPlugins()
     {
-        return _plugins.ToList();
+        return _plugins.Values.ToList();
     }
 
     /// <summary>
@@ -188,7 +213,7 @@ public class PluginsManager : IPluginService
     /// <returns>The plugin installation or null if not found</returns>
     public IPluginInstallation? GetPlugin(Guid pluginId)
     {
-        return _plugins.FirstOrDefault(p => p.Id == pluginId);
+        return _plugins.TryGetValue(pluginId, out var plugin) ? plugin : null;
     }
 
     /// <summary>
@@ -201,12 +226,19 @@ public class PluginsManager : IPluginService
         // Generate deterministic GUID from: PublisherName_AuthorName_Name_Version
         var input = $"{pluginInfo.PublisherName}_{pluginInfo.AuthorName}_{pluginInfo.Name}_{pluginInfo.Version}";
 
-        // Use MD5 hash to create a deterministic GUID
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
+        // C-15.2: use SHA1 (instead of MD5) to create a deterministic, version-5-style GUID.
+        // The ID is only compared for equality within this process (nothing persists or
+        // parses its internal byte layout), so switching the hash is format-compatible.
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
 
-        // Convert first 16 bytes to GUID
-        return new Guid(hash.Take(16).ToArray());
+        var bytes = hash.Take(16).ToArray();
+
+        // Set version (5) and variant bits for a well-formed UUIDv5-like GUID.
+        bytes[7] = (byte)((bytes[7] & 0x0F) | 0x50);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+
+        return new Guid(bytes);
     }
 
     /// <summary>
@@ -417,7 +449,8 @@ public class PluginsManager : IPluginService
                 InstalledDevices = new List<DeviceLocator>()
             };
 
-            _plugins.Add(installation);
+            _plugins[installation.Id] = installation;
+            _pluginsByName[pluginInfo.Name] = installation;
 
             Log.Information($"Imported plugin: {pluginInfo.Name} (v{pluginInfo.Version}) to {pluginDir}");
 
@@ -449,9 +482,7 @@ public class PluginsManager : IPluginService
 
         try
         {
-            var plugin = _plugins.FirstOrDefault(p => GeneratePluginId(p.PluginInfo!) == pluginId);
-
-            if (plugin == null)
+            if (!_plugins.TryGetValue(pluginId, out var plugin))
             {
                 Log.Warning($"Plugin not found: {pluginId}");
                 return await System.Threading.Tasks.Task.FromResult(false);
@@ -464,7 +495,9 @@ public class PluginsManager : IPluginService
             }
 
             // Remove from list
-            _plugins.Remove(plugin);
+            _plugins.TryRemove(pluginId, out _);
+            if (plugin.PluginInfo?.Name is not null)
+                _pluginsByName.TryRemove(plugin.PluginInfo.Name, out _);
 
             // TODO: Delete plugin files if needed
             if (Directory.Exists(plugin.InstallPath))
@@ -511,11 +544,9 @@ public class PluginsManager : IPluginService
 
         try
         {
-            var plugin = _plugins.FirstOrDefault(p => GeneratePluginId(p.PluginInfo!) == pluginId);
-
-            if (plugin == null)
+            if (!_plugins.TryGetValue(pluginId, out var plugin))
             {
-                Log.Warning($"Plugin not found: {pluginId}");
+                Log.Warning("[PluginsManager] Plugin not found: {PluginId}", pluginId);
                 return false;
             }
 
@@ -597,8 +628,9 @@ public class PluginsManager : IPluginService
             // Build command-line arguments: --load <plugin> --connect <IP>:<Port>
             var startArgs = BuildStartArguments(pluginRootFile, serverPort.Value);
 
+            // C-15.1: startup args may embed paths/tokens — log truncated.
             Log.Information("[PluginsManager] Starting plugin '{PluginName}' with loader: {LoaderExe} {Args}",
-                plugin.PluginInfo?.Name, loaderExePath, startArgs);
+                plugin.PluginInfo?.Name, loaderExePath, Truncate(startArgs, 256));
 
             // Create a TaskCompletionSource to wait for the plugin to register via WebSocket
             var pluginName = plugin.PluginInfo!.Name;
@@ -654,16 +686,23 @@ public class PluginsManager : IPluginService
 
                 process.EnableRaisingEvents = true;
 
-                // Log process output for debugging
+                // C-8: monitor the loader process. On crash/exit the process entry must be
+                // cleaned up and the plugin marked stopped — previously the _pluginProcesses
+                // entry leaked and IsRunning stayed true (stale WebSocket state) until a
+                // StatusReport or manual stop.
+                process.Exited += (_, _) => HandleLoaderProcessExit(pluginId, pluginName);
+
+                // Log process output for debugging (C-15.1: truncate — plugin output may
+                // contain sensitive data; keep volume at Debug level)
                 process.OutputDataReceived += (_, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log.Debug("[PluginLoader:{PluginName}] {Output}", pluginName, e.Data);
+                        Log.Debug("[PluginLoader:{PluginName}] {Output}", pluginName, Truncate(e.Data));
                 };
                 process.ErrorDataReceived += (_, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log.Warning("[PluginLoader:{PluginName}] {Error}", pluginName, e.Data);
+                        Log.Warning("[PluginLoader:{PluginName}] {Error}", pluginName, Truncate(e.Data));
                 };
 
                 if (!process.Start())
@@ -722,6 +761,17 @@ public class PluginsManager : IPluginService
 
                 if (registered)
                 {
+                    // C-8: if the loader process exited between registration and this line
+                    // (crash right after registering), the Exited handler already cleaned it
+                    // up — do not resurrect the running flag.
+                    if (!_pluginProcesses.ContainsKey(pluginId))
+                    {
+                        Log.Warning("[PluginsManager] Plugin '{PluginName}' registered via WebSocket " +
+                            "but its loader process has already exited, treating start as failed", pluginName);
+                        plugin.IsRunning = false;
+                        return false;
+                    }
+
                     Log.Information("[PluginsManager] Plugin '{PluginName}' started successfully", pluginName);
                     // Note: IsRunning is set by OnPluginStatusChanged when the registration event fires,
                     // but we set it here as well to ensure consistency.
@@ -772,9 +822,7 @@ public class PluginsManager : IPluginService
 
         try
         {
-            var plugin = _plugins.FirstOrDefault(p => GeneratePluginId(p.PluginInfo!) == pluginId);
-
-            if (plugin == null)
+            if (!_plugins.TryGetValue(pluginId, out var plugin))
             {
                 Log.Warning($"Plugin not found: {pluginId}");
                 return false;
@@ -891,8 +939,8 @@ public class PluginsManager : IPluginService
     {
         try
         {
-            var plugin = _plugins.FirstOrDefault(p => p.PluginInfo?.Name == pluginName);
-            if (plugin == null)
+            // C-7: name-indexed dictionary lookup — safe from WebSocket threads.
+            if (!_pluginsByName.TryGetValue(pluginName, out var plugin))
             {
                 Log.Debug("[PluginsManager] OnPluginStatusChanged: plugin '{PluginName}' not found in installed list, ignoring", pluginName);
                 return;
@@ -935,9 +983,7 @@ public class PluginsManager : IPluginService
 
         try
         {
-            var plugin = _plugins.FirstOrDefault(p => GeneratePluginId(p.PluginInfo!) == pluginId);
-
-            if (plugin == null)
+            if (!_plugins.TryGetValue(pluginId, out var plugin))
             {
                 Log.Warning("[PluginsManager] Plugin not found: {PluginId}", pluginId);
                 return null;
@@ -1430,6 +1476,90 @@ public class PluginsManager : IPluginService
             }
         }
     }
+
+    /// <summary>
+    /// C-8: handles loader process exit (crash or natural termination). Removes the
+    /// process from tracking, resets plugin IsRunning and publishes disconnect/status
+    /// notifications. Deduplication: only the path that successfully removes the process
+    /// entry acts (a prior KillPluginProcess / StopPluginAsync wins); status is published
+    /// only when the plugin was still marked running, so WebSocket-close and process-exit
+    /// double notifications collapse into a single state transition.
+    /// </summary>
+    private void HandleLoaderProcessExit(Guid pluginId, string pluginName)
+    {
+        try
+        {
+            if (!_pluginProcesses.TryRemove(pluginId, out var process))
+            {
+                Log.Debug("[PluginsManager] Loader process for plugin '{PluginName}' " +
+                    "already handled (stop path), skipping", pluginName);
+                return;
+            }
+
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Already exited — fine.
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[PluginsManager] Error reaping loader process for plugin {PluginId}", pluginId);
+            }
+            finally
+            {
+                try { process.Dispose(); } catch { }
+            }
+
+            if (_plugins.TryGetValue(pluginId, out var plugin))
+            {
+                // C-8: always reset the flag; only publish notifications when the plugin
+                // was actually marked running (dedup with WebSocket-close notifications).
+                var wasRunning = plugin.IsRunning;
+                plugin.IsRunning = false;
+
+                if (!wasRunning)
+                {
+                    Log.Debug("[PluginsManager] Loader process for plugin '{PluginName}' exited " +
+                        "while plugin was not marked running, skipping notifications", pluginName);
+                    return;
+                }
+
+                Log.Information("[PluginsManager] Loader process exited for plugin '{PluginName}', " +
+                    "marking as stopped", pluginName);
+
+                ResolveEventService()?.Publish(EventNames.PluginDisconnected, new PluginConnectionEventArgs
+                {
+                    ConnectionId = string.Empty,
+                    PluginInfo = plugin.PluginInfo
+                });
+
+                PluginStatusChanged?.Invoke(this, new PluginStatusChangedEventArgs
+                {
+                    PluginId = pluginId,
+                    PluginName = pluginName,
+                    OldStatus = PluginStatus.Running,
+                    NewStatus = PluginStatus.Stopped
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[PluginsManager] Error handling loader process exit for plugin {PluginId}", pluginId);
+        }
+    }
+
+    /// <summary>
+    /// C-15.1: truncates a log string to at most <paramref name="maxLength"/> characters,
+    /// so plugin output / startup args cannot flood the log with sensitive or huge data.
+    /// </summary>
+    private static string Truncate(string? value, int maxLength = 2000) =>
+        value is null ? string.Empty
+            : value.Length <= maxLength ? value
+            : value[..maxLength] + "…[truncated]";
 
     /// <summary>
     /// Cleans up the registration TaskCompletionSource and unsubscribes the event handler from EventService.

@@ -1,8 +1,14 @@
 namespace KitX.Core.Plugin;
 
 using System;
+using System.Linq;
+using System.Text.Json;
 using Kscript.CSharp.Parser.Core;
 using Kscript.CSharp.Parser.Models;
+using KitX.Core.Configuration;
+using KitX.Core.Contract.Configuration;
+using KitX.Core.Contract.Plugin;
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.Runtime;
 using Serilog;
 
@@ -18,14 +24,19 @@ using Serilog;
 // JsonElement via AsJsonElement (List-Port-And-Json-
 // Functions-Design.md §1).
 //
-// Lifecycle/query methods (StartPlugin/StopPlugin/etc.) are stubbed for now — plugin
-// lifecycle is managed elsewhere (PluginsManager). They previously returned benign
-// defaults so workflow scripts that call them didn't crash, but a workflow then saw a
-// fake success / empty result that was harder to diagnose than a failure. Since the
-// adapter has no implementation to offer, they now log a warning and raise
-// NotImplementedException so the workflow surfaces a real error (D6).
-// TryGetDevice is the exception: null is the documented "not found" result, so it
-// keeps its truthful (if unhelpful) return value.
+// C-11: the 9 lifecycle/query functions previously raised NotImplementedException
+// (workflow nodes crashed on use). They are now bridged to real services:
+//   • plugin functions   → IPluginService (PluginsManager — registered in
+//                          AddCoreServices, constructor-injected)
+//   • workflow functions → IWorkflowManagementService / IWorkflowStorageService
+//                          (implementations live in KitX.WorkflowV6, registered by
+//                          AddKitXWorkflowV6 AFTER AddCoreServices — injected lazily
+//                          so PluginHostAdapter construction can never fail on
+//                          registration order)
+// TryGetDevice stays null — it is the interface's documented "device not found"
+// result. All bridge methods swallow failures and return their safe default
+// (false / "" / "[]"), so a failing node yields a visible false/empty result
+// instead of throwing into the generated workflow code.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -36,10 +47,29 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
 {
     private readonly IPluginManager _pluginManager;
 
-    /// <summary>Creates an adapter over the given plugin manager.</summary>
-    public PluginHostAdapter(IPluginManager pluginManager)
+    private readonly IPluginService? _pluginService;
+
+    // Lazy: IWorkflowManagementService/IWorkflowStorageService are registered by
+    // AddKitXWorkflowV6 (after AddCoreServices). Deferring resolution to first use
+    // keeps PluginHostAdapter construction independent of that registration order.
+    private readonly Lazy<IWorkflowManagementService>? _workflowManagement;
+
+    private readonly Lazy<IWorkflowStorageService>? _workflowStorage;
+
+    /// <summary>
+    /// Creates an adapter over the given plugin manager, plugin service and
+    /// lazily-resolved workflow services.
+    /// </summary>
+    public PluginHostAdapter(
+        IPluginManager pluginManager,
+        IPluginService? pluginService = null,
+        Lazy<IWorkflowManagementService>? workflowManagement = null,
+        Lazy<IWorkflowStorageService>? workflowStorage = null)
     {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
+        _pluginService = pluginService;
+        _workflowManagement = workflowManagement;
+        _workflowStorage = workflowStorage;
     }
 
     /// <summary>
@@ -81,43 +111,214 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
     /// interface's documented "device not found" result, so it is returned truthfully.</summary>
     public object? TryGetDevice(string deviceName) => null;
 
-    // ── Plugin lifecycle (stubbed — managed by PluginsManager) ──
-    //
-    // D6: these raise instead of silently returning fake success. The workflow runtime
-    // does not swallow exceptions for these methods, so a calling workflow fails with
-    // a visible error rather than continuing on a false result.
+    // ── Plugin lifecycle (C-11: bridged to IPluginService / PluginsManager) ──
 
-    public bool StartPlugin(string pluginName) => StubNotImplemented(nameof(StartPlugin));
-    public bool StopPlugin(string pluginName) => StubNotImplemented(nameof(StopPlugin));
+    public bool StartPlugin(string pluginName)
+    {
+        if (_pluginService is null)
+            return false;
 
-    // ── Workflow lifecycle (stubbed) ──
+        try
+        {
+            var plugin = FindPluginByName(pluginName);
+            if (plugin is null)
+            {
+                Log.Warning("[PluginHostAdapter] StartPlugin: plugin '{PluginName}' not installed", pluginName);
+                return false;
+            }
 
-    public bool StopWorkflow(string workflowId) => StubNotImplemented(nameof(StopWorkflow));
-    public string CreateWorkflow(string name, string source) => StubNotImplemented<string>(nameof(CreateWorkflow));
-    public bool RunWorkflow(string workflowId) => StubNotImplemented(nameof(RunWorkflow));
+            return _pluginService.StartPluginAsync(plugin.Id).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] StartPlugin failed for '{PluginName}'", pluginName);
+            return false;
+        }
+    }
 
-    // ── Queries (stubbed) ──
+    public bool StopPlugin(string pluginName)
+    {
+        if (_pluginService is null)
+            return false;
 
-    public bool InstallPlugin(string kxpPath) => StubNotImplemented(nameof(InstallPlugin));
-    public string GetPluginInfoByName(string pluginName) => StubNotImplemented<string>(nameof(GetPluginInfoByName));
-    public string ListPluginNames() => StubNotImplemented<string>(nameof(ListPluginNames));
-    public string ListWorkflows() => StubNotImplemented<string>(nameof(ListWorkflows));
+        try
+        {
+            var plugin = FindPluginByName(pluginName);
+            if (plugin is null)
+            {
+                Log.Warning("[PluginHostAdapter] StopPlugin: plugin '{PluginName}' not installed", pluginName);
+                return false;
+            }
+
+            return _pluginService.StopPluginAsync(plugin.Id).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] StopPlugin failed for '{PluginName}'", pluginName);
+            return false;
+        }
+    }
+
+    // ── Workflow lifecycle (C-11: bridged to workflow services) ──
+
+    public bool StopWorkflow(string workflowId)
+    {
+        if (_workflowManagement is null)
+            return false;
+
+        try
+        {
+            return _workflowManagement.Value.StopWorkflowAsync(workflowId).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] StopWorkflow failed for '{WorkflowId}'", workflowId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a workflow. The storage contract creates an empty-IR workflow
+    /// (<see cref="IWorkflowStorageService.CreateWorkflowAsync"/>); the node's
+    /// <paramref name="source"/> text is carried in the workflow description because
+    /// KcsFileFormat v2 stores IR only (KS/BP text are projections). Returns the
+    /// new workflow's Id.
+    /// </summary>
+    public string CreateWorkflow(string name, string source)
+    {
+        if (_workflowStorage is null)
+            return string.Empty;
+
+        try
+        {
+            var created = _workflowStorage.Value
+                .CreateWorkflowAsync(name, description: source)
+                .GetAwaiter().GetResult();
+            return created.Id;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] CreateWorkflow failed for '{Name}'", name);
+            return string.Empty;
+        }
+    }
+
+    public bool RunWorkflow(string workflowId)
+    {
+        if (_workflowManagement is null)
+            return false;
+
+        try
+        {
+            return _workflowManagement.Value.RunWorkflowAsync(workflowId).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] RunWorkflow failed for '{WorkflowId}'", workflowId);
+            return false;
+        }
+    }
+
+    // ── Plugin installation (C-11) ──
+
+    public bool InstallPlugin(string kxpPath)
+    {
+        if (_pluginService is null)
+            return false;
+
+        try
+        {
+            return _pluginService.ImportPluginAsync(kxpPath).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] InstallPlugin failed for '{KxpPath}'", kxpPath);
+            return false;
+        }
+    }
+
+    // ── Queries (C-11) ──
+
+    /// <summary>
+    /// Returns the installed plugin's <see cref="PluginInfo"/> serialized as JSON
+    /// (network wire options), or "" if not installed.
+    /// </summary>
+    public string GetPluginInfoByName(string pluginName)
+    {
+        if (_pluginService is null)
+            return string.Empty;
+
+        try
+        {
+            var plugin = FindPluginByName(pluginName);
+            if (plugin?.PluginInfo is null)
+                return string.Empty;
+
+            return JsonSerializer.Serialize(plugin.PluginInfo, NetworkSerialization.Options);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] GetPluginInfoByName failed for '{PluginName}'", pluginName);
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Returns installed plugin names as a JSON array string (e.g. <c>["a","b"]</c>).
+    /// </summary>
+    public string ListPluginNames()
+    {
+        if (_pluginService is null)
+            return "[]";
+
+        try
+        {
+            var names = _pluginService.GetInstalledPlugins()
+                .Select(p => p.PluginInfo?.Name)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToList();
+
+            return JsonSerializer.Serialize(names);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] ListPluginNames failed");
+            return "[]";
+        }
+    }
+
+    /// <summary>
+    /// Returns stored workflow Ids as a JSON array string (e.g. <c>["id1","id2"]</c>).
+    /// </summary>
+    public string ListWorkflows()
+    {
+        if (_workflowStorage is null)
+            return "[]";
+
+        try
+        {
+            var workflows = _workflowStorage.Value.DiscoverWorkflowsAsync().GetAwaiter().GetResult();
+            var ids = workflows.Select(w => w.Id).ToList();
+
+            return JsonSerializer.Serialize(ids);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[PluginHostAdapter] ListWorkflows failed");
+            return "[]";
+        }
+    }
 
     // ── Helpers ──
 
-    /// <summary>
-    /// Logs a warning and throws for adapter methods that have no implementation.
-    /// Replaces the old silent fake defaults (false/""/"{}") that made workflow
-    /// failures harder to diagnose than an explicit error (D6).
-    /// </summary>
-    private static T StubNotImplemented<T>(string methodName)
+    private IPluginInstallation? FindPluginByName(string pluginName)
     {
-        Log.Warning("[PluginHostAdapter] {Method} is a stub — no implementation in the active host; raising instead of returning a fake result", methodName);
-        throw new NotImplementedException(
-            $"{nameof(PluginHostAdapter)}.{methodName} is not implemented — plugin lifecycle/querying is managed outside the workflow host.");
-    }
+        if (string.IsNullOrEmpty(pluginName) || _pluginService is null)
+            return null;
 
-    private static bool StubNotImplemented(string methodName) => StubNotImplemented<bool>(methodName);
+        return _pluginService.GetInstalledPlugins()
+            .FirstOrDefault(p => p.PluginInfo?.Name == pluginName);
+    }
 
     private static PluginCallInfo BuildCallInfo(string pluginName, string methodName, object[] args)
     {

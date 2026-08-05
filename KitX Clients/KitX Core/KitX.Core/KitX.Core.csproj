@@ -18,9 +18,6 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>KitX.Core.DI.Tests</_Parameter1>
     </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>KitX.Workflow.Test</_Parameter1>
-    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>
@@ -28,13 +25,7 @@
     <ProjectReference Include="..\..\..\KitX Standard\KitX File Formats\KitX.FileFormats.CSharp\KitX.FileFormats.CSharp.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Script\Kscript.Runtime\Kscript.Runtime.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
-    <ProjectReference Include="..\..\..\KitX Standard\KitX Contracts\KitX.Contract.CSharp\KitX.Contract.CSharp.csproj" />
     <ProjectReference Include="..\..\KitX Workflow\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
-    <!-- Phase 12-prep: legacy KitX.Workflow archived to Package\Archive\KitX.Workflow.
-         KitX.Core no longer depends on the old workflow library. The new
-         KitX.WorkflowIR library provides its own DI entry point (AddKitXWorkflowIR)
-         and is wired separately by the host once the front-end is migrated. -->
-    <!-- <ProjectReference Include="..\..\KitX Workflow\KitX.Workflow\KitX.Workflow.csproj" /> -->
   </ItemGroup>
 
   <ItemGroup>
@@ -52,11 +43,6 @@
     <PackageReference Include="Common.BasicHelper" Version="1.3.584.228" Condition="!Exists('..\..\..\Reference\Common.BasicHelper\Common.BasicHelper\Common.BasicHelper.csproj')" />
     <ProjectReference Include="..\..\..\Reference\Common.Activity\Common.Activity\Common.Activity.csproj" />
     <ProjectReference Include="..\..\..\Reference\Common.BasicHelper\Common.BasicHelper\Common.BasicHelper.csproj" Condition="Exists('..\..\..\Reference\Common.BasicHelper\Common.BasicHelper\Common.BasicHelper.csproj')" />
-  </ItemGroup>
-
-  <!-- DI Test Program - Exclude from normal build, can be run manually -->
-  <ItemGroup Condition="'$(RunDITest)' == 'true'">
-    <Compile Include="DI\DITestProgram.cs" />
   </ItemGroup>
 
 </Project>

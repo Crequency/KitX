@@ -9,6 +9,11 @@ namespace KitX.Core.Tasks;
 /// </summary>
 public class TasksManager : ITasksService
 {
+    // C-15.4: instance/static dual entry and the 3 RunTaskAsync overloads deliberately
+    // remain — the instance ITasksService members delegate to the static detail
+    // overloads with defaults, so there is a single core implementation and no
+    // behavioral divergence between the two entry points.
+    //
     /// <summary>
     /// Creates a new tasks manager
     /// </summary>

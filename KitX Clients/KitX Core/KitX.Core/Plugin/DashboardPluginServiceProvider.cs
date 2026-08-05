@@ -7,7 +7,6 @@ using Kscript.CSharp.Parser.Core;
 using KitX.Core.Contract.Event;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
-using KitX.Core.Event;
 using KitX.Shared.CSharp.Plugin;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,12 +53,15 @@ public sealed class DashboardPluginServiceProvider : IPluginServiceProvider
 
     /// <inheritdoc/>
     /// <remarks>
-    /// Looks up by <see cref="PluginInfo.Name"/> (NOT <see cref="IPluginServer.FindConnector"/>),
-    /// because the registered PluginInfo carries extra Tags (connectionId/JoinTime) that break
-    /// <c>.Equals()</c>-based matching (PluginsServer.cs:223-224).
+    /// Looks up by <see cref="PluginInfo.Name"/> over <see cref="IPluginServer.Connections"/>
+    /// (the interface has no FindConnection-by-info overload; the concrete server's
+    /// <c>FindConnection(PluginInfo)</c> also matches by Name since C-9).
     /// </remarks>
     public PluginInfo? FindPlugin(string pluginName)
     {
+        if (string.IsNullOrEmpty(pluginName))
+            return null;
+
         foreach (var conn in _pluginServer.Connections)
         {
             if (conn.PluginInfo?.Name == pluginName)
@@ -72,12 +74,7 @@ public sealed class DashboardPluginServiceProvider : IPluginServiceProvider
     /// <returns>The <see cref="IPluginConnection"/> boxed as <see cref="object"/>, looked up by name.</returns>
     public object? FindConnector(PluginInfo pluginInfo)
     {
-        foreach (var conn in _pluginServer.Connections)
-        {
-            if (conn.PluginInfo?.Name == pluginInfo.Name)
-                return conn;
-        }
-        return null;
+        return _pluginServer.FindConnector(pluginInfo);
     }
 
     /// <inheritdoc/>

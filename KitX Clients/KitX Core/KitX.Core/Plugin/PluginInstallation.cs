@@ -41,8 +41,17 @@ public class PluginInstallation : IPluginInstallation
         set => _installedDevices = new List<DeviceLocator>(value);
     }
 
+    private volatile bool _isRunning;
+
     /// <summary>
-    /// Gets or sets a value indicating whether the plugin is running
+    /// Gets or sets a value indicating whether the plugin is running.
+    /// C-7: backed by a volatile field — read/written from the UI thread
+    /// (Start/Stop) and the plugin WebSocket threads (OnPluginStatusChanged /
+    /// loader process Exited handler) without a shared lock.
     /// </summary>
-    public bool IsRunning { get; set; }
+    public bool IsRunning
+    {
+        get => _isRunning;
+        set => _isRunning = value;
+    }
 }

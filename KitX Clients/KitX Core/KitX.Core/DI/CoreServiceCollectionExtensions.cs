@@ -21,7 +21,7 @@ using KitX.Core.Plugin;
 using KitX.Core.Security;
 using KitX.Core.Statistics;
 using KitX.Core.Tasks;
-using KitX.Core.Event;
+using EventService = KitX.Core.Event.EventService;
 // Phase 12-prep: legacy KitX.Workflow.Hosting archived. Workflow DI registration is
 // now provided by the new KitX.WorkflowIR library via AddKitXWorkflowIR().
 // using KitX.Workflow.Hosting;
@@ -60,8 +60,13 @@ public static class CoreServiceCollectionExtensions
 
         // Security Services
         Log.Information("Registering IDeviceKeyService and IEncryptionService...");
-        services.AddSingleton<IDeviceKeyService, SecurityManager>();
-        services.AddSingleton<IEncryptionService, SecurityManager>();
+        // Register the concrete SecurityManager once and point both interfaces at that
+        // same instance — MS DI instantiates per (interface, implementation) registration,
+        // so two AddSingleton<IFoo, SecurityManager>() calls would create two distinct
+        // SecurityManager instances and split state (device keys, RSA keypair).
+        services.AddSingleton<SecurityManager>();
+        services.AddSingleton<IDeviceKeyService>(sp => sp.GetRequiredService<SecurityManager>());
+        services.AddSingleton<IEncryptionService>(sp => sp.GetRequiredService<SecurityManager>());
 
         // Plugin Services
         Log.Information("Registering IPluginService...");
@@ -124,7 +129,14 @@ public static class CoreServiceCollectionExtensions
         services.AddSingleton<KitX.WorkflowV6.Backend.Runtime.IPluginHost>(sp =>
             new Plugin.PluginHostAdapter(
                 sp.GetService<Kscript.CSharp.Parser.Core.IPluginManager>()
-                    ?? new Plugin.NoOpPluginManager()));
+                    ?? new Plugin.NoOpPluginManager(),
+                sp.GetService<KitX.Core.Contract.Plugin.IPluginService>(),
+                // C-11: workflow services are registered by AddKitXWorkflowV6 AFTER
+                // AddCoreServices — resolve lazily on first workflow-function call.
+                new Lazy<KitX.Core.Contract.Workflow.IWorkflowManagementService>(
+                    sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowManagementService>),
+                new Lazy<KitX.Core.Contract.Workflow.IWorkflowStorageService>(
+                    sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowStorageService>)));
 
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");
