@@ -107,13 +107,6 @@ public class DevicesServer : ServerBase, IDeviceServer
     private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingPluginResponses = new();
 
     /// <summary>
-    /// Event raised when port changes
-    /// </summary>
-#pragma warning disable CS0067
-    public event EventHandler<int>? PortChanged;
-#pragma warning restore CS0067
-
-    /// <summary>
     /// Creates a new device server with all dependencies injected.
     /// </summary>
     /// <param name="encryptionService">Encryption service for cryptographic operations</param>

@@ -1,3 +1,4 @@
+using KitX.Core.Contract.Device;
 using Serilog;
 
 namespace KitX.Core.Device;

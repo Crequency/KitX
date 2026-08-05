@@ -260,22 +260,6 @@ public class AnnouncementManager : IAnnouncementService
     }
 
     /// <summary>
-    /// Checks for new announcements (legacy static method — only works when DI is not available).
-    /// Prefer using CheckNewAnnouncementsAsync() with proper DI.
-    /// </summary>
-    [Obsolete("Use instance method CheckNewAnnouncementsAsync with DI instead")]
-    public static async System.Threading.Tasks.Task CheckNewAnnouncements()
-    {
-        const string location = $"{nameof(AnnouncementManager)}.{nameof(CheckNewAnnouncements)}";
-
-        // This static method cannot work without the Instance.
-        // Kept for source compatibility only — will throw.
-        Log.Warning("[AnnouncementManager] Static CheckNewAnnouncements called — this is deprecated and will be removed.");
-        throw new NotSupportedException(
-            "AnnouncementManager.CheckNewAnnouncements is obsolete. Use DI-injected instance.");
-    }
-
-    /// <summary>
     /// Announcement implementation
     /// </summary>
     public class Announcement : IAnnouncement

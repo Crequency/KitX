@@ -26,10 +26,6 @@ public static class ConstantTable
 
     public static string ThirdPartyLicenseFilePath => thirdPartyLicenseFilePath.GetFullPath();
 
-    public static bool IsExchangingDeviceKey = false;
-
-    public static string? ExchangeDeviceKeyCode;
-
     /// <summary>
     /// Devices Server Port
     /// </summary>
