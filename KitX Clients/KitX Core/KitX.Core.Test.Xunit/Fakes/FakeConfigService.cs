@@ -18,9 +18,9 @@ public class FakeConfigService : IConfigService
 
     public IAppConfig AppConfig { get; }
 
-    public IPluginsConfig PluginsConfig { get; }
+    public IPluginsConf PluginsConfig { get; }
 
-    public ISecurityConfig SecurityConfig { get; }
+    public ISecurityConf SecurityConfig { get; }
 
     public void Load() { }
 

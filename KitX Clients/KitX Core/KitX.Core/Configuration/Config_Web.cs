@@ -46,6 +46,4 @@ public class Config_Web : IWebConf
     public string UpdateChannel { get; set; } = "stable";
 
     public string UpdateSource { get; set; } = "latest-components.json";
-
-    public int DebugServicesServerPort { get; set; } = 7777;
 }

@@ -5,7 +5,7 @@ namespace KitX.Core.Configuration;
 /// <summary>
 /// Announcement configuration implementation
 /// </summary>
-public class AnnouncementConfig : IAnnouncementConfig
+public class AnnouncementConfig : IAnnouncementConf
 {
     /// <summary>
     /// Gets or sets the list of accepted announcement IDs

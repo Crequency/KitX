@@ -38,8 +38,6 @@ public class Config_MainWindow : IMainWindowConf
 
     public Dictionary<string, string> Tags { get; set; } = new() { { "SelectedPage", "Page_Home" } };
 
-    public bool EnabledMica { get; set; } = true;
-
     public int GreetingTextCount_Morning { get; set; } = 5;
 
     public int GreetingTextCount_Noon { get; set; } = 3;

@@ -15,15 +15,15 @@ public class ConfigLoader : IConfigLoader
     {
         var rawPath = Path.Combine(location, fileName);
         var fullPath = Path.GetFullPath(rawPath);
-
-        // Diagnostic trail — always written, bypasses Serilog
-        var diagPath = Path.Combine(Path.GetDirectoryName(fullPath) ?? ".", "ConfigLoadTrail.log");
         var fInfo = new FileInfo(fullPath);
-        File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> path={fullPath}, exists={(fInfo.Exists ? "True" : "False")}, size={(fInfo.Exists ? fInfo.Length.ToString() : "n/a")}, lastWrite={(fInfo.Exists ? fInfo.LastWriteTime.ToString("O") : "n/a")}\n");
+
+        Log.Debug("[ConfigLoader] Load<{TypeName}> path={Path}, exists={Exists}, size={Size}, lastWrite={LastWrite}",
+            typeof(T).Name, fullPath, fInfo.Exists, fInfo.Exists ? fInfo.Length : -1,
+            fInfo.Exists ? fInfo.LastWriteTime.ToString("O") : "n/a");
 
         if (!File.Exists(fullPath))
         {
-            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> FILE NOT FOUND, returning default\n");
+            Log.Debug("[ConfigLoader] Load<{TypeName}> FILE NOT FOUND, returning default", typeof(T).Name);
             return new T();
         }
 
@@ -33,14 +33,14 @@ public class ConfigLoader : IConfigLoader
             var config = JsonSerializer.Deserialize<T>(json, ConfigSerializationOptions.Options);
             if (config == null)
             {
-                File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> Deserialize returned NULL, returning default\n");
+                Log.Debug("[ConfigLoader] Load<{TypeName}> Deserialize returned NULL, returning default", typeof(T).Name);
                 return new T();
             }
             if (typeof(T) == typeof(AppConfig))
             {
                 var ac = (AppConfig)(object)config;
 
-                // Snapshot: parse JSON directly to see what the file really says
+                // Diagnostic: parse JSON directly to see what the file really says
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
                 string jLogLevel = "?", jHomePane = "?", jHomeSelView = "?";
@@ -54,21 +54,24 @@ public class ConfigLoader : IConfigLoader
                         jHomeSelView = jSvn.GetString() ?? "null";
                 }
 
-                File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<AppConfig> JSON: LogLevel={jLogLevel}, HomePane={jHomePane}, HomeSelView={jHomeSelView}\n");
-                File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<AppConfig> OBJ:  LogLevel={(int)ac.Log.LogLevel}, HomePane={(ac.Pages.Home.IsNavigationViewPaneOpened ? "open" : "closed")}, HomeSelView={ac.Pages.Home.SelectedViewName}\n");
+                Log.Debug("[ConfigLoader] Load<AppConfig> JSON: LogLevel={JsonLevel}, HomePane={JsonHomePane}, HomeSelView={JsonHomeSelView}",
+                    jLogLevel, jHomePane, jHomeSelView);
+                Log.Debug("[ConfigLoader] Load<AppConfig> OBJ:  LogLevel={ObjLevel}, HomePane={ObjHomePane}, HomeSelView={ObjHomeSelView}",
+                    (int)ac.Log.LogLevel, ac.Pages.Home.IsNavigationViewPaneOpened ? "open" : "closed",
+                    ac.Pages.Home.SelectedViewName);
             }
-            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> SUCCESS, json={json.Length} bytes\n");
+            Log.Debug("[ConfigLoader] Load<{TypeName}> SUCCESS, json={JsonLength} bytes", typeof(T).Name, json.Length);
             return config;
         }
         catch (Exception ex)
         {
-            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] Load<{typeof(T).Name}> EXCEPTION: {ex.GetType().Name}: {ex.Message}\nInner: {ex.InnerException?.GetType().Name}: {ex.InnerException?.Message}\nJSON preview: {(File.Exists(fullPath) ? File.ReadAllText(fullPath)[..Math.Min(500, (int)new FileInfo(fullPath).Length)] : "FILE NOT FOUND")}\n");
+            Log.Error(ex, "[ConfigLoader] Load<{TypeName}> EXCEPTION: {Message}", typeof(T).Name, ex.Message);
             return new T();
         }
     }
 
     /// <inheritdoc/>
-    public ISecurityConfig LoadSecurityConfig(string location)
+    public ISecurityConf LoadSecurityConfig(string location)
     {
         var path = Path.Combine(location, "SecurityConfig.json");
 
@@ -90,7 +93,7 @@ public class ConfigLoader : IConfigLoader
         }
     }
 
-    private static ISecurityConfig DeserializeSecurityConfig(string json)
+    private static ISecurityConf DeserializeSecurityConfig(string json)
     {
         try
         {

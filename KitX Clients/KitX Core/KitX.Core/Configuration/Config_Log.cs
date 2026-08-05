@@ -1,5 +1,4 @@
 using KitX.Core.Contract.Configuration;
-using Serilog.Events;
 
 namespace KitX.Core.Configuration;
 
@@ -20,11 +19,11 @@ public class Config_Log : ILogConf
 
 #if DEBUG
 
-    public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
+    public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
 #else
 
-    public LogEventLevel LogLevel { get; set; } = LogEventLevel.Warning;
+    public LogLevel LogLevel { get; set; } = LogLevel.Warning;
 
 #endif
 }

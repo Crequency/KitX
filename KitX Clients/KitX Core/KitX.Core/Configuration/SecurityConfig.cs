@@ -6,7 +6,7 @@ namespace KitX.Core.Configuration;
 /// <summary>
 /// Security configuration implementation
 /// </summary>
-public class SecurityConfig : ISecurityConfig, IConfigWithMetadata
+public class SecurityConfig : ISecurityConf, IConfigWithMetadata
 {
     /// <summary>
     /// Configuration file location
@@ -32,7 +32,7 @@ public class SecurityConfig : ISecurityConfig, IConfigWithMetadata
     /// Gets the device keys as interface (for external use)
     /// </summary>
     [JsonIgnore]
-    IList<IDeviceKey> ISecurityConfig.DeviceKeys
+    IList<IDeviceKey> ISecurityConf.DeviceKeys
     {
         get => DeviceKeys.Cast<IDeviceKey>().ToList();
         set => DeviceKeys = value?.Cast<DeviceKeyImpl>().ToList() ?? [];

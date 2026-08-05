@@ -29,20 +29,24 @@ public class AnnouncementManager : IAnnouncementService
     }
 
     private readonly HashSet<string> _acceptedAnnouncementIds = new();
-    private readonly JsonSerializerOptions _serializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        IncludeFields = true,
-    };
+
+    // C-15.8: shared serializer options instance.
+    private readonly JsonSerializerOptions _serializerOptions = KitX.Core.Configuration.NetworkSerialization.Options;
 
     private readonly IConfigService? _configService;
+
+    // C-15.13: reuse one HttpClient instead of allocating per check call.
+    private static readonly HttpClient HttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(15)
+    };
 
     private static readonly string AcceptedAnnouncementsFileName = "accepted_announcements.json";
 
     /// <summary>
     /// Gets the announcement configuration
     /// </summary>
-    public IAnnouncementConfig AnnouncementConfig =>
+    public IAnnouncementConf AnnouncementConfig =>
         (_configService as ConfigManager)?.TypedAnnouncementConfig
         ?? throw new InvalidOperationException("IConfigService not injected or not ConfigManager");
 
@@ -104,7 +108,7 @@ public class AnnouncementManager : IAnnouncementService
             var announcementsLink = $"{linkBase}/announcements";
             var unreads = new List<DateTime>();
 
-            using var client = new HttpClient();
+            var client = HttpClient;
             client.DefaultRequestHeaders.Accept.Clear();
 
             // Fetch announcement dates

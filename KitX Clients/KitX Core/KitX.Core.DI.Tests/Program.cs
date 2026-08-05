@@ -66,6 +66,25 @@ public class Program
         TestService<KitX.Core.Contract.Configuration.IConfigService>(serviceProvider, "IConfigService");
         TestService<KitX.Core.Contract.Security.IDeviceKeyService>(serviceProvider, "IDeviceKeyService");
         TestService<KitX.Core.Contract.Security.IEncryptionService>(serviceProvider, "IEncryptionService");
+
+        // C-2: IDeviceKeyService and IEncryptionService must resolve to the SAME
+        // SecurityManager instance — a state split (device keys / RSA keypair) between
+        // two instances would break DevicesServer's key exchange flow.
+        var keyService = serviceProvider.GetRequiredService<KitX.Core.Contract.Security.IDeviceKeyService>();
+        var encryptionService = serviceProvider.GetRequiredService<KitX.Core.Contract.Security.IEncryptionService>();
+        bool sameSecurityInstance = ReferenceEquals(keyService, encryptionService);
+        Console.WriteLine($"\nSecurity Services Instance Test:");
+        Console.WriteLine($"  • IDeviceKeyService hash:   {keyService.GetHashCode()}");
+        Console.WriteLine($"  • IEncryptionService hash:  {encryptionService.GetHashCode()}");
+        Console.WriteLine($"  • Same instance? {(sameSecurityInstance ? "✅ Yes" : "❌ No")}");
+
+        if (!sameSecurityInstance)
+        {
+            throw new InvalidOperationException(
+                "IDeviceKeyService and IEncryptionService resolved to different instances — " +
+                "SecurityManager state would be split.");
+        }
+
         TestService<KitX.Core.Contract.Plugin.IPluginService>(serviceProvider, "IPluginService");
         TestService<KitX.Core.Contract.Activity.IActivityService>(serviceProvider, "IActivityService");
         TestService<KitX.Core.Contract.Statistics.IStatisticsService>(serviceProvider, "IStatisticsService");

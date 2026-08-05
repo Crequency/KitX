@@ -7,7 +7,7 @@ namespace KitX.Core.Configuration;
 /// <summary>
 /// Plugins configuration implementation
 /// </summary>
-public class PluginsConfig : IPluginsConfig, IConfigWithMetadata
+public class PluginsConfig : IPluginsConf, IConfigWithMetadata
 {
     /// <summary>
     /// Configuration file location
@@ -33,7 +33,7 @@ public class PluginsConfig : IPluginsConfig, IConfigWithMetadata
     /// Gets plugins as interface (for external use)
     /// </summary>
     [JsonIgnore]
-    IList<IPluginInstallation> IPluginsConfig.Plugins
+    IList<IPluginInstallation> IPluginsConf.Plugins
     {
         get => Plugins.Cast<IPluginInstallation>().ToList();
         set => Plugins = value?.Cast<PluginInstallation>().ToList() ?? [];

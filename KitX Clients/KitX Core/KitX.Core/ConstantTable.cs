@@ -54,10 +54,6 @@ public static class ConstantTable
 
     public static DateTime ServerBuildTime = new();
 
-    public const string ApiGetAnnouncements = "get-announcements.php";
-
-    public const string ApiGetAnnouncement = "get-announcement.php";
-
     public static string KitXIconBase64 = string.Empty;
 
     public static bool IsSingleProcessStartMode = true;

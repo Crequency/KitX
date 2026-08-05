@@ -60,7 +60,7 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public AppConfig TypedAppConfig => (AppConfig)AppConfig;
 
-    public IAnnouncementConfig AnnouncementConfig { get; set; } = new AnnouncementConfig();
+    public IAnnouncementConf AnnouncementConfig { get; set; } = new AnnouncementConfig();
 
     /// <summary>
     /// Gets the typed announcement configuration (strong type version)
@@ -70,12 +70,12 @@ public class ConfigManager : IConfigService, IDisposable
     /// <summary>
     /// Gets the plugins configuration
     /// </summary>
-    public IPluginsConfig PluginsConfig { get; private set; } = new PluginsConfig();
+    public IPluginsConf PluginsConfig { get; private set; } = new PluginsConfig();
 
     /// <summary>
     /// Gets the security configuration
     /// </summary>
-    public ISecurityConfig SecurityConfig { get; private set; } = new SecurityConfig();
+    public ISecurityConf SecurityConfig { get; private set; } = new SecurityConfig();
 
     /// <summary>
     /// Gets the typed security configuration (strong type version)
@@ -116,9 +116,6 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void Load()
     {
-        var diagPath = Path.Combine(Path.GetFullPath("./Config/"), "ConfigLoadTrail.log");
-        File.AppendAllText(diagPath, $"[{DateTime.Now:O}] ConfigManager.Load() START, _configLocation={_configLocation ?? "null"}\n");
-
         // Step 1: Check if _configLocation is set
         if (string.IsNullOrEmpty(_configLocation))
         {
@@ -255,16 +252,13 @@ public class ConfigManager : IConfigService, IDisposable
     /// </summary>
     public void SaveAll()
     {
-        var diagPath = Path.Combine(Path.GetFullPath("./Config/"), "ConfigLoadTrail.log");
-
         if (!_loaded)
         {
-            File.AppendAllText(diagPath, $"[{DateTime.Now:O}] ConfigManager.SaveAll() SKIPPED (not loaded yet), LogLevel={(int)AppConfig.Log.LogLevel}\n");
+            Log.Debug("[ConfigManager] SaveAll() skipped (not loaded yet), LogLevel={Level}", (int)AppConfig.Log.LogLevel);
             return;
         }
 
-        File.AppendAllText(diagPath, $"[{DateTime.Now:O}] ConfigManager.SaveAll() START, LogLevel={(int)AppConfig.Log.LogLevel}\n");
-        File.AppendAllText(diagPath, $"  StackTrace:\n{Environment.StackTrace}\n");
+        Log.Debug("[ConfigManager] SaveAll() START, LogLevel={Level}", (int)AppConfig.Log.LogLevel);
 
         if (string.IsNullOrEmpty(_configLocation))
         {
@@ -302,9 +296,9 @@ public class ConfigManager : IConfigService, IDisposable
     {
         if (config is IAppConfig appConfig)
             AppConfig = appConfig;
-        else if (config is IPluginsConfig pluginsConfig)
+        else if (config is IPluginsConf pluginsConfig)
             PluginsConfig = pluginsConfig;
-        else if (config is ISecurityConfig securityConfig)
+        else if (config is ISecurityConf securityConfig)
             SecurityConfig = securityConfig;
     }
 

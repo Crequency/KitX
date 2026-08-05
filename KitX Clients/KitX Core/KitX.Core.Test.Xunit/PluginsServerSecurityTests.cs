@@ -4,7 +4,7 @@ using System.Net.WebSockets;
 using System.Text;
 using KitX.Core;
 using KitX.Core.Device;
-using KitX.Core.Event;
+using KitX.Core.Contract.Event;
 using KitX.Core.Test.Xunit.Fakes;
 using ServerStatus = KitX.Core.Contract.Device.ServerStatus;
 
