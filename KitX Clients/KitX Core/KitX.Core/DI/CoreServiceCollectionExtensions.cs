@@ -104,6 +104,22 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IPluginServer...");
         services.AddSingleton<IPluginServer, PluginsServer>();
 
+        // Kscript plugin bridge → Core: DashboardPluginServiceProvider wires IPluginServer +
+        // IEventService to Kscript's IPluginServiceProvider; RealPluginManager is the live
+        // IPluginManager; PluginHostAdapter bridges it to WorkflowV6's IPluginHost so
+        // workflow PluginCall builtins reach live plugins.
+        services.AddSingleton<Kscript.CSharp.Parser.Core.IPluginServiceProvider>(sp =>
+            new Plugin.DashboardPluginServiceProvider(
+                sp.GetRequiredService<KitX.Core.Contract.Plugin.IPluginServer>(),
+                sp.GetRequiredService<KitX.Core.Contract.Event.IEventService>()));
+        services.AddSingleton<Kscript.CSharp.Parser.Core.IPluginManager>(sp =>
+            new Kscript.CSharp.Parser.Core.RealPluginManager(
+                sp.GetRequiredService<Kscript.CSharp.Parser.Core.IPluginServiceProvider>()));
+        services.AddSingleton<KitX.WorkflowV6.Backend.Runtime.IPluginHost>(sp =>
+            new Plugin.PluginHostAdapter(
+                sp.GetService<Kscript.CSharp.Parser.Core.IPluginManager>()
+                    ?? new Plugin.NoOpPluginManager()));
+
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");
         services.AddSingleton<IDeviceHttpClient, DeviceHttpClient>();

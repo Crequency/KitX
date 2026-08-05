@@ -131,21 +131,12 @@ public class Program
         Console.WriteLine("└─────────────────────────────────────────────────────────┘\n");
 
         // --- Mirror App.axaml.cs InitializeServiceProvider() ---
+        // The Kscript plugin bridge (IPluginServiceProvider + IPluginManager + IPluginHost)
+        // is now registered inside AddCoreServices() (migrated from App.axaml.cs to
+        // KitX.Core/DI/CoreServiceCollectionExtensions.cs).
         var services = new ServiceCollection();
         services.AddCoreServices();
         services.AddKitXWorkflowV6();
-
-        // IPluginHost adapter (v6 workflow backend)
-        services.AddSingleton<Kscript.CSharp.Parser.Core.IPluginServiceProvider>(sp =>
-            new KitX.Dashboard.Services.DashboardPluginServiceProvider(
-                sp.GetRequiredService<KitX.Core.Contract.Plugin.IPluginServer>(),
-                sp.GetRequiredService<KitX.Core.Contract.Event.IEventService>()));
-        services.AddSingleton<Kscript.CSharp.Parser.Core.IPluginManager>(sp =>
-            new Kscript.CSharp.Parser.Core.RealPluginManager(
-                sp.GetRequiredService<Kscript.CSharp.Parser.Core.IPluginServiceProvider>()));
-        services.AddSingleton<KitX.WorkflowV6.Backend.Runtime.IPluginHost>(sp =>
-            new KitX.Dashboard.Services.PluginHostAdapter(
-                sp.GetRequiredService<Kscript.CSharp.Parser.Core.IPluginManager>()));
 
         // Dashboard-specific services
         services.AddSingleton<KitX.Dashboard.Services.IFileDialogService, KitX.Dashboard.Services.FileDialogService>();

@@ -626,7 +626,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     // ─────────────────────────────────────────────────────────────────────────
     // MockDebugController — minimal IBlueprintDebugController for E2E tests.
     // Records every NotifyValueChanged call so tests can assert on the wire/variable
-    // events without depending on RealBlueprintDebugger (which lives in Dashboard).
+    // events without depending on RealBlueprintDebugger (KitX.WorkflowV6.Backend.Debugging).
     // ─────────────────────────────────────────────────────────────────────────
 
     private sealed class MockDebugController : IBlueprintDebugController
