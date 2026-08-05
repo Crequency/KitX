@@ -119,6 +119,8 @@ internal sealed class DebugCodegen : CodegenBase
                 EmitCheckpoint(NodeId.Of(stmtPath), stmtPath, 0);
                 EmitLine("continue;");
                 break;
+            default:
+                throw new InvalidOperationException($"Unknown statement kind: {stmt.Kind}");
         }
     }
 

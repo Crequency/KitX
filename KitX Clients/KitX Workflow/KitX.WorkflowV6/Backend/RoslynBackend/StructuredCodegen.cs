@@ -88,8 +88,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 EmitLine("continue;");
                 break;
             default:
-                EmitLine($"/* unknown statement kind: {stmt.Kind} */");
-                break;
+                throw new InvalidOperationException($"Unknown statement kind: {stmt.Kind}");
         }
     }
 

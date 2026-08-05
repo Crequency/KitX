@@ -54,7 +54,7 @@ internal abstract class CodegenBase
             ? seg.Target
             : $"this.{MapMethodName(seg.Target)}({string.Join(", ", seg.Args.Select(RenderKsNode))})",
         KsPlaceholder => "_placeholder_",
-        _ => $"/* {node.GetType().Name} */",
+        _ => throw new InvalidOperationException($"Unknown KS node type: {node.GetType().Name}"),
     };
 
     protected string RenderLiteral(KsLiteral lit)
