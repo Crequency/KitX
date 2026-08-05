@@ -13,9 +13,10 @@ using Microsoft.Extensions.DependencyInjection;
 // ServiceCollectionExtensions — DI entry point for KitX.WorkflowV6.
 //
 // Registers the reflection-discovered builtin registry (41 v6 builtin functions),
-// both lenses (KsTextLens + BpGraphLens), the SyncService, and the default v6
+// both lenses (KsTextLens + BpGraphLens), the SyncService, the default v6
 // execution backend (StructuredRoslynBackend — structured IR → structured C# via
-// Roslyn, loaded into a collectible AssemblyLoadContext).
+// Roslyn, loaded into a collectible AssemblyLoadContext), and the workflow
+// services (WorkflowStorageService / WorkflowSessionManager / TriggerManager).
 //
 // The Dashboard references this library (KitX.Dashboard.csproj ProjectReference)
 // and calls AddKitXWorkflowV6() in App.axaml.cs. Since the v5.1 WorkflowIR library
@@ -31,8 +32,9 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
     /// (reflection-discovered, 41 functions across 25 source files), the two lenses
-    /// (KS text + BP graph), the session sync service, and the default
-    /// IExecutionBackend (StructuredRoslynBackend).
+    /// (KS text + BP graph), the session sync service, the default
+    /// IExecutionBackend (StructuredRoslynBackend), and the workflow services
+    /// (IWorkflowStorageService / IWorkflowManagementService / ITriggerManager).
     /// </summary>
     public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
     {
@@ -62,6 +64,21 @@ public static class ServiceCollectionExtensions
         // AssemblyLoadContext, runs RunAsync, captures OutputLines.
         services.AddSingleton<StructuredRoslynBackend>();
         services.AddSingleton<IExecutionBackend>(sp => sp.GetRequiredService<StructuredRoslynBackend>());
+
+        // Workflow services (migrated from KitX.Dashboard.Services — zero UI deps):
+        //   • WorkflowStorageService — file-based IWorkflowStorageService for KcsFileFormat v2.
+        //   • WorkflowSessionManager — IWorkflowManagementService run/stop-by-id orchestrator
+        //     (loads stored IR, applies VariableConstants overrides, executes via the backend).
+        //   • TriggerManager — ITriggerManager routing plugin TriggerFired signals to
+        //     subscribed workflows (constructor deps: IPluginServer/IWorkflowManagementService/
+        //     IEventService — registered by Core's AddCoreServices; resolved lazily at
+        //     singleton construction by the final container).
+        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowStorageService,
+            KitX.WorkflowV6.Services.WorkflowStorageService>();
+        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowManagementService,
+            KitX.WorkflowV6.Services.WorkflowSessionManager>();
+        services.AddSingleton<KitX.Core.Contract.Workflow.ITriggerManager,
+            KitX.WorkflowV6.Services.TriggerManager>();
 
         return services;
     }

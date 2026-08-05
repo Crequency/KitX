@@ -149,12 +149,9 @@ public class Program
 
         // Dashboard-specific services
         services.AddSingleton<KitX.Dashboard.Services.IFileDialogService, KitX.Dashboard.Services.FileDialogService>();
-        // S2: WorkflowStorageService (IWorkflowStorageService)
-        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowStorageService,
-            KitX.Dashboard.Services.WorkflowStorageService>();
-        // S4: WorkflowSessionManager (IWorkflowManagementService)
-        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowManagementService,
-            KitX.Dashboard.Services.WorkflowSessionManager>();
+        // S2/S4 (WorkflowStorageService / WorkflowSessionManager) and S6 (TriggerManager)
+        // are registered inside AddKitXWorkflowV6() above (migrated from Dashboard to
+        // KitX.WorkflowV6.Services).
 
         var sp = services.BuildServiceProvider();
         Console.WriteLine("✅ Full host DI container built (AddCoreServices + AddKitXWorkflowV6 + Dashboard)\n");
