@@ -627,6 +627,36 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
+    public void Parse_Switch_FullLine_Comment_Between_Arms_No_KS021()
+    {
+        // B5b: a full-line comment between switch arms used to be misread as an arm
+        // label ("Expected case label or 'default'", KS021). It now accumulates as
+        // the leading comment of the NEXT arm's first statement (same semantics as
+        // body comments in ParseBody) and must not produce any error.
+        var src = """
+            switch sel:
+                0:
+                    Print("zero")
+                // between arms
+                1:
+                    Print("one")
+                // before default
+                default:
+                    Print("other")
+            """;
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.False(diag.HasErrors, string.Join("; ", diag.Items.Select(d => d.Code)));
+        Assert.DoesNotContain(diag.Items, d => d.Code == "KS021");
+        var sw = Assert.IsType<KsSwitch>(ast.Body[0]);
+        Assert.Equal(2, sw.Arms.Length);
+        // Arm 0's first statement has no leading comment; the between-arm comments
+        // attach to the next arm's first statement, in source order.
+        Assert.Null(sw.Arms[0][0].LeadingComment);
+        Assert.Equal("between arms", sw.Arms[1][0].LeadingComment);
+        Assert.Equal("before default", sw.Default[0].LeadingComment);
+    }
+
+    [Fact]
     public void Error_KS040_Assignment_Missing_Variable_Name()
     {
         // Pipeline ending with "=" but no identifier follows.
@@ -801,6 +831,33 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
         var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
         Assert.True(diag.HasErrors);
         Assert.Contains(diag.Items, d => d.Code == "KS076");
+    }
+
+    [Fact]
+    public void Error_KS078_Deeply_Nested_Parens_Reported_Not_StackOverflow()
+    {
+        // B5c: expression nesting is depth-capped — 300 parenthesised sources used to
+        // recurse ParseExpression 300 levels deep (uncatchable StackOverflowException
+        // on extreme input). Must now report KS078 and return a partial program.
+        var depth = 300;
+        var src = "if " + new string('(', depth) + "1" + new string(')', depth) + ":\n    Print(\"x\")\n";
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS078");
+    }
+
+    [Fact]
+    public void Error_KS078_Deeply_Nested_If_Bodies_Reported_Not_StackOverflow()
+    {
+        // B5c: statement-body nesting is depth-capped the same way — 300 nested if
+        // bodies used to recurse ParseBody 300 levels deep.
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < 300; i++)
+            sb.Append(' ', i * 4).Append("if c:\n");
+        sb.Append(' ', 300 * 4).Append("Print(\"x\")\n");
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(sb.ToString());
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS078");
     }
 
     [Fact]

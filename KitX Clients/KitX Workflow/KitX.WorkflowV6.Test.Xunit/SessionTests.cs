@@ -111,4 +111,51 @@ public class SessionTests : IClassFixture<WorkflowTestFixture>
         svc.ApplyKsEdit(session, "Print(\"a\")\n");
         Assert.Single(session.Ir.Body);
     }
+
+    // ── 5.5: 声明区编辑（const/var 块）不再静默失效 ─────────────────────────
+
+    [Fact]
+    public void KS_Edit_Const_Value_Updates_Session_Ir()
+    {
+        var (svc, session) = MakeSession("const {\n    int x = 5\n}\nPrint(x)\n");
+        int fireCount = 0;
+        session.IrChanged += _ => fireCount++;
+
+        // Only the const value changes — the body is identical.
+        var changeSet = svc.ApplyKsEdit(session, "const {\n    int x = 6\n}\nPrint(x)\n");
+
+        Assert.NotNull(changeSet.StatementDiff);
+        Assert.False(changeSet.StatementDiff!.IsEmpty);
+        Assert.Single(changeSet.StatementDiff.DeclarationChanges);
+        Assert.Equal("6", session.Ir.Constants["x"].InitialValueExpression);
+        Assert.Equal(1, fireCount);
+    }
+
+    [Fact]
+    public void KS_Edit_GlobalVar_Edit_Updates_Session_Ir()
+    {
+        var (svc, session) = MakeSession("var {\n    int counter\n}\nPrint(counter)\n");
+        svc.ApplyKsEdit(session, "var {\n    string counter\n}\nPrint(counter)\n");
+        Assert.Equal("string", session.Ir.GlobalVars["counter"].Type);
+    }
+
+    [Fact]
+    public void KS_Edit_Adds_Const_To_Session_Ir()
+    {
+        var (svc, session) = MakeSession("const {\n    int a = 1\n}\nPrint(a)\n");
+        svc.ApplyKsEdit(session, "const {\n    int a = 1\n    int b = 2\n}\nPrint(a)\nPrint(b)\n");
+        Assert.True(session.Ir.Constants.ContainsKey("b"));
+        Assert.Equal(2, session.Ir.Body.Length);
+    }
+
+    [Fact]
+    public void KS_Edit_Unchanged_Const_Does_Not_Fire()
+    {
+        var (svc, session) = MakeSession("const {\n    int x = 5\n}\nPrint(x)\n");
+        int fireCount = 0;
+        session.IrChanged += _ => fireCount++;
+        // Same text (same const value) → no diff → no event.
+        svc.ApplyKsEdit(session, "const {\n    int x = 5\n}\nPrint(x)\n");
+        Assert.Equal(0, fireCount);
+    }
 }

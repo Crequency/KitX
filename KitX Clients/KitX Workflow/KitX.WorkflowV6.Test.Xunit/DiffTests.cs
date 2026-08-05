@@ -10,6 +10,7 @@
 //   • Apply(baseline, Compute(baseline, new)) ≡ new (idempotence)
 // ─────────────────────────────────────────────────────────────────────────────
 
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
@@ -517,5 +518,220 @@ public class DiffTests : IClassFixture<WorkflowTestFixture>
         var result = WorkflowDiffApply.Apply(oldWorkflow, diff);
 
         Assert.Contains(result.Body[0].Annotations, a => a.Kind == "Layout" && a.Key == "c1");
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // 5.5: 声明区（Constants / GlobalVars / HelperFunctions）diff + apply
+    // ═════════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Diff_Const_Value_Edit_Is_Reported()
+    {
+        var old = Parse("const {", "    int x = 5", "}", "Print(x)");
+        var nws = Parse("const {", "    int x = 6", "}", "Print(x)");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        // Body is unchanged — only the declaration section differs.
+        Assert.True(diff.StatementChanges.IsEmpty);
+        var decl = Assert.Single(diff.DeclarationChanges);
+        Assert.Equal(DeclarationSection.Constants, decl.Section);
+        Assert.Equal("x", decl.Name);
+        Assert.Equal(DiffKind.Modified, decl.Kind);
+        var constant = Assert.IsType<Constant>(decl.NewValue);
+        Assert.Equal("6", constant.InitialValueExpression);
+    }
+
+    [Fact]
+    public void Apply_Const_Value_Edit_Updates_Workflow_Constants()
+    {
+        var old = Parse("const {", "    int x = 5", "}", "Print(x)");
+        var nws = Parse("const {", "    int x = 6", "}", "Print(x)");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+        Assert.Equal("6", result.Constants["x"].InitialValueExpression);
+    }
+
+    [Fact]
+    public void Diff_And_Apply_Const_Added_And_Removed()
+    {
+        var old = Parse("const {", "    int a = 1", "}", "Print(a)");
+        var nws = Parse("const {", "    int b = 2", "}", "Print(b)");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.DeclarationChanges, c =>
+            c.Section == DeclarationSection.Constants && c.Name == "a" && c.Kind == DiffKind.Removed);
+        Assert.Contains(diff.DeclarationChanges, c =>
+            c.Section == DeclarationSection.Constants && c.Name == "b" && c.Kind == DiffKind.Added);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Diff_And_Apply_GlobalVar_Edit()
+    {
+        var old = Parse("var {", "    int counter", "}", "Print(counter)");
+        var nws = Parse("var {", "    string counter", "}", "Print(counter)");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.True(diff.StatementChanges.IsEmpty);
+        var decl = Assert.Single(diff.DeclarationChanges);
+        Assert.Equal(DeclarationSection.GlobalVars, decl.Section);
+        Assert.Equal("counter", decl.Name);
+        Assert.Equal(DiffKind.Modified, decl.Kind);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+        Assert.Equal("string", result.GlobalVars["counter"].Type);
+    }
+
+    [Fact]
+    public void Diff_Only_Declaration_Change_Is_Not_Empty()
+    {
+        var old = Parse("const {", "    int x = 5", "}", "Print(x)");
+        var nws = Parse("const {", "    int x = 6", "}", "Print(x)");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.False(diff.IsEmpty);
+    }
+
+    [Fact]
+    public void Diff_And_Apply_HelperFunction_Edit()
+    {
+        var old = new Workflow
+        {
+            Body = [],
+            HelperFunctions =
+            [
+                new HelperFunction { Name = "H", ReturnType = "int", Code = "return 1;" },
+            ],
+        };
+        var nws = new Workflow
+        {
+            Body = [],
+            HelperFunctions =
+            [
+                new HelperFunction { Name = "H", ReturnType = "int", Code = "return 2;" },
+            ],
+        };
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var decl = Assert.Single(diff.DeclarationChanges);
+        Assert.Equal(DeclarationSection.HelperFunctions, decl.Section);
+        Assert.Equal("H", decl.Name);
+        Assert.Equal(DiffKind.Modified, decl.Kind);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+        Assert.Equal("return 2;", result.HelperFunctions[0].Code);
+    }
+
+    [Fact]
+    public void Diff_HelperFunctions_Reference_Equal_Not_Reported()
+    {
+        // Same HelperFunction instance on both sides (the ApplyKsEdit flow reuses
+        // session.HelperFunctions) → no declaration change.
+        var helper = new HelperFunction { Name = "H", ReturnType = "int", Code = "return 1;" };
+        var old = new Workflow { Body = [], HelperFunctions = [helper] };
+        var nws = new Workflow { Body = [], HelperFunctions = [helper] };
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.True(diff.IsEmpty);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // 5.6: move 重排应用（ApplyChangesToScope 按目标索引重建）
+    // ═════════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Apply_Pure_Adjacent_Reorder()
+    {
+        // [A,B] → [B,A]: no remove-then-insert order can represent this; the applier
+        // must rebuild the list from the old→new slot mapping.
+        var old = Parse("Print(\"a\")", "Print(\"b\")");
+        var nws = Parse("Print(\"b\")", "Print(\"a\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Added);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Removed);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Pure_Rotate_Reorder()
+    {
+        // [A,B,C] → [C,A,B] (cyclic shift).
+        var old = Parse("Print(\"a\")", "Print(\"b\")", "Print(\"c\")");
+        var nws = Parse("Print(\"c\")", "Print(\"a\")", "Print(\"b\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Reorder_With_Content_Edit()
+    {
+        // Mixed reorder + content edit: [a,b,c] → [c,b2,a]. Because the edited b2 sits
+        // before the LCS boundary it is diffed as Removed(b)+Added(b2) — the applier
+        // must still rebuild the target list correctly.
+        var old = Parse("Print(\"a\")", "Print(\"b\")", "Print(\"c\")");
+        var nws = Parse("Print(\"c\")", "Print(\"b2\")", "Print(\"a\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Added);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Removed);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Modified_Index_Shifts_After_Removal()
+    {
+        // A removal before a Modified slot shifts the Modified statement's target
+        // index: old code applied it against the shrunken list and dropped the edit.
+        var old = Parse("Print(\"d\")", "Print(\"a\")", "Print(\"b\")", "Print(\"x\")");
+        var nws = Parse("Print(\"a\")", "Print(\"e\")", "Print(\"b\")", "Print(\"x2\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Removed);
+        Assert.Contains(diff.StatementChanges, c => c.Kind == DiffKind.Modified);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Modified_With_Shifted_Old_Index()
+    {
+        // Modified where the old slot (2) differs from the new slot (1) — the diff
+        // must carry OldIndex so the applier replaces the right baseline statement.
+        var old = Parse("Print(\"a\")", "Print(\"b\")", "Print(\"x\")");
+        var nws = Parse("Print(\"b\")", "Print(\"x2\")");
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var modified = Assert.Single(diff.StatementChanges, c => c.Kind == DiffKind.Modified);
+        Assert.Equal(2, modified.OldIndex);
+        Assert.Equal(1, modified.Index);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+    }
+
+    [Fact]
+    public void Apply_Reorder_Preserves_Layout_Of_Moved_Statement()
+    {
+        // A moved (LCS-kept) statement keeps its Layout because the applier reuses
+        // the baseline instance for unchanged slots.
+        var lit = new KsLiteral { Kind = KsLiteralKind.String, Value = "a", SourceText = "\"a\"" };
+        var layoutAnn = new Annotation
+        {
+            Kind = "Layout",
+            Key = "node1",
+            Value = AnnotationValue.Layout(100, 200),
+        };
+        var stmtA = new PipelineStatement
+        {
+            Fingerprint = Fingerprint.Compute("placeholder"),
+            Sources = [lit],
+            Segments = [new Segment { Target = "Print", Arguments = [lit] }],
+            Annotations = [layoutAnn],
+        };
+        stmtA = stmtA with { Fingerprint = Fingerprint.Compute(stmtA) };
+        var stmtB = Parse("Print(\"b\")").Body[0];
+
+        var old = new Workflow { Body = [stmtA, stmtB] };
+        var nws = new Workflow { Body = [stmtB, stmtA] };
+
+        var diff = WorkflowDiffer.Compute(old, nws);
+        var result = WorkflowDiffApply.Apply(old, diff);
+        Assert.Equal(nws, result);
+        Assert.Contains(result.Body[1].Annotations, a => a.Kind == "Layout" && a.Key == "node1");
     }
 }
