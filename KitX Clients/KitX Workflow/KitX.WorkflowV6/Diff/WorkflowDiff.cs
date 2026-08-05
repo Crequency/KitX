@@ -27,7 +27,7 @@ using KitX.WorkflowV6.Ir;
 
 /// <summary>
 /// The immutable delta between two <see cref="Workflow"/> snapshots. Produced by
-/// <see cref="WorkflowDiffer"/>; consumed by the applier (TBD during implementation).
+/// <see cref="WorkflowDiffer"/>; consumed by <see cref="WorkflowDiffApply"/>.
 /// </summary>
 public sealed record WorkflowDiff
 {
@@ -37,8 +37,14 @@ public sealed record WorkflowDiff
     /// </summary>
     public ImmutableArray<StatementChange> StatementChanges { get; init; } = [];
 
-    /// <summary>True when the diff describes no changes.</summary>
-    public bool IsEmpty => StatementChanges.IsEmpty;
+    /// <summary>
+    /// Declaration-section changes (Constants / GlobalVars / HelperFunctions),
+    /// aligned by declaration name. Empty for body-only diffs.
+    /// </summary>
+    public ImmutableArray<DeclarationChange> DeclarationChanges { get; init; } = [];
+
+    /// <summary>True when the diff describes no changes (statements nor declarations).</summary>
+    public bool IsEmpty => StatementChanges.IsEmpty && DeclarationChanges.IsEmpty;
 }
 
 /// <summary>Kind of a statement-level change.</summary>
@@ -89,4 +95,52 @@ public sealed record StatementChange
     /// statement (Modified replaces in place).
     /// </summary>
     public int? Index { get; init; }
+
+    /// <summary>
+    /// Baseline index of the affected statement. For Removed it equals <see cref="Index"/>;
+    /// for Modified it is the statement's index in the BASELINE body — which may differ
+    /// from <see cref="Index"/> when surrounding statements were removed/added. Null for
+    /// Added, or when a caller constructs the change manually (the applier then falls
+    /// back to <see cref="Index"/>). Carried so the applier can rebuild the target list
+    /// without re-running the diff (a pure reorder like [A,B] → [B,A] cannot be applied
+    /// by any remove-then-insert order).
+    /// </summary>
+    public int? OldIndex { get; init; }
+}
+
+/// <summary>Which declaration section a <see cref="DeclarationChange"/> targets.</summary>
+public enum DeclarationSection
+{
+    /// <summary>The <c>const { ... }</c> block (<see cref="Workflow.Constants"/>).</summary>
+    Constants,
+
+    /// <summary>The <c>var { ... }</c> block (<see cref="Workflow.GlobalVars"/>).</summary>
+    GlobalVars,
+
+    /// <summary>The helper functions (<see cref="Workflow.HelperFunctions"/>).</summary>
+    HelperFunctions,
+}
+
+/// <summary>
+/// One change inside a declaration section, aligned by <see cref="Name"/> (the stable
+/// identity of a declaration). <see cref="NewValue"/> is the new declaration value for
+/// Added / Modified and null for Removed. The value's concrete type depends on
+/// <see cref="Section"/>: <see cref="Constant"/> / <see cref="GlobalVar"/> /
+/// <see cref="KitX.Core.Contract.Workflow.HelperFunction"/>.
+/// </summary>
+public sealed record DeclarationChange
+{
+    /// <summary>Which declaration section this change belongs to.</summary>
+    public required DeclarationSection Section { get; init; }
+
+    /// <summary>The declaration's name (stable identity across edits).</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Added / Removed / Modified.</summary>
+    public required DiffKind Kind { get; init; }
+
+    /// <summary>
+    /// The new declaration value. Populated for Added / Modified; null for Removed.
+    /// </summary>
+    public object? NewValue { get; init; }
 }

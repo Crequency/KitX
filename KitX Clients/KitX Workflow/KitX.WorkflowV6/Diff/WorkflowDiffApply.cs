@@ -1,6 +1,7 @@
 namespace KitX.WorkflowV6.Diff;
 
 using System.Linq;
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -8,16 +9,23 @@ using KitX.WorkflowV6.Ir;
 // new immutable Workflow.
 //
 // Inherited concept from KitX.WorkflowIR.Diff.IrDiffApply, re-targeted at the
-// structured IR. For each StatementChange:
-//   • Added    → insert NewValue at Index in the enclosing scope.
-//   • Removed  → remove the statement at Index.
-//   • Modified → replace the statement at Index with NewValue.
+// structured IR. For each scope (list of statements), the applier REBUILDS the
+// target list position by position instead of applying remove-then-insert in some
+// order:
+//   • a target slot occupied by an Added/Modified change → its NewValue;
+//   • any other target slot → the next baseline statement that was neither
+//     Removed nor Modified (in baseline order).
+// Removed carries the baseline index (OldIndex), Added the target index (Index),
+// Modified the (old → new) slot pair — so a pure reorder like [A,B] → [B,A]
+// applies correctly, which no fixed remove/insert order can do.
 //
-// Layout annotation reconciliation: after applying all structural changes, the applier
-// copies Layout annotations from the baseline for unchanged statements (those whose
-// fingerprint appears in both baseline and result). This is the central UX requirement
-// (discussion notes §7): editing one Print statement must not disturb the canvas
-// positions of other nodes.
+// Declaration sections (Constants / GlobalVars / HelperFunctions) are applied
+// name-keyed from the DeclarationChanges list.
+//
+// Layout annotation reconciliation: unchanged statements keep their baseline
+// instance (Layout intact); Modified statements get Layout copied from their
+// baseline counterpart. This is the central UX requirement (discussion notes §7):
+// editing one Print statement must not disturb the canvas positions of other nodes.
 //
 // Pure: never mutates the baseline; produces a fresh Workflow.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,9 +52,14 @@ public static class WorkflowDiffApply
         // changes arrive as container replacements (the container statement is replaced
         // wholesale with its new body) rather than recursive per-statement edits.
         var newBody = ApplyChangesToScope(baseline.Body, diff.StatementChanges, "/");
-        return baseline with { Body = newBody };
+        return ApplyDeclarationChanges(baseline with { Body = newBody }, diff.DeclarationChanges);
     }
 
+    /// <summary>
+    /// Rebuilds one scope (an ordered list of statements) as the target list, using
+    /// the baseline as the source of unchanged statements. See the file header for
+    /// why remove-then-insert ordering cannot represent pure reorders.
+    /// </summary>
     private static ImmutableArray<Statement> ApplyChangesToScope(
         ImmutableArray<Statement> body,
         ImmutableArray<StatementChange> changes,
@@ -62,33 +75,82 @@ public static class WorkflowDiffApply
             // Fine-grained sub-body diffs (deeper paths) are naturally skipped by the
             // IsDirectChild filter; if future Apply needs them, recurse here.
             .Where(c => IsDirectChild(c.LexicalPath, scopePath))
-            .OrderBy(c => c.Index ?? 0)
             .ToList();
         if (scopeChanges.Count == 0) return body;
 
-        var result = body.ToList();
-        // Apply in reverse index order so insertions/removals don't shift later indices.
-        // Actually, for correctness we need to apply in the right order depending on the
-        // change kind. For MVP simplicity: apply Removed first (in reverse order), then
-        // Modified (in place), then Added (in index order).
-        foreach (var c in scopeChanges.Where(c => c.Kind == DiffKind.Removed).OrderByDescending(c => c.Index ?? 0))
+        var removedIndices = new HashSet<int>();
+        var modifiedAt = new Dictionary<int, (int OldIndex, Statement NewValue)>();
+        var addedAt = new List<(int Index, Statement NewValue)>();
+
+        foreach (var c in scopeChanges)
         {
-            var idx = ResolveScopeIndex(c.LexicalPath, scopePath);
-            if (idx >= 0 && idx < result.Count) result.RemoveAt(idx);
-        }
-        foreach (var c in scopeChanges.Where(c => c.Kind == DiffKind.Modified))
-        {
-            var idx = ResolveScopeIndex(c.LexicalPath, scopePath);
-            if (idx >= 0 && idx < result.Count && c.NewValue is not null)
-                result[idx] = CopyLayoutFrom(result[idx], c.NewValue);
-        }
-        foreach (var c in scopeChanges.Where(c => c.Kind == DiffKind.Added).OrderBy(c => c.Index ?? 0))
-        {
-            var idx = c.Index ?? result.Count;
-            if (c.NewValue is not null)
+            switch (c.Kind)
             {
-                if (idx >= result.Count) result.Add(c.NewValue);
-                else result.Insert(idx, c.NewValue);
+                case DiffKind.Removed:
+                    var removedIdx = c.OldIndex ?? c.Index ?? ResolveScopeIndex(c.LexicalPath, scopePath);
+                    if (removedIdx >= 0 && removedIdx < body.Length)
+                        removedIndices.Add(removedIdx);
+                    break;
+                case DiffKind.Modified when c.NewValue is not null:
+                    var targetIdx = c.Index ?? ResolveScopeIndex(c.LexicalPath, scopePath);
+                    var oldIdx = c.OldIndex ?? targetIdx;
+                    if (targetIdx >= 0)
+                        modifiedAt[targetIdx] = (oldIdx, c.NewValue);
+                    break;
+                case DiffKind.Added when c.NewValue is not null:
+                    addedAt.Add((c.Index ?? body.Length, c.NewValue));
+                    break;
+            }
+        }
+        if (removedIndices.Count == 0 && modifiedAt.Count == 0 && addedAt.Count == 0)
+            return body;
+
+        // Target length: baseline minus removed plus added (Modified replaces in place).
+        int targetLength = body.Length - removedIndices.Count + addedAt.Count;
+
+        // Drop Modified changes whose target slot is out of range (invalid diff input;
+        // the baseline statement then stays in place). 
+        var validModified = new Dictionary<int, (int OldIndex, Statement NewValue)>();
+        foreach (var (idx, pair) in modifiedAt)
+            if (idx >= 0 && idx < targetLength)
+                validModified[idx] = pair;
+        modifiedAt = validModified;
+
+        var modifiedOldIndices = new HashSet<int>(modifiedAt.Values.Select(p => p.OldIndex));
+
+        // Added slots: clamp out-of-range target indices (e.g. a caller-supplied
+        // Index beyond the end means "append at the end").
+        var addedByIndex = new Dictionary<int, Statement>();
+        int maxSlot = Math.Max(0, targetLength - 1);
+        foreach (var (idx, stmt) in addedAt.OrderBy(a => a.Index))
+            addedByIndex[Math.Clamp(idx, 0, maxSlot)] = stmt;
+
+        // Baseline statements kept verbatim: everything neither Removed nor Modified.
+        var keptOldIndices = new List<int>();
+        for (int i = 0; i < body.Length; i++)
+        {
+            if (removedIndices.Contains(i)) continue;
+            if (modifiedOldIndices.Contains(i)) continue;
+            keptOldIndices.Add(i);
+        }
+
+        // Rebuild the target list slot by slot.
+        var result = new List<Statement>(targetLength);
+        int keptCursor = 0;
+        for (int slot = 0; slot < targetLength; slot++)
+        {
+            if (addedByIndex.TryGetValue(slot, out var addedStmt))
+            {
+                result.Add(addedStmt);
+            }
+            else if (modifiedAt.TryGetValue(slot, out var mod))
+            {
+                var srcIdx = mod.OldIndex >= 0 && mod.OldIndex < body.Length ? mod.OldIndex : slot;
+                result.Add(CopyLayoutFrom(body[srcIdx], mod.NewValue));
+            }
+            else if (keptCursor < keptOldIndices.Count)
+            {
+                result.Add(body[keptOldIndices[keptCursor++]]);
             }
         }
         return result.ToImmutableArray();
@@ -150,5 +212,78 @@ public static class WorkflowDiffApply
             .ToImmutableArray();
         if (layoutAnns.IsEmpty) return target;
         return target with { Annotations = layoutAnns };
+    }
+
+    /// <summary>
+    /// Applies declaration-section changes to the workflow (Constants / GlobalVars are
+    /// name-keyed dictionaries; HelperFunctions are aligned by name in list order).
+    /// </summary>
+    private static Workflow ApplyDeclarationChanges(
+        Workflow wf, ImmutableArray<DeclarationChange> changes)
+    {
+        if (changes.IsEmpty) return wf;
+        var constants = wf.Constants;
+        var globalVars = wf.GlobalVars;
+        var helperList = wf.HelperFunctions.ToList();
+
+        foreach (var c in changes)
+        {
+            switch (c.Section)
+            {
+                case DeclarationSection.Constants:
+                    constants = ApplyToNameKeyedDict(constants, c);
+                    break;
+                case DeclarationSection.GlobalVars:
+                    globalVars = ApplyToNameKeyedDict(globalVars, c);
+                    break;
+                case DeclarationSection.HelperFunctions:
+                    helperList = ApplyToHelperList(helperList, c);
+                    break;
+            }
+        }
+
+        return wf with
+        {
+            Constants = constants,
+            GlobalVars = globalVars,
+            HelperFunctions = helperList.ToImmutableArray(),
+        };
+    }
+
+    private static ImmutableDictionary<string, T> ApplyToNameKeyedDict<T>(
+        ImmutableDictionary<string, T> dict, DeclarationChange c)
+        where T : class
+    {
+        switch (c.Kind)
+        {
+            case DiffKind.Removed:
+                return dict.Remove(c.Name);
+            case DiffKind.Added:
+            case DiffKind.Modified:
+                return c.NewValue is T value ? dict.SetItem(c.Name, value) : dict;
+            default:
+                return dict;
+        }
+    }
+
+    private static List<HelperFunction> ApplyToHelperList(
+        List<HelperFunction> list, DeclarationChange c)
+    {
+        var idx = list.FindIndex(h => h.Name == c.Name);
+        switch (c.Kind)
+        {
+            case DiffKind.Removed:
+                if (idx >= 0) list.RemoveAt(idx);
+                break;
+            case DiffKind.Added:
+            case DiffKind.Modified:
+                if (c.NewValue is HelperFunction value)
+                {
+                    if (idx >= 0) list[idx] = value;
+                    else list.Add(value);
+                }
+                break;
+        }
+        return list;
     }
 }

@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Diff;
 
+using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Statements;
 
@@ -43,7 +44,139 @@ public static class WorkflowDiffer
         ArgumentNullException.ThrowIfNull(newIr);
         var changes = new List<StatementChange>();
         DiffBody(oldIr.Body, newIr.Body, "/", changes);
-        return new WorkflowDiff { StatementChanges = changes.ToImmutableArray() };
+        var declarationChanges = DiffDeclarations(oldIr, newIr);
+        return new WorkflowDiff
+        {
+            StatementChanges = changes.ToImmutableArray(),
+            DeclarationChanges = declarationChanges,
+        };
+    }
+
+    // ── Declaration sections (Constants / GlobalVars / HelperFunctions) ─────
+
+    /// <summary>
+    /// Diffs the declaration sections. Constants and global vars are name-keyed
+    /// dictionaries — name is the stable identity, so changes align by name. Helper
+    /// functions are Contract-typed classes (reference equality), so they are aligned
+    /// by Name and compared field-wise.
+    /// </summary>
+    private static ImmutableArray<DeclarationChange> DiffDeclarations(
+        Workflow oldIr, Workflow newIr)
+    {
+        var changes = new List<DeclarationChange>();
+        DiffNameKeyed(oldIr.Constants, newIr.Constants, DeclarationSection.Constants, changes);
+        DiffNameKeyed(oldIr.GlobalVars, newIr.GlobalVars, DeclarationSection.GlobalVars, changes);
+        DiffHelperFunctions(oldIr.HelperFunctions, newIr.HelperFunctions, changes);
+        return changes.ToImmutableArray();
+    }
+
+    private static void DiffNameKeyed<T>(
+        ImmutableDictionary<string, T> oldDict,
+        ImmutableDictionary<string, T> newDict,
+        DeclarationSection section,
+        List<DeclarationChange> changes)
+        where T : class
+    {
+        foreach (var (name, oldValue) in oldDict)
+        {
+            if (!newDict.TryGetValue(name, out var newValue))
+            {
+                changes.Add(new DeclarationChange
+                {
+                    Section = section,
+                    Name = name,
+                    Kind = DiffKind.Removed,
+                });
+            }
+            else if (!oldValue.Equals(newValue))
+            {
+                changes.Add(new DeclarationChange
+                {
+                    Section = section,
+                    Name = name,
+                    Kind = DiffKind.Modified,
+                    NewValue = newValue,
+                });
+            }
+        }
+        foreach (var (name, newValue) in newDict)
+        {
+            if (!oldDict.ContainsKey(name))
+            {
+                changes.Add(new DeclarationChange
+                {
+                    Section = section,
+                    Name = name,
+                    Kind = DiffKind.Added,
+                    NewValue = newValue,
+                });
+            }
+        }
+    }
+
+    private static void DiffHelperFunctions(
+        ImmutableArray<HelperFunction> oldHelpers,
+        ImmutableArray<HelperFunction> newHelpers,
+        List<DeclarationChange> changes)
+    {
+        var oldByName = oldHelpers
+            .Where(h => !string.IsNullOrEmpty(h.Name))
+            .ToDictionary(h => h.Name!, StringComparer.Ordinal);
+        var newByName = newHelpers
+            .Where(h => !string.IsNullOrEmpty(h.Name))
+            .ToDictionary(h => h.Name!, StringComparer.Ordinal);
+
+        foreach (var (name, oldHelper) in oldByName)
+        {
+            if (!newByName.TryGetValue(name, out var newHelper))
+            {
+                changes.Add(new DeclarationChange
+                {
+                    Section = DeclarationSection.HelperFunctions,
+                    Name = name,
+                    Kind = DiffKind.Removed,
+                });
+            }
+            else if (!HelperFunctionsEqual(oldHelper, newHelper))
+            {
+                changes.Add(new DeclarationChange
+                {
+                    Section = DeclarationSection.HelperFunctions,
+                    Name = name,
+                    Kind = DiffKind.Modified,
+                    NewValue = newHelper,
+                });
+            }
+        }
+        foreach (var (name, newHelper) in newByName)
+        {
+            if (!oldByName.ContainsKey(name))
+            {
+                changes.Add(new DeclarationChange
+                {
+                    Section = DeclarationSection.HelperFunctions,
+                    Name = name,
+                    Kind = DiffKind.Added,
+                    NewValue = newHelper,
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Field-wise comparison for <see cref="HelperFunction"/> (a Contract class without
+    /// value semantics — reference equality would report every re-parse as Modified).
+    /// </summary>
+    private static bool HelperFunctionsEqual(HelperFunction a, HelperFunction b)
+    {
+        if (a.Name != b.Name || a.ReturnType != b.ReturnType || a.Code != b.Code) return false;
+        if (a.Parameters.Count != b.Parameters.Count) return false;
+        for (int i = 0; i < a.Parameters.Count; i++)
+        {
+            if (a.Parameters[i].Name != b.Parameters[i].Name) return false;
+            if (a.Parameters[i].Type != b.Parameters[i].Type) return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -69,9 +202,9 @@ public static class WorkflowDiffer
                 if (ni < nextNew && TryPairModified(oldBody[oi], newBody[ni]))
                 {
                     if (IsContainerStatement(oldBody[oi]) && IsContainerStatement(newBody[ni]))
-                        EmitContainerDiff(oldBody[oi], newBody[ni], path, ni, changes);
+                        EmitContainerDiff(oldBody[oi], newBody[ni], path, ni, oi, changes);
                     else
-                        EmitModified(newBody[ni], path, ni, changes);
+                        EmitModified(newBody[ni], path, ni, oi, changes);
                     oi++; ni++;
                     continue;
                 }
@@ -94,9 +227,9 @@ public static class WorkflowDiffer
             if (ni < newBody.Length && TryPairModified(oldBody[oi], newBody[ni]))
             {
                 if (IsContainerStatement(oldBody[oi]) && IsContainerStatement(newBody[ni]))
-                    EmitContainerDiff(oldBody[oi], newBody[ni], path, ni, changes);
+                    EmitContainerDiff(oldBody[oi], newBody[ni], path, ni, oi, changes);
                 else
-                    EmitModified(newBody[ni], path, ni, changes);
+                    EmitModified(newBody[ni], path, ni, oi, changes);
                 oi++; ni++;
                 continue;
             }
@@ -110,7 +243,8 @@ public static class WorkflowDiffer
         }
     }
 
-    private static void EmitModified(Statement newStmt, string path, int idx, List<StatementChange> changes)
+    private static void EmitModified(
+        Statement newStmt, string path, int idx, int oldIdx, List<StatementChange> changes)
     {
         changes.Add(new StatementChange
         {
@@ -119,6 +253,7 @@ public static class WorkflowDiffer
             Kind = DiffKind.Modified,
             NewValue = newStmt,
             Index = idx,
+            OldIndex = oldIdx,
         });
     }
 
@@ -131,6 +266,7 @@ public static class WorkflowDiffer
             Kind = DiffKind.Removed,
             NewValue = null,
             Index = idx,
+            OldIndex = idx,
         });
     }
 
@@ -147,7 +283,7 @@ public static class WorkflowDiffer
     }
 
     private static void EmitContainerDiff(
-        Statement oldStmt, Statement newStmt, string path, int idx, List<StatementChange> changes)
+        Statement oldStmt, Statement newStmt, string path, int idx, int oldIdx, List<StatementChange> changes)
     {
         // Emit a whole-container Modified to capture non-body field changes
         // (e.g. if.Condition, forEach.Source/ItemName, switch.Selector).
@@ -159,6 +295,7 @@ public static class WorkflowDiffer
             Kind = DiffKind.Modified,
             NewValue = newStmt,
             Index = idx,
+            OldIndex = oldIdx,
         });
         // Also recurse into sub-bodies for granular per-statement diffs.
         foreach (var c in DiffContainerBodies(oldStmt, newStmt, ChildPath(path, idx)))
