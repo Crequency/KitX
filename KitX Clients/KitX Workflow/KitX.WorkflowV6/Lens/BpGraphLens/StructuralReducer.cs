@@ -440,7 +440,7 @@ internal static class StructuralReducer
         /// <summary>Nodes visited by the structured walk (the EntryNode is pre-seeded).</summary>
         public readonly HashSet<string> Visited = new();
 
-        /// <summary>Node id → scope path (NodePath conventions: /top /then /else /body /arm/{label} /default).</summary>
+        /// <summary>Node id → scope path (NodePath conventions: /top /then /else /body /arm/{index} /default).</summary>
         public readonly Dictionary<string, string> NodeScope = new();
 
         /// <summary>The first structural error, if the walk failed (short-circuits the walk).</summary>

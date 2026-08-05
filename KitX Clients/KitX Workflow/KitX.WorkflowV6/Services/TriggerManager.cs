@@ -66,6 +66,17 @@ public class TriggerManager : ITriggerManager
     /// <summary>Workflow trigger configurations: key = workflowId. Thread-safe (UI writes, callback reads).</summary>
     private readonly ConcurrentDictionary<string, TriggerConfig> _workflowTriggers = new();
 
+    /// <summary>
+    /// Workflow ids with a trigger-fired run currently in flight (W-10 trigger-storm
+    /// throttle). A plugin may fire TriggerFired rapidly (e.g. every 100 ms); without
+    /// this gate each fire spawns a fresh <see cref="Task.Run"/> per matching workflow,
+    /// flooding the thread pool with runs of the same workflow. TryAdd gates the spawn;
+    /// the finally removes the id when the run completes, so the NEXT fire is allowed.
+    /// (SessionManager's own per-id cancellation is not a substitute: it cancels the
+    /// previous run on re-entry, which is exactly the storm we want to avoid firing.)
+    /// </summary>
+    private readonly ConcurrentDictionary<string, byte> _triggerRunsInFlight = new();
+
     public TriggerManager(IPluginServer pluginServer,
         IWorkflowManagementService workflowManagement, IEventService eventService)
     {
@@ -163,16 +174,32 @@ public class TriggerManager : ITriggerManager
 
             foreach (var workflowId in matchingWorkflowIds)
             {
+                // Trigger-storm throttle (W-10): skip the run when this workflow already
+                // has a trigger-fired run in flight — one run per workflow per signal
+                // burst, instead of one Task.Run per firing.
+                if (!_triggerRunsInFlight.TryAdd(workflowId, 0))
+                {
+                    Log.Information("[TriggerManager] Workflow {WorkflowId} already running (trigger burst throttled)", workflowId);
+                    continue;
+                }
+
                 Log.Information("[TriggerManager] Triggering workflow: {WorkflowId}", workflowId);
                 _ = Task.Run(async () =>
                 {
-                    var runResult = await _workflowManagement.RunWorkflowWithDetailsAsync(workflowId);
-                    _eventService.Publish(
-                        WorkflowEventNames.WorkflowExecutionResult,
-                        new WorkflowExecutionResultEventArgs(
-                            workflowId, runResult.IsSuccess,
-                            runResult.IsSuccess ? null : runResult.ErrorMessage ?? "Workflow execution failed",
-                            runResult.Output));
+                    try
+                    {
+                        var runResult = await _workflowManagement.RunWorkflowWithDetailsAsync(workflowId);
+                        _eventService.Publish(
+                            EventNames.WorkflowExecutionResult,
+                            new WorkflowExecutionResultEventArgs(
+                                workflowId, runResult.IsSuccess,
+                                runResult.IsSuccess ? null : runResult.ErrorMessage ?? "Workflow execution failed",
+                                runResult.Output));
+                    }
+                    finally
+                    {
+                        _triggerRunsInFlight.TryRemove(workflowId, out _);
+                    }
                 });
             }
         }

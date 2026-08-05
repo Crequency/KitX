@@ -29,6 +29,15 @@ using Serilog;
 /// Runs/stops workflows by id, backed by the stored IR (KcsFileFormat) and the
 /// v6 execution backend.
 /// </summary>
+/// <remarks>
+/// <para><b>Threat model (W-3):</b> running a workflow by id loads its persisted
+/// <c>.kcs</c> (via <see cref="IWorkflowStorageService"/>), deserialises its IrData,
+/// and compiles it to C# that executes arbitrary builtin/plugin calls. A <c>.kcs</c>
+/// file therefore IS executable code: only run workflows whose files come from
+/// trusted sources (the user's own saved workflows / deliberately imported files).
+/// Any component that routes untrusted files into <see cref="RunWorkflowWithDetailsAsync"/>
+/// (e.g. a trigger-driven auto-run) inherits this trust decision.</para>
+/// </remarks>
 public sealed class WorkflowSessionManager : IWorkflowManagementService
 {
     private readonly IWorkflowStorageService _storage;

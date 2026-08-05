@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Lens.KsTextLens;
 
+using System.Diagnostics;
 using System.Text;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
@@ -203,9 +204,12 @@ internal sealed class KsRenderer
                 break;
 
             default:
-                // Unknown statement — emit a placeholder so rendering never silently drops.
-                sb.Append(Indent(level)).Append($"/* unknown: {stmt.Kind} */").Append('\n');
-                break;
+                // The IR statement kinds form a closed set (If/ForEach/While/Switch/
+                // Pipeline/Break/Continue) — a renderer miss is a codegen drift, not a
+                // user-input case. Fail loudly in debug builds instead of silently
+                // emitting a placeholder the round-trip tests would swallow (W-11).
+                Debug.Fail($"KsRenderer: unknown statement kind '{stmt.Kind}'");
+                throw new InvalidOperationException($"Unknown statement kind: {stmt.Kind}");
         }
     }
 
@@ -426,8 +430,12 @@ internal sealed class KsRenderer
                         sb.Append('\n');
                 }
             }
-            if (pipe.Segments[^1].Comment is not { Length: > 0 })
-                sb.Append('\n');
+            // The header always ends its own line, whether or not the last segment
+            // carries an inline comment: without this terminator the body would be
+            // spliced onto the header line and the re-parse would fail (KS062 — the
+            // body was previously emitted without a separating newline whenever the
+            // last segment had a comment; W-9's strict Parse surfaced it).
+            sb.Append('\n');
         }
         else
         {

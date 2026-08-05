@@ -235,7 +235,6 @@ internal sealed class KsLowerer
     private Segment LowerSegment(KsPipelineSegment seg, HashSet<string> helperNames)
     {
         var args = ImmutableArray.CreateRange(seg.Args);
-        var rawArgs = ImmutableArray.CreateRange(seg.RawArgs);
         // Disambiguate: a bare name without parens is a variable tap UNLESS it's a
         // known helper function (helpers are passed externally; Parser can't know).
         bool isVarTap = seg.IsVariableTap && !helperNames.Contains(seg.Target);
@@ -243,7 +242,6 @@ internal sealed class KsLowerer
         {
             Target = seg.Target,
             Arguments = args,
-            RawArguments = rawArgs,
             IsVariableTap = isVarTap,
             Comment = seg.Comment,
         };

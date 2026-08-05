@@ -37,7 +37,7 @@ using KitX.Core.Contract.Workflow;
 //   • OnEnterSubScope / OnExitSubScope     — bracketing hooks around each sub-scope
 //     recursion (ScopeAnalyzer's child-scope set + ScopeRegion placeholder bookkeeping).
 //   • ChildScopePath        — sub-scope path derivation; the default maps pins per the
-//     NodePath conventions (/then /else /body /arm/{label} /default). The traversal
+//     NodePath conventions (/then /else /body /arm/{index} /default). The traversal
 //     order and recursion shape are identical to the original walks.
 //
 // Scope-path convention: the root walk must be seeded with NodePath.Top and sub-scopes
@@ -87,11 +87,16 @@ internal abstract class ExecGraphWalker
 
     /// <summary>
     /// Derives the sub-scope path for a control-flow output pin: the current scope path
-    /// plus the pin's segment (/then /else /body /arm/{label} /default). Unmapped pins
-    /// (defensive; none in the v6 renderer) keep the current scope.
+    /// plus the pin's segment (/then /else /body /arm/{index} /default). Unmapped pins
+    /// (defensive; none in the v6 renderer) keep the current scope. Switch arm pins are
+    /// named by their LABEL ("43"), but the scope-path convention (NodePath.Arm —
+    /// BpRenderer/DebugCodegen/BpReverseTranslator) is INDEX-based, so the walker maps
+    /// them via <paramref name="armIndex"/>, the pin's ordinal among the node's arm
+    /// (integer-named exec) pins in OutputPins order — the exact order the renderer
+    /// emits arms in and the reverse translator enumerates them (W-6).
     /// </summary>
-    protected virtual string ChildScopePath(string scopePath, string pinName)
-        => ScopeSegment(pinName) is { } seg ? scopePath + seg : scopePath;
+    protected virtual string ChildScopePath(string scopePath, string pinName, int armIndex)
+        => ScopeSegment(pinName, armIndex) is { } seg ? scopePath + seg : scopePath;
 
     /// <summary>
     /// Walks the exec chain starting from <paramref name="sourceId"/>'s
@@ -118,15 +123,22 @@ internal abstract class ExecGraphWalker
                 // Control-flow node: walk each sub-scope pin in a fresh context,
                 // then continue from the End pin (post-construct continuation).
                 OnEnterControlFlow(fn, scopePath);
+                int armIndex = 0;
                 foreach (var subPin in fn.OutputPins)
                 {
                     if (subPin.Name == BpPinNames.End) continue;
                     if (subPin.Type != PinType.Execution) continue;
-                    var childScope = ChildScopePath(scopePath, subPin.Name);
+                    var childScope = ChildScopePath(scopePath, subPin.Name, armIndex);
                     OnEnterSubScope(fn, subPin.Name, childScope);
                     bool ok = Walk(graph, target.Id, subPin.Name, childScope);
                     OnExitSubScope(fn, subPin.Name, childScope);
                     if (!ok) return false;
+                    // Switch arm pins are integer-named; their ordinal (in OutputPins
+                    // order) IS the arm index used by NodePath.Arm on every other side
+                    // (BpRenderer/DebugCodegen/BpReverseTranslator). Default/End never
+                    // advance the arm counter — arms always precede Default in render
+                    // order, so the ordinal stays correct with or without a default arm.
+                    if (int.TryParse(subPin.Name, out _)) armIndex++;
                 }
                 OnExitControlFlow(fn, scopePath);
 
@@ -147,15 +159,17 @@ internal abstract class ExecGraphWalker
 
     /// <summary>
     /// Maps a control-flow output pin name to its scope-path segment, matching the
-    /// NodePath conventions (/then /else /body /arm/{label} /default). Returns null
-    /// for pins that do not open a sub-scope.
+    /// NodePath conventions (/then /else /body /arm/{index} /default). Switch arm pins
+    /// are named by their label but scoped by their arm index (see
+    /// <see cref="ChildScopePath(string, string, int)"/>). Returns null for pins that
+    /// do not open a sub-scope.
     /// </summary>
-    private static string? ScopeSegment(string pinName) => pinName switch
+    private static string? ScopeSegment(string pinName, int armIndex) => pinName switch
     {
         BpPinNames.True => "/then",
         BpPinNames.False => "/else",
         BpPinNames.Body => "/body",
         BpPinNames.Default => "/default",
-        _ => int.TryParse(pinName, out _) ? $"/arm/{pinName}" : null,
+        _ => int.TryParse(pinName, out _) ? $"/arm/{armIndex}" : null,
     };
 }

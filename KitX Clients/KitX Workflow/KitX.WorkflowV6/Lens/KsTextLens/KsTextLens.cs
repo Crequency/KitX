@@ -62,8 +62,9 @@ public sealed class KsTextLens : ILens<string, string>
 
     /// <summary>
     /// Parses KS source into a structured IR. Convenience entry that combines
-    /// tokenize + parse + lower. Returns the IR even when there are diagnostics —
-    /// the caller can inspect them via <see cref="ParseAstWithDiagnostics"/>.
+    /// tokenize + parse + lower. Throws <see cref="KsParseException"/> when the
+    /// source has parse errors (W-9) — callers needing to surface diagnostics
+    /// instead of a partial IR use <see cref="ParseAstWithDiagnostics"/>.
     /// </summary>
     /// <param name="bpPrivileged">
     /// The pre-parse IR carrying BP-side privileged content that the KS text does NOT
@@ -83,17 +84,21 @@ public sealed class KsTextLens : ILens<string, string>
     /// code generation. Unlike v5.1's <c>LoweringResult</c>, the v6 record does NOT
     /// carry the IR — callers receive a <c>(Workflow, LoweringResult)</c> tuple instead.
     /// </summary>
+    /// <remarks>
+    /// Throws <see cref="KsParseException"/> when the source has parse errors (W-9):
+    /// lowering an error-laden tree produces a partial IR that would otherwise be
+    /// silently executed or persisted. Callers that only want to *report* diagnostics
+    /// should use <see cref="ParseAstWithDiagnostics"/> instead.
+    /// </remarks>
     public (Workflow Ir, LoweringResult Lowering) ParseLowering(
         string source, IReadOnlyList<HelperFunction> helpers, Workflow? bpPrivileged = null)
     {
         var (ast, diagnostics) = ParseAstWithDiagnostics(source);
         if (diagnostics.HasErrors)
         {
-            var detail = string.Join("\n", diagnostics.Items
-                .Where(d => d.Severity == KsDiagnosticSeverity.Error)
-                .Select(d => $"  [{d.Code}] L{d.Line}: {d.Message}"));
-            Log.Warning("[KsTextLens] Parse errors ({Count}) — IR may be incomplete:\n{Detail}",
-                diagnostics.ErrorCount, detail);
+            // No partial IR: an errored parse must not flow into lowering/execution/
+            // persistence (W-9). The exception carries the diagnostics for UI surfacing.
+            throw KsParseException.From(diagnostics);
         }
         var (ir, lowering) = new KsLowerer(_registry).Lower(ast, helpers);
         // BP-side privileged detached graphs (B1): not expressed in KS text, so a

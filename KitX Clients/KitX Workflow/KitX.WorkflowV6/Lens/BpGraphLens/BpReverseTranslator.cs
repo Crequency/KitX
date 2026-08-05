@@ -796,7 +796,6 @@ internal sealed class BpReverseTranslator
     private Segment BuildSegmentFromFunctionNode(BuiltinFunctionNode fn)
     {
         var args = ImmutableArray.CreateBuilder<KsNode>();
-        var rawArgs = ImmutableArray.CreateBuilder<string>();
         bool hasLiteralArg = false;
 
         foreach (var pin in fn.InputPins)
@@ -809,13 +808,11 @@ internal sealed class BpReverseTranslator
             if (isWired)
             {
                 args.Add(new KsPlaceholder { SourceText = "_" });
-                rawArgs.Add("_");
             }
             else if (pin.DefaultValue is not null)
             {
                 var lit = ParseDefaultValue(pin.DefaultValue);
                 args.Add(lit);
-                rawArgs.Add(lit.SourceText);
                 hasLiteralArg = true;
             }
         }
@@ -824,7 +821,6 @@ internal sealed class BpReverseTranslator
         // distinguishes `Range(0, _, 1)` (literal 0 and 1 force Arguments=[0, _, 1])
         // from `i > Print` (all wired, append form → Arguments=[]).
         ImmutableArray<KsNode> finalArgs = hasLiteralArg ? args.ToImmutable() : [];
-        ImmutableArray<string> finalRawArgs = hasLiteralArg ? rawArgs.ToImmutable() : [];
 
         var segComment = fn.Comment is { Length: > 0 } ? fn.Comment : null;
         var seg = new Segment
@@ -832,7 +828,6 @@ internal sealed class BpReverseTranslator
             Target = fn.FunctionName,
             IsVariableTap = false,
             Arguments = finalArgs,
-            RawArguments = finalRawArgs,
             Comment = segComment,
         };
         return seg;
@@ -1238,7 +1233,6 @@ internal sealed class BpReverseTranslator
         // This preserves pin positions so the source routes into the correct pin on
         // re-parse (fixing the To/Step swap corruption for forms like Range(0, _, 1)).
         var args = ImmutableArray.CreateBuilder<KsNode>();
-        var rawArgs = ImmutableArray.CreateBuilder<string>();
         var sources = ImmutableArray.CreateBuilder<KsNode>();
         bool anyWired = false;
         foreach (var pin in fn.InputPins)
@@ -1254,13 +1248,11 @@ internal sealed class BpReverseTranslator
                 anyWired = true;
                 sources.Add(wired);
                 args.Add(new KsPlaceholder { SourceText = "_" });
-                rawArgs.Add("_");
             }
             else
             {
                 var lit = ParseDefaultValue(pin.DefaultValue ?? "null");
                 args.Add(lit);
-                rawArgs.Add(lit.SourceText);
             }
         }
 
@@ -1273,7 +1265,6 @@ internal sealed class BpReverseTranslator
                 MethodName = fn.FunctionName,
                 FullMethodName = fn.FunctionName,
                 Args = flatArgs,
-                RawArgs = [.. rawArgs],
                 SourceText = $"{fn.FunctionName}({string.Join(", ", flatArgs.Select(a => a.SourceText))})",
             };
         }
@@ -1287,11 +1278,10 @@ internal sealed class BpReverseTranslator
         {
             Target = fn.FunctionName,
             Args = args.ToImmutable(),
-            RawArgs = rawArgs.ToImmutable(),
             IsVariableTap = false,
             Comment = segComment,
         };
-        seg.SourceText = $"{fn.FunctionName}({string.Join(", ", rawArgs)})";
+        seg.SourceText = $"{fn.FunctionName}({string.Join(", ", seg.Args.Select(a => a.SourceText))})";
         var srcArr = sources.ToImmutable();
         return new KsPipeline
         {
@@ -1324,7 +1314,6 @@ internal sealed class BpReverseTranslator
             MethodName = fn.FunctionName,
             FullMethodName = fn.FunctionName,
             Args = args.ToImmutable(),
-            RawArgs = [.. args.Select(a => a.SourceText)],
             SourceText = $"{fn.FunctionName}({string.Join(", ", args.Select(a => a.SourceText))})",
         };
     }

@@ -71,6 +71,15 @@ internal static class DetachedGraphUtil
         },
         // Entry/PluginTrigger roots can never appear in a detached component (they are
         // the exec-graph roots); unknown types are kept by reference as a safe fallback.
+        //
+        // ⚠ SHARED-REFERENCE RISK (W-11): the `_ => src` fallback returns the ORIGINAL
+        // node instance, not a copy — the snapshot then shares the live canvas node.
+        // Any mutation through the working blueprint (or the persisted snapshot) is
+        // visible through the other, corrupting the IR's detached snapshot or the
+        // canvas. The contract node set is closed (Entry/PluginTrigger excluded here),
+        // so this fallback should be unreachable; if a new node type is added to the
+        // contract, CloneNode MUST be extended BEFORE the new type can appear in a
+        // detached component.
         _ => src,
     };
 

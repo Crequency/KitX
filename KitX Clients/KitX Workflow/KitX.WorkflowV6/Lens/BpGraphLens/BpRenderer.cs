@@ -5,6 +5,7 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
+using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BpRenderer — structured IR → Blueprint graph data.
@@ -82,6 +83,7 @@ internal sealed class BpRenderer
         if (ir.Body.Length > 0)
         {
             var entry = Add(new EntryNode { Name = "Entry" }, "/entry");
+            SeedNodePins(entry);
             RenderScope(ir.Body, NodePath.Top, [new ExecTail(entry, BpPinNames.Exec)]);
         }
 
@@ -135,6 +137,7 @@ internal sealed class BpRenderer
                 // Comment field (read back as TrailingComment by the reverse translator).
                 Comment = c.TrailingComment,
             }, NodePath.DefConstOf(name));
+            SeedNodePins(node);
             EmitDeclLeadingComment(node, c.LeadingComment);
         }
 
@@ -156,6 +159,7 @@ internal sealed class BpRenderer
                 IsDefinition = true,
                 Comment = g.TrailingComment,
             }, NodePath.DefVarOf(name));
+            SeedNodePins(node);
             EmitDeclLeadingComment(node, g.LeadingComment);
         }
     }
@@ -418,17 +422,19 @@ internal sealed class BpRenderer
             BlueprintNode segNode;
             if (isVarTap)
             {
-                var vn = AddUsageNode(new VariableNode
+                var vn = new VariableNode
                 {
                     Name = seg.Target, VarName = seg.Target,
                     VarKind = VariableKind.PubVar,
-                }, segPath);
+                };
+                SeedNodePins(vn);
+                var usageVn = AddUsageNode(vn, segPath);
                 // Per-segment inline comment → this segment's variable-tap node Comment.
                 if (seg.Comment is { Length: > 0 })
-                    vn.Comment = seg.Comment;
+                    usageVn.Comment = seg.Comment;
                 var dataSource = lastNode ?? (sourceNodes.Count > 0 ? sourceNodes[^1] : null);
-                if (dataSource is not null) ConnectValue(dataSource, vn);
-                segNode = vn;
+                if (dataSource is not null) ConnectValue(dataSource, usageVn);
+                segNode = usageVn;
             }
             else
             {
@@ -747,12 +753,14 @@ internal sealed class BpRenderer
                 }
             case KsLiteral lit:
                 {
-                    var cn = AddUsageNode(new ConstNode
+                    var litNode = new ConstNode
                     {
                         Name = lit.Value?.ToString() ?? "null",
                         ConstName = lit.Value?.ToString() ?? "null",
                         ConstValue = KsScalarLiteralCodec.EncodeBareValue(lit),
-                    }, path);
+                    };
+                    SeedNodePins(litNode);
+                    var cn = AddUsageNode(litNode, path);
                     ConnectExecTails(prevTails, cn);
                     return cn;
                 }
@@ -799,11 +807,13 @@ internal sealed class BpRenderer
             var seg = pipe.Segments[i];
             if (KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames))
             {
-                var vn = AddUsageNode(new VariableNode
+                var tapNode = new VariableNode
                 {
                     Name = seg.Target, VarName = seg.Target,
                     VarKind = VariableKind.PubVar,
-                }, NodePath.Segment(path, i));
+                };
+                SeedNodePins(tapNode);
+                var vn = AddUsageNode(tapNode, NodePath.Segment(path, i));
                 if (lastFunc is not null) ConnectValue(lastFunc, vn);
                 ConnectExecTails(currentTails, vn);
                 currentTails = [new ExecTail(vn, BpPinNames.Exec)];
@@ -837,7 +847,9 @@ internal sealed class BpRenderer
             return sourceNodes[0];
 
         // No sources and no segments — safety net (Parser rejects empty conditions).
-        var fallback = AddUsageNode(new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" }, NodePath.Fallback(path));
+        var fallbackNode = new ConstNode { Name = "true", ConstName = "true", ConstValue = "true" };
+        SeedNodePins(fallbackNode);
+        var fallback = AddUsageNode(fallbackNode, NodePath.Fallback(path));
         ConnectExecTails(currentTails, fallback);
         return fallback;
     }
@@ -853,12 +865,14 @@ internal sealed class BpRenderer
         {
             case KsLiteral lit:
                 {
-                    var cn = AddUsageNode(new ConstNode
+                    var litNode = new ConstNode
                     {
                         Name = lit.Value?.ToString() ?? "null",
                         ConstName = lit.Value?.ToString() ?? "null",
                         ConstValue = KsScalarLiteralCodec.EncodeBareValue(lit),
-                    }, path);
+                    };
+                    SeedNodePins(litNode);
+                    var cn = AddUsageNode(litNode, path);
                     if (lit.Comment is { Length: > 0 })
                         cn.Comment = lit.Comment;
                     if (prevTails is not null) ConnectExecTails(prevTails, cn);
@@ -918,7 +932,12 @@ internal sealed class BpRenderer
         else
         {
             // Fallback for unknown functions (e.g. user helpers not in registry):
-            // single generic Value pin, as before.
+            // single generic Value pin, as before. A function the registry does not
+            // know is a possible KS/BP drift — surface it instead of degrading
+            // silently, so a typo'd or desynchronised function name is visible in
+            // the log (W-11).
+            Log.Warning("[BpRenderer] Unknown function '{Name}' rendered with generic Value pins " +
+                "(not in builtin registry, not a declared helper)", name);
             n.InputPins.Add(MakePin(BpPinNames.Value, PinDirection.Input, PinType.Any));
             n.OutputPins.Add(MakePin(BpPinNames.Value, PinDirection.Output, PinType.Any));
         }
@@ -973,10 +992,13 @@ internal sealed class BpRenderer
             VarName = name,
             VarKind = _constNames.Contains(name) ? VariableKind.Const : VariableKind.PubVar,
         };
+        // Seed the Value in + Value out data pins (the S-2 contract refactor removed
+        // the constructor pre-fill; usage nodes get their Exec pair in AddUsageNode).
+        SeedNodePins(vn);
         if (vn.VarKind == VariableKind.Const)
         {
-            // Keep only the Value OUTPUT pin (read source). The descriptor seeded Value
-            // in + Value out; remove the input so the node exposes a single data out.
+            // Keep only the Value OUTPUT pin (read source). Seeded Value in + Value out;
+            // remove the input so the node exposes a single data out.
             var valueIn = vn.InputPins.Find(p => p.Name == "Value" && p.Direction == PinDirection.Input);
             if (valueIn is not null) vn.InputPins.Remove(valueIn);
         }
@@ -1001,6 +1023,33 @@ internal sealed class BpRenderer
 
     private static BlueprintPin MakePin(string name, PinDirection dir, PinType type = PinType.Any)
         => new() { Id = Guid.NewGuid().ToString(), Name = name, Direction = dir, Type = type };
+
+    /// <summary>
+    /// Seeds the pins the contract node constructors used to pre-fill before the
+    /// S-2 refactor removed constructor pin-seeding:
+    ///   • VariableNode  — Value input + Value output (read/write data pins)
+    ///   • ConstNode     — Value output only (read-only data source)
+    ///   • EntryNode / PluginTriggerNode — 0-in / 1-Exec-out root shape
+    /// Usage nodes then get their Exec in/out pair prepended by <see cref="AddUsageNode"/>.
+    /// Definition nodes (no Exec pins) keep only the data pins seeded here.
+    /// </summary>
+    private static void SeedNodePins(BlueprintNode node)
+    {
+        switch (node)
+        {
+            case VariableNode vn:
+                vn.InputPins.Add(MakePin(BpPinNames.Value, PinDirection.Input, PinType.Any));
+                vn.OutputPins.Add(MakePin(BpPinNames.Value, PinDirection.Output, PinType.Any));
+                break;
+            case ConstNode cn:
+                cn.OutputPins.Add(MakePin(BpPinNames.Value, PinDirection.Output, PinType.Any));
+                break;
+            case EntryNode:
+            case PluginTriggerNode:
+                node.OutputPins.Add(MakePin(BpPinNames.Exec, PinDirection.Output, PinType.Execution));
+                break;
+        }
+    }
 
     // ── Connection helpers ──
 

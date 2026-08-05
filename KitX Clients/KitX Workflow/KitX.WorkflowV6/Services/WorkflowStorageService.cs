@@ -26,6 +26,17 @@ using V6Workflow = KitX.WorkflowV6.Ir.Workflow;
 /// <summary>
 /// File-based <see cref="IWorkflowStorageService"/> for KcsFileFormat v2.
 /// </summary>
+/// <remarks>
+/// <para><b>Threat model (W-3):</b> a <c>.kcs</c> workflow file is executable code,
+/// not inert data — its <c>IrData</c> payload compiles to C# and runs arbitrary
+/// builtin/plugin calls (file IO, JSON, plugin invocation) when the workflow is
+/// executed by id (see <see cref="WorkflowSessionManager"/>). Loading a file is
+/// therefore equivalent to importing a program: <b>only load .kcs files from
+/// trusted sources</b> (files the user created or deliberately imported; never
+/// blindly scan directories writable by other users, never auto-open files from
+/// untrusted shares). All load paths log the resolved source path so the trust
+/// decision is auditable.</para>
+/// </remarks>
 public class WorkflowStorageService : IWorkflowStorageService
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -33,11 +44,23 @@ public class WorkflowStorageService : IWorkflowStorageService
         WriteIndented = true,
     };
 
+    /// <summary>
+    /// Hard cap on a single .kcs file's size (10 MB). Loading an oversized file is a
+    /// DoS vector (an attacker-placed file forcing a giant JSON deserialize); files
+    /// beyond this are rejected with a diagnostic instead of being read.
+    /// </summary>
+    private const long MaxKcsFileBytes = 10 * 1024 * 1024;
+
     private readonly string _storageDirectory;
 
+    /// <summary>
+    /// Storage root defaults to <c>{AppContext.BaseDirectory}/Data/Workflows</c> —
+    /// process-anchored, never the CWD-relative <c>./Data</c> (the working directory
+    /// is host-dependent and may point anywhere the host was launched from).
+    /// </summary>
     public WorkflowStorageService()
     {
-        _storageDirectory = Path.Combine("./Data/", "Workflows");
+        _storageDirectory = Path.Combine(AppContext.BaseDirectory, "Data", "Workflows");
     }
 
     /// <inheritdoc/>
@@ -88,6 +111,12 @@ public class WorkflowStorageService : IWorkflowStorageService
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// <b>Threat model (W-3):</b> the loaded <c>.kcs</c> is executable code (its IrData
+    /// compiles and runs on <see cref="WorkflowSessionManager.RunWorkflowWithDetailsAsync"/>).
+    /// Only load files from trusted sources; the resolved file path is logged at Debug
+    /// so every load is auditable.
+    /// </remarks>
     public async Task<KcsFileFormat?> LoadWorkflowDataAsync(string workflowId)
     {
         var filePath = GetWorkflowFilePath(workflowId);
@@ -96,7 +125,9 @@ public class WorkflowStorageService : IWorkflowStorageService
 
         // Fallback: the .kcs filename may not match the Id (e.g. a v6 .kcs created by
         // KcsBuilder with a custom filename). Scan the directory for a file whose stored
-        // Id matches workflowId.
+        // Id matches workflowId. NOTE: the directory scan is an untrusted-source surface —
+        // every candidate is a potential executable payload, so each one goes through the
+        // size cap + deserialize failure logging below.
         Log.Warning("[WorkflowStorageService] Workflow file not found at {FilePath}, scanning directory for Id={Id}", filePath, workflowId);
         EnsureDirectoryExists();
         foreach (var file in Directory.GetFiles(_storageDirectory, "*.kcs"))
@@ -107,7 +138,12 @@ public class WorkflowStorageService : IWorkflowStorageService
                 if (kcs != null && kcs.Id == workflowId)
                     return kcs;
             }
-            catch { /* skip corrupt files during scan */ }
+            catch (Exception ex)
+            {
+                // Corrupt file during the Id scan: skip it, but say WHICH file failed so
+                // a poisoned entry is visible in the log instead of silently ignored.
+                Log.Warning(ex, "[WorkflowStorageService] Skipping unreadable .kcs during Id scan: {File}", file);
+            }
         }
 
         Log.Warning("[WorkflowStorageService] No .kcs found with Id={Id}", workflowId);
@@ -208,10 +244,25 @@ public class WorkflowStorageService : IWorkflowStorageService
             Directory.CreateDirectory(_storageDirectory);
     }
 
+    /// <summary>
+    /// Loads and deserialises one .kcs file.
+    /// <para><b>Threat model (W-3):</b> the payload is executable code — the caller
+    /// must only pass paths from trusted sources (see the class-level remarks).
+    /// The resolved path is logged at Debug on every load; oversized files and
+    /// corrupt JSON are rejected with a diagnostic carrying the path.</para>
+    /// </summary>
     private static async Task<KcsFileFormat?> LoadKcsFileInternalAsync(string filePath)
     {
+        Log.Debug("[WorkflowStorageService] Loading .kcs workflow file: {FilePath}", filePath);
         try
         {
+            var info = new FileInfo(filePath);
+            if (info.Length > MaxKcsFileBytes)
+            {
+                Log.Error("[WorkflowStorageService] Refusing to load oversized .kcs ({Bytes} bytes > {Max}): {FilePath}",
+                    info.Length, MaxKcsFileBytes, filePath);
+                return null;
+            }
             var json = await File.ReadAllTextAsync(filePath);
             return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
         }

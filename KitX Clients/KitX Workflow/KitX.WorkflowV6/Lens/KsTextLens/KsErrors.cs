@@ -1,5 +1,38 @@
 namespace KitX.WorkflowV6.Lens.KsTextLens;
 
+using System;
+using System.Linq;
+
+/// <summary>
+/// Thrown when KS source contains parse errors and a caller asks for the lowered IR
+/// (W-9): lowering error-laden source would otherwise produce a partial/mis-shapen IR
+/// that callers could silently execute or persist. Carries the collected diagnostics
+/// (<see cref="Diagnostics"/>) and a one-line summary as the exception message.
+/// </summary>
+public sealed class KsParseException : Exception
+{
+    /// <summary>The error diagnostics collected while parsing (error-severity only).</summary>
+    public IReadOnlyList<KsDiagnostic> Diagnostics { get; }
+
+    public KsParseException(string message, IReadOnlyList<KsDiagnostic> diagnostics)
+        : base(message)
+    {
+        Diagnostics = diagnostics;
+    }
+
+    /// <summary>Builds the exception from an error-laden diagnostic sink.</summary>
+    public static KsParseException From(KsDiagnosticSink diagnostics)
+    {
+        var errors = diagnostics.Items
+            .Where(d => d.Severity == KsDiagnosticSeverity.Error)
+            .ToList();
+        var detail = string.Join("\n", errors.Select(d =>
+            $"  [{d.Code}] L{d.Line}: {d.Message}"));
+        return new KsParseException(
+            $"KS parse failed with {errors.Count} error(s):\n{detail}", errors);
+    }
+}
+
 /// <summary>
 /// KS0xx error-code constants, per KScriptGrammarRule.md §十三. The tokenizer emits
 /// KS001–KS006; the parser emits KS010–KS077. Code sites reference these constants

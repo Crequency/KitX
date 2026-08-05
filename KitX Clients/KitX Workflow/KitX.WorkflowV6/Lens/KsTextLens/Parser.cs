@@ -560,6 +560,14 @@ internal sealed class Parser
 
     private KsIf ParseIf()
     {
+        // The body indent is keyed to the IF KEYWORD's own line indent (the just-consumed
+        // Indent token), NOT to the last consumed indent: a multi-line condition header's
+        // continuation lines sit at keywordIndent+1 and MUST NOT push the body deeper —
+        // per the grammar, "续行段与 body 首行同缩进（header+1），以 `>` 开头区分续行 vs body"
+        // (the `>` / comma continuations are consumed below, so capturing here is the
+        // only correct anchor). W-9's strict Parse surfaced this: the old capture point
+        // made every multi-line-header body KS062-empty.
+        int keywordIndent = LastConsumedIndentLevel();
         var ifTok = Advance();  // 'if'
         var (cond, lastSegComment) = ParseHeaderPipelineExpression();
         if (!Match(KsTokenKind.Colon))
@@ -571,7 +579,6 @@ internal sealed class Parser
             pipe.Segments[^1].Comment = lastComment;
         else
             stmtTrailing = trailing;
-        int keywordIndent = LastConsumedIndentLevel();
         var thenBody = ParseBody(keywordIndent + 1, $"if on line {ifTok.Line}");
         ImmutableArray<KsStatement> elseBody = [];
 
@@ -616,12 +623,14 @@ internal sealed class Parser
 
     private KsSwitch ParseSwitch()
     {
+        // Same anchor rule as ParseIf: keywordIndent = the switch keyword's own line
+        // indent (captured before the header expression can consume continuation lines).
+        int keywordIndent = LastConsumedIndentLevel();
         var swTok = Advance();  // 'switch'
         var selector = ParseExpression();
         if (!Match(KsTokenKind.Colon))
             Error(KsErrors.ExpectedColonAfterHeader, "Expected ':' after switch selector");
         TryConsumeComment();  // post-colon comment on the `switch` header line (not attached)
-        int keywordIndent = LastConsumedIndentLevel();
         int armIndent = keywordIndent + 1;
         var arms = ImmutableArray.CreateBuilder<ImmutableArray<KsStatement>>();
         var armLabels = ImmutableArray.CreateBuilder<int>();
@@ -702,6 +711,8 @@ internal sealed class Parser
 
     private KsForEach ParseForEach()
     {
+        // Anchor rule as ParseIf: keywordIndent = the forEach keyword's own line indent.
+        int keywordIndent = LastConsumedIndentLevel();
         var feTok = Advance();  // 'forEach'
         // Source accepts pipeline expressions (like if/while conditions), so
         // `forEach loopMax > Range(0, _, 1) as i` is valid — the entire pipeline
@@ -721,7 +732,6 @@ internal sealed class Parser
             pipe.Segments[^1].Comment = lastComment;
         else
             stmtTrailing = trailing;
-        int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"forEach on line {feTok.Line}");
         return new KsForEach
         {
@@ -735,6 +745,8 @@ internal sealed class Parser
 
     private KsWhile ParseWhile()
     {
+        // Anchor rule as ParseIf: keywordIndent = the while keyword's own line indent.
+        int keywordIndent = LastConsumedIndentLevel();
         var whTok = Advance();  // 'while'
         var (cond, lastSegComment) = ParseHeaderPipelineExpression();
         if (!Match(KsTokenKind.Colon))
@@ -746,7 +758,6 @@ internal sealed class Parser
             pipe.Segments[^1].Comment = lastComment;
         else
             stmtTrailing = trailing;
-        int keywordIndent = LastConsumedIndentLevel();
         var body = ParseBody(keywordIndent + 1, $"while on line {whTok.Line}");
         return new KsWhile
         {
@@ -862,7 +873,6 @@ internal sealed class Parser
         }
         var nameTok = Advance();
         var args = ImmutableArray.CreateBuilder<KsNode>();
-        var rawArgs = ImmutableArray.CreateBuilder<string>();
         bool isCall = false;
 
         if (Match(KsTokenKind.LParen))
@@ -871,23 +881,17 @@ internal sealed class Parser
             if (Current.Kind != KsTokenKind.RParen)
             {
                 args.Add(ParseLiteralOrPlaceholder());
-                rawArgs.Add(args[^1].SourceText);
                 while (Match(KsTokenKind.Comma))
-                {
                     args.Add(ParseLiteralOrPlaceholder());
-                    rawArgs.Add(args[^1].SourceText);
-                }
             }
             if (!Match(KsTokenKind.RParen))
                 Error(KsErrors.ExpectedRParenToCloseArgs, "Expected ')' to close call arguments");
         }
 
-        var rawArgsArray = rawArgs.ToImmutable();
         return new KsPipelineSegment
         {
             Target = nameTok.Text,
             Args = args.ToImmutable(),
-            RawArgs = rawArgsArray,
             // Never mark a `> name` as a tap here — only `= name` becomes a tap.
             // A bare `> name` is a call with no args (the pipeline value is the
             // implicit single arg via `_`). Consumers (codegen/renderer/type-inferer)
@@ -896,7 +900,7 @@ internal sealed class Parser
             IsVariableTap = false,
             SourceLine = nameTok.Line,
             SourceText = isCall
-                ? $"{nameTok.Text}({string.Join(", ", rawArgsArray)})"
+                ? $"{nameTok.Text}({string.Join(", ", args.Select(a => a.SourceText))})"
                 : nameTok.Text,
         };
     }
@@ -968,27 +972,20 @@ internal sealed class Parser
                         {
                             Advance();  // consume '('
                             var args = ImmutableArray.CreateBuilder<KsNode>();
-                            var rawArgs = ImmutableArray.CreateBuilder<string>();
                             if (Current.Kind != KsTokenKind.RParen)
                             {
                                 args.Add(ParseLiteralOrPlaceholder());
-                                rawArgs.Add(args[^1].SourceText);
                                 while (Match(KsTokenKind.Comma))
-                                {
                                     args.Add(ParseLiteralOrPlaceholder());
-                                    rawArgs.Add(args[^1].SourceText);
-                                }
                             }
                             if (!Match(KsTokenKind.RParen))
                                 Error(KsErrors.ExpectedRParenToCloseCallArgs, "Expected ')' to close call arguments");
-                            var rawArgsArray = rawArgs.ToImmutable();
                             return new KsCall
                             {
                                 MethodName = t.Text,
                                 FullMethodName = t.Text,
                                 Args = args.ToImmutable(),
-                                RawArgs = rawArgsArray,
-                                SourceText = $"{t.Text}({string.Join(", ", rawArgsArray)})",
+                                SourceText = $"{t.Text}({string.Join(", ", args.Select(a => a.SourceText))})",
                                 SourceLine = t.Line,
                             };
                         }
