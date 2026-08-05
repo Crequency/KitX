@@ -378,6 +378,18 @@ internal sealed class BpReverseTranslator
 
     // ── Exec chain walking (pipeline-merging model) ──
     //
+    // NOTE (B4): this walk is deliberately NOT unified onto the shared ExecGraphWalker
+    // skeleton used by StructuralReducer.WalkStructured and ScopeAnalyzer.WalkChain.
+    // It is a QUEUE-based traversal with a cross-node pipeline-group state machine
+    // (IsDataContinuous decides whether consecutive nodes merge into one statement), a
+    // consumed-subgraph side channel (PreMarkControlFlowConsumed marks condition
+    // sub-graphs so FlushGroup filters them out of speculative groups), and per-node
+    // side effects (statement construction, canonical-id recording, detached-graph
+    // tracking). Forcing that state machine onto the walker's visit hooks would change
+    // grouping / flush timing semantics — the round-trip tests pin those exactly. It
+    // already shares the graph queries (GraphIndex) with the rest of the lens, so the
+    // remaining duplication is the traversal shape only.
+    //
     // The reverse translator walks the exec chain and groups consecutive nodes that
     // belong to the same KS pipeline statement. A group is closed when:
     //   1. A write-type var tap VariableNode is reached (it ends a pipeline as the

@@ -60,6 +60,7 @@ internal static class StructuralReducer
         if (blueprint.Nodes.Count == 0) return null;
 
         var nodeById = blueprint.Nodes.ToDictionary(n => n.Id);
+        var graph = new GraphIndex(blueprint);
         // Entry or PluginTrigger (the trigger entry node replaces Entry when TriggerType=PluginEvent).
         var entry = blueprint.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
 
@@ -103,13 +104,13 @@ internal static class StructuralReducer
         }
 
         // ── E6 (KS105): No explicit exec back-edges ──
-        var execCycle = FindCycle(blueprint, nodeById, execOnly: true);
+        var execCycle = FindCycle(graph, blueprint, execOnly: true);
         if (execCycle is not null)
             return new ConstraintViolation(KsConstraintErrors.KS105, "E6", $"{KsConstraintErrors.KS105}: 检测到显式 exec 回环，违反回边规则（E6）。循环的\"回到循环头\"语义应通过 body 末节点 exec-out 悬空隐式表达；不允许显式画从 body 末节点到循环节点的 exec edge。",
                 execCycle, null, "使用 Each/While 控制流节点表达循环，让 body 末节点 exec-out 悬空（自然结束）。", IsConnectionStructural: true);
 
         // ── D1 (KS110): Data DAG — data graph must be acyclic ──
-        var dataCycle = FindCycle(blueprint, nodeById, execOnly: false);
+        var dataCycle = FindCycle(graph, blueprint, execOnly: false);
         if (dataCycle is not null)
             return new ConstraintViolation(KsConstraintErrors.KS110, "D1", $"{KsConstraintErrors.KS110}: Data graph 成环，违反 DAG 约束（D1）。值的定义不能循环依赖。",
                 dataCycle, null, "检查数据连线，消除循环依赖。", IsConnectionStructural: true);
@@ -131,16 +132,15 @@ internal static class StructuralReducer
             {
                 var id = bfs.Dequeue();
                 if (!execReachable.Add(id)) continue;
-                if (!nodeById.TryGetValue(id, out var n)) continue;
+                var n = graph.GetNode(id);
+                if (n is null) continue;
                 foreach (var outPin in n.OutputPins)
                 {
                     if (outPin.Type != PinType.Execution) continue;
-                    foreach (var conn in blueprint.Connections)
-                    {
-                        if (conn.SourceNodeId != id || conn.SourcePinId != outPin.Id) continue;
-                        if (nodeById.ContainsKey(conn.TargetNodeId))
-                            bfs.Enqueue(conn.TargetNodeId);
-                    }
+                    // Loose exec index: the original scan filtered the source pin only.
+                    if (graph.TryGetLooseExecTargets(id, outPin.Name, out var targets))
+                        foreach (var t in targets)
+                            bfs.Enqueue(t.Id);
                 }
             }
             // Data-reachable set: nodes reachable from execReachable nodes via data edges.
@@ -148,40 +148,26 @@ internal static class StructuralReducer
             var dataBfs = new Queue<string>();
             foreach (var rid in execReachable)
             {
-                if (!nodeById.TryGetValue(rid, out var n)) continue;
+                var n = graph.GetNode(rid);
+                if (n is null) continue;
                 foreach (var inPin in n.InputPins)
                 {
                     if (inPin.Type == PinType.Execution) continue;
-                    foreach (var conn in blueprint.Connections)
-                    {
-                        if (conn.TargetNodeId != rid || conn.TargetPinId != inPin.Id) continue;
-                        if (!dataReachable.Contains(conn.SourceNodeId))
-                        {
-                            dataReachable.Add(conn.SourceNodeId);
-                            dataBfs.Enqueue(conn.SourceNodeId);
-                        }
-                    }
+                    EnqueueDataSources(graph, dataReachable, dataBfs, rid, inPin);
                 }
             }
             while (dataBfs.Count > 0)
             {
                 var id = dataBfs.Dequeue();
-                if (!nodeById.TryGetValue(id, out var n)) continue;
+                var n = graph.GetNode(id);
+                if (n is null) continue;
                 foreach (var inPin in n.InputPins)
                 {
                     if (inPin.Type == PinType.Execution) continue;
-                    foreach (var conn in blueprint.Connections)
-                    {
-                        if (conn.TargetNodeId != id || conn.TargetPinId != inPin.Id) continue;
-                        if (!dataReachable.Contains(conn.SourceNodeId))
-                        {
-                            dataReachable.Add(conn.SourceNodeId);
-                            dataBfs.Enqueue(conn.SourceNodeId);
-                        }
-                    }
+                    EnqueueDataSources(graph, dataReachable, dataBfs, id, inPin);
                 }
             }
-            foreach (var node in blueprint.Nodes)
+            foreach (var node in graph.Nodes)
             {
                 if (IsDefinitionNode(node)) continue;
                 if (execReachable.Contains(node.Id)) continue;
@@ -195,14 +181,14 @@ internal static class StructuralReducer
         // at EntryNode, sub-scope tails dangle, no scope leak, break/continue in loop.
         if (entry is not null)
         {
-            var walkError = CheckStructuredReducibility(blueprint, nodeById, entry, out var nodeScope);
+            var walkError = CheckStructuredReducibility(graph, entry, out var nodeScope);
             if (walkError is not null) return walkError;
 
             // ── D4 (KS113): Condition sub-graph containment ──
             // Evaluated BEFORE D3/KS112: a condition source in the wrong scope also
             // violates data-scope reachability, and D4 is the more specific constraint
             // for control-flow condition/source sub-graphs.
-            var d4Error = CheckConditionSubgraphContained(blueprint, nodeById, nodeScope);
+            var d4Error = CheckConditionSubgraphContained(graph, nodeScope);
             if (d4Error is not null) return d4Error;
 
             // ── D3 (KS112): Data-scope reachability ──
@@ -269,6 +255,27 @@ internal static class StructuralReducer
 
     // ── Helpers ──
 
+    /// <summary>
+    /// Enqueues the resolved data sources feeding (nodeId, inPin) into the
+    /// data-reachable BFS (E1 connectivity). Replaces the original per-pin connection
+    /// scan with GraphIndex's per-pin data index.
+    /// </summary>
+    private static void EnqueueDataSources(GraphIndex graph, HashSet<string> dataReachable,
+        Queue<string> dataBfs, string nodeId, BlueprintPin inPin)
+    {
+        var edges = graph.IncomingTo(nodeId, inPin.Id);
+        if (edges is null) return;
+        foreach (var e in edges)
+        {
+            var sourceId = e.Source.Id;
+            if (!dataReachable.Contains(sourceId))
+            {
+                dataReachable.Add(sourceId);
+                dataBfs.Enqueue(sourceId);
+            }
+        }
+    }
+
     private static bool IsDefinitionNode(BlueprintNode node)
     {
         // Definition nodes (from const/var blocks) have NO connections and no Exec pins.
@@ -291,24 +298,29 @@ internal static class StructuralReducer
         => node is BuiltinFunctionNode fn && BpPinNames.IsTerminatorName(fn.FunctionName);
 
     /// <summary>
-    /// Cycle detection. When execOnly is true, follows only exec pins (E6);
-    /// when false, follows all pins (D1 data DAG).
-    /// Returns null if no cycle is found, or a list of node IDs forming the cycle.
+    /// Cycle detection. When execOnly is true, follows only exec pins (E6) via the
+    /// GraphIndex LOOSE exec index (the original scan filtered the source pin only —
+    /// a back-edge whose target pin does not resolve stays visible). When false,
+    /// follows ALL pins (D1 data DAG) — this mode keeps its inline connection scan:
+    /// GraphIndex's data index excludes exec edges, but the original D1 scan followed
+    /// every edge, and mixed exec+data cycles (e.g. br→body→br, noted in KS113 tests)
+    /// must still trip KS110. Returns null if no cycle is found, or a list of node IDs
+    /// forming the cycle.
     /// </summary>
-    private static List<string>? FindCycle(Blueprint bp, Dictionary<string, BlueprintNode> nodeById, bool execOnly)
+    private static List<string>? FindCycle(GraphIndex graph, Blueprint bp, bool execOnly)
     {
         var visited = new HashSet<string>();
         var inStack = new HashSet<string>();
         foreach (var node in bp.Nodes)
         {
             if (visited.Contains(node.Id)) continue;
-            var cycle = FindCycleFrom(bp, nodeById, node.Id, execOnly, visited, inStack, new List<string>());
+            var cycle = FindCycleFrom(graph, bp, node.Id, execOnly, visited, inStack, new List<string>());
             if (cycle is not null) return cycle;
         }
         return null;
     }
 
-    private static List<string>? FindCycleFrom(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
+    private static List<string>? FindCycleFrom(GraphIndex graph, Blueprint bp,
         string nodeId, bool execOnly, HashSet<string> visited, HashSet<string> inStack, List<string> path)
     {
         if (inStack.Contains(nodeId))
@@ -321,16 +333,34 @@ internal static class StructuralReducer
         inStack.Add(nodeId);
         path.Add(nodeId);
 
-        if (nodeById.TryGetValue(nodeId, out var node))
+        var node = graph.GetNode(nodeId);
+        if (node is not null)
         {
-            foreach (var outPin in node.OutputPins)
+            if (execOnly)
             {
-                if (execOnly && outPin.Type != PinType.Execution) continue;
-                foreach (var conn in bp.Connections)
+                foreach (var outPin in node.OutputPins)
                 {
-                    if (conn.SourceNodeId != nodeId || conn.SourcePinId != outPin.Id) continue;
-                    var result = FindCycleFrom(bp, nodeById, conn.TargetNodeId, execOnly, visited, inStack, path);
-                    if (result is not null) return result;
+                    if (outPin.Type != PinType.Execution) continue;
+                    if (!graph.TryGetLooseExecTargets(nodeId, outPin.Name, out var targets)) continue;
+                    foreach (var t in targets)
+                    {
+                        var result = FindCycleFrom(graph, bp, t.Id, execOnly, visited, inStack, path);
+                        if (result is not null) return result;
+                    }
+                }
+            }
+            else
+            {
+                // D1 (KS110): follow ALL edges (exec + data) — see FindCycle's note on
+                // why GraphIndex's data-only index cannot reproduce this scan.
+                foreach (var outPin in node.OutputPins)
+                {
+                    foreach (var conn in bp.Connections)
+                    {
+                        if (conn.SourceNodeId != nodeId || conn.SourcePinId != outPin.Id) continue;
+                        var result = FindCycleFrom(graph, bp, conn.TargetNodeId, execOnly, visited, inStack, path);
+                        if (result is not null) return result;
+                    }
                 }
             }
         }
@@ -347,44 +377,48 @@ internal static class StructuralReducer
     /// sub-walks that terminate at dangling tails. The End pin continues to the
     /// post-construct statement. Also enforces break/continue inside loop scope.
     /// Populates <paramref name="nodeScope"/> (node id → scope path) for the
-    /// D3/D4 scope checks.
+    /// D3/D4 scope checks. Traversal is driven by the shared ExecGraphWalker skeleton
+    /// (see ExecGraphWalker for the recursion contract).
     /// </summary>
-    private static ConstraintViolation? CheckStructuredReducibility(Blueprint bp,
-        Dictionary<string, BlueprintNode> nodeById, BlueprintNode entry,
-        out Dictionary<string, string> nodeScope)
+    private static ConstraintViolation? CheckStructuredReducibility(GraphIndex graph,
+        BlueprintNode entry, out Dictionary<string, string> nodeScope)
     {
-        var visited = new HashSet<string>();
-        nodeScope = new Dictionary<string, string>();
+        var visitor = new StructuredWalkVisitor();
         // The EntryNode itself is the root — mark it visited before walking its exec out.
-        visited.Add(entry.Id);
-        nodeScope[entry.Id] = NodePath.Top;
-        var error = WalkStructured(bp, nodeById, entry.Id, BpPinNames.Exec, visited, new Stack<string>(), NodePath.Top, nodeScope);
-        if (error is not null) return error;
+        visitor.Visited.Add(entry.Id);
+        visitor.NodeScope[entry.Id] = NodePath.Top;
+        visitor.Walk(graph, entry.Id, BpPinNames.Exec, NodePath.Top);
+        if (visitor.Error is not null)
+        {
+            nodeScope = visitor.NodeScope;
+            return visitor.Error;
+        }
+        nodeScope = visitor.NodeScope;
 
         // Data-reachable set: nodes proxied into exec graph via data edges (condition
         // sub-graph nodes whose Exec pin is intentionally dangling). These are not
         // visited by the exec-only structured walk but are legitimately connected.
         var dataReachable = new HashSet<string>();
-        foreach (var v in visited)
+        foreach (var v in visitor.Visited)
         {
-            if (!nodeById.TryGetValue(v, out var n)) continue;
+            var n = graph.GetNode(v);
+            if (n is null) continue;
             foreach (var inPin in n.InputPins)
             {
                 if (inPin.Type == PinType.Execution) continue;
-                foreach (var conn in bp.Connections)
-                {
-                    if (conn.TargetNodeId != v || conn.TargetPinId != inPin.Id) continue;
-                    CollectDataAncestors(bp, nodeById, conn.SourceNodeId, dataReachable);
-                }
+                var edges = graph.IncomingTo(v, inPin.Id);
+                if (edges is null) continue;
+                foreach (var e in edges)
+                    CollectDataAncestors(graph, e.Source.Id, dataReachable);
             }
         }
 
         // After the structured walk, every non-definition node should be visited or
         // data-reachable. Orphan nodes indicate non-structural edges.
-        foreach (var node in bp.Nodes)
+        foreach (var node in graph.Nodes)
         {
             if (IsDefinitionNode(node)) continue;
-            if (visited.Contains(node.Id)) continue;
+            if (visitor.Visited.Contains(node.Id)) continue;
             if (dataReachable.Contains(node.Id)) continue;
             return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。", IsConnectionStructural: true);
         }
@@ -393,128 +427,83 @@ internal static class StructuralReducer
 
     /// <summary>
     /// Recursively collects upstream data-edge ancestors (condition sub-graph nodes
-    /// that are proxied into the exec graph via data flow).
+    /// that are proxied into the exec graph via data flow). Incoming edges come from
+    /// GraphIndex's per-pin data index (target pin resolved — dangling connections
+    /// cannot exist under strong-constraint editing).
     /// </summary>
-    private static void CollectDataAncestors(Blueprint bp,
-        Dictionary<string, BlueprintNode> nodeById, string nodeId, HashSet<string> set)
+    private static void CollectDataAncestors(GraphIndex graph, string nodeId, HashSet<string> set)
     {
         if (!set.Add(nodeId)) return;
-        if (!nodeById.TryGetValue(nodeId, out var n)) return;
+        var n = graph.GetNode(nodeId);
+        if (n is null) return;
         foreach (var inPin in n.InputPins)
         {
             if (inPin.Type == PinType.Execution) continue;
-            foreach (var conn in bp.Connections)
-            {
-                if (conn.TargetNodeId != nodeId || conn.TargetPinId != inPin.Id) continue;
-                CollectDataAncestors(bp, nodeById, conn.SourceNodeId, set);
-            }
+            var edges = graph.IncomingTo(nodeId, inPin.Id);
+            if (edges is null) continue;
+            foreach (var e in edges)
+                CollectDataAncestors(graph, e.Source.Id, set);
         }
     }
 
     /// <summary>
-    /// Recursive structured walk. Follows exec edges linearly; at control-flow nodes,
-    /// recursively walks each sub-scope pin independently in a fresh sub-scope context,
-    /// then continues from End pin. Records each visited node's scope path in
-    /// <paramref name="nodeScope"/> (scope segments match NodePath: /then /else /body
-    /// /arm/{label} /default). Returns an error message on structural violation.
+    /// ExecGraphWalker visitor for the E2 structured-reducibility walk: records each
+    /// node's scope path (KS112/KS113 inputs), reports KS101 on merge-point re-visits
+    /// (short-circuiting the whole walk — the first error wins), and tracks the loop
+    /// scope stack for KS140 (break/continue outside any loop). Loop-scope push/pop
+    /// brackets Each/While sub-scope recursion, exactly like the original WalkStructured.
     /// </summary>
-    private static ConstraintViolation? WalkStructured(Blueprint bp, Dictionary<string, BlueprintNode> nodeById,
-        string sourceId, string pinName, HashSet<string> visited, Stack<string> loopScopeStack,
-        string scopePath, Dictionary<string, string> nodeScope)
+    private sealed class StructuredWalkVisitor : ExecGraphWalker
     {
-        // Find all exec edges leaving (sourceId, pinName). Match by pin *name* (not id)
-        // because a node may have auto-generated pins from InitializePinsFromDescriptor
-        // alongside manually-created ones; name+type uniquely identifies the exec out pin.
-        var source = nodeById.GetValueOrDefault(sourceId);
-        if (source is null) return null;
-        var hasOutPin = source.OutputPins.Any(p => p.Name == pinName && p.Type == PinType.Execution);
-        if (!hasOutPin) return null;  // pin doesn't exist — dangling
+        /// <summary>Nodes visited by the structured walk (the EntryNode is pre-seeded).</summary>
+        public readonly HashSet<string> Visited = new();
 
-        var targets = new List<string>();
-        foreach (var conn in bp.Connections)
-        {
-            if (conn.SourceNodeId != sourceId) continue;
-            // Resolve the source pin by id to verify it's the named exec pin.
-            var srcPin = source.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Name != pinName || srcPin.Type != PinType.Execution) continue;
-            targets.Add(conn.TargetNodeId);
-        }
-        if (targets.Count == 0) return null;  // dangling tail — fine (natural end)
+        /// <summary>Node id → scope path (NodePath conventions: /top /then /else /body /arm/{label} /default).</summary>
+        public readonly Dictionary<string, string> NodeScope = new();
 
-        foreach (var targetId in targets)
+        /// <summary>The first structural error, if the walk failed (short-circuits the walk).</summary>
+        public ConstraintViolation? Error;
+
+        private readonly Stack<string> _loopScopeStack = new();
+
+        protected override VisitDecision OnNode(BlueprintNode node, string scopePath)
         {
-            if (!visited.Add(targetId))
+            if (!Visited.Add(node.Id))
             {
                 // Re-visiting a node in a *different* path = merge point = structural error.
-                var n = nodeById.GetValueOrDefault(targetId);
-                return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{n?.Name ?? targetId}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { targetId }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
+                Error = new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{node.Name ?? node.Id}' 被多个 exec 路径访问（菱形合流），违反结构化归约性（E2）。v6 End-pin 模型不允许合流点；子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", new[] { node.Id }, null, "子作用域末节点应悬空，后续语句连接到控制流节点的 End pin。", IsConnectionStructural: true);
+                return VisitDecision.Stop;
             }
 
             // Record the node's scope BEFORE recursing into any sub-scopes: a control-flow
             // node belongs to its OUTER scope, while the nodes inside its bodies get the
             // sub-scope paths appended below. A re-visit (diamond merge) never reaches
-            // here, so nodeScope is never overwritten.
-            nodeScope[targetId] = scopePath;
+            // here, so NodeScope is never overwritten.
+            NodeScope[node.Id] = scopePath;
 
-            if (!nodeById.TryGetValue(targetId, out var node))
-                return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 {targetId} 不存在。", new[] { targetId });
-
-            if (node is BuiltinFunctionNode fn && BpPinNames.IsControlFlowName(fn.FunctionName))
-            {
-                // Control-flow node: walk each sub-scope pin in a fresh context,
-                // then continue from End pin.
-                bool isLoop = fn.FunctionName is "Each" or "While";
-                if (isLoop) loopScopeStack.Push(targetId);
-                foreach (var subPin in fn.OutputPins)
-                {
-                    if (subPin.Name == BpPinNames.End) continue;
-                    if (subPin.Type != PinType.Execution) continue;
-                    // Sub-scope path segment: True→/then, False→/else, Body→/body,
-                    // integer arm labels→/arm/{label}, Default→/default. Unmapped pins
-                    // (defensive; none in the v6 renderer) keep the current scope.
-                    var childScope = ScopeSegment(subPin.Name) is { } seg ? scopePath + seg : scopePath;
-                    var subError = WalkStructured(bp, nodeById, targetId, subPin.Name,
-                        visited, loopScopeStack, childScope, nodeScope);
-                    if (subError is not null) return subError;
-                }
-                if (isLoop) loopScopeStack.Pop();
-
-                // Continue from End pin (the post-construct continuation) — same scope.
-                var endError = WalkStructured(bp, nodeById, targetId, BpPinNames.End,
-                    visited, loopScopeStack, scopePath, nodeScope);
-                if (endError is not null) return endError;
-            }
-            else if (IsTerminatorNode(node))
+            if (node is BuiltinFunctionNode fn && BpPinNames.IsTerminatorName(fn.FunctionName))
             {
                 // break/continue: must be inside a loop scope.
-                if (loopScopeStack.Count == 0)
-                    return new ConstraintViolation(KsConstraintErrors.KS140, "BreakContinue", $"{KsConstraintErrors.KS140}: {(node as BuiltinFunctionNode)!.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { targetId }, null, "将 break/continue 移到 forEach 或 while 的 body 内。", IsConnectionStructural: true);
-                // Terminator has no exec-out — walk ends here.
+                if (_loopScopeStack.Count == 0)
+                {
+                    Error = new ConstraintViolation(KsConstraintErrors.KS140, "BreakContinue", $"{KsConstraintErrors.KS140}: {fn.FunctionName} 不在循环作用域内。break/continue 必须在 forEach 或 while body 内使用。", new[] { node.Id }, null, "将 break/continue 移到 forEach 或 while 的 body 内。", IsConnectionStructural: true);
+                    return VisitDecision.Stop;
+                }
+                // Terminator has no exec-out — the walker ends the chain here.
             }
-            else
-            {
-                // Ordinary node: continue the exec chain from its Exec output.
-                var contError = WalkStructured(bp, nodeById, targetId, BpPinNames.Exec,
-                    visited, loopScopeStack, scopePath, nodeScope);
-                if (contError is not null) return contError;
-            }
+            return VisitDecision.Visit;
         }
-        return null;
-    }
 
-    /// <summary>
-    /// Maps a control-flow output pin name to its scope-path segment, matching the
-    /// NodePath conventions (/then /else /body /arm/{label} /default). Returns null
-    /// for pins that do not open a sub-scope.
-    /// </summary>
-    private static string? ScopeSegment(string pinName) => pinName switch
-    {
-        BpPinNames.True => "/then",
-        BpPinNames.False => "/else",
-        BpPinNames.Body => "/body",
-        BpPinNames.Default => "/default",
-        _ => int.TryParse(pinName, out _) ? $"/arm/{pinName}" : null,
-    };
+        protected override void OnEnterControlFlow(BuiltinFunctionNode fn, string scopePath)
+        {
+            if (fn.FunctionName is "Each" or "While") _loopScopeStack.Push(fn.Id);
+        }
+
+        protected override void OnExitControlFlow(BuiltinFunctionNode fn, string scopePath)
+        {
+            if (fn.FunctionName is "Each" or "While") _loopScopeStack.Pop();
+        }
+    }
 
     /// <summary>
     /// D3 (KS112): Data-scope reachability — for every data edge, the source must
@@ -545,12 +534,13 @@ internal static class StructuralReducer
     /// D4 (KS113): Condition sub-graph containment — every node in a control-flow
     /// node's condition/source sub-graph (data ancestors of its data input pins) must
     /// share the control-flow node's exact scope. Nodes without a recorded scope are
-    /// skipped (detached snapshots / definition nodes).
+    /// skipped (detached snapshots / definition nodes). Incoming edges come from
+    /// GraphIndex's per-pin data index.
     /// </summary>
-    private static ConstraintViolation? CheckConditionSubgraphContained(Blueprint bp,
-        Dictionary<string, BlueprintNode> nodeById, Dictionary<string, string> nodeScope)
+    private static ConstraintViolation? CheckConditionSubgraphContained(GraphIndex graph,
+        Dictionary<string, string> nodeScope)
     {
-        foreach (var node in bp.Nodes)
+        foreach (var node in graph.Nodes)
         {
             if (node is not BuiltinFunctionNode fn || !BpPinNames.IsControlFlowName(fn.FunctionName)) continue;
             if (!nodeScope.TryGetValue(fn.Id, out var ctrlScope)) continue;
@@ -558,17 +548,16 @@ internal static class StructuralReducer
             foreach (var inPin in fn.InputPins)
             {
                 if (inPin.Type == PinType.Execution) continue;
-                foreach (var conn in bp.Connections)
-                {
-                    if (conn.TargetNodeId != fn.Id || conn.TargetPinId != inPin.Id) continue;
-                    CollectDataAncestors(bp, nodeById, conn.SourceNodeId, subgraph);
-                }
+                var edges = graph.IncomingTo(fn.Id, inPin.Id);
+                if (edges is null) continue;
+                foreach (var e in edges)
+                    CollectDataAncestors(graph, e.Source.Id, subgraph);
             }
             foreach (var id in subgraph)
             {
                 if (!nodeScope.TryGetValue(id, out var s)) continue;
                 if (s == ctrlScope) continue;
-                var n = nodeById.GetValueOrDefault(id);
+                var n = graph.GetNode(id);
                 return new ConstraintViolation(KsConstraintErrors.KS113, "D4",
                     $"{KsConstraintErrors.KS113}: 控制流节点的条件/源子图节点越出同级作用域，违反条件子图 contained 约束（D4）。建议：将条件/源子图的所有节点连接到控制流节点的同级 exec 链。",
                     new[] { fn.Id, id }, null,

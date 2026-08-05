@@ -60,8 +60,11 @@ public sealed class LayoutService : ILayoutService
         // ForkRegion.Arrange can compute branch offsets correctly.
         EnsureDefaultSizes(blueprint);
 
-        // Phase 1: Build exec adjacency map (Execution-pin connections only).
-        var execMap = BuildExecAdjacencyMap(blueprint);
+        // Phase 1: Build exec adjacency map (Execution-pin connections only), via the
+        // shared GraphIndex loose exec index (source-pin-only filter — the original
+        // BuildExecAdjacencyMap never inspected the target pin either).
+        var graph = new GraphIndex(blueprint);
+        var execMap = BuildExecAdjacencyMap(graph);
 
         // Phase 2: Find the single entry node (v6 has exactly one per workflow).
         // A PluginTriggerNode replaces the EntryNode when TriggerType=PluginEvent.
@@ -100,14 +103,17 @@ public sealed class LayoutService : ILayoutService
     /// <summary>
     /// Builds nodeId → [(pinName, targetNodeId)] mapping for exec-type connections
     /// only. Iterates by node OutputPins order (visual top-to-bottom) to ensure
-    /// branch direction assignment matches physical pin layout.
+    /// branch direction assignment matches physical pin layout. Per pin, the FIRST
+    /// connection (in connection order) wins — GraphIndex's loose exec index preserves
+    /// connection order per (nodeId, pinName), so its first target matches the
+    /// original FirstOrDefault scan. The target pin is not inspected (original semantics).
     /// </summary>
     private static Dictionary<string, List<(string PinName, string TargetId)>> BuildExecAdjacencyMap(
-        Blueprint blueprint)
+        GraphIndex graph)
     {
         var map = new Dictionary<string, List<(string, string)>>();
 
-        foreach (var node in blueprint.Nodes)
+        foreach (var node in graph.Nodes)
         {
             var execPins = node.OutputPins.Where(p => p.Type == PinType.Execution).ToList();
             if (execPins.Count == 0) continue;
@@ -115,10 +121,8 @@ public sealed class LayoutService : ILayoutService
             var targets = new List<(string PinName, string TargetId)>();
             foreach (var pin in execPins)
             {
-                var conn = blueprint.Connections.FirstOrDefault(c =>
-                    c.SourceNodeId == node.Id && c.SourcePinId == pin.Id);
-                if (conn != null)
-                    targets.Add((pin.Name, conn.TargetNodeId));
+                if (graph.TryGetLooseExecTargets(node.Id, pin.Name, out var pinTargets) && pinTargets.Count > 0)
+                    targets.Add((pin.Name, pinTargets[0].Id));
             }
 
             if (targets.Count > 0)

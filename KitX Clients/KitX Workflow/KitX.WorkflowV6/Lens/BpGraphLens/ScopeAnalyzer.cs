@@ -1,6 +1,7 @@
 namespace KitX.WorkflowV6.Lens.BpGraphLens;
 
 using KitX.Core.Contract.Workflow;
+using KitX.WorkflowV6.Ir;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ScopeAnalyzer — walks the Blueprint's exec topology to discover sub-scope regions.
@@ -9,8 +10,13 @@ using KitX.Core.Contract.Workflow;
 // and the reverse translator's WalkExecChain, but its sole purpose is to collect
 // *which nodes belong to which sub-scope*. It does not validate or build IR.
 //
+// The traversal itself is shared: both this analyzer and StructuralReducer drive the
+// ExecGraphWalker skeleton (sub-scope recursion + End-pin continuation), differing only
+// in the per-node hooks. See ExecGraphWalker for the traversal contract.
+//
 // Algorithm:
-//   1. Index exec edges: (sourceNodeId, pinName) → target nodes.
+//   1. Index exec edges via GraphIndex (loose exec index — source-pin-only filter,
+//      matching the original IndexExecOut which never inspected the target pin).
 //   2. Walk from EntryNode.Exec. Maintain a "current scope" node-set (null at top level).
 //   3. At each node:
 //        • Control-flow node (Branch/Each/While/Switch): belongs to current scope.
@@ -40,17 +46,17 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
         if (blueprint.Nodes.Count == 0) return [];
 
         var byId = blueprint.Nodes.ToDictionary(n => n.Id);
-        var execOut = IndexExecOut(blueprint, byId);
+        var graph = new GraphIndex(blueprint);
         // Entry or PluginTrigger (trigger entry node replaces Entry when TriggerType=PluginEvent).
         var entry = blueprint.Nodes.FirstOrDefault(n => n is EntryNode or PluginTriggerNode);
         if (entry is null) return [];
 
         var regions = new List<ScopeRegion>();
-        var globalVisited = new HashSet<string>();
 
         // Top-level walk: currentScope is null (top-level nodes are not framed).
-        WalkChain(entry.Id, BpPinNames.Exec, depth: 0,
-            currentScope: null, byId, execOut, regions, globalVisited);
+        // Scope paths follow the ExecGraphWalker convention: root = NodePath.Top.
+        var visitor = new ScopeCollectVisitor(regions);
+        visitor.Walk(graph, entry.Id, BpPinNames.Exec, NodePath.Top);
 
         // Compute bounding boxes from node coordinates. A parent region's frame must
         // ENCLOSE all its nested sub-regions, so child frames are merged recursively
@@ -128,114 +134,94 @@ internal sealed class ScopeAnalyzer : IScopeAnalyzer
         return box;
     }
 
-    // ── Exec-edge indexing ──
+    // ── ExecGraphWalker visitor: sub-scope region collection ──
+    //
+    // Semantics preserved from the original WalkChain:
+    //   • Global visited set — repeated visits are skipped silently.
+    //   • Control-flow node itself belongs to the CURRENT scope; each sub-scope pin
+    //     (except End) opens a fresh child scope-set + ScopeRegion placeholder whose
+    //     NodeIds are back-filled on exit (nested regions append AFTER the placeholder,
+    //     so the recorded index is stable — the regions[^1] clobbering regression).
+    //   • Region Depth = nesting depth (0 = direct child of top-level), derived from
+    //     the scope path: root NodePath.Top = 1 segment.
 
-    private static Dictionary<(string NodeId, string PinName), List<string>> IndexExecOut(
-        Blueprint bp, Dictionary<string, BlueprintNode> byId)
+    private sealed class ScopeCollectVisitor : ExecGraphWalker
     {
-        var execOut = new Dictionary<(string, string), List<string>>();
-        foreach (var conn in bp.Connections)
+        private readonly List<ScopeRegion> _regions;
+        private readonly HashSet<string> _globalVisited = new();
+        private readonly Stack<HashSet<string>?> _scopes = new();
+        private readonly Stack<int> _regionIndexes = new();
+
+        public ScopeCollectVisitor(List<ScopeRegion> regions)
         {
-            if (!byId.TryGetValue(conn.SourceNodeId, out var src)) continue;
-            if (!byId.TryGetValue(conn.TargetNodeId, out _)) continue;
-            var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
-            if (srcPin is null || srcPin.Type != PinType.Execution) continue;
-            var key = (conn.SourceNodeId, srcPin.Name);
-            if (!execOut.TryGetValue(key, out var list))
-            {
-                list = new List<string>();
-                execOut[key] = list;
-            }
-            list.Add(conn.TargetNodeId);
+            _regions = regions;
+            _scopes.Push(null);  // top level: no frame — nodes are not collected.
         }
-        return execOut;
-    }
 
-    // ── Recursive exec-chain walk ──
-
-    private void WalkChain(
-        string sourceId, string pinName, int depth,
-        HashSet<string>? currentScope,
-        Dictionary<string, BlueprintNode> byId,
-        Dictionary<(string, string), List<string>> execOut,
-        List<ScopeRegion> regions,
-        HashSet<string> globalVisited)
-    {
-        if (!execOut.TryGetValue((sourceId, pinName), out var targets)) return;
-
-        foreach (var targetId in targets)
+        protected override VisitDecision OnNode(BlueprintNode node, string scopePath)
         {
-            if (!globalVisited.Add(targetId)) continue;
-            if (!byId.TryGetValue(targetId, out var node)) continue;
-
-            if (node is BuiltinFunctionNode fn && BpPinNames.IsControlFlowName(fn.FunctionName))
-            {
-                // The control-flow node itself belongs to the current scope.
-                currentScope?.Add(targetId);
-
-                // Create a child ScopeRegion for each sub-scope output pin (except End).
-                foreach (var subPin in fn.OutputPins)
-                {
-                    if (subPin.Name == BpPinNames.End) continue;
-                    if (subPin.Type != PinType.Execution) continue;
-
-                    var childScope = new HashSet<string>();
-                    // Record the index BEFORE recursing: nested scopes append their own
-                    // regions afterwards, so regions[^1] would not reference this placeholder.
-                    var regionIndex = regions.Count;
-                    regions.Add(new ScopeRegion
-                    {
-                        ScopeId = $"{targetId}:{subPin.Name}",
-                        OwnerNodeId = targetId,
-                        OwnerFunctionName = fn.FunctionName,
-                        ScopeKind = DeriveScopeKind(fn.FunctionName, subPin.Name),
-                        Depth = depth,
-                        NodeIds = [],  // filled below, then made readonly after walk
-                        X = 0, Y = 0, Width = 0, Height = 0,  // computed later
-                    });
-                    // Recurse into the sub-scope with the child set as current scope.
-                    WalkChain(targetId, subPin.Name, depth + 1,
-                        childScope, byId, execOut, regions, globalVisited);
-                    // Replace THIS placeholder region's NodeIds with the collected set.
-                    var placeholder = regions[regionIndex];
-                    regions[regionIndex] = placeholder with { NodeIds = [.. childScope] };
-                }
-
-                // Continue from the End pin into the current scope.
-                WalkChain(targetId, BpPinNames.End, depth,
-                    currentScope, byId, execOut, regions, globalVisited);
-            }
-            else if (IsTerminator(node))
-            {
-                currentScope?.Add(targetId);
-                // Terminator has no exec-out; chain ends here.
-            }
-            else
-            {
-                currentScope?.Add(targetId);
-                WalkChain(targetId, BpPinNames.Exec, depth,
-                    currentScope, byId, execOut, regions, globalVisited);
-            }
+            if (!_globalVisited.Add(node.Id)) return VisitDecision.Skip;
+            _scopes.Peek()?.Add(node.Id);
+            return VisitDecision.Visit;
         }
+
+        protected override void OnEnterSubScope(BuiltinFunctionNode fn, string pinName, string childScopePath)
+        {
+            var childScope = new HashSet<string>();
+            _scopes.Push(childScope);
+
+            // Record the index BEFORE recursing: nested scopes append their own regions
+            // afterwards, so regions[^1] would not reference this placeholder.
+            var regionIndex = _regions.Count;
+            _regions.Add(new ScopeRegion
+            {
+                ScopeId = $"{fn.Id}:{pinName}",
+                OwnerNodeId = fn.Id,
+                OwnerFunctionName = fn.FunctionName,
+                ScopeKind = DeriveScopeKind(fn.FunctionName, pinName),
+                Depth = NestedDepth(childScopePath),
+                NodeIds = [],  // filled on exit, below
+                X = 0, Y = 0, Width = 0, Height = 0,  // computed later
+            });
+            _regionIndexes.Push(regionIndex);
+        }
+
+        protected override void OnExitSubScope(BuiltinFunctionNode fn, string pinName, string childScopePath)
+        {
+            var childScope = _scopes.Pop()!;  // walker guarantees Push/Pop pairing
+            var regionIndex = _regionIndexes.Pop();
+            // Replace THIS placeholder region's NodeIds with the collected set.
+            var placeholder = _regions[regionIndex];
+            _regions[regionIndex] = placeholder with { NodeIds = [.. childScope] };
+        }
+
+        /// <summary>
+        /// Nesting depth of a scope path (0 = direct child of top level). The root walk
+        /// seeds NodePath.Top ("/top", 1 segment) and every sub-scope appends one
+        /// segment, so depth = segment count - 1 = "/" count - 1... the child scope of
+        /// a top-level control-flow node ("/top/then") has 2 segments → depth 0.
+        /// </summary>
+        private static int NestedDepth(string scopePath)
+        {
+            int slashes = 0;
+            foreach (var c in scopePath)
+                if (c == '/') slashes++;
+            return slashes - 2;
+        }
+
+        /// <summary>
+        /// Maps a control-flow function name + sub-scope pin name to a human-readable label.
+        /// </summary>
+        private static string DeriveScopeKind(string functionName, string pinName) => functionName switch
+        {
+            "Branch" => pinName == BpPinNames.True ? "Then"
+                        : pinName == BpPinNames.False ? "Else"
+                        : pinName,
+            "Each" or "While" => pinName == BpPinNames.Body ? "Body" : pinName,
+            "Switch" => pinName == BpPinNames.Default ? "Default"
+                        : int.TryParse(pinName, out _) ? $"Arm:{pinName}"
+                        : pinName,
+            _ => pinName,
+        };
     }
-
-    // ── Helpers ──
-
-    private static bool IsTerminator(BlueprintNode node)
-        => node is BuiltinFunctionNode fn && BpPinNames.IsTerminatorName(fn.FunctionName);
-
-    /// <summary>
-    /// Maps a control-flow function name + sub-scope pin name to a human-readable label.
-    /// </summary>
-    private static string DeriveScopeKind(string functionName, string pinName) => functionName switch
-    {
-        "Branch" => pinName == BpPinNames.True ? "Then"
-                    : pinName == BpPinNames.False ? "Else"
-                    : pinName,
-        "Each" or "While" => pinName == BpPinNames.Body ? "Body" : pinName,
-        "Switch" => pinName == BpPinNames.Default ? "Default"
-                    : int.TryParse(pinName, out _) ? $"Arm:{pinName}"
-                    : pinName,
-        _ => pinName,
-    };
 }

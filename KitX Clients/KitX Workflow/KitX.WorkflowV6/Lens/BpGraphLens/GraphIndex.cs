@@ -29,6 +29,12 @@ using KitX.Core.Contract.Workflow;
 //     scanning). With strong-constraint editing such dangling connections cannot
 //     exist, and no test exercises them — the queries above therefore converge
 //     on the resolved-edge first-match.
+//   • Two exec indices: _execOut (STRICT — both pins must resolve to Execution
+//     pins; BpReverseTranslator's original predicate) and _execOutLoose (SOURCE
+//     pin only — the original ScopeAnalyzer/LayoutService/StructuralReducer scans
+//     never inspected the target pin, and the KS105 back-edge test feeds a node
+//     whose input pin does not resolve). Per-consumer queries pick the variant
+//     that matches their original scan.
 //   • Pin ids that do not resolve on their node stay in the edge lists as null
 //     so per-query filters can skip them exactly like the original `Find` +
 //     `is null → continue` pattern.
@@ -49,7 +55,17 @@ internal sealed class GraphIndex
     private readonly Dictionary<string, BlueprintNode> _byId;
 
     // Outgoing exec edges: (sourceNodeId, sourcePinName) → target nodes, in connection order.
+    // STRICT: both endpoints must resolve to an Execution pin (BpReverseTranslator's
+    // original scan inspected the target pin too). See _execOutLoose for the
+    // source-pin-only variant used by the scope walkers.
     private readonly Dictionary<(string, string), List<BlueprintNode>> _execOut = new();
+
+    // Outgoing exec edges filtered by the SOURCE pin only: every edge whose source pin
+    // resolves to an Execution pin, regardless of the target pin. Mirrors the original
+    // scans of ScopeAnalyzer / LayoutService / StructuralReducer, which never inspected
+    // the target pin — in particular the b→Entry back-edge of the KS105 test (target
+    // pin does not resolve) must stay visible here or the cycle check would miss it.
+    private readonly Dictionary<(string, string), List<BlueprintNode>> _execOutLoose = new();
 
     // Data-side edges by source node id, in connection order.
     private readonly Dictionary<string, List<Edge>> _outgoingByNode = new();
@@ -80,17 +96,32 @@ internal sealed class GraphIndex
             var srcPin = src.OutputPins.Find(p => p.Id == conn.SourcePinId);
             var tgtPin = tgt.InputPins.Find(p => p.Id == conn.TargetPinId);
 
-            if (srcPin is not null && srcPin.Type == PinType.Execution
-                && tgtPin is not null && tgtPin.Type == PinType.Execution)
+            if (srcPin is not null && srcPin.Type == PinType.Execution)
             {
-                var key = (conn.SourceNodeId, srcPin.Name);
-                if (!_execOut.TryGetValue(key, out var list))
+                // Loose exec edge (source-pin-only filter — the original scope-walk
+                // scans never inspected the target pin; a back-edge whose target pin
+                // does not resolve still counts as an exec edge for cycle/walk checks).
+                var looseKey = (conn.SourceNodeId, srcPin.Name);
+                if (!_execOutLoose.TryGetValue(looseKey, out var looseList))
                 {
-                    list = new List<BlueprintNode>();
-                    _execOut[key] = list;
+                    looseList = new List<BlueprintNode>();
+                    _execOutLoose[looseKey] = looseList;
                 }
-                list.Add(tgt);
-                continue;
+                looseList.Add(tgt);
+
+                // Strict exec edge: additionally requires the target pin to resolve to
+                // an Execution pin (BpReverseTranslator's original predicate).
+                if (tgtPin is not null && tgtPin.Type == PinType.Execution)
+                {
+                    var key = (conn.SourceNodeId, srcPin.Name);
+                    if (!_execOut.TryGetValue(key, out var list))
+                    {
+                        list = new List<BlueprintNode>();
+                        _execOut[key] = list;
+                    }
+                    list.Add(tgt);
+                    continue;
+                }
             }
 
             // Data-side edge (either pin may be null — per-query filters decide).
@@ -140,7 +171,20 @@ internal sealed class GraphIndex
     public bool HasExecTargets(string nodeId, string pinName)
         => _execOut.ContainsKey((nodeId, pinName));
 
+    /// <summary>
+    /// Loose exec targets: every edge whose SOURCE pin resolves to an Execution pin,
+    /// in connection order (the TARGET pin is not inspected). Mirrors the per-consumer
+    /// scans of ScopeAnalyzer / LayoutService / StructuralReducer, which filtered the
+    /// source pin only — the strict <see cref="TryGetExecTargets"/> additionally
+    /// requires the target pin to resolve to an Execution pin.
+    /// </summary>
+    public bool TryGetLooseExecTargets(string nodeId, string pinName, out List<BlueprintNode> targets)
+        => _execOutLoose.TryGetValue((nodeId, pinName), out targets!);
+
     // ── Node / raw-connection queries ──
+
+    /// <summary>All nodes of the blueprint (dictionary order — for enumeration only).</summary>
+    public IEnumerable<BlueprintNode> Nodes => _byId.Values;
 
     public BlueprintNode? GetNode(string id) => _byId.GetValueOrDefault(id);
 
