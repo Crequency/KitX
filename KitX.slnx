@@ -67,9 +67,7 @@
     <Project Path="KitX Standard/KitX File Formats/KitX.FileFormats.CSharp/KitX.FileFormats.CSharp.csproj" />
   </Folder>
   <Folder Name="/KitX Standard/KitX Script/">
-    <Project Path="KitX Standard/KitX Script/Kscript.Compiler/Kscript.Compiler.csproj" />
-    <Project Path="KitX Standard/KitX Script/Kscript.Parser/Kscript.Parser.csproj" />
-    <Project Path="KitX Standard/KitX Script/Kscript.VM/Kscript.VM.csproj" />
+    <Project Path="KitX Standard/KitX Script/Kscript.Runtime/Kscript.Runtime.csproj" />
   </Folder>
   <Folder Name="/KitX Standard/KitX Shared/">
     <Project Path="KitX Standard/KitX Shared/KitX.Shared.CSharp/KitX.Shared.CSharp.csproj" />
