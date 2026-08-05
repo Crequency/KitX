@@ -193,15 +193,14 @@ public sealed record KsIdentifier : KsNode
 /// (<c>Plugin.Method(args)</c>), and nested calls used as arguments.
 /// <see cref="MethodName"/> is the short name (last segment);
 /// <see cref="FullMethodName"/> the full dotted path. Args are the structured argument
-/// expressions (may themselves be KsCalls); RawArgs preserves each argument's source
-/// text for string-based lowering paths that haven't been migrated yet.
+/// expressions (may themselves be KsCalls). (The v5.1 raw-text arg cache was removed
+/// in W-5 — all lowering paths consume the structured <see cref="Args"/>.)
 /// </summary>
 public sealed record KsCall : KsNode
 {
     public required string MethodName { get; init; }
     public string FullMethodName { get; init; } = string.Empty;
     public ImmutableArray<KsNode> Args { get; init; } = [];
-    public ImmutableArray<string> RawArgs { get; init; } = [];
 
     public bool Equals(KsCall? other)
     {
@@ -209,8 +208,7 @@ public sealed record KsCall : KsNode
         if (ReferenceEquals(this, other)) return true;
         return MethodName == other.MethodName
             && FullMethodName == other.FullMethodName
-            && Args.SequenceEqual(other.Args)
-            && RawArgs.SequenceEqual(other.RawArgs);
+            && Args.SequenceEqual(other.Args);
     }
 
     public override int GetHashCode()
@@ -272,7 +270,6 @@ public sealed record KsPipelineSegment : KsNode
 {
     public required string Target { get; init; }
     public ImmutableArray<KsNode> Args { get; init; } = [];
-    public ImmutableArray<string> RawArgs { get; init; } = [];
     public bool IsVariableTap { get; init; }
     // Comment inherited from KsNode (inline `//` comment on this segment's line).
 
@@ -282,8 +279,7 @@ public sealed record KsPipelineSegment : KsNode
         if (ReferenceEquals(this, other)) return true;
         return Target == other.Target
             && IsVariableTap == other.IsVariableTap
-            && Args.SequenceEqual(other.Args)
-            && RawArgs.SequenceEqual(other.RawArgs);
+            && Args.SequenceEqual(other.Args);
     }
 
     public override int GetHashCode()

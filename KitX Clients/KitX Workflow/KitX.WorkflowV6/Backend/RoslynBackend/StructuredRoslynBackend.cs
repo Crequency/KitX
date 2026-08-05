@@ -112,7 +112,6 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
             {
                 IsSuccess = true,
                 Output = g.OutputLines,
-                ExecutedBlockCount = 0,
                 ExecutionTimeMs = sw.ElapsedMilliseconds,
             };
         }
@@ -131,10 +130,16 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         catch (Exception ex)
         {
             Log.Error(ex, "StructuredRoslynBackend: execution failed");
+            // Keep the full exception chain (reflection wraps runtime exceptions in
+            // TargetInvocationException, whose InnerException is the real failure);
+            // flattened so callers see the deepest cause without losing the wrapper.
+            var errorMessage = ex.InnerException is not null
+                ? $"{ex.Message} -> {ex.InnerException.Message}"
+                : ex.Message;
             return new BlockScriptExecutionResult
             {
                 IsSuccess = false,
-                ErrorMessage = ex.InnerException?.Message ?? ex.Message,
+                ErrorMessage = errorMessage,
             };
         }
         finally

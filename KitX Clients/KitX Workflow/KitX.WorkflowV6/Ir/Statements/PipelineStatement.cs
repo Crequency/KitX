@@ -78,9 +78,9 @@ public sealed record PipelineStatement : KitX.WorkflowV6.Ir.Statement
 /// </summary>
 /// <remarks>
 /// The v6 shape uses <see cref="KsNode"/> for <see cref="Arguments"/> (not raw strings)
-/// so the structured fingerprint, diff, and serialiser all operate on the AST. The
-/// <see cref="RawArguments"/> field is preserved for any lowering path that still
-/// operates on text, and will be retired as lowering migrates fully to the AST.
+/// so the structured fingerprint, diff, and serialiser all operate on the AST. (The
+/// v5.1 raw-text <c>RawArguments</c> cache was removed in W-5 — all lowering paths
+/// consume the structured AST.)
 /// </remarks>
 public sealed record Segment
 {
@@ -92,13 +92,6 @@ public sealed record Segment
     /// May contain <see cref="KsPlaceholder"/> nodes marking pipeline-value insertion slots.
     /// </summary>
     public ImmutableArray<KsNode> Arguments { get; init; } = [];
-
-    /// <summary>
-    /// Raw argument source strings (post nested-call expansion), preserved for any
-    /// lowering path that still operates on text. Retired once lowering fully migrates
-    /// to the structured AST.
-    /// </summary>
-    public ImmutableArray<string> RawArguments { get; init; } = [];
 
     /// <summary>True when this segment is a variable assignment tap rather than a call.</summary>
     public bool IsVariableTap { get; init; }
@@ -127,9 +120,6 @@ public sealed record Segment
         if (Arguments.Length != other.Arguments.Length) return false;
         for (int i = 0; i < Arguments.Length; i++)
             if (!Arguments[i].Equals(other.Arguments[i])) return false;
-        // RawArguments deliberately NOT compared: they are a derived cache of the
-        // structured Arguments. Comparing them would make semantically-equal pipelines
-        // with whitespace drift unequal, defeating the content-addressed identity.
         return true;
     }
 

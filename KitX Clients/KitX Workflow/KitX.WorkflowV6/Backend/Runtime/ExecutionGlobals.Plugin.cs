@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Backend.Runtime;
 
+using Serilog;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ExecutionGlobals.Plugin — plugin invocation entry points
 // (PluginCall / PluginCallWithTarget / TryGetDevice).
@@ -13,7 +15,15 @@ public partial class ExecutionGlobals
     {
         if (PluginHost is null) return null;
         try { return AsJsonElement(PluginHost.Call(pluginName, methodName, args)); }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            // The null return is load-bearing (generated code treats it as "no value"),
+            // but the failure itself must be audible: log with the full call context
+            // (W-8). Without this a silently-failing plugin call looks like a null result.
+            Log.Warning(ex, "[ExecutionGlobals] PluginCall failed for plugin '{PluginName}' method '{MethodName}' (args: {ArgCount})",
+                pluginName, methodName, args.Length);
+            return null;
+        }
     }
 
     /// <summary>PluginCallWithTarget: invokes a method on a target device's plugin.</summary>
@@ -21,7 +31,12 @@ public partial class ExecutionGlobals
     {
         if (PluginHost is null) return null;
         try { return AsJsonElement(PluginHost.CallWithTarget(pluginName, methodName, targetDevice, args)); }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[ExecutionGlobals] PluginCallWithTarget failed for plugin '{PluginName}' method '{MethodName}' target '{TargetDevice}' (args: {ArgCount})",
+                pluginName, methodName, targetDevice, args.Length);
+            return null;
+        }
     }
 
     /// <summary>TryGetDevice: finds an online device by name.</summary>

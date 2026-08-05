@@ -12,8 +12,23 @@ internal sealed class StructuredCodegen : CodegenBase
 {
     public StructuredCodegen(BuiltinFunctionRegistry registry) : base(registry) { }
 
+    /// <summary>
+    /// Emit-time statement counter driving the global cancellation-check cadence.
+    /// Reset at the start of every <see cref="Generate"/> call (alongside
+    /// _pipeCounter, per the CodegenBase contract).
+    /// </summary>
+    private int _cancelCheckCounter;
+
+    /// <summary>
+    /// Emit one cancellation check per this many emitted statements. Bounds the
+    /// instrumentation overhead on long straight-line programs while keeping
+    /// cancellation latency bounded (worst case: a check fires N statements late).
+    /// </summary>
+    private const int CancelCheckInterval = 1000;
+
     public override string Generate(Workflow ir, LoweringResult? lowering, bool hasDebugger = false)
     {
+        _cancelCheckCounter = 0;
         _ir = ir;
         _helperNames = new HashSet<string>(
             ir.HelperFunctions.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name!),
@@ -38,8 +53,35 @@ internal sealed class StructuredCodegen : CodegenBase
             EmitStatement(s);
     }
 
+    /// <summary>
+    /// Global cancellation check: emitted every <see cref="CancelCheckInterval"/>
+    /// statements so long straight-line programs stay cancellable (W-1). The token is
+    /// <see cref="ExecutionGlobals.DebugToken"/>, set by the backend from the caller's
+    /// CancellationToken — the same field the debug path's Checkpoint consults. On a
+    /// cancelled token <c>ThrowIfCancellationRequested</c> throws
+    /// <see cref="OperationCanceledException"/>, which the backend unwraps from the
+    /// reflection TargetInvocationException and rethrows as a cancellation.
+    /// </summary>
+    private void EmitCancellationCheck()
+    {
+        if (++_cancelCheckCounter < CancelCheckInterval) return;
+        _cancelCheckCounter = 0;
+        EmitLine("this.DebugToken.ThrowIfCancellationRequested();");
+    }
+
+    /// <summary>
+    /// Per-iteration cancellation check emitted at the top of every loop body
+    /// (while/foreach). The emit-time global counter alone cannot bound an infinite
+    /// loop — a body of a few statements would never accumulate 1000 emits — so every
+    /// iteration pays one token check (a near-free field read on a non-cancelled token)
+    /// and `while true` workflows become stoppable via Stop/cancellation (W-1).
+    /// </summary>
+    private void EmitLoopIterationCheck()
+        => EmitLine("this.DebugToken.ThrowIfCancellationRequested();");
+
     private void EmitStatement(Statement stmt)
     {
+        EmitCancellationCheck();
         switch (stmt)
         {
             case PipelineStatement p:
@@ -64,6 +106,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 EmitLine($"foreach (var {fe.ItemName} in {RenderKsNode(fe.Source)})");
                 EmitLine("{");
                 Indent();
+                EmitLoopIterationCheck();
                 PushLocal(fe.ItemName);
                 EmitBody(fe.Body);
                 PopLocal(fe.ItemName);
@@ -74,6 +117,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 EmitLine($"while ({RenderKsNode(ws.Condition)})");
                 EmitLine("{");
                 Indent();
+                EmitLoopIterationCheck();
                 EmitBody(ws.Body);
                 Dedent();
                 EmitLine("}");

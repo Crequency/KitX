@@ -115,8 +115,14 @@ internal sealed class ScriptCompiler
         }
         catch (Exception ex)
         {
+            // Log the full chain (inner exceptions carry the real failure, e.g. a codegen
+            // InvalidOperationException wrapped by TypeInferer), then surface a flattened
+            // message so the backend's ErrorMessage shows the deepest cause (W-8).
             Log.Warning(ex, "[ScriptCompiler] Compilation threw an exception");
-            return (null, null, new[] { $"Compilation threw an exception: {ex.Message}" });
+            var message = ex.InnerException is not null
+                ? $"{ex.Message} -> {ex.InnerException.Message}"
+                : ex.Message;
+            return (null, null, new[] { $"Compilation threw an exception: {message}" });
         }
     }
 
