@@ -18,9 +18,14 @@ using Serilog;
 // JsonElement via AsJsonElement (List-Port-And-Json-
 // Functions-Design.md §1).
 //
-// Lifecycle methods (StartPlugin/StopPlugin/etc.) are stubbed for now — plugin
-// lifecycle is managed elsewhere (PluginsManager). They return benign defaults
-// so workflow scripts that call them don't crash.
+// Lifecycle/query methods (StartPlugin/StopPlugin/etc.) are stubbed for now — plugin
+// lifecycle is managed elsewhere (PluginsManager). They previously returned benign
+// defaults so workflow scripts that call them didn't crash, but a workflow then saw a
+// fake success / empty result that was harder to diagnose than a failure. Since the
+// adapter has no implementation to offer, they now log a warning and raise
+// NotImplementedException so the workflow surfaces a real error (D6).
+// TryGetDevice is the exception: null is the documented "not found" result, so it
+// keeps its truthful (if unhelpful) return value.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -72,28 +77,47 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         return Call(pluginName, methodName, fullArgs);
     }
 
-    /// <summary>Looks up a connected device by name. Not yet implemented — returns null.</summary>
+    /// <summary>Looks up a connected device by name. Not implemented — null is the
+    /// interface's documented "device not found" result, so it is returned truthfully.</summary>
     public object? TryGetDevice(string deviceName) => null;
 
     // ── Plugin lifecycle (stubbed — managed by PluginsManager) ──
+    //
+    // D6: these raise instead of silently returning fake success. The workflow runtime
+    // does not swallow exceptions for these methods, so a calling workflow fails with
+    // a visible error rather than continuing on a false result.
 
-    public bool StartPlugin(string pluginName) => false;
-    public bool StopPlugin(string pluginName) => false;
+    public bool StartPlugin(string pluginName) => StubNotImplemented(nameof(StartPlugin));
+    public bool StopPlugin(string pluginName) => StubNotImplemented(nameof(StopPlugin));
 
     // ── Workflow lifecycle (stubbed) ──
 
-    public bool StopWorkflow(string workflowId) => false;
-    public string CreateWorkflow(string name, string source) => "";
-    public bool RunWorkflow(string workflowId) => false;
+    public bool StopWorkflow(string workflowId) => StubNotImplemented(nameof(StopWorkflow));
+    public string CreateWorkflow(string name, string source) => StubNotImplemented<string>(nameof(CreateWorkflow));
+    public bool RunWorkflow(string workflowId) => StubNotImplemented(nameof(RunWorkflow));
 
     // ── Queries (stubbed) ──
 
-    public bool InstallPlugin(string kxpPath) => false;
-    public string GetPluginInfoByName(string pluginName) => "{}";
-    public string ListPluginNames() => "[]";
-    public string ListWorkflows() => "[]";
+    public bool InstallPlugin(string kxpPath) => StubNotImplemented(nameof(InstallPlugin));
+    public string GetPluginInfoByName(string pluginName) => StubNotImplemented<string>(nameof(GetPluginInfoByName));
+    public string ListPluginNames() => StubNotImplemented<string>(nameof(ListPluginNames));
+    public string ListWorkflows() => StubNotImplemented<string>(nameof(ListWorkflows));
 
     // ── Helpers ──
+
+    /// <summary>
+    /// Logs a warning and throws for adapter methods that have no implementation.
+    /// Replaces the old silent fake defaults (false/""/"{}") that made workflow
+    /// failures harder to diagnose than an explicit error (D6).
+    /// </summary>
+    private static T StubNotImplemented<T>(string methodName)
+    {
+        Log.Warning("[PluginHostAdapter] {Method} is a stub — no implementation in the active host; raising instead of returning a fake result", methodName);
+        throw new NotImplementedException(
+            $"{nameof(PluginHostAdapter)}.{methodName} is not implemented — plugin lifecycle/querying is managed outside the workflow host.");
+    }
+
+    private static bool StubNotImplemented(string methodName) => StubNotImplemented<bool>(methodName);
 
     private static PluginCallInfo BuildCallInfo(string pluginName, string methodName, object[] args)
     {
