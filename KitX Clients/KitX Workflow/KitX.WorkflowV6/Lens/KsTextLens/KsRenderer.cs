@@ -469,16 +469,7 @@ internal sealed class KsRenderer
         _ => node.SourceText.Length > 0 ? node.SourceText : node.GetType().Name,
     };
 
-    private static string RenderLiteral(KsLiteral lit) => lit.Kind switch
-    {
-        KsLiteralKind.String => $"\"{lit.Value}\"",
-        KsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
-        KsLiteralKind.Double => lit.Value?.ToString() ?? "0.0",
-        KsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
-        KsLiteralKind.Char => $"'{lit.Value}'",
-        KsLiteralKind.Null => "null",
-        _ => lit.SourceText,
-    };
+    private static string RenderLiteral(KsLiteral lit) => KsScalarLiteralCodec.Encode(lit);
 
     private static string Indent(int level) => new(' ', level * IndentWidth);
 }

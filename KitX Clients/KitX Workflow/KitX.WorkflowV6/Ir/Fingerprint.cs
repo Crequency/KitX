@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using KitX.WorkflowV6.Ir.Ast;
@@ -151,7 +152,12 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         {
             case KsLiteral lit:
                 accum.AddString(lit.Kind.ToString());
-                accum.AddOptional(lit.Value?.ToString());
+                // Doubles format invariant-culture so fingerprints are machine-independent.
+                accum.AddOptional(lit.Value switch
+                {
+                    double d => d.ToString(CultureInfo.InvariantCulture),
+                    var v => v?.ToString(),
+                });
                 break;
             case KsIdentifier id:
                 accum.AddString(id.Name);

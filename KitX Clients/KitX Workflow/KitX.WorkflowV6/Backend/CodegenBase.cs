@@ -57,24 +57,13 @@ internal abstract class CodegenBase
         _ => $"/* {node.GetType().Name} */",
     };
 
-    protected string RenderLiteral(KsLiteral lit) => lit.Kind switch
+    protected string RenderLiteral(KsLiteral lit)
     {
-        KsLiteralKind.String => $"\"{EscapeString(lit.Value?.ToString() ?? "")}\"",
-        KsLiteralKind.Integer => lit.Value?.ToString() ?? "0",
-        KsLiteralKind.Double => (lit.Value?.ToString() ?? "0.0") + "d",
-        KsLiteralKind.Boolean => lit.Value is true ? "true" : "false",
-        KsLiteralKind.Char => $"'{lit.Value}'",
-        KsLiteralKind.Null => "null",
-        _ => "null",
-    };
-
-    protected static string EscapeString(string s)
-        => s.Replace("\\", "\\\\")
-             .Replace("\"", "\\\"")
-             .Replace("\n", "\\n")
-             .Replace("\r", "\\r")
-             .Replace("\t", "\\t")
-             .Replace("\0", "\\0");
+        // KS text and C# literal syntax agree for strings/chars (same escape table), so
+        // the shared codec renders them; doubles additionally carry the C# `d` suffix.
+        var text = KsScalarLiteralCodec.Encode(lit);
+        return lit.Kind == KsLiteralKind.Double ? text + "d" : text;
+    }
 
     protected string RenderIdentifier(KsIdentifier id)
     {

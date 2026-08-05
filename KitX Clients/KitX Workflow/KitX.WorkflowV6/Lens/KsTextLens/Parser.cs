@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Lens.KsTextLens;
 
+using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -422,7 +423,7 @@ internal sealed class Parser
         if (Current.Kind == KsTokenKind.StringLiteral)
         {
             var t = Advance();
-            return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Text, SourceText = $"\"{t.Text}\"", SourceLine = t.Line };
+            return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Text, SourceText = KsScalarLiteralCodec.EncodeStringLiteral(t.Text), SourceLine = t.Line };
         }
         if (Current.Kind == KsTokenKind.Identifier)
         {
@@ -481,12 +482,15 @@ internal sealed class Parser
             var tok = tokens[i];
             // Re-wrap literal tokens so the reconstructed text is valid KS / C# source.
             // StringLiteral.Text holds the *decoded* content (without surrounding quotes);
-            // re-add the quotes so e.g. `string bfCode = "..."` round-trips correctly
-            // through Codegen (which emits InitialValueExpression verbatim into C#).
+            // re-wrap via the shared codec (escape-symmetric) so e.g. `string bfCode = "..."`
+            // round-trips correctly through Codegen (which emits InitialValueExpression
+            // verbatim into C#).
             sb.Append(tok.Kind switch
             {
-                KsTokenKind.StringLiteral => $"\"{tok.Text}\"",
-                KsTokenKind.CharLiteral => $"'{tok.Text}'",
+                KsTokenKind.StringLiteral => KsScalarLiteralCodec.EncodeStringLiteral(tok.Text),
+                KsTokenKind.CharLiteral => tok.Value is char c
+                    ? KsScalarLiteralCodec.EncodeCharLiteral(c)
+                    : $"'{tok.Text}'",
                 _ => tok.Text,
             });
         }
@@ -854,13 +858,13 @@ internal sealed class Parser
         switch (Current.Kind)
         {
             case KsTokenKind.StringLiteral:
-                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Value, SourceText = $"\"{t.Value}\"", SourceLine = t.Line }; }
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.String, Value = t.Value, SourceText = KsScalarLiteralCodec.EncodeStringLiteral(t.Value as string), SourceLine = t.Line }; }
             case KsTokenKind.IntegerLiteral:
                 { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Integer, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
             case KsTokenKind.DoubleLiteral:
                 { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Double, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
             case KsTokenKind.CharLiteral:
-                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Char, Value = t.Value, SourceText = $"'{t.Value}'", SourceLine = t.Line }; }
+                { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Char, Value = t.Value, SourceText = t.Value is char c ? KsScalarLiteralCodec.EncodeCharLiteral(c) : $"'{t.Value}'", SourceLine = t.Line }; }
             case KsTokenKind.BooleanLiteral:
                 { var t = Advance(); return new KsLiteral { Kind = KsLiteralKind.Boolean, Value = t.Value, SourceText = t.Text, SourceLine = t.Line }; }
             case KsTokenKind.NullLiteral:

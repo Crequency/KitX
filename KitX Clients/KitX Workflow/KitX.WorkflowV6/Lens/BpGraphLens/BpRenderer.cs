@@ -205,16 +205,13 @@ internal sealed class BpRenderer
             : key.SourceText;
 
     /// <summary>
-    /// Value pin text: the scalar literal's value in text form (same convention as
-    /// WireCallArgs' <c>lit.Value?.ToString()</c>), with bool lowercased to
-    /// <c>true/false</c> and null as <c>null</c>. Strings carry no quotes — the reverse
-    /// translator re-parses the text by type.
+    /// Value pin text: the scalar literal's value in text form via the shared codec
+    /// (bare value, invariant-culture numbers, bool lowercased, null as <c>null</c>).
+    /// Strings carry no quotes — the reverse translator re-parses the text by type.
     /// </summary>
     private static string DictValueToText(KsNode value) => value switch
     {
-        KsLiteral { Kind: KsLiteralKind.Null } => "null",
-        KsLiteral { Kind: KsLiteralKind.Boolean } lit => lit.Value is true ? "true" : "false",
-        KsLiteral lit => lit.Value?.ToString() ?? "null",
+        KsLiteral lit => KsScalarLiteralCodec.EncodeBareValue(lit),
         _ => "null",
     };
 
@@ -515,7 +512,7 @@ internal sealed class BpRenderer
             switch (args[i])
             {
                 case KsLiteral lit:
-                    pin.DefaultValue = lit.Value?.ToString() ?? "null";
+                    pin.DefaultValue = KsScalarLiteralCodec.EncodeBareValue(lit);
                     break;
                 case KsIdentifier id:
                     var vn = MakeIdentifierUsageNode(id.Name, $"{path}/{i}");
@@ -754,7 +751,7 @@ internal sealed class BpRenderer
                     {
                         Name = lit.Value?.ToString() ?? "null",
                         ConstName = lit.Value?.ToString() ?? "null",
-                        ConstValue = lit.Value?.ToString(),
+                        ConstValue = KsScalarLiteralCodec.EncodeBareValue(lit),
                     }, path);
                     ConnectExecTails(prevTails, cn);
                     return cn;
@@ -860,7 +857,7 @@ internal sealed class BpRenderer
                     {
                         Name = lit.Value?.ToString() ?? "null",
                         ConstName = lit.Value?.ToString() ?? "null",
-                        ConstValue = lit.Value?.ToString(),
+                        ConstValue = KsScalarLiteralCodec.EncodeBareValue(lit),
                     }, path);
                     if (lit.Comment is { Length: > 0 })
                         cn.Comment = lit.Comment;

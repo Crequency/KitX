@@ -332,11 +332,17 @@ internal sealed class BpReverseTranslator
         {
             var keyPin = fn.InputPins.Find(p => p.Name == $"Key{i}");
             if (keyPin is null) break;
+            var rawKey = keyPin.DefaultValue ?? string.Empty;
             var key = new KsLiteral
             {
                 Kind = KsLiteralKind.String,
-                Value = keyPin.DefaultValue ?? string.Empty,
-                SourceText = keyPin.DefaultValue ?? string.Empty,
+                Value = rawKey,
+                // Identifier-style keys keep their bare form (`{a: 1}`); keys containing
+                // quotes/backslashes are re-wrapped with quotes and escapes so they
+                // survive re-parse (the Value above stays the raw string).
+                SourceText = rawKey.IndexOfAny(['"', '\\']) >= 0
+                    ? KsScalarLiteralCodec.EncodeStringLiteral(rawKey)
+                    : rawKey,
             };
             var value = ParseDictValueText(fn.InputPins.Find(p => p.Name == $"Value{i}")?.DefaultValue);
             entries.Add(new KsDictEntry { Key = key, Value = value });
@@ -347,23 +353,14 @@ internal sealed class BpReverseTranslator
     }
 
     /// <summary>
-    /// Parses a DictNew Value pin's text back into a scalar literal. Order: null,
-    /// bool, int, double, char; anything else falls back to a string literal (raw
-    /// text, no quotes — the renderer's text convention).
+    /// Parses a DictNew Value pin's text back into a scalar literal (shared codec,
+    /// dict-value convention: single-character text resolves to a char — the
+    /// documented T8 behavior).
     /// </summary>
     private static KsLiteral ParseDictValueText(string? text)
     {
-        if (text is null || text == "null")
-            return new KsLiteral { Kind = KsLiteralKind.Null, Value = null, SourceText = "null" };
-        if (bool.TryParse(text, out var b))
-            return new KsLiteral { Kind = KsLiteralKind.Boolean, Value = b, SourceText = b ? "true" : "false" };
-        if (int.TryParse(text, out var i))
-            return new KsLiteral { Kind = KsLiteralKind.Integer, Value = i, SourceText = text };
-        if (double.TryParse(text, out var d))
-            return new KsLiteral { Kind = KsLiteralKind.Double, Value = d, SourceText = text };
-        if (char.TryParse(text, out var ch))
-            return new KsLiteral { Kind = KsLiteralKind.Char, Value = ch, SourceText = $"'{ch}'" };
-        return new KsLiteral { Kind = KsLiteralKind.String, Value = text, SourceText = $"\"{text}\"" };
+        var (kind, value) = KsScalarLiteralCodec.DecodeDictValue(text);
+        return new KsLiteral { Kind = kind, Value = value, SourceText = KsScalarLiteralCodec.Encode(new KsLiteral { Kind = kind, Value = value }) };
     }
 
     // ── Graph indexing ──
@@ -1334,11 +1331,8 @@ internal sealed class BpReverseTranslator
     private static KsLiteral ParseDefaultValue(string value)
     {
         if (value is null) return MakeBoolLiteral(true);
-        if (bool.TryParse(value, out var b)) return MakeBoolLiteral(b);
-        if (int.TryParse(value, out var i)) return new KsLiteral { Kind = KsLiteralKind.Integer, Value = i, SourceText = value };
-        if (double.TryParse(value, out var d)) return new KsLiteral { Kind = KsLiteralKind.Double, Value = d, SourceText = value };
-        // String literal: BpRenderer stores raw value (without quotes); wrap as string.
-        return new KsLiteral { Kind = KsLiteralKind.String, Value = value, SourceText = $"\"{value}\"" };
+        var (kind, val) = KsScalarLiteralCodec.Decode(value);
+        return new KsLiteral { Kind = kind, Value = val, SourceText = KsScalarLiteralCodec.Encode(new KsLiteral { Kind = kind, Value = val }) };
     }
 
     private static KsLiteral MakeBoolLiteral(bool value)

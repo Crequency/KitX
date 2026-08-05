@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Lens.KsTextLens;
 
+using KitX.WorkflowV6.Ir;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tokenizer — indent-aware KS lexer (discussion notes §十二-A: 4 spaces per level,
 // Tab forbidden).
@@ -322,19 +324,8 @@ internal static class Tokenizer
                     sink.AddError(KsErrors.UnterminatedStringLiteral, "Unterminated string literal", lineNo, col);
                     return (null, line.Length);
                 }
-                // Decode common C# escapes.
-                char esc = line[j + 1];
-                sb.Append(esc switch
-                {
-                    'n' => '\n',
-                    't' => '\t',
-                    'r' => '\r',
-                    '\\' => '\\',
-                    '"' => '"',
-                    '\'' => '\'',
-                    '0' => '\0',
-                    _ => esc,  // unknown escapes pass through verbatim
-                });
+                // Decode common escapes (shared codec — symmetric with the encoder).
+                sb.Append(KsScalarLiteralCodec.DecodeEscapeChar(line[j + 1]));
                 j += 2;
                 continue;
             }
@@ -367,17 +358,7 @@ internal static class Tokenizer
                 return (null, line.Length);
             }
             char esc = line[j + 1];
-            char decoded = esc switch
-            {
-                'n' => '\n',
-                't' => '\t',
-                'r' => '\r',
-                '\\' => '\\',
-                '\'' => '\'',
-                '"' => '"',
-                '0' => '\0',
-                _ => esc,
-            };
+            char decoded = KsScalarLiteralCodec.DecodeEscapeChar(esc);
             return (decoded, j + 3);
         }
         if (j + 1 >= line.Length || line[j + 1] != '\'')
