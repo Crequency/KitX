@@ -890,7 +890,10 @@ public class KsTextLensTests : IClassFixture<WorkflowTestFixture>
     {
         // Multi-line condition with intermediate + last segment comments round-trips.
         // Intermediate segment comment on its continuation line; last segment comment
-        // after the ':' on the last continuation line.
+        // after the ':' on the last continuation line. Continuation lines and the
+        // body's first line share the header+1 indent (the `>` prefix distinguishes
+        // them — the parser anchors the body to the KEYWORD's indent, not the last
+        // continuation line's).
         var src = """
             var {
                 int a

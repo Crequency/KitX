@@ -226,8 +226,15 @@ public class DictE2ETests : IClassFixture<WorkflowTestFixture>
                 dict d = {val: MAX}
             }
             """;
-        var ir = _fixture.KsLens.Parse(src, []);
-        var d = ir.GlobalVars["d"];
+
+        // W-9: error-laden source must NOT produce a partial IR — Parse throws. The
+        // parser's null-literal RECOVERY is still observable at the AST level.
+        Assert.Throws<KsParseException>(() => _fixture.KsLens.Parse(src, []));
+
+        var (ast, diag) = _fixture.KsLens.ParseAstWithDiagnostics(src);
+        Assert.True(diag.HasErrors);
+        Assert.Contains(diag.Items, d => d.Code == "KS077");
+        var d = ast.VarBlock!.Declarations[0];
         Assert.NotNull(d.DictInitializer);
         var entry = d.DictInitializer!.Entries[0];
         Assert.True(entry.Value is KitX.WorkflowV6.Ir.Ast.KsLiteral

@@ -33,7 +33,7 @@ public class DefinitionValueTests : IClassFixture<WorkflowTestFixture>
             const {
                 int x = 5
             }
-            Print(x)
+            x > Print
             """, []);
         var bp = _fixture.BpLens.Project(ir);
 
@@ -80,7 +80,7 @@ public class DefinitionValueTests : IClassFixture<WorkflowTestFixture>
             const {
                 int x = 5
             }
-            Print(x)
+            x > Print
             """, []);
         var bp = _fixture.BpLens.Project(ir);
         var def = ConstDef(bp, "x")!;
@@ -113,11 +113,12 @@ public class DefinitionValueTests : IClassFixture<WorkflowTestFixture>
     {
         // Regression: Restore/Sync must only touch the standalone definition node —
         // wired usage nodes must never carry (or clobber with) a user value.
+        // (Both statements are the v6-canonical pipeline form — `Print(x)` would be a
+        // KS051 identifier-argument parse error since W-9 makes Parse strict.)
         var ir = _fixture.KsLens.Parse("""
             const {
                 int x = 5
             }
-            Print(x)
             x > Print
             """, []);
         var bp = _fixture.BpLens.Project(ir);

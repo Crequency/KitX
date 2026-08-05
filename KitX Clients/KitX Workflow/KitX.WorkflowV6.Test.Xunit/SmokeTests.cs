@@ -213,7 +213,7 @@ public class SmokeTests : IClassFixture<WorkflowTestFixture>
             Value = literalSource.Trim('"'),
             SourceText = literalSource,
         };
-        var seg = new Segment { Target = "Print", Arguments = [lit], RawArguments = [literalSource] };
+        var seg = new Segment { Target = "Print", Arguments = [lit] };
         // Construct with a placeholder fingerprint, then recompute the real structural
         // fingerprint once the full statement (sources + segments) is assembled.
         var stmt = new PipelineStatement

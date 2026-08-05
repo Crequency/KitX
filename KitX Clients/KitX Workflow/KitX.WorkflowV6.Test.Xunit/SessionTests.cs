@@ -117,12 +117,15 @@ public class SessionTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void KS_Edit_Const_Value_Updates_Session_Ir()
     {
-        var (svc, session) = MakeSession("const {\n    int x = 5\n}\nPrint(x)\n");
+        // `Print(x)` would be a KS051 identifier-arg parse error; use the canonical
+        // v6 pipeline form (W-9 makes Parse strict — error-laden text throws instead
+        // of producing a partial IR).
+        var (svc, session) = MakeSession("const {\n    int x = 5\n}\nx > Print\n");
         int fireCount = 0;
         session.IrChanged += _ => fireCount++;
 
         // Only the const value changes — the body is identical.
-        var changeSet = svc.ApplyKsEdit(session, "const {\n    int x = 6\n}\nPrint(x)\n");
+        var changeSet = svc.ApplyKsEdit(session, "const {\n    int x = 6\n}\nx > Print\n");
 
         Assert.NotNull(changeSet.StatementDiff);
         Assert.False(changeSet.StatementDiff!.IsEmpty);
@@ -134,16 +137,16 @@ public class SessionTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void KS_Edit_GlobalVar_Edit_Updates_Session_Ir()
     {
-        var (svc, session) = MakeSession("var {\n    int counter\n}\nPrint(counter)\n");
-        svc.ApplyKsEdit(session, "var {\n    string counter\n}\nPrint(counter)\n");
+        var (svc, session) = MakeSession("var {\n    int counter\n}\ncounter > Print\n");
+        svc.ApplyKsEdit(session, "var {\n    string counter\n}\ncounter > Print\n");
         Assert.Equal("string", session.Ir.GlobalVars["counter"].Type);
     }
 
     [Fact]
     public void KS_Edit_Adds_Const_To_Session_Ir()
     {
-        var (svc, session) = MakeSession("const {\n    int a = 1\n}\nPrint(a)\n");
-        svc.ApplyKsEdit(session, "const {\n    int a = 1\n    int b = 2\n}\nPrint(a)\nPrint(b)\n");
+        var (svc, session) = MakeSession("const {\n    int a = 1\n}\na > Print\n");
+        svc.ApplyKsEdit(session, "const {\n    int a = 1\n    int b = 2\n}\na > Print\nb > Print\n");
         Assert.True(session.Ir.Constants.ContainsKey("b"));
         Assert.Equal(2, session.Ir.Body.Length);
     }
@@ -151,11 +154,11 @@ public class SessionTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void KS_Edit_Unchanged_Const_Does_Not_Fire()
     {
-        var (svc, session) = MakeSession("const {\n    int x = 5\n}\nPrint(x)\n");
+        var (svc, session) = MakeSession("const {\n    int x = 5\n}\nx > Print\n");
         int fireCount = 0;
         session.IrChanged += _ => fireCount++;
         // Same text (same const value) → no diff → no event.
-        svc.ApplyKsEdit(session, "const {\n    int x = 5\n}\nPrint(x)\n");
+        svc.ApplyKsEdit(session, "const {\n    int x = 5\n}\nx > Print\n");
         Assert.Equal(0, fireCount);
     }
 }

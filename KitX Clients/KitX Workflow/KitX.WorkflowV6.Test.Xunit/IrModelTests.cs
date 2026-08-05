@@ -37,7 +37,7 @@ public class IrModelTests : IClassFixture<WorkflowTestFixture>
             Value = literalText.Trim('"'),
             SourceText = literalText,
         };
-        var seg = new Segment { Target = "Print", Arguments = [lit], RawArguments = [literalText] };
+        var seg = new Segment { Target = "Print", Arguments = [lit] };
         var stmt = new PipelineStatement
         {
             Fingerprint = Fingerprint.Compute("placeholder"),

@@ -63,7 +63,7 @@ public class SerializationTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Serialize_Deserialize_Const_Var_Blocks()
     {
-        var ir = Parse("const {", "    int x = 5", "}", "var {", "    int counter", "}", "Print(x)");
+        var ir = Parse("const {", "    int x = 5", "}", "var {", "    int counter", "}", "x > Print");
         var result = WorkflowSerializer.Deserialize(WorkflowSerializer.Serialize(ir));
         Assert.Equal(ir, result);
         Assert.Single(result.Constants);

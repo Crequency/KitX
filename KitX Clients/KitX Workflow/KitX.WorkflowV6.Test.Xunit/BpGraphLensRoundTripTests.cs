@@ -550,8 +550,8 @@ public class BpGraphLensRoundTripTests : IClassFixture<WorkflowTestFixture>
                     Print("right")
                 60:
                     Print("left")
-            default:
-                Print("other")
+                default:
+                    Print("other")
             """);
         var lens = _fixture.BpLens;
         var bp = lens.Project(ir);

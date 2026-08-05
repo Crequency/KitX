@@ -33,7 +33,16 @@ public class BpPluginTriggerTests : IClassFixture<WorkflowTestFixture>
             PluginName = pluginName,
             TriggerName = triggerName,
         };
-        trigger.OutputPins[0].Id = entry.OutputPins[0].Id;
+        // The S-2 contract refactor removed constructor pin-seeding — the contract's
+        // PluginTriggerNode no longer pre-fills its Exec output pin. Preserve the
+        // v5.1 "0-in/1-Exec-out" root shape explicitly (mirrors BpRenderer.SeedNodePins).
+        trigger.OutputPins.Add(new BlueprintPin
+        {
+            Id = entry.OutputPins[0].Id,
+            Name = "Exec",
+            Direction = PinDirection.Output,
+            Type = PinType.Execution,
+        });
 
         bp.Nodes[idx] = trigger;
     }

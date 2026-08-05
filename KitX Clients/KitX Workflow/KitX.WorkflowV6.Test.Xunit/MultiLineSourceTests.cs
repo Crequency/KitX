@@ -141,6 +141,9 @@ public class MultiLineSourceTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Condition_Header_Comma_LineBreak_And_Comment()
     {
+        // Multi-line condition header: continuation lines and the body's first line sit
+        // at the same indent (header+1); the `>` prefix / colon terminator disambiguates
+        // continuation vs body per the grammar.
         var ir = _fixture.KsLens.Parse("""
             var {
                 int a

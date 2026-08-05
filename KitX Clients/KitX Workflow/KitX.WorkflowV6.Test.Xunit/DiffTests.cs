@@ -527,8 +527,8 @@ public class DiffTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Diff_Const_Value_Edit_Is_Reported()
     {
-        var old = Parse("const {", "    int x = 5", "}", "Print(x)");
-        var nws = Parse("const {", "    int x = 6", "}", "Print(x)");
+        var old = Parse("const {", "    int x = 5", "}", "x > Print");
+        var nws = Parse("const {", "    int x = 6", "}", "x > Print");
         var diff = WorkflowDiffer.Compute(old, nws);
         // Body is unchanged — only the declaration section differs.
         Assert.True(diff.StatementChanges.IsEmpty);
@@ -543,8 +543,8 @@ public class DiffTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Apply_Const_Value_Edit_Updates_Workflow_Constants()
     {
-        var old = Parse("const {", "    int x = 5", "}", "Print(x)");
-        var nws = Parse("const {", "    int x = 6", "}", "Print(x)");
+        var old = Parse("const {", "    int x = 5", "}", "x > Print");
+        var nws = Parse("const {", "    int x = 6", "}", "x > Print");
         var diff = WorkflowDiffer.Compute(old, nws);
         var result = WorkflowDiffApply.Apply(old, diff);
         Assert.Equal(nws, result);
@@ -554,8 +554,8 @@ public class DiffTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Diff_And_Apply_Const_Added_And_Removed()
     {
-        var old = Parse("const {", "    int a = 1", "}", "Print(a)");
-        var nws = Parse("const {", "    int b = 2", "}", "Print(b)");
+        var old = Parse("const {", "    int a = 1", "}", "a > Print");
+        var nws = Parse("const {", "    int b = 2", "}", "b > Print");
         var diff = WorkflowDiffer.Compute(old, nws);
         Assert.Contains(diff.DeclarationChanges, c =>
             c.Section == DeclarationSection.Constants && c.Name == "a" && c.Kind == DiffKind.Removed);
@@ -568,8 +568,8 @@ public class DiffTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Diff_And_Apply_GlobalVar_Edit()
     {
-        var old = Parse("var {", "    int counter", "}", "Print(counter)");
-        var nws = Parse("var {", "    string counter", "}", "Print(counter)");
+        var old = Parse("var {", "    int counter", "}", "counter > Print");
+        var nws = Parse("var {", "    string counter", "}", "counter > Print");
         var diff = WorkflowDiffer.Compute(old, nws);
         Assert.True(diff.StatementChanges.IsEmpty);
         var decl = Assert.Single(diff.DeclarationChanges);
@@ -584,8 +584,8 @@ public class DiffTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Diff_Only_Declaration_Change_Is_Not_Empty()
     {
-        var old = Parse("const {", "    int x = 5", "}", "Print(x)");
-        var nws = Parse("const {", "    int x = 6", "}", "Print(x)");
+        var old = Parse("const {", "    int x = 5", "}", "x > Print");
+        var nws = Parse("const {", "    int x = 6", "}", "x > Print");
         var diff = WorkflowDiffer.Compute(old, nws);
         Assert.False(diff.IsEmpty);
     }
