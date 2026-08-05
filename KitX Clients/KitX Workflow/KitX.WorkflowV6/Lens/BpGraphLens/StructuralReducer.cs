@@ -169,7 +169,7 @@ internal static class StructuralReducer
             }
             foreach (var node in graph.Nodes)
             {
-                if (IsDefinitionNode(node)) continue;
+                if (BlueprintNodePredicates.IsDefinitionNodeByPins(node)) continue;
                 if (execReachable.Contains(node.Id)) continue;
                 if (dataReachable.Contains(node.Id)) continue;  // proxied via data edge
                 return new ConstraintViolation(KsConstraintErrors.KS100, "E1", $"{KsConstraintErrors.KS100}: 节点 '{node.Name ?? node.Id}' 未接入 exec graph，违反连通性约束（E1）。建议：将该节点的 Exec input 连接到上游节点的 Exec output。", new[] { node.Id }, null, "将该节点的 Exec input 连接到上游节点的 Exec output。");
@@ -199,7 +199,7 @@ internal static class StructuralReducer
         // ── C1 (KS120): Non-definition node must have Exec pins ──
         foreach (var node in blueprint.Nodes)
         {
-            if (IsDefinitionNode(node)) continue;
+            if (BlueprintNodePredicates.IsDefinitionNodeByPins(node)) continue;
             if (node is EntryNode or PluginTriggerNode) continue;  // entry nodes have no Exec input (only output)
             bool hasExecIn = node.InputPins.Any(p => p.Type == PinType.Execution);
             bool hasExecOut = node.OutputPins.Any(p => p.Type == PinType.Execution)
@@ -212,7 +212,7 @@ internal static class StructuralReducer
         var defVarNames = new HashSet<string>();
         foreach (var node in blueprint.Nodes.OfType<VariableNode>())
         {
-            if (IsDefinitionNode(node) && node.VarName is not null)
+            if (BlueprintNodePredicates.IsDefinitionNodeByPins(node) && node.VarName is not null)
                 defVarNames.Add(node.VarName);
         }
         // const declarations (ConstNode definition nodes) are read-only, but a const
@@ -244,7 +244,7 @@ internal static class StructuralReducer
         }
         foreach (var node in blueprint.Nodes.OfType<VariableNode>())
         {
-            if (IsDefinitionNode(node)) continue;
+            if (BlueprintNodePredicates.IsDefinitionNodeByPins(node)) continue;
             if (node.VarName is null) continue;
             if (!defVarNames.Contains(node.VarName))
                 return new ConstraintViolation(KsConstraintErrors.KS130, "N2", $"{KsConstraintErrors.KS130}: 使用型 VariableNode '{node.VarName}' 没有对应的定义型节点，违反 VarName 一致性约束（N2）。建议：在 var {{ ... }} 块中声明该变量。", new[] { node.Id }, null, "在 var { ... } 块中声明该变量。");
@@ -274,24 +274,6 @@ internal static class StructuralReducer
                 dataBfs.Enqueue(sourceId);
             }
         }
-    }
-
-    private static bool IsDefinitionNode(BlueprintNode node)
-    {
-        // Definition nodes (from const/var blocks) have NO connections and no Exec pins.
-        if (node is ConstNode cn && cn.InputPins.Count == 0
-            && !cn.OutputPins.Any(p => p.Type == PinType.Execution))
-            return true;
-        if (node is VariableNode vn && !vn.InputPins.Any(p => p.Type == PinType.Execution)
-            && !vn.OutputPins.Any(p => p.Type == PinType.Execution))
-            return true;
-        // DictNew: a dict declaration definition node (Key/Value pin group + Dict output,
-        // no Exec pins) — treated as a definition like ConstNode/VariableNode definitions.
-        if (node is BuiltinFunctionNode fn && fn.FunctionName == "DictNew"
-            && fn.InputPins.All(p => p.Type != PinType.Execution)
-            && fn.OutputPins.All(p => p.Type != PinType.Execution))
-            return true;
-        return false;
     }
 
     private static bool IsTerminatorNode(BlueprintNode node)
@@ -417,7 +399,7 @@ internal static class StructuralReducer
         // data-reachable. Orphan nodes indicate non-structural edges.
         foreach (var node in graph.Nodes)
         {
-            if (IsDefinitionNode(node)) continue;
+            if (BlueprintNodePredicates.IsDefinitionNodeByPins(node)) continue;
             if (visitor.Visited.Contains(node.Id)) continue;
             if (dataReachable.Contains(node.Id)) continue;
             return new ConstraintViolation(KsConstraintErrors.KS101, "E2", $"{KsConstraintErrors.KS101}: 节点 '{node.Name ?? node.Id}' 未被结构化归约遍历到，违反结构化归约性（E2）。exec graph 含非结构化模式。", new[] { node.Id }, null, "检查该节点的连线是否符合结构化控制流模式。", IsConnectionStructural: true);

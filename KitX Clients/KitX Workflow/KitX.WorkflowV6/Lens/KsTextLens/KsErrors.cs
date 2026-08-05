@@ -117,4 +117,7 @@ internal static class KsErrors
 
     /// <summary>KS077 — Dict value must not be a reference/expression.</summary>
     public const string DictValueNoReferences = "KS077";
+
+    /// <summary>KS078 — Expression/statement nesting depth exceeds the parser limit (StackOverflow guard).</summary>
+    public const string NestingTooDeep = "KS078";
 }

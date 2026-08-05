@@ -86,9 +86,16 @@ internal sealed class BpReverseTranslator
         // Restore constants and global vars from definition nodes.
         // Definition nodes (emitted at /def/... by BpRenderer) have NO connections —
         // they are standalone declarations. Usage VariableNodes participate in data edges.
+        // Shared gate: BlueprintNodePredicates.IsDefinitionNodeByConnectivity (the same
+        // predicate IsDetachedCandidate uses). The per-branch name/kind conditions below
+        // are deliberately retained — the Constants/GlobalVars dictionaries key by name,
+        // and the original loop only restored PubVar-tier VariableNode declarations
+        // (behavior pinned by the round-trip tests).
         foreach (var node in bp.Nodes)
         {
-            if (node is ConstNode cn && cn.ConstName is not null && !_graph.HasAnyConnection(node))
+            if (!BlueprintNodePredicates.IsDefinitionNodeByConnectivity(node, _graph)) continue;
+
+            if (node is ConstNode cn && cn.ConstName is not null)
             {
                 _nodeIdToCanonical[node.Id] = NodeId.Of(NodePath.DefConstOf(cn.ConstName));
                 ir = ir with
@@ -111,7 +118,7 @@ internal sealed class BpReverseTranslator
                     }),
                 };
             }
-            else if (node is VariableNode vn && vn.VarKind == VariableKind.PubVar && vn.VarName is not null && !_graph.HasAnyConnection(node))
+            else if (node is VariableNode vn && vn.VarKind == VariableKind.PubVar && vn.VarName is not null)
             {
                 _nodeIdToCanonical[node.Id] = NodeId.Of(NodePath.DefVarOf(vn.VarName));
                 ir = ir with
@@ -132,8 +139,7 @@ internal sealed class BpReverseTranslator
             }
             else if (node is BuiltinFunctionNode fn
                      && fn.FunctionName == "DictNew"
-                     && DictNewDeclName(fn) is { } dictName
-                     && !_graph.HasAnyConnection(node))
+                     && BlueprintNodePredicates.DictNewDeclName(fn) is { } dictName)
             {
                 // DictNew: a dict declaration (const/var block row with a `{k: v}`
                 // initialiser) rendered as a definition node with a Key/Value pin group.
@@ -272,14 +278,8 @@ internal sealed class BpReverseTranslator
         if (n is EntryNode or PluginTriggerNode) return false;
 
         // Definition-like nodes were already folded into Constants/GlobalVars above
-        // (same predicates as the definition-restore loop) — they are NOT detached.
-        if (n is ConstNode cn && cn.ConstName is not null && !_graph.HasAnyConnection(n)) return false;
-        if (n is VariableNode vn && vn.VarName is not null && !_graph.HasAnyConnection(n)) return false;
-        if (n is ConstNode { IsDefinition: true } or VariableNode { IsDefinition: true }) return false;
-        // DictNew definition nodes were folded into Constants/GlobalVars above
-        // (same predicate as the definition-restore loop) — they are NOT detached.
-        if (n is BuiltinFunctionNode dn && dn.FunctionName == "DictNew"
-            && DictNewDeclName(dn) is not null && !_graph.HasAnyConnection(n)) return false;
+        // (same shared predicate as the definition-restore loop) — they are NOT detached.
+        if (BlueprintNodePredicates.IsDefinitionNodeByConnectivity(n, _graph)) return false;
 
         if (_mainChainVisited.Contains(n.Id)) return false;
         if (_consumedNodes.Contains(n.Id)) return false;
@@ -305,17 +305,6 @@ internal sealed class BpReverseTranslator
     /// </summary>
     private static bool IsDictTypeName(string? type)
         => type is "dict" or "Dictionary<string, object?>";
-
-    /// <summary>
-    /// Resolves the declaration name of a DictNew node: Properties["DeclName"] (set by
-    /// the renderer / frontend palette) with a fallback to the node's display Name.
-    /// Returns null when neither is set — such a node is malformed and not a definition.
-    /// </summary>
-    private static string? DictNewDeclName(BuiltinFunctionNode fn)
-    {
-        if (fn.Properties.TryGetValue("DeclName", out var dn) && !string.IsNullOrEmpty(dn)) return dn;
-        return fn.Name is { Length: > 0 } ? fn.Name : null;
-    }
 
     /// <summary>
     /// Rebuilds the dict declaration initialiser from a DictNew node's Key{i}/Value{i}

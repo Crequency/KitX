@@ -53,9 +53,20 @@ using KitX.WorkflowV6.Ir.Ast;
 /// </summary>
 internal sealed class Parser
 {
+    /// <summary>
+    /// Maximum expression/statement nesting depth (B5c). Recursive-descent parsing
+    /// (ParseExpression paren nesting, ParseBody statement nesting) grows the call
+    /// stack linearly with input nesting; a malicious/extreme input could otherwise
+    /// raise an uncatchable StackOverflowException. Crossed depth aborts parsing via
+    /// <see cref="NestingLimitExceededException"/> (caught in <see cref="ParseProgram"/>)
+    /// and reports KS078.
+    /// </summary>
+    private const int MaxNestingDepth = 200;
+
     private readonly List<KsToken> _tokens;
     private readonly KsDiagnosticSink _sink;
     private int _pos;
+    private int _nestingDepth;
 
     private Parser(List<KsToken> tokens, KsDiagnosticSink sink)
     {
@@ -162,6 +173,22 @@ internal sealed class Parser
         }
     }
 
+    /// <summary>
+    /// Enters one recursion level of expression/statement nesting (B5c). Throws
+    /// <see cref="NestingLimitExceededException"/> when <see cref="MaxNestingDepth"/>
+    /// is crossed — the exception unwinds to <see cref="ParseProgram"/>, which records
+    /// KS078 and aborts parsing, instead of letting the recursion overflow the stack.
+    /// </summary>
+    private void EnterNesting()
+    {
+        _nestingDepth++;
+        if (_nestingDepth > MaxNestingDepth)
+            throw new NestingLimitExceededException();
+    }
+
+    /// <summary>Private abort signal for the nesting-depth guard (never leaks outside Parser.Parse).</summary>
+    private sealed class NestingLimitExceededException : Exception { }
+
     // ── Program ──
 
     private KsProgram ParseProgram()
@@ -171,58 +198,69 @@ internal sealed class Parser
         KsVarBlock? varBlock = null;
         var commentAcc = new CommentAccumulator();
 
-        while (!AtEnd)
+        try
         {
-            // Find the next Indent token at level 0.
-            if (Current.Kind != KsTokenKind.Indent) { Advance(); continue; }
-            var indent = Current.IndentLevel;
-            if (indent != 0)
+            while (!AtEnd)
             {
-                Error(KsErrors.TopLevelStatementIndent, $"Top-level statement must be at indent 0 (got {indent})");
-                Advance();  // consume the wrong-level Indent to avoid infinite loop
-                while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
-                continue;
-            }
-            Advance();  // consume Indent(0)
+                // Find the next Indent token at level 0.
+                if (Current.Kind != KsTokenKind.Indent) { Advance(); continue; }
+                var indent = Current.IndentLevel;
+                if (indent != 0)
+                {
+                    Error(KsErrors.TopLevelStatementIndent, $"Top-level statement must be at indent 0 (got {indent})");
+                    Advance();  // consume the wrong-level Indent to avoid infinite loop
+                    while (!AtEnd && Current.Kind != KsTokenKind.Indent) Advance();
+                    continue;
+                }
+                Advance();  // consume Indent(0)
 
-            // A full-line comment emits Indent(0) + Comment. Accumulate it as a leading
-            // comment for the next top-level statement.
-            if (Current.Kind == KsTokenKind.Comment)
-            {
-                commentAcc.Add(Current.Text);
-                Advance();
-                continue;
-            }
+                // A full-line comment emits Indent(0) + Comment. Accumulate it as a leading
+                // comment for the next top-level statement.
+                if (Current.Kind == KsTokenKind.Comment)
+                {
+                    commentAcc.Add(Current.Text);
+                    Advance();
+                    continue;
+                }
 
-            // Comments directly above a const/var block become the block's doc comment
-            // (KS-side privileged — never projected to the BP graph). The accumulation
-            // is consumed here so it can never leak onto a following statement; comments
-            // between the const block and the var block go to the var block.
-            if (MatchKeyword("const"))
-            {
-                var doc = commentAcc.Detach();
-                if (constBlock is not null)
-                    Error(KsErrors.DuplicateDeclBlock, "Duplicate const block");
-                var block = ParseConstBlock();
-                // Block-preceding doc text comes first; free-floating comments found
-                // inside the block (block tail etc.) are appended after it.
-                block.LeadingComment = MergeDocComments(doc, block.LeadingComment);
-                constBlock = block;
-                continue;
+                // Comments directly above a const/var block become the block's doc comment
+                // (KS-side privileged — never projected to the BP graph). The accumulation
+                // is consumed here so it can never leak onto a following statement; comments
+                // between the const block and the var block go to the var block.
+                if (MatchKeyword("const"))
+                {
+                    var doc = commentAcc.Detach();
+                    if (constBlock is not null)
+                        Error(KsErrors.DuplicateDeclBlock, "Duplicate const block");
+                    var block = ParseConstBlock();
+                    // Block-preceding doc text comes first; free-floating comments found
+                    // inside the block (block tail etc.) are appended after it.
+                    block.LeadingComment = MergeDocComments(doc, block.LeadingComment);
+                    constBlock = block;
+                    continue;
+                }
+                if (MatchKeyword("var"))
+                {
+                    var doc = commentAcc.Detach();
+                    if (varBlock is not null)
+                        Error(KsErrors.DuplicateDeclBlock, "Duplicate var block");
+                    var block = ParseVarBlock();
+                    block.LeadingComment = MergeDocComments(doc, block.LeadingComment);
+                    varBlock = block;
+                    continue;
+                }
+                var stmt = ParseStatement();
+                stmt.LeadingComment = commentAcc.Detach();
+                body.Add(stmt);
             }
-            if (MatchKeyword("var"))
-            {
-                var doc = commentAcc.Detach();
-                if (varBlock is not null)
-                    Error(KsErrors.DuplicateDeclBlock, "Duplicate var block");
-                var block = ParseVarBlock();
-                block.LeadingComment = MergeDocComments(doc, block.LeadingComment);
-                varBlock = block;
-                continue;
-            }
-            var stmt = ParseStatement();
-            stmt.LeadingComment = commentAcc.Detach();
-            body.Add(stmt);
+        }
+        catch (NestingLimitExceededException)
+        {
+            // B5c: expression/statement nesting exceeded MaxNestingDepth. Record the
+            // error and return the partial program — never crash the process with a
+            // StackOverflowException.
+            Error(KsErrors.NestingTooDeep,
+                $"Nesting depth exceeds the limit of {MaxNestingDepth}; expression/statement nesting is too deep");
         }
 
         return new KsProgram
@@ -589,10 +627,22 @@ internal sealed class Parser
         var armLabels = ImmutableArray.CreateBuilder<int>();
         ImmutableArray<KsStatement> defaultBody = [];
         bool sawDefault = false;
+        var commentAcc = new CommentAccumulator();
 
         while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == armIndent)
         {
             Advance();  // consume Indent(armIndent)
+            // A full-line comment between arms accumulates as the leading comment of the
+            // NEXT arm's first statement (same "immediately preceding" semantics as
+            // ParseBody/ParseProgram — blank lines emit no tokens, so they never break
+            // the run). Without this the comment would fall into the KS021 "expected
+            // case label or 'default'" branch below (B5b).
+            if (Current.Kind == KsTokenKind.Comment)
+            {
+                commentAcc.Add(Current.Text);
+                Advance();
+                continue;
+            }
             if (MatchKeyword("default"))
             {
                 if (sawDefault) Error(KsErrors.DuplicateDefaultArm, "Duplicate default arm");
@@ -600,6 +650,9 @@ internal sealed class Parser
                 if (!Match(KsTokenKind.Colon))
                     Error(KsErrors.ExpectedColonAfterCaseLabel, "Expected ':' after 'default'");
                 defaultBody = ParseArmBody(armIndent);
+                if (defaultBody.Length > 0)
+                    defaultBody = defaultBody.SetItem(0,
+                        defaultBody[0] with { LeadingComment = MergeDocComments(commentAcc.Detach(), defaultBody[0].LeadingComment) });
             }
             else if (Current.Kind == KsTokenKind.IntegerLiteral)
             {
@@ -610,7 +663,11 @@ internal sealed class Parser
                 if (!Match(KsTokenKind.Colon))
                     Error(KsErrors.ExpectedColonAfterCaseLabel, "Expected ':' after case label");
                 armLabels.Add(label);
-                arms.Add(ParseArmBody(armIndent));
+                var arm = ParseArmBody(armIndent);
+                if (arm.Length > 0)
+                    arm = arm.SetItem(0,
+                        arm[0] with { LeadingComment = MergeDocComments(commentAcc.Detach(), arm[0].LeadingComment) });
+                arms.Add(arm);
             }
             else
             {
@@ -886,70 +943,81 @@ internal sealed class Parser
     /// </summary>
     private KsNode ParseExpression()
     {
-        switch (Current.Kind)
+        // B5c: depth guard — parenthesised pipelines recurse via
+        // ParseHeaderPipelineExpression; deep paren nesting must report KS078
+        // instead of overflowing the stack.
+        EnterNesting();
+        try
         {
-            case KsTokenKind.StringLiteral:
-            case KsTokenKind.IntegerLiteral:
-            case KsTokenKind.DoubleLiteral:
-            case KsTokenKind.CharLiteral:
-            case KsTokenKind.BooleanLiteral:
-            case KsTokenKind.NullLiteral:
-            case KsTokenKind.Placeholder:
-                return ParseLiteralOrPlaceholder();
-            case KsTokenKind.Identifier:
-                {
-                    var t = Advance();
-                    // `name(funcArg*)` — a call as a primary expression (e.g. Range(0, 10, 1)).
-                    // Per v6.0 rule, call args may only be literals/placeholders.
-                    if (Current.Kind == KsTokenKind.LParen)
+            switch (Current.Kind)
+            {
+                case KsTokenKind.StringLiteral:
+                case KsTokenKind.IntegerLiteral:
+                case KsTokenKind.DoubleLiteral:
+                case KsTokenKind.CharLiteral:
+                case KsTokenKind.BooleanLiteral:
+                case KsTokenKind.NullLiteral:
+                case KsTokenKind.Placeholder:
+                    return ParseLiteralOrPlaceholder();
+                case KsTokenKind.Identifier:
                     {
-                        Advance();  // consume '('
-                        var args = ImmutableArray.CreateBuilder<KsNode>();
-                        var rawArgs = ImmutableArray.CreateBuilder<string>();
-                        if (Current.Kind != KsTokenKind.RParen)
+                        var t = Advance();
+                        // `name(funcArg*)` — a call as a primary expression (e.g. Range(0, 10, 1)).
+                        // Per v6.0 rule, call args may only be literals/placeholders.
+                        if (Current.Kind == KsTokenKind.LParen)
                         {
-                            args.Add(ParseLiteralOrPlaceholder());
-                            rawArgs.Add(args[^1].SourceText);
-                            while (Match(KsTokenKind.Comma))
+                            Advance();  // consume '('
+                            var args = ImmutableArray.CreateBuilder<KsNode>();
+                            var rawArgs = ImmutableArray.CreateBuilder<string>();
+                            if (Current.Kind != KsTokenKind.RParen)
                             {
                                 args.Add(ParseLiteralOrPlaceholder());
                                 rawArgs.Add(args[^1].SourceText);
+                                while (Match(KsTokenKind.Comma))
+                                {
+                                    args.Add(ParseLiteralOrPlaceholder());
+                                    rawArgs.Add(args[^1].SourceText);
+                                }
                             }
+                            if (!Match(KsTokenKind.RParen))
+                                Error(KsErrors.ExpectedRParenToCloseCallArgs, "Expected ')' to close call arguments");
+                            var rawArgsArray = rawArgs.ToImmutable();
+                            return new KsCall
+                            {
+                                MethodName = t.Text,
+                                FullMethodName = t.Text,
+                                Args = args.ToImmutable(),
+                                RawArgs = rawArgsArray,
+                                SourceText = $"{t.Text}({string.Join(", ", rawArgsArray)})",
+                                SourceLine = t.Line,
+                            };
                         }
-                        if (!Match(KsTokenKind.RParen))
-                            Error(KsErrors.ExpectedRParenToCloseCallArgs, "Expected ')' to close call arguments");
-                        var rawArgsArray = rawArgs.ToImmutable();
-                        return new KsCall
-                        {
-                            MethodName = t.Text,
-                            FullMethodName = t.Text,
-                            Args = args.ToImmutable(),
-                            RawArgs = rawArgsArray,
-                            SourceText = $"{t.Text}({string.Join(", ", rawArgsArray)})",
-                            SourceLine = t.Line,
-                        };
+                        return new KsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
                     }
-                    return new KsIdentifier { Name = t.Text, SourceText = t.Text, SourceLine = t.Line };
-                }
-            case KsTokenKind.LParen:
-                {
-                    // Parenthesised pipeline source: (a > Func) — Dict-Type design §8.3.
-                    // Recursively parse the inner pipeline expression, then expect ')'.
-                    var t = Advance();  // consume '('
-                    var (inner, _) = ParseHeaderPipelineExpression();
-                    if (!Match(KsTokenKind.RParen))
-                        Error(KsErrors.ExpectedRParenToCloseParenPipeline, "Expected ')' to close parenthesised pipeline source");
-                    // Wrap a pipeline's source text in parens for lossless round-trip.
-                    if (inner is KsPipeline)
-                        inner.SourceText = $"({inner.SourceText})";
-                    else
-                        inner.SourceLine = t.Line;
-                    return inner;
-                }
-            default:
-                Error(KsErrors.UnexpectedTokenInExpression, $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
-                Advance();
-                return new KsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
+                case KsTokenKind.LParen:
+                    {
+                        // Parenthesised pipeline source: (a > Func) — Dict-Type design §8.3.
+                        // Recursively parse the inner pipeline expression, then expect ')'.
+                        var t = Advance();  // consume '('
+                        var (inner, _) = ParseHeaderPipelineExpression();
+                        if (!Match(KsTokenKind.RParen))
+                            Error(KsErrors.ExpectedRParenToCloseParenPipeline, "Expected ')' to close parenthesised pipeline source");
+                        // Wrap a pipeline's source text in parens for lossless round-trip.
+                        if (inner is KsPipeline)
+                            inner.SourceText = $"({inner.SourceText})";
+                        else
+                            inner.SourceLine = t.Line;
+                        return inner;
+                    }
+                default:
+                    Error(KsErrors.UnexpectedTokenInExpression, $"Unexpected token in expression: {Current.Kind} '{Current.Text}'");
+                    Advance();
+                    return new KsIdentifier { Name = "?", SourceText = "?", SourceLine = Current.Line };
+            }
+        }
+        finally
+        {
+            _nestingDepth--;
         }
     }
 
@@ -1141,32 +1209,42 @@ internal sealed class Parser
     /// </summary>
     private ImmutableArray<KsStatement> ParseBody(int bodyIndent, string context)
     {
-        var body = ImmutableArray.CreateBuilder<KsStatement>();
-        var commentAcc = new CommentAccumulator();
-        while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == bodyIndent)
+        // B5c: depth guard — nested control-flow statements recurse through here;
+        // pathological nesting must report KS078 instead of overflowing the stack.
+        EnterNesting();
+        try
         {
-            Advance();  // consume Indent(bodyIndent)
-            // A full-line comment emits Indent(bodyIndent) + Comment. Accumulate it as a
-            // leading comment for the next statement in this body.
-            if (Current.Kind == KsTokenKind.Comment)
+            var body = ImmutableArray.CreateBuilder<KsStatement>();
+            var commentAcc = new CommentAccumulator();
+            while (Current.Kind == KsTokenKind.Indent && Current.IndentLevel == bodyIndent)
             {
-                commentAcc.Add(Current.Text);
-                Advance();
-                continue;
+                Advance();  // consume Indent(bodyIndent)
+                // A full-line comment emits Indent(bodyIndent) + Comment. Accumulate it as a
+                // leading comment for the next statement in this body.
+                if (Current.Kind == KsTokenKind.Comment)
+                {
+                    commentAcc.Add(Current.Text);
+                    Advance();
+                    continue;
+                }
+                // If the next token is `else` at bodyIndent, it belongs to the enclosing
+                // if — back out so ParseIf can see it.
+                if (IsKeyword("else"))
+                {
+                    _pos--;  // unconsume the Indent so the if's else detection works
+                    break;
+                }
+                var stmt = ParseStatement();
+                stmt.LeadingComment = commentAcc.Detach();
+                body.Add(stmt);
             }
-            // If the next token is `else` at bodyIndent, it belongs to the enclosing
-            // if — back out so ParseIf can see it.
-            if (IsKeyword("else"))
-            {
-                _pos--;  // unconsume the Indent so the if's else detection works
-                break;
-            }
-            var stmt = ParseStatement();
-            stmt.LeadingComment = commentAcc.Detach();
-            body.Add(stmt);
+            if (body.Count == 0)
+                Error(KsErrors.EmptyBody, $"{context} body is empty");
+            return body.ToImmutable();
         }
-        if (body.Count == 0)
-            Error(KsErrors.EmptyBody, $"{context} body is empty");
-        return body.ToImmutable();
+        finally
+        {
+            _nestingDepth--;
+        }
     }
 }
