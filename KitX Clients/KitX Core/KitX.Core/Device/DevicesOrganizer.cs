@@ -316,7 +316,9 @@ public class DevicesOrganizer : IDevicesOrganizer, IDisposable
                             Thread.Sleep(1 * 1000); // Sleep 1 second
                         }
 
-                        break; // observation pass completed (or cancelled)
+                        // C-10: observation pass completed — fall through and start the
+                        // next 7-second pass (the outer while is the retry/continuous loop;
+                        // an early `break` here would exit it and kill the observer).
                     }
                     catch (Exception e)
                     {

@@ -47,7 +47,7 @@ public class PluginsServer : ServerBase, IPluginServer
     /// <param name="port">The port number</param>
     public void ConfigurePort(int port)
     {
-        _configuredPort = port is >= 0 and <= 65535 ? port : null;
+        _configuredPort = port > 0 ? port : null;
     }
 
     /// <summary>

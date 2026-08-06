@@ -160,7 +160,10 @@ public class DevicesServer : ServerBase, IDeviceServer
 
         // C-15.12: unified fallback chain — explicit config wins, then the runtime port
         // recorded in ConstantTable, then the default 8888 (mirrors PluginsServer).
-        var port = _configuredPort ?? (ConstantTable.DevicesServerPort > 0 ? ConstantTable.DevicesServerPort : 8888);
+        // Note: 0 must be treated as "not configured" (NOT bound — port 0 = random port).
+        var port = _configuredPort > 0
+            ? _configuredPort.Value
+            : ConstantTable.DevicesServerPort > 0 ? ConstantTable.DevicesServerPort : 8888;
 
         try
         {
