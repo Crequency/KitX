@@ -55,13 +55,10 @@ public class DevicesServer : ServerBase, IDeviceServer
     private bool _isExchangingDeviceKey = false;
 
     /// <summary>
-    /// Device key exchange verification code
-    /// </summary>
-    private string? _exchangeDeviceKeyCode;
-
-    /// <summary>
     /// Password entered by the user on this device, read from the initiating device's screen.
-    /// Used to decrypt the exchanged device key payload.
+    /// Used to decrypt the exchanged device key payload. The correctness of the password is
+    /// verified by the decrypt attempt itself (per the encryption-ring spec), so no separate
+    /// verification code is needed.
     /// </summary>
     private string? _exchangeKeyPassword;
 
@@ -484,8 +481,11 @@ public class DevicesServer : ServerBase, IDeviceServer
 
     /// <summary>
     /// Handles ExchangeKey request (旧架构 API)
-    /// POST /Api/V1/Device/ExchangeKey?verifyCodeSHA1=xxx&address=xxx
-    /// Requires user confirmation before accepting the key exchange.
+    /// POST /Api/V1/Device/ExchangeKey?verifyCodeSHA1=xxx&amp;address=xxx
+    /// Requires user confirmation before accepting the key exchange. The temporary
+    /// password the user enters is the AES key that decrypts the exchanged payload, so
+    /// a wrong password is detected by the decrypt attempt itself and the user is
+    /// re-prompted (per the encryption-ring spec), rather than a separate code being used.
     /// </summary>
     private async System.Threading.Tasks.Task HandleExchangeKeyAsync(HttpContext context)
     {
@@ -550,104 +550,87 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            // Generate verification code
-            _exchangeDeviceKeyCode = Guid.NewGuid().ToString("N")[..8];
             _isExchangingDeviceKey = true;
             _pendingExchangeRequest = request;
 
-            // Create TaskCompletionSource for user confirmation
-            _exchangeKeyTcs = new TaskCompletionSource<bool>();
-
-            // Publish event for UI to handle — requires user confirmation
-            _eventService.Publish(EventNames.OnReceiveExchangeDeviceKey,
-                new ExchangeDeviceKeyEventArgs
-                {
-                    VerificationCode = _exchangeDeviceKeyCode,
-                    RequestingDeviceAddress = request.Address ?? string.Empty,
-                    EncryptedDeviceKey = request.DeviceKey
-                });
-
-            Log.Information("[DevicesServer] Key exchange request received, waiting for user confirmation");
-
-            // Wait for user confirmation with timeout
-            using var cts = new CancellationTokenSource(ExchangeKeyConfirmationTimeout);
-            try
+            // Loop waiting for the user to enter the temporary password. A wrong password
+            // yields a decrypt failure, so we keep the exchange pending and re-prompt.
+            DeviceKey? deviceKeyInstance = null;
+            while (deviceKeyInstance is null)
             {
-                var accepted = await _exchangeKeyTcs.Task.WaitAsync(cts.Token);
+                _exchangeKeyPassword = null;
+                _exchangeKeyTcs = new TaskCompletionSource<bool>();
+
+                // Publish event for UI to handle — requires user confirmation
+                _eventService.Publish(EventNames.OnReceiveExchangeDeviceKey,
+                    new ExchangeDeviceKeyEventArgs
+                    {
+                        RequestingDeviceAddress = request.Address ?? string.Empty,
+                        EncryptedDeviceKey = request.DeviceKey
+                    });
+
+                Log.Information("[DevicesServer] Key exchange request received, waiting for user confirmation");
+
+                // Wait for user confirmation with timeout
+                using var cts = new CancellationTokenSource(ExchangeKeyConfirmationTimeout);
+                bool accepted;
+                try
+                {
+                    accepted = await _exchangeKeyTcs.Task.WaitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Log.Warning("[DevicesServer] Key exchange confirmation timed out after {Timeout}s",
+                        ExchangeKeyConfirmationTimeout.TotalSeconds);
+                    CleanupExchangeState();
+                    context.Response.StatusCode = 408;
+                    await context.Response.WriteAsync("Key exchange confirmation timed out");
+                    return;
+                }
+                finally
+                {
+                    _exchangeKeyTcs = null;
+                }
 
                 if (!accepted)
                 {
                     Log.Information("[DevicesServer] Key exchange rejected by user");
-                    _isExchangingDeviceKey = false;
-                    _exchangeDeviceKeyCode = null;
-                    _exchangeKeyPassword = null;
-                    _pendingExchangeRequest = null;
+                    CleanupExchangeState();
                     context.Response.StatusCode = 403;
                     await context.Response.WriteAsync("Key exchange rejected by user");
                     return;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                Log.Warning("[DevicesServer] Key exchange confirmation timed out after {Timeout}s",
-                    ExchangeKeyConfirmationTimeout.TotalSeconds);
-                _isExchangingDeviceKey = false;
-                _exchangeDeviceKeyCode = null;
-                _exchangeKeyPassword = null;
-                _pendingExchangeRequest = null;
-                context.Response.StatusCode = 408;
-                await context.Response.WriteAsync("Key exchange confirmation timed out");
-                return;
-            }
-            finally
-            {
-                _exchangeKeyTcs = null;
-            }
 
-            // User confirmed — proceed with key exchange.
-            // Decrypt with the password the user entered (read from the initiating device's screen),
-            // NOT with the locally generated verification code.
-            if (string.IsNullOrEmpty(_exchangeKeyPassword))
-            {
-                Log.Warning("[DevicesServer] Key exchange accepted without a password, aborting");
-                _isExchangingDeviceKey = false;
-                _exchangeDeviceKeyCode = null;
-                _exchangeKeyPassword = null;
-                _pendingExchangeRequest = null;
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Invalid exchange password");
-                return;
-            }
+                if (string.IsNullOrEmpty(_exchangeKeyPassword))
+                {
+                    Log.Warning("[DevicesServer] Key exchange accepted without a password, aborting");
+                    CleanupExchangeState();
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync("Invalid exchange password");
+                    return;
+                }
 
-            string deviceKeyDecrypted;
-            try
-            {
-                deviceKeyDecrypted = securityService.AesDecrypt(request.DeviceKey, _exchangeKeyPassword);
-            }
-            catch (CryptographicException)
-            {
-                // Wrong password (or tampered payload) — keep the pending state so the
-                // user can re-enter the password (encryption ring spec: prompt again on
-                // decrypt failure). The UI flow re-invokes AcceptExchangeKey with a new password.
-                Log.Warning("[DevicesServer] Key exchange decrypt failed (wrong password?), keeping pending state");
-                context.Response.StatusCode = 401;
-                await context.Response.WriteAsync("Verification code is incorrect.");
-                return;
-            }
+                string deviceKeyDecrypted;
+                try
+                {
+                    deviceKeyDecrypted = securityService.AesDecrypt(request.DeviceKey, _exchangeKeyPassword);
+                }
+                catch (CryptographicException)
+                {
+                    // Wrong password — keep the exchange pending and re-prompt.
+                    Log.Warning("[DevicesServer] Key exchange decrypt failed (wrong password?), re-prompting");
+                    continue;
+                }
 
-            var deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
+                deviceKeyInstance = JsonSerializer.Deserialize<DeviceKey>(deviceKeyDecrypted);
 
-            // Only trust the public key — never trust any private key field from the remote
-            if (deviceKeyInstance == null || string.IsNullOrEmpty(deviceKeyInstance.RsaPublicKeyPem))
-            {
-                Log.Warning("[DevicesServer] Received device key with missing or invalid public key");
-                _isExchangingDeviceKey = false;
-                _exchangeDeviceKeyCode = null;
-                _exchangeKeyPassword = null;
-                _pendingExchangeRequest = null;
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Failed to decrypt device key");
-                return;
+                // Only trust the public key — never trust any private key field from the remote
+                if (deviceKeyInstance == null || string.IsNullOrEmpty(deviceKeyInstance.RsaPublicKeyPem))
+                {
+                    Log.Warning("[DevicesServer] Received device key with missing or invalid public key");
+                    deviceKeyInstance = null;
+                    continue;
+                }
             }
 
             // Add device key
@@ -661,10 +644,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             var currentKey = deviceKeyService.GetPrivateDeviceKey();
             if (currentKey == null)
             {
-                _isExchangingDeviceKey = false;
-                _exchangeDeviceKeyCode = null;
-                _exchangeKeyPassword = null;
-                _pendingExchangeRequest = null;
+                CleanupExchangeState();
                 context.Response.StatusCode = 500;
                 await context.Response.WriteAsync("Failed to get local key");
                 return;
@@ -674,10 +654,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             if (string.IsNullOrEmpty(currentPublicKey))
             {
                 Log.Warning("[DevicesServer] Local public key not found, aborting exchange");
-                _isExchangingDeviceKey = false;
-                _exchangeDeviceKeyCode = null;
-                _exchangeKeyPassword = null;
-                _pendingExchangeRequest = null;
+                CleanupExchangeState();
                 context.Response.StatusCode = 500;
                 await context.Response.WriteAsync("Failed to get local key");
                 return;
@@ -691,8 +668,9 @@ public class DevicesServer : ServerBase, IDeviceServer
             var publicKeyJson = JsonSerializer.Serialize(publicKeyOnly);
             var publicKeyEncrypted = securityService.AesEncrypt(publicKeyJson, _exchangeKeyPassword);
 
-            // Keep exchange state (code and password) until ExchangeKeyBack completes,
-            // so the initiating device can complete the second leg of the exchange.
+            // Exchange complete — the initiating device already stored this device's key,
+            // and this device just stored the initiator's key. Clear all exchange state.
+            CleanupExchangeState();
 
             // Publish accept event
             _eventService.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
@@ -703,10 +681,7 @@ public class DevicesServer : ServerBase, IDeviceServer
         catch (Exception ex)
         {
             Log.Error(ex, "Error in HandleExchangeKeyAsync");
-            _isExchangingDeviceKey = false;
-            _exchangeDeviceKeyCode = null;
-            _exchangeKeyPassword = null;
-            _pendingExchangeRequest = null;
+            CleanupExchangeState();
             _exchangeKeyTcs?.TrySetCanceled();
             _exchangeKeyTcs = null;
             context.Response.StatusCode = 500;
@@ -754,10 +729,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             );
 
             // Exchange complete — clear all exchange state
-            _isExchangingDeviceKey = false;
-            _exchangeDeviceKeyCode = null;
-            _exchangeKeyPassword = null;
-            _pendingExchangeRequest = null;
+            CleanupExchangeState();
 
             // Publish accept event
             _eventService.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
@@ -792,10 +764,7 @@ public class DevicesServer : ServerBase, IDeviceServer
         _exchangeKeyTcs?.TrySetCanceled();
         _exchangeKeyTcs = null;
 
-        _isExchangingDeviceKey = false;
-        _exchangeDeviceKeyCode = null;
-        _exchangeKeyPassword = null;
-        _pendingExchangeRequest = null;
+        CleanupExchangeState();
 
         context.Response.StatusCode = 200;
         await context.Response.WriteAsync("OK");
@@ -805,22 +774,15 @@ public class DevicesServer : ServerBase, IDeviceServer
     /// Accepts a pending key exchange request. Called by UI layer after user confirms.
     /// The password (read by the user from the initiating device's screen) is the
     /// symmetric key used to decrypt the exchanged payload. Correctness is verified by
-    /// the decrypt attempt itself — a wrong password yields a decrypt failure.
+    /// the decrypt attempt itself — a wrong password yields a decrypt failure and a
+    /// re-prompt (per the encryption ring spec).
     /// </summary>
-    /// <param name="verificationCode">The verification code displayed to the user</param>
     /// <param name="password">The temporary password entered by the user, read from the initiating device's screen</param>
-    /// <returns>True if the exchange was accepted successfully, false if no pending exchange or inputs mismatch</returns>
-    public bool AcceptExchangeKey(string verificationCode, string password)
+    /// <returns>True if the exchange was accepted successfully, false if no pending exchange</returns>
+    public bool AcceptExchangeKey(string password)
     {
         if (!_isExchangingDeviceKey || _exchangeKeyTcs == null)
             return false;
-
-        // Verify the code matches to prevent unauthorized acceptance
-        if (!string.Equals(verificationCode, _exchangeDeviceKeyCode, StringComparison.Ordinal))
-        {
-            Log.Warning("[DevicesServer] Key exchange acceptance failed: verification code mismatch");
-            return false;
-        }
 
         // The password must be provided — it is the decryption key. Its correctness
         // is checked by the decrypt attempt after confirmation (per the encryption
@@ -851,6 +813,16 @@ public class DevicesServer : ServerBase, IDeviceServer
     }
 
     /// <summary>
+    /// Clears the in-progress device key exchange state.
+    /// </summary>
+    private void CleanupExchangeState()
+    {
+        _isExchangingDeviceKey = false;
+        _exchangeKeyPassword = null;
+        _pendingExchangeRequest = null;
+    }
+
+    /// <summary>
     /// Handles Connect request (旧架构 API)
     /// POST /Api/V1/Device/Connect?deviceBase64=xxx
     /// </summary>
@@ -866,7 +838,8 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            // Read request body (encrypted device name)
+            // Read request body (RSA signature over the requesting device's name,
+            // produced with its private key — verified against its stored public key below)
             using var reader = new StreamReader(context.Request.Body);
             var deviceNameEncrypted = await reader.ReadToEndAsync();
 
@@ -882,7 +855,7 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            // Search for device key
+            // Search for device key (the requesting device's stored public key)
             var securityService = _encryptionService;
             var deviceKeyService = _deviceKeyService;
             var key = deviceKeyService.SearchDeviceKey(device);
@@ -894,20 +867,15 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            // Decrypt and verify device name
-            var deviceNameDecrypted = securityService.RsaDecryptString(key, deviceNameEncrypted);
+            // Verify the requesting device's RSA signature over its device name using its
+            // stored PUBLIC key. This proves the requester holds the private key exchanged
+            // earlier (PKI) — a forged or unpaired device cannot produce a valid signature.
+            var validSignature = securityService.RsaVerifySignature(key, device.DeviceName, deviceNameEncrypted);
 
-            if (deviceNameDecrypted == null)
+            if (!validSignature)
             {
-                context.Response.StatusCode = 500;
-                await context.Response.WriteAsync("Remote crashed when decrypting device name.");
-                return;
-            }
-
-            if (!device.DeviceName.Equals(deviceNameDecrypted))
-            {
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("You provided incorrect encrypted device name.");
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsync("You provided an incorrect device signature.");
                 return;
             }
 

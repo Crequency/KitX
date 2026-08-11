@@ -142,6 +142,10 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IDeviceHttpClient...");
         services.AddSingleton<IDeviceHttpClient, DeviceHttpClient>();
 
+        // Phase 5: Device Connection Client (for outbound key exchange + authenticated connect)
+        Log.Information("Registering IDeviceConnectionClient...");
+        services.AddSingleton<IDeviceConnectionClient, DeviceConnectionClient>();
+
         // Phase 5: Announcement Service
         Log.Information("Registering IAnnouncementService...");
         services.AddSingleton<IAnnouncementService, AnnouncementManager>();
