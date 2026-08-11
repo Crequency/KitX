@@ -233,7 +233,10 @@ public class DeviceConnectionClient : IDeviceConnectionClient
         var localKey = _deviceKeyService.GetPrivateDeviceKey()
             ?? throw new InvalidOperationException("Local device key not set up");
 
-        var publicKeyPem = _deviceKeyService.SearchDeviceKey(localKey.Device)?.RsaPublicKeyPem;
+        // GetPrivateDeviceKey now carries the public key, so use it directly rather than
+        // re-looking it up by locator — the locator lookup can transiently miss when the
+        // local key was just (re)generated, causing a spurious "Local public key not found".
+        var publicKeyPem = localKey.RsaPublicKeyPem;
         if (string.IsNullOrEmpty(publicKeyPem))
             throw new InvalidOperationException("Local public key not found");
 
