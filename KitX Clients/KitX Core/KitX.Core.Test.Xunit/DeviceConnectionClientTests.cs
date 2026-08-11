@@ -132,6 +132,19 @@ public class DeviceConnectionClientTests : IDisposable
         Assert.False(_deviceA.RsaVerifySignature(otherPublicOnly, signer.Device.DeviceName, signature!));
     }
 
+    [Fact]
+    public void IsSameDevice_IsCaseInsensitiveOnName()
+    {
+        // Regression: the WSL hostname ("StarInk") and Environment.MachineName ("STARINK")
+        // differ only in case. Device identity must not be case-sensitive, otherwise the
+        // local key lookup misses and the exchange fails with "Failed to get local key".
+        var a = new DeviceLocator { DeviceName = "STARINK", MacAddress = "505A654FBFDD" };
+        var b = new DeviceLocator { DeviceName = "StarInk", MacAddress = "50:5A:65:4F:BF:DD" };
+
+        Assert.True(a.IsSameDevice(b));
+        Assert.True(b.IsSameDevice(a));
+    }
+
     /// <summary>
     /// Builds a SecurityManager pre-seeded with a distinct device identity, so two
     /// managers in one test process do not collide on the same machine locator.

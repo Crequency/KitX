@@ -256,6 +256,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             : new DeviceKey
             {
                 Device = _localDeviceKey.Device,
+                RsaPublicKeyPem = _localDeviceKey.RsaPublicKeyPem,
                 RsaPrivateKeyPem = _localDeviceKey.RsaPrivateKeyPem
             };
     }

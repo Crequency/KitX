@@ -641,6 +641,9 @@ public class DevicesServer : ServerBase, IDeviceServer
             );
 
             // Send back local key — public key only. The private key never leaves this device.
+            // Use the local key's public key directly (GetPrivateDeviceKey now carries it),
+            // rather than re-looking it up by locator — the locator lookup can transiently
+            // miss when the local key was just (re)generated, causing a spurious 500.
             var currentKey = deviceKeyService.GetPrivateDeviceKey();
             if (currentKey == null)
             {
@@ -650,7 +653,7 @@ public class DevicesServer : ServerBase, IDeviceServer
                 return;
             }
 
-            var currentPublicKey = deviceKeyService.SearchDeviceKey(currentKey.Device)?.RsaPublicKeyPem;
+            var currentPublicKey = currentKey.RsaPublicKeyPem;
             if (string.IsNullOrEmpty(currentPublicKey))
             {
                 Log.Warning("[DevicesServer] Local public key not found, aborting exchange");
