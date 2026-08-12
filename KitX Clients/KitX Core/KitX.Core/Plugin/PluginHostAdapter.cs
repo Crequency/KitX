@@ -9,6 +9,7 @@ using KitX.Core.Configuration;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Workflow;
+using KitX.ToolKit.Data;
 using KitX.WorkflowV6.Backend.Runtime;
 using Serilog;
 
@@ -56,6 +57,11 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
 
     private readonly Lazy<IWorkflowStorageService>? _workflowStorage;
 
+    // Lazy: the DataStore built-in plugin is registered by AddKitXToolKit (after
+    // AddCoreServices). Deferring resolution keeps PluginHostAdapter construction
+    // independent of that registration order.
+    private readonly Lazy<BuiltinDataStorePlugin>? _dataStorePlugin;
+
     /// <summary>
     /// Creates an adapter over the given plugin manager, plugin service and
     /// lazily-resolved workflow services.
@@ -64,20 +70,31 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         IPluginManager pluginManager,
         IPluginService? pluginService = null,
         Lazy<IWorkflowManagementService>? workflowManagement = null,
-        Lazy<IWorkflowStorageService>? workflowStorage = null)
+        Lazy<IWorkflowStorageService>? workflowStorage = null,
+        Lazy<BuiltinDataStorePlugin>? dataStorePlugin = null)
     {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _pluginService = pluginService;
         _workflowManagement = workflowManagement;
         _workflowStorage = workflowStorage;
+        _dataStorePlugin = dataStorePlugin;
     }
 
     /// <summary>
     /// Calls a local plugin method. Returns the raw JSON response string (the plugin's
     /// wire format), which ExecutionGlobals.PluginCall normalizes to JsonElement.
+    /// The reserved built-in DataStore plugin (<see cref="BuiltinDataStorePlugin.PluginName"/>)
+    /// is intercepted here and routed to the DataStore service instead of the plugin pool.
     /// </summary>
     public object? Call(string pluginName, string methodName, params object[] args)
     {
+        // Route the reserved built-in DataStore plugin before the real plugin pool.
+        if (_dataStorePlugin is not null &&
+            string.Equals(pluginName, BuiltinDataStorePlugin.PluginName, StringComparison.OrdinalIgnoreCase))
+        {
+            return _dataStorePlugin.Value.Invoke(methodName, args);
+        }
+
         var callInfo = BuildCallInfo(pluginName, methodName, args);
         try
         {
