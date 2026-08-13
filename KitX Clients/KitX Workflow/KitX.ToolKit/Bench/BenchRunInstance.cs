@@ -24,10 +24,11 @@ public sealed class BenchRunInstance : IDisposable
     private bool _reported;
     private bool _disposed;
 
-    internal BenchRunInstance(string toolkitId, string instanceId, Initiator initiator)
+    internal BenchRunInstance(string toolkitId, string instanceId, Initiator initiator, string? namespaceId = null)
     {
         ToolkitId = toolkitId;
         InstanceId = instanceId;
+        NamespaceId = namespaceId ?? instanceId;
         Initiator = initiator;
         // Join counters: number of distinct incoming completion edges per node.
         // Roots (no incoming edges) get 0 → any single delivery activates them.
@@ -40,6 +41,13 @@ public sealed class BenchRunInstance : IDisposable
 
     /// <summary>Unique id for this run, used to scope DataStore edge keys.</summary>
     public string InstanceId { get; }
+
+    /// <summary>
+    /// The instance's shared namespace id. Defaults to <see cref="InstanceId"/>; when a
+    /// UIEvent-triggered chain runs within an existing instance, the manager passes the
+    /// instance's id so the panel namespace stays stable across all of the instance's runs.
+    /// </summary>
+    public string NamespaceId { get; }
 
     /// <summary>The device that initiated this run (ToolKit 实例模型定稿 D5).</summary>
     public Initiator Initiator { get; }

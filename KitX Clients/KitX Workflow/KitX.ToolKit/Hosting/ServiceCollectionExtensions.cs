@@ -2,6 +2,7 @@ using KitX.ToolKit.Bench;
 using KitX.ToolKit.Contracts;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
+using KitX.ToolKit.Panels;
 using KitX.ToolKit.Services;
 using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
@@ -34,6 +35,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DataStore>();
         services.AddSingleton<DataStoreOptions>();
         services.AddSingleton<BuiltinDataStorePlugin>();
+
+        // Panel runtime + its built-in plugin (KitX.UI).
+        services.AddSingleton<PanelRuntime>();
+        services.AddSingleton<IPanelRuntime>(sp => sp.GetRequiredService<PanelRuntime>());
+        services.AddSingleton<BuiltinUiPlugin>();
 
         // Config validation.
         services.AddSingleton<ConfigValidator>();

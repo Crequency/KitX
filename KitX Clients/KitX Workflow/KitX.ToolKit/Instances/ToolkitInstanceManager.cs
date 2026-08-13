@@ -182,6 +182,53 @@ public sealed class ToolkitInstanceManager : IDisposable
             EndInstance(id);
     }
 
+    /// <summary>The toolkit id an instance belongs to, or null when unknown.</summary>
+    public string? GetToolkitId(string instanceId)
+        => _instances.TryGetValue(instanceId, out var i) ? i.ToolkitId : null;
+
+    /// <summary>Resolves a control definition from the instance's toolkit UiPanel, or null.</summary>
+    public UiControl? GetControl(string instanceId, string controlId)
+    {
+        if (!_instances.TryGetValue(instanceId, out var instance))
+            return null;
+        if (!_mounted.TryGetValue(instance.ToolkitId, out var mounted))
+            return null;
+        return mounted.Toolkit.UiPanel?.Controls.FirstOrDefault(c => c.Id == controlId);
+    }
+
+    /// <summary>
+    /// Routes a panel control event to the owning instance's UIEvent trigger chain (intra —
+    /// never spawns a new instance). Each matching UIEvent trigger starts a run scoped to the
+    /// instance's namespace, so the panel stays a single interaction surface.
+    /// </summary>
+    public void RaiseControlEvent(string instanceId, string controlId, string eventName, object? value)
+    {
+        if (!_instances.TryGetValue(instanceId, out var instance))
+            return;
+        if (!_mounted.TryGetValue(instance.ToolkitId, out var mounted))
+            return;
+
+        var payload = System.Text.Json.JsonSerializer.SerializeToElement(new { controlId, @event = eventName, value });
+        foreach (var trigger in mounted.Toolkit.Triggers.Where(t =>
+                     t.Type == TriggerType.UIEvent && Matches(t.Config, controlId, eventName)))
+        {
+            mounted.Scheduler.StartRun(trigger.Id, payload, instance.Initiator, instance.InstanceId);
+        }
+    }
+
+    /// <summary>Requests the host to present (open/focus) an instance's panel.</summary>
+    public void RequestPanelOpen(string instanceId)
+    {
+        if (!_instances.TryGetValue(instanceId, out var instance))
+            return;
+        Raise(new PanelOpenRequestedEvent(NewId(), instance.ToolkitId, instanceId, Now()));
+    }
+
+    private static bool Matches(TriggerConfig? config, string controlId, string eventName)
+        => config is not null
+           && string.Equals(config.Control, controlId, StringComparison.Ordinal)
+           && string.Equals(config.Event, eventName, StringComparison.OrdinalIgnoreCase);
+
     private void Raise(BenchEvent e) => BenchEvent?.Invoke(this, e);
 
     private static string NewId() => Guid.NewGuid().ToString("N");

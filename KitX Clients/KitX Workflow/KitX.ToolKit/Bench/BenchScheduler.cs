@@ -68,8 +68,10 @@ public sealed class BenchScheduler : IDisposable
     /// <summary>
     /// Starts a run from a fired trigger. Returns the created <see cref="BenchRunInstance"/>,
     /// or null when the trigger id is unknown or is a scheduler-driven WorkflowCompletion edge.
+    /// <paramref name="namespaceId"/> overrides the run's DataStore namespace (used by the
+    /// instance manager so UIEvent-triggered chains share the owning instance's panel namespace).
     /// </summary>
-    public BenchRunInstance? StartRun(string triggerId, object? payload = null, Contracts.Initiator? initiator = null)
+    public BenchRunInstance? StartRun(string triggerId, object? payload = null, Contracts.Initiator? initiator = null, string? namespaceId = null)
     {
         ThrowIfDisposed();
 
@@ -77,7 +79,7 @@ public sealed class BenchScheduler : IDisposable
         if (trigger is null || trigger.Type == TriggerType.WorkflowCompletion)
             return null;
 
-        var instance = CreateInstance(initiator ?? Contracts.Initiator.Unknown);
+        var instance = CreateInstance(initiator ?? Contracts.Initiator.Unknown, namespaceId);
         var packet = NormalizePayload(payload);
 
         // Schedule every root binding while holding the instance lock, so all roots are
@@ -100,9 +102,10 @@ public sealed class BenchScheduler : IDisposable
             instance.Cancel();
     }
 
-    private BenchRunInstance CreateInstance(Contracts.Initiator initiator)
+    private BenchRunInstance CreateInstance(Contracts.Initiator initiator, string? namespaceId = null)
     {
-        var instance = new BenchRunInstance(_toolkit.GetId(), Guid.NewGuid().ToString("N"), initiator);
+        var runId = Guid.NewGuid().ToString("N");
+        var instance = new BenchRunInstance(_toolkit.GetId(), runId, initiator, namespaceId);
 
         // Initialize join counters: a node activates when its predecessor deliveries reach 0.
         lock (instance.Gate)
@@ -182,12 +185,13 @@ public sealed class BenchScheduler : IDisposable
 
             // Inject the instance-scoped output namespace so the workflow can write its
             // produced data via the DataStore built-in plugin without knowing the instance id.
-            var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.InstanceId, workflowId);
+            var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.NamespaceId, workflowId);
             var mergedOverrides = new Dictionary<string, string?>(overrides)
             {
                 [DataStoreScope.OutputNamespaceConstant] = ns,
                 [Instances.InitiatorConstants.DeviceId] = instance.Initiator.DeviceId,
                 [Instances.InitiatorConstants.DeviceName] = instance.Initiator.DeviceName,
+                [Instances.InstanceConstants.InstanceId] = instance.NamespaceId,
             };
 
             // Resolve the relative config file to an absolute path; the executor loads + runs it.
@@ -228,7 +232,7 @@ public sealed class BenchScheduler : IDisposable
     /// wrote to its instance-scoped DataStore namespace (the harness "completion + data").</summary>
     private JsonElement BuildOutputPacket(BenchRunInstance instance, string workflowId, JsonElement inputPacket)
     {
-        var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.InstanceId, workflowId);
+        var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.NamespaceId, workflowId);
         var prefix = ns + "/";
 
         var obj = inputPacket.ValueKind == JsonValueKind.Object

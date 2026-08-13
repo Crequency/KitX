@@ -19,6 +19,7 @@ public sealed class ConfigValidator
         ValidateIdentity(toolkit, result);
         ValidateReferences(toolkit, result);
         ValidateAcyclic(toolkit, result);
+        ValidateUi(toolkit, result);
 
         return result;
     }
@@ -66,6 +67,60 @@ public sealed class ConfigValidator
                     result.Add($"PluginEvent trigger '{trigger.Id}' is missing Config.PluginName.");
             }
         }
+    }
+
+    /// <summary>
+    /// UI rules (ToolKit 前后端分离 GUI 稿 §7.2): Bind paths must be well-formed and stay
+    /// within the <c>panel/</c> namespace; a control's Bind must not alias another Dialog's
+    /// request key; a UIEvent trigger's Control must exist in the panel.
+    /// </summary>
+    private static void ValidateUi(Toolkit toolkit, ConfigValidationResult result)
+    {
+        var controls = toolkit.UiPanel?.Controls ?? [];
+        var controlIds = controls.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        var dialogIds = controls.Where(c => c.Type == "Dialog").Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var control in controls)
+        {
+            foreach (var (prop, bind) in new[]
+                     { ("Bind", control.Bind), ("BindEnabled", control.BindEnabled), ("BindVisible", control.BindVisible) })
+            {
+                if (string.IsNullOrWhiteSpace(bind))
+                    continue;
+
+                if (!IsValidPanelPath(bind))
+                    result.Add($"Control '{control.Id}' {prop} '{bind}' is not a valid panel path.");
+                else if (!bind.StartsWith("panel/", StringComparison.Ordinal))
+                    result.Add($"Control '{control.Id}' {prop} '{bind}' must stay within the 'panel/' namespace.");
+
+                // A control's Bind must not alias another Dialog's request key.
+                if (bind.StartsWith("panel/", StringComparison.Ordinal) && bind.EndsWith("/request", StringComparison.Ordinal))
+                {
+                    var seg = bind.Split('/');
+                    if (seg.Length >= 3 && dialogIds.Contains(seg[1]))
+                        result.Add($"Control '{control.Id}' {prop} '{bind}' aliases Dialog '{seg[1]}' request key.");
+                }
+            }
+        }
+
+        foreach (var trigger in toolkit.Triggers)
+        {
+            if (trigger.Type != TriggerType.UIEvent)
+                continue;
+            var control = trigger.Config?.Control;
+            if (string.IsNullOrWhiteSpace(control))
+                result.Add($"UIEvent trigger '{trigger.Id}' is missing Config.Control.");
+            else if (controlIds.Count > 0 && !controlIds.Contains(control))
+                result.Add($"UIEvent trigger '{trigger.Id}' references unknown control '{control}'.");
+        }
+    }
+
+    private static bool IsValidPanelPath(string path)
+    {
+        var segments = path.Split('/');
+        if (segments.Length < 2 || segments.Any(string.IsNullOrWhiteSpace))
+            return false;
+        return segments.All(s => s.All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or '.'));
     }
 
     /// <summary>
