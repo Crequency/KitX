@@ -30,12 +30,15 @@ public interface IExecutionBackend
 
     /// <summary>
     /// Executes the structured IR. The optional <paramref name="lowering"/> carries
-    /// lowering-time allocations / type inference that the backend reuses.
+    /// lowering-time allocations / type inference that the backend reuses. The optional
+    /// <paramref name="instanceId"/> is injected into <c>ExecutionGlobals.InstanceId</c>
+    /// (used by host-side ToolKit builtins); null when the workflow runs outside an instance.
     /// </summary>
     Task<BlockScriptExecutionResult> ExecuteAsync(
         Workflow ir,
         LoweringResult? lowering,
-        CancellationToken ct);
+        CancellationToken ct,
+        string? instanceId = null);
 
     /// <summary>
     /// Executes the structured IR with a debug controller attached. When
@@ -46,5 +49,6 @@ public interface IExecutionBackend
         Workflow ir,
         LoweringResult? lowering,
         CancellationToken ct,
-        IBlueprintDebugController? debugger);
+        IBlueprintDebugController? debugger,
+        string? instanceId = null);
 }

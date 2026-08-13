@@ -48,6 +48,15 @@ public sealed class WorkflowRunner
         ArgumentNullException.ThrowIfNull(ir);
 
         var applied = WorkflowOverrides.ApplyConstantOverrides(ir, constantOverrides);
-        return _backend.ExecuteAsync(applied, lowering, ct, debugger);
+
+        // The owning instance id (if any) is carried in the constant overrides; extract it
+        // and hand it to the backend so it can inject ExecutionGlobals.InstanceId for the
+        // host-side ToolKit builtins (Ui* family). Null when running outside an instance.
+        string? instanceId = null;
+        if (constantOverrides is not null
+            && constantOverrides.TryGetValue(ToolKitConstants.InstanceId, out var id))
+            instanceId = id;
+
+        return _backend.ExecuteAsync(applied, lowering, ct, debugger, instanceId);
     }
 }

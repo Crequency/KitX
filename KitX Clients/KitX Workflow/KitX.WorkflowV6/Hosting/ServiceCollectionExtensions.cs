@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Hosting;
 
+using System.Reflection;
 using KitX.WorkflowV6.Backend;
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Builtin;
@@ -42,8 +43,18 @@ public static class ServiceCollectionExtensions
         // the 41 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
         // + Pause/ReadTextFile/WriteTextFile + 7 JSON functions + 9 dict functions
         // + 3 plugin-call functions + 9 service-management functions.
+        //
+        // The registry is a DI singleton so other KitX systems can extend it: any
+        // IBuiltinFunction registered via AddBuiltinFunction<T>() / AddBuiltinFunctions()
+        // is folded into the same registry on first resolution. This is the public
+        // extension seam for host-side builtins (e.g. KitX.ToolKit's Ui*/DataStore*).
         services.AddSingleton(sp =>
-            BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly));
+        {
+            var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+            foreach (var fn in sp.GetServices<IBuiltinFunction>())
+                registry.Register(fn);
+            return registry;
+        });
 
         // Lenses — bidirectional IR views. Both KsTextLens and BpGraphLens are fully
         // implemented (Parse/Project/Reverse); BpGraphLens.Diff is the only entry on
@@ -85,6 +96,37 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<KitX.Core.Contract.Workflow.ITriggerManager,
             KitX.WorkflowV6.Services.TriggerManager>();
 
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a builtin function, constructed via DI (no parameterless-ctor reflection
+    /// requirement). The function is folded into the shared <see cref="BuiltinFunctionRegistry"/>
+    /// singleton on first resolution, so it appears in the BP palette and type inference.
+    /// This is the public extension seam for host-side builtins (e.g. KitX.ToolKit's
+    /// Ui*/DataStore* families) and any future KitX system.
+    /// </summary>
+    public static IServiceCollection AddBuiltinFunction<T>(this IServiceCollection services)
+        where T : class, IBuiltinFunction
+    {
+        services.AddSingleton<IBuiltinFunction, T>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers every concrete <see cref="IBuiltinFunction"/> in an assembly via reflection
+    /// (parameterless-ctor requirement, like <see cref="BuiltinFunctionRegistry.Discover"/>).
+    /// Prefer <see cref="AddBuiltinFunction{T}"/> for DI-constructed functions.
+    /// </summary>
+    public static IServiceCollection AddBuiltinFunctions(this IServiceCollection services, Assembly assembly)
+    {
+        foreach (var type in assembly.GetTypes())
+        {
+            if (!typeof(IBuiltinFunction).IsAssignableFrom(type)) continue;
+            if (type.IsAbstract || type.IsInterface) continue;
+            if (type.GetConstructor(Type.EmptyTypes) is null) continue;
+            services.AddSingleton(typeof(IBuiltinFunction), type);
+        }
         return services;
     }
 }
