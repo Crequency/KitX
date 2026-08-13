@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KitX.ToolKit.Data;
 using Xunit;
 
@@ -106,5 +107,52 @@ public class DataStoreTests
         store.Set("a", 1);
         store.Clear();
         Assert.Empty(store.Keys());
+    }
+
+    [Fact]
+    public void Changed_Fires_On_Set_Remove_Append()
+    {
+        var store = Create();
+        var events = new List<DataStoreChangedEventArgs>();
+        store.Changed += (_, e) => events.Add(e);
+
+        store.Set("k", 1);
+        store.Append("k", 2);
+        store.Remove("k");
+
+        Assert.Equal(3, events.Count);
+        Assert.False(events[0].Removed);
+        Assert.Equal(1, events[0].NewValue?.GetInt32());
+        Assert.False(events[1].Removed);
+        Assert.True(events[2].Removed);
+        Assert.Null(events[2].NewValue);
+    }
+
+    [Fact]
+    public void Append_Builds_Array_And_Respects_Ring_Limit()
+    {
+        var store = Create();
+        store.Append("log", "a");
+        store.Append("log", "b");
+        store.Append("log", "c", maxEntries: 2);
+
+        var arr = store.Get("log");
+        Assert.NotNull(arr);
+        Assert.Equal(2, arr.Value.GetArrayLength());
+        Assert.Equal("b", arr.Value[0].GetString());
+        Assert.Equal("c", arr.Value[1].GetString());
+    }
+
+    [Fact]
+    public void Append_Overwrites_NonArray_Key()
+    {
+        var store = Create();
+        store.Set("k", "not-an-array");
+        store.Append("k", 1);
+
+        var arr = store.Get("k");
+        Assert.NotNull(arr);
+        Assert.Equal(JsonValueKind.Array, arr.Value.ValueKind);
+        Assert.Single(arr.Value.EnumerateArray());
     }
 }

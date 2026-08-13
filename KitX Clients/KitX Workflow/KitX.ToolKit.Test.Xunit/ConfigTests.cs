@@ -129,4 +129,60 @@ public class ConfigTests
 
         Assert.False(result.IsValid);
     }
+
+    [Fact]
+    public void Validate_Rejects_Bind_Outside_Panel_Namespace()
+    {
+        var tk = Sample();
+        tk.UiPanel = new UiPanel
+        {
+            Controls = [new UiControl { Type = "Input", Id = "input", Bind = "wf/input/value" }],
+        };
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("panel/"));
+    }
+
+    [Fact]
+    public void Validate_Rejects_UIEvent_Unknown_Control()
+    {
+        var tk = Sample();
+        tk.UiPanel = new UiPanel
+        {
+            Controls = [new UiControl { Type = "Button", Id = "btn" }],
+        };
+        tk.Triggers.Add(new Trigger
+        {
+            Id = "trg-ui",
+            Type = TriggerType.UIEvent,
+            Config = new TriggerConfig { Control = "missing", Event = "Click" },
+            Bindings = [new TriggerBinding { Workflow = "wf-trans" }],
+        });
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("missing"));
+    }
+
+    [Fact]
+    public void Validate_Rejects_Bind_Aliasing_Dialog_Request_Key()
+    {
+        var tk = Sample();
+        tk.UiPanel = new UiPanel
+        {
+            Controls =
+            [
+                new UiControl { Type = "Dialog", Id = "dlg" },
+                new UiControl { Type = "Text", Id = "lbl", Bind = "panel/dlg/request" },
+            ],
+        };
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("aliases Dialog"));
+    }
 }
