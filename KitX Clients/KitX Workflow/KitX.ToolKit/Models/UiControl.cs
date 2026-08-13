@@ -19,4 +19,17 @@ public sealed class UiControl
 
     /// <summary>Type-specific props (e.g. <c>{"Items":[...]}</c> for Select) as a JSON object.</summary>
     public Dictionary<string, object?>? Options { get; set; }
+
+    /// <summary>
+    /// Explicit main-property binding path (e.g. <c>panel/input/value</c>). When null,
+    /// the default <c>{toolkitId}/panel/{Id}/{mainProp}</c> is derived. Explicit values
+    /// must stay within the <c>panel/</c> namespace (write-back gating closure).
+    /// </summary>
+    public string? Bind { get; set; }
+
+    /// <summary>Explicit enabled-state binding path; default <c>{toolkitId}/panel/{Id}/enabled</c>.</summary>
+    public string? BindEnabled { get; set; }
+
+    /// <summary>Explicit visibility binding path; default <c>{toolkitId}/panel/{Id}/visible</c>.</summary>
+    public string? BindVisible { get; set; }
 }

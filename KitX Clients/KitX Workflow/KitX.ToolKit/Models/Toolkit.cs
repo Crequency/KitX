@@ -9,6 +9,13 @@ namespace KitX.ToolKit.Models;
 /// </summary>
 public sealed class Toolkit
 {
+    /// <summary>
+    /// Stable storage id (GUID, assigned by <c>Storage.ToolkitStore</c> on create). The
+    /// display name lives in <see cref="Meta.Name"/>. Empty for in-memory/sample configs —
+    /// <see cref="GetId"/> falls back to the name.
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
     /// <summary>ToolKit metadata (name / version / author / icon / description / MinKitXVersion / tags).</summary>
     public ToolkitMeta Meta { get; set; } = new();
 
@@ -23,4 +30,14 @@ public sealed class Toolkit
 
     /// <summary>Optional UI panel definition (declared now; rendering deferred to the GUI iteration).</summary>
     public UiPanel? UiPanel { get; set; }
+
+    /// <summary>
+    /// Maximum number of concurrently-running instances this ToolKit may have. Null
+    /// (default) = unlimited. When exceeded, a spawn is rejected and surfaced via an
+    /// event (ToolKit 实例模型定稿 D7).
+    /// </summary>
+    public int? MaxInstances { get; set; }
+
+    /// <summary>The canonical id: <see cref="Id"/> when set, else <see cref="ToolkitMeta.Name"/>.</summary>
+    public string GetId() => string.IsNullOrWhiteSpace(Id) ? Meta.Name : Id;
 }

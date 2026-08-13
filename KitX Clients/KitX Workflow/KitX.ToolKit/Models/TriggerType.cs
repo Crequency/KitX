@@ -27,3 +27,25 @@ public enum TriggerType
     /// one-shot special case of this type.</summary>
     Timer,
 }
+
+/// <summary>
+/// Trigger <b>affinity</b> — a type-inbuilt classification (not user config) that
+/// decides how a fired trigger relates to instances (ToolKit 实例模型定稿 D1).
+/// <list type="bullet">
+///   <item><b>Spawn</b> — firing <i>creates a new instance</i>; the payload becomes the
+///   instance's initial context. Manual / PluginEvent / Timer.</item>
+///   <item><b>Intra</b> — fires <i>within an existing instance</i>; it never creates one.
+///   UIEvent (routes to the owning instance's panel) / WorkflowCompletion (an in-instance
+///   graph edge driven by the scheduler).</item>
+/// </list>
+/// </summary>
+public static class TriggerAffinity
+{
+    /// <summary>True when firing this trigger type spawns a new instance.</summary>
+    public static bool IsSpawn(this TriggerType type)
+        => type is TriggerType.Manual or TriggerType.PluginEvent or TriggerType.Timer;
+
+    /// <summary>True when this trigger type fires within an existing instance only.</summary>
+    public static bool IsIntra(this TriggerType type)
+        => type is TriggerType.UIEvent or TriggerType.WorkflowCompletion;
+}

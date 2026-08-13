@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KitX.ToolKit.Contracts;
 
 namespace KitX.ToolKit.Bench;
 
@@ -7,19 +8,27 @@ namespace KitX.ToolKit.Bench;
 /// spawned from a single source firing share this instance, giving them a common
 /// instance-scoped cancellation token and data namespace (RFC §4.5 / §6.4). Node-level
 /// join state lives here so concurrent instances never interfere.
+///
+/// <para>In the instance model (ToolKit 实例模型定稿) this is the dataflow engine behind a
+/// <see cref="Instances.ToolkitInstance"/>: the manager wraps it to add lifecycle/Initiator
+/// and retain it after completion.</para>
 /// </summary>
 public sealed class BenchRunInstance : IDisposable
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly object _gate = new();
     private int _pendingWorkflows;
+    private int _startedCount;
+    private int _completedCount;
     private int _failureCount;
     private bool _reported;
+    private bool _disposed;
 
-    internal BenchRunInstance(string toolkitId, string instanceId)
+    internal BenchRunInstance(string toolkitId, string instanceId, Initiator initiator)
     {
         ToolkitId = toolkitId;
         InstanceId = instanceId;
+        Initiator = initiator;
         // Join counters: number of distinct incoming completion edges per node.
         // Roots (no incoming edges) get 0 → any single delivery activates them.
         JoinRemaining = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -32,11 +41,23 @@ public sealed class BenchRunInstance : IDisposable
     /// <summary>Unique id for this run, used to scope DataStore edge keys.</summary>
     public string InstanceId { get; }
 
+    /// <summary>The device that initiated this run (ToolKit 实例模型定稿 D5).</summary>
+    public Initiator Initiator { get; }
+
     /// <summary>Cancellation token for every workflow in this run (Stop cancels the whole chain).</summary>
     public CancellationToken Token => _cts.Token;
 
     /// <summary>Raised when every workflow in the instance has finished.</summary>
     public event EventHandler<BenchRunCompletedEventArgs>? Completed;
+
+    /// <summary>Number of workflows currently in flight.</summary>
+    public int ActiveRuns => Volatile.Read(ref _pendingWorkflows);
+
+    /// <summary>Number of workflows that have finished.</summary>
+    public int CompletedRuns => Volatile.Read(ref _completedCount);
+
+    /// <summary>Number of workflows that failed.</summary>
+    public int FailedRuns => Volatile.Read(ref _failureCount);
 
     /// <summary>Per-node join bookkeeping. Guarded by <see cref="Gate"/>.</summary>
     internal Dictionary<string, int> JoinRemaining { get; }
@@ -50,7 +71,10 @@ public sealed class BenchRunInstance : IDisposable
     internal void TrackStarted()
     {
         lock (_gate)
+        {
             _pendingWorkflows++;
+            _startedCount++;
+        }
     }
 
     /// <summary>Marks a workflow as failed (propagated to the run result).</summary>
@@ -63,6 +87,7 @@ public sealed class BenchRunInstance : IDisposable
         lock (_gate)
         {
             _pendingWorkflows--;
+            _completedCount++;
             if (_pendingWorkflows > 0 || _reported)
                 return;
             _reported = true;
@@ -73,9 +98,20 @@ public sealed class BenchRunInstance : IDisposable
             Completed?.Invoke(this, new BenchRunCompletedEventArgs(InstanceId, _failureCount == 0));
     }
 
-    /// <summary>Cancels every workflow in this run.</summary>
-    public void Cancel() => _cts.Cancel();
+    /// <summary>Cancels every workflow in this run. Safe to call after <see cref="Dispose"/>.</summary>
+    public void Cancel()
+    {
+        if (_disposed)
+            return;
+        _cts.Cancel();
+    }
 
     /// <inheritdoc/>
-    public void Dispose() => _cts.Dispose();
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _cts.Dispose();
+    }
 }

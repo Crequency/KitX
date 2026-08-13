@@ -42,4 +42,13 @@ public sealed class TriggerConfig
 
     /// <summary>Event name, e.g. <c>Click</c>, <c>Submit</c>, <c>Toggled</c>.</summary>
     public string? Event { get; set; }
+
+    // ── Spawn presentation (Manual / PluginEvent / Timer) ──
+    /// <summary>
+    /// How a spawned instance's panel is presented to the user. <c>auto</c> (default) =
+    /// automatically open/focus the instance panel on spawn; <c>silent</c> = run in the
+    /// background (a badge hints it) and only surface when the workflow calls
+    /// <c>KitX.UI.OpenPanel</c> or the user opens it manually.
+    /// </summary>
+    public string? Surface { get; set; }
 }
