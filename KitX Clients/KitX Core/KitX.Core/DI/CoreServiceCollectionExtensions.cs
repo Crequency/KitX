@@ -144,7 +144,9 @@ public static class CoreServiceCollectionExtensions
                 new Lazy<KitX.Core.Contract.Workflow.IWorkflowStorageService>(
                     sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowStorageService>),
                 new Lazy<KitX.ToolKit.Data.BuiltinDataStorePlugin>(
-                    sp.GetRequiredService<KitX.ToolKit.Data.BuiltinDataStorePlugin>)));
+                    sp.GetRequiredService<KitX.ToolKit.Data.BuiltinDataStorePlugin>),
+                new Lazy<KitX.ToolKit.Data.BuiltinUiPlugin>(
+                    sp.GetRequiredService<KitX.ToolKit.Data.BuiltinUiPlugin>)));
 
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");

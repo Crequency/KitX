@@ -62,6 +62,9 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
     // independent of that registration order.
     private readonly Lazy<BuiltinDataStorePlugin>? _dataStorePlugin;
 
+    // Lazy: the KitX.UI built-in plugin (panel runtime) — same lazy rationale.
+    private readonly Lazy<BuiltinUiPlugin>? _uiPlugin;
+
     /// <summary>
     /// Creates an adapter over the given plugin manager, plugin service and
     /// lazily-resolved workflow services.
@@ -71,13 +74,15 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         IPluginService? pluginService = null,
         Lazy<IWorkflowManagementService>? workflowManagement = null,
         Lazy<IWorkflowStorageService>? workflowStorage = null,
-        Lazy<BuiltinDataStorePlugin>? dataStorePlugin = null)
+        Lazy<BuiltinDataStorePlugin>? dataStorePlugin = null,
+        Lazy<BuiltinUiPlugin>? uiPlugin = null)
     {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _pluginService = pluginService;
         _workflowManagement = workflowManagement;
         _workflowStorage = workflowStorage;
         _dataStorePlugin = dataStorePlugin;
+        _uiPlugin = uiPlugin;
     }
 
     /// <summary>
@@ -93,6 +98,13 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
             string.Equals(pluginName, BuiltinDataStorePlugin.PluginName, StringComparison.OrdinalIgnoreCase))
         {
             return _dataStorePlugin.Value.Invoke(methodName, args);
+        }
+
+        // Route the reserved built-in KitX.UI plugin (panel runtime) before the real pool.
+        if (_uiPlugin is not null &&
+            string.Equals(pluginName, BuiltinUiPlugin.PluginName, StringComparison.OrdinalIgnoreCase))
+        {
+            return _uiPlugin.Value.Invoke(methodName, args);
         }
 
         var callInfo = BuildCallInfo(pluginName, methodName, args);
