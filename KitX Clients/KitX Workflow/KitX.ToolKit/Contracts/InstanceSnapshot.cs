@@ -17,4 +17,8 @@ public sealed record InstanceSnapshot(
     DateTimeOffset? CompletedAt,
     int ActiveRuns,
     int CompletedRuns,
-    int FailedRuns);
+    int FailedRuns)
+{
+    /// <summary>Human-readable run-counter summary for the run monitor.</summary>
+    public string RunSummary => $"运行 {ActiveRuns} / 完成 {CompletedRuns} / 失败 {FailedRuns}";
+}
