@@ -5,6 +5,13 @@ using System.Text.Json.Nodes;
 namespace KitX.ToolKit.Data;
 
 /// <summary>
+/// Raised by <see cref="DataStore.Changed"/> when a key is written, removed or appended.
+/// Fired outside the store's lock — subscribers must marshal to their own thread (the
+/// desktop adapter marshals to the UI thread; the remote bridge filters by subscription).
+/// </summary>
+public sealed record DataStoreChangedEventArgs(string Key, JsonElement? OldValue, JsonElement? NewValue, bool Removed);
+
+/// <summary>
 /// The ToolKit-held in-memory JSON data blackboard (Bench RFC §6). Workflow
 /// instances read/write shared keys through it; data outlives the individual run.
 ///
@@ -18,6 +25,9 @@ namespace KitX.ToolKit.Data;
 /// functions use plain global keys; the Bench scheduler derives instance-scoped edge
 /// keys (e.g. <c>{toolkitId}/{instanceId}/{edgeId}</c>) so concurrent trigger paths
 /// never pollute each other.</para>
+///
+/// <para><see cref="Changed"/> is the panel-projection / remote-push primitive: the
+/// desktop renderer and (later) the WS bridge subscribe and filter by bound keys.</para>
 /// </summary>
 public sealed class DataStore
 {
@@ -31,23 +41,56 @@ public sealed class DataStore
         _options = options ?? new DataStoreOptions();
     }
 
+    /// <summary>Raised on Set/Remove/Append, outside the store lock. Subscribers marshal themselves.</summary>
+    public event EventHandler<DataStoreChangedEventArgs>? Changed;
+
     /// <summary>Writes a key, notifying any waiters whose condition is now satisfied.</summary>
     /// <param name="value">Any value — normalized to a <see cref="JsonElement"/> (JSON object / array / string / number).</param>
     public void Set(string key, object? value)
     {
         ArgumentNullException.ThrowIfNull(key);
 
-        _data[key] = Normalize(value);
+        var newValue = Normalize(value);
+        _data.TryGetValue(key, out var oldValue);
+        _data[key] = newValue;
 
-        List<Waiter> toSignal;
+        SignalWaiters();
+        Changed?.Invoke(this, new DataStoreChangedEventArgs(key, oldValue, newValue, Removed: false));
+    }
+
+    /// <summary>
+    /// Atomically appends a value to an array key. When the key is not an array it is
+    /// replaced with <c>[value]</c>. When the array exceeds <paramref name="maxEntries"/>
+    /// (or <see cref="DataStoreOptions.AppendLimit"/> when null), the oldest entries are
+    /// dropped (ring buffer) — the log control's underlying primitive.
+    /// </summary>
+    public void Append(string key, object? value, int? maxEntries = null)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        var limit = maxEntries ?? _options.AppendLimit;
+        var newValue = Normalize(value);
+        JsonElement? oldValue;
+
         lock (_gate)
         {
-            toSignal = _waiters.Where(w => w.IsSatisfied(this)).ToList();
-            foreach (var w in toSignal)
-                _waiters.Remove(w);
+            _data.TryGetValue(key, out var existing);
+            oldValue = existing;
+
+            var arr = existing.ValueKind == JsonValueKind.Array
+                ? JsonNode.Parse(existing.GetRawText())?.AsArray() ?? new JsonArray()
+                : new JsonArray();
+            arr.Add(JsonNode.Parse(newValue.GetRawText()));
+            if (limit > 0)
+            {
+                while (arr.Count > limit)
+                    arr.RemoveAt(0);
+            }
+            _data[key] = JsonSerializer.SerializeToElement(arr);
         }
-        foreach (var w in toSignal)
-            w.Tcs.TrySetResult(w.BuildResult(this));
+
+        SignalWaiters();
+        Changed?.Invoke(this, new DataStoreChangedEventArgs(key, oldValue, _data[key], Removed: false));
     }
 
     /// <summary>Synchronous read; null when the key is absent.</summary>
@@ -81,7 +124,10 @@ public sealed class DataStore
     public bool Remove(string key)
     {
         ArgumentNullException.ThrowIfNull(key);
-        return _data.TryRemove(key, out _);
+        if (!_data.TryRemove(key, out var old))
+            return false;
+        Changed?.Invoke(this, new DataStoreChangedEventArgs(key, old, null, Removed: true));
+        return true;
     }
 
     /// <summary>All currently-present keys.</summary>
@@ -106,6 +152,20 @@ public sealed class DataStore
         }
         foreach (var w in pending)
             w.Tcs.TrySetResult(EmptyObject());
+    }
+
+    /// <summary>Collects and signals waiters whose condition is now satisfied. Caller must not hold the lock.</summary>
+    private void SignalWaiters()
+    {
+        List<Waiter> toSignal;
+        lock (_gate)
+        {
+            toSignal = _waiters.Where(w => w.IsSatisfied(this)).ToList();
+            foreach (var w in toSignal)
+                _waiters.Remove(w);
+        }
+        foreach (var w in toSignal)
+            w.Tcs.TrySetResult(w.BuildResult(this));
     }
 
     private JsonElement Block(string[] keyArr, bool any, TimeSpan timeout)
