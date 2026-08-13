@@ -1,4 +1,5 @@
 using KitX.ToolKit.Bench;
+using KitX.ToolKit.Builtin.Functions;
 using KitX.ToolKit.Contracts;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
@@ -7,6 +8,7 @@ using KitX.ToolKit.Services;
 using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
+using KitX.WorkflowV6.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.ToolKit.Hosting;
@@ -40,6 +42,24 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PanelRuntime>();
         services.AddSingleton<IPanelRuntime>(sp => sp.GetRequiredService<PanelRuntime>());
         services.AddSingleton<BuiltinUiPlugin>();
+
+        // First-class ToolKit builtin functions (Ui*/DataStore*), registered via the public
+        // WorkflowV6 registration API so they appear in the BP palette and type inference.
+        // Runtime execution lives on ExecutionGlobals.ToolKit (WorkflowV6) and routes through
+        // the host's reserved-name bridge to the services above.
+        services.AddBuiltinFunction<UiSetFunction>();
+        services.AddBuiltinFunction<UiGetFunction>();
+        services.AddBuiltinFunction<UiLogFunction>();
+        services.AddBuiltinFunction<UiProgressFunction>();
+        services.AddBuiltinFunction<UiDialogFunction>();
+        services.AddBuiltinFunction<UiOpenPanelFunction>();
+        services.AddBuiltinFunction<DataStoreSetFunction>();
+        services.AddBuiltinFunction<DataStoreGetFunction>();
+        services.AddBuiltinFunction<DataStoreWaitFunction>();
+        services.AddBuiltinFunction<DataStoreWaitAnyFunction>();
+        services.AddBuiltinFunction<DataStoreRemoveFunction>();
+        services.AddBuiltinFunction<DataStoreKeysFunction>();
+        services.AddBuiltinFunction<DataStoreContainsFunction>();
 
         // Config validation.
         services.AddSingleton<ConfigValidator>();
