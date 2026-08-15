@@ -341,6 +341,10 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void Infer_Propagates_Through_If_Else_Body()
     {
+        // The var has TWO different concrete producers (StringConcat → string in the
+        // then-body, Mul → int in the else-body). The pre-fix behaviour was last-wins
+        // (int), which typed the field `int` and broke compilation of the then-body's
+        // string assignment; heterogeneous producers now meet at "object".
         var source = """
             var {
                 object val
@@ -352,7 +356,7 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             """;
         var result = InferFromDeclared(source);
         Assert.True(result.ContainsKey("val"));
-        Assert.Equal("int", result["val"]);
+        Assert.Equal("object", result["val"]);
     }
 
     [Fact]

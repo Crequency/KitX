@@ -20,6 +20,13 @@ internal sealed class StructuredCodegen : CodegenBase
     private int _cancelCheckCounter;
 
     /// <summary>
+    /// PubVar types from the current Generate call's lowering, used by
+    /// <see cref="RenderForEachSource"/> to decide whether a forEach source needs the
+    /// runtime Enumerate bridge.
+    /// </summary>
+    private IReadOnlyDictionary<string, string>? _pubVarTypes;
+
+    /// <summary>
     /// Emit one cancellation check per this many emitted statements. Bounds the
     /// instrumentation overhead on long straight-line programs while keeping
     /// cancellation latency bounded (worst case: a check fires N statements late).
@@ -30,6 +37,7 @@ internal sealed class StructuredCodegen : CodegenBase
     {
         _cancelCheckCounter = 0;
         _ir = ir;
+        _pubVarTypes = lowering?.PubVarTypes;
         _helperNames = new HashSet<string>(
             ir.HelperFunctions.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name!),
             StringComparer.Ordinal);
@@ -51,6 +59,36 @@ internal sealed class StructuredCodegen : CodegenBase
     {
         foreach (var s in body)
             EmitStatement(s);
+    }
+
+    /// <summary>
+    /// Renders a forEach collection source. <see cref="System.Text.Json.JsonElement"/>
+    /// does not implement IEnumerable, and object?-typed sources may hold a JSON array
+    /// at runtime — both are routed through the runtime <c>Enumerate</c> helper so the
+    /// standard "iterate a JSON array" idiom compiles. Strongly-typed collections
+    /// (e.g. Range's int[]) keep the direct foreach, byte-identical to before.
+    /// </summary>
+    private string RenderForEachSource(KsNode source)
+    {
+        string? staticType = null;
+        if (source is KsIdentifier id && _pubVarTypes is not null
+            && _pubVarTypes.TryGetValue(id.Name, out var varType))
+        {
+            staticType = varType;
+        }
+        else if (source is KsCall call && _registry.Contains(call.MethodName))
+        {
+            staticType = BuiltinRuntimeTypes.Resolve(call.MethodName) switch
+            {
+                { } actual when actual == typeof(object) => "object",
+                { } actual when actual == typeof(System.Text.Json.JsonElement) => "JsonElement",
+                _ => null,   // typed collection (int[], List, ...) — direct foreach
+            };
+        }
+
+        if (staticType is "JsonElement" or "object")
+            return $"this.Enumerate({RenderKsNode(source)})";
+        return RenderKsNode(source);
     }
 
     /// <summary>
@@ -103,7 +141,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 EmitLine("}");
                 break;
             case ForEachStatement fe:
-                EmitLine($"foreach (var {fe.ItemName} in {RenderKsNode(fe.Source)})");
+                EmitLine($"foreach (var {fe.ItemName} in {RenderForEachSource(fe.Source)})");
                 EmitLine("{");
                 Indent();
                 EmitLoopIterationCheck();

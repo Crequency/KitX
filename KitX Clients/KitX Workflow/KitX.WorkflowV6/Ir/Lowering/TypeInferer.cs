@@ -1,5 +1,6 @@
 namespace KitX.WorkflowV6.Ir.Lowering;
 
+using System.Reflection;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir.Ast;
@@ -35,11 +36,21 @@ public static class TypeInferer
     /// Infers PubVar types from the IR + lowering result + helper functions.
     /// Returns a map of PubVar/Const name → C# type name (default "object").
     /// </summary>
+    /// <param name="runtimeTypeResolver">
+    /// Optional: resolves a builtin's ACTUAL C# return type on
+    /// <c>ExecutionGlobals</c> by function name. The backend supplies this (the IR layer
+    /// must not reference Backend.Runtime); when given, the real method signature wins
+    /// over the descriptor pin — pin <c>Json</c> is typed <c>JsonElement</c>, but methods
+    /// like <c>PluginCall</c> actually return <c>object?</c>, and typing a field
+    /// <c>JsonElement</c> from an <c>object?</c> producer does not compile. Null (or an
+    /// unknown name) falls back to the pin type.
+    /// </param>
     public static Dictionary<string, string> Infer(
         Workflow ir,
         LoweringResult? lowering,
         BuiltinFunctionRegistry? registry,
-        IReadOnlyList<HelperFunction>? helperFunctions)
+        IReadOnlyList<HelperFunction>? helperFunctions,
+        Func<string, Type?>? runtimeTypeResolver = null)
     {
         var pubVarTypes = new Dictionary<string, string>(StringComparer.Ordinal);
         var helperMap = (helperFunctions ?? [])
@@ -60,7 +71,23 @@ public static class TypeInferer
             pubVarTypes.TryAdd(name, global.Type.Length > 0 ? global.Type : "object");
 
         // ── Pass 1: SOURCE types — recurse into structured bodies. ──
-        SourcePass(ir.Body, pubVarTypes, registry, helperMap);
+        // Producer types are collected per var (a set), then applied after the full
+        // traversal: a var typed by ALL its producers — exactly one concrete type and
+        // no object? producer keeps it; anything mixed (object? + string, int + string)
+        // meets at "object" so every assignment compiles.
+        var producers = new Dictionary<string, ProducerSet>(StringComparer.Ordinal);
+        SourcePass(ir.Body, pubVarTypes, registry, helperMap, runtimeTypeResolver, producers);
+        foreach (var (name, set) in producers)
+        {
+            if (!pubVarTypes.ContainsKey(name))
+                continue;
+            pubVarTypes[name] = set.ConcreteTypes.Count switch
+            {
+                0 => "object",
+                1 when !set.SawObject => set.ConcreteTypes.Single(),
+                _ => "object",
+            };
+        }
 
         // ── Pass 2: DEMAND types — recurse into structured bodies. ──
         DemandPass(ir.Body, pubVarTypes, registry, helperMap);
@@ -74,7 +101,9 @@ public static class TypeInferer
         ImmutableArray<Statement> body,
         Dictionary<string, string> pubVarTypes,
         BuiltinFunctionRegistry? registry,
-        IReadOnlyDictionary<string, HelperFunction> helperMap)
+        IReadOnlyDictionary<string, HelperFunction> helperMap,
+        Func<string, Type?>? runtimeTypeResolver,
+        Dictionary<string, ProducerSet> producers)
     {
         foreach (var stmt in body)
         {
@@ -99,23 +128,35 @@ public static class TypeInferer
                     }
                 }
 
-                if (target is not null && producingFunc is not null && pubVarTypes.ContainsKey(target))
+                if (target is not null && pubVarTypes.ContainsKey(target))
                 {
-                    // (a) Helper function return type.
-                    if (helperMap.TryGetValue(producingFunc, out var helper))
+                    // A leading function call is a legal pipeline SOURCE
+                    // (`PluginCall("P","M") > v`); when the only segment is the tap,
+                    // the source call is the producer.
+                    if (producingFunc is null && pipe.Sources is [KsCall call, ..] && pipe.Sources.Length == 1)
+                        producingFunc = call.MethodName;
+
+                    if (producingFunc is not null)
                     {
-                        pubVarTypes[target] = helper.ReturnType;
-                    }
-                    // (b) Builtin return PinType.
-                    else if (registry?.Get(producingFunc) is { } builtin
-                        && FirstDataOutputPin(builtin) is { } retPin)
-                    {
-                        pubVarTypes[target] = PinTypeToCSharp(retPin.Type);
+                        // (a) Helper function return type.
+                        if (helperMap.TryGetValue(producingFunc, out var helper))
+                        {
+                            RecordProducer(producers, target, helper.ReturnType);
+                        }
+                        // (b) Builtin: prefer the actual ExecutionGlobals return type (when the
+                        // resolver knows it) over the descriptor pin, then record it against
+                        // the var's producer set.
+                        else if (registry?.Get(producingFunc) is { } builtin
+                            && FirstDataOutputPin(builtin) is { } retPin)
+                        {
+                            RecordProducer(producers, target,
+                                ProducedCSharpType(builtin.Name, retPin.Type, runtimeTypeResolver));
+                        }
                     }
                 }
             }
 
-            VisitBodies(stmt, b => SourcePass(b, pubVarTypes, registry, helperMap));
+            VisitBodies(stmt, b => SourcePass(b, pubVarTypes, registry, helperMap, runtimeTypeResolver, producers));
         }
     }
 
@@ -245,6 +286,66 @@ public static class TypeInferer
                 return p;
         return null;
     }
+
+    // ── Producer type resolution & merge ──
+
+    /// <summary>Per-var producer type facts gathered by the SOURCE pass.</summary>
+    private sealed class ProducerSet
+    {
+        /// <summary>Distinct concrete C# types produced into the var.</summary>
+        public HashSet<string> ConcreteTypes { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Whether any producer's type is object/object? (untyped at compile time).</summary>
+        public bool SawObject;
+    }
+
+    private static void RecordProducer(
+        Dictionary<string, ProducerSet> producers, string target, string producedType)
+    {
+        if (!producers.TryGetValue(target, out var set))
+            producers[target] = set = new ProducerSet();
+        if (producedType is "object" or "dynamic")
+            set.SawObject = true;
+        else
+            set.ConcreteTypes.Add(producedType);
+    }
+
+    /// <summary>
+    /// Resolves the C# type a builtin produces for assignment typing: the actual
+    /// <see cref="Backend.Runtime.ExecutionGlobals"/> method return type when the
+    /// resolver knows it, otherwise the descriptor pin type.
+    /// </summary>
+    private static string ProducedCSharpType(
+        string functionName, PinType pinType, Func<string, Type?>? resolver)
+    {
+        if (resolver is not null)
+        {
+            try
+            {
+                if (resolver(functionName) is { } actual)
+                    return ClrTypeToCSharp(actual);
+            }
+            catch (AmbiguousMatchException)
+            {
+                // The resolver collapses same-return overloads; a throw means it could
+                // not decide — fall through to the pin type.
+            }
+        }
+        return PinTypeToCSharp(pinType);
+    }
+
+    /// <summary>Maps a CLR type to the C# type name used for typed fields; anything
+    /// exotic degrades to <c>object</c> (universally assignable).</summary>
+    private static string ClrTypeToCSharp(Type type) => type == typeof(object) ? "object"
+        : type == typeof(string) ? "string"
+        : type == typeof(bool) ? "bool"
+        : type == typeof(int) ? "int"
+        : type == typeof(long) ? "long"
+        : type == typeof(double) ? "double"
+        : type == typeof(float) ? "float"
+        : type == typeof(System.Text.Json.JsonElement) ? "JsonElement"
+        : type.IsArray ? ClrTypeToCSharp(type.GetElementType()!) + "[]"
+        : "object";
 
     /// <summary>Maps a BP PinType to the C# type name used for typed fields.</summary>
     private static string PinTypeToCSharp(PinType type) => type switch

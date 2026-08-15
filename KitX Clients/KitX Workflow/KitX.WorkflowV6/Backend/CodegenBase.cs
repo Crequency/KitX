@@ -170,6 +170,15 @@ internal abstract class CodegenBase
     {
         EmitLine("using System;");
         EmitLine("using System.Collections.Generic;");
+        // JsonElement-typed fields (TypeInferer maps pin Json → JsonElement) are only
+        // legal with this using present. Emitted conditionally so fixtures without
+        // Json-producing vars keep their exact generated-source bytes.
+        var hasJsonElementType =
+            (lowering?.PubVarTypes.Values.Any(t => t.Contains("JsonElement")) ?? false)
+            || ir.Constants.Values.Any(c => c.Type.Contains("JsonElement"))
+            || ir.GlobalVars.Values.Any(g => g.Type.Contains("JsonElement"));
+        if (hasJsonElementType)
+            EmitLine("using System.Text.Json;");
         EmitLine("using KitX.WorkflowV6.Backend.Runtime;");
         EmitLine("");
         EmitLine("namespace KitX.WorkflowV6.Generated;");
@@ -204,10 +213,15 @@ internal abstract class CodegenBase
         EmitLine("");
     }
 
-    /// <summary>Maps a KS type keyword to its C# type name. Non-mapped types pass through.</summary>
+    /// <summary>Maps a KS type keyword to its C# type name. Non-mapped types pass through.
+    /// <c>dynamic</c> deliberately becomes <c>object</c>: the generated code never uses
+    /// dynamic dispatch (fields are only assigned and passed to object?-parameter
+    /// builtins), and a raw <c>dynamic</c> field requires the Microsoft.CSharp binder
+    /// reference (CS1980) for zero benefit.</summary>
     protected static string KsTypeToCSharp(string ksType) => ksType switch
     {
         "dict" => "Dictionary<string, object?>",
+        "dynamic" => "object",
         _ => ksType,
     };
 

@@ -92,8 +92,12 @@ internal sealed class ScriptCompiler
                     .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
             };
 
-            // Run TypeInferer for complete type inference (Source + Demand passes).
-            var pubVarTypes = TypeInferer.Infer(ir, effectiveLowering, _registry, ir.HelperFunctions);
+            // Run TypeInferer for complete type inference (Source + Demand passes). The
+            // runtime-type resolver feeds the ACTUAL ExecutionGlobals signatures in so
+            // vars produced by object?-returning builtins (PluginCall & friends) are not
+            // mis-typed from their Json descriptor pins.
+            var pubVarTypes = TypeInferer.Infer(
+                ir, effectiveLowering, _registry, ir.HelperFunctions, BuiltinRuntimeTypes.Resolve);
             var refinedLowering = effectiveLowering with { PubVarTypes = pubVarTypes };
 
             var codegen = new DebugCodegen(_registry);
@@ -219,11 +223,28 @@ internal sealed class ScriptCompiler
             "System.Runtime.Extensions.dll",
             "System.Runtime.InteropServices.dll",
             "System.Text.Json.dll",
+            // Fields emitted for `dynamic`-declared PubVars need the dynamic binder.
+            "Microsoft.CSharp.dll",
         };
         foreach (var asm in coreAssemblies)
         {
             var path = Path.Combine(coreDir, asm);
             if (File.Exists(path)) refs.Add(MetadataReference.CreateFromFile(path));
+        }
+        // Microsoft.CSharp can be absent from the plain runtime dir (ref packs); load it
+        // by name so `dynamic`-typed PubVar fields compile (CS1980 without it).
+        if (!coreAssemblies.Contains("Microsoft.CSharp.dll") || !File.Exists(Path.Combine(coreDir, "Microsoft.CSharp.dll")))
+        {
+            try
+            {
+                var csharp = Assembly.Load(new AssemblyName("Microsoft.CSharp"));
+                if (!string.IsNullOrEmpty(csharp.Location))
+                    refs.Add(MetadataReference.CreateFromFile(csharp.Location));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "[ScriptCompiler] Microsoft.CSharp reference unavailable; dynamic fields will not compile");
+            }
         }
         refs.Add(MetadataReference.CreateFromFile(typeof(ExecutionGlobals).Assembly.Location));
         refs.Add(MetadataReference.CreateFromFile(typeof(IBlueprintDebugController).Assembly.Location));

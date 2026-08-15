@@ -30,6 +30,34 @@ public partial class ExecutionGlobals
         catch (JsonException) { result = default; return false; }
     }
 
+    /// <summary>
+    /// Enumerates a forEach collection source at runtime: JSON arrays yield their
+    /// elements, other IEnumerables pass through, anything else (null, scalars,
+    /// JSON objects) yields nothing. Codegen routes JsonElement- and object?-typed
+    /// forEach sources through this helper because JsonElement does not implement
+    /// IEnumerable and cannot appear directly in a C# foreach.
+    /// </summary>
+    public IEnumerable<object?> Enumerate(object? source)
+    {
+        switch (source)
+        {
+            case null:
+                break;
+            case JsonElement { ValueKind: JsonValueKind.Array } array:
+                foreach (var element in array.EnumerateArray())
+                    yield return element;
+                break;
+            case string text:
+                foreach (var ch in text)
+                    yield return ch.ToString();
+                break;
+            case System.Collections.IEnumerable enumerable:
+                foreach (var item in enumerable)
+                    yield return item;
+                break;
+        }
+    }
+
     /// <summary>JsonAsString: extracts a string from a JSON value. Undefined (null/empty)
     /// yields an empty string — GetRawText() would throw on ValueKind.Undefined.</summary>
     public string JsonAsString(object? json)

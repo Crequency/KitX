@@ -8,6 +8,12 @@ namespace KitX.WorkflowV6.Backend.Runtime;
 
 public partial class ExecutionGlobals
 {
+    /// <summary>Relative tolerance for floating equality comparisons (Compare).</summary>
+    private const double RelTol = 1e-9;
+
+    /// <summary>Absolute tolerance for floating equality comparisons (Compare).</summary>
+    private const double AbsTol = 1e-12;
+
     /// <summary>
     /// Compare dispatcher: compares a and b with the named operator.
     /// Op codes per §十二-B: BEQ/BNE/BLT/BLE/BGT/BGE.
@@ -48,13 +54,48 @@ public partial class ExecutionGlobals
             };
         }
 
+        // String path — ordinal comparison. A string IS IConvertible, so this MUST
+        // precede the numeric path: Convert.ToDouble on non-numeric text throws
+        // FormatException, meaning string equality previously never worked. When BOTH
+        // sides parse as numbers the numeric semantics are preserved ("5" == "5.0").
+        if (a is string sa && b is string sb)
+        {
+            if (double.TryParse(sa, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var da)
+                && double.TryParse(sb, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var db))
+            {
+                double absDiff = Math.Abs(da - db);
+                double tol = Math.Max(Math.Max(Math.Abs(da), Math.Abs(db)) * RelTol, AbsTol);
+                return op switch
+                {
+                    "BEQ" => absDiff <= tol,
+                    "BNE" => absDiff > tol,
+                    "BLT" => da < db,
+                    "BLE" => da <= db,
+                    "BGT" => da > db,
+                    "BGE" => da >= db,
+                    _ => throw new ArgumentException($"Unknown compare op: {op}", nameof(op)),
+                };
+            }
+            int cmp = string.CompareOrdinal(sa, sb);
+            return op switch
+            {
+                "BEQ" => cmp == 0,
+                "BNE" => cmp != 0,
+                "BLT" => cmp < 0,
+                "BLE" => cmp <= 0,
+                "BGT" => cmp > 0,
+                "BGE" => cmp >= 0,
+                _ => throw new ArgumentException($"Unknown compare op: {op}", nameof(op)),
+            };
+        }
+
         // Numeric path — tolerance applies only to equality for floating operands.
         if (a is IConvertible && b is IConvertible)
         {
             double da = Convert.ToDouble(a, System.Globalization.CultureInfo.InvariantCulture);
             double db = Convert.ToDouble(b, System.Globalization.CultureInfo.InvariantCulture);
-            const double RelTol = 1e-9;
-            const double AbsTol = 1e-12;
             double absDiff = Math.Abs(da - db);
             double tol = Math.Max(Math.Max(Math.Abs(da), Math.Abs(db)) * RelTol, AbsTol);
             return op switch
