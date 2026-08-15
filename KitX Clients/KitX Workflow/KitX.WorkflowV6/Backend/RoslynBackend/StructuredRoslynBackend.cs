@@ -63,15 +63,15 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         Workflow ir,
         LoweringResult? lowering,
         CancellationToken ct,
-        string? instanceId = null)
-        => ExecuteAsync(ir, lowering, ct, debugger: null, instanceId);
+        ToolKitRunContext? toolkit = null)
+        => ExecuteAsync(ir, lowering, ct, debugger: null, toolkit);
 
     public async Task<BlockScriptExecutionResult> ExecuteAsync(
         Workflow ir,
         LoweringResult? lowering,
         CancellationToken ct,
         IBlueprintDebugController? debugger,
-        string? instanceId = null)
+        ToolKitRunContext? toolkit = null)
     {
         ArgumentNullException.ThrowIfNull(ir);
         ct.ThrowIfCancellationRequested();
@@ -99,7 +99,9 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
             g.Debugger = debugger;
             g.DebugToken = ct;
             g.PluginHost = _pluginHost;
-            g.InstanceId = instanceId;
+            g.InstanceId = toolkit?.InstanceId;
+            g.OutputNamespace = toolkit?.OutputNamespace;
+            g.RawOverrides = toolkit?.RawOverrides;
 
             var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Generated RunAsync method not found.");

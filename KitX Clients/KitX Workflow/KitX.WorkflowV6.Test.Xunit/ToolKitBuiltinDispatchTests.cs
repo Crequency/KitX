@@ -123,7 +123,7 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
             new Dictionary<string, string?> { [ToolKitConstants.InstanceId] = "inst-9" },
             CancellationToken.None);
 
-        Assert.Equal("inst-9", backend.LastInstanceId);
+        Assert.Equal("inst-9", backend.LastToolkit?.InstanceId);
     }
 
     [Fact]
@@ -135,7 +135,32 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
         await runner.ExecuteAsync(ir, null, null, CancellationToken.None);
 
-        Assert.Null(backend.LastInstanceId);
+        // The context is always handed over (raw overrides feed BenchIn), but the
+        // instance-scoped fields degrade to null outside a ToolKit instance.
+        Assert.NotNull(backend.LastToolkit);
+        Assert.Null(backend.LastToolkit.InstanceId);
+        Assert.Null(backend.LastToolkit.OutputNamespace);
+        Assert.Null(backend.LastToolkit.RawOverrides);
+    }
+
+    [Fact]
+    public async Task Runner_Extracts_Bench_Context_From_Overrides()
+    {
+        var ir = _fixture.ParseKS("Print(\"x\")\n");
+        var backend = new RecordingBackend();
+        var runner = new WorkflowRunner(backend);
+        var overrides = new Dictionary<string, string?>
+        {
+            [ToolKitConstants.InstanceId] = "inst-9",
+            [ToolKitConstants.OutputNamespace] = "tk/inst-9/wf/wf-a",
+            ["userInput"] = "hello",
+        };
+
+        await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
+
+        Assert.Equal("inst-9", backend.LastToolkit!.InstanceId);
+        Assert.Equal("tk/inst-9/wf/wf-a", backend.LastToolkit.OutputNamespace);
+        Assert.Same(overrides, backend.LastToolkit.RawOverrides);
     }
 
     [Fact]
@@ -214,19 +239,19 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
     private sealed class RecordingBackend : IExecutionBackend
     {
-        public string? LastInstanceId { get; private set; }
+        public ToolKitRunContext? LastToolkit { get; private set; }
         public string Name => "Recording";
 
         public Task<BlockScriptExecutionResult> ExecuteAsync(
-            Workflow ir, LoweringResult? lowering, CancellationToken ct, string? instanceId = null)
+            Workflow ir, LoweringResult? lowering, CancellationToken ct, ToolKitRunContext? toolkit = null)
         {
-            LastInstanceId = instanceId;
+            LastToolkit = toolkit;
             return Task.FromResult(new BlockScriptExecutionResult { IsSuccess = true });
         }
 
         public Task<BlockScriptExecutionResult> ExecuteAsync(
             Workflow ir, LoweringResult? lowering, CancellationToken ct,
-            IBlueprintDebugController? debugger, string? instanceId = null)
-            => ExecuteAsync(ir, lowering, ct, instanceId);
+            IBlueprintDebugController? debugger, ToolKitRunContext? toolkit = null)
+            => ExecuteAsync(ir, lowering, ct, toolkit);
     }
 }

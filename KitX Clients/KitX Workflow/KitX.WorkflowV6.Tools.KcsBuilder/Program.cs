@@ -152,8 +152,12 @@ static async Task BuildAndWriteAsync(string ksSource, string outPath, string nam
 {
     try
     {
-        // 1. Parse KS → V6 Workflow IR (with helpers when provided)
-        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        // 1. Parse KS → V6 Workflow IR (with helpers when provided). Discover the
+        // ToolKit assembly too so host-side Bench builtins (Ui*/DataStore*/BenchIn/
+        // BenchOut) resolve at parse time.
+        var registry = BuiltinFunctionRegistry.Discover(
+            typeof(BuiltinFunctionRegistry).Assembly,
+            typeof(KitX.ToolKit.Bench.DataStoreScope).Assembly);
         var ksTextLens = new KsTextLens(registry);
         var ir = ksTextLens.Parse(ksSource, helpers);
 

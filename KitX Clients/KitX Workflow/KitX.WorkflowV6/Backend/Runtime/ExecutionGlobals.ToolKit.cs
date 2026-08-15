@@ -23,6 +23,19 @@ public partial class ExecutionGlobals
     /// </summary>
     public string? InstanceId { get; set; }
 
+    /// <summary>
+    /// The workflow's instance-scoped DataStore output namespace (Bench scheduler
+    /// injected). Null outside a ToolKit instance; <see cref="BenchOut"/> no-ops then.
+    /// </summary>
+    public string? OutputNamespace { get; set; }
+
+    /// <summary>
+    /// The raw run-time constant overrides (resolved trigger binding params included),
+    /// injected per-run by the execution backend. Null outside a ToolKit instance;
+    /// <see cref="BenchIn"/> returns its default then.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?>? RawOverrides { get; set; }
+
     // ── KitX.UI family (panel runtime) — instance-scoped. ──
 
     /// <summary>UiSet(controlId, value) → main property key.</summary>

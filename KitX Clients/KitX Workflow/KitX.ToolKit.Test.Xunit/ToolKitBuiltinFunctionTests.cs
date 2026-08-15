@@ -35,6 +35,7 @@ public class ToolKitBuiltinFunctionTests
             "UiSet", "UiGet", "UiLog", "UiProgress", "UiDialog", "UiOpenPanel",
             "DataStoreSet", "DataStoreGet", "DataStoreWait", "DataStoreWaitAny",
             "DataStoreRemove", "DataStoreKeys", "DataStoreContains",
+            "BenchIn", "BenchOut",
         })
         {
             Assert.True(registry.Contains(name), $"Expected builtin '{name}' to be registered.");

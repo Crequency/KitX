@@ -13,8 +13,10 @@ namespace KitX.ToolKit.Bench;
 /// </summary>
 public static class DataStoreScope
 {
-    /// <summary>Reserved constant name injected into started workflows carrying their output namespace.</summary>
-    public const string OutputNamespaceConstant = "__KitXDataStoreOutputNamespace__";
+    /// <summary>Reserved constant name injected into started workflows carrying their output namespace.
+    /// Canonical name lives in WorkflowV6 (<see cref="KitX.WorkflowV6.ToolKitConstants.OutputNamespace"/>)
+    /// so the engine-side <c>BenchOut</c> builtin and the scheduler injection cannot drift apart.</summary>
+    public const string OutputNamespaceConstant = KitX.WorkflowV6.ToolKitConstants.OutputNamespace;
 
     /// <summary>Builds a workflow's instance-scoped namespace: <c>{toolkitId}/{instanceId}/wf/{workflowId}</c>.</summary>
     public static string WorkflowNamespace(string toolkitId, string instanceId, string workflowId)

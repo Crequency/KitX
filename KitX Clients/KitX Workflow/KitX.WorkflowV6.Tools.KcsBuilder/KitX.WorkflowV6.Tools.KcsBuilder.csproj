@@ -8,5 +8,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
+    <!-- Bench-side builtin descriptors (Ui*/DataStore*/BenchIn/BenchOut) live in
+         KitX.ToolKit; authoring Bench workflows (e.g. the Agent ToolKit) requires
+         them at KS parse time, so the builder discovers both assemblies. -->
+    <ProjectReference Include="..\KitX.ToolKit\KitX.ToolKit.csproj" />
   </ItemGroup>
 </Project>

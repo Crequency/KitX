@@ -60,6 +60,8 @@ public static class ServiceCollectionExtensions
         services.AddBuiltinFunction<DataStoreRemoveFunction>();
         services.AddBuiltinFunction<DataStoreKeysFunction>();
         services.AddBuiltinFunction<DataStoreContainsFunction>();
+        services.AddBuiltinFunction<BenchInFunction>();
+        services.AddBuiltinFunction<BenchOutFunction>();
 
         // Config validation.
         services.AddSingleton<ConfigValidator>();
