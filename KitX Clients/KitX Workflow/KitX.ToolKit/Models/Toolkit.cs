@@ -32,6 +32,12 @@ public sealed class Toolkit
     public UiPanel? UiPanel { get; set; }
 
     /// <summary>
+    /// Canvas comment nodes (ToolKit Bench UX v2 §4.2). Text is config truth; canvas
+    /// position is intentionally not persisted.
+    /// </summary>
+    public List<ToolkitComment> Comments { get; set; } = [];
+
+    /// <summary>
     /// Maximum number of concurrently-running instances this ToolKit may have. Null
     /// (default) = unlimited. When exceeded, a spawn is rejected and surfaced via an
     /// event (ToolKit 实例模型定稿 D7).

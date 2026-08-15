@@ -17,6 +17,7 @@ public sealed class ConfigValidator
         var result = new ConfigValidationResult();
 
         ValidateIdentity(toolkit, result);
+        ValidateComments(toolkit, result);
         ValidateReferences(toolkit, result);
         ValidateAcyclic(toolkit, result);
         ValidateUi(toolkit, result);
@@ -37,6 +38,15 @@ public sealed class ConfigValidator
         var triggerIds = toolkit.Triggers.Select(t => t.Id).ToList();
         foreach (var dup in triggerIds.Where(id => !string.IsNullOrWhiteSpace(id)).GroupBy(id => id).Where(g => g.Count() > 1))
             result.Add($"Duplicate trigger Id '{dup.Key}'.");
+    }
+
+    private static void ValidateComments(Toolkit toolkit, ConfigValidationResult result)
+    {
+        var commentIds = toolkit.Comments.Select(c => c.Id).ToList();
+        if (commentIds.Any(string.IsNullOrWhiteSpace))
+            result.Add("All comments must have a non-empty Id.");
+        foreach (var dup in commentIds.Where(id => !string.IsNullOrWhiteSpace(id)).GroupBy(id => id).Where(g => g.Count() > 1))
+            result.Add($"Duplicate comment Id '{dup.Key}'.");
     }
 
     private static void ValidateReferences(Toolkit toolkit, ConfigValidationResult result)
