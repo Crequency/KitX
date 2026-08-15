@@ -26,6 +26,25 @@ public partial class ExecutionGlobals
         }
     }
 
+    /// <summary>
+    /// PluginNotify: sends a plugin method invocation WITHOUT waiting for a response.
+    /// For void/side-effect plugin functions the workflow continues immediately.
+    /// </summary>
+    public void PluginNotify(string pluginName, string methodName, params object[] args)
+    {
+        if (PluginHost is null)
+            return;
+        try
+        {
+            PluginHost.Notify(pluginName, methodName, args);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[ExecutionGlobals] PluginNotify failed for plugin '{PluginName}' method '{MethodName}' (args: {ArgCount})",
+                pluginName, methodName, args.Length);
+        }
+    }
+
     /// <summary>PluginCallWithTarget: invokes a method on a target device's plugin.</summary>
     public object? PluginCallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
     {

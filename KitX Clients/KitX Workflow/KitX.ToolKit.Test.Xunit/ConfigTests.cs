@@ -185,4 +185,48 @@ public class ConfigTests
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("aliases Dialog"));
     }
+
+    [Fact]
+    public void Validate_Rejects_Unknown_Control_Type()
+    {
+        var tk = Sample();
+        tk.UiPanel = new UiPanel
+        {
+            Controls = [new UiControl { Type = "NotARealControl", Id = "bad" }],
+        };
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("unknown type 'NotARealControl'"));
+    }
+
+    [Fact]
+    public void Validate_Rejects_PeriodicTimer_WithoutInterval()
+    {
+        var tk = Sample();
+        tk.Triggers.Add(new Trigger
+        {
+            Id = "timer-bad",
+            Type = TriggerType.Timer,
+            Config = new TriggerConfig(),
+        });
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("positive IntervalMs"));
+    }
+
+    [Fact]
+    public void Validate_Rejects_NegativeMaxInstances()
+    {
+        var tk = Sample();
+        tk.MaxInstances = -1;
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("MaxInstances"));
+    }
 }

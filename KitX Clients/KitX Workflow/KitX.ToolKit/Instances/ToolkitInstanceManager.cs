@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using KitX.ToolKit.Bench;
 using KitX.ToolKit.Contracts;
 using KitX.ToolKit.Contracts.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Models;
+using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
 using Serilog;
@@ -51,6 +53,11 @@ public sealed class ToolkitInstanceManager : IDisposable
         _fileStoreFactory = fileStoreFactory ?? (toolkit => new ToolkitFileStore(
             Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits", Sanitize(toolkit.GetId()))));
         _validator = validator ?? new ConfigValidator();
+
+        // The DataStore blackboard is the panel-projection primitive: project every
+        // instance-scoped panel write into the Bench event channel so the host can render
+        // live values, log entries and dialog requests (GUI RFC §5.7 / UX v2 C26-C27).
+        _dataStore.Changed += OnDataStoreChanged;
     }
 
     /// <summary>Raised for every Bench event (spawn/complete/cancel/run/data/ui).</summary>
@@ -63,7 +70,17 @@ public sealed class ToolkitInstanceManager : IDisposable
     public bool IsMounted(string toolkitId) => _mounted.ContainsKey(toolkitId);
 
     /// <summary>Snapshot of every instance across all mounted ToolKits.</summary>
-    public IReadOnlyList<InstanceSnapshot> Instances => _instances.Values.Select(i => i.ToSnapshot()).ToList();
+    public IReadOnlyList<InstanceSnapshot> Instances => _instances.Values.Select(instance =>
+    {
+        var snapshot = instance.ToSnapshot();
+        if (_mounted.TryGetValue(instance.ToolkitId, out var mounted) &&
+            mounted.Toolkit.Triggers.FirstOrDefault(t => t.Id == instance.TriggerId) is { } trigger)
+        {
+            snapshot = snapshot with { Surface = trigger.Config?.Surface };
+        }
+
+        return snapshot;
+    }).ToList();
 
     /// <summary>
     /// Mounts a ToolKit: validates its config, builds its scheduler, and starts its Spawn
@@ -143,25 +160,44 @@ public sealed class ToolkitInstanceManager : IDisposable
         {
             Log.Warning("[ToolkitInstanceManager] Spawn of {Toolkit} rejected: MaxInstances={Max} reached",
                 toolkitId, max);
-            Raise(new InstanceSpawnedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
-                initiator ?? Initiator.Unknown, System.Text.Json.JsonSerializer.SerializeToElement<object?>(null)));
+            Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+                $"MaxInstances={max}"));
             return null;
         }
 
-        var run = mounted.Scheduler.StartRun(triggerId, payload, initiator ?? Initiator.Unknown);
+        var run = mounted.Scheduler.StartRun(triggerId, payload, initiator ?? Initiator.Unknown, null, AttachRunEvents);
         if (run is null)
             return null;
 
         var instance = new ToolkitInstance(toolkitId, triggerId, run, initiator ?? Initiator.Unknown);
-        instance.Completed += (_, _) => Raise(new InstanceCompletedEvent(
-            NewId(), toolkitId, instance.InstanceId, Now(), run.FailedRuns == 0));
+        instance.Completed += (_, _) =>
+        {
+            Log.Information("[ToolkitInstanceManager] Instance {Instance} completed (toolkit {Toolkit})",
+                instance.InstanceId, toolkitId);
+            Raise(new InstanceCompletedEvent(
+                NewId(), toolkitId, instance.InstanceId, Now(), run.FailedRuns == 0));
+        };
         instance.Cancelled += (_, _) => Raise(new InstanceCancelledEvent(
             NewId(), toolkitId, instance.InstanceId, Now()));
 
         _instances[instance.InstanceId] = instance;
         Raise(new InstanceSpawnedEvent(NewId(), toolkitId, instance.InstanceId, Now(), triggerId,
-            instance.Initiator, System.Text.Json.JsonSerializer.SerializeToElement<object?>(null)));
+            instance.Initiator, JsonSerializer.SerializeToElement(payload)));
         return instance.InstanceId;
+    }
+
+    /// <summary>
+    /// Subscribes to a run's per-node events before its root workflows are scheduled
+    /// (StartRun invokes this callback pre-scheduling) and projects them onto the Bench
+    /// contract. The owning instance id is the run's namespace — for intra-instance
+    /// UIEvent chains that is the existing instance, not the transient run id.
+    /// </summary>
+    private void AttachRunEvents(BenchRunInstance run)
+    {
+        run.NodeStarted += (_, e) => Raise(new RunStartedEvent(
+            NewId(), run.ToolkitId, run.NamespaceId, Now(), e.InstanceId, e.WorkflowId));
+        run.NodeCompleted += (_, e) => Raise(new RunCompletedEvent(
+            NewId(), run.ToolkitId, run.NamespaceId, Now(), e.InstanceId, e.WorkflowId, e.Succeeded, e.Error));
     }
 
     /// <summary>Ends an instance (cancels all its runs + destroys it). Idempotent.</summary>
@@ -208,11 +244,15 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (!_mounted.TryGetValue(instance.ToolkitId, out var mounted))
             return;
 
-        var payload = System.Text.Json.JsonSerializer.SerializeToElement(new { controlId, @event = eventName, value });
+        // Dialog contract (GUI RFC §5.7): confirming clears the backend request slot.
+        if (string.Equals(eventName, "Confirm", StringComparison.OrdinalIgnoreCase))
+            _dataStore.Remove(PanelScope.Key(instance.ToolkitId, instanceId, controlId, "request"));
+
+        var payload = JsonSerializer.SerializeToElement(new { controlId, @event = eventName, value });
         foreach (var trigger in mounted.Toolkit.Triggers.Where(t =>
                      t.Type == TriggerType.UIEvent && Matches(t.Config, controlId, eventName)))
         {
-            mounted.Scheduler.StartRun(trigger.Id, payload, instance.Initiator, instance.InstanceId);
+            mounted.Scheduler.StartRun(trigger.Id, payload, instance.Initiator, instance.InstanceId, AttachRunEvents);
         }
     }
 
@@ -222,6 +262,101 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (!_instances.TryGetValue(instanceId, out var instance))
             return;
         Raise(new PanelOpenRequestedEvent(NewId(), instance.ToolkitId, instanceId, Now()));
+    }
+
+    /// <summary>
+    /// Projects instance-scoped panel DataStore writes into Bench events:
+    /// <c>{toolkitId}/{instanceId}/panel/{controlId}/{prop}</c> → control-state changes,
+    /// dialog request slots → <see cref="DialogRequestedEvent"/>. Non-panel keys are
+    /// deliberately not projected (the DataStore viewer is deferred to the Debug system).
+    /// </summary>
+    private void OnDataStoreChanged(object? sender, DataStoreChangedEventArgs e)
+    {
+        if (!TryParsePanelKey(e.Key, out var toolkitId, out var instanceId, out var controlId, out var prop))
+            return;
+
+        if (string.Equals(prop, "request", StringComparison.Ordinal))
+        {
+            if (!e.Removed && e.NewValue is { } request)
+                RaiseDialogRequested(toolkitId, instanceId, controlId, request);
+            return;
+        }
+
+        var value = e.NewValue;
+        if (string.Equals(prop, "log", StringComparison.Ordinal) && value is { ValueKind: JsonValueKind.Array } array)
+        {
+            // UiLog appends to a ring-buffer key; the Changed event carries the whole
+            // array. Surface the newest entry so the panel appends exactly one line.
+            var entries = array.EnumerateArray().ToList();
+            value = entries.Count > 0 ? entries[^1] : (JsonElement?)null;
+        }
+
+        Raise(new UiControlStateChangedEvent(NewId(), toolkitId, instanceId, Now(), controlId, prop, value));
+    }
+
+    private void RaiseDialogRequested(string toolkitId, string instanceId, string controlId, JsonElement request)
+    {
+        var message = string.Empty;
+        var buttons = new List<string> { "确定" };
+
+        try
+        {
+            if (request.ValueKind == JsonValueKind.Object)
+            {
+                if (request.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String)
+                    message = m.GetString() ?? string.Empty;
+                if (request.TryGetProperty("buttons", out var b) && b.ValueKind == JsonValueKind.Array)
+                {
+                    var parsed = b.EnumerateArray()
+                        .Where(x => x.ValueKind == JsonValueKind.String)
+                        .Select(x => x.GetString()!)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList();
+                    if (parsed.Count > 0)
+                        buttons = parsed;
+                }
+            }
+            else
+            {
+                message = request.GetRawText();
+            }
+        }
+        catch (JsonException)
+        {
+            message = request.GetRawText();
+        }
+
+        Raise(new DialogRequestedEvent(NewId(), toolkitId, instanceId, Now(), controlId, message, buttons));
+    }
+
+    /// <summary>
+    /// Parses <c>{toolkitId}/{instanceId}/panel/{controlId}/{prop}</c>. Returns false for
+    /// any other key shape (global DataStore keys are not instance panel projections).
+    /// </summary>
+    private static bool TryParsePanelKey(
+        string key, out string toolkitId, out string instanceId, out string controlId, out string prop)
+    {
+        toolkitId = string.Empty;
+        instanceId = string.Empty;
+        controlId = string.Empty;
+        prop = string.Empty;
+
+        var marker = key.IndexOf("/panel/", StringComparison.Ordinal);
+        if (marker < 0)
+            return false;
+
+        var prefix = key[..marker].Split('/');
+        if (prefix.Length < 2 || string.IsNullOrWhiteSpace(prefix[0]) || string.IsNullOrWhiteSpace(prefix[1]))
+            return false;
+        toolkitId = prefix[0];
+        instanceId = prefix[1];
+
+        var suffix = key[(marker + "/panel/".Length)..].Split('/');
+        if (suffix.Length < 2 || string.IsNullOrWhiteSpace(suffix[0]) || string.IsNullOrWhiteSpace(suffix[1]))
+            return false;
+        controlId = suffix[0];
+        prop = string.Join('/', suffix.Skip(1));
+        return true;
     }
 
     private static bool Matches(TriggerConfig? config, string controlId, string eventName)
@@ -255,6 +390,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        _dataStore.Changed -= OnDataStoreChanged;
         foreach (var id in _mounted.Keys.ToList())
             Unmount(id);
         EndAll();

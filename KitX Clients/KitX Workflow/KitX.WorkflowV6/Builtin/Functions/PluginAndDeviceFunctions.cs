@@ -39,6 +39,29 @@ public sealed class PluginCallFunction : IBuiltinFunction
 }
 
 /// <summary>
+/// PluginNotify — sends a plugin method invocation WITHOUT waiting for a response.
+/// Intended for void/side-effect plugin functions (popups, notifications, device
+/// actions) so the workflow continues immediately instead of blocking on the
+/// plugin's response channel.
+/// </summary>
+public sealed class PluginNotifyFunction : IBuiltinFunction
+{
+    public string Name => "PluginNotify";
+    public FunctionKind Kind => FunctionKind.SideEffect;
+
+    public IReadOnlyList<PortSpec> InputPorts =>
+    [
+        new("PluginName", PinType.String, 20),
+        new("MethodName", PinType.String, 35),
+    ];
+
+    /// <summary>Extra pipeline args append as variadic params (`PluginNotify(p, m, a, b, ...)`).</summary>
+    public VariadicPinSpec? InputVariadic => new("Param ", 3, PinType.Any);
+
+    public IReadOnlyList<PortSpec> OutputPorts => [];
+}
+
+/// <summary>
 /// PluginCallWithTarget — invokes a method on a plugin running on a target device.
 /// SideEffect: produces a Json result.
 /// </summary>

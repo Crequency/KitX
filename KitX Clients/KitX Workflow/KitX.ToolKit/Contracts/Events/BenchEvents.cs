@@ -14,6 +14,15 @@ public sealed record InstanceSpawnedEvent(
     string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
     string TriggerId, Initiator Initiator, JsonElement Payload) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
 
+/// <summary>
+/// A spawn request was rejected before an instance existed (e.g. MaxInstances cap reached).
+/// No instance id is assigned; the panel host surfaces <see cref="Reason"/> instead of
+/// selecting or clearing a tree item.
+/// </summary>
+public sealed record InstanceSpawnRejectedEvent(
+    string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
+    string TriggerId, string Reason) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
+
 /// <summary>An instance transitioned to Completed (all chains finished).</summary>
 public sealed record InstanceCompletedEvent(
     string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,

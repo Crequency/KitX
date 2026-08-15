@@ -1,8 +1,11 @@
+using System.Text.Json;
 using KitX.ToolKit.Bench;
 using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contracts.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Models;
+using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -271,5 +274,172 @@ public class ToolkitInstanceManagerTests
         {
             manager.Unmount("tk-demo");
         }
+    }
+
+    [Fact]
+    public async Task Spawn_Emits_RunStarted_And_RunCompleted_Events()
+    {
+        var (manager, _) = Build(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+
+        var started = new TaskCompletionSource<RunStartedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = new TaskCompletionSource<RunCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is RunStartedEvent s)
+                started.TrySetResult(s);
+            if (e is RunCompletedEvent c)
+                completed.TrySetResult(c);
+        };
+
+        manager.Mount(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+
+        try
+        {
+            var instanceId = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(instanceId);
+
+            var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(instanceId, start.InstanceId);
+            Assert.Equal("wf", start.WorkflowId);
+            Assert.False(string.IsNullOrWhiteSpace(start.RunId));
+
+            var finish = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(instanceId, finish.InstanceId);
+            Assert.Equal(start.RunId, finish.RunId);
+            Assert.True(finish.Succeeded);
+            Assert.Null(finish.Error);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public void Spawn_SilentTrigger_ExposesSilentSurfaceOnSnapshot()
+    {
+        var tk = ToolkitWith(new Trigger
+        {
+            Id = "manual",
+            Type = TriggerType.Manual,
+            Config = new TriggerConfig { Surface = "silent" },
+            Bindings = [new() { Workflow = "wf" }],
+        });
+        var (manager, _) = Build(tk);
+
+        manager.Mount(tk);
+
+        try
+        {
+            var instanceId = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(instanceId);
+
+            var snapshot = Assert.Single(manager.Instances);
+            Assert.Equal("silent", snapshot.Surface);
+            Assert.True(snapshot.IsSilent);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task Spawn_Rejected_Emits_InstanceSpawnRejectedEvent()
+    {
+        var tk = ToolkitWith(new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
+        tk.MaxInstances = 1;
+
+        var hold = new TaskCompletionSource();
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, hold: hold);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        var rejected = new TaskCompletionSource<InstanceSpawnRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceSpawnRejectedEvent r)
+                rejected.TrySetResult(r);
+        };
+
+        manager.Mount(tk);
+
+        try
+        {
+            Assert.NotNull(manager.Spawn("tk-demo", "manual"));
+            Assert.Null(manager.Spawn("tk-demo", "manual"));
+
+            var rejection = await rejected.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("tk-demo", rejection.ToolkitId);
+            Assert.Contains("MaxInstances", rejection.Reason);
+        }
+        finally
+        {
+            hold.TrySetResult();
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public void PanelDataStoreWrites_Project_UiControlStateChanged()
+    {
+        var store = new DataStore();
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            new RecordingExecutor(store),
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        var events = new List<UiControlStateChangedEvent>();
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is UiControlStateChangedEvent u)
+                events.Add(u);
+        };
+
+        store.Set(PanelScope.Key("tk-demo", "inst-1", "input", "value"), "hello");
+        store.Set(PanelScope.Key("tk-demo", "inst-1", "switch", "enabled"), true);
+
+        Assert.Equal(2, events.Count);
+        Assert.Contains(events, u => u.InstanceId == "inst-1" && u.ControlId == "input" && u.Prop == "value"
+                                     && u.Value is { ValueKind: JsonValueKind.String } v && v.GetString() == "hello");
+        Assert.Contains(events, u => u.ControlId == "switch" && u.Prop == "enabled");
+    }
+
+    [Fact]
+    public void PanelDialogRequest_Projects_DialogRequestedEvent()
+    {
+        var store = new DataStore();
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            new RecordingExecutor(store),
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        DialogRequestedEvent? dialog = null;
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is DialogRequestedEvent d)
+                dialog = d;
+        };
+
+        store.Set(
+            PanelScope.Key("tk-demo", "inst-1", "ask", "request"),
+            JsonSerializer.SerializeToElement(new { message = "choose", buttons = new[] { "是", "否" } }));
+
+        Assert.NotNull(dialog);
+        Assert.Equal("inst-1", dialog!.InstanceId);
+        Assert.Equal("ask", dialog.ControlId);
+        Assert.Equal("choose", dialog.Message);
+        Assert.Equal(["是", "否"], dialog.Buttons);
     }
 }

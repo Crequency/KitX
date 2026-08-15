@@ -23,6 +23,16 @@ public interface IPluginHost
     /// <summary>Calls a method on a local plugin. Returns the JSON result.</summary>
     object? Call(string pluginName, string methodName, params object[] args);
 
+    /// <summary>
+    /// Sends a plugin method invocation WITHOUT waiting for a response (fire-and-forget).
+    /// Use for void/side-effect plugin functions (e.g. "show a popup") so the workflow
+    /// does not block on the plugin's response channel. The default interface
+    /// implementation falls back to <see cref="Call"/> so simple test hosts keep working;
+    /// production hosts must override it with a real one-way send.
+    /// </summary>
+    void Notify(string pluginName, string methodName, params object[] args)
+        => Call(pluginName, methodName, args);
+
     /// <summary>Calls a method on a plugin running on a target device.</summary>
     object? CallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args);
 

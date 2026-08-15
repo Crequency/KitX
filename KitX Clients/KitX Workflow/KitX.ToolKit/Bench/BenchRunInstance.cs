@@ -58,6 +58,12 @@ public sealed class BenchRunInstance : IDisposable
     /// <summary>Raised when every workflow in the instance has finished.</summary>
     public event EventHandler<BenchRunCompletedEventArgs>? Completed;
 
+    /// <summary>Raised when a single workflow in the instance starts (run-monitor primitive).</summary>
+    public event EventHandler<BenchNodeStartedEventArgs>? NodeStarted;
+
+    /// <summary>Raised when a single workflow in the instance finishes (run-monitor primitive).</summary>
+    public event EventHandler<BenchNodeCompletedEventArgs>? NodeCompleted;
+
     /// <summary>Number of workflows currently in flight.</summary>
     public int ActiveRuns => Volatile.Read(ref _pendingWorkflows);
 
@@ -76,20 +82,22 @@ public sealed class BenchRunInstance : IDisposable
     internal object Gate => _gate;
 
     /// <summary>Signals that a workflow was started in this instance.</summary>
-    internal void TrackStarted()
+    internal void TrackStarted(string workflowId)
     {
         lock (_gate)
         {
             _pendingWorkflows++;
             _startedCount++;
         }
+
+        NodeStarted?.Invoke(this, new BenchNodeStartedEventArgs(InstanceId, workflowId));
     }
 
     /// <summary>Marks a workflow as failed (propagated to the run result).</summary>
     internal void MarkFailed() => Interlocked.Increment(ref _failureCount);
 
     /// <summary>Signals that a workflow finished; when the last one finishes, raises <see cref="Completed"/>.</summary>
-    internal void TrackCompleted()
+    internal void TrackCompleted(string workflowId, bool succeeded, string? error)
     {
         bool fire;
         lock (_gate)
@@ -97,10 +105,17 @@ public sealed class BenchRunInstance : IDisposable
             _pendingWorkflows--;
             _completedCount++;
             if (_pendingWorkflows > 0 || _reported)
-                return;
-            _reported = true;
-            fire = true;
+            {
+                fire = false;
+            }
+            else
+            {
+                _reported = true;
+                fire = true;
+            }
         }
+
+        NodeCompleted?.Invoke(this, new BenchNodeCompletedEventArgs(InstanceId, workflowId, succeeded, error));
 
         if (fire)
             Completed?.Invoke(this, new BenchRunCompletedEventArgs(InstanceId, _failureCount == 0));

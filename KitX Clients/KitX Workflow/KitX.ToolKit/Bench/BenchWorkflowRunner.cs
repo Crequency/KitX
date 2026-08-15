@@ -45,6 +45,8 @@ public sealed class BenchWorkflowRunner : IWorkflowExecutor
                 return new WorkflowExecutionResult(workflowId, false, $"Workflow '{workflowId}' IR invalid", null);
 
             var result = await _runner.ExecuteAsync(ir, null, overrides, ct);
+            Log.Information("[BenchWorkflowRunner] Workflow {Id} finished: succeeded={Succeeded} error={Error}",
+                workflowId, result.IsSuccess, result.ErrorMessage);
             return new WorkflowExecutionResult(workflowId, result.IsSuccess, result.ErrorMessage, null);
         }
         catch (OperationCanceledException)

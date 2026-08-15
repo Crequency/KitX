@@ -43,4 +43,19 @@ public class MermaidExporterTests
         var mermaid = MermaidExporter.Export(new Toolkit { Meta = new ToolkitMeta { Name = "empty" } });
         Assert.StartsWith("flowchart LR", mermaid);
     }
+
+    [Fact]
+    public void Export_Includes_Comment_Nodes()
+    {
+        var tk = new Toolkit
+        {
+            Meta = new ToolkitMeta { Name = "demo" },
+            Comments = [new ToolkitComment { Id = "note1", Text = "hello note" }],
+        };
+
+        var mermaid = MermaidExporter.Export(tk);
+
+        Assert.Contains("note_note1", mermaid);
+        Assert.Contains("hello_note", mermaid); // labels are escaped (spaces → underscores)
+    }
 }

@@ -108,17 +108,28 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         }
 
         var callInfo = BuildCallInfo(pluginName, methodName, args);
+        Log.Information("[PluginHostAdapter] PluginCall begin {Plugin}.{Method}", pluginName, methodName);
         try
         {
             // Call<string> returns the raw JSON response string (SendPluginRequest special-cases T=string).
             // Returning the string lets AsJsonElement parse it into a JsonElement tree.
-            return _pluginManager.Call<string>(callInfo);
+            var result = _pluginManager.Call<string>(callInfo);
+            Log.Information("[PluginHostAdapter] PluginCall end {Plugin}.{Method}", pluginName, methodName);
+            return result;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[PluginHostAdapter] Call failed: {Plugin}.{Method}", pluginName, methodName);
             return null;
         }
+    }
+
+    /// <inheritdoc/>
+    public void Notify(string pluginName, string methodName, params object[] args)
+    {
+        var callInfo = BuildCallInfo(pluginName, methodName, args);
+        Log.Information("[PluginHostAdapter] PluginNotify fire-and-forget {Plugin}.{Method}", pluginName, methodName);
+        _pluginManager.Notify(callInfo);
     }
 
     /// <summary>

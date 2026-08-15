@@ -70,8 +70,15 @@ public sealed class BenchScheduler : IDisposable
     /// or null when the trigger id is unknown or is a scheduler-driven WorkflowCompletion edge.
     /// <paramref name="namespaceId"/> overrides the run's DataStore namespace (used by the
     /// instance manager so UIEvent-triggered chains share the owning instance's panel namespace).
+    /// <paramref name="onRunCreated"/> runs before any root workflow is scheduled, so callers
+    /// (the instance manager) can subscribe to the run's node events without a race.
     /// </summary>
-    public BenchRunInstance? StartRun(string triggerId, object? payload = null, Contracts.Initiator? initiator = null, string? namespaceId = null)
+    public BenchRunInstance? StartRun(
+        string triggerId,
+        object? payload = null,
+        Contracts.Initiator? initiator = null,
+        string? namespaceId = null,
+        Action<BenchRunInstance>? onRunCreated = null)
     {
         ThrowIfDisposed();
 
@@ -80,6 +87,7 @@ public sealed class BenchScheduler : IDisposable
             return null;
 
         var instance = CreateInstance(initiator ?? Contracts.Initiator.Unknown, namespaceId);
+        onRunCreated?.Invoke(instance);
         var packet = NormalizePayload(payload);
 
         // Schedule every root binding while holding the instance lock, so all roots are
@@ -160,7 +168,10 @@ public sealed class BenchScheduler : IDisposable
         JsonElement inputPacket,
         IReadOnlyDictionary<string, string?> overrides)
     {
-        instance.TrackStarted();
+        instance.TrackStarted(workflowId);
+        Log.Information(
+            "[BenchScheduler] Node started run={RunId} namespace={Namespace} workflow={Workflow} pending={Pending}",
+            instance.InstanceId, instance.NamespaceId, workflowId, instance.ActiveRuns);
         // Run the node body on a background thread so its completion never happens
         // synchronously on the scheduling thread (which would let a fast node fire the
         // run's Completed event before sibling nodes are tracked).
@@ -173,13 +184,17 @@ public sealed class BenchScheduler : IDisposable
         JsonElement inputPacket,
         IReadOnlyDictionary<string, string?> overrides)
     {
+        var failed = false;
+        string? error = null;
+
         try
         {
             var file = ResolveFile(workflowId);
             if (file is null)
             {
-                instance.MarkFailed();
-                Log.Warning("[BenchScheduler] Workflow {Id} not found in ToolKit; aborting node", workflowId);
+                failed = true;
+                error = $"Workflow '{workflowId}' not found in ToolKit";
+                Log.Warning("[BenchScheduler] {Error}; aborting node", error);
                 return;
             }
 
@@ -200,22 +215,35 @@ public sealed class BenchScheduler : IDisposable
 
             var outputPacket = BuildOutputPacket(instance, workflowId, inputPacket);
             if (result.IsSuccess)
+            {
                 OnNodeCompleted(instance, workflowId, outputPacket);
+            }
             else
-                instance.MarkFailed();
+            {
+                failed = true;
+                error = result.Error ?? "Workflow failed";
+            }
         }
         catch (OperationCanceledException)
         {
-            instance.MarkFailed();
+            failed = true;
+            error = "Cancelled";
         }
         catch (Exception ex)
         {
-            instance.MarkFailed();
+            failed = true;
+            error = ex.Message;
             Log.Error(ex, "[BenchScheduler] Node {Id} failed unexpectedly", workflowId);
         }
         finally
         {
-            instance.TrackCompleted();
+            if (failed)
+                instance.MarkFailed();
+            Log.Information(
+                "[BenchScheduler] Node finished run={RunId} namespace={Namespace} workflow={Workflow} " +
+                "succeeded={Succeeded} error={Error} pendingBefore={Pending}",
+                instance.InstanceId, instance.NamespaceId, workflowId, !failed, error, instance.ActiveRuns);
+            instance.TrackCompleted(workflowId, !failed, error);
         }
     }
 

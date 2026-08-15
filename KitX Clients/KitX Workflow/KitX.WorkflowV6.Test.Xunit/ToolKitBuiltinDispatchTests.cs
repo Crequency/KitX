@@ -151,6 +151,28 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
         Assert.Equal(FunctionKind.Pure, registry.Get("TestBuiltin")!.Kind);
     }
 
+    [Fact]
+    public void PluginNotify_Routes_To_HostNotify_Without_Using_Call()
+    {
+        var g = new ExecutionGlobals { PluginHost = new RecordingHost() };
+        g.PluginNotify("TestPlugin", "ShowPopup", "hello");
+
+        var host = (RecordingHost)g.PluginHost!;
+        var notify = Assert.Single(host.NotifyCalls);
+        Assert.Equal("TestPlugin", notify.Plugin);
+        Assert.Equal("ShowPopup", notify.Method);
+        Assert.Equal(new object[] { "hello" }, notify.Args);
+        Assert.Empty(host.Calls); // must not fall back to the blocking Call path
+    }
+
+    [Fact]
+    public void PluginNotify_Is_Discovered_As_Builtin()
+    {
+        var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+        Assert.True(registry.Contains("PluginNotify"));
+        Assert.Empty(registry.Get("PluginNotify")!.OutputPorts);
+    }
+
     /// <summary>A DI-constructed test builtin (no parameterless ctor) used to verify the
     /// public registration API folds it into the shared registry.</summary>
     private sealed class TestBuiltinFunction : IBuiltinFunction
@@ -164,11 +186,17 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
     private sealed class RecordingHost : IPluginHost
     {
         public List<(string Plugin, string Method, object?[] Args)> Calls { get; } = [];
+        public List<(string Plugin, string Method, object?[] Args)> NotifyCalls { get; } = [];
 
         public object? Call(string pluginName, string methodName, params object[] args)
         {
             Calls.Add((pluginName, methodName, args));
             return true;
+        }
+
+        public void Notify(string pluginName, string methodName, params object[] args)
+        {
+            NotifyCalls.Add((pluginName, methodName, args));
         }
 
         public object? CallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args) => null;

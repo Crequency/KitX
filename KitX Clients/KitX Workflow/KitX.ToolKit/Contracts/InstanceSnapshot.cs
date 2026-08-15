@@ -19,6 +19,15 @@ public sealed record InstanceSnapshot(
     int CompletedRuns,
     int FailedRuns)
 {
+    /// <summary>
+    /// The spawn trigger's presentation mode (<c>auto</c>/<c>silent</c>), resolved by the
+    /// instance manager. Null when unknown (e.g. an older caller constructing the snapshot).
+    /// </summary>
+    public string? Surface { get; init; }
+
+    /// <summary>True when this instance spawned with <c>Surface=silent</c> (tree badge, C28).</summary>
+    public bool IsSilent => string.Equals(Surface, "silent", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Human-readable run-counter summary for the run monitor.</summary>
     public string RunSummary => $"运行 {ActiveRuns} / 完成 {CompletedRuns} / 失败 {FailedRuns}";
 }

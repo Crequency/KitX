@@ -21,8 +21,14 @@ public class E2ETests : IClassFixture<WorkflowTestFixture>
 
     private sealed class MockPluginHost : IPluginHost
     {
+        public List<(string Plugin, string Method, object?[] Args)> NotifyCalls { get; } = [];
+
         public object? Call(string pluginName, string methodName, params object[] args)
             => "{\"result\":\"ok\"}";
+
+        public void Notify(string pluginName, string methodName, params object[] args)
+            => NotifyCalls.Add((pluginName, methodName, args));
+
         public object? CallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
             => "{\"result\":\"remote\"}";
         public object? TryGetDevice(string deviceName) => null;
@@ -718,5 +724,44 @@ public class E2ETests : IClassFixture<WorkflowTestFixture>
         var backend = _fixture.MakeBackend();
         var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
         Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
+    public async Task E2E_PluginNotify_Is_Fire_And_Forget()
+    {
+        // PluginNotify must compile, run, and route through IPluginHost.Notify without
+        // touching the blocking Call path (v5.1 had this for void plugin functions; the
+        // v6 port lost it and only restored it with this test).
+        var src = """
+            PluginNotify("test", "show-popup", "hello")
+            """;
+        var host = new MockPluginHost();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        var notify = Assert.Single(host.NotifyCalls);
+        Assert.Equal("test", notify.Plugin);
+        Assert.Equal("show-popup", notify.Method);
+        Assert.Equal(new object[] { "hello" }, notify.Args);
+    }
+
+    [Fact]
+    public async Task E2E_PluginNotify_Accepts_Pipeline_Arg()
+    {
+        // The common migration shape: `value > PluginCall(p, m, _)` becomes
+        // `value > PluginNotify(p, m, _)` — the pipeline source feeds the variadic arg.
+        var src = """
+            "hello" > PluginNotify("test", "show-popup", _)
+            """;
+        var host = new MockPluginHost();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        var notify = Assert.Single(host.NotifyCalls);
+        Assert.Equal("hello", Assert.Single(notify.Args));
     }
 }

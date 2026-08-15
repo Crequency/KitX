@@ -29,6 +29,10 @@ public static class MermaidExporter
         foreach (var wf in toolkit.Workflows)
             sb.AppendLine($"    {Escape(wf.Id)}[\"{Escape(wf.Name)}\"]");
 
+        // Comment nodes (declarative notes; they have no edges).
+        foreach (var comment in toolkit.Comments)
+            sb.AppendLine($"    {Escape("note_" + comment.Id)}[\"{Escape(comment.Text)}\"]");
+
         // Source nodes + their binding edges.
         foreach (var trigger in toolkit.Triggers)
         {
@@ -69,9 +73,14 @@ public static class MermaidExporter
         var type = trigger.Type switch
         {
             TriggerType.Manual => "手动",
-            TriggerType.PluginEvent => $"插件:{trigger.Config?.PluginName}",
-            TriggerType.UIEvent => $"UI:{trigger.Config?.Control}",
-            TriggerType.Timer => "定时",
+            TriggerType.PluginEvent => $"插件:{trigger.Config?.PluginName}" +
+                (string.IsNullOrWhiteSpace(trigger.Config?.TriggerName) ? "" : $".{trigger.Config!.TriggerName}"),
+            TriggerType.UIEvent => $"UI:{trigger.Config?.Control}" +
+                (string.IsNullOrWhiteSpace(trigger.Config?.Event) ? "" : $".{trigger.Config!.Event}"),
+            TriggerType.Timer when !string.IsNullOrWhiteSpace(trigger.Config?.Cron) => $"Cron:{trigger.Config!.Cron}",
+            TriggerType.Timer when trigger.Config?.OneShot == true =>
+                $"单次:{(trigger.Config.DueTimeMs is null ? 0 : trigger.Config.DueTimeMs)}ms",
+            TriggerType.Timer => $"周期:{trigger.Config?.IntervalMs}ms",
             _ => trigger.Type.ToString(),
         };
         return $"{trigger.Id} ({type})";

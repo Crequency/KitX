@@ -11,6 +11,10 @@ namespace KitX.ToolKit.Validation;
 /// </summary>
 public sealed class ConfigValidator
 {
+    /// <summary>The fixed ten-control UI set (Bench RFC §8.2).</summary>
+    private static readonly HashSet<string> ControlTypes =
+        ["Text", "Icon", "Button", "Input", "Number", "Select", "Switch", "Log", "Progress", "Dialog"];
+
     /// <summary>Validates the config. Never throws — collects diagnostics instead.</summary>
     public ConfigValidationResult Validate(Toolkit toolkit)
     {
@@ -18,6 +22,7 @@ public sealed class ConfigValidator
 
         ValidateIdentity(toolkit, result);
         ValidateComments(toolkit, result);
+        ValidateRuntimeParams(toolkit, result);
         ValidateReferences(toolkit, result);
         ValidateAcyclic(toolkit, result);
         ValidateUi(toolkit, result);
@@ -38,6 +43,36 @@ public sealed class ConfigValidator
         var triggerIds = toolkit.Triggers.Select(t => t.Id).ToList();
         foreach (var dup in triggerIds.Where(id => !string.IsNullOrWhiteSpace(id)).GroupBy(id => id).Where(g => g.Count() > 1))
             result.Add($"Duplicate trigger Id '{dup.Key}'.");
+    }
+
+    /// <summary>Runtime parameters (MaxInstances + Timer fields) must be sane before mount.</summary>
+    private static void ValidateRuntimeParams(Toolkit toolkit, ConfigValidationResult result)
+    {
+        if (toolkit.MaxInstances is < 0)
+            result.Add($"MaxInstances must be null or >= 0, got {toolkit.MaxInstances}.");
+
+        foreach (var trigger in toolkit.Triggers.Where(t => t.Type == TriggerType.Timer))
+        {
+            var config = trigger.Config;
+            if (config is null)
+                continue;
+
+            if (config.DueTimeMs is < 0)
+                result.Add($"Timer trigger '{trigger.Id}' DueTimeMs must be >= 0.");
+            if (config.IntervalMs is < 0)
+                result.Add($"Timer trigger '{trigger.Id}' IntervalMs must be >= 0.");
+
+            if (!string.IsNullOrWhiteSpace(config.Cron))
+            {
+                var fields = config.Cron.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (fields.Length != 5)
+                    result.Add($"Timer trigger '{trigger.Id}' Cron must be a 5-field expression.");
+            }
+            else if (config.OneShot != true && config.IntervalMs is null or <= 0)
+            {
+                result.Add($"Timer trigger '{trigger.Id}' periodic mode requires a positive IntervalMs.");
+            }
+        }
     }
 
     private static void ValidateComments(Toolkit toolkit, ConfigValidationResult result)
@@ -92,6 +127,9 @@ public sealed class ConfigValidator
 
         foreach (var control in controls)
         {
+            if (!ControlTypes.Contains(control.Type))
+                result.Add($"Control '{control.Id}' has unknown type '{control.Type}'.");
+
             foreach (var (prop, bind) in new[]
                      { ("Bind", control.Bind), ("BindEnabled", control.BindEnabled), ("BindVisible", control.BindVisible) })
             {
