@@ -29,6 +29,13 @@ public class EventService : IEventService
     private readonly Dictionary<string, List<Subscription>> _eventHandlers = new();
 
     /// <summary>
+    /// Strongly-typed topic handlers, keyed by <c>typeof(TEvent).FullName</c>. Kept separate
+    /// from <see cref="_eventHandlers"/> so the string-keyed and type-keyed namespaces never
+    /// collide. Handlers are <see cref="Action{T}"/> (no sender/args ceremony).
+    /// </summary>
+    private readonly Dictionary<string, List<Subscription>> _typedEventHandlers = new();
+
+    /// <summary>
     /// Lock object for thread-safe access to handlers
     /// </summary>
     private readonly object _lock = new();
@@ -251,6 +258,79 @@ public class EventService : IEventService
     {
         // Must cast to EventArgs to call the non-generic overload, avoiding infinite recursion
         Publish(eventName, (EventArgs)args);
+    }
+
+    /// <inheritdoc/>
+    public void Subscribe<TEvent>(Action<TEvent> handler)
+    {
+        var key = typeof(TEvent).FullName ?? typeof(TEvent).Name;
+        lock (_lock)
+        {
+            if (!_typedEventHandlers.TryGetValue(key, out var list))
+                _typedEventHandlers[key] = list = new();
+
+            // Re-subscribing the same handler must not stack a second subscription.
+            if (list.Any(s => ReferenceEquals(s.Handler, handler)))
+                return;
+
+            list.Add(new Subscription(handler, SynchronizationContext.Current));
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Unsubscribe<TEvent>(Action<TEvent> handler)
+    {
+        var key = typeof(TEvent).FullName ?? typeof(TEvent).Name;
+        lock (_lock)
+        {
+            if (_typedEventHandlers.TryGetValue(key, out var list))
+                list.RemoveAll(s => ReferenceEquals(s.Handler, handler));
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Publish<TEvent>(TEvent payload)
+    {
+        var key = typeof(TEvent).FullName ?? typeof(TEvent).Name;
+
+        List<Subscription> snapshot;
+        lock (_lock)
+        {
+            if (!_typedEventHandlers.TryGetValue(key, out var handlers))
+                return;
+            snapshot = new List<Subscription>(handlers);
+        }
+
+        var currentContext = SynchronizationContext.Current;
+
+        foreach (var sub in snapshot)
+        {
+            var captured = sub.Context;
+
+            if (captured is not null && !ReferenceEquals(captured, currentContext))
+                captured.Post(_ => InvokeTypedSafe(sub.Handler, payload), null);
+            else
+                InvokeTypedSafe(sub.Handler, payload);
+        }
+    }
+
+    /// <summary>
+    /// Invokes a strongly-typed handler, isolating exceptions so a faulty handler cannot
+    /// prevent subsequent handlers from receiving the event.
+    /// </summary>
+    private void InvokeTypedSafe<TEvent>(Delegate handler, TEvent payload)
+    {
+        try
+        {
+            if (handler is Action<TEvent> action)
+                action(payload);
+            else
+                handler.DynamicInvoke(payload);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EventService] Typed handler threw while processing {EventType}", typeof(TEvent).Name);
+        }
     }
 
 }

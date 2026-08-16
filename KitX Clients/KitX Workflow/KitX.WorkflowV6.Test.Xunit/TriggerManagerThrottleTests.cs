@@ -95,6 +95,9 @@ public class TriggerManagerThrottleTests
         public void Publish(string eventName, EventArgs args) => Published.Add((eventName, args));
         public void Publish<TEventArgs>(string eventName, TEventArgs args) where TEventArgs : EventArgs
             => Published.Add((eventName, args));
+        public void Subscribe<TEvent>(Action<TEvent> handler) { }
+        public void Unsubscribe<TEvent>(Action<TEvent> handler) { }
+        public void Publish<TEvent>(TEvent payload) { }
     }
 
     private static string BuildTriggerMessage(string triggerName = "TestTrigger")

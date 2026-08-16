@@ -25,5 +25,11 @@ public class FakeEventService : IEventService
     public void Publish<TEventArgs>(string eventName, TEventArgs args)
         where TEventArgs : EventArgs => PublishedEvents.Add(eventName);
 
+    public void Subscribe<TEvent>(Action<TEvent> handler) { }
+
+    public void Unsubscribe<TEvent>(Action<TEvent> handler) { }
+
+    public void Publish<TEvent>(TEvent payload) { }
+
     public bool WasPublished(string eventName) => PublishedEvents.Contains(eventName);
 }
