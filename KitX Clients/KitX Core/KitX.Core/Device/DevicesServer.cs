@@ -694,8 +694,10 @@ public class DevicesServer : ServerBase, IDeviceServer
             // Keep exchange state (code and password) until ExchangeKeyBack completes,
             // so the initiating device can complete the second leg of the exchange.
 
-            // Publish accept event
-            _eventService.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
+            // Publish accept event — carry the verification code so the confirmation window
+            // (which matches on DeviceKeyEventArgs.Key) can close itself.
+            _eventService.Publish(EventNames.OnAcceptingDeviceKey,
+                new DeviceKeyEventArgs { Key = _exchangeDeviceKeyCode ?? string.Empty });
 
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(JsonSerializer.Serialize(publicKeyEncrypted));
@@ -759,8 +761,10 @@ public class DevicesServer : ServerBase, IDeviceServer
             _exchangeKeyPassword = null;
             _pendingExchangeRequest = null;
 
-            // Publish accept event
-            _eventService.Publish(EventNames.OnAcceptingDeviceKey, EventArgs.Empty);
+            // Publish accept event — the confirmation window is normally already closed by the
+            // user-confirmation publish (HandleExchangeKeyAsync); this is a redundant safety net.
+            _eventService.Publish(EventNames.OnAcceptingDeviceKey,
+                new DeviceKeyEventArgs { Key = _exchangeDeviceKeyCode ?? string.Empty });
 
             context.Response.StatusCode = 200;
             await context.Response.WriteAsync("OK");
@@ -1057,17 +1061,18 @@ public class DevicesServer : ServerBase, IDeviceServer
 
             var tcs = new TaskCompletionSource<string>();
 
-            // Subscribe to plugin response
+            // Subscribe to plugin response via the event bus (PluginsServer publishes
+            // EventNames.PluginResponse; its C# PluginResponse event is never raised).
             void OnResponse(object? sender, PluginResponseEventArgs e)
             {
                 if (e.RequestId == requestId)
                 {
-                    _pluginServer.PluginResponse -= OnResponse;
+                    _eventService.Unsubscribe<PluginResponseEventArgs>(EventNames.PluginResponse, OnResponse);
                     _pendingPluginResponses.TryRemove(requestId, out _);
                     tcs.TrySetResult(e.Content);
                 }
             }
-            _pluginServer.PluginResponse += OnResponse;
+            _eventService.Subscribe<PluginResponseEventArgs>(EventNames.PluginResponse, OnResponse);
             _pendingPluginResponses[requestId] = tcs;
 
             // 9. Build the request to send to plugin (manual copy since Request is class not record)
@@ -1102,7 +1107,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 Log.Warning("[{Location}] Plugin invoke timed out, RequestId: {RequestId}", location, requestId);
                 _pendingPluginResponses.TryRemove(requestId, out _);
-                _pluginServer.PluginResponse -= OnResponse;
+                _eventService.Unsubscribe<PluginResponseEventArgs>(EventNames.PluginResponse, OnResponse);
                 context.Response.StatusCode = 504;
                 await context.Response.WriteAsync("Plugin invocation timed out");
             }
@@ -1110,7 +1115,7 @@ public class DevicesServer : ServerBase, IDeviceServer
             {
                 Log.Warning("[{Location}] Plugin invoke cancelled, RequestId: {RequestId}", location, requestId);
                 _pendingPluginResponses.TryRemove(requestId, out _);
-                _pluginServer.PluginResponse -= OnResponse;
+                _eventService.Unsubscribe<PluginResponseEventArgs>(EventNames.PluginResponse, OnResponse);
                 context.Response.StatusCode = 499;
                 await context.Response.WriteAsync("Plugin invocation cancelled");
             }

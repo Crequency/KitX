@@ -1531,12 +1531,9 @@ public class PluginsManager : IPluginService
                 Log.Information("[PluginsManager] Loader process exited for plugin '{PluginName}', " +
                     "marking as stopped", pluginName);
 
-                ResolveEventService()?.Publish(EventNames.PluginDisconnected, new PluginConnectionEventArgs
-                {
-                    ConnectionId = string.Empty,
-                    PluginInfo = plugin.PluginInfo
-                });
-
+                // The bus PluginDisconnected is published by PluginsServer on WebSocket close
+                // (the authoritative source — a process exit always tears down the socket).
+                // Publishing it here too would fire AppViewModel's handler twice per disconnect.
                 PluginStatusChanged?.Invoke(this, new PluginStatusChangedEventArgs
                 {
                     PluginId = pluginId,
