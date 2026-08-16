@@ -1,4 +1,5 @@
-﻿using KitX.Core.Contract.Configuration;
+using System.ComponentModel;
+using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Security;
 using KitX.Shared.CSharp.Device;
@@ -9,7 +10,7 @@ namespace KitX.Core.Device;
 /// Device case implementation
 /// Phase 6.5: Aligned with legacy DeviceCase functionality
 /// </summary>
-public class DeviceCase : IDeviceCase
+public class DeviceCase : IDeviceCase, INotifyPropertyChanged
 {
     private readonly IConfigService _configService;
     private readonly IDeviceKeyService _securityService;
@@ -28,10 +29,10 @@ public class DeviceCase : IDeviceCase
     /// Creates a new device case with device info and dependency injection
     /// </summary>
     /// <param name="deviceInfo">Device information</param>
-    /// <param name="configService">Configuration service</param>
-    /// <param name="securityService">Security service</param>
-    /// <param name="devicesServer">Devices server</param>
-    /// <param name="deviceDiscoveryService">Device discovery service</param>
+    /// <param name="configService">The config service</param>
+    /// <param name="securityService">The security service</param>
+    /// <param name="devicesServer">The devices server</param>
+    /// <param name="deviceDiscoveryService">The device discovery service</param>
     public DeviceCase(DeviceInfo deviceInfo, IConfigService configService, IDeviceKeyService securityService, IDeviceServer devicesServer, IDeviceDiscoveryService deviceDiscoveryService)
     {
         DeviceInfo = deviceInfo;
@@ -41,8 +42,26 @@ public class DeviceCase : IDeviceCase
         _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
     }
 
+    /// <summary>
+    /// Raised when a bound property changes. The DevicesPage card binds
+    /// <c>DeviceInfo.*</c> chains; without this, refreshed discovery broadcasts
+    /// (new PluginsCount/SendTime) replace the backing object silently and the
+    /// card freezes at its first-render values.
+    /// </summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private DeviceInfo? _deviceInfo;
+
     /// <inheritdoc/>
-    public DeviceInfo DeviceInfo { get; set; }
+    public DeviceInfo DeviceInfo
+    {
+        get => _deviceInfo!;
+        set
+        {
+            _deviceInfo = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DeviceInfo)));
+        }
+    }
 
     /// <inheritdoc/>
     public bool IsAuthorized => _securityService.IsDeviceAuthorized(DeviceInfo.Device);
