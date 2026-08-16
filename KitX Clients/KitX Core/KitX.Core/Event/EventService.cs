@@ -4,11 +4,29 @@ using Serilog;
 namespace KitX.Core.Event;
 
 /// <summary>
+/// Raised by <see cref="EventService"/> when a typed handler receives a payload of the
+/// wrong type and <see cref="EventService.ThrowOnTypeMismatch"/> is enabled. Deliberately
+/// propagates out of the bus (unlike ordinary handler exceptions) so contract violations
+/// surface during development.
+/// </summary>
+public sealed class EventTypeMismatchException : InvalidOperationException
+{
+    public EventTypeMismatchException(string message) : base(message) { }
+}
+
+/// <summary>
 /// Event service for global event bus
 /// </summary>
 public class EventService : IEventService
 {
-    private readonly Dictionary<string, List<EventHandler<EventArgs>>> _eventHandlers = new();
+    /// <summary>
+    /// A single subscription: the handler plus the <see cref="SynchronizationContext"/>
+    /// captured at subscribe time. When a publish happens on a different context, the
+    /// handler is dispatched onto its captured context (automatic UI-thread marshalling).
+    /// </summary>
+    private sealed record Subscription(Delegate Handler, SynchronizationContext? Context);
+
+    private readonly Dictionary<string, List<Subscription>> _eventHandlers = new();
 
     /// <summary>
     /// Lock object for thread-safe access to handlers
@@ -31,6 +49,13 @@ public class EventService : IEventService
     private const int MaxPublishDepth = 10;
 
     /// <summary>
+    /// When true, a typed handler receiving a payload of the wrong type throws instead of
+    /// being silently dropped. Defaults to false (log-only) so a single mismatched publish
+    /// cannot crash the bus; enable in debug to surface contract violations eagerly.
+    /// </summary>
+    public bool ThrowOnTypeMismatch { get; set; } = false;
+
+    /// <summary>
     /// Creates a new event service
     /// </summary>
     public EventService() { }
@@ -44,12 +69,10 @@ public class EventService : IEventService
     {
         lock (_lock)
         {
-            if (!_eventHandlers.ContainsKey(eventName))
-            {
-                _eventHandlers[eventName] = new List<EventHandler<EventArgs>>();
-            }
+            if (!_eventHandlers.TryGetValue(eventName, out var list))
+                _eventHandlers[eventName] = list = new();
 
-            _eventHandlers[eventName].Add(handler);
+            list.Add(new Subscription(handler, SynchronizationContext.Current));
         }
     }
 
@@ -62,10 +85,8 @@ public class EventService : IEventService
     {
         lock (_lock)
         {
-            if (_eventHandlers.TryGetValue(eventName, out var handlers))
-            {
-                handlers.Remove(handler);
-            }
+            if (_eventHandlers.TryGetValue(eventName, out var list))
+                list.RemoveAll(s => ReferenceEquals(s.Handler, handler));
         }
     }
 
@@ -89,31 +110,61 @@ public class EventService : IEventService
         try
         {
             // Take a snapshot of handlers under lock to avoid concurrent modification
-            List<EventHandler<EventArgs>> snapshot;
+            List<Subscription> snapshot;
             lock (_lock)
             {
                 if (!_eventHandlers.TryGetValue(eventName, out var handlers))
                     return;
-                snapshot = new List<EventHandler<EventArgs>>(handlers);
+                snapshot = new List<Subscription>(handlers);
             }
 
-            foreach (var handler in snapshot)
+            var currentContext = SynchronizationContext.Current;
+
+            foreach (var sub in snapshot)
             {
-                // Isolate each handler: a single faulty handler must not prevent
-                // subsequent handlers from receiving the event.
-                try
+                var captured = sub.Context;
+
+                // Dispatch onto the subscriber's captured context when the publish happens
+                // on a different one (e.g. a background thread publishing a UI-bound event).
+                // Same-context publishes stay synchronous to preserve existing semantics.
+                if (captured is not null && !ReferenceEquals(captured, currentContext))
                 {
-                    handler.Invoke(this, args);
+                    captured.Post(_ => InvokeSafe(sub.Handler, eventName, args), null);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Log.Error(ex, "[EventService] Handler threw while processing event {EventName}", eventName);
+                    InvokeSafe(sub.Handler, eventName, args);
                 }
             }
         }
         finally
         {
             _publishDepth.Value = (_publishDepth.Value ?? 1) - 1;
+        }
+    }
+
+    /// <summary>
+    /// Invokes a single handler, isolating exceptions so a faulty handler cannot prevent
+    /// subsequent handlers from receiving the event. A <see cref="EventTypeMismatchException"/>
+    /// (raised only when <see cref="ThrowOnTypeMismatch"/> is enabled) is deliberately
+    /// rethrown so a contract violation surfaces instead of being swallowed.
+    /// </summary>
+    private void InvokeSafe(Delegate handler, string eventName, EventArgs args)
+    {
+        try
+        {
+            if (handler is EventHandler<EventArgs> typed)
+                typed(this, args);
+            else
+                handler.DynamicInvoke(this, args);
+        }
+        catch (EventTypeMismatchException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EventService] Handler threw while processing event {EventName}", eventName);
         }
     }
 
@@ -128,10 +179,8 @@ public class EventService : IEventService
     {
         lock (_lock)
         {
-            if (!_eventHandlers.ContainsKey(eventName))
-            {
-                _eventHandlers[eventName] = new List<EventHandler<EventArgs>>();
-            }
+            if (!_eventHandlers.TryGetValue(eventName, out var list))
+                _eventHandlers[eventName] = list = new();
 
             EventHandler<EventArgs> wrapper = (sender, args) =>
             {
@@ -139,19 +188,32 @@ public class EventService : IEventService
                 {
                     handler(sender, typedArgs);
                 }
+                else
+                {
+                    // A mismatched payload is a contract violation — log it loudly instead of
+                    // silently dropping the handler (the old behavior hid real bugs, e.g. the
+                    // OnAcceptingDeviceKey window never closing).
+                    Log.Warning(
+                        "[EventService] Type mismatch on {EventName}: expected {Expected} got {Actual}, handler dropped",
+                        eventName, typeof(TEventArgs).Name, args?.GetType().Name ?? "null");
+
+                    if (ThrowOnTypeMismatch)
+                        throw new EventTypeMismatchException(
+                            $"EventService type mismatch on '{eventName}': expected {typeof(TEventArgs).Name}, got {args?.GetType().Name ?? "null"}");
+                }
             };
 
             // Re-subscribing with the same (eventName, handler) must replace the old
             // wrapper instead of stacking a second subscription — otherwise a single
             // Subscribe call would trigger the handler multiple times per publish.
-            var key = (eventName, handler);
+            var key = (eventName, (Delegate)handler);
             if (_typedWrapperMap.TryGetValue(key, out var existingWrapper))
             {
-                _eventHandlers[eventName].Remove(existingWrapper);
+                list.RemoveAll(s => ReferenceEquals(s.Handler, existingWrapper));
             }
 
             _typedWrapperMap[key] = wrapper;
-            _eventHandlers[eventName].Add(wrapper);
+            list.Add(new Subscription(wrapper, SynchronizationContext.Current));
         }
     }
 
@@ -166,12 +228,12 @@ public class EventService : IEventService
     {
         lock (_lock)
         {
-            var key = (eventName, handler);
+            var key = (eventName, (Delegate)handler);
             if (_typedWrapperMap.TryGetValue(key, out var wrapper))
             {
-                if (_eventHandlers.TryGetValue(eventName, out var handlers))
+                if (_eventHandlers.TryGetValue(eventName, out var list))
                 {
-                    handlers.Remove(wrapper);
+                    list.RemoveAll(s => ReferenceEquals(s.Handler, wrapper));
                 }
                 _typedWrapperMap.Remove(key);
             }
