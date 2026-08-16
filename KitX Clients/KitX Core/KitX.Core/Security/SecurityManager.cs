@@ -278,6 +278,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
             : new DeviceKey
             {
                 Device = _localDeviceKey.Device,
+                RsaPublicKeyPem = _localDeviceKey.RsaPublicKeyPem,
                 RsaPrivateKeyPem = _localDeviceKey.RsaPrivateKeyPem
             };
     }
@@ -639,6 +640,52 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
         var dataBytes = Convert.FromBase64String(encryptedData);
         var decrypted = rsa.Decrypt(dataBytes, RSAEncryptionPadding.OaepSHA256);
         return Encoding.UTF8.GetString(decrypted);
+    }
+
+    /// <summary>
+    /// Signs a string with a device's private key (PKCS#1 v1.5, SHA-256). Used to prove
+    /// private-key ownership during the authenticated connection handshake.
+    /// </summary>
+    /// <param name="key">The device key containing the private key</param>
+    /// <param name="data">The data to sign</param>
+    /// <returns>The signature as a Base64 string, or null on failure</returns>
+    public string? RsaSignString(DeviceKey key, string data)
+    {
+        if (string.IsNullOrEmpty(key.RsaPrivateKeyPem))
+            throw new InvalidOperationException("No private key available to sign with.");
+
+        using var rsa = RSA.Create(2048);
+        rsa.ImportFromPem(key.RsaPrivateKeyPem);
+        var dataBytes = Encoding.UTF8.GetBytes(data);
+        var signature = rsa.SignData(dataBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return Convert.ToBase64String(signature);
+    }
+
+    /// <summary>
+    /// Verifies an RSA signature against a device's public key (PKCS#1 v1.5, SHA-256).
+    /// </summary>
+    /// <param name="key">The device key containing the public key</param>
+    /// <param name="data">The data that was signed</param>
+    /// <param name="signature">The signature to verify (Base64)</param>
+    /// <returns>True if the signature is valid for the given public key and data</returns>
+    public bool RsaVerifySignature(DeviceKey key, string data, string signature)
+    {
+        if (string.IsNullOrEmpty(key.RsaPublicKeyPem) || string.IsNullOrEmpty(signature))
+            return false;
+
+        try
+        {
+            using var rsa = RSA.Create(2048);
+            rsa.ImportFromPem(key.RsaPublicKeyPem);
+            var dataBytes = Encoding.UTF8.GetBytes(data);
+            var signatureBytes = Convert.FromBase64String(signature);
+            return rsa.VerifyData(dataBytes, signatureBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error verifying RSA signature");
+            return false;
+        }
     }
 
     /// <summary>

@@ -1,8 +1,15 @@
+using System;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using KitX.Core.Common;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Device;
 using KitX.Core.Contract.Security;
 using KitX.Shared.CSharp.Device;
+using Serilog;
 
 namespace KitX.Core.Device;
 
@@ -16,12 +23,21 @@ public class DeviceCase : IDeviceCase, INotifyPropertyChanged
     private readonly IDeviceKeyService _securityService;
     private readonly IDeviceServer _devicesServer;
     private readonly IDeviceDiscoveryService _deviceDiscoveryService;
+    private readonly IDeviceConnectionClient _connectionClient;
+    private readonly IDeviceKeyExchangeUi _keyExchangeUi;
 
     /// <summary>
     /// Creates a new device case with dependency injection
     /// </summary>
-    public DeviceCase(IConfigService configService, IDeviceKeyService securityService, IDeviceServer devicesServer, IDeviceDiscoveryService deviceDiscoveryService)
-        : this(new DeviceInfo(), configService, securityService, devicesServer, deviceDiscoveryService)
+    public DeviceCase(
+        IConfigService configService,
+        IDeviceKeyService securityService,
+        IDeviceServer devicesServer,
+        IDeviceDiscoveryService deviceDiscoveryService,
+        IDeviceConnectionClient connectionClient,
+        IDeviceKeyExchangeUi keyExchangeUi)
+        : this(new DeviceInfo(), configService, securityService, devicesServer, deviceDiscoveryService,
+              connectionClient, keyExchangeUi)
     {
     }
 
@@ -33,13 +49,27 @@ public class DeviceCase : IDeviceCase, INotifyPropertyChanged
     /// <param name="securityService">The security service</param>
     /// <param name="devicesServer">The devices server</param>
     /// <param name="deviceDiscoveryService">The device discovery service</param>
-    public DeviceCase(DeviceInfo deviceInfo, IConfigService configService, IDeviceKeyService securityService, IDeviceServer devicesServer, IDeviceDiscoveryService deviceDiscoveryService)
+    /// <param name="connectionClient">The outbound device connection client</param>
+    /// <param name="keyExchangeUi">The device key-exchange UI abstraction</param>
+    public DeviceCase(
+        DeviceInfo deviceInfo,
+        IConfigService configService,
+        IDeviceKeyService securityService,
+        IDeviceServer devicesServer,
+        IDeviceDiscoveryService deviceDiscoveryService,
+        IDeviceConnectionClient connectionClient,
+        IDeviceKeyExchangeUi keyExchangeUi)
     {
         DeviceInfo = deviceInfo;
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _securityService = securityService ?? throw new ArgumentNullException(nameof(securityService));
         _devicesServer = devicesServer ?? throw new ArgumentNullException(nameof(devicesServer));
         _deviceDiscoveryService = deviceDiscoveryService ?? throw new ArgumentNullException(nameof(deviceDiscoveryService));
+        _connectionClient = connectionClient ?? throw new ArgumentNullException(nameof(connectionClient));
+        _keyExchangeUi = keyExchangeUi ?? throw new ArgumentNullException(nameof(keyExchangeUi));
+
+        AuthorizeAndExchangeDeviceKeyCommand = new AsyncRelayCommand(AuthorizeAndExchangeDeviceKeyAsync);
+        UnAuthorizeCommand = new AsyncRelayCommand(UnAuthorizeAsync);
     }
 
     /// <summary>
@@ -89,6 +119,92 @@ public class DeviceCase : IDeviceCase, INotifyPropertyChanged
     /// Connection token for authenticated communication
     /// </summary>
     public string? ConnectionToken { get; set; }
+
+    /// <summary>
+    /// Initiates the encrypted key exchange and authenticated connection against the
+    /// target device (initiating side). Displays the temporary password, exchanges
+    /// public keys, then connects to obtain a session token.
+    /// </summary>
+    public ICommand AuthorizeAndExchangeDeviceKeyCommand { get; }
+
+    /// <summary>
+    /// Removes this device's key, revoking authorization.
+    /// </summary>
+    public ICommand UnAuthorizeCommand { get; }
+
+    private async Task AuthorizeAndExchangeDeviceKeyAsync()
+    {
+        if (IsCurrentDevice)
+            return;
+
+        var password = GeneratePassword();
+
+        try
+        {
+            using (_keyExchangeUi.ShowPasswordForInitiator(password))
+            {
+                var result = await _connectionClient.ExchangeKeyAsync(DeviceInfo, password);
+                if (!result.Success)
+                {
+                    Log.Warning("[DeviceCase] Key exchange failed for {Device}: {Error}",
+                        DeviceInfo.Device.DeviceName, result.Error);
+                    return;
+                }
+            }
+
+            var token = await _connectionClient.ConnectAsync(DeviceInfo);
+            if (token is not null)
+                ConnectionToken = token;
+
+            NotifyStateChanged();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DeviceCase] AuthorizeAndExchangeDeviceKeyAsync failed for {Device}",
+                DeviceInfo.Device.DeviceName);
+        }
+    }
+
+    private async Task UnAuthorizeAsync()
+    {
+        await Task.Yield();
+
+        try
+        {
+            _securityService.RemoveDeviceKey(DeviceInfo.Device.MacAddress);
+            ConnectionToken = null;
+            NotifyStateChanged();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[DeviceCase] UnAuthorizeAsync failed for {Device}", DeviceInfo.Device.DeviceName);
+        }
+    }
+
+    /// <summary>
+    /// Generates an 8-digit temporary password using digits 1-9 (matching the receive-side
+    /// entry regex <c>[1-9]{8}</c>).
+    /// </summary>
+    private static string GeneratePassword()
+    {
+        const string digits = "123456789";
+        var bytes = new byte[8];
+        RandomNumberGenerator.Fill(bytes);
+        var chars = new char[8];
+        for (var i = 0; i < chars.Length; ++i)
+            chars[i] = digits[bytes[i] % digits.Length];
+        return new string(chars);
+    }
+
+    private void NotifyStateChanged()
+    {
+        OnPropertyChanged(nameof(IsAuthorized));
+        OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(ConnectionToken));
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     /// <summary>
     /// Checks if the device is offline (not seen within TTL period)
