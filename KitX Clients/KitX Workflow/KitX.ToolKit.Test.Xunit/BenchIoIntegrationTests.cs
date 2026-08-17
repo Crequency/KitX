@@ -35,11 +35,12 @@ public sealed class BenchIoIntegrationTests : IDisposable
 {
     private readonly string _root;
     private readonly DataStore _dataStore = new();
+    private const string TkId = "tkbenchio0000000001";
 
     public BenchIoIntegrationTests()
     {
         _root = Path.Combine(Path.GetTempPath(), "kitx-benchio-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_root);
+        Directory.CreateDirectory(Path.Combine(_root, TkId));
     }
 
     public void Dispose()
@@ -61,7 +62,7 @@ public sealed class BenchIoIntegrationTests : IDisposable
 
         var toolkit = new Toolkit
         {
-            Id = "tkbenchio0000000001",
+            Id = TkId,
             Meta = new ToolkitMeta { Name = "bench-io" },
             Workflows =
             [
@@ -117,7 +118,7 @@ public sealed class BenchIoIntegrationTests : IDisposable
             IrData = WorkflowSerializer.Serialize(ir),
             IrVersion = "v6",
         };
-        File.WriteAllText(Path.Combine(_root, fileName), JsonSerializer.Serialize(kcs));
+        File.WriteAllText(Path.Combine(_root, TkId, fileName), JsonSerializer.Serialize(kcs));
     }
 
     /// <summary>Mirrors the production PluginHostAdapter's reserved-name interception

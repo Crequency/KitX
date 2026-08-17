@@ -131,6 +131,24 @@ public class ConfigTests
     }
 
     [Fact]
+    public void Validate_Rejects_Unsafe_Toolkit_Id()
+    {
+        // The toolkit id becomes a directory name under the storage root — invalid
+        // filename chars / traversal must fail at save time, not at runtime file IO.
+        var traversal = Sample();
+        traversal.Meta.Name = "../escape";
+        Assert.False(new ConfigValidator().Validate(traversal).IsValid);
+
+        var invalidChars = Sample();
+        invalidChars.Meta.Name = "bad:name?";
+        Assert.False(new ConfigValidator().Validate(invalidChars).IsValid);
+
+        var rooted = Sample();
+        rooted.Meta.Name = "/abs";
+        Assert.False(new ConfigValidator().Validate(rooted).IsValid);
+    }
+
+    [Fact]
     public void Validate_Rejects_Bind_Outside_Panel_Namespace()
     {
         var tk = Sample();
