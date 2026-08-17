@@ -210,7 +210,7 @@ public sealed class BenchScheduler : IDisposable
             };
 
             // Resolve the relative config file to an absolute path; the executor loads + runs it.
-            var absolutePath = _fileStore.Resolve(file);
+            var absolutePath = _fileStore.ResolveWorkflowPath(_toolkit.GetId(), file);
             var result = await _executor.ExecuteAsync(workflowId, absolutePath, mergedOverrides, instance.Token);
 
             var outputPacket = BuildOutputPacket(instance, workflowId, inputPacket);

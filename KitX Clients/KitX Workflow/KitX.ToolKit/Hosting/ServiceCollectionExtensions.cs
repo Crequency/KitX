@@ -78,6 +78,9 @@ public static class ServiceCollectionExtensions
         // Persistent ToolKit storage.
         services.AddSingleton(sp => new ToolkitStore(toolkitStorageRoot, sp.GetRequiredService<ConfigValidator>()));
 
+        // ToolKit bundled-workflow file access (resolve / load / save / minimal template).
+        services.AddSingleton<IToolkitWorkflowFileStore>(_ => new ToolkitFileStore(toolkitStorageRoot));
+
         // The instance-model orchestration entry point (mount / spawn / end).
         services.AddSingleton<ToolkitInstanceManager>();
 

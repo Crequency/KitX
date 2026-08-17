@@ -50,8 +50,8 @@ public sealed class ToolkitInstanceManager : IDisposable
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
-        _fileStoreFactory = fileStoreFactory ?? (toolkit => new ToolkitFileStore(
-            Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits", Sanitize(toolkit.GetId()))));
+        _fileStoreFactory = fileStoreFactory ?? (_ => new ToolkitFileStore(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits")));
         _validator = validator ?? new ConfigValidator();
 
         // The DataStore blackboard is the panel-projection primitive: project every
@@ -369,14 +369,6 @@ public sealed class ToolkitInstanceManager : IDisposable
     private static string NewId() => Guid.NewGuid().ToString("N");
 
     private static DateTimeOffset Now() => DateTimeOffset.UtcNow;
-
-    private static string Sanitize(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = name.Where(c => !invalid.Contains(c)).ToArray();
-        var clean = new string(chars);
-        return string.IsNullOrWhiteSpace(clean) ? "untitled" : clean;
-    }
 
     private void ThrowIfDisposed()
     {

@@ -41,8 +41,8 @@ public sealed class BenchTriggerManager : IDisposable
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
-        _fileStoreFactory = fileStoreFactory ?? (toolkit => new ToolkitFileStore(
-            Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits", Sanitize(toolkit.Meta.Name))));
+        _fileStoreFactory = fileStoreFactory ?? (_ => new ToolkitFileStore(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits")));
     }
 
     /// <summary>Forwarded from the active scheduler; raised when a triggered run completes.</summary>
@@ -109,14 +109,6 @@ public sealed class BenchTriggerManager : IDisposable
 
     private void OnSourceFired(object? sender, TriggerFiredEventArgs e)
         => _scheduler?.StartRun(e.TriggerId, e.Payload);
-
-    private static string Sanitize(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = name.Where(c => !invalid.Contains(c)).ToArray();
-        var clean = new string(chars);
-        return string.IsNullOrWhiteSpace(clean) ? "untitled" : clean;
-    }
 
     /// <inheritdoc/>
     public void Dispose() => Deactivate();
