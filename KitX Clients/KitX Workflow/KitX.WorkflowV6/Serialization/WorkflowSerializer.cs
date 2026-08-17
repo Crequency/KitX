@@ -75,8 +75,8 @@ public static class WorkflowSerializer
             HelperFunctions = [.. (doc.HelperFunctions ?? [])],
             Annotations = [.. (doc.Annotations ?? [])],
             DetachedGraphs = [.. (doc.DetachedGraphs ?? [])],
-            // Nullable: old .kcs files lacking these fields deserialise to null
-            // (backward compatible).
+            // Optional doc comments: an absent field deserialises as null (the
+            // renderer distinguishes "no comment" from an empty string).
             ConstantsDocComment = doc.ConstantsDocComment,
             GlobalVarsDocComment = doc.GlobalVarsDocComment,
             TrailingDocComment = doc.TrailingDocComment,
