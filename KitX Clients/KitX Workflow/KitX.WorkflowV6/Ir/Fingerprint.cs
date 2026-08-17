@@ -245,12 +245,13 @@ public readonly record struct Fingerprint(string Value) : IEquatable<Fingerprint
         }
     }
 
-    // ── Legacy textual-form entry (kept for backwards-compat with v5 callers) ──
+    // ── Textual-form entry (used for bp-edit structural fingerprints and tests) ──
 
     /// <summary>
-    /// Computes a fingerprint from a raw textual form. Kept as a convenience for tests
-    /// and for the migration path; prefer <see cref="Compute(Statement)"/> /
-    /// <see cref="Compute(KsNode)"/> for real IR/AST fingerprinting.
+    /// Computes a fingerprint from a raw textual form. Used directly for bp-edit
+    /// structural fingerprints (see <c>BpEditTranslator</c>) and by tests; prefer
+    /// <see cref="Compute(Statement)"/> / <see cref="Compute(KsNode)"/> for real
+    /// IR/AST fingerprinting.
     /// </summary>
     public static Fingerprint Compute(string textualForm)
         => new(textualForm ?? string.Empty);
