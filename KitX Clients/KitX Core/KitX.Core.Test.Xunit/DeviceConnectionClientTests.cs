@@ -220,7 +220,6 @@ public class DeviceConnectionClientTests : IDisposable
 
         public event EventHandler<int>? PortChanged;
 
-        public event EventHandler<PluginConnectedEventArgs>? PluginConnected;
 
         public event EventHandler<PluginDisconnectedEventArgs>? PluginDisconnected;
 

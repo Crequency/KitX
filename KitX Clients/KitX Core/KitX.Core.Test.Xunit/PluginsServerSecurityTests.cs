@@ -113,7 +113,6 @@ public class PluginsServerSecurityTests
             }
 
             Assert.True(rejected, "无效连接 ID 应被拒绝（握手中断或收到拒绝消息）");
-            Assert.False(eventService.WasPublished(EventNames.PluginConnected));
         }
         finally
         {
@@ -143,7 +142,6 @@ public class PluginsServerSecurityTests
                 TimeSpan.FromSeconds(5));
 
             Assert.True(registered, "合法 GUID 连接未在超时内注册到 PluginsServer");
-            Assert.True(eventService.WasPublished(EventNames.PluginConnected));
 
             await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
         }

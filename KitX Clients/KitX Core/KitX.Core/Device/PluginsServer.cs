@@ -10,7 +10,6 @@ using KitX.Shared.CSharp.WebCommand;
 using Serilog;
 using CTask = System.Threading.Tasks.Task;
 using IPluginConnection = KitX.Core.Contract.Plugin.IPluginConnection;
-using PluginConnectedEventArgs = KitX.Core.Contract.Plugin.Events.PluginConnectedEventArgs;
 using PluginDisconnectedEventArgs = KitX.Core.Contract.Plugin.Events.PluginDisconnectedEventArgs;
 using PluginMessageReceivedEventArgs = KitX.Core.Contract.Plugin.Events.PluginMessageReceivedEventArgs;
 
@@ -62,11 +61,6 @@ public class PluginsServer : ServerBase, IPluginServer
     /// </summary>
     IReadOnlyList<IPluginConnection> IPluginServer.Connections =>
         _connections.Values.ToList().AsReadOnly();
-
-    /// <summary>
-    /// Event raised when a plugin connects
-    /// </summary>
-    public event EventHandler<PluginConnectedEventArgs>? PluginConnected;
 
     /// <summary>
     /// Event raised when a plugin disconnects
@@ -299,11 +293,6 @@ public class PluginsServer : ServerBase, IPluginServer
                 };
 
                 connection.Initialize();
-
-                _eventService.Publish(EventNames.PluginConnected, new PluginConnectedEventArgs
-                {
-                    ConnectionId = connectionId
-                });
             });
 
             Port = _server!.Port;

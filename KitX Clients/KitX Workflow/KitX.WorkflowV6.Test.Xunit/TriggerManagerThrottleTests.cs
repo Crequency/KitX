@@ -33,7 +33,7 @@ public class TriggerManagerThrottleTests
         public IPluginConnector? FindConnector(PluginInfo pluginInfo) => null;
         public IPluginConnection? FindConnection(string connectionId) => null;
         public event EventHandler<int>? PortChanged;
-        public event EventHandler<PluginConnectedEventArgs>? PluginConnected;
+
         public event EventHandler<PluginDisconnectedEventArgs>? PluginDisconnected;
         public event EventHandler<PluginMessageReceivedEventArgs>? PluginMessageReceived;
         public event EventHandler<PluginRegisteredEventArgs>? PluginRegistered;

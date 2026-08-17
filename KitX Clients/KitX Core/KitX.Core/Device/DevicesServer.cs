@@ -761,8 +761,6 @@ public class DevicesServer : ServerBase, IDeviceServer
             return;
         }
 
-        _eventService.Publish(EventNames.OnReceiveCancelExchangingDeviceKey, EventArgs.Empty);
-
         // Cancel any pending user confirmation
         _exchangeKeyTcs?.TrySetCanceled();
         _exchangeKeyTcs = null;
