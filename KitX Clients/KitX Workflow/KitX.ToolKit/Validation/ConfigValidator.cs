@@ -32,6 +32,17 @@ public sealed class ConfigValidator
 
     private static void ValidateIdentity(Toolkit toolkit, ConfigValidationResult result)
     {
+        // The toolkit id (falls back to Meta.Name) becomes a directory name under the
+        // storage root, so it must be a single valid path segment — reject invalid
+        // filename chars and traversal sequences at save time instead of failing at
+        // runtime file IO.
+        var id = toolkit.GetId();
+        if (string.IsNullOrWhiteSpace(id)
+            || id.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || id.Contains("..")
+            || Path.IsPathRooted(id))
+            result.Add($"Toolkit Id '{toolkit.Id}' (or its fallback Meta.Name) must be a non-empty file-name-safe segment.");
+
         // Workflow ids must be unique.
         var workflowIds = toolkit.Workflows.Select(w => w.Id).ToList();
         if (workflowIds.Any(string.IsNullOrWhiteSpace))
