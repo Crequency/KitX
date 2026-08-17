@@ -1,5 +1,4 @@
 using KitX.ToolKit.Contracts;
-using KitX.ToolKit.Contracts.Events;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Models;
 using KitX.ToolKit.Validation;
@@ -19,11 +18,7 @@ public sealed class BenchService : IBenchService
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-        _manager.BenchEvent += (_, e) => Event?.Invoke(this, e);
     }
-
-    /// <inheritdoc/>
-    public event EventHandler<BenchEvent>? Event;
 
     /// <inheritdoc/>
     public string? Spawn(string toolkitId, string triggerId, object? payload = null, Initiator? initiator = null)

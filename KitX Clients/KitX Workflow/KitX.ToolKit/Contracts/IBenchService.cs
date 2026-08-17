@@ -24,7 +24,4 @@ public interface IBenchService
 
     /// <summary>Validates a ToolKit config (identity, references, strict DAG, UI rules).</summary>
     ConfigValidationResult Validate(Toolkit toolkit);
-
-    /// <summary>Raised for every Bench event (spawn/complete/cancel/run/data/ui).</summary>
-    event EventHandler<Events.BenchEvent>? Event;
 }
