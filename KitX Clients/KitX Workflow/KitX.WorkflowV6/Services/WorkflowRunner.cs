@@ -21,7 +21,7 @@ using KitX.WorkflowV6.Ir.Lowering;
 /// Executes workflow IRs with constant overrides applied, through the default
 /// execution backend.
 /// </summary>
-public sealed class WorkflowRunner
+public sealed class WorkflowRunner : IWorkflowRunner
 {
     private readonly IExecutionBackend _backend;
 

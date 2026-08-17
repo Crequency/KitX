@@ -78,8 +78,12 @@ public static class ServiceCollectionExtensions
 
         // WorkflowRunner — single shared execution path (ApplyConstantOverrides +
         // ExecuteAsync) used by the editor Run/DebugRun and by WorkflowSessionManager's
-        // run-by-id path.
+        // run-by-id path. Registered as both its concrete type (for same-library
+        // consumers) and its IWorkflowRunner abstraction (for cross-library
+        // interface-based consumers such as the Dashboard editor), sharing one
+        // singleton instance.
         services.AddSingleton<Services.WorkflowRunner>();
+        services.AddSingleton<Services.IWorkflowRunner>(sp => sp.GetRequiredService<Services.WorkflowRunner>());
 
         // Workflow services (migrated from KitX.Dashboard.Services — zero UI deps):
         //   • WorkflowStorageService — file-based IWorkflowStorageService for KcsFileFormat v2.
