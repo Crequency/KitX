@@ -70,29 +70,37 @@ internal sealed class KsRenderer
         return text + "\n";
     }
 
+    /// <summary>
+    /// Renders a <c>const</c> declaration row (comment run + <c>type name=init</c> + trailing
+    /// comment). Delegates to the shared <see cref="RenderDeclarationRow"/>.
+    /// </summary>
     private static string RenderConstant(Constant c)
-    {
-        var sb = new StringBuilder();
-        if (c.LeadingComment is { Length: > 0 } lc)
-        {
-            foreach (var line in lc.Split('\n'))
-            {
-                sb.Append(Indent(1));
-                if (line.Length == 0) sb.Append("//");
-                else sb.Append("// ").Append(line);
-                sb.Append('\n');
-            }
-        }
-        sb.Append(Indent(1)).Append($"{c.Type} {c.Name}{RenderDeclInit(c.DictInitializer, c.InitialValueExpression)}");
-        if (c.TrailingComment is { Length: > 0 } tc)
-            sb.Append(" // ").Append(tc);
-        return sb.ToString();
-    }
+        => RenderDeclarationRow(c.LeadingComment, c.Type, c.Name, c.DictInitializer, c.InitialValueExpression, c.TrailingComment);
 
+    /// <summary>
+    /// Renders a <c>var</c> declaration row (comment run + <c>type name=init</c> + trailing
+    /// comment). Delegates to the shared <see cref="RenderDeclarationRow"/>.
+    /// </summary>
     private static string RenderGlobalVar(GlobalVar g)
+        => RenderDeclarationRow(g.LeadingComment, g.Type, g.Name, g.DictInitializer, g.InitialValueExpression, g.TrailingComment);
+
+    /// <summary>
+    /// Single shared implementation behind <see cref="RenderConstant"/> and
+    /// <see cref="RenderGlobalVar"/> — the two declaration rows are structurally identical
+    /// (leading comment run, <c>type name</c> with optional <c>= init</c> suffix, trailing
+    /// comment) and differ only in their record type. Rendered at indent 1 (inside the
+    /// enclosing <c>const {{ ... }}</c> / <c>var {{ ... }}</c> block).
+    /// </summary>
+    private static string RenderDeclarationRow(
+        string? leadingComment,
+        string type,
+        string name,
+        KsDictLiteral? dictInit,
+        string? initialValueExpression,
+        string? trailingComment)
     {
         var sb = new StringBuilder();
-        if (g.LeadingComment is { Length: > 0 } lc)
+        if (leadingComment is { Length: > 0 } lc)
         {
             foreach (var line in lc.Split('\n'))
             {
@@ -102,8 +110,8 @@ internal sealed class KsRenderer
                 sb.Append('\n');
             }
         }
-        sb.Append(Indent(1)).Append($"{g.Type} {g.Name}{RenderDeclInit(g.DictInitializer, g.InitialValueExpression)}");
-        if (g.TrailingComment is { Length: > 0 } tc)
+        sb.Append(Indent(1)).Append($"{type} {name}{RenderDeclInit(dictInit, initialValueExpression)}");
+        if (trailingComment is { Length: > 0 } tc)
             sb.Append(" // ").Append(tc);
         return sb.ToString();
     }

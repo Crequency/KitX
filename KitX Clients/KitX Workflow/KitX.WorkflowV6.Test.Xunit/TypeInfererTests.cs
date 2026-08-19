@@ -39,8 +39,9 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             {
                 PubVarTypes = declaredTypes,
             },
-            _fixture.Registry,
-            []);
+            name => _fixture.Registry.Contains(name),
+            [],
+            name => _fixture.Registry.FirstDataOutputPinType(name));
     }
 
     private Dictionary<string, string> InferFromDeclaredWithHelpers(
@@ -65,8 +66,9 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             {
                 PubVarTypes = declaredTypes,
             },
-            _fixture.Registry,
-            helpers);
+            name => _fixture.Registry.Contains(name),
+            helpers,
+            name => _fixture.Registry.FirstDataOutputPinType(name));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -272,7 +274,7 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
     public void Infer_Empty_Workflow_Returns_Empty_Dict()
     {
         var ir = new Workflow();
-        var result = TypeInferer.Infer(ir, null, _fixture.Registry, []);
+        var result = TypeInferer.Infer(ir, null, name => _fixture.Registry.Contains(name), [], name => _fixture.Registry.FirstDataOutputPinType(name));
         Assert.NotNull(result);
         Assert.Empty(result);
     }
@@ -288,7 +290,7 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             """;
         var lens = new KsTextLens(_fixture.Registry);
         var ir = lens.Parse(source, []);
-        var result = TypeInferer.Infer(ir, null, _fixture.Registry, []);
+        var result = TypeInferer.Infer(ir, null, name => _fixture.Registry.Contains(name), [], name => _fixture.Registry.FirstDataOutputPinType(name));
         Assert.NotNull(result);
     }
 
@@ -304,7 +306,7 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             """;
         var lens = new KsTextLens(emptyRegistry);
         var ir = lens.Parse(source, []);
-        var result = TypeInferer.Infer(ir, null, emptyRegistry, []);
+        var result = TypeInferer.Infer(ir, null, name => emptyRegistry.Contains(name), [], name => emptyRegistry.FirstDataOutputPinType(name));
         Assert.NotNull(result);
     }
 
@@ -393,7 +395,7 @@ public class TypeInfererTests : IClassFixture<WorkflowTestFixture>
             }
             5 > Double = result
             """, helpers);
-        var result = TypeInferer.Infer(ir, null, _fixture.Registry, helpers);
+        var result = TypeInferer.Infer(ir, null, name => _fixture.Registry.Contains(name), helpers, name => _fixture.Registry.FirstDataOutputPinType(name));
         Assert.True(result.ContainsKey("result"));
         Assert.Equal("int", result["result"]);
     }

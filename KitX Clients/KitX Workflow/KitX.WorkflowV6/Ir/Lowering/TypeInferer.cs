@@ -2,7 +2,6 @@ namespace KitX.WorkflowV6.Ir.Lowering;
 
 using System.Reflection;
 using KitX.Core.Contract.Workflow;
-using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
 
@@ -36,6 +35,17 @@ public static class TypeInferer
     /// Infers PubVar types from the IR + lowering result + helper functions.
     /// Returns a map of PubVar/Const name → C# type name (default "object").
     /// </summary>
+    /// <param name="isKnownBuiltin">
+    /// A predicate answering "is this target a registered builtin function?" (typically
+    /// <c>name =&gt; registry.Contains(name)</c>). Injected so the IR layer holds no direct
+    /// reference to the <c>Builtin</c> registry.
+    /// </param>
+    /// <param name="getBuiltinDataOutputPinType">
+    /// Optional: resolves the <see cref="PinType"/> of a builtin's first data output pin by
+    /// name (the value a producer's return type is inferred from). The caller derives it from
+    /// the registry (e.g. <c>name =&gt; registry.FirstDataOutputPinType(name)</c>); null (or an
+    /// unknown name) means the builtin contributes no producer type.
+    /// </param>
     /// <param name="runtimeTypeResolver">
     /// Optional: resolves a builtin's ACTUAL C# return type on
     /// <c>ExecutionGlobals</c> by function name. The backend supplies this (the IR layer
@@ -48,8 +58,9 @@ public static class TypeInferer
     public static Dictionary<string, string> Infer(
         Workflow ir,
         LoweringResult? lowering,
-        BuiltinFunctionRegistry? registry,
+        Func<string, bool> isKnownBuiltin,
         IReadOnlyList<HelperFunction>? helperFunctions,
+        Func<string, PinType?>? getBuiltinDataOutputPinType = null,
         Func<string, Type?>? runtimeTypeResolver = null)
     {
         var pubVarTypes = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -76,7 +87,7 @@ public static class TypeInferer
         // no object? producer keeps it; anything mixed (object? + string, int + string)
         // meets at "object" so every assignment compiles.
         var producers = new Dictionary<string, ProducerSet>(StringComparer.Ordinal);
-        SourcePass(ir.Body, pubVarTypes, registry, helperMap, runtimeTypeResolver, producers);
+        SourcePass(ir.Body, pubVarTypes, isKnownBuiltin, getBuiltinDataOutputPinType, helperMap, runtimeTypeResolver, producers);
         foreach (var (name, set) in producers)
         {
             if (!pubVarTypes.ContainsKey(name))
@@ -90,7 +101,7 @@ public static class TypeInferer
         }
 
         // ── Pass 2: DEMAND types — recurse into structured bodies. ──
-        DemandPass(ir.Body, pubVarTypes, registry, helperMap);
+        DemandPass(ir.Body, pubVarTypes, isKnownBuiltin, helperMap);
 
         return pubVarTypes;
     }
@@ -100,7 +111,8 @@ public static class TypeInferer
     private static void SourcePass(
         ImmutableArray<Statement> body,
         Dictionary<string, string> pubVarTypes,
-        BuiltinFunctionRegistry? registry,
+        Func<string, bool> isKnownBuiltin,
+        Func<string, PinType?>? getBuiltinDataOutputPinType,
         IReadOnlyDictionary<string, HelperFunction> helperMap,
         Func<string, Type?>? runtimeTypeResolver,
         Dictionary<string, ProducerSet> producers)
@@ -119,7 +131,7 @@ public static class TypeInferer
 
                 foreach (var seg in pipe.Segments)
                 {
-                    if (KsSegmentClassifier.IsVariableTap(seg, registry, helperMap.Keys))
+                    if (KsSegmentClassifier.IsVariableTap(seg, isKnownBuiltin, helperMap.Keys))
                         target = seg.Target;
                     else
                     {
@@ -143,20 +155,22 @@ public static class TypeInferer
                         {
                             RecordProducer(producers, target, helper.ReturnType);
                         }
-                        // (b) Builtin: prefer the actual ExecutionGlobals return type (when the
-                        // resolver knows it) over the descriptor pin, then record it against
-                        // the var's producer set.
-                        else if (registry?.Get(producingFunc) is { } builtin
-                            && FirstDataOutputPin(builtin) is { } retPin)
+                        // (b) Builtin: resolve its first data output pin type via the injected
+                        // resolver (the caller derives it from the registry), then prefer the
+                        // actual ExecutionGlobals return type (when the runtime resolver knows
+                        // it) over the descriptor pin before recording it against the var's
+                        // producer set.
+                        else if (getBuiltinDataOutputPinType is not null
+                            && getBuiltinDataOutputPinType(producingFunc) is { } retPinType)
                         {
                             RecordProducer(producers, target,
-                                ProducedCSharpType(builtin.Name, retPin.Type, runtimeTypeResolver));
+                                ProducedCSharpType(producingFunc, retPinType, runtimeTypeResolver));
                         }
                     }
                 }
             }
 
-            VisitBodies(stmt, b => SourcePass(b, pubVarTypes, registry, helperMap, runtimeTypeResolver, producers));
+            VisitBodies(stmt, b => SourcePass(b, pubVarTypes, isKnownBuiltin, getBuiltinDataOutputPinType, helperMap, runtimeTypeResolver, producers));
         }
     }
 
@@ -165,7 +179,7 @@ public static class TypeInferer
     private static void DemandPass(
         ImmutableArray<Statement> body,
         Dictionary<string, string> pubVarTypes,
-        BuiltinFunctionRegistry? registry,
+        Func<string, bool> isKnownBuiltin,
         IReadOnlyDictionary<string, HelperFunction> helperMap)
     {
         foreach (var stmt in body)
@@ -183,11 +197,11 @@ public static class TypeInferer
                     break;
 
                 case PipelineStatement pipe:
-                    DemandPipelineHelperArgs(pipe, pubVarTypes, registry, helperMap);
+                    DemandPipelineHelperArgs(pipe, pubVarTypes, isKnownBuiltin, helperMap);
                     break;
             }
 
-            VisitBodies(stmt, b => DemandPass(b, pubVarTypes, registry, helperMap));
+            VisitBodies(stmt, b => DemandPass(b, pubVarTypes, isKnownBuiltin, helperMap));
         }
     }
 
@@ -241,14 +255,14 @@ public static class TypeInferer
     private static void DemandPipelineHelperArgs(
         PipelineStatement pipe,
         Dictionary<string, string> pubVarTypes,
-        BuiltinFunctionRegistry? registry,
+        Func<string, bool> isKnownBuiltin,
         IReadOnlyDictionary<string, HelperFunction> helperMap)
     {
         for (int segIdx = 0; segIdx < pipe.Segments.Length; segIdx++)
         {
             var seg = pipe.Segments[segIdx];
-            if (KsSegmentClassifier.IsVariableTap(seg, registry, helperMap.Keys)) continue;
-            if (registry?.Contains(seg.Target) is true) continue; // builtin — skip
+            if (KsSegmentClassifier.IsVariableTap(seg, isKnownBuiltin, helperMap.Keys)) continue;
+            if (isKnownBuiltin(seg.Target)) continue; // builtin — skip
             if (!helperMap.TryGetValue(seg.Target, out var helper)) continue;
 
             // Collect KsIdentifiers feeding into this function's parameters:
@@ -275,17 +289,6 @@ public static class TypeInferer
     }
 
     // ── Helpers ──
-
-    /// <summary>The first non-Exec data output pin of a builtin, or null.</summary>
-    private static PortSpec? FirstDataOutputPin(IBuiltinFunction fn)
-    {
-        foreach (var p in fn.OutputPorts)
-            // "Exec" matches the BP pin name (KScriptGrammarRule §14.7). Hardcoded here
-            // because TypeInferer is IR-layer and must not depend on Lens.BpGraphLens.BpPinNames.
-            if (p.Name != "Exec" && p.Type != PinType.Execution)
-                return p;
-        return null;
-    }
 
     // ── Producer type resolution & merge ──
 

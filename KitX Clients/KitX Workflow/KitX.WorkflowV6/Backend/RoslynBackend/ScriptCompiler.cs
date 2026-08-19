@@ -106,7 +106,8 @@ internal sealed class ScriptCompiler
             // vars produced by object?-returning builtins (PluginCall & friends) are not
             // mis-typed from their Json descriptor pins.
             var pubVarTypes = TypeInferer.Infer(
-                ir, effectiveLowering, _registry, ir.HelperFunctions,
+                ir, effectiveLowering, name => _registry.Contains(name), ir.HelperFunctions,
+                name => _registry.FirstDataOutputPinType(name),
                 name => BuiltinRuntimeTypes.Resolve(_baseType, name));
             var refinedLowering = effectiveLowering with { PubVarTypes = pubVarTypes };
 

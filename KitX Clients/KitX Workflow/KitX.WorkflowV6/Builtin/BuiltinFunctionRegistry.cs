@@ -1,6 +1,7 @@
 namespace KitX.WorkflowV6.Builtin;
 
 using System.Reflection;
+using KitX.Core.Contract.Workflow;
 using Serilog;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,4 +85,20 @@ public sealed class BuiltinFunctionRegistry
     public bool Contains(string name) => _byName.ContainsKey(name);
     public IReadOnlyCollection<string> AllNames => _byName.Keys;
     public IReadOnlyCollection<IBuiltinFunction> All => _byName.Values;
+
+    /// <summary>
+    /// The <see cref="PinType"/> of the first data (non-<c>Exec</c>) output pin of the named
+    /// function, or null when the function is unknown or exposes no data output. Hosted here
+    /// so IR-layer consumers (type inference) never need a direct reference to
+    /// <see cref="IBuiltinFunction"/> — they receive this value via an injected predicate.
+    /// </summary>
+    public PinType? FirstDataOutputPinType(string name)
+    {
+        if (_byName.TryGetValue(name, out var fn))
+            foreach (var p in fn.OutputPorts)
+                // "Exec" matches the BP pin name (KScriptGrammarRule §14.7).
+                if (p.Name != "Exec" && p.Type != PinType.Execution)
+                    return p.Type;
+        return null;
+    }
 }

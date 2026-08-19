@@ -97,8 +97,9 @@ internal sealed class KsLowerer
         var inferredTypes = TypeInferer.Infer(
             new Workflow { Body = body, Constants = constants.ToImmutable(), GlobalVars = globalVars.ToImmutable(), HelperFunctions = helpers.ToImmutableArray() },
             new LoweringResult { PubVarTypes = seedTypes },
-            _registry,
-            helpers);
+            name => _registry?.Contains(name) ?? false,
+            helpers,
+            name => _registry?.FirstDataOutputPinType(name));
         pubVarTypes = inferredTypes;
 
         // Propagate inferred types back into the IR's GlobalVars so that downstream

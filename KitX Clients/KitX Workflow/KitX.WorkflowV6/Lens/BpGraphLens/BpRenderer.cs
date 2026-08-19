@@ -417,7 +417,7 @@ internal sealed class BpRenderer
             // still render as a variable tap — KsSegmentClassifier alone would classify
             // it as a function call and break the `a = Print` round-trip.
             bool isVarTap = seg.IsVariableTap
-                         || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);
+                         || KsSegmentClassifier.IsVariableTap(seg, name => _registry.Contains(name), _helperNames);
 
             BlueprintNode segNode;
             if (isVarTap)
@@ -805,7 +805,7 @@ internal sealed class BpRenderer
         for (int i = 0; i < pipe.Segments.Length; i++)
         {
             var seg = pipe.Segments[i];
-            if (KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames))
+            if (KsSegmentClassifier.IsVariableTap(seg, name => _registry.Contains(name), _helperNames))
             {
                 var tapNode = new VariableNode
                 {

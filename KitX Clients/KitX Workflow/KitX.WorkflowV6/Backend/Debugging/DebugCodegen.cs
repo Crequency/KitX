@@ -175,7 +175,7 @@ internal sealed class DebugCodegen : CodegenBase
             EmitCheckpoint(segNodeId, segPath);
             string outputVar = $"__pipe_{_pipeCounter++}";
             bool isVarTap = (seg.IsVariableTap && !_helperNames.Contains(seg.Target))
-                         || KsSegmentClassifier.IsVariableTap(seg, _registry, _helperNames);
+                         || KsSegmentClassifier.IsVariableTap(seg, name => _registry.Contains(name), _helperNames);
 
             if (isVarTap)
             {
