@@ -1,5 +1,7 @@
+using System.IO;
 using System.Linq;
 using CActivity = Common.Activity.Activity;
+using KitX.Core;
 using KitX.Core.Activity;
 using LiteDB;
 
@@ -9,7 +11,7 @@ namespace KitX.Core.Test.Xunit;
 /// G6 回归：ActivityManager 读取分页化 + 写入保留策略。
 /// 覆盖：倒序分页（Limit/Skip 组合）、limit<=0 全量、CountActivities、
 /// 超出上限裁剪最旧、清库后读取为空。
-/// 使用内存 LiteDB（:memory:），不触碰真实数据目录。
+/// 使用内存 LiteDB（:memory:），经 internal 测试构造注入，不触碰真实数据目录。
 /// 注意：LiteDB 对 int 主键 0 视为"未设置"并自动分配（从 1 起），
 /// 因此 Seed 的 Id 一律从 1 开始；Retention 用高位 Id 段避开
 /// NextActivityId 静态计数器生成的低位 Id。
@@ -20,16 +22,19 @@ public class ActivityManagerTests : IDisposable
 
     private readonly LiteDatabase _db;
 
+    private readonly ActivityManager _manager;
+
     public ActivityManagerTests()
     {
         _db = new LiteDatabase(":memory:");
-        ActivityManager.ActivitiesDatabase = _db;
+        _manager = new ActivityManager(_db);
     }
 
     public void Dispose()
     {
-        ActivityManager.ActivitiesDatabase = null;
-        _db.Dispose();
+        // _manager owns _db (via the internal test ctor), so disposing the manager also
+        // releases the underlying :memory: LiteDB store.
+        _manager.Dispose();
     }
 
     private void Seed(int count, int idBase = 1)
@@ -46,13 +51,13 @@ public class ActivityManagerTests : IDisposable
     {
         Seed(10);
 
-        var page0 = ActivityManager.ReadActivities(3, 0);
+        var page0 = _manager.ReadActivities(3, 0);
         Assert.Equal(new[] { 10, 9, 8 }, page0.Select(a => a.Id));
 
-        var page1 = ActivityManager.ReadActivities(3, 3);
+        var page1 = _manager.ReadActivities(3, 3);
         Assert.Equal(new[] { 7, 6, 5 }, page1.Select(a => a.Id));
 
-        var last = ActivityManager.ReadActivities(2, 8);
+        var last = _manager.ReadActivities(2, 8);
         Assert.Equal(new[] { 2, 1 }, last.Select(a => a.Id));
     }
 
@@ -61,7 +66,7 @@ public class ActivityManagerTests : IDisposable
     {
         Seed(5);
 
-        var all = ActivityManager.ReadActivities();
+        var all = _manager.ReadActivities();
         Assert.Equal(5, all.Count);
         Assert.Equal(new[] { 5, 4, 3, 2, 1 }, all.Select(a => a.Id));
     }
@@ -70,7 +75,7 @@ public class ActivityManagerTests : IDisposable
     public void CountActivities_Reflects_Store()
     {
         Seed(7);
-        Assert.Equal(7, ActivityManager.CountActivities());
+        Assert.Equal(7, _manager.CountActivities());
     }
 
     [Fact]
@@ -83,10 +88,10 @@ public class ActivityManagerTests : IDisposable
         Seed(5000, SeedIdBase);
         Assert.Equal(6000, Collection.LongCount());
 
-        ActivityManager.TrimToCap();
+        _manager.TrimToCap();
 
         Assert.Equal(5000, Collection.LongCount());
-        Assert.Equal(5000, ActivityManager.CountActivities());
+        Assert.Equal(5000, _manager.CountActivities());
 
         // The 1,000 oldest rows (Ids below SeedIdBase) were removed.
         Assert.Equal(SeedIdBase, Collection.Query().OrderBy(a => a.Id).FirstOrDefault()!.Id);
@@ -97,7 +102,7 @@ public class ActivityManagerTests : IDisposable
     public void TrimToCap_OnBoundedStore_IsNoOp()
     {
         Seed(100);
-        ActivityManager.TrimToCap();
+        _manager.TrimToCap();
         Assert.Equal(100, Collection.LongCount());
     }
 
@@ -105,11 +110,41 @@ public class ActivityManagerTests : IDisposable
     public void Clearing_The_Store_Reads_Empty()
     {
         Seed(5);
-        Assert.Equal(5, ActivityManager.CountActivities());
+        Assert.Equal(5, _manager.CountActivities());
 
         Collection.DeleteAll();
 
-        Assert.Empty(ActivityManager.ReadActivities());
-        Assert.Equal(0, ActivityManager.CountActivities());
+        Assert.Empty(_manager.ReadActivities());
+        Assert.Equal(0, _manager.CountActivities());
+    }
+
+    [Fact]
+    public void Constructor_CreatesDataDirectory_AndOpensDatabaseFile()
+    {
+        var dataDir = Path.GetFullPath(ConstantTable.DataPath);
+
+        // 清理上次运行可能残留的 Data 目录，保证初始断言成立。
+        if (Directory.Exists(dataDir))
+            Directory.Delete(dataDir, recursive: true);
+
+        try
+        {
+            var manager = new ActivityManager();
+
+            try
+            {
+                Assert.True(Directory.Exists(dataDir));
+                Assert.True(File.Exists(ConstantTable.ActivitiesDataBaseFilePath));
+            }
+            finally
+            {
+                manager.Dispose();
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dataDir))
+                Directory.Delete(dataDir, recursive: true);
+        }
     }
 }

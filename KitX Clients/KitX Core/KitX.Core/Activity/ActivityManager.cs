@@ -11,15 +11,15 @@ namespace KitX.Core.Activity;
 /// Activity manager for recording application activities
 /// Uses Common.Activity library for activity management and LiteDB for persistence
 /// </summary>
-public class ActivityManager : IActivityService
+public class ActivityManager : IActivityService, IDisposable
 {
     private static readonly object _activityRecordLock = new();
 
-    // NOTE (C-13.3, D1): _activitiesDatabase is a static field assigned externally by the
-    // Dashboard (AppFramework). Convergence direction: make it an instance field owned by
-    // this manager (LiteDB open/close lifecycle managed here) — D1 owns the assignment
-    // migration; Core keeps the current shape untouched this round.
-    private static LiteDatabase? _activitiesDatabase;
+    // C-13.3, D1: the activities store is now an instance field owned by this manager. The
+    // public constructor opens the LiteDB file (creating the Data directory if missing); the
+    // internal constructor accepts an injected LiteDatabase (tests pass :memory:). The
+    // Dashboard no longer assigns an external static ActivitiesDatabase.
+    private LiteDatabase? _activitiesDatabase;
 
     // C-13.2: in-process registry of the exact recorded time per activity Id. The Id is an
     // int (LiteDB row key) and cannot carry a timestamp; this registry lets the adapter
@@ -38,16 +38,7 @@ public class ActivityManager : IActivityService
     // they are not configuration items for this batch (per G6 scope).
     private const long MaxActivitiesPerCollection = 5000;
     private const int TrimEveryNWrites = 1000;
-    private static int _writesSinceTrim;
-
-    /// <summary>
-    /// Gets or sets the activities database
-    /// </summary>
-    public static LiteDatabase? ActivitiesDatabase
-    {
-        get => _activitiesDatabase;
-        set => _activitiesDatabase = value;
-    }
+    private int _writesSinceTrim;
 
     /// <summary>
     /// Gets the collection name for current month
@@ -62,9 +53,38 @@ public class ActivityManager : IActivityService
     public event EventHandler? ActivitiesUpdated;
 
     /// <summary>
-    /// Creates a new activity manager
+    /// Creates a new activity manager, opening the on-disk activities database and creating
+    /// the Data directory first if it does not exist.
     /// </summary>
-    public ActivityManager() { }
+    public ActivityManager()
+    {
+        var dir = ConstantTable.DataPath.GetFullPath();
+
+        if (!Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
+        _activitiesDatabase = new LiteDatabase(ConstantTable.ActivitiesDataBaseFilePath);
+    }
+
+    /// <summary>
+    /// Test constructor: takes an existing <see cref="LiteDatabase"/> (e.g. an in-memory
+    /// <c>:memory:</c> store) instead of opening the on-disk activities file.
+    /// </summary>
+    internal ActivityManager(LiteDatabase database)
+    {
+        _activitiesDatabase = database;
+    }
+
+    /// <summary>
+    /// Releases the owned LiteDB instance. The production singleton lives for the whole
+    /// process (the DI provider is never disposed), so this is effectively only exercised by
+    /// tests; disposing earlier would not break the app lifetime.
+    /// </summary>
+    public void Dispose()
+    {
+        _activitiesDatabase?.Dispose();
+        _activitiesDatabase = null;
+    }
 
     /// <summary>
     /// Reads activities from the database, newest-first (by descending row Id).
@@ -76,7 +96,7 @@ public class ActivityManager : IActivityService
     /// <param name="limit">Maximum rows to return; &lt;= 0 means all.</param>
     /// <param name="skip">Rows to skip (used for paging after the first page).</param>
     /// <returns>List of activities, newest-first</returns>
-    public static IList<CActivity> ReadActivities(int limit = 0, int skip = 0)
+    public IList<CActivity> ReadActivities(int limit = 0, int skip = 0)
     {
         if (_activitiesDatabase is LiteDatabase db)
         {
@@ -97,7 +117,7 @@ public class ActivityManager : IActivityService
     /// Home activity log to decide whether "load more" has anything left to page.
     /// </summary>
     /// <returns>Count of activity rows in the current collection.</returns>
-    public static long CountActivities()
+    public long CountActivities()
     {
         if (_activitiesDatabase is LiteDatabase db)
             return db.GetCollection<CActivity>(CollectionName).LongCount();
@@ -111,7 +131,7 @@ public class ActivityManager : IActivityService
     /// enforced on demand regardless of the write-path throttle.
     /// </summary>
     /// <param name="col">The current-month collection to trim.</param>
-    private static void TrimIfDue(ILiteCollection<CActivity> col)
+    private void TrimIfDue(ILiteCollection<CActivity> col)
     {
         _writesSinceTrim++;
         if (_writesSinceTrim < TrimEveryNWrites)
@@ -127,7 +147,7 @@ public class ActivityManager : IActivityService
     /// (smallest Id). Safe to call on an already-bounded store (no-op) and reentrant
     /// under <see cref="_activityRecordLock"/> (called from the throttled write path).
     /// </summary>
-    public static void TrimToCap()
+    public void TrimToCap()
     {
         if (_activitiesDatabase is not LiteDatabase db)
             return;
@@ -135,7 +155,7 @@ public class ActivityManager : IActivityService
         db.Commit();
     }
 
-    private static void TrimToCap(ILiteCollection<CActivity> col)
+    private void TrimToCap(ILiteCollection<CActivity> col)
     {
         var count = col.LongCount();
         if (count <= MaxActivitiesPerCollection)
