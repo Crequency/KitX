@@ -38,7 +38,14 @@ public abstract class TriggerSourceBase : ITriggerSource
     protected void Raise(JsonElement payload)
         => Fired?.Invoke(this, new TriggerFiredEventArgs(Id, payload));
 
-    private static JsonElement NormalizePayload(object? payload) => payload switch
+    /// <summary>
+    /// Normalizes an arbitrary trigger payload to a standalone <see cref="JsonElement"/>:
+    /// <see langword="null"/> → JSON null; an existing <c>JsonElement</c>/<c>JsonDocument</c>
+    /// is cloned (so the caller's buffer stays owned by the caller); anything else is
+    /// serialized via the default options. Single shared implementation — also used by
+    /// <see cref="Bench.BenchScheduler"/> for its trigger-payload plumbing.
+    /// </summary>
+    internal static JsonElement NormalizePayload(object? payload) => payload switch
     {
         null => JsonSerializer.SerializeToElement<object?>(null),
         JsonElement je => je.Clone(),

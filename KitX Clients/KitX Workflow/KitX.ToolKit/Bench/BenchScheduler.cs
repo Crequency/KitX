@@ -88,7 +88,7 @@ public sealed class BenchScheduler : IDisposable
 
         var instance = CreateInstance(initiator ?? Contracts.Initiator.Unknown, namespaceId);
         onRunCreated?.Invoke(instance);
-        var packet = NormalizePayload(payload);
+        var packet = TriggerSourceBase.NormalizePayload(payload);
 
         // Schedule every root binding while holding the instance lock, so all roots are
         // tracked before any node body (running on a background thread) can complete and
@@ -332,14 +332,6 @@ public sealed class BenchScheduler : IDisposable
         _successors = succ;
         _predecessorCount = pred;
     }
-
-    private static JsonElement NormalizePayload(object? payload) => payload switch
-    {
-        null => JsonSerializer.SerializeToElement<object?>(null),
-        JsonElement je => je.Clone(),
-        JsonDocument jd => jd.RootElement.Clone(),
-        _ => JsonSerializer.SerializeToElement(payload),
-    };
 
     private static JsonElement Merge(JsonElement first, JsonElement second)
     {

@@ -259,8 +259,8 @@ public sealed class ToolkitInstanceManager : IDisposable
             return;
 
         // Dialog contract (GUI RFC §5.7): confirming clears the backend request slot.
-        if (string.Equals(eventName, "Confirm", StringComparison.OrdinalIgnoreCase))
-            _dataStore.Remove(PanelScope.Key(instance.ToolkitId, instanceId, controlId, "request"));
+        if (string.Equals(eventName, PanelScope.EventConfirm, StringComparison.OrdinalIgnoreCase))
+            _dataStore.Remove(PanelScope.Key(instance.ToolkitId, instanceId, controlId, PanelScope.PropRequest));
 
         var payload = JsonSerializer.SerializeToElement(new { controlId, @event = eventName, value });
         foreach (var trigger in mounted.Toolkit.Triggers.Where(t =>
@@ -296,7 +296,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (!TryParsePanelKey(e.Key, out var toolkitId, out var instanceId, out var controlId, out var prop))
             return;
 
-        if (string.Equals(prop, "request", StringComparison.Ordinal))
+        if (string.Equals(prop, PanelScope.PropRequest, StringComparison.Ordinal))
         {
             if (!e.Removed && e.NewValue is { } request)
                 RaiseDialogRequested(toolkitId, instanceId, controlId, request);
@@ -304,7 +304,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         }
 
         var value = e.NewValue;
-        if (string.Equals(prop, "log", StringComparison.Ordinal) && value is { ValueKind: JsonValueKind.Array } array)
+        if (string.Equals(prop, PanelScope.PropLog, StringComparison.Ordinal) && value is { ValueKind: JsonValueKind.Array } array)
         {
             // UiLog appends to a ring-buffer key; the Changed event carries the whole
             // array. Surface the newest entry so the panel appends exactly one line.
@@ -362,7 +362,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         controlId = string.Empty;
         prop = string.Empty;
 
-        var marker = key.IndexOf("/panel/", StringComparison.Ordinal);
+        var marker = key.IndexOf(PanelScope.PanelKeySegment, StringComparison.Ordinal);
         if (marker < 0)
             return false;
 
@@ -372,7 +372,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         toolkitId = prefix[0];
         instanceId = prefix[1];
 
-        var suffix = key[(marker + "/panel/".Length)..].Split('/');
+        var suffix = key[(marker + PanelScope.PanelKeySegment.Length)..].Split('/');
         if (suffix.Length < 2 || string.IsNullOrWhiteSpace(suffix[0]) || string.IsNullOrWhiteSpace(suffix[1]))
             return false;
         controlId = suffix[0];

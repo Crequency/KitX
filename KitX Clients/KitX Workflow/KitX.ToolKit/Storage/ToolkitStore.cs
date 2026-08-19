@@ -18,6 +18,9 @@ namespace KitX.ToolKit.Storage;
 /// </summary>
 public sealed class ToolkitStore
 {
+    /// <summary>The per-ToolKit config file name, stored at <c>{root}/{id}/toolkit.json</c>.</summary>
+    public const string ConfigFileName = "toolkit.json";
+
     private readonly string _root;
     private readonly ConfigValidator _validator;
 
@@ -121,5 +124,5 @@ public sealed class ToolkitStore
         return Path.Combine(_root, toolkitId);
     }
 
-    private string ConfigPath(string toolkitId) => Path.Combine(ToolkitDir(toolkitId), "toolkit.json");
+    private string ConfigPath(string toolkitId) => Path.Combine(ToolkitDir(toolkitId), ConfigFileName);
 }

@@ -20,6 +20,21 @@ namespace KitX.ToolKit.Triggers;
 /// </summary>
 public sealed class PluginEventTrigger : TriggerSourceBase
 {
+    /// <summary>
+    /// Fallback plugin display name used when a TriggerFired command's sending connection
+    /// cannot be resolved back to a registered plugin.
+    /// </summary>
+    public const string FallbackPluginName = "Unknown";
+
+    /// <summary>
+    /// The tag key a plugin uses to carry its trigger name on a TriggerFired command.
+    /// Corresponds to the hardcoded <c>"TriggerName"</c> literal used by
+    /// <see cref="KitX.Contract.CSharp.TriggerHelper.FireTrigger"/> (KitX Standard), which has
+    /// no public constant of its own — the two must keep the same value so name/wildcard
+    /// matching interoperates.
+    /// </summary>
+    public const string TriggerNameTagKey = "TriggerName";
+
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
         IncludeFields = true,
@@ -73,10 +88,10 @@ public sealed class PluginEventTrigger : TriggerSourceBase
             // Resolve the sending plugin name from the connection id.
             var connection = _pluginServer.Connections
                 .FirstOrDefault(c => c.ConnectionId == e.ConnectionId);
-            var pluginName = connection?.PluginInfo?.Name ?? "Unknown";
+            var pluginName = connection?.PluginInfo?.Name ?? FallbackPluginName;
 
             // Wildcard match: a null TriggerName matches any trigger of the plugin.
-            var triggerName = command.Tags?.TryGetValue("TriggerName", out var name) == true
+            var triggerName = command.Tags?.TryGetValue(TriggerNameTagKey, out var name) == true
                 ? name : null;
 
             if (!string.Equals(pluginName, _config.PluginName, StringComparison.OrdinalIgnoreCase))

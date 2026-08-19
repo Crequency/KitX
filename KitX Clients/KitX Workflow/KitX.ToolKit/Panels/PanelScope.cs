@@ -10,9 +10,29 @@ namespace KitX.ToolKit.Panels;
 /// </summary>
 public static class PanelScope
 {
+    /// <summary>
+    /// The <c>/panel/</c> path segment that marks a DataStore key as an instance panel
+    /// projection. Single source of truth shared by the build side
+    /// (<see cref="Key"/>) and the parse side (<c>TryParsePanelKey</c> in
+    /// <see cref="KitX.ToolKit.Instances.ToolkitInstanceManager"/>) so the two can never drift.
+    /// </summary>
+    public const string PanelKeySegment = "/panel/";
+
+    /// <summary>Dialog request slot prop name (the <c>UiDialog</c> landing key).</summary>
+    public const string PropRequest = "request";
+
+    /// <summary>Log control prop name (the <c>UiLog</c> landing key).</summary>
+    public const string PropLog = "log";
+
+    /// <summary>The value/input/select/switch/progress main-property name.</summary>
+    public const string PropValue = "value";
+
+    /// <summary>The dialog confirm UI event name (host → backend, clears the request slot).</summary>
+    public const string EventConfirm = "Confirm";
+
     /// <summary>Builds a panel key: <c>{toolkitId}/{instanceId}/panel/{controlId}/{prop}</c>.</summary>
     public static string Key(string toolkitId, string instanceId, string controlId, string prop)
-        => $"{toolkitId}/{instanceId}/panel/{controlId}/{prop}";
+        => $"{toolkitId}/{instanceId}{PanelKeySegment}{controlId}/{prop}";
 
     /// <summary>
     /// The main-property key for a control type (the <c>UiSet(controlId, value)</c> default
@@ -22,7 +42,7 @@ public static class PanelScope
     public static string? MainProperty(string type) => type switch
     {
         "Text" => "text",
-        "Input" or "Number" or "Select" or "Switch" or "Progress" => "value",
+        "Input" or "Number" or "Select" or "Switch" or "Progress" => PropValue,
         "Button" => "enabled",
         _ => null, // Icon / Log / Dialog
     };

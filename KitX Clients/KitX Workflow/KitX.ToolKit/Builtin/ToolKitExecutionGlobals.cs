@@ -154,7 +154,7 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
         var toolkitId = _manager.GetToolkitId(InstanceId);
         if (toolkitId is null)
             return null;
-        _dataStore.Append(PanelScope.Key(toolkitId, InstanceId, controlId, "log"), entry);
+        _dataStore.Append(PanelScope.Key(toolkitId, InstanceId, controlId, PanelScope.PropLog), entry);
         return true;
     }
 
@@ -166,7 +166,7 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
         var toolkitId = _manager.GetToolkitId(InstanceId);
         if (toolkitId is null)
             return null;
-        _dataStore.Append(PanelScope.Key(toolkitId, InstanceId, "log", "log"), entry);
+        _dataStore.Append(PanelScope.Key(toolkitId, InstanceId, PanelScope.PropLog, PanelScope.PropLog), entry);
         return true;
     }
 
@@ -178,7 +178,7 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
         var toolkitId = _manager.GetToolkitId(InstanceId);
         if (toolkitId is null)
             return null;
-        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, "value"), value);
+        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, PanelScope.PropValue), value);
         return true;
     }
 
@@ -190,7 +190,7 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
         var toolkitId = _manager.GetToolkitId(InstanceId);
         if (toolkitId is null)
             return null;
-        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, "request"),
+        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, PanelScope.PropRequest),
             new { message, buttons });
         return true;
     }
