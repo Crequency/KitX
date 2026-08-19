@@ -34,6 +34,7 @@ public sealed class BenchRunInstance : IDisposable
         // Roots (no incoming edges) get 0 → any single delivery activates them.
         JoinRemaining = new Dictionary<string, int>(StringComparer.Ordinal);
         Packets = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        ActivatedNodes = new HashSet<string>(StringComparer.Ordinal);
     }
 
     /// <summary>The ToolKit id this run belongs to.</summary>
@@ -78,6 +79,9 @@ public sealed class BenchRunInstance : IDisposable
 
     /// <summary>Per-node accumulated input packets (for <c>$output</c> resolution). Guarded by <see cref="Gate"/>.</summary>
     internal Dictionary<string, JsonElement> Packets { get; }
+
+    /// <summary>Nodes already activated (started) in this run. Guarded by <see cref="Gate"/>.</summary>
+    internal HashSet<string> ActivatedNodes { get; }
 
     internal object Gate => _gate;
 

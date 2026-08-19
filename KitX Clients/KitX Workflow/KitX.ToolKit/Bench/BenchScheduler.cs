@@ -133,7 +133,9 @@ public sealed class BenchScheduler : IDisposable
     }
 
     /// <summary>Delivers a packet to a node. Decrements the AND-join counter; when it reaches
-    /// 0 the node activates (root nodes start on their first delivery).</summary>
+    /// 0 the node activates (root nodes start on their first delivery). A node already
+    /// activated in this run is not activated again — a workflow that is BOTH a root
+    /// delivery target and a join target runs exactly once; further deliveries are dropped.</summary>
     private void DeliverTo(
         BenchRunInstance instance,
         string target,
@@ -151,8 +153,21 @@ public sealed class BenchScheduler : IDisposable
             instance.Packets[target] = Merge(
                 instance.Packets.TryGetValue(target, out var cur) ? cur : default,
                 packet);
-            activate = instance.JoinRemaining[target] <= 0;
             mergedPacket = instance.Packets[target];
+
+            // AND-join still waiting for more predecessors: do not activate yet.
+            if (instance.JoinRemaining[target] > 0)
+                return;
+
+            // Node already activated once in this run: drop this re-delivery.
+            if (!instance.ActivatedNodes.Add(target))
+            {
+                Log.Debug("[BenchScheduler] Node {Workflow} already activated in run {RunId}; dropping packet",
+                    target, instance.InstanceId);
+                return;
+            }
+
+            activate = true;
         }
 
         if (!activate)

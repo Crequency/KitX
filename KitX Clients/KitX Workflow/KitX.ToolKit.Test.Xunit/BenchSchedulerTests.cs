@@ -112,6 +112,40 @@ public class BenchSchedulerTests
     }
 
     [Fact]
+    public async Task Root_And_Join_Target_Activates_Exactly_Once()
+    {
+        // W is BOTH a Manual root binding target AND the completion successor of A. The
+        // scheduler must not double-activate it (it would otherwise run once from the
+        // Manual fire and again when A completes) — it runs exactly once.
+        var toolkit = new Toolkit
+        {
+            Meta = new ToolkitMeta { Name = "demo" },
+            Workflows =
+            [
+                new ToolkitWorkflow { Id = "A", Name = "A", File = "a.kcs" },
+                new ToolkitWorkflow { Id = "W", Name = "W", File = "w.kcs" },
+            ],
+            Triggers =
+            [
+                new Trigger { Id = "manual", Type = TriggerType.Manual,
+                    Bindings = [new() { Workflow = "A" }, new() { Workflow = "W" }] },
+                new Trigger { Id = "e1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
+                    Bindings = [new() { Workflow = "W" }] },
+            ],
+        };
+        var (scheduler, executor) = Build(toolkit);
+
+        var completed = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, _) => completed.TrySetResult();
+        scheduler.StartRun("manual");
+        await AwaitAsync(completed.Task);
+
+        var calls = executor.Calls.Select(c => c.WorkflowId).ToList();
+        Assert.Equal(1, calls.Count(id => id == "W"));
+        Assert.Contains("A", calls);
+    }
+
+    [Fact]
     public void StartRun_Ignores_WorkflowCompletion_Trigger()
     {
         var (scheduler, _) = Build(ToolkitWith(
