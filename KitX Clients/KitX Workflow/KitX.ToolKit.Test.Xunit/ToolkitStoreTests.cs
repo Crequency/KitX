@@ -104,6 +104,43 @@ public class ToolkitStoreTests
         }
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("..")]
+    [InlineData("a/b")]
+    [InlineData(".")]
+    public void Delete_Rejects_Unsafe_Id(string toolkitId)
+    {
+        var root = TempRoot();
+        try
+        {
+            var store = new ToolkitStore(root);
+            // An unsafe id must never be resolved into a path below the storage root
+            // (Delete("") would otherwise recurse the root itself).
+            Assert.Throws<ArgumentException>(() => store.Delete(toolkitId));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Delete_Rejects_Absolute_And_Invalid_Chars_Ids()
+    {
+        var root = TempRoot();
+        try
+        {
+            var store = new ToolkitStore(root);
+            Assert.Throws<ArgumentException>(() => store.Delete(Path.GetTempPath()));
+            Assert.Throws<ArgumentException>(() => store.Delete("bad:name"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void Load_Returns_Null_For_Absent()
     {

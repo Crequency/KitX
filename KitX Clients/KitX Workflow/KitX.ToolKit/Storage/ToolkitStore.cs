@@ -1,5 +1,6 @@
 using KitX.ToolKit.Models;
 using KitX.ToolKit.Validation;
+using KitX.WorkflowV6.Serialization;
 
 namespace KitX.ToolKit.Storage;
 
@@ -80,7 +81,7 @@ public sealed class ToolkitStore
 
         var dir = ToolkitDir(toolkit.Id);
         Directory.CreateDirectory(dir);
-        File.WriteAllText(ConfigPath(toolkit.Id), ToolkitConfig.Serialize(toolkit));
+        KcsFileIo.AtomicWrite(ConfigPath(toolkit.Id), ToolkitConfig.Serialize(toolkit));
         return toolkit;
     }
 
@@ -97,7 +98,28 @@ public sealed class ToolkitStore
     /// <summary>True when a ToolKit with the given id exists on disk.</summary>
     public bool Exists(string toolkitId) => Directory.Exists(ToolkitDir(toolkitId));
 
-    private string ToolkitDir(string toolkitId) => Path.Combine(_root, toolkitId);
+    /// <summary>
+    /// Resolves the per-ToolKit directory under the storage root. Guards against path
+    /// traversal/escape: an id must be a non-empty, non-absolute, single path segment
+    /// (no separators, no "." / "..", no invalid file-name characters). Throws
+    /// <see cref="ArgumentException"/> otherwise, so <see cref="Delete"/> can never
+    /// reach beyond the Toolkit's own directory (e.g. <c>Delete("")</c> must not delete
+    /// the storage root).
+    /// </summary>
+    private string ToolkitDir(string toolkitId)
+    {
+        if (string.IsNullOrEmpty(toolkitId))
+            throw new ArgumentException("Toolkit id must not be null or empty.", nameof(toolkitId));
+        if (toolkitId == "." || toolkitId == "..")
+            throw new ArgumentException($"Toolkit id '{toolkitId}' is a reserved path segment.", nameof(toolkitId));
+        if (toolkitId.IndexOfAny(new[] { '/', '\\' }) >= 0)
+            throw new ArgumentException($"Toolkit id '{toolkitId}' must not contain path separators.", nameof(toolkitId));
+        if (Path.IsPathRooted(toolkitId))
+            throw new ArgumentException($"Toolkit id '{toolkitId}' must be a relative name, not an absolute path.", nameof(toolkitId));
+        if (toolkitId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            throw new ArgumentException($"Toolkit id '{toolkitId}' contains invalid file-name characters.", nameof(toolkitId));
+        return Path.Combine(_root, toolkitId);
+    }
 
     private string ConfigPath(string toolkitId) => Path.Combine(ToolkitDir(toolkitId), "toolkit.json");
 }
