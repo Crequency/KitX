@@ -56,16 +56,27 @@ public abstract record AnnotationValue
     public abstract AnnotationKind Kind { get; }
 
     /// <summary>Convenience factory for a Layout annotation payload.
-    /// 零生产者（生产代码无 Layout annotation 产出），T5 位置持久化立项预留——勿删勿改。</summary>
+    /// 零生产者（生产代码无 Layout annotation 产出），T5 位置持久化立项预留——勿删勿改。
+    /// Hidden from IntelliSense until T5 lands.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static LayoutValue Layout(double x, double y) => new(x, y);
 
-    /// <summary>Convenience factory for a Text annotation payload.</summary>
+    /// <summary>Convenience factory for a Text annotation payload.
+    /// 零生产者（生产代码无 Text annotation 产出），T5 位置持久化立项预留——勿删勿改。
+    /// Hidden from IntelliSense until T5 lands.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static TextValue TextValue(string text) => new(text);
 
-    /// <summary>Convenience factory for an Int annotation payload.</summary>
+    /// <summary>Convenience factory for an Int annotation payload.
+    /// 零生产者（生产代码无 Int annotation 产出），T5 位置持久化立项预留——勿删勿改。
+    /// Hidden from IntelliSense until T5 lands.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static IntValue IntValueOf(int value) => new(value);
 
-    /// <summary>Convenience factory for a Bool annotation payload (debug highlights).</summary>
+    /// <summary>Convenience factory for a Bool annotation payload (debug highlights).
+    /// 零生产者（生产代码无 Bool annotation 产出），T5 位置持久化立项预留——勿删勿改。
+    /// Hidden from IntelliSense until T5 lands.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static BoolValue BoolValueOf(bool value) => new(value);
 }
 

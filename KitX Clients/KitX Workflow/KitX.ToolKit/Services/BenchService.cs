@@ -1,23 +1,21 @@
 using KitX.ToolKit.Contracts;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Models;
-using KitX.ToolKit.Validation;
 
 namespace KitX.ToolKit.Services;
 
 /// <summary>
-/// <see cref="IBenchService"/> implementation: delegates spawn/cancel/validate to the
-/// <see cref="ToolkitInstanceManager"/> and the <see cref="ConfigValidator"/>.
+/// <see cref="IBenchService"/> implementation: delegates spawn/cancel to the
+/// <see cref="ToolkitInstanceManager"/>. (The <c>Validate</c> member was retired in the D3
+/// cleanup — validation is a pure <see cref="Validation.ConfigValidator"/> concern that
+/// callers invoke directly, so it no longer lives on the facade.)
 /// </summary>
 public sealed class BenchService : IBenchService
 {
     private readonly ToolkitInstanceManager _manager;
-    private readonly ConfigValidator _validator;
 
-    public BenchService(ToolkitInstanceManager manager, ConfigValidator validator)
+    public BenchService(ToolkitInstanceManager manager)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
-        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
     }
 
     /// <inheritdoc/>
@@ -29,7 +27,4 @@ public sealed class BenchService : IBenchService
 
     /// <inheritdoc/>
     public void EndAll() => _manager.EndAll();
-
-    /// <inheritdoc/>
-    public ConfigValidationResult Validate(Toolkit toolkit) => _validator.Validate(toolkit);
 }

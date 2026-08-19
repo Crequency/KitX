@@ -30,8 +30,12 @@ public sealed class TriggerSourceRegistry
     public bool IsRegistered(TriggerType type) => _factories.ContainsKey(type);
 
     /// <summary>
-    /// Builds the registry with the default built-in source set:
-    /// Manual / PluginEvent / UIEvent(skeleton) / WorkflowCompletion / Timer.
+    /// Builds the registry with the default built-in source set: Manual / PluginEvent /
+    /// Timer. The UIEvent and WorkflowCompletion "shadow" sources were retired in the D4
+    /// cleanup — UIEvent is wired per-instance by the manager's RaiseControlEvent (which
+    /// reads the trigger config directly), and WorkflowCompletion is a scheduler edge, so
+    /// neither needs an ITriggerSource. The <see cref="TriggerType"/> enum keeps all five
+    /// types (the config model is unchanged).
     /// </summary>
     public static TriggerSourceRegistry BuildDefault()
     {
@@ -44,12 +48,6 @@ public sealed class TriggerSourceRegistry
             (t, sp) => new PluginEventTrigger(t.Id,
                 sp.GetRequiredService<KitX.Core.Contract.Plugin.IPluginServer>(),
                 t.Config));
-
-        registry.Register(TriggerType.UIEvent,
-            (t, _) => new UiEventTrigger(t.Id, t.Config));
-
-        registry.Register(TriggerType.WorkflowCompletion,
-            (t, _) => new WorkflowCompletionTrigger(t.Id, t.Config));
 
         registry.Register(TriggerType.Timer,
             (t, _) => new TimerTrigger(t.Id, t.Config));

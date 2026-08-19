@@ -1,11 +1,12 @@
-using KitX.ToolKit.Models;
-using KitX.ToolKit.Validation;
-
 namespace KitX.ToolKit.Contracts;
 
 /// <summary>
-/// Bench orchestration facade (ToolKit 前后端分离 GUI 稿 §4.1): spawn / cancel / validate.
+/// Bench orchestration facade (ToolKit 前后端分离 GUI 稿 §4.1): spawn / cancel.
 /// The frontend and (later) the remote API call this instead of the concrete instance manager.
+///
+/// <para>The <c>Validate</c> member was retired in the D3 cleanup — validation is a pure
+/// <see cref="Validation.ConfigValidator"/> concern that callers (e.g. the Dashboard editor)
+/// invoke directly, so it no longer belongs on the orchestration facade.</para>
 /// </summary>
 public interface IBenchService
 {
@@ -21,7 +22,4 @@ public interface IBenchService
 
     /// <summary>Ends every instance of every mounted ToolKit.</summary>
     void EndAll();
-
-    /// <summary>Validates a ToolKit config (identity, references, strict DAG, UI rules).</summary>
-    ConfigValidationResult Validate(Toolkit toolkit);
 }

@@ -26,8 +26,8 @@ public sealed record InstanceSnapshot(
     public string? Surface { get; init; }
 
     /// <summary>True when this instance spawned with <c>Surface=silent</c> (tree badge, C28).</summary>
-    public bool IsSilent => string.Equals(Surface, "silent", StringComparison.OrdinalIgnoreCase);
+    public bool IsSilent => string.Equals(Surface, Instances.InstanceConstants.SurfaceSilent, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Human-readable run-counter summary for the run monitor.</summary>
-    public string RunSummary => $"运行 {ActiveRuns} / 完成 {CompletedRuns} / 失败 {FailedRuns}";
+    public string RunSummary => string.Format(Instances.InstanceConstants.RunSummaryFormat, ActiveRuns, CompletedRuns, FailedRuns);
 }
