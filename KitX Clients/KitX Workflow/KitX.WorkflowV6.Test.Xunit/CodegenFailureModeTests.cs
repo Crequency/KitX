@@ -6,6 +6,7 @@
 
 using KitX.WorkflowV6.Backend.Debugging;
 using KitX.WorkflowV6.Backend.RoslynBackend;
+using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
 using KitX.WorkflowV6.Ir.Statements;
@@ -37,7 +38,7 @@ public class CodegenFailureModeTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void StructuredCodegen_UnknownStatementKind_Throws()
     {
-        var codegen = new StructuredCodegen(_fixture.Registry);
+        var codegen = new StructuredCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var ir = MakeWorkflow(new UnknownStatement { Fingerprint = Fingerprint.Compute("unknown-stmt") });
 
         var ex = Assert.Throws<InvalidOperationException>(() => codegen.Generate(ir, null));
@@ -47,7 +48,7 @@ public class CodegenFailureModeTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void DebugCodegen_UnknownStatementKind_Throws()
     {
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var ir = MakeWorkflow(new UnknownStatement { Fingerprint = Fingerprint.Compute("unknown-stmt") });
 
         var ex = Assert.Throws<InvalidOperationException>(() => codegen.Generate(ir, null, true));
@@ -57,7 +58,7 @@ public class CodegenFailureModeTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void StructuredCodegen_UnknownKsNodeType_Throws()
     {
-        var codegen = new StructuredCodegen(_fixture.Registry);
+        var codegen = new StructuredCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var ir = MakeWorkflow(new PipelineStatement
         {
             Sources = [new UnknownKsNode()],
@@ -72,7 +73,7 @@ public class CodegenFailureModeTests : IClassFixture<WorkflowTestFixture>
     [Fact]
     public void DebugCodegen_UnknownKsNodeType_Throws()
     {
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var ir = MakeWorkflow(new PipelineStatement
         {
             Sources = [new UnknownKsNode()],

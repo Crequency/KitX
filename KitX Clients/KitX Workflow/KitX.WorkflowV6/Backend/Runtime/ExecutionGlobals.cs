@@ -56,6 +56,23 @@ public partial class ExecutionGlobals
     public IPluginHost? PluginHost { get; set; }
 
     /// <summary>
+    /// Host-injected run context, set by the execution backend per run. The engine does
+    /// not interpret this value — it is an opaque carrier for host-side globals subclasses
+    /// (e.g. KitX.ToolKit's ToolKitExecutionGlobals reads it as a <c>HostRunContext</c> to
+    /// recover the instance id / output namespace / raw overrides). Null when the workflow
+    /// runs outside a host that supplies one.
+    /// </summary>
+    public object? RunContext { get; set; }
+
+    /// <summary>
+    /// Readable alias for <see cref="DebugToken"/> — the per-run cancellation token the
+    /// backend sets before invoking the generated workflow. Host-side builtins that block
+    /// (e.g. DataStore Wait) forward this so a cancelled run unblocks promptly. Kept as an
+    /// alias (not a separate field) so the debug pipeline's semantics are unchanged.
+    /// </summary>
+    public CancellationToken RunToken => DebugToken;
+
+    /// <summary>
     /// Called before each statement in debug mode. Forwards to the debug controller
     /// to enable pause/step/breakpoint. When debugger is null, this is a no-op.
     /// </summary>

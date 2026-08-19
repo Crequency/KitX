@@ -26,7 +26,6 @@
     <ProjectReference Include="..\..\..\KitX Standard\KitX Script\Kscript.Runtime\Kscript.Runtime.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
     <ProjectReference Include="..\..\KitX Workflow\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
-    <ProjectReference Include="..\..\KitX Workflow\KitX.ToolKit\KitX.ToolKit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

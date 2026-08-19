@@ -85,7 +85,7 @@ sb.AppendLine("```");
 sb.AppendLine();
 sb.AppendLine("### 1.2 C# IL (Codegen)");
 sb.AppendLine();
-var codegen = new StructuredCodegen(registry);
+var codegen = new StructuredCodegen(registry, typeof(ExecutionGlobals));
 var csharp = codegen.Generate(ir, lowering);
 sb.AppendLine("```csharp");
 sb.AppendLine(csharp);
@@ -325,7 +325,7 @@ sb.AppendLine("### 1.2 C# IL (Codegen)");
 sb.AppendLine();
 try
 {
-    var codegen = new StructuredCodegen(registry);
+    var codegen = new StructuredCodegen(registry, typeof(ExecutionGlobals));
     var csharp = codegen.Generate(ir, lowering);
     sb.AppendLine("```csharp");
     sb.AppendLine(csharp);

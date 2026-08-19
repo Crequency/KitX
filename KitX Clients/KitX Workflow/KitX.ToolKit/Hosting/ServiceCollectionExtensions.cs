@@ -1,4 +1,5 @@
 using KitX.ToolKit.Bench;
+using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Builtin.Functions;
 using KitX.ToolKit.Contracts;
 using KitX.ToolKit.Data;
@@ -8,6 +9,7 @@ using KitX.ToolKit.Services;
 using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
+using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,17 +38,23 @@ public static class ServiceCollectionExtensions
         // are achieved via key derivation, not separate instances.
         services.AddSingleton<DataStore>();
         services.AddSingleton<DataStoreOptions>();
-        services.AddSingleton<BuiltinDataStorePlugin>();
 
-        // Panel runtime + its built-in plugin (KitX.UI).
+        // Panel runtime.
         services.AddSingleton<PanelRuntime>();
         services.AddSingleton<IPanelRuntime>(sp => sp.GetRequiredService<PanelRuntime>());
-        services.AddSingleton<BuiltinUiPlugin>();
+
+        // IExecutionGlobalsFactory — the ToolKit execution-globals factory. AddKitXWorkflowV6
+        // registers the default factory with TryAdd; this AddSingleton (registered later, when
+        // the host calls AddKitXToolKit after AddKitXWorkflowV6) overrides it, so the generated
+        // workflow G class derives from ToolKitExecutionGlobals and each run gets a fresh
+        // instance wired to the DataStore / PanelRuntime above — replacing the retired
+        // reserved-name plugin bridge (BuiltinUiPlugin / BuiltinDataStorePlugin).
+        services.AddSingleton<IExecutionGlobalsFactory, ToolKitExecutionGlobalsFactory>();
 
         // First-class ToolKit builtin functions (Ui*/DataStore*), registered via the public
         // WorkflowV6 registration API so they appear in the BP palette and type inference.
-        // Runtime execution lives on ExecutionGlobals.ToolKit (WorkflowV6) and routes through
-        // the host's reserved-name bridge to the services above.
+        // Runtime execution lives on ToolKitExecutionGlobals (a host ExecutionGlobals
+        // subclass) and reaches the services directly — no reserved-name bridge.
         services.AddBuiltinFunction<UiSetFunction>();
         services.AddBuiltinFunction<UiGetFunction>();
         services.AddBuiltinFunction<UiLogFunction>();

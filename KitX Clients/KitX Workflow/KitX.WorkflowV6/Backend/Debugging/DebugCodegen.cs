@@ -19,9 +19,9 @@ internal sealed class DebugCodegen : CodegenBase
 
     private readonly StructuredCodegen? _structured;
 
-    public DebugCodegen(BuiltinFunctionRegistry registry) : base(registry)
+    public DebugCodegen(BuiltinFunctionRegistry registry, Type baseType) : base(registry, baseType)
     {
-        _structured = new StructuredCodegen(registry);
+        _structured = new StructuredCodegen(registry, baseType);
     }
 
     public override string Generate(Workflow ir, LoweringResult? lowering, bool hasDebugger = false)

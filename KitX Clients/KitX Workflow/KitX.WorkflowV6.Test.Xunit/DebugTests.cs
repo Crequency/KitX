@@ -5,6 +5,7 @@
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.Debugging;
 using KitX.WorkflowV6.Backend.RoslynBackend;
+using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Ast;
@@ -37,7 +38,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_Inserts_Checkpoint_When_HasDebugger()
     {
         var ir = _fixture.KsLens.Parse("Print(\"hello\")\n", []);
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var source = codegen.Generate(ir, null, hasDebugger: true);
         Assert.Contains("Checkpoint", source);
         Assert.Contains("this.Checkpoint(", source);
@@ -47,7 +48,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_No_Checkpoint_When_No_Debugger()
     {
         var ir = _fixture.KsLens.Parse("Print(\"hello\")\n", []);
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var source = codegen.Generate(ir, null, hasDebugger: false);
         Assert.DoesNotContain("Checkpoint", source);
     }
@@ -56,7 +57,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_Handles_Multi_Source_Pipeline()
     {
         var ir = _fixture.KsLens.Parse("guessNum, targetNum > Compare(\"BEQ\")\n", []);
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var source = codegen.Generate(ir, null, hasDebugger: true);
         Assert.Contains("this.Compare(\"BEQ\"", source);
         Assert.DoesNotContain("/* pipeline */", source);
@@ -66,7 +67,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_Handles_Placeholder_Pipeline()
     {
         var ir = _fixture.KsLens.Parse("loopMax > Range(0, _, 1)\n", []);
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var source = codegen.Generate(ir, null, hasDebugger: true);
         // E3: assert the stub is gone (semantic contract); don't freeze exact parameter format.
         Assert.DoesNotContain("/* pipeline */", source);
@@ -77,7 +78,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_Handles_Variable_Tap()
     {
         var ir = _fixture.KsLens.Parse("counter > Add(_, 1) > counter\n", []);
-        var codegen = new DebugCodegen(_fixture.Registry);
+        var codegen = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var source = codegen.Generate(ir, null, hasDebugger: true);
         // E3: assert write-back happens (semantic); don't freeze exact method format.
         Assert.Contains("this.counter", source);
@@ -95,7 +96,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             b > Add(_, 1)
             """;
         var ir = Parse(src);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains("__pipe_0", code);
@@ -112,7 +113,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // The SEGMENT publishes no wire value (nothing to publish); the source node's
         // own wire publication is unaffected.
         var ir = Parse("5 > Print\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains("this.Print(5);", code);
@@ -153,7 +154,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             }],
             HelperFunctions = [new HelperFunction { Name = "MyHelper" }],
         };
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
         Assert.Contains("this.MyHelper()", code);
         Assert.DoesNotContain("this.MyHelper = ", code);
@@ -163,7 +164,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_Renders_ForEach_Item_As_Local_Variable()
     {
         var ir = Parse("forEach Range(0, 3, 1) as i:\n    i > Print\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
         Assert.DoesNotContain("this.i)", code);
         Assert.Contains("i)", code);
@@ -189,7 +190,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // Pipeline: 5, 7 > Compare("BEQ") — one function-call segment.
         // Expected codegen: var __pipe_0 = this.Compare(...); this.OnWireValue("w:n_xxx", __pipe_0);
         var ir = Parse("5, 7 > Compare(\"BEQ\")\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         // The wire's source-node path is /top/stmt/0/seg/0 (mirrors BpRenderer).
@@ -202,7 +203,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     {
         // Variable tap: 0 > counter — writes 0 to PubVar counter.
         var ir = Parse("var {\n    int counter\n}\n0 > counter\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains("this.counter = ", code);
@@ -232,7 +233,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         var ir = Parse(src);
 
         // Generate debug C#; harvest every `Checkpoint("...", "...")` call.
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
         var checkpointIds = Regex.Matches(code, @"this\.Checkpoint\(""(n_[0-9A-F]{8})""")
             .Select(m => m.Groups[1].Value)
@@ -275,7 +276,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // The eachNodeId is derived from /top/stmt/i (the statement's own path),
         // which is also the Each node's id in BP.
         var ir = Parse("forEach Range(0, 3, 1) as i:\n    i > Print\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         var bp = _fixture.BpLens.Project(ir);
@@ -287,7 +288,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
 
         // Similar for If: Branch node's Condition input.
         var ir2 = Parse("var {\n    bool c\n}\nif c:\n    Print(\"yes\")\n");
-        var cg2 = new DebugCodegen(_fixture.Registry);
+        var cg2 = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code2 = cg2.Generate(ir2, null, hasDebugger: true);
         var bp2 = _fixture.BpLens.Project(ir2);
         var branchNode = bp2.Nodes.Single(n => n.Name == "Branch");
@@ -300,7 +301,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // `5 > Print` — the source node AND the Print segment node each get a stop
         // point (the BP user's mental model is node-by-node stepping).
         var ir = Parse("5 > Print\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/src/0")}\"", code);
@@ -311,7 +312,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
     public void Debug_Codegen_Emits_Execution_End_Checkpoint()
     {
         var ir = Parse("Print(\"hello\")\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         // The execution-complete stop point lets the user step once more to formally
@@ -331,7 +332,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             }
             a, b > Compare("BEQ", _, _) > Print
             """);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
         var checkpointIds = Regex.Matches(code, @"this\.Checkpoint\(""(n_[0-9A-F]{8})""")
             .Select(m => m.Groups[1].Value)
@@ -352,7 +353,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // source node's data port tooltip shows it (previously only segment outputs
         // published, leaving source ports empty).
         var ir = Parse("5 > Print\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains($"this.OnWireValue(\"w:{NodeId.Of("/top/stmt/0/src/0")}\", 5);", code);
@@ -407,7 +408,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
                 Code = "return new string(' ', size);",
             }],
         };
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains("public string CreateMemory(int size)", code);
@@ -461,7 +462,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             while i, 3 > Compare("BLT"):
                 i, 1 > Add > i
             """);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         // Condition evaluation must appear AFTER the loop opens.
@@ -506,7 +507,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             while i, 3 > Compare("BLT"):
                 i, 1 > Add > i
             """);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
         var p = "/top/stmt/0/cond";
 
@@ -525,7 +526,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
         // `forEach Range(0, 3, 1) as i:` — the source (Range call) gets its own
         // checkpoint + wire so StepOver does not jump over the source node.
         var ir = Parse("forEach Range(0, 3, 1) as i:\n    i > Print\n");
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         Assert.Contains($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/src")}\"", code);
@@ -544,7 +545,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             while i, 3 > Compare("BLT"):
                 i, 1 > Add > i
             """);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
         var checkpointIds = Regex.Matches(code, @"this\.Checkpoint\(""(n_[0-9A-F]{8})""")
             .Select(m => m.Groups[1].Value)
@@ -595,7 +596,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             if c:
                 Print("yes")
             """);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         var condCp = code.IndexOf($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/cond")}\"", StringComparison.Ordinal);
@@ -614,7 +615,7 @@ public class DebugTests : IClassFixture<WorkflowTestFixture>
             while i, 3 > Compare("BLT"):
                 i, 1 > Add > i
             """);
-        var cg = new DebugCodegen(_fixture.Registry);
+        var cg = new DebugCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var code = cg.Generate(ir, null, hasDebugger: true);
 
         var condCp = code.IndexOf($"this.Checkpoint(\"{NodeId.Of("/top/stmt/0/cond/seg/0")}\"", StringComparison.Ordinal);

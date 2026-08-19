@@ -9,7 +9,6 @@ using KitX.Core.Configuration;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Workflow;
-using KitX.ToolKit.Data;
 using KitX.WorkflowV6.Backend.Runtime;
 using Serilog;
 
@@ -57,14 +56,6 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
 
     private readonly Lazy<IWorkflowStorageService>? _workflowStorage;
 
-    // Lazy: the DataStore built-in plugin is registered by AddKitXToolKit (after
-    // AddCoreServices). Deferring resolution keeps PluginHostAdapter construction
-    // independent of that registration order.
-    private readonly Lazy<BuiltinDataStorePlugin>? _dataStorePlugin;
-
-    // Lazy: the KitX.UI built-in plugin (panel runtime) — same lazy rationale.
-    private readonly Lazy<BuiltinUiPlugin>? _uiPlugin;
-
     /// <summary>
     /// Creates an adapter over the given plugin manager, plugin service and
     /// lazily-resolved workflow services.
@@ -73,38 +64,34 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         IPluginManager pluginManager,
         IPluginService? pluginService = null,
         Lazy<IWorkflowManagementService>? workflowManagement = null,
-        Lazy<IWorkflowStorageService>? workflowStorage = null,
-        Lazy<BuiltinDataStorePlugin>? dataStorePlugin = null,
-        Lazy<BuiltinUiPlugin>? uiPlugin = null)
+        Lazy<IWorkflowStorageService>? workflowStorage = null)
     {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _pluginService = pluginService;
         _workflowManagement = workflowManagement;
         _workflowStorage = workflowStorage;
-        _dataStorePlugin = dataStorePlugin;
-        _uiPlugin = uiPlugin;
     }
 
     /// <summary>
     /// Calls a local plugin method. Returns the raw JSON response string (the plugin's
     /// wire format), which ExecutionGlobals.PluginCall normalizes to JsonElement.
-    /// The reserved built-in DataStore plugin (<see cref="BuiltinDataStorePlugin.PluginName"/>)
-    /// is intercepted here and routed to the DataStore service instead of the plugin pool.
     /// </summary>
     public object? Call(string pluginName, string methodName, params object[] args)
     {
-        // Route the reserved built-in DataStore plugin before the real plugin pool.
-        if (_dataStorePlugin is not null &&
-            string.Equals(pluginName, BuiltinDataStorePlugin.PluginName, StringComparison.OrdinalIgnoreCase))
+        // Transition shim: the reserved "KitX.UI" / "KitX.DataStore" names previously
+        // routed to the ToolKit services through this adapter. Those services are now
+        // exposed as first-class builtins on ToolKitExecutionGlobals (the factory-registered
+        // ExecutionGlobals subclass), so a workflow reaching them by reserved plugin name is
+        // a legacy/out-of-host call — warn and degrade to null (safe-default) rather than
+        // silently doing nothing.
+        if (string.Equals(pluginName, "KitX.UI", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(pluginName, "KitX.DataStore", StringComparison.OrdinalIgnoreCase))
         {
-            return _dataStorePlugin.Value.Invoke(methodName, args);
-        }
-
-        // Route the reserved built-in KitX.UI plugin (panel runtime) before the real pool.
-        if (_uiPlugin is not null &&
-            string.Equals(pluginName, BuiltinUiPlugin.PluginName, StringComparison.OrdinalIgnoreCase))
-        {
-            return _uiPlugin.Value.Invoke(methodName, args);
+            Log.Warning(
+                "[PluginHostAdapter] Reserved builtin '{Plugin}' is no longer a plugin call — " +
+                "use the first-class Ui*/DataStore* workflow functions instead. Returning null.",
+                pluginName);
+            return null;
         }
 
         var callInfo = BuildCallInfo(pluginName, methodName, args);

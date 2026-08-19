@@ -9,6 +9,8 @@ using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Lens.BpGraphLens;
 using KitX.WorkflowV6.Session;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using KitX.WorkflowV6.Backend.Runtime;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ServiceCollectionExtensions — DI entry point for KitX.WorkflowV6.
@@ -75,6 +77,14 @@ public static class ServiceCollectionExtensions
         // AssemblyLoadContext, runs RunAsync, captures OutputLines.
         services.AddSingleton<StructuredRoslynBackend>();
         services.AddSingleton<IExecutionBackend>(sp => sp.GetRequiredService<StructuredRoslynBackend>());
+
+        // IExecutionGlobalsFactory — the external ExecutionGlobals extension seam. The
+        // default factory keeps historical behaviour (base = ExecutionGlobals, plain
+        // Activator). Registered with TryAdd so a host (e.g. KitX.ToolKit) can override
+        // it with a later AddSingleton registration; the host's factory supplies the
+        // base type the generated G derives from and the per-run instances it is
+        // constructed with.
+        services.TryAddSingleton<IExecutionGlobalsFactory, DefaultExecutionGlobalsFactory>();
 
         // WorkflowRunner — single shared execution path (ApplyConstantOverrides +
         // ExecuteAsync) used by the editor Run/DebugRun and by WorkflowSessionManager's

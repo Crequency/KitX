@@ -16,10 +16,27 @@ internal abstract class CodegenBase
     protected int _pipeCounter;
     protected readonly BuiltinFunctionRegistry _registry;
 
-    protected CodegenBase(BuiltinFunctionRegistry registry)
+    /// <summary>
+    /// The runtime base type the generated G class derives from. Defaults to
+    /// <see cref="Runtime.ExecutionGlobals"/>; a host (e.g. KitX.ToolKit) supplies a
+    /// subclass via <see cref="Runtime.IExecutionGlobalsFactory"/> so its first-class
+    /// builtin methods are reachable directly on G (see IExecutionGlobalsFactory.cs).
+    /// </summary>
+    protected Type BaseType { get; }
+
+    protected CodegenBase(BuiltinFunctionRegistry registry, Type baseType)
     {
         _registry = registry;
+        BaseType = baseType;
     }
+
+    /// <summary>
+    /// The C# type name emitted for the G base class. The default base keeps the
+    /// historical short name (the generated file already has the Runtime using);
+    /// a host-supplied base is emitted by its full name so no extra using is needed.
+    /// </summary>
+    protected string BaseTypeName
+        => BaseType == typeof(Runtime.ExecutionGlobals) ? "ExecutionGlobals" : BaseType.FullName!;
 
     protected void EmitLine(string line)
     {
@@ -183,7 +200,7 @@ internal abstract class CodegenBase
         EmitLine("");
         EmitLine("namespace KitX.WorkflowV6.Generated;");
         EmitLine("");
-        EmitLine("public sealed class G : ExecutionGlobals");
+        EmitLine($"public sealed class G : {BaseTypeName}");
         EmitLine("{");
         _indent++;
 

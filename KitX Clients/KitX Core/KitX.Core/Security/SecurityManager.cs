@@ -48,8 +48,9 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     /// Gets the local device's public-key fingerprint: <c>Base64Url(SHA-256(SPKI))</c>
     /// (设备组网 RFC §4.1). Stable across restarts (the RSA key is persisted in
     /// <c>SecurityConfig.json</c> and reused), and aligned with the networking RFC's target
-    /// identity. Used as the <see cref="KitX.ToolKit.Contracts.Initiator"/> device id for
-    /// spawned ToolKit instances (ToolKit 实例模型定稿 D5).
+    /// identity. Used as the ToolKit <c>Initiator</c> device id for
+    /// spawned ToolKit instances (ToolKit 实例模型定稿 D5; the Initiator contract
+    /// lives in KitX.ToolKit.Contracts, not referenced here).
     /// </summary>
     public string GetLocalFingerprint()
     {
@@ -61,7 +62,7 @@ public class SecurityManager : IDeviceKeyService, IEncryptionService
     }
 
     /// <summary>
-    /// Gets the local device's display name (used as the <see cref="KitX.ToolKit.Contracts.Initiator"/>
+    /// Gets the local device's display name (used as the ToolKit <c>Initiator</c>
     /// device name).
     /// </summary>
     public string GetLocalDeviceName() => _localDeviceKey?.Device.DeviceName ?? Environment.MachineName;

@@ -1,13 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ToolKit builtin dispatch + public registration API tests.
+// WorkflowV6 host-extension tests.
 //
 // Covers the WorkflowV6 side of the ToolKit builtin integration:
-//   • ExecutionGlobals.Ui*/DataStore* route to IPluginHost.Call with the reserved
-//     plugin name and the correct argument shape (instance id auto-injected for UI).
-//   • WorkflowRunner extracts the instance id from constant overrides and hands it
-//     to the backend (→ ExecutionGlobals.InstanceId).
+//   • WorkflowRunner extracts the instance id / output namespace / raw overrides
+//     from the constant overrides and hands them to the backend as a HostRunContext.
 //   • The public registration API (AddBuiltinFunction<T>) folds a DI-constructed
 //     function into the shared BuiltinFunctionRegistry singleton.
+//   • PluginNotify routes to the host without using the blocking Call path.
+//
+// The Ui*/DataStore*/Bench* builtin dispatch is no longer routed by reserved plugin
+// name — those methods moved onto KitX.ToolKit's ToolKitExecutionGlobals (covered by
+// the KitX.ToolKit.Test.Xunit project), so their per-instance behavior is tested there.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.Core.Contract.Workflow;
@@ -30,88 +33,6 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
     public ToolKitBuiltinDispatchTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
     [Fact]
-    public void UiSet_Routes_To_Reserved_Plugin_With_InstanceId()
-    {
-        var g = new ExecutionGlobals { PluginHost = new RecordingHost(), InstanceId = "inst-1" };
-        g.UiSet("input", "hello");
-
-        var host = (RecordingHost)g.PluginHost!;
-        var call = Assert.Single(host.Calls);
-        Assert.Equal("KitX.UI", call.Plugin);
-        Assert.Equal("Set", call.Method);
-        Assert.Equal(new object[] { "inst-1", "input", "hello" }, call.Args);
-    }
-
-    [Fact]
-    public void UiSet_ThreeArg_Routes_Prop_Form()
-    {
-        var g = new ExecutionGlobals { PluginHost = new RecordingHost(), InstanceId = "inst-1" };
-        g.UiSet("btn", "enabled", false);
-
-        var host = (RecordingHost)g.PluginHost!;
-        var call = Assert.Single(host.Calls);
-        Assert.Equal("KitX.UI", call.Plugin);
-        Assert.Equal("Set", call.Method);
-        Assert.Equal(new object[] { "inst-1", "btn", "enabled", false }, call.Args);
-    }
-
-    [Fact]
-    public void UiDialog_Routes_Buttons_As_Individual_Args()
-    {
-        var g = new ExecutionGlobals { PluginHost = new RecordingHost(), InstanceId = "inst-1" };
-        g.UiDialog("dlg", "确认?", "确定", "取消");
-
-        var host = (RecordingHost)g.PluginHost!;
-        var call = Assert.Single(host.Calls);
-        Assert.Equal("KitX.UI", call.Plugin);
-        Assert.Equal("Dialog", call.Method);
-        Assert.Equal(new object[] { "inst-1", "dlg", "确认?", "确定", "取消" }, call.Args);
-    }
-
-    [Fact]
-    public void DataStoreSet_Routes_Without_InstanceId()
-    {
-        var g = new ExecutionGlobals { PluginHost = new RecordingHost() };
-        g.DataStoreSet("status", "running");
-
-        var host = (RecordingHost)g.PluginHost!;
-        var call = Assert.Single(host.Calls);
-        Assert.Equal("KitX.DataStore", call.Plugin);
-        Assert.Equal("Set", call.Method);
-        Assert.Equal(new object[] { "status", "running" }, call.Args);
-    }
-
-    [Fact]
-    public void DataStoreWait_Routes_Keys_As_Args()
-    {
-        var g = new ExecutionGlobals { PluginHost = new RecordingHost() };
-        g.DataStoreWait("a", "b");
-
-        var host = (RecordingHost)g.PluginHost!;
-        var call = Assert.Single(host.Calls);
-        Assert.Equal("KitX.DataStore", call.Plugin);
-        Assert.Equal("Wait", call.Method);
-        Assert.Equal(new object[] { "a", "b" }, call.Args);
-    }
-
-    [Fact]
-    public void Ui_Family_Returns_Null_Without_InstanceId()
-    {
-        var g = new ExecutionGlobals { PluginHost = new RecordingHost(), InstanceId = null };
-        Assert.Null(g.UiSet("input", "hello"));
-        Assert.Null(g.UiGet("input"));
-        Assert.Null(g.UiOpenPanel());
-    }
-
-    [Fact]
-    public void Ui_Family_Returns_Null_Without_Host()
-    {
-        var g = new ExecutionGlobals { PluginHost = null, InstanceId = "inst-1" };
-        Assert.Null(g.UiSet("input", "hello"));
-        Assert.Null(g.DataStoreSet("k", "v"));
-    }
-
-    [Fact]
     public async Task Runner_Extracts_InstanceId_From_Overrides()
     {
         var ir = _fixture.ParseKS("Print(\"x\")\n");
@@ -123,7 +44,7 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
             new Dictionary<string, string?> { [ToolKitConstants.InstanceId] = "inst-9" },
             CancellationToken.None);
 
-        Assert.Equal("inst-9", backend.LastToolkit?.InstanceId);
+        Assert.Equal("inst-9", backend.LastContext?.InstanceId);
     }
 
     [Fact]
@@ -137,10 +58,10 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
         // The context is always handed over (raw overrides feed BenchIn), but the
         // instance-scoped fields degrade to null outside a ToolKit instance.
-        Assert.NotNull(backend.LastToolkit);
-        Assert.Null(backend.LastToolkit.InstanceId);
-        Assert.Null(backend.LastToolkit.OutputNamespace);
-        Assert.Null(backend.LastToolkit.RawOverrides);
+        Assert.NotNull(backend.LastContext);
+        Assert.Null(backend.LastContext.InstanceId);
+        Assert.Null(backend.LastContext.OutputNamespace);
+        Assert.Null(backend.LastContext.RawOverrides);
     }
 
     [Fact]
@@ -158,9 +79,9 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
         await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
 
-        Assert.Equal("inst-9", backend.LastToolkit!.InstanceId);
-        Assert.Equal("tk/inst-9/wf/wf-a", backend.LastToolkit.OutputNamespace);
-        Assert.Same(overrides, backend.LastToolkit.RawOverrides);
+        Assert.Equal("inst-9", backend.LastContext!.InstanceId);
+        Assert.Equal("tk/inst-9/wf/wf-a", backend.LastContext.OutputNamespace);
+        Assert.Same(overrides, backend.LastContext.RawOverrides);
     }
 
     [Fact]
@@ -239,19 +160,19 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
     private sealed class RecordingBackend : IExecutionBackend
     {
-        public ToolKitRunContext? LastToolkit { get; private set; }
+        public HostRunContext? LastContext { get; private set; }
         public string Name => "Recording";
 
         public Task<BlockScriptExecutionResult> ExecuteAsync(
-            Workflow ir, LoweringResult? lowering, CancellationToken ct, ToolKitRunContext? toolkit = null)
+            Workflow ir, LoweringResult? lowering, CancellationToken ct, HostRunContext? hostContext = null)
         {
-            LastToolkit = toolkit;
+            LastContext = hostContext;
             return Task.FromResult(new BlockScriptExecutionResult { IsSuccess = true });
         }
 
         public Task<BlockScriptExecutionResult> ExecuteAsync(
             Workflow ir, LoweringResult? lowering, CancellationToken ct,
-            IBlueprintDebugController? debugger, ToolKitRunContext? toolkit = null)
-            => ExecuteAsync(ir, lowering, ct, toolkit);
+            IBlueprintDebugController? debugger, HostRunContext? hostContext = null)
+            => ExecuteAsync(ir, lowering, ct, hostContext);
     }
 }

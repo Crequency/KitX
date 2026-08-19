@@ -42,11 +42,16 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
     private readonly BuiltinFunctionRegistry _registry;
     private readonly ScriptCompiler _compiler;
     private readonly IPluginHost? _pluginHost;
+    private readonly IExecutionGlobalsFactory _factory;
 
-    public StructuredRoslynBackend(BuiltinFunctionRegistry registry, IPluginHost? pluginHost = null)
+    public StructuredRoslynBackend(
+        BuiltinFunctionRegistry registry,
+        IPluginHost? pluginHost = null,
+        IExecutionGlobalsFactory? factory = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _compiler = new ScriptCompiler(_registry);
+        _factory = factory ?? new DefaultExecutionGlobalsFactory();
+        _compiler = new ScriptCompiler(_registry, _factory.BaseType);
         _pluginHost = pluginHost;
     }
 
@@ -63,15 +68,15 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         Workflow ir,
         LoweringResult? lowering,
         CancellationToken ct,
-        ToolKitRunContext? toolkit = null)
-        => ExecuteAsync(ir, lowering, ct, debugger: null, toolkit);
+        HostRunContext? hostContext = null)
+        => ExecuteAsync(ir, lowering, ct, debugger: null, hostContext);
 
     public async Task<BlockScriptExecutionResult> ExecuteAsync(
         Workflow ir,
         LoweringResult? lowering,
         CancellationToken ct,
         IBlueprintDebugController? debugger,
-        ToolKitRunContext? toolkit = null)
+        HostRunContext? hostContext = null)
     {
         ArgumentNullException.ThrowIfNull(ir);
         ct.ThrowIfCancellationRequested();
@@ -95,13 +100,17 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
         {
             var gType = assembly.GetType("KitX.WorkflowV6.Generated.G")
                 ?? throw new InvalidOperationException("Generated G type not found.");
-            var g = (ExecutionGlobals)Activator.CreateInstance(gType)!;
+            // Instantiate the generated G through the injected factory so a host-supplied
+            // globals subclass (e.g. KitX.ToolKit's ToolKitExecutionGlobals) is constructed
+            // with its services. The factory receives the generated G type (which derives
+            // from its BaseType) and Activator-creates it, then wires the services.
+            var g = _factory.Create(gType);
             g.Debugger = debugger;
             g.DebugToken = ct;
             g.PluginHost = _pluginHost;
-            g.InstanceId = toolkit?.InstanceId;
-            g.OutputNamespace = toolkit?.OutputNamespace;
-            g.RawOverrides = toolkit?.RawOverrides;
+            // The host-injected run context is carried opaquely; a host globals subclass
+            // casts it back to HostRunContext to read the instance id / namespace / overrides.
+            g.RunContext = hostContext;
 
             var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Generated RunAsync method not found.");

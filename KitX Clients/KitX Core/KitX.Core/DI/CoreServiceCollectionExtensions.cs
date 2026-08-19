@@ -72,12 +72,6 @@ public static class CoreServiceCollectionExtensions
         Log.Information("Registering IPluginService...");
         services.AddSingleton<IPluginService, PluginsManager>();
 
-        // ToolKit DataStore — the shared data blackboard + its built-in plugin. The
-        // plugin is routed by PluginHostAdapter for the reserved "KitX.DataStore" name,
-        // so workflows reach the DataStore via ordinary PluginCall (WorkflowV6 untouched).
-        services.AddSingleton<KitX.ToolKit.Data.DataStore>();
-        services.AddSingleton<KitX.ToolKit.Data.BuiltinDataStorePlugin>();
-
         // Activity Services
         Log.Information("Registering IActivityService...");
         services.AddSingleton<IActivityService, ActivityManager>();
@@ -142,11 +136,7 @@ public static class CoreServiceCollectionExtensions
                 new Lazy<KitX.Core.Contract.Workflow.IWorkflowManagementService>(
                     sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowManagementService>),
                 new Lazy<KitX.Core.Contract.Workflow.IWorkflowStorageService>(
-                    sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowStorageService>),
-                new Lazy<KitX.ToolKit.Data.BuiltinDataStorePlugin>(
-                    sp.GetRequiredService<KitX.ToolKit.Data.BuiltinDataStorePlugin>),
-                new Lazy<KitX.ToolKit.Data.BuiltinUiPlugin>(
-                    sp.GetRequiredService<KitX.ToolKit.Data.BuiltinUiPlugin>)));
+                    sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowStorageService>)));
 
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");

@@ -4,10 +4,10 @@
 //
 // Exercises the real stack with no fakes on the workflow path: KS → IR → .kcs on
 // disk → BenchScheduler → BenchWorkflowRunner → WorkflowRunner →
-// StructuredRoslynBackend → generated code → ExecutionGlobals.BenchIn/BenchOut →
-// bridge host → DataStore. The only stand-in is the DataStoreBridgeHost, which
-// mirrors the production PluginHostAdapter's reserved-name interception
-// ("KitX.DataStore" → BuiltinDataStorePlugin).
+// StructuredRoslynBackend → generated code → ToolKitExecutionGlobals.BenchIn/Out →
+// DataStore. The ToolKit first-class builtins are provided by the
+// ToolKitExecutionGlobalsFactory (the factory the host DI registers), so no
+// reserved-name plugin bridge is involved.
 //
 // This is the regression anchor for the agreed Bench I/O semantics: the output
 // side publishes after the producing statement completes, the input side reads
@@ -17,8 +17,12 @@
 using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.ToolKit.Bench;
+using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Data;
+using KitX.ToolKit.Instances;
 using KitX.ToolKit.Models;
+using KitX.ToolKit.Panels;
+using KitX.ToolKit.Triggers;
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
@@ -26,6 +30,7 @@ using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Serialization;
 using KitX.WorkflowV6.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace KitX.ToolKit.Test.Xunit;
@@ -84,8 +89,8 @@ public sealed class BenchIoIntegrationTests : IDisposable
             ],
         };
 
-        var host = new DataStoreBridgeHost(new BuiltinDataStorePlugin(_dataStore));
-        var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host));
+        var factory = CreateFactory();
+        var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
         using var scheduler = new BenchScheduler(toolkit, new BenchWorkflowRunner(runner), _dataStore, new ToolkitFileStore(_root));
 
         var completed = new TaskCompletionSource();
@@ -101,11 +106,24 @@ public sealed class BenchIoIntegrationTests : IDisposable
         Assert.Equal("hello world", echoed!.Value.GetString());
     }
 
+    /// <summary>The ToolKit execution stack for Bench I/O: no panel is touched, so the
+    /// manager is only needed to satisfy the factory's constructor — its executor is a no-op.</summary>
+    private ToolKitExecutionGlobalsFactory CreateFactory()
+    {
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            new NoOpExecutor(),
+            _dataStore,
+            _ => new ToolkitFileStore(_root));
+        return new ToolKitExecutionGlobalsFactory(_dataStore, new PanelRuntime(_dataStore, manager), manager);
+    }
+
     private (BuiltinFunctionRegistry Registry, KsTextLens Lens) MakeRegistry()
     {
         var registry = BuiltinFunctionRegistry.Discover(
             typeof(BuiltinFunctionRegistry).Assembly,
-            typeof(BuiltinDataStorePlugin).Assembly);
+            typeof(ToolKitExecutionGlobals).Assembly);
         return (registry, new KsTextLens(registry));
     }
 
@@ -121,29 +139,12 @@ public sealed class BenchIoIntegrationTests : IDisposable
         File.WriteAllText(Path.Combine(_root, TkId, fileName), JsonSerializer.Serialize(kcs));
     }
 
-    /// <summary>Mirrors the production PluginHostAdapter's reserved-name interception
-    /// for "KitX.DataStore"; everything else is a null response (safe default).</summary>
-    private sealed class DataStoreBridgeHost : IPluginHost
+    /// <summary>A no-op executor so the manager never runs a workflow (none is spawned here).</summary>
+    private sealed class NoOpExecutor : IWorkflowExecutor
     {
-        private readonly BuiltinDataStorePlugin _plugin;
-        public DataStoreBridgeHost(BuiltinDataStorePlugin plugin) => _plugin = plugin;
-
-        public object? Call(string pluginName, string methodName, params object[] args)
-            => pluginName == BuiltinDataStorePlugin.PluginName && _plugin.HasMethod(methodName)
-                ? _plugin.Invoke(methodName, args)
-                : null;
-
-        public void Notify(string pluginName, string methodName, params object[] args) { }
-        public object? CallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args) => null;
-        public object? TryGetDevice(string deviceName) => null;
-        public bool StartPlugin(string pluginName) => true;
-        public bool StopPlugin(string pluginName) => true;
-        public bool StopWorkflow(string workflowId) => true;
-        public string CreateWorkflow(string name, string source) => string.Empty;
-        public bool RunWorkflow(string workflowId) => true;
-        public bool InstallPlugin(string kxpPath) => true;
-        public string GetPluginInfoByName(string pluginName) => string.Empty;
-        public string ListPluginNames() => "[]";
-        public string ListWorkflows() => "[]";
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            string workflowId, string filePath,
+            IReadOnlyDictionary<string, string?>? overrides, CancellationToken ct)
+            => Task.FromResult(new WorkflowExecutionResult(workflowId, true, null, null));
     }
 }

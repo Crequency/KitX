@@ -2,8 +2,8 @@
 // Agent ToolKit headless E2E — compiles & runs the REAL agent-chat.ks through
 // the full stack (KS parse → IR → Roslyn codegen → execution), with only the
 // plugin boundary scripted:
-//   • KitX.DataStore → the real BuiltinDataStorePlugin
-//   • KitX.UI        → a recording stub (Log/Set/Get)
+//   • Ui*/DataStore*/Bench* → the real ToolKit first-class builtins
+//     (ToolKitExecutionGlobals via the ToolKitExecutionGlobalsFactory)
 //   • KitX.Agent.Context / LLM / FileTools → scripted JSON responses
 //
 // Scenario: user asks to create a file → LLM round 1 returns a files_write
@@ -14,7 +14,13 @@
 
 using System.Text.Json;
 using KitX.Core.Contract.Workflow;
+using KitX.ToolKit.Bench;
+using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Data;
+using KitX.ToolKit.Instances;
+using KitX.ToolKit.Models;
+using KitX.ToolKit.Panels;
+using KitX.ToolKit.Triggers;
 using KitX.WorkflowV6;
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Backend.Runtime;
@@ -22,6 +28,7 @@ using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Lens.KsTextLens;
 using KitX.WorkflowV6.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -30,6 +37,8 @@ namespace KitX.ToolKit.Test.Xunit;
 [Trait("Category", "Integration")]
 public sealed class AgentChatWorkflowTests
 {
+    private const string TkId = "tk-agent8";
+
     private readonly ITestOutputHelper _out;
     public AgentChatWorkflowTests(ITestOutputHelper output) => _out = output;
 
@@ -47,6 +56,48 @@ public sealed class AgentChatWorkflowTests
         return null;
     }
 
+    /// <summary>A mounted, spawnable agent ToolKit whose panel carries the controls the
+    /// workflows touch (chat log + input). The manager resolves instance → toolkit id so
+    /// the Ui* builtins write instance-scoped panel keys into the DataStore.</summary>
+    private static Toolkit AgentToolkit() => new()
+    {
+        Id = TkId,
+        Meta = new ToolkitMeta { Name = "agent" },
+        Workflows = [new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" }],
+        UiPanel = new UiPanel
+        {
+            Controls =
+            [
+                new UiControl { Type = "Log", Id = "chat" },
+                new UiControl { Type = "Input", Id = "msg" },
+            ],
+        },
+        Triggers =
+        [
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] },
+        ],
+    };
+
+    /// <summary>Builds the ToolKit execution stack: a real DataStore, a manager with a
+    /// mounted agent toolkit (spawned once so GetToolkitId resolves), the panel runtime,
+    /// and the ToolKit execution-globals factory. The manager's executor is a no-op — it
+    /// exists only to give the Ui* builtins an instance namespace to write into.</summary>
+    private static (ToolKitExecutionGlobalsFactory Factory, string InstanceId, DataStore Store, ToolkitInstanceManager Manager)
+        CreateStack()
+    {
+        var store = new DataStore();
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            new NoOpExecutor(),
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+        manager.Mount(AgentToolkit());
+        var instanceId = manager.Spawn(TkId, "manual")!;
+        var factory = new ToolKitExecutionGlobalsFactory(store, new PanelRuntime(store, manager), manager);
+        return (factory, instanceId, store, manager);
+    }
+
     [Fact]
     public async Task AgentChat_ToolRound_Then_FinalReply()
     {
@@ -55,49 +106,61 @@ public sealed class AgentChatWorkflowTests
         var ks = await File.ReadAllTextAsync(ksPath);
         var registry = BuiltinFunctionRegistry.Discover(
             typeof(BuiltinFunctionRegistry).Assembly,
-            typeof(BuiltinDataStorePlugin).Assembly);
+            typeof(ToolKitExecutionGlobals).Assembly);
         var ir = new KsTextLens(registry).Parse(ks, []);
 
-        var dataStore = new DataStore();
-        var host = new AgentScriptedHost(dataStore, _out);
-        var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host));
-        dataStore.Set("agentchat/workdir", Path.GetTempPath());
-
-        var overrides = new Dictionary<string, string?>
+        var (factory, instanceId, dataStore, manager) = CreateStack();
+        try
         {
-            [ToolKitConstants.InstanceId] = "inst-t",
-            [ToolKitConstants.OutputNamespace] = "tk8f/inst-t/wf/wf-agent-chat",
-            ["userInput"] = "帮我创建 hello.txt",
-        };
+            var host = new AgentScriptedHost(_out);
+            var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host, factory));
+            dataStore.Set("agentchat/workdir", Path.GetTempPath());
 
-        var result = await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
+            var overrides = new Dictionary<string, string?>
+            {
+                [ToolKitConstants.InstanceId] = instanceId,
+                [ToolKitConstants.OutputNamespace] = $"{TkId}/{instanceId}/wf/wf-agent-chat",
+                ["userInput"] = "帮我创建 hello.txt",
+            };
 
-        Assert.True(result.IsSuccess, $"Execution failed: {result.ErrorMessage}");
-        if (!result.IsSuccess)
-            foreach (var line in result.Output) _out.WriteLine(line);
+            var result = await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
 
-        // LLM called exactly twice: tool round + final round.
-        Assert.Equal(2, host.ChatCalls);
+            Assert.True(result.IsSuccess, $"Execution failed: {result.ErrorMessage}");
+            if (!result.IsSuccess)
+                foreach (var line in result.Output) _out.WriteLine(line);
 
-        // Panel log shows the conversation: user echo, thinking, tool line, final reply.
-        Assert.Contains(host.UiLogs, l => l.Contains("🧑 你: 帮我创建 hello.txt"));
-        Assert.Contains(host.UiLogs, l => l.Contains("💭 "));
-        Assert.Contains(host.UiLogs, l => l.Contains("🔧 files_write → ok:true"));
-        Assert.Contains(host.UiLogs, l => l.Contains("🤖 已创建 hello.txt"));
+            // LLM called exactly twice: tool round + final round.
+            Assert.Equal(2, host.ChatCalls);
 
-        // The write tool got the parsed args from the toolCall's arguments JSON.
-        var write = Assert.Single(host.FileWrites);
-        Assert.Equal("hello.txt", write.path);
-        Assert.Equal("你好，KitX", write.content);
+            // The panel chat log (a DataStore array under the instance's namespace) shows
+            // the conversation: user echo, thinking, tool line, final reply.
+            var logKey = PanelScope.Key(TkId, instanceId, "chat", "log");
+            var log = dataStore.Get(logKey);
+            Assert.True(log.HasValue, $"chat log key {logKey} missing");
+            var lines = log!.Value.EnumerateArray().Select(e => e.GetString() ?? "").ToArray();
+            Assert.Contains(lines, l => l.Contains("🧑 你: 帮我创建 hello.txt"));
+            Assert.Contains(lines, l => l.Contains("💭 "));
+            Assert.Contains(lines, l => l.Contains("🔧 files_write → ok:true"));
+            Assert.Contains(lines, l => l.Contains("🤖 已创建 hello.txt"));
 
-        // Session file got user + assistant + tool appends (roles seen by Context).
-        Assert.Equal(new[] { "user", "assistant", "tool", "assistant" }, host.AppendRoles);
+            // The write tool got the parsed args from the toolCall's arguments JSON.
+            var write = Assert.Single(host.FileWrites);
+            Assert.Equal("hello.txt", write.path);
+            Assert.Equal("你好，KitX", write.content);
 
-        // Cross-run state + BenchOut output namespace keys.
-        Assert.Equal(host.SessionPath, JsonAsString(dataStore.Get("agentchat/sessionPath")));
-        var reply = dataStore.Get("tk8f/inst-t/wf/wf-agent-chat/reply");
-        Assert.True(reply.HasValue);
-        Assert.Equal("已创建 hello.txt，内容已写入。", reply!.Value.GetString());
+            // Session file got user + assistant + tool appends (roles seen by Context).
+            Assert.Equal(new[] { "user", "assistant", "tool", "assistant" }, host.AppendRoles);
+
+            // Cross-run state + BenchOut output namespace keys.
+            Assert.Equal(host.SessionPath, JsonAsString(dataStore.Get("agentchat/sessionPath")));
+            var reply = dataStore.Get($"{TkId}/{instanceId}/wf/wf-agent-chat/reply");
+            Assert.True(reply.HasValue);
+            Assert.Equal("已创建 hello.txt，内容已写入。", reply!.Value.GetString());
+        }
+        finally
+        {
+            manager.Dispose();
+        }
     }
 
     private static string JsonAsString(JsonElement? e)
@@ -113,39 +176,46 @@ public sealed class AgentChatWorkflowTests
         if (anchor is null) return;
         var registry = BuiltinFunctionRegistry.Discover(
             typeof(BuiltinFunctionRegistry).Assembly,
-            typeof(BuiltinDataStorePlugin).Assembly);
+            typeof(ToolKitExecutionGlobals).Assembly);
         var lens = new KsTextLens(registry);
 
         var ksDir = Path.GetDirectoryName(anchor)!;
-        foreach (var ksFile in Directory.GetFiles(ksDir, "*.ks"))
+        var (factory, instanceId, _, manager) = CreateStack();
+        try
         {
-            var ir = lens.Parse(await File.ReadAllTextAsync(ksFile), []);
-            var dataStore = new DataStore();
-            dataStore.Set("agentchat/workdir", Path.GetTempPath());
-            var host = new AgentScriptedHost(dataStore, _out) { PickFolderOk = false };
-            var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host));
-            var overrides = new Dictionary<string, string?>
+            foreach (var ksFile in Directory.GetFiles(ksDir, "*.ks"))
             {
-                [ToolKitConstants.InstanceId] = "inst-t",
-                [ToolKitConstants.OutputNamespace] = "tk8f/inst-t/wf/t",
-                ["userInput"] = "你好",
-                ["dir"] = Path.GetTempPath(),
-            };
+                var ir = lens.Parse(await File.ReadAllTextAsync(ksFile), []);
+                var dataStore = new DataStore();
+                dataStore.Set("agentchat/workdir", Path.GetTempPath());
+                var host = new AgentScriptedHost(_out) { PickFolderOk = false };
+                var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host, factory));
+                var overrides = new Dictionary<string, string?>
+                {
+                    [ToolKitConstants.InstanceId] = instanceId,
+                    [ToolKitConstants.OutputNamespace] = $"{TkId}/{instanceId}/wf/t",
+                    ["userInput"] = "你好",
+                    ["dir"] = Path.GetTempPath(),
+                };
 
-            var result = await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
-            Assert.True(result.IsSuccess, $"{Path.GetFileName(ksFile)}: {result.ErrorMessage}");
-            _out.WriteLine($"{Path.GetFileName(ksFile)}: OK ({host.UiLogs.Count} panel lines)");
+                var result = await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
+                Assert.True(result.IsSuccess, $"{Path.GetFileName(ksFile)}: {result.ErrorMessage}");
+                _out.WriteLine($"{Path.GetFileName(ksFile)}: OK ({host.UiLogs.Count} panel lines)");
+            }
+        }
+        finally
+        {
+            manager.Dispose();
         }
     }
 
     private sealed record FileWrite(string path, string content);
 
-    /// <summary>Scripts the three agent plugins at the IPluginHost boundary; bridges the
-    /// reserved DataStore name to the real plugin, records the KitX.UI surface.</summary>
+    /// <summary>Scripts the three agent plugins at the IPluginHost boundary; the ToolKit
+    /// builtins (Ui*/DataStore*/Bench*) go to the factory, so this host only answers the
+    /// reserved-name "KitX.Agent.*" plugin calls.</summary>
     private sealed class AgentScriptedHost : IPluginHost
     {
-        private readonly DataStore _dataStore;
-        private readonly BuiltinDataStorePlugin _dataStorePlugin;
         private readonly ITestOutputHelper _out;
 
         public List<string> UiLogs { get; } = [];
@@ -157,29 +227,13 @@ public sealed class AgentChatWorkflowTests
         /// <summary>What the scripted FileTools.PickFolder answers; false = user cancelled.</summary>
         public bool PickFolderOk { get; set; } = true;
 
-        public AgentScriptedHost(DataStore dataStore, ITestOutputHelper output)
-        {
-            _dataStore = dataStore;
-            _dataStorePlugin = new BuiltinDataStorePlugin(dataStore);
-            _out = output;
-        }
+        public AgentScriptedHost(ITestOutputHelper output) => _out = output;
 
         public object? Call(string pluginName, string methodName, params object[] args)
         {
             _out.WriteLine($"[host] {pluginName}.{methodName}({string.Join(", ", args.Select(a => a?.ToString() ?? "null"))})");
             switch (pluginName)
             {
-                case BuiltinDataStorePlugin.PluginName:
-                    return _dataStorePlugin.HasMethod(methodName) ? _dataStorePlugin.Invoke(methodName, args) : null;
-
-                case "KitX.UI":
-                    if (methodName.Equals("Log", StringComparison.OrdinalIgnoreCase))
-                    {
-                        UiLogs.Add(args.Length >= 3 ? $"{args[1]}: {args[2]}" : $"{args[^1]}");
-                        return true;
-                    }
-                    return methodName.Equals("Set", StringComparison.OrdinalIgnoreCase) ? true : null;
-
                 case "KitX.Agent.Context":
                     return methodName switch
                     {
@@ -235,5 +289,15 @@ public sealed class AgentChatWorkflowTests
         public string GetPluginInfoByName(string pluginName) => string.Empty;
         public string ListPluginNames() => "[]";
         public string ListWorkflows() => "[]";
+    }
+
+    /// <summary>A no-op executor so the manager's spawned instance never actually runs a
+    /// workflow during Ui* namespace setup.</summary>
+    private sealed class NoOpExecutor : IWorkflowExecutor
+    {
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            string workflowId, string filePath,
+            IReadOnlyDictionary<string, string?>? overrides, CancellationToken ct)
+            => Task.FromResult(new WorkflowExecutionResult(workflowId, true, null, null));
     }
 }

@@ -62,7 +62,7 @@ public sealed class WorkflowRunner : IWorkflowRunner
             if (constantOverrides.TryGetValue(ToolKitConstants.OutputNamespace, out var ns))
                 outputNamespace = ns;
         }
-        var toolkit = new Backend.ToolKitRunContext(instanceId, outputNamespace, constantOverrides);
+        var toolkit = new Backend.HostRunContext(instanceId, outputNamespace, constantOverrides);
 
         return _backend.ExecuteAsync(applied, lowering, ct, debugger, toolkit);
     }

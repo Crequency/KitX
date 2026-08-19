@@ -10,7 +10,7 @@ using KitX.WorkflowV6.Ir.Statements;
 
 internal sealed class StructuredCodegen : CodegenBase
 {
-    public StructuredCodegen(BuiltinFunctionRegistry registry) : base(registry) { }
+    public StructuredCodegen(BuiltinFunctionRegistry registry, Type baseType) : base(registry, baseType) { }
 
     /// <summary>
     /// Emit-time statement counter driving the global cancellation-check cadence.
@@ -78,7 +78,7 @@ internal sealed class StructuredCodegen : CodegenBase
         }
         else if (source is KsCall call && _registry.Contains(call.MethodName))
         {
-            staticType = BuiltinRuntimeTypes.Resolve(call.MethodName) switch
+            staticType = BuiltinRuntimeTypes.Resolve(BaseType, call.MethodName) switch
             {
                 { } actual when actual == typeof(object) => "object",
                 { } actual when actual == typeof(System.Text.Json.JsonElement) => "JsonElement",

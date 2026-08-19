@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace KitX.ToolKit.Data;
 
@@ -102,22 +103,24 @@ public sealed class DataStore
 
     /// <summary>
     /// Blocks until <b>all</b> of <paramref name="keys"/> are present (AND semantics),
-    /// then returns a JSON object <c>{key: value}</c>. Returns an empty object on timeout.
+    /// then returns a JSON object <c>{key: value}</c>. Returns an empty object on timeout
+    /// or cancellation (never throws for a cancelled token).
     /// </summary>
-    public JsonElement Wait(IEnumerable<string> keys, TimeSpan? timeout = null)
+    public JsonElement Wait(IEnumerable<string> keys, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var keyArr = NormalizeKeys(keys);
-        return Block(keyArr, any: false, timeout ?? _options.DefaultWaitTimeout);
+        return Block(keyArr, any: false, timeout ?? _options.DefaultWaitTimeout, cancellationToken);
     }
 
     /// <summary>
     /// Blocks until <b>any</b> of <paramref name="keys"/> is present (OR semantics),
-    /// then returns a JSON object of the currently-present keys. Returns an empty object on timeout.
+    /// then returns a JSON object of the currently-present keys. Returns an empty object
+    /// on timeout or cancellation (never throws for a cancelled token).
     /// </summary>
-    public JsonElement WaitAny(IEnumerable<string> keys, TimeSpan? timeout = null)
+    public JsonElement WaitAny(IEnumerable<string> keys, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         var keyArr = NormalizeKeys(keys);
-        return Block(keyArr, any: true, timeout ?? _options.DefaultWaitTimeout);
+        return Block(keyArr, any: true, timeout ?? _options.DefaultWaitTimeout, cancellationToken);
     }
 
     /// <summary>Removes a key. Returns true when it existed.</summary>
@@ -168,7 +171,7 @@ public sealed class DataStore
             w.Tcs.TrySetResult(w.BuildResult(this));
     }
 
-    private JsonElement Block(string[] keyArr, bool any, TimeSpan timeout)
+    private JsonElement Block(string[] keyArr, bool any, TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (keyArr.Length == 0)
             return EmptyObject();
@@ -184,7 +187,16 @@ public sealed class DataStore
         }
 
         // Blocking wait on the workflow's calling thread (mirrors the PluginCall
-        // TaskCompletionSource.Result precedent). Timeout unblocks a never-satisfied wait.
+        // TaskCompletionSource.Result precedent). Timeout OR cancellation unblocks a
+        // never-satisfied wait; both return the same empty object so a cancelled run
+        // degrades exactly like a timeout (no exception into the generated workflow).
+        //
+        // Registering the token's continuation races the waiter task itself: if the
+        // token fires after the waiter completes (but before the Race below finishes),
+        // TrySetResult is a no-op — the result wins. We must Dispose the registration
+        // so its closure (and the wait chain) can be collected instead of pinning the
+        // token source forever.
+        using var registration = cancellationToken.Register(() => waiter.Tcs.TrySetResult(EmptyObject()));
         var completed = Task.WhenAny(waiter.Tcs.Task, Task.Delay(timeout)).GetAwaiter().GetResult();
         if (completed != waiter.Tcs.Task)
         {

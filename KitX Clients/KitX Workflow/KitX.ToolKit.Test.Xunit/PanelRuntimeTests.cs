@@ -1,10 +1,12 @@
 using KitX.ToolKit.Bench;
+using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Contracts.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Models;
 using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
+using KitX.WorkflowV6.Backend;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -107,18 +109,19 @@ public class PanelRuntimeTests
     }
 
     [Fact]
-    public void BuiltinUiPlugin_Set_Dispatches_To_Panel()
+    public void ToolKitExecutionGlobals_UiSet_Dispatches_To_Panel()
     {
-        var (manager, _, store, _) = Build();
+        var (manager, _, store, runtime) = Build();
         manager.Mount(PanelToolkit());
         try
         {
             var id = manager.Spawn("tk-panel", "manual")!;
-            var plugin = new BuiltinUiPlugin(
-                new PanelRuntime(store, manager), store, manager);
+            var g = new ToolKitExecutionGlobals(store, runtime, manager)
+            {
+                RunContext = new HostRunContext(id, null, null),
+            };
 
-            Assert.True(plugin.HasMethod("set"));
-            plugin.Invoke("set", [id, "input", "hello"]);
+            Assert.NotNull(g.UiSet("input", "hello"));
 
             Assert.Equal("hello", store.Get(PanelScope.Key("tk-panel", id, "input", "value"))?.GetString());
         }
@@ -129,17 +132,20 @@ public class PanelRuntimeTests
     }
 
     [Fact]
-    public void BuiltinUiPlugin_Log_Appends_To_Log_Key()
+    public void ToolKitExecutionGlobals_UiLog_Appends_To_Log_Key()
     {
-        var (manager, _, store, _) = Build();
+        var (manager, _, store, runtime) = Build();
         manager.Mount(PanelToolkit());
         try
         {
             var id = manager.Spawn("tk-panel", "manual")!;
-            var plugin = new BuiltinUiPlugin(new PanelRuntime(store, manager), store, manager);
+            var g = new ToolKitExecutionGlobals(store, runtime, manager)
+            {
+                RunContext = new HostRunContext(id, null, null),
+            };
 
-            plugin.Invoke("log", [id, "log", "entry-1"]);
-            plugin.Invoke("log", [id, "log", "entry-2"]);
+            g.UiLog("log", "entry-1");
+            g.UiLog("log", "entry-2");
 
             var arr = store.Get(PanelScope.Key("tk-panel", id, "log", "log"));
             Assert.NotNull(arr);
@@ -172,9 +178,9 @@ public class PanelRuntimeTests
     }
 
     [Fact]
-    public void BuiltinUiPlugin_OpenPanel_Raises_Request()
+    public void ToolKitExecutionGlobals_UiOpenPanel_Raises_Request()
     {
-        var (manager, _, store, _) = Build();
+        var (manager, _, store, runtime) = Build();
         manager.Mount(PanelToolkit());
         try
         {
@@ -186,8 +192,11 @@ public class PanelRuntimeTests
                     requested.TrySetResult();
             };
 
-            var plugin = new BuiltinUiPlugin(new PanelRuntime(store, manager), store, manager);
-            plugin.Invoke("openpanel", [id]);
+            var g = new ToolKitExecutionGlobals(store, runtime, manager)
+            {
+                RunContext = new HostRunContext(id, null, null),
+            };
+            g.UiOpenPanel();
 
             Assert.True(requested.Task.IsCompleted);
         }

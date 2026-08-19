@@ -6,6 +6,7 @@
 using System.Text;
 using System.Text.Json;
 using KitX.WorkflowV6.Backend.RoslynBackend;
+using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Diff;
 using KitX.WorkflowV6.Ir;
@@ -81,7 +82,7 @@ public class GuessNumberDemo : IClassFixture<WorkflowTestFixture>
         var irJson = JsonSerializer.Serialize(ir, jsonOpts);
 
         // 3. C# codegen (via internal StructuredCodegen, with inferred PubVar types)
-        var codegen = new StructuredCodegen(_fixture.Registry);
+        var codegen = new StructuredCodegen(_fixture.Registry, typeof(ExecutionGlobals));
         var codegenLowering = new LoweringResult
         {
             PubVarTypes = ir.GlobalVars.ToDictionary(g => g.Key, g => g.Value.Type)

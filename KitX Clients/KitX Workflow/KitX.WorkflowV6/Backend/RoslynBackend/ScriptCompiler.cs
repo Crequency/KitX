@@ -44,9 +44,18 @@ internal sealed class ScriptCompiler
     private readonly LinkedList<string> _lruOrder = new();
     private readonly BuiltinFunctionRegistry _registry;
 
-    public ScriptCompiler(BuiltinFunctionRegistry registry)
+    /// <summary>
+    /// The runtime base type the generated G derives from (see
+    /// <see cref="Runtime.IExecutionGlobalsFactory"/>). Defaults to
+    /// <see cref="Runtime.ExecutionGlobals"/>; a host subclass (e.g. KitX.ToolKit's
+    /// ToolKitExecutionGlobals) is referenced by adding its assembly to the compilation.
+    /// </summary>
+    private readonly Type _baseType;
+
+    public ScriptCompiler(BuiltinFunctionRegistry registry, Type? baseType = null)
     {
         _registry = registry;
+        _baseType = baseType ?? typeof(Runtime.ExecutionGlobals);
     }
 
     /// <summary>Unloads and drops all cached compiled assemblies.</summary>
@@ -97,10 +106,11 @@ internal sealed class ScriptCompiler
             // vars produced by object?-returning builtins (PluginCall & friends) are not
             // mis-typed from their Json descriptor pins.
             var pubVarTypes = TypeInferer.Infer(
-                ir, effectiveLowering, _registry, ir.HelperFunctions, BuiltinRuntimeTypes.Resolve);
+                ir, effectiveLowering, _registry, ir.HelperFunctions,
+                name => BuiltinRuntimeTypes.Resolve(_baseType, name));
             var refinedLowering = effectiveLowering with { PubVarTypes = pubVarTypes };
 
-            var codegen = new DebugCodegen(_registry);
+            var codegen = new DebugCodegen(_registry, _baseType);
             var source = codegen.Generate(ir, refinedLowering, isDebug);
 
             var (assembly, loadContext, errors) = CompileSource(source, hash);
@@ -209,7 +219,7 @@ internal sealed class ScriptCompiler
                 assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default));
     }
 
-    private static List<MetadataReference> GetReferenceList()
+    private List<MetadataReference> GetReferenceList()
     {
         var refs = new List<MetadataReference>();
         var coreDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
@@ -248,6 +258,12 @@ internal sealed class ScriptCompiler
         }
         refs.Add(MetadataReference.CreateFromFile(typeof(ExecutionGlobals).Assembly.Location));
         refs.Add(MetadataReference.CreateFromFile(typeof(IBlueprintDebugController).Assembly.Location));
+        // A host-supplied base type (e.g. KitX.ToolKit's ToolKitExecutionGlobals) lives in
+        // a different assembly — the generated G derives from it, so that assembly must be
+        // referenced or the emitted `: <BaseTypeName>` fails with CS0246. The default base
+        // shares ExecutionGlobals' assembly (already referenced above), so skip the duplicate.
+        if (_baseType.Assembly != typeof(ExecutionGlobals).Assembly)
+            refs.Add(MetadataReference.CreateFromFile(_baseType.Assembly.Location));
         return refs;
     }
 

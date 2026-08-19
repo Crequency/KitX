@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using KitX.ToolKit.Data;
 using Xunit;
@@ -98,6 +99,25 @@ public class DataStoreTests
         var store = Create();
         var result = store.Wait(["never"], TimeSpan.FromMilliseconds(50));
         Assert.Empty(result.EnumerateObject());
+    }
+
+    [Fact]
+    public async Task Wait_Cancelled_Returns_Empty_Object_Promptly()
+    {
+        // C5: a cancelled run must unblock a never-satisfied Wait promptly (same empty-object
+        // semantics as a timeout, no exception) — far sooner than the 30s default timeout.
+        var store = Create();
+        using var cts = new CancellationTokenSource();
+        var sw = Stopwatch.StartNew();
+        var task = Task.Run(() => store.Wait(["never"], TimeSpan.FromSeconds(30), cts.Token));
+
+        await Task.Delay(100);
+        cts.Cancel();
+
+        var result = await task;
+        sw.Stop();
+        Assert.Empty(result.EnumerateObject());
+        Assert.True(sw.ElapsedMilliseconds < 5000, $"cancellation took {sw.ElapsedMilliseconds}ms");
     }
 
     [Fact]
