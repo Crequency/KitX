@@ -37,6 +37,28 @@ public class ToolkitInstanceManagerTests
         return (manager, executor);
     }
 
+    private static ToolkitInstanceManager Build(DataStore store, RecordingExecutor executor,
+        ToolkitInstanceManagerOptions? options = null)
+        => new(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()),
+            null,
+            options);
+
+    private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("condition was not satisfied within the timeout");
+            await Task.Delay(10);
+        }
+    }
+
     [Fact]
     public void Mount_Starts_Spawn_Sources_Only()
     {
@@ -649,6 +671,225 @@ public class ToolkitInstanceManagerTests
             hold.TrySetResult();
             await Task.WhenAny(completed.Task, Task.Delay(5000));
             Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    // ── F7: trigger-by-id index (instances snapshot surface resolution) ──
+
+    [Fact]
+    public void Instances_Snapshot_Resolves_Surface_Per_Trigger_From_Index()
+    {
+        // Two triggers with distinct surfaces + one with no Surface (null) — the snapshot
+        // must resolve each instance's Surface from its trigger via the id index.
+        var tk = new Toolkit
+        {
+            Id = "tk-demo",
+            Meta = new ToolkitMeta { Name = "demo" },
+            Workflows = [new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" }],
+            Triggers =
+            [
+                new Trigger { Id = "silent", Type = TriggerType.Manual,
+                    Config = new TriggerConfig { Surface = InstanceConstants.SurfaceSilent },
+                    Bindings = [new() { Workflow = "wf" }] },
+                new Trigger { Id = "plain", Type = TriggerType.Manual,
+                    Config = new TriggerConfig(), // no Surface → null
+                    Bindings = [new() { Workflow = "wf" }] },
+            ],
+        };
+        var (manager, _) = Build(tk);
+
+        manager.Mount(tk);
+        try
+        {
+            Assert.NotNull(manager.Spawn("tk-demo", "silent"));
+            Assert.NotNull(manager.Spawn("tk-demo", "plain"));
+
+            var snapshots = manager.Instances.ToDictionary(s => s.TriggerId);
+            Assert.Equal(InstanceConstants.SurfaceSilent, snapshots["silent"].Surface);
+            Assert.True(snapshots["silent"].IsSilent);
+            Assert.Null(snapshots["plain"].Surface);
+            Assert.False(snapshots["plain"].IsSilent);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public void Mount_Rejects_Duplicate_Trigger_Ids()
+    {
+        // Config validation guarantees trigger id uniqueness, so a duplicate-id config is
+        // rejected at mount time (before the id index is even built).
+        var tk = ToolkitWith(
+            new Trigger { Id = "dup", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] },
+            new Trigger { Id = "dup", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
+
+        var (manager, _) = Build(tk);
+        Assert.Throws<InvalidOperationException>(() => manager.Mount(tk));
+    }
+
+    // ── memory governance: wf-key cleanup on EndInstance / Unmount ──
+
+    [Fact]
+    public async Task EndInstance_Clears_Wf_Keys_But_Retains_Panel_Keys()
+    {
+        var store = new DataStore();
+        var manager = Build(store, new RecordingExecutor(store));
+
+        var removed = new List<string>();
+        store.Changed += (_, e) => { if (e.Removed) lock (removed) removed.Add(e.Key); };
+
+        manager.Mount(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+        try
+        {
+            var id = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(id);
+
+            // Wait for the run to finish (the executor writes a wf key automatically) before
+            // asserting the cleanup, so the write cannot race the removal.
+            await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && s.Status == InstanceStatus.Completed));
+
+            // Extra wf keys + a panel key under the instance's namespace.
+            var wf1 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf1");
+            var wf2 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf2");
+            var panel = PanelScope.Key("tk-demo", id!, "input", "value");
+            store.Set(wf1, new { a = 1 });
+            store.Set(wf2, new { b = 2 });
+            store.Set(panel, "hello");
+
+            lock (removed) removed.Clear(); // observe only the EndInstance-driven removals
+
+            manager.EndInstance(id!);
+
+            Assert.Empty(manager.Instances);
+            Assert.False(store.Contains(wf1));
+            Assert.False(store.Contains(wf2));
+            Assert.True(store.Contains(panel)); // panel keys are retained by design
+            lock (removed)
+            {
+                Assert.Contains(wf1, removed);
+                Assert.Contains(wf2, removed);
+                Assert.DoesNotContain(panel, removed);
+            }
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task Unmount_Cleans_All_Instances_Wf_Keys()
+    {
+        var store = new DataStore();
+        var manager = Build(store, new RecordingExecutor(store));
+
+        manager.Mount(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+        try
+        {
+            var a = manager.Spawn("tk-demo", "manual");
+            var b = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(a);
+            Assert.NotNull(b);
+
+            await WaitUntilAsync(() => manager.Instances.All(s => s.Status == InstanceStatus.Completed));
+
+            var wfA = DataStoreScope.WorkflowNamespace("tk-demo", a!, "wf");
+            var wfB = DataStoreScope.WorkflowNamespace("tk-demo", b!, "wf");
+            store.Set(DataStoreScope.ScopedKey(wfA, "extra"), 1);
+            store.Set(DataStoreScope.ScopedKey(wfB, "extra"), 2);
+
+            manager.Unmount("tk-demo");
+
+            Assert.Empty(manager.Instances);
+            Assert.False(store.Contains(wfA));
+            Assert.False(store.Contains(wfB));
+            Assert.False(manager.IsMounted("tk-demo"));
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    // ── memory governance: CompletedInstanceCap eviction ──
+
+    [Fact]
+    public async Task CompletedCap_Evicts_Oldest_Completed_Instances()
+    {
+        var store = new DataStore();
+        // Stagger each completion so CompletedAt ordering is deterministic (oldest evicted first).
+        var manager = Build(store, new RecordingExecutor(store, delay: TimeSpan.FromMilliseconds(50)),
+            new ToolkitInstanceManagerOptions { CompletedInstanceCap = 3 });
+
+        var cancelled = new List<string>();
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceCancelledEvent c)
+                lock (cancelled) cancelled.Add(c.InstanceId);
+        };
+
+        manager.Mount(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+        try
+        {
+            var ids = new List<string>();
+            for (var i = 0; i < 5; i++)
+            {
+                var id = manager.Spawn("tk-demo", "manual");
+                Assert.NotNull(id);
+                ids.Add(id!);
+                // Await this instance completing before the next spawn, so the cap evicts the
+                // oldest deterministically (each completion runs the eviction check).
+                await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && s.Status == InstanceStatus.Completed));
+            }
+
+            // Oldest two (ids[0], ids[1]) were evicted; the three newest remain.
+            var remaining = manager.Instances.Select(s => s.InstanceId).ToList();
+            Assert.Equal(3, remaining.Count);
+            Assert.DoesNotContain(ids[0], remaining);
+            Assert.DoesNotContain(ids[1], remaining);
+            Assert.Contains(ids[2], remaining);
+            Assert.Contains(ids[3], remaining);
+            Assert.Contains(ids[4], remaining);
+
+            lock (cancelled)
+            {
+                Assert.Equal(2, cancelled.Count);
+                Assert.Contains(ids[0], cancelled);
+                Assert.Contains(ids[1], cancelled);
+            }
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task CompletedCap_Zero_Means_Unlimited()
+    {
+        var store = new DataStore();
+        var manager = Build(store, new RecordingExecutor(store),
+            new ToolkitInstanceManagerOptions { CompletedInstanceCap = 0 });
+
+        manager.Mount(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+        try
+        {
+            for (var i = 0; i < 5; i++)
+                Assert.NotNull(manager.Spawn("tk-demo", "manual"));
+
+            await WaitUntilAsync(() => manager.Instances.Count == 5);
+            Assert.Equal(5, manager.Instances.Count);
+            Assert.All(manager.Instances, s => Assert.Equal(InstanceStatus.Completed, s.Status));
         }
         finally
         {

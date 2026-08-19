@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -19,6 +20,11 @@ public static class BindingResolver
     private const string PayloadPrefix = "$payload.";
     private const string OutputPrefix = "$output.";
     private static readonly Regex _segment = new(@"[^\[\].]+|\[(\d+)\]", RegexOptions.Compiled);
+
+    // F6: precompiled path→segment index so the per-param regex match + int.Parse runs at
+    // most once per distinct path. Paths come from the ToolKit's binding config, which is
+    // fixed at mount time, so the key space is bounded by config — an unbounded cache is safe.
+    private static readonly ConcurrentDictionary<string, Segment[]> _compiled = new(StringComparer.Ordinal);
 
     /// <summary>Resolves params against a JSON packet (source payload or predecessor output).</summary>
     public static IReadOnlyDictionary<string, string?> Resolve(
@@ -54,21 +60,21 @@ public static class BindingResolver
             return null;
 
         var current = root;
-        var matches = _segment.Matches(path);
+        var segments = _compiled.GetOrAdd(path, static p => Compile(p));
 
-        foreach (Match match in matches)
+        foreach (var segment in segments)
         {
-            if (match.Groups[1].Success)
+            if (segment.Kind == SegmentKind.Index)
             {
                 // Array index segment: [n]
-                if (!current.TryGetIntIndex(int.Parse(match.Groups[1].Value), out var element))
+                if (!current.TryGetIntIndex(segment.Index, out var element))
                     return null;
                 current = element;
             }
             else
             {
                 // Property name segment
-                var prop = match.Value;
+                var prop = segment.Name!;
                 if (current.ValueKind != JsonValueKind.Object ||
                     !current.TryGetProperty(prop, out var element))
                     return null;
@@ -78,6 +84,26 @@ public static class BindingResolver
 
         return Render(current);
     }
+
+    /// <summary>Parses a path into an ordered segment array (mirrors the original regex semantics exactly).</summary>
+    private static Segment[] Compile(string path)
+    {
+        var matches = _segment.Matches(path);
+        var segments = new Segment[matches.Count];
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var match = matches[i];
+            segments[i] = match.Groups[1].Success
+                ? new Segment(SegmentKind.Index, null, int.Parse(match.Groups[1].Value))
+                : new Segment(SegmentKind.Property, match.Value, 0);
+        }
+        return segments;
+    }
+
+    /// <summary>A single path navigation step: either a property name or an array index.</summary>
+    private readonly record struct Segment(SegmentKind Kind, string? Name, int Index);
+
+    private enum SegmentKind { Property, Index }
 
     private static bool TryGetIntIndex(this JsonElement element, int index, out JsonElement value)
     {

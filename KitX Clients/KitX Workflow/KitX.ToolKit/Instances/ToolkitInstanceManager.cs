@@ -34,6 +34,7 @@ public sealed class ToolkitInstanceManager : IDisposable
     private readonly DataStore _dataStore;
     private readonly Func<Toolkit, ToolkitFileStore> _fileStoreFactory;
     private readonly ConfigValidator _validator;
+    private readonly ToolkitInstanceManagerOptions _options;
 
     private readonly ConcurrentDictionary<string, MountedToolkit> _mounted = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ToolkitInstance> _instances = new(StringComparer.Ordinal);
@@ -51,7 +52,8 @@ public sealed class ToolkitInstanceManager : IDisposable
         IWorkflowExecutor executor,
         DataStore dataStore,
         Func<Toolkit, ToolkitFileStore>? fileStoreFactory = null,
-        ConfigValidator? validator = null)
+        ConfigValidator? validator = null,
+        ToolkitInstanceManagerOptions? options = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -60,6 +62,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         _fileStoreFactory = fileStoreFactory ?? (_ => new ToolkitFileStore(
             Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits")));
         _validator = validator ?? new ConfigValidator();
+        _options = options ?? new ToolkitInstanceManagerOptions();
 
         // The DataStore blackboard is the panel-projection primitive: project every
         // instance-scoped panel write into the Bench event channel so the host can render
@@ -81,7 +84,7 @@ public sealed class ToolkitInstanceManager : IDisposable
     {
         var snapshot = instance.ToSnapshot();
         if (_mounted.TryGetValue(instance.ToolkitId, out var mounted) &&
-            mounted.Toolkit.Triggers.FirstOrDefault(t => t.Id == instance.TriggerId) is { } trigger)
+            mounted.TriggerById.TryGetValue(instance.TriggerId, out var trigger))
         {
             snapshot = snapshot with { Surface = trigger.Config?.Surface };
         }
@@ -156,7 +159,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (!_mounted.TryGetValue(toolkitId, out var mounted))
             return null;
 
-        var trigger = mounted.Toolkit.Triggers.FirstOrDefault(t => t.Id == triggerId);
+        var trigger = mounted.TriggerById.TryGetValue(triggerId, out var t) ? t : null;
         if (trigger is null || !trigger.Type.IsSpawn())
             return null;
 
@@ -189,6 +192,7 @@ public sealed class ToolkitInstanceManager : IDisposable
                 // C6: Succeeded aggregates across ALL of the instance's runs (Spawn + UIEvent).
                 Raise(new InstanceCompletedEvent(
                     NewId(), toolkitId, instance.InstanceId, Now(), instance.Succeeded));
+                EvictIfOverCompletedCap();
             };
             instance.Cancelled += (_, _) => Raise(new InstanceCancelledEvent(
                 NewId(), toolkitId, instance.InstanceId, Now()));
@@ -222,7 +226,54 @@ public sealed class ToolkitInstanceManager : IDisposable
         instance.Cancel();
         instance.NotifyCancelled();
         instance.Dispose();
+
+        // The instance's data namespace is {toolkitId}/{instanceId}/wf/*; every run (Spawn +
+        // UIEvent chains) writes produced values there and, without this, ended/completed
+        // instances would accumulate DataStore keys forever. Panel keys ({toolkitId}/{instanceId}/
+        // panel/*) are deliberately retained so the panel data stays viewable after the end.
+        var wfPrefix = $"{instance.ToolkitId}/{instance.InstanceId}/wf/";
+        var cleared = _dataStore.RemoveByPrefix(wfPrefix);
+        if (cleared > 0)
+            Log.Debug("[ToolkitInstanceManager] Cleared {Count} wf keys for ended instance {Instance}", cleared, instanceId);
+
         Log.Information("[ToolkitInstanceManager] Ended instance {Instance}", instanceId);
+    }
+
+    /// <summary>
+    /// Enforces <see cref="ToolkitInstanceManagerOptions.CompletedInstanceCap"/>: when the
+    /// number of Completed instances exceeds the cap, the oldest (by <c>CompletedAt</c>) are
+    /// ended until the count is back at the cap. Runs on the completion thread of the
+    /// instance that just transitioned; a cap &lt;= 0 means unlimited (no eviction).
+    /// </summary>
+    private void EvictIfOverCompletedCap()
+    {
+        var cap = _options.CompletedInstanceCap;
+        if (cap <= 0)
+            return;
+
+        // Snapshot the completed instances oldest-first. O(n) per completion event, which is
+        // acceptable given completion frequency is low; an incremental counter was considered
+        // but rejected to keep the logic simple and the snapshot self-correcting.
+        var completed = _instances.Values
+            .Where(i => i.Status == InstanceStatus.Completed)
+            .OrderBy(i => i.CompletedAt)
+            .ToList();
+
+        if (completed.Count <= cap)
+            return;
+
+        foreach (var instance in completed.Take(completed.Count - cap))
+        {
+            // A UIEvent chain may have re-activated a Completed instance since the snapshot;
+            // skip it so a Running instance is never evicted. Under-eviction self-heals the
+            // next time it completes (firing this method again).
+            if (instance.Status != InstanceStatus.Completed)
+                continue;
+
+            Log.Information("[ToolkitInstanceManager] Instance {Instance} evicted by CompletedInstanceCap (cap={Cap})",
+                instance.InstanceId, cap);
+            EndInstance(instance.InstanceId);
+        }
     }
 
     /// <summary>Ends every instance of every mounted ToolKit.</summary>
@@ -304,10 +355,11 @@ public sealed class ToolkitInstanceManager : IDisposable
         }
 
         var value = e.NewValue;
-        if (string.Equals(prop, PanelScope.PropLog, StringComparison.Ordinal) && value is { ValueKind: JsonValueKind.Array } array)
+        if (string.Equals(prop, PanelScope.PropLog, StringComparison.Ordinal) && !e.Appended && value is { ValueKind: JsonValueKind.Array } array)
         {
-            // UiLog appends to a ring-buffer key; the Changed event carries the whole
-            // array. Surface the newest entry so the panel appends exactly one line.
+            // UiLog appends to a ring-buffer key. An incremental Append already carries the
+            // single new entry (e.Appended), so only a full-array Set needs the newest-entry
+            // extraction here — surface the last line so the panel appends exactly one.
             var entries = array.EnumerateArray().ToList();
             value = entries.Count > 0 ? entries[^1] : (JsonElement?)null;
         }
@@ -416,10 +468,23 @@ public sealed class ToolkitInstanceManager : IDisposable
         {
             Toolkit = toolkit;
             Scheduler = scheduler;
+
+            // F7: index triggers by id so per-instance surface resolution and Spawn lookup are
+            // O(1) instead of an O(T) linear scan per snapshot. Config validation guarantees
+            // trigger Ids are unique; a defensive first-wins fallback (with a warning) keeps
+            // the dictionary well-defined if a duplicate ever slips through validation.
+            TriggerById = new Dictionary<string, Trigger>(StringComparer.Ordinal);
+            foreach (var trigger in toolkit.Triggers)
+            {
+                if (!TriggerById.TryAdd(trigger.Id, trigger))
+                    Log.Warning("[ToolkitInstanceManager] Duplicate trigger Id '{Id}' in {Toolkit}; using the first",
+                        trigger.Id, toolkit.GetId());
+            }
         }
 
         public Toolkit Toolkit { get; }
         public BenchScheduler Scheduler { get; }
+        public Dictionary<string, Trigger> TriggerById { get; }
         public List<ITriggerSource> Sources { get; } = [];
 
         public void Dispose()
