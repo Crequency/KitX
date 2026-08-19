@@ -748,8 +748,7 @@ public class PluginsManager : IPluginService
                     var startTime = DateTime.UtcNow;
                     while (DateTime.UtcNow - startTime < DefaultStartTimeout)
                     {
-                        var connection = ((Contract.Plugin.IPluginServer)pluginsServer).Connections
-                            .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
+                        var connection = pluginsServer.FindConnection(new PluginInfo { Name = pluginName });
                         if (connection != null)
                         {
                             registered = true;
@@ -1434,8 +1433,7 @@ public class PluginsManager : IPluginService
         var startTime = DateTime.UtcNow;
         while (DateTime.UtcNow - startTime < timeout)
         {
-            var connection = ((Contract.Plugin.IPluginServer)pluginsServer).Connections
-                .FirstOrDefault(c => c.PluginInfo?.Name == pluginName);
+            var connection = pluginsServer.FindConnection(new PluginInfo { Name = pluginName });
 
             if (connection == null)
                 return true; // Plugin has disconnected

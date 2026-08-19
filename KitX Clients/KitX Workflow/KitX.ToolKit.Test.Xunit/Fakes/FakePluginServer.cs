@@ -1,6 +1,7 @@
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
 using KitX.Shared.CSharp.Plugin;
+using KitX.Shared.CSharp.WebCommand;
 
 namespace KitX.ToolKit.Test.Xunit.Fakes;
 
@@ -43,9 +44,19 @@ public sealed class FakePluginServer : IPluginServer
 
     /// <summary>Raises <c>PluginMessageReceived</c> for the given connection id and raw message.</summary>
     public void RaiseMessage(string connectionId, string message)
+        => RaiseMessage(connectionId, message, null, null);
+
+    /// <summary>
+    /// Raises <c>PluginMessageReceived</c> with an optional already-parsed command, so tests can
+    /// exercise the parse-once path where the router consumes <see cref="PluginMessageReceivedEventArgs.Command"/>
+    /// instead of deserializing <paramref name="message"/> itself.
+    /// </summary>
+    public void RaiseMessage(string connectionId, string message, Command? command = null, bool? isResponse = null)
         => PluginMessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
         {
             ConnectionId = connectionId,
             Message = message,
+            Command = command,
+            IsResponse = isResponse,
         });
 }

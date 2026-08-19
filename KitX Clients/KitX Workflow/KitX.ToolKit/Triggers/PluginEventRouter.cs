@@ -128,19 +128,30 @@ public sealed class PluginEventRouter : IPluginEventRouter
             if (e.Message is null || e.ConnectionId is null)
                 return;
 
-            // Negative pre-filter: skip the two deserializations for the overwhelming majority
-            // of messages that are not TriggerFired commands. The literal's ASCII value is
-            // invariant under JSON encoding. Messages that merely contain the word but are not
-            // the command are re-excluded by the command.Request check below.
-            if (!e.Message.Contains(TriggerFiredLiteral, StringComparison.Ordinal))
-                return;
+            Command? command = e.Command;
 
-            var request = JsonSerializer.Deserialize<Request>(e.Message, _serializerOptions);
-            if (request?.Content is null)
-                return;
+            // Fallback path: when the raising source did not supply a parsed command, run the
+            // original pre-filter + self-deserialize path. The pre-filter is a negative guard that
+            // skips both deserializations for the overwhelming majority of messages that are not
+            // TriggerFired commands (the literal's ASCII value is invariant under JSON encoding).
+            // Messages that merely contain the word but are not the command are re-excluded by the
+            // command.Request check below. When the source already parsed the command (e.Command is
+            // present), the pre-filter and both deserializations are skipped entirely.
+            if (command is null)
+            {
+                if (!e.Message.Contains(TriggerFiredLiteral, StringComparison.Ordinal))
+                    return;
 
-            var command = JsonSerializer.Deserialize<Command>(request.Content, _serializerOptions);
-            if (command.Request != CommandRequestInfo.TriggerFired)
+                var request = JsonSerializer.Deserialize<Request>(e.Message, _serializerOptions);
+                if (request?.Content is null)
+                    return;
+
+                command = JsonSerializer.Deserialize<Command>(request.Content, _serializerOptions);
+                if (command is null)
+                    return;
+            }
+
+            if (command.Value.Request != CommandRequestInfo.TriggerFired)
                 return;
 
             // O(1) connection lookup by id — no full-list materialization.
@@ -148,7 +159,7 @@ public sealed class PluginEventRouter : IPluginEventRouter
             var pluginName = connection?.PluginInfo?.Name ?? PluginEventTrigger.FallbackPluginName;
 
             // Wildcard match: absent TriggerName tag means "any trigger of the plugin".
-            var triggerName = command.Tags?.TryGetValue(PluginEventTrigger.TriggerNameTagKey, out var name) == true
+            var triggerName = command.Value.Tags?.TryGetValue(PluginEventTrigger.TriggerNameTagKey, out var name) == true
                 ? name : null;
 
             var pluginKey = pluginName?.Trim().ToLowerInvariant()
@@ -167,7 +178,7 @@ public sealed class PluginEventRouter : IPluginEventRouter
             {
                 plugin = pluginName,
                 trigger = triggerName,
-                tags = command.Tags,
+                tags = command.Value.Tags,
             });
 
             foreach (var fire in fireAll)

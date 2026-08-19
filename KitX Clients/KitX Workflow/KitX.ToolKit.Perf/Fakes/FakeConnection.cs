@@ -24,7 +24,7 @@ public sealed class FakeConnection : IPluginConnection
 
     public ServerStatus Status => ServerStatus.Running;
 
-    public event EventHandler<string>? MessageReceived;
+    public event EventHandler<PluginMessageReceivedEventArgs>? MessageReceived;
     public event EventHandler? Closed;
     public event EventHandler<PluginResponseEventArgs>? PluginResponse;
     public event EventHandler<PluginStatusReportEventArgs>? StatusReport;

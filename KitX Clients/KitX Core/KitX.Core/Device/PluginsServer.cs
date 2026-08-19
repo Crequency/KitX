@@ -190,20 +190,38 @@ public class PluginsServer : ServerBase, IPluginServer
                     });
                 };
 
-                connection.MessageReceived += (sender, message) =>
+                connection.MessageReceived += (sender, e) =>
                 {
+                    Request? request = null;
+                    Command? cmd = null;
                     try
                     {
-                        var kwc = System.Text.Json.JsonSerializer.Deserialize<Request>(message);
-                        if (kwc?.Content is not null)
+                        // Prefer the parsing already done by the source (PluginConnection); only
+                        // fall back to self-parsing when the event args carry no parsed result
+                        // (e.g. a legacy or simulated implementation).
+                        request = e.Request;
+                        cmd = e.Command;
+                        if (request is null || cmd is null)
                         {
-                            var cmd = System.Text.Json.JsonSerializer.Deserialize<Command>(kwc.Content);
+                            request = System.Text.Json.JsonSerializer.Deserialize<Request>(e.Message);
+                            if (request?.Content is not null)
+                                cmd = System.Text.Json.JsonSerializer.Deserialize<Command>(request.Content);
+                        }
+
+                        // Responses are routed exclusively through the PluginResponse channel and
+                        // are never forwarded as plugin messages; skip defensively when a source
+                        // still tags one as a response.
+                        if (e.IsResponse == true)
+                            return;
+
+                        if (cmd is not null)
+                        {
                             Log.Debug("[PluginsServer] MessageReceived: cmd.Request = {Request}, expected = {Expected}",
-                                cmd.Request, KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin);
-                            if (cmd.Request == KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin)
+                                cmd.Value.Request, KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin);
+                            if (cmd.Value.Request == KitX.Shared.CSharp.WebCommand.Infos.CommandRequestInfo.RegisterPlugin)
                             {
                                 Log.Information($"[PluginsServer] Processing RegisterPlugin message");
-                                var body = System.Text.Encoding.UTF8.GetString(cmd.Body.AsSpan(0, cmd.BodyLength).ToArray());
+                                var body = System.Text.Encoding.UTF8.GetString(cmd.Value.Body.AsSpan(0, cmd.Value.BodyLength).ToArray());
                                 var pluginInfo = System.Text.Json.JsonSerializer.Deserialize<PluginInfo>(body);
                                 if (pluginInfo is not null)
                                 {
@@ -243,7 +261,10 @@ public class PluginsServer : ServerBase, IPluginServer
                     PluginMessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
                     {
                         ConnectionId = connectionId,
-                        Message = message
+                        Message = e.Message,
+                        Request = request,
+                        Command = cmd,
+                        IsResponse = e.IsResponse
                     });
                 };
 

@@ -30,9 +30,11 @@ public class PluginConnection : KitX.Core.Contract.Plugin.IPluginConnection
     public KitX.Core.Contract.Device.ServerStatus Status => _statusBackingField;
 
     /// <summary>
-    /// Event raised when a message is received
+    /// Event raised when a message is received. Carries the raw message plus the
+    /// already-deserialized <see cref="Request"/> / <see cref="Command"/> so downstream
+    /// handlers do not re-deserialize the same message.
     /// </summary>
-    public event EventHandler<string>? MessageReceived;
+    public event EventHandler<PluginMessageReceivedEventArgs>? MessageReceived;
 
     /// <summary>
     /// Event raised when connection is closed
@@ -77,21 +79,31 @@ public class PluginConnection : KitX.Core.Contract.Plugin.IPluginConnection
 
         _connection.OnMessage = message =>
         {
+            // Parse Request + Command once here and share the result with downstream handlers
+            // (PluginsServer, and through it the ToolKit event router) so each message is not
+            // re-deserialized on every hop of the chain.
+            Request? request = null;
+            Command? command = null;
+            bool isResponse = false;
+
             // Handle plugin response messages
             try
             {
-                var kwc = JsonSerializer.Deserialize<Request>(message, PluginsServer.SerializerOptions);
-                if (kwc?.Content is not null)
+                request = JsonSerializer.Deserialize<Request>(message, PluginsServer.SerializerOptions);
+                if (request?.Content is not null)
                 {
-                    var command = JsonSerializer.Deserialize<Command>(kwc.Content, PluginsServer.SerializerOptions);
-                    if (command.Tags != null &&
-                        command.Tags.TryGetValue("RequestId", out var requestId))
+                    command = JsonSerializer.Deserialize<Command>(request.Content, PluginsServer.SerializerOptions);
+                    if (command is not null &&
+                        command.Value.Tags != null &&
+                        command.Value.Tags.TryGetValue("RequestId", out var requestId))
                     {
-                        // This is a plugin response - trigger PluginResponse event
+                        // This is a plugin response - trigger PluginResponse event.
+                        // Responses are not forwarded as plugin messages.
+                        isResponse = true;
                         PluginResponse?.Invoke(this, new KitX.Core.Contract.Plugin.Events.PluginResponseEventArgs
                         {
                             RequestId = requestId,
-                            Content = kwc.Content
+                            Content = request.Content
                         });
                         return;
                     }
@@ -102,8 +114,16 @@ public class PluginConnection : KitX.Core.Contract.Plugin.IPluginConnection
                 Log.Warning(ex, "Error parsing plugin response message");
             }
 
-            // Forward to MessageReceived for other handlers
-            MessageReceived?.Invoke(this, message);
+            // Forward to MessageReceived for other handlers, carrying the parsed results
+            // (null when parsing failed so consumers fall back to self-parsing).
+            MessageReceived?.Invoke(this, new PluginMessageReceivedEventArgs
+            {
+                ConnectionId = ConnectionId!,
+                Message = message,
+                Request = request,
+                Command = command,
+                IsResponse = isResponse
+            });
         };
 
         _connection.OnClose = () =>

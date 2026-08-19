@@ -262,4 +262,67 @@ public class PluginEventRouterTests
         Assert.Throws<InvalidOperationException>(
             () => router.Register("PluginA", "t1", _ => { }));
     }
+
+    // ── Parse-once: provided Command is used without self-deserializing ───────────────────────
+
+    [Fact]
+    public void ParsedCommand_IsUsedWithoutPrefilter_EvenWhenMessageLacksKeyword()
+    {
+        var (server, sp) = BuildServices(Conn("c1", "PluginA"));
+        var router = sp.GetRequiredService<IPluginEventRouter>();
+
+        var fired = 0;
+        using (router.Register("PluginA", "t1", _ => fired++))
+        {
+            // The raw message does NOT contain the "TriggerFired" literal, so the fallback
+            // pre-filter would skip it entirely. Because a parsed command is supplied, the router
+            // must consume it directly (no pre-filter, no re-deserialization) and still fire.
+            var command = new Command
+            {
+                Request = CommandRequestInfo.TriggerFired,
+                Tags = new Dictionary<string, string> { [PluginEventTrigger.TriggerNameTagKey] = "t1" },
+            };
+            server.RaiseMessage("c1", "no keyword present", command);
+            Assert.Equal(1, fired);
+        }
+    }
+
+    [Fact]
+    public void ProvidedNonTriggerFiredCommand_DoesNotFire_EvenWhenMessageContainsKeyword()
+    {
+        var (server, sp) = BuildServices(Conn("c1", "PluginA"));
+        var router = sp.GetRequiredService<IPluginEventRouter>();
+
+        var fired = 0;
+        using (router.Register("PluginA", "t1", _ => fired++))
+        {
+            // The raw message text contains the keyword, but the supplied parsed command is NOT
+            // TriggerFired — the router must trust the parsed command, not the raw text.
+            var command = new Command
+            {
+                Request = "SayHello",
+                Tags = new Dictionary<string, string> { ["msg"] = "TriggerFired" },
+            };
+            server.RaiseMessage("c1", "the literal TriggerFired is present", command);
+            Assert.Equal(0, fired);
+        }
+    }
+
+    // ── Parse-once: fallback path stays correct when no Command is supplied ───────────────────
+
+    [Fact]
+    public void WithoutParsedCommand_FallsBackToSelfParse_AndStillFires()
+    {
+        var (server, sp) = BuildServices(Conn("c1", "PluginA"));
+        var router = sp.GetRequiredService<IPluginEventRouter>();
+
+        var fired = 0;
+        using (router.Register("PluginA", "t1", _ => fired++))
+        {
+            // No parsed command is supplied → the router must run the original pre-filter +
+            // self-deserialize path and still deliver a valid TriggerFired message.
+            server.RaiseMessage("c1", TriggerFiredMessage("t1"));
+            Assert.Equal(1, fired);
+        }
+    }
 }
