@@ -4,6 +4,7 @@ using KitX.ToolKit.Instances;
 using KitX.ToolKit.Panels;
 using KitX.WorkflowV6.Backend;
 using KitX.WorkflowV6.Backend.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.ToolKit.Builtin;
 
@@ -278,27 +279,24 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
 /// <summary>
 /// The ToolKit <see cref="IExecutionGlobalsFactory"/>: generated G classes derive from
 /// <see cref="ToolKitExecutionGlobals"/>, and each run gets a fresh instance wired to the
-/// injected ToolKit services. Registered by <c>AddKitXToolKit</c> (AddSingleton) so it
-/// overrides the V6 default factory's <c>TryAdd</c> registration.
+/// ToolKit services. Registered by <c>AddKitXToolKit</c> (AddSingleton, overriding the V6
+/// default factory's TryAdd registration).
+///
+/// <para><b>Deliberately lazy:</b> the ToolKit services are resolved from the service
+/// provider inside <see cref="Create"/>, never in this constructor. The eager alternative
+/// is a DI cycle — ToolKitExecutionGlobalsFactory → ToolkitInstanceManager →
+/// IWorkflowExecutor → WorkflowRunner → StructuredRoslynBackend → IExecutionGlobalsFactory
+/// → (this factory) — which throws at first resolution (e.g. opening the Bench page).
+/// By Create() time the whole container is built, so the lazy path is always safe.</para>
 /// </summary>
 public sealed class ToolKitExecutionGlobalsFactory : IExecutionGlobalsFactory
 {
-    private readonly DataStore _dataStore;
-    private readonly PanelRuntime _panelRuntime;
-    private readonly ToolkitInstanceManager _manager;
-    private readonly DataStoreOptions _options;
+    private readonly IServiceProvider _services;
 
-    /// <summary>Captures the ToolKit services; every created globals instance shares them.</summary>
-    public ToolKitExecutionGlobalsFactory(
-        DataStore dataStore,
-        PanelRuntime panelRuntime,
-        ToolkitInstanceManager manager,
-        DataStoreOptions? options = null)
+    /// <summary>Captures the service provider; ToolKit services are resolved lazily per run.</summary>
+    public ToolKitExecutionGlobalsFactory(IServiceProvider services)
     {
-        _dataStore = dataStore;
-        _panelRuntime = panelRuntime;
-        _manager = manager;
-        _options = options ?? new DataStoreOptions();
+        _services = services ?? throw new ArgumentNullException(nameof(services));
     }
 
     /// <inheritdoc/>
@@ -311,7 +309,11 @@ public sealed class ToolKitExecutionGlobalsFactory : IExecutionGlobalsFactory
         // calls the parameterless base constructor, then we wire the ToolKit services so
         // the G's Ui*/DataStore*/Bench* builtins have their backing services at run time.
         var g = (ToolKitExecutionGlobals)Activator.CreateInstance(gType)!;
-        g.Inject(_dataStore, _panelRuntime, _manager, _options);
+        g.Inject(
+            _services.GetRequiredService<DataStore>(),
+            _services.GetRequiredService<PanelRuntime>(),
+            _services.GetRequiredService<ToolkitInstanceManager>(),
+            _services.GetRequiredService<DataStoreOptions>());
         return g;
     }
 }

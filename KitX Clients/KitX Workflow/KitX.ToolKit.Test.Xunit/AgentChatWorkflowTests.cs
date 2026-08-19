@@ -94,7 +94,12 @@ public sealed class AgentChatWorkflowTests
             _ => new ToolkitFileStore(Path.GetTempPath()));
         manager.Mount(AgentToolkit());
         var instanceId = manager.Spawn(TkId, "manual")!;
-        var factory = new ToolKitExecutionGlobalsFactory(store, new PanelRuntime(store, manager), manager);
+        var services = new ServiceCollection()
+            .AddSingleton(store)
+            .AddSingleton(new PanelRuntime(store, manager))
+            .AddSingleton(manager)
+            .AddSingleton(new DataStoreOptions());
+        var factory = new ToolKitExecutionGlobalsFactory(services.BuildServiceProvider());
         return (factory, instanceId, store, manager);
     }
 

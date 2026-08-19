@@ -116,7 +116,12 @@ public sealed class BenchIoIntegrationTests : IDisposable
             new NoOpExecutor(),
             _dataStore,
             _ => new ToolkitFileStore(_root));
-        return new ToolKitExecutionGlobalsFactory(_dataStore, new PanelRuntime(_dataStore, manager), manager);
+        var services = new ServiceCollection()
+            .AddSingleton(_dataStore)
+            .AddSingleton(new PanelRuntime(_dataStore, manager))
+            .AddSingleton(manager)
+            .AddSingleton(new DataStoreOptions());
+        return new ToolKitExecutionGlobalsFactory(services.BuildServiceProvider());
     }
 
     private (BuiltinFunctionRegistry Registry, KsTextLens Lens) MakeRegistry()
