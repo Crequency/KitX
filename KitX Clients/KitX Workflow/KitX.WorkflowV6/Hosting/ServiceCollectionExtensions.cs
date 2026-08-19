@@ -18,8 +18,8 @@ using KitX.WorkflowV6.Backend.Runtime;
 // Registers the reflection-discovered builtin registry (37 v6 builtin functions),
 // both lenses (KsTextLens + BpGraphLens), the SyncService, the default v6
 // execution backend (StructuredRoslynBackend — structured IR → structured C# via
-// Roslyn, loaded into a collectible AssemblyLoadContext), and the workflow
-// storage service (WorkflowStorageService).
+// Roslyn, loaded into a collectible AssemblyLoadContext), and the shared
+// WorkflowRunner execution path.
 //
 // The Dashboard references this library (KitX.Dashboard.csproj ProjectReference)
 // and calls AddKitXWorkflowV6() in App.axaml.cs. Since the v5.1 WorkflowIR library
@@ -36,8 +36,7 @@ public static class ServiceCollectionExtensions
     /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
     /// (reflection-discovered, 37 functions across 25 source files), the two lenses
     /// (KS text + BP graph), the session sync service, the default
-    /// IExecutionBackend (StructuredRoslynBackend), and the workflow storage
-    /// service (IWorkflowStorageService).
+    /// IExecutionBackend (StructuredRoslynBackend), and the shared WorkflowRunner.
     /// </summary>
     public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
     {
@@ -94,13 +93,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<Services.WorkflowRunner>();
         services.AddSingleton<Services.IWorkflowRunner>(sp => sp.GetRequiredService<Services.WorkflowRunner>());
 
-        // Workflow storage (migrated from KitX.Dashboard.Services — zero UI deps):
-        //   • WorkflowStorageService — file-based IWorkflowStorageService for KcsFileFormat v2.
-        //     (The former WorkflowSessionManager run-by-id orchestrator was retired in the
-        //     B5+B6+B7 cleanup — the v6 IR architecture has no run-by-id service, so only
-        //     the storage service remains registered here.)
-        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowStorageService,
-            KitX.WorkflowV6.Services.WorkflowStorageService>();
+        // The legacy standalone-workflow storage service (IWorkflowStorageService /
+        // WorkflowStorageService) was retired in the D2 cleanup — workflows are now
+        // created/edited exclusively through the ToolKit workbench and persisted under
+        // Data/Toolkits/{id}/workflows/*.kcs (see KitX.ToolKit.Storage.ToolkitStore +
+        // Bench.ToolkitFileStore). The former WorkflowSessionManager run-by-id
+        // orchestrator was already retired in the B5+B6+B7 cleanup.
 
         return services;
     }

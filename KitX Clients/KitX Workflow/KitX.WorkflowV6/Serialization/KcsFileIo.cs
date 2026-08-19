@@ -10,11 +10,11 @@ using Serilog;
 // ─────────────────────────────────────────────────────────────────────────────
 // KcsFileIo — shared .kcs load/write plumbing used by every workflow file store.
 //
-// Consolidates the three copies of the "10 MB size cap + tolerant KcsFileFormat
-// deserialize" logic that previously lived in WorkflowStorageService, the ToolKit
-// BenchWorkflowRunner, and the ToolKit ToolkitFileStore. It also owns the atomic
-// write path (temp file + replace) so a crashed write never leaves a half-written
-// .kcs in place of a good one.
+// Consolidates the "10 MB size cap + tolerant KcsFileFormat deserialize" logic
+// used by the ToolKit BenchWorkflowRunner and the ToolKit ToolkitFileStore. It also
+// owns the atomic write path (temp file + replace) so a crashed write never leaves
+// a half-written .kcs in place of a good one. (The legacy WorkflowStorageService
+// that once shared this plumbing was retired in the D2 cleanup.)
 //
 // Threat model (W-3): a .kcs file is executable code (its IrData compiles and runs).
 // ReadAllWithLimitAsync enforces the 10 MB cap (a DoS guard against oversized files)
