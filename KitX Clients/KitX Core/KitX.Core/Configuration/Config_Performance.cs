@@ -19,4 +19,11 @@ public class Config_Performance : IPerformanceConf
     /// Applies at startup.
     /// </summary>
     public int CompletedInstanceCap { get; set; } = 200;
+
+    /// <summary>
+    /// Maximum number of log entries retained per Log panel control. When a control
+    /// appends past this cap the oldest entries are trimmed so the on-screen list stays
+    /// bounded. Read at startup and by the Panel host when building a control.
+    /// </summary>
+    public int PanelLogLimit { get; set; } = 1000;
 }

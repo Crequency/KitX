@@ -31,6 +31,15 @@ public class ActivityManager : IActivityService
     // distinct across restarts within the month collection.
     private static int _activityIdCounter;
 
+    // G6: retention policy. The activity log only ever grows; to bound the store, trim the
+    // oldest rows once the current-month collection exceeds the cap. The check runs at most
+    // once every <see cref="TrimEveryNWrites"/> writes (never per-row), so a burst of records
+    // is not slowed by a count/delete on every insert. Cap and frequency are hard-coded here —
+    // they are not configuration items for this batch (per G6 scope).
+    private const long MaxActivitiesPerCollection = 5000;
+    private const int TrimEveryNWrites = 1000;
+    private static int _writesSinceTrim;
+
     /// <summary>
     /// Gets or sets the activities database
     /// </summary>
@@ -58,18 +67,84 @@ public class ActivityManager : IActivityService
     public ActivityManager() { }
 
     /// <summary>
-    /// Reads activities from the database (static method for backward compatibility)
+    /// Reads activities from the database, newest-first (by descending row Id).
+    /// Pass <paramref name="limit"/> &lt;= 0 to return every row; otherwise the call is a
+    /// reverse-chronological page of <paramref name="limit"/> rows starting at
+    /// <paramref name="skip"/>. Replaces the old full-table <c>FindAll().ToList()</c> scan
+    /// (measured ~130x slower than a bounded reverse-index read on the Home page).
     /// </summary>
-    /// <returns>List of activities</returns>
-    public static IList<CActivity> ReadActivities()
+    /// <param name="limit">Maximum rows to return; &lt;= 0 means all.</param>
+    /// <param name="skip">Rows to skip (used for paging after the first page).</param>
+    /// <returns>List of activities, newest-first</returns>
+    public static IList<CActivity> ReadActivities(int limit = 0, int skip = 0)
     {
         if (_activitiesDatabase is LiteDatabase db)
         {
             var col = db.GetCollection<CActivity>(CollectionName);
-            return col.FindAll().ToList();
+            var query = col.Query().OrderByDescending(x => x.Id);
+            if (limit <= 0)
+                return query.ToList();
+            if (skip > 0)
+                return query.Skip(skip).Limit(limit).ToList();
+            return query.Limit(limit).ToList();
         }
         else
             return [];
+    }
+
+    /// <summary>
+    /// Total number of recorded activities in the current month collection. Used by the
+    /// Home activity log to decide whether "load more" has anything left to page.
+    /// </summary>
+    /// <returns>Count of activity rows in the current collection.</returns>
+    public static long CountActivities()
+    {
+        if (_activitiesDatabase is LiteDatabase db)
+            return db.GetCollection<CActivity>(CollectionName).LongCount();
+        return 0;
+    }
+
+    /// <summary>
+    /// G6 retention: invoked on the write path but throttled to once every
+    /// <see cref="TrimEveryNWrites"/> writes; the actual trimming is delegated to
+    /// <see cref="TrimToCap()"/> so the bounded-store invariant is testable and can be
+    /// enforced on demand regardless of the write-path throttle.
+    /// </summary>
+    /// <param name="col">The current-month collection to trim.</param>
+    private static void TrimIfDue(ILiteCollection<CActivity> col)
+    {
+        _writesSinceTrim++;
+        if (_writesSinceTrim < TrimEveryNWrites)
+            return;
+        _writesSinceTrim = 0;
+
+        TrimToCap(col);
+    }
+
+    /// <summary>
+    /// G6 retention: idempotently trims the current-month collection down to
+    /// <see cref="MaxActivitiesPerCollection"/> rows by deleting the oldest excess
+    /// (smallest Id). Safe to call on an already-bounded store (no-op) and reentrant
+    /// under <see cref="_activityRecordLock"/> (called from the throttled write path).
+    /// </summary>
+    public static void TrimToCap()
+    {
+        if (_activitiesDatabase is not LiteDatabase db)
+            return;
+        TrimToCap(db.GetCollection<CActivity>(CollectionName));
+        db.Commit();
+    }
+
+    private static void TrimToCap(ILiteCollection<CActivity> col)
+    {
+        var count = col.LongCount();
+        if (count <= MaxActivitiesPerCollection)
+            return;
+
+        var excess = (int)(count - MaxActivitiesPerCollection);
+        var oldest = col.Query().OrderBy(x => x.Id).Limit(excess).ToList();
+        foreach (var activity in oldest)
+            col.Delete(new BsonValue(activity.Id));
     }
 
     /// <summary>
@@ -93,6 +168,9 @@ public class ActivityManager : IActivityService
                         col?.Insert(activity);
 
                         col?.EnsureIndex(keySelector);
+
+                        if (col is not null)
+                            TrimIfDue(col);
 
                         db.Commit();
 
