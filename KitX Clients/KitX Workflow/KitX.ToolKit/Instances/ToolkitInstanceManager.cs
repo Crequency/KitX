@@ -14,7 +14,8 @@ namespace KitX.ToolKit.Instances;
 
 /// <summary>
 /// The instance-model orchestration entry point (ToolKit 实例模型定稿). Replaces the old
-/// single-active <see cref="BenchTriggerManager"/> semantics:
+/// single-active trigger-manager semantics (the retired <c>BenchTriggerManager</c>) with a
+/// multi-instance model — each fired Spawn trigger creates an independent instance:
 /// <list type="bullet">
 ///   <item><b>Mount</b> — subscribes a ToolKit's Spawn triggers (Manual/PluginEvent/Timer),
 ///   making it instantiable. Multiple ToolKits can be mounted at once (D1).</item>
@@ -185,8 +186,9 @@ public sealed class ToolkitInstanceManager : IDisposable
             {
                 Log.Information("[ToolkitInstanceManager] Instance {Instance} completed (toolkit {Toolkit})",
                     instance.InstanceId, toolkitId);
+                // C6: Succeeded aggregates across ALL of the instance's runs (Spawn + UIEvent).
                 Raise(new InstanceCompletedEvent(
-                    NewId(), toolkitId, instance.InstanceId, Now(), run.FailedRuns == 0));
+                    NewId(), toolkitId, instance.InstanceId, Now(), instance.Succeeded));
             };
             instance.Cancelled += (_, _) => Raise(new InstanceCancelledEvent(
                 NewId(), toolkitId, instance.InstanceId, Now()));
@@ -264,7 +266,14 @@ public sealed class ToolkitInstanceManager : IDisposable
         foreach (var trigger in mounted.Toolkit.Triggers.Where(t =>
                      t.Type == TriggerType.UIEvent && Matches(t.Config, controlId, eventName)))
         {
-            mounted.Scheduler.StartRun(trigger.Id, payload, instance.Initiator, instance.InstanceId, AttachRunEvents);
+            // C6: a UIEvent chain on a Completed instance re-transitions it back to Running
+            // (EnsureRunning before StartRun so the RunStarted projection already sees Running),
+            // and the new run is tracked so the instance only returns to Completed once it too
+            // has finished. StartRun cannot return null here — the trigger is a UIEvent type.
+            instance.EnsureRunning();
+            var run = mounted.Scheduler.StartRun(trigger.Id, payload, instance.Initiator, instance.InstanceId, AttachRunEvents);
+            if (run is not null)
+                instance.TrackRun(run);
         }
     }
 

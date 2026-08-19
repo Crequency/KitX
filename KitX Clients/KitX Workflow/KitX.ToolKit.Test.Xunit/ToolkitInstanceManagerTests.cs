@@ -324,7 +324,7 @@ public class ToolkitInstanceManagerTests
         {
             Id = "manual",
             Type = TriggerType.Manual,
-            Config = new TriggerConfig { Surface = "silent" },
+            Config = new TriggerConfig { Surface = InstanceConstants.SurfaceSilent },
             Bindings = [new() { Workflow = "wf" }],
         });
         var (manager, _) = Build(tk);
@@ -337,7 +337,7 @@ public class ToolkitInstanceManagerTests
             Assert.NotNull(instanceId);
 
             var snapshot = Assert.Single(manager.Instances);
-            Assert.Equal("silent", snapshot.Surface);
+            Assert.Equal(InstanceConstants.SurfaceSilent, snapshot.Surface);
             Assert.True(snapshot.IsSilent);
         }
         finally
@@ -487,5 +487,172 @@ public class ToolkitInstanceManagerTests
         Assert.Equal("ask", dialog.ControlId);
         Assert.Equal("choose", dialog.Message);
         Assert.Equal(["是", "否"], dialog.Buttons);
+    }
+
+    // ── C6: Completed × UIEvent state-machine aggregation ──
+
+    private static Toolkit ToolkitWithSpawnAndUiEvent()
+        => new()
+        {
+            Id = "tk-demo",
+            Meta = new ToolkitMeta { Name = "demo" },
+            Workflows =
+            [
+                new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" },
+                new ToolkitWorkflow { Id = "wf2", Name = "wf2", File = "wf2.kcs" },
+            ],
+            Triggers =
+            [
+                new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] },
+                new Trigger { Id = "ui", Type = TriggerType.UIEvent,
+                    Config = new TriggerConfig { Control = "btn", Event = "Click" },
+                    Bindings = [new() { Workflow = "wf2" }] },
+            ],
+        };
+
+    [Fact]
+    public async Task UiEvent_On_Completed_Instance_ReTransitions_To_Running()
+    {
+        // Delay each execution so the UIEvent run stays in flight long enough to observe
+        // the instance back in Running before it completes again.
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, delay: TimeSpan.FromMilliseconds(300));
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        var first = new TaskCompletionSource();
+        var second = new TaskCompletionSource();
+        int count = 0;
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceCompletedEvent)
+            {
+                var n = Interlocked.Increment(ref count);
+                if (n == 1) first.TrySetResult();
+                if (n == 2) second.TrySetResult();
+            }
+        };
+
+        manager.Mount(ToolkitWithSpawnAndUiEvent());
+        try
+        {
+            var id = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(id);
+
+            // Spawn run finishes → instance Completed.
+            await Task.WhenAny(first.Task, Task.Delay(5000));
+            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+
+            // UIEvent on the Completed instance → back to Running (C6 re-transition).
+            manager.RaiseControlEvent(id!, "btn", "Click", null);
+            Assert.Equal(InstanceStatus.Running, manager.Instances.Single().Status);
+
+            // The UIEvent chain finishes → back to Completed.
+            await Task.WhenAny(second.Task, Task.Delay(5000));
+            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task UiEvent_Chain_Completion_Aggregates_Succeeded()
+    {
+        // The UIEvent workflow fails, so the aggregate Succeeded must be false even though
+        // the Spawn run succeeded.
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, failWorkflows: ["wf2"]);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        var first = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceCompletedEvent c)
+                first.TrySetResult(c);
+        };
+
+        manager.Mount(ToolkitWithSpawnAndUiEvent());
+        try
+        {
+            var id = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(id);
+
+            var spawnResult = await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(spawnResult.Succeeded);
+
+            // Reset for the UIEvent phase.
+            var second = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.BenchEvent += (_, e) =>
+            {
+                if (e is InstanceCompletedEvent c)
+                    second.TrySetResult(c);
+            };
+
+            manager.RaiseControlEvent(id!, "btn", "Click", null);
+            var uiResult = await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(uiResult.Succeeded); // aggregate: a run failed → Succeeded=false
+            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task Spawn_And_UiEvent_Concurrent_Not_Prematurely_Completed()
+    {
+        // Hold both runs in flight: the instance must stay Running while either run is
+        // active, and only reach Completed once the last one finishes.
+        var hold = new TaskCompletionSource();
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, hold: hold);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        var completed = new TaskCompletionSource();
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceCompletedEvent)
+                completed.TrySetResult();
+        };
+
+        manager.Mount(ToolkitWithSpawnAndUiEvent());
+        try
+        {
+            var id = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(id);
+            // Spawn run is held in flight → instance Running.
+            Assert.Equal(InstanceStatus.Running, manager.Instances.Single().Status);
+
+            // Start a UIEvent chain while the Spawn run is still active.
+            manager.RaiseControlEvent(id!, "btn", "Click", null);
+            // Both runs in flight → still Running, never prematurely Completed.
+            Assert.Equal(InstanceStatus.Running, manager.Instances.Single().Status);
+
+            // Release both → both complete → instance Completed.
+            hold.TrySetResult();
+            await Task.WhenAny(completed.Task, Task.Delay(5000));
+            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
     }
 }

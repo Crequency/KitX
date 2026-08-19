@@ -11,13 +11,23 @@ namespace KitX.ToolKit.Instances;
 /// <para>Wraps the dataflow <see cref="BenchRunInstance"/> and adds the lifecycle the
 /// manager needs: Initiator, Running→Completed transition, and retention after completion
 /// until the user explicitly ends it (D6).</para>
+///
+/// <para><b>C6 aggregation:</b> an instance's status aggregates ALL of its child runs —
+/// the Spawn run plus any UIEvent-triggered chains started on it. Any run active ⇒
+/// Running; all runs complete ⇒ Completed (the transition fires when the last run
+/// finishes). A UIEvent chain started on a Completed instance re-transitions it back to
+/// Running via <see cref="EnsureRunning"/>. <see cref="Succeeded"/> aggregates across all
+/// runs: true only when every run finished without a node failure.</para>
 /// </summary>
 public sealed class ToolkitInstance : IDisposable
 {
-    private readonly BenchRunInstance _run;
+    private readonly BenchRunInstance _run; // primary (Spawn) run — the instance's token source.
+    private readonly HashSet<BenchRunInstance> _runs = new();
     private readonly object _gate = new();
     private InstanceStatus _status;
     private DateTimeOffset? _completedAt;
+    private int _activeRuns;
+    private bool _anyFailed;
 
     internal ToolkitInstance(string toolkitId, string triggerId, BenchRunInstance run, Initiator initiator)
     {
@@ -26,8 +36,7 @@ public sealed class ToolkitInstance : IDisposable
         TriggerId = triggerId;
         Initiator = initiator;
         StartedAt = DateTimeOffset.UtcNow;
-        _status = InstanceStatus.Running;
-        _run.Completed += OnRunCompleted;
+        TrackRun(run);
     }
 
     /// <summary>Unique id for this instance (scopes its DataStore namespace).</summary>
@@ -57,32 +66,115 @@ public sealed class ToolkitInstance : IDisposable
         get { lock (_gate) return _completedAt; }
     }
 
-    /// <summary>Cancellation token for every workflow in this instance.</summary>
+    /// <summary>Cancellation token for the primary (Spawn) run of this instance.</summary>
     public CancellationToken Token => _run.Token;
 
-    /// <summary>Raised when the instance transitions to Completed.</summary>
+    /// <summary>
+    /// True when every tracked run finished without a node failure (C6 aggregate). While
+    /// any run is still active this reflects the runs completed so far; it is only
+    /// meaningful once the instance is <see cref="InstanceStatus.Completed"/>.
+    /// </summary>
+    public bool Succeeded
+    {
+        get { lock (_gate) return !_anyFailed; }
+    }
+
+    /// <summary>Raised when the instance transitions to Completed (all runs finished).</summary>
     public event EventHandler? Completed;
 
     /// <summary>Raised when the instance is ended (cancelled + destroyed).</summary>
     public event EventHandler? Cancelled;
 
-    private void OnRunCompleted(object? sender, BenchRunCompletedEventArgs e)
+    /// <summary>
+    /// Registers a child run with this instance and starts tracking its completion. Any
+    /// tracked run makes the instance Running (C6 aggregation); the instance only returns
+    /// to Completed once every tracked run has finished.
+    /// </summary>
+    internal void TrackRun(BenchRunInstance run)
+    {
+        if (run is null)
+            throw new ArgumentNullException(nameof(run));
+
+        lock (_gate)
+        {
+            _runs.Add(run);
+            _activeRuns++;
+            _status = InstanceStatus.Running;
+            _completedAt = null;
+        }
+
+        run.Completed += OnRunFinished;
+    }
+
+    /// <summary>
+    /// Re-transitions a Completed instance back to Running. Called by the manager before a
+    /// UIEvent chain starts on an already-completed instance, so the instance's status
+    /// reflects the new active run (C6).
+    /// </summary>
+    internal void EnsureRunning()
     {
         lock (_gate)
         {
-            _status = InstanceStatus.Completed;
-            _completedAt = DateTimeOffset.UtcNow;
+            if (_status == InstanceStatus.Completed)
+            {
+                _status = InstanceStatus.Running;
+                _completedAt = null;
+            }
         }
-        Completed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnRunFinished(object? sender, BenchRunCompletedEventArgs e)
+    {
+        bool fire;
+        lock (_gate)
+        {
+            _activeRuns--;
+            if (!e.IsSuccess)
+                _anyFailed = true;
+
+            if (_activeRuns > 0)
+            {
+                // Other runs still in flight — the instance stays Running.
+                fire = false;
+            }
+            else
+            {
+                // Last run finished: the instance is now Completed.
+                _status = InstanceStatus.Completed;
+                _completedAt = DateTimeOffset.UtcNow;
+                fire = true;
+            }
+        }
+
+        if (fire)
+            Completed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Builds an immutable snapshot for the run monitor / remote directory.</summary>
-    public InstanceSnapshot ToSnapshot() => new(
-        InstanceId, ToolkitId, TriggerId, Initiator, Status, StartedAt, CompletedAt,
-        _run.ActiveRuns, _run.CompletedRuns, _run.FailedRuns);
+    public InstanceSnapshot ToSnapshot()
+    {
+        int active, completed, failed;
+        lock (_gate)
+        {
+            active = _runs.Sum(r => r.ActiveRuns);
+            completed = _runs.Sum(r => r.CompletedRuns);
+            failed = _runs.Sum(r => r.FailedRuns);
+        }
 
-    /// <summary>Cancels every workflow in this instance.</summary>
-    public void Cancel() => _run.Cancel();
+        return new(
+            InstanceId, ToolkitId, TriggerId, Initiator, Status, StartedAt, CompletedAt,
+            active, completed, failed);
+    }
+
+    /// <summary>Cancels every workflow in every run of this instance.</summary>
+    public void Cancel()
+    {
+        lock (_gate)
+        {
+            foreach (var run in _runs)
+                run.Cancel();
+        }
+    }
 
     /// <summary>Raises <see cref="Cancelled"/> (called by the manager when the instance is ended).</summary>
     internal void NotifyCancelled() => Cancelled?.Invoke(this, EventArgs.Empty);
@@ -90,7 +182,12 @@ public sealed class ToolkitInstance : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        _run.Completed -= OnRunCompleted;
+        lock (_gate)
+        {
+            foreach (var run in _runs)
+                run.Completed -= OnRunFinished;
+        }
+
         _run.Dispose();
     }
 }

@@ -21,7 +21,11 @@ public sealed class TriggerConfig
     public string? From { get; set; }
 
     // ── Timer ──
-    /// <summary>Cron expression (5-field). When set, takes precedence over <see cref="IntervalMs"/>.</summary>
+    /// <summary>
+    /// Cron expression (5-field). Not yet supported (C7): a non-empty Cron is rejected by
+    /// <see cref="Validation.ConfigValidator"/> at save/mount time — use
+    /// <see cref="DueTimeMs"/>/<see cref="IntervalMs"/>/<see cref="OneShot"/> instead.
+    /// </summary>
     public string? Cron { get; set; }
 
     /// <summary>Periodic interval in milliseconds (alternative to Cron).</summary>

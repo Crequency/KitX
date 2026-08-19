@@ -6,8 +6,8 @@ namespace KitX.ToolKit.Validation;
 /// Validates a <see cref="Toolkit"/> config document: structural integrity
 /// (unique ids, dangling references) and the strict-DAG constraint (Bench RFC §4.3 —
 /// no manual cycles; a workflow completion edge must never participate in a loop).
-/// Validation is pure and side-effect free, so it runs both at load time and before
-/// <see cref="Bench.BenchTriggerManager"/> activates a ToolKit.
+/// Validation is pure and side-effect free, so it runs both at load time and before a
+/// ToolKit is mounted (the instance manager validates before starting its Spawn sources).
 /// </summary>
 public sealed class ConfigValidator
 {
@@ -73,11 +73,12 @@ public sealed class ConfigValidator
             if (config.IntervalMs is < 0)
                 result.Add($"Timer trigger '{trigger.Id}' IntervalMs must be >= 0.");
 
+            // C7: Cron is not yet supported. Reject any non-empty Cron at save/mount time so
+            // a config that would otherwise validate and then spin uselessly at runtime is
+            // caught here instead of being "validated through" and silently no-op'ing.
             if (!string.IsNullOrWhiteSpace(config.Cron))
             {
-                var fields = config.Cron.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (fields.Length != 5)
-                    result.Add($"Timer trigger '{trigger.Id}' Cron must be a 5-field expression.");
+                result.Add($"Timer trigger '{trigger.Id}': Cron is not yet supported; use DueTimeMs/IntervalMs/OneShot");
             }
             else if (config.OneShot != true && config.IntervalMs is null or <= 0)
             {

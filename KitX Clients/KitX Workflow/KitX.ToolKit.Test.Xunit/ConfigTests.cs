@@ -237,6 +237,26 @@ public class ConfigTests
     }
 
     [Fact]
+    public void Validate_Rejects_Any_NonEmpty_Cron()
+    {
+        // C7: Cron is not yet supported — a non-empty Cron (even a well-formed 5-field
+        // expression) is rejected at save/mount time, so a config that would otherwise
+        // validate and then spin uselessly at runtime is caught here.
+        var tk = Sample();
+        tk.Triggers.Add(new Trigger
+        {
+            Id = "timer-cron",
+            Type = TriggerType.Timer,
+            Config = new TriggerConfig { Cron = "0 9 * * 1" },
+        });
+
+        var result = new ConfigValidator().Validate(tk);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("Cron is not yet supported"));
+    }
+
+    [Fact]
     public void Validate_Rejects_NegativeMaxInstances()
     {
         var tk = Sample();
