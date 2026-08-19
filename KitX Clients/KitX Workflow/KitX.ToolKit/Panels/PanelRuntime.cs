@@ -35,6 +35,25 @@ public sealed class PanelRuntime : IPanelRuntime
     }
 
     /// <inheritdoc/>
+    public IReadOnlyList<string> GetControlLog(string instanceId, string controlId)
+    {
+        var toolkitId = _manager.GetToolkitId(instanceId);
+        if (toolkitId is null)
+            return [];
+
+        var key = PanelScope.Key(toolkitId, instanceId, controlId, PanelScope.PropLog);
+        if (_dataStore.Get(key) is not { ValueKind: JsonValueKind.Array } array)
+            return [];
+
+        // Mirror the live projection's string form (the frontend Log branch): a JSON
+        // string entry passes through verbatim, anything else renders as raw JSON.
+        var entries = new List<string>(array.GetArrayLength());
+        foreach (var entry in array.EnumerateArray())
+            entries.Add(entry.ValueKind == JsonValueKind.String ? entry.GetString() ?? "null" : entry.GetRawText());
+        return entries;
+    }
+
+    /// <inheritdoc/>
     public void SetControlValue(string instanceId, string controlId, object? value)
     {
         var key = ResolveMainKey(instanceId, controlId);

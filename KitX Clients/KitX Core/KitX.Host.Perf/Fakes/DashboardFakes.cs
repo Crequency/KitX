@@ -49,6 +49,7 @@ public sealed class FakePanelRuntime : IPanelRuntime
 
     public void RaiseControlEvent(string instanceId, string controlId, string eventName, object? value) { }
     public void RequestPanelOpen(string instanceId) { }
+    public IReadOnlyList<string> GetControlLog(string instanceId, string controlId) => [];
 }
 
 public sealed class FakeEventService : IEventService
