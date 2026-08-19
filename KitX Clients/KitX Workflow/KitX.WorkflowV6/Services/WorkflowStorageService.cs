@@ -6,6 +6,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using KitX.Core.Contract.Workflow;
+using KitX.WorkflowV6.Serialization;
 using Serilog;
 using V6Workflow = KitX.WorkflowV6.Ir.Workflow;
 
@@ -43,13 +44,6 @@ public class WorkflowStorageService : IWorkflowStorageService
     {
         WriteIndented = true,
     };
-
-    /// <summary>
-    /// Hard cap on a single .kcs file's size (10 MB). Loading an oversized file is a
-    /// DoS vector (an attacker-placed file forcing a giant JSON deserialize); files
-    /// beyond this are rejected with a diagnostic instead of being read.
-    /// </summary>
-    private const long MaxKcsFileBytes = 10 * 1024 * 1024;
 
     private readonly string _storageDirectory;
 
@@ -256,15 +250,10 @@ public class WorkflowStorageService : IWorkflowStorageService
         Log.Debug("[WorkflowStorageService] Loading .kcs workflow file: {FilePath}", filePath);
         try
         {
-            var info = new FileInfo(filePath);
-            if (info.Length > MaxKcsFileBytes)
-            {
-                Log.Error("[WorkflowStorageService] Refusing to load oversized .kcs ({Bytes} bytes > {Max}): {FilePath}",
-                    info.Length, MaxKcsFileBytes, filePath);
+            var json = await KcsFileIo.ReadAllWithLimitAsync(filePath);
+            if (json is null)
                 return null;
-            }
-            var json = await File.ReadAllTextAsync(filePath);
-            return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
+            return KcsFileIo.DeserializeTolerant(json);
         }
         catch (Exception ex)
         {

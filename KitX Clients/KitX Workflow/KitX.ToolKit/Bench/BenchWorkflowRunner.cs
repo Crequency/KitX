@@ -1,5 +1,5 @@
-using System.Text.Json;
 using KitX.Core.Contract.Workflow;
+using KitX.WorkflowV6.Serialization;
 using KitX.WorkflowV6.Services;
 using Serilog;
 
@@ -15,9 +15,6 @@ namespace KitX.ToolKit.Bench;
 /// </summary>
 public sealed class BenchWorkflowRunner : IWorkflowExecutor
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
-    private const long MaxKcsFileBytes = 10 * 1024 * 1024;
-
     private readonly WorkflowRunner _runner;
 
     public BenchWorkflowRunner(WorkflowRunner runner)
@@ -70,18 +67,9 @@ public sealed class BenchWorkflowRunner : IWorkflowExecutor
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             return null;
 
-        var info = new FileInfo(filePath);
-        if (info.Length > MaxKcsFileBytes)
+        var json = await KcsFileIo.ReadAllWithLimitAsync(filePath);
+        if (json is null)
             return null;
-
-        var json = await File.ReadAllTextAsync(filePath);
-        try
-        {
-            return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return KcsFileIo.DeserializeTolerant(json);
     }
 }

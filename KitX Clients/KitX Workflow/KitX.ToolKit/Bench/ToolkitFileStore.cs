@@ -1,4 +1,3 @@
-using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.ToolKit.Contracts;
 using KitX.ToolKit.Models;
@@ -24,9 +23,6 @@ namespace KitX.ToolKit.Bench;
 /// </summary>
 public sealed class ToolkitFileStore : IToolkitWorkflowFileStore
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
-    private const long MaxKcsFileBytes = 10 * 1024 * 1024;
-
     /// <summary>
     /// Built-in minimal runnable v6 workflow template (UX v2 §4.5/V17). The v6 IR has no
     /// Entry/Return statements — an empty body IS the minimal runnable program, and the
@@ -67,33 +63,30 @@ public sealed class ToolkitFileStore : IToolkitWorkflowFileStore
         if (!File.Exists(path))
             return null;
 
-        var info = new FileInfo(path);
-        if (info.Length > MaxKcsFileBytes)
+        var json = await KcsFileIo.ReadAllWithLimitAsync(path);
+        if (json is null)
             return null;
-
-        var json = await File.ReadAllTextAsync(path);
-        try
-        {
-            return JsonSerializer.Deserialize<KcsFileFormat>(json, _jsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return KcsFileIo.DeserializeTolerant(json);
     }
 
     /// <inheritdoc/>
-    public async Task SaveAsync(string path, KcsFileFormat kcs)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(kcs, _jsonOptions));
-    }
+    /// <remarks>
+    /// Serializes and atomically writes (temp file + replace). Throws
+    /// <see cref="InvalidOperationException"/> when the serialized payload exceeds the
+    /// shared 10 MB cap (<see cref="KcsFileIo.MaxFileBytes"/>).
+    /// </remarks>
+    public Task SaveAsync(string path, KcsFileFormat kcs)
+        => KcsFileIo.WriteKcsAsync(path, kcs);
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Writes the generated minimal workflow atomically (temp file + replace). Throws
+    /// <see cref="InvalidOperationException"/> when the serialized payload exceeds the
+    /// shared 10 MB cap (<see cref="KcsFileIo.MaxFileBytes"/>).
+    /// </remarks>
     public async Task WriteMinimalWorkflowAsync(string toolkitId, ToolkitWorkflow workflow, string author)
     {
         var path = ResolveWorkflowPath(toolkitId, workflow.File);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
         var now = DateTime.UtcNow;
         var kcs = new KcsFileFormat
@@ -109,7 +102,7 @@ public sealed class ToolkitFileStore : IToolkitWorkflowFileStore
             IrData = WorkflowSerializer.Serialize(MinimalWorkflowTemplate),
         };
 
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(kcs, _jsonOptions));
+        await KcsFileIo.WriteKcsAsync(path, kcs);
     }
 
     private string ToolkitDir(string toolkitId) => Path.Combine(_root, toolkitId);
