@@ -43,25 +43,10 @@ public sealed record RunCompletedEvent(
     string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
     string RunId, string WorkflowId, bool Succeeded, string? Error) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
 
-/// <summary>A DataStore key changed (Set/Remove/Append) — the panel projection + remote push primitive.</summary>
-public sealed record DataStoreChangedEvent(
-    string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
-    string Key, JsonElement? OldValue, JsonElement? NewValue, bool Removed) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
-
 /// <summary>A panel control's state changed (SetControlValue / UiSet derived).</summary>
 public sealed record UiControlStateChangedEvent(
     string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
     string ControlId, string Prop, JsonElement? Value) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
-
-/// <summary>A log entry was appended (UiLog derived).</summary>
-public sealed record UiLogEntryEvent(
-    string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
-    string ControlId, object? Entry) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
-
-/// <summary>A progress value updated (UiProgress derived).</summary>
-public sealed record UiProgressUpdateEvent(
-    string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
-    string ControlId, double Value) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
 
 /// <summary>A dialog was requested (UiDialog wrote the request slot).</summary>
 public sealed record DialogRequestedEvent(

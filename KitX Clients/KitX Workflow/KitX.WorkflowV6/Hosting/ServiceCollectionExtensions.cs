@@ -96,9 +96,9 @@ public static class ServiceCollectionExtensions
 
         // Workflow storage (migrated from KitX.Dashboard.Services — zero UI deps):
         //   • WorkflowStorageService — file-based IWorkflowStorageService for KcsFileFormat v2.
-        //     (The IWorkflowManagementService / WorkflowSessionManager run-by-id orchestrator
-        //     was retired in the B5+B6+B7 cleanup — the v6 IR architecture has no run-by-id
-        //     service, so only the storage service remains registered here.)
+        //     (The former WorkflowSessionManager run-by-id orchestrator was retired in the
+        //     B5+B6+B7 cleanup — the v6 IR architecture has no run-by-id service, so only
+        //     the storage service remains registered here.)
         services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowStorageService,
             KitX.WorkflowV6.Services.WorkflowStorageService>();
 
