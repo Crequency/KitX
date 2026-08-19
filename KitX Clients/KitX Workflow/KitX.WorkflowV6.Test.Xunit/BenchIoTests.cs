@@ -58,7 +58,12 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
             store,
             _ => new ToolkitFileStore(Path.GetTempPath()));
         var runtime = new PanelRuntime(store, manager);
-        var factory = new ToolKitExecutionGlobalsFactory(store, runtime, manager);
+        var services = new ServiceCollection()
+            .AddSingleton(store)
+            .AddSingleton(runtime)
+            .AddSingleton(manager)
+            .AddSingleton(new DataStoreOptions());
+        var factory = new ToolKitExecutionGlobalsFactory(services.BuildServiceProvider());
         return (registry, lens, store, factory);
     }
 
