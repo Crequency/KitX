@@ -18,24 +18,12 @@ using KitX.Core.Contract.Workflow;
 /// PluginCall — invokes a method on a local plugin. SideEffect: produces a Json result.
 /// Extra pipeline arguments are appended as params object[] args.
 /// </summary>
-public sealed class PluginCallFunction : IBuiltinFunction
+public sealed class PluginCallFunction : BuiltinFunctionBase
 {
-    public string Name => "PluginCall";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("PluginName", PinType.String, 20),
-        new("MethodName", PinType.String, 35),
-    ];
-
-    /// <summary>Extra pipeline args append as variadic params (`PluginCall(p, m, a, b, ...)`).</summary>
-    public VariadicPinSpec? InputVariadic => new("Param ", 3, PinType.Any);
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Return", PinType.Json, 50),
-    ];
+    public PluginCallFunction() : base("PluginCall", FunctionKind.SideEffect,
+        [new("PluginName", PinType.String, 20), new("MethodName", PinType.String, 35)],
+        [new("Return", PinType.Json, 50)],
+        new("Param ", 3, PinType.Any)) { }
 }
 
 /// <summary>
@@ -44,64 +32,33 @@ public sealed class PluginCallFunction : IBuiltinFunction
 /// actions) so the workflow continues immediately instead of blocking on the
 /// plugin's response channel.
 /// </summary>
-public sealed class PluginNotifyFunction : IBuiltinFunction
+public sealed class PluginNotifyFunction : BuiltinFunctionBase
 {
-    public string Name => "PluginNotify";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("PluginName", PinType.String, 20),
-        new("MethodName", PinType.String, 35),
-    ];
-
-    /// <summary>Extra pipeline args append as variadic params (`PluginNotify(p, m, a, b, ...)`).</summary>
-    public VariadicPinSpec? InputVariadic => new("Param ", 3, PinType.Any);
-
-    public IReadOnlyList<PortSpec> OutputPorts => [];
+    public PluginNotifyFunction() : base("PluginNotify", FunctionKind.SideEffect,
+        [new("PluginName", PinType.String, 20), new("MethodName", PinType.String, 35)],
+        [],
+        new("Param ", 3, PinType.Any)) { }
 }
 
 /// <summary>
 /// PluginCallWithTarget — invokes a method on a plugin running on a target device.
 /// SideEffect: produces a Json result.
 /// </summary>
-public sealed class PluginCallWithTargetFunction : IBuiltinFunction
+public sealed class PluginCallWithTargetFunction : BuiltinFunctionBase
 {
-    public string Name => "PluginCallWithTarget";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("PluginName", PinType.String, 20),
-        new("MethodName", PinType.String, 35),
-        new("TargetDevice", PinType.Any, 50),
-    ];
-
-    /// <summary>Extra pipeline args append as variadic params.</summary>
-    public VariadicPinSpec? InputVariadic => new("Param ", 4, PinType.Any);
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Return", PinType.Json, 50),
-    ];
+    public PluginCallWithTargetFunction() : base("PluginCallWithTarget", FunctionKind.SideEffect,
+        [new("PluginName", PinType.String, 20), new("MethodName", PinType.String, 35), new("TargetDevice", PinType.Any, 50)],
+        [new("Return", PinType.Json, 50)],
+        new("Param ", 4, PinType.Any)) { }
 }
 
 /// <summary>
 /// TryGetDevice — finds an online device by name. Pure: returns the device handle (Any)
 /// or null if not found.
 /// </summary>
-public sealed class TryGetDeviceFunction : IBuiltinFunction
+public sealed class TryGetDeviceFunction : BuiltinFunctionBase
 {
-    public string Name => "TryGetDevice";
-    public FunctionKind Kind => FunctionKind.Pure;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("DeviceName", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Return", PinType.Any, 50),
-    ];
+    public TryGetDeviceFunction() : base("TryGetDevice", FunctionKind.Pure,
+        [new("DeviceName", PinType.String, 20)],
+        [new("Return", PinType.Any, 50)]) { }
 }

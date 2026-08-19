@@ -16,83 +16,41 @@ using KitX.Core.Contract.Workflow;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>StartPlugin — starts a plugin by name. SideEffect.</summary>
-public sealed class StartPluginFunction : IBuiltinFunction
+public sealed class StartPluginFunction : BuiltinFunctionBase
 {
-    public string Name => "StartPlugin";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("PluginName", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.Boolean, 50),
-    ];
+    public StartPluginFunction() : base("StartPlugin", FunctionKind.SideEffect,
+        [new("PluginName", PinType.String, 20)],
+        [new("Result", PinType.Boolean, 50)]) { }
 }
 
 /// <summary>StopPlugin — stops a plugin by name. SideEffect.</summary>
-public sealed class StopPluginFunction : IBuiltinFunction
+public sealed class StopPluginFunction : BuiltinFunctionBase
 {
-    public string Name => "StopPlugin";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("PluginName", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.Boolean, 50),
-    ];
+    public StopPluginFunction() : base("StopPlugin", FunctionKind.SideEffect,
+        [new("PluginName", PinType.String, 20)],
+        [new("Result", PinType.Boolean, 50)]) { }
 }
 
 /// <summary>InstallPlugin — installs a plugin from a .kxp file. SideEffect.</summary>
-public sealed class InstallPluginFunction : IBuiltinFunction
+public sealed class InstallPluginFunction : BuiltinFunctionBase
 {
-    public string Name => "InstallPlugin";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("KxpPath", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.Boolean, 50),
-    ];
+    public InstallPluginFunction() : base("InstallPlugin", FunctionKind.SideEffect,
+        [new("KxpPath", PinType.String, 20)],
+        [new("Result", PinType.Boolean, 50)]) { }
 }
 
 /// <summary>GetPluginInfoByName — gets plugin info as JSON string. Pure.</summary>
-public sealed class GetPluginInfoByNameFunction : IBuiltinFunction
+public sealed class GetPluginInfoByNameFunction : BuiltinFunctionBase
 {
-    public string Name => "GetPluginInfoByName";
-    public FunctionKind Kind => FunctionKind.Pure;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("PluginName", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.String, 50),
-    ];
+    public GetPluginInfoByNameFunction() : base("GetPluginInfoByName", FunctionKind.Pure,
+        [new("PluginName", PinType.String, 20)],
+        [new("Result", PinType.String, 50)]) { }
 }
 
 /// <summary>ListPluginNames — lists all plugin names as JSON array string. Pure.</summary>
-public sealed class ListPluginNamesFunction : IBuiltinFunction
+public sealed class ListPluginNamesFunction : BuiltinFunctionBase
 {
-    public string Name => "ListPluginNames";
-    public FunctionKind Kind => FunctionKind.Pure;
-
-    public IReadOnlyList<PortSpec> InputPorts => [];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.String, 50),
-    ];
+    public ListPluginNamesFunction() : base("ListPluginNames", FunctionKind.Pure,
+        [],
+        [new("Result", PinType.String, 50)]) { }
 }
