@@ -36,6 +36,12 @@ public sealed class ToolkitInstanceManager : IDisposable
 
     private readonly ConcurrentDictionary<string, MountedToolkit> _mounted = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ToolkitInstance> _instances = new(StringComparer.Ordinal);
+
+    // Serializes the "MaxInstances check → StartRun → _instances registration" sequence
+    // so concurrent Spawn calls cannot all observe zero Running instances and jointly
+    // exceed the cap (a TOCTOU window in the pre-existing code).
+    private readonly object _spawnGate = new();
+
     private bool _disposed;
 
     public ToolkitInstanceManager(
@@ -153,37 +159,43 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (trigger is null || !trigger.Type.IsSpawn())
             return null;
 
-        // MaxInstances cap (D7): count only Running instances of this ToolKit.
-        var max = mounted.Toolkit.MaxInstances;
-        if (max is > 0 &&
-            _instances.Values.Count(i => i.ToolkitId == toolkitId && i.Status == InstanceStatus.Running) >= max)
+        // The cap check and the instance registration must be atomic. StartRun schedules
+        // node bodies on background threads and returns before any completes, so no
+        // synchronous callback re-enters this lock.
+        lock (_spawnGate)
         {
-            Log.Warning("[ToolkitInstanceManager] Spawn of {Toolkit} rejected: MaxInstances={Max} reached",
-                toolkitId, max);
-            Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
-                $"MaxInstances={max}"));
-            return null;
+            // MaxInstances cap (D7): count only Running instances of this ToolKit.
+            var max = mounted.Toolkit.MaxInstances;
+            if (max is > 0 &&
+                _instances.Values.Count(i => i.ToolkitId == toolkitId && i.Status == InstanceStatus.Running) >= max)
+            {
+                Log.Warning("[ToolkitInstanceManager] Spawn of {Toolkit} rejected: MaxInstances={Max} reached",
+                    toolkitId, max);
+                Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+                    $"MaxInstances={max}"));
+                return null;
+            }
+
+            var run = mounted.Scheduler.StartRun(triggerId, payload, initiator ?? Initiator.Unknown, null, AttachRunEvents);
+            if (run is null)
+                return null;
+
+            var instance = new ToolkitInstance(toolkitId, triggerId, run, initiator ?? Initiator.Unknown);
+            instance.Completed += (_, _) =>
+            {
+                Log.Information("[ToolkitInstanceManager] Instance {Instance} completed (toolkit {Toolkit})",
+                    instance.InstanceId, toolkitId);
+                Raise(new InstanceCompletedEvent(
+                    NewId(), toolkitId, instance.InstanceId, Now(), run.FailedRuns == 0));
+            };
+            instance.Cancelled += (_, _) => Raise(new InstanceCancelledEvent(
+                NewId(), toolkitId, instance.InstanceId, Now()));
+
+            _instances[instance.InstanceId] = instance;
+            Raise(new InstanceSpawnedEvent(NewId(), toolkitId, instance.InstanceId, Now(), triggerId,
+                instance.Initiator, JsonSerializer.SerializeToElement(payload)));
+            return instance.InstanceId;
         }
-
-        var run = mounted.Scheduler.StartRun(triggerId, payload, initiator ?? Initiator.Unknown, null, AttachRunEvents);
-        if (run is null)
-            return null;
-
-        var instance = new ToolkitInstance(toolkitId, triggerId, run, initiator ?? Initiator.Unknown);
-        instance.Completed += (_, _) =>
-        {
-            Log.Information("[ToolkitInstanceManager] Instance {Instance} completed (toolkit {Toolkit})",
-                instance.InstanceId, toolkitId);
-            Raise(new InstanceCompletedEvent(
-                NewId(), toolkitId, instance.InstanceId, Now(), run.FailedRuns == 0));
-        };
-        instance.Cancelled += (_, _) => Raise(new InstanceCancelledEvent(
-            NewId(), toolkitId, instance.InstanceId, Now()));
-
-        _instances[instance.InstanceId] = instance;
-        Raise(new InstanceSpawnedEvent(NewId(), toolkitId, instance.InstanceId, Now(), triggerId,
-            instance.Initiator, JsonSerializer.SerializeToElement(payload)));
-        return instance.InstanceId;
     }
 
     /// <summary>

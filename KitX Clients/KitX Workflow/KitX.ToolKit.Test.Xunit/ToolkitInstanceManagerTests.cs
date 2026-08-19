@@ -388,6 +388,52 @@ public class ToolkitInstanceManagerTests
     }
 
     [Fact]
+    public async Task Concurrent_Spawns_Respect_MaxInstances()
+    {
+        // Two threads race to spawn the same Manual trigger with MaxInstances=1. The cap
+        // check and registration must be atomic, so exactly one succeeds and one is
+        // rejected — never both succeeding.
+        var tk = ToolkitWith(new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
+        tk.MaxInstances = 1;
+
+        // Hold executions in-flight so both spawns race against the Running-instances cap
+        // (no node completes synchronously to change the count mid-race).
+        var hold = new TaskCompletionSource();
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, hold: hold);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        int rejected = 0;
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceSpawnRejectedEvent)
+                Interlocked.Increment(ref rejected);
+        };
+        manager.Mount(tk);
+
+        try
+        {
+            var results = await Task.WhenAll(
+                Task.Run(() => manager.Spawn("tk-demo", "manual")),
+                Task.Run(() => manager.Spawn("tk-demo", "manual")));
+
+            Assert.Equal(1, results.Count(r => r is not null));
+            Assert.Equal(1, rejected);
+            Assert.Single(manager.Instances);
+        }
+        finally
+        {
+            hold.TrySetResult();
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
     public void PanelDataStoreWrites_Project_UiControlStateChanged()
     {
         var store = new DataStore();
