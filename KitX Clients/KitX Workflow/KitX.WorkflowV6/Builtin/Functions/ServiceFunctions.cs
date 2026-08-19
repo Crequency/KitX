@@ -3,8 +3,13 @@ namespace KitX.WorkflowV6.Builtin.Functions;
 using KitX.Core.Contract.Workflow;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Service management builtins — plugin lifecycle, workflow lifecycle, plugin
-// installation, and ecosystem queries.
+// Service management builtins — plugin lifecycle, plugin installation, and
+// ecosystem queries.
+//
+// The v5 workflow-lifecycle builtins (StopWorkflow / CreateWorkflow /
+// RunWorkflow / ListWorkflows) were retired in the B5+B6+B7 cleanup — the v6 IR
+// architecture has no run-by-id service, so those four descriptors were removed
+// from the palette along with their IPluginHost members.
 //
 // All functions delegate to IPluginHost (injected into ExecutionGlobals). When
 // PluginHost is null, bool functions return false and string functions return "".
@@ -36,58 +41,6 @@ public sealed class StopPluginFunction : IBuiltinFunction
     public IReadOnlyList<PortSpec> InputPorts =>
     [
         new("PluginName", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.Boolean, 50),
-    ];
-}
-
-/// <summary>StopWorkflow — stops a running workflow by ID. SideEffect.</summary>
-public sealed class StopWorkflowFunction : IBuiltinFunction
-{
-    public string Name => "StopWorkflow";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("WorkflowId", PinType.String, 20),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.Boolean, 50),
-    ];
-}
-
-/// <summary>CreateWorkflow — creates a new workflow from source. SideEffect.</summary>
-public sealed class CreateWorkflowFunction : IBuiltinFunction
-{
-    public string Name => "CreateWorkflow";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("Name", PinType.String, 20),
-        new("Source", PinType.String, 35),
-    ];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.String, 50),
-    ];
-}
-
-/// <summary>RunWorkflow — starts a workflow by ID. SideEffect.</summary>
-public sealed class RunWorkflowFunction : IBuiltinFunction
-{
-    public string Name => "RunWorkflow";
-    public FunctionKind Kind => FunctionKind.SideEffect;
-
-    public IReadOnlyList<PortSpec> InputPorts =>
-    [
-        new("WorkflowId", PinType.String, 20),
     ];
 
     public IReadOnlyList<PortSpec> OutputPorts =>
@@ -134,20 +87,6 @@ public sealed class GetPluginInfoByNameFunction : IBuiltinFunction
 public sealed class ListPluginNamesFunction : IBuiltinFunction
 {
     public string Name => "ListPluginNames";
-    public FunctionKind Kind => FunctionKind.Pure;
-
-    public IReadOnlyList<PortSpec> InputPorts => [];
-
-    public IReadOnlyList<PortSpec> OutputPorts =>
-    [
-        new("Result", PinType.String, 50),
-    ];
-}
-
-/// <summary>ListWorkflows — lists all workflow IDs as JSON array string. Pure.</summary>
-public sealed class ListWorkflowsFunction : IBuiltinFunction
-{
-    public string Name => "ListWorkflows";
     public FunctionKind Kind => FunctionKind.Pure;
 
     public IReadOnlyList<PortSpec> InputPorts => [];

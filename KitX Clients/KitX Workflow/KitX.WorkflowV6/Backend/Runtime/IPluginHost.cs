@@ -8,7 +8,10 @@ namespace KitX.WorkflowV6.Backend.Runtime;
 // a host, plugin calls simply produce no results.
 //
 // Ported from v5.1 KitX.WorkflowIR.Backend.Runtime.IPluginHost (same signature,
-// same 12 methods covering plugin invocation + lifecycle + queries).
+// covering plugin invocation + lifecycle + queries). The v5 workflow-lifecycle
+// members (StopWorkflow / CreateWorkflow / RunWorkflow / ListWorkflows) were
+// retired in the B5+B6+B7 cleanup — the v6 IR architecture has no run-by-id
+// service, so those four are no longer part of the host contract.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -44,12 +47,6 @@ public interface IPluginHost
     bool StartPlugin(string pluginName);
     bool StopPlugin(string pluginName);
 
-    // ── Workflow lifecycle ──
-
-    bool StopWorkflow(string workflowId);
-    string CreateWorkflow(string name, string source);
-    bool RunWorkflow(string workflowId);
-
     // ── Plugin installation ──
 
     bool InstallPlugin(string kxpPath);
@@ -58,5 +55,4 @@ public interface IPluginHost
 
     string GetPluginInfoByName(string pluginName);
     string ListPluginNames();
-    string ListWorkflows();
 }

@@ -9,7 +9,6 @@ using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Security;
 using KitX.Core.Contract.Statistics;
 using KitX.Core.Contract.Tasks;
-using KitX.Core.Contract.Workflow;
 using KitX.Core.Contract.Event;
 using KitX.Core.Activity;
 using KitX.Core.Announcement;
@@ -130,13 +129,7 @@ public static class CoreServiceCollectionExtensions
             new Plugin.PluginHostAdapter(
                 sp.GetService<Kscript.CSharp.Parser.Core.IPluginManager>()
                     ?? new Plugin.NoOpPluginManager(),
-                sp.GetService<KitX.Core.Contract.Plugin.IPluginService>(),
-                // C-11: workflow services are registered by AddKitXWorkflowV6 AFTER
-                // AddCoreServices — resolve lazily on first workflow-function call.
-                new Lazy<KitX.Core.Contract.Workflow.IWorkflowManagementService>(
-                    sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowManagementService>),
-                new Lazy<KitX.Core.Contract.Workflow.IWorkflowStorageService>(
-                    sp.GetRequiredService<KitX.Core.Contract.Workflow.IWorkflowStorageService>)));
+                sp.GetService<KitX.Core.Contract.Plugin.IPluginService>()));
 
         // Phase 5: Device HTTP Client (for cross-device plugin invocation)
         Log.Information("Registering IDeviceHttpClient...");

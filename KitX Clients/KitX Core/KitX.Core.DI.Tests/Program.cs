@@ -159,18 +159,18 @@ public class Program
 
         // Dashboard-specific services
         services.AddSingleton<KitX.Dashboard.Services.IFileDialogService, KitX.Dashboard.Services.FileDialogService>();
-        // S2/S4 (WorkflowStorageService / WorkflowSessionManager) and S6 (TriggerManager)
-        // are registered inside AddKitXWorkflowV6() above (migrated from Dashboard to
-        // KitX.WorkflowV6.Services).
+        // S2/S4 (WorkflowStorageService) is registered inside AddKitXWorkflowV6() above
+        // (migrated from Dashboard to KitX.WorkflowV6.Services). The
+        // IWorkflowManagementService / WorkflowSessionManager run-by-id orchestrator was
+        // retired in the B5+B6+B7 cleanup and is no longer registered.
 
         var sp = services.BuildServiceProvider();
         Console.WriteLine("✅ Full host DI container built (AddCoreServices + AddKitXWorkflowV6 + Dashboard)\n");
         Console.WriteLine("Testing workflow-related resolution:\n");
 
         // --- Services the workflow UI's constructor bodies call via App.GetService ---
-        // WorkflowPageViewModel ctor needs these three:
+        // WorkflowPageViewModel ctor needs these two:
         TestResolve(sp, "IWorkflowStorageService", typeof(IWorkflowStorageService));
-        TestResolve(sp, "IWorkflowManagementService", typeof(IWorkflowManagementService));
         TestResolve(sp, "IEventService", typeof(KitX.Core.Contract.Event.IEventService));
 
         Console.WriteLine();

@@ -31,7 +31,7 @@ using V6Workflow = KitX.WorkflowV6.Ir.Workflow;
 /// <para><b>Threat model (W-3):</b> a <c>.kcs</c> workflow file is executable code,
 /// not inert data — its <c>IrData</c> payload compiles to C# and runs arbitrary
 /// builtin/plugin calls (file IO, JSON, plugin invocation) when the workflow is
-/// executed by id (see <see cref="WorkflowSessionManager"/>). Loading a file is
+/// executed by id. Loading a file is
 /// therefore equivalent to importing a program: <b>only load .kcs files from
 /// trusted sources</b> (files the user created or deliberately imported; never
 /// blindly scan directories writable by other users, never auto-open files from
@@ -107,9 +107,8 @@ public class WorkflowStorageService : IWorkflowStorageService
     /// <inheritdoc/>
     /// <remarks>
     /// <b>Threat model (W-3):</b> the loaded <c>.kcs</c> is executable code (its IrData
-    /// compiles and runs on <see cref="WorkflowSessionManager.RunWorkflowWithDetailsAsync"/>).
-    /// Only load files from trusted sources; the resolved file path is logged at Debug
-    /// so every load is auditable.
+    /// compiles and runs when executed by id). Only load files from trusted sources;
+    /// the resolved file path is logged at Debug so every load is auditable.
     /// </remarks>
     public async Task<KcsFileFormat?> LoadWorkflowDataAsync(string workflowId)
     {

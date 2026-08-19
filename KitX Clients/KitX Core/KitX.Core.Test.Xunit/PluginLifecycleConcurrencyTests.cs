@@ -202,9 +202,7 @@ public class PluginLifecycleConcurrencyTests
 
         var adapter = new PluginHostAdapter(
             new FakePluginManager(),
-            pluginService,
-            new Lazy<IWorkflowManagementService>(() => new FakeWorkflowManagementService()),
-            new Lazy<IWorkflowStorageService>(() => new FakeWorkflowStorageService()));
+            pluginService);
 
         // StartPlugin / StopPlugin
         Assert.True(adapter.StartPlugin("alpha"));
@@ -236,41 +234,6 @@ public class PluginLifecycleConcurrencyTests
         Assert.False(bare.InstallPlugin("x.kxp"));
         Assert.Equal("[]", bare.ListPluginNames());
         Assert.Equal(string.Empty, bare.GetPluginInfoByName("alpha"));
-    }
-
-    [Fact]
-    public void PluginHostAdapter_WorkflowFunctions_BridgeToWorkflowServices()
-    {
-        var workflowManagement = new FakeWorkflowManagementService();
-        var workflowStorage = new FakeWorkflowStorageService();
-
-        var adapter = new PluginHostAdapter(
-            new FakePluginManager(),
-            new FakePluginService(),
-            new Lazy<IWorkflowManagementService>(() => workflowManagement),
-            new Lazy<IWorkflowStorageService>(() => workflowStorage));
-
-        Assert.True(adapter.RunWorkflow("wf-1"));
-        Assert.Equal("wf-1", workflowManagement.LastRunId);
-        Assert.True(adapter.StopWorkflow("wf-1"));
-        Assert.Equal("wf-1", workflowManagement.LastStopId);
-
-        // CreateWorkflow → storage，返回新建工作流 Id；source 写入描述。
-        var createdId = adapter.CreateWorkflow("my-flow", "print(1)");
-        Assert.Equal("wf-created", createdId);
-        Assert.Equal("my-flow", workflowStorage.LastCreateName);
-        Assert.Equal("print(1)", workflowStorage.LastCreateDescription);
-
-        // ListWorkflows → 存储中的工作流 Id JSON 数组
-        var ids = JsonSerializer.Deserialize<List<string>>(adapter.ListWorkflows());
-        Assert.NotNull(ids);
-        Assert.Equal(new[] { "wf-1", "wf-2" }, ids);
-
-        // 未注入 workflow 服务时安全降级
-        var bare = new PluginHostAdapter(new FakePluginManager(), new FakePluginService());
-        Assert.False(bare.RunWorkflow("wf-1"));
-        Assert.Equal(string.Empty, bare.CreateWorkflow("n", "s"));
-        Assert.Equal("[]", bare.ListWorkflows());
     }
 
     // ── Fakes ──
@@ -342,61 +305,6 @@ public class PluginLifecycleConcurrencyTests
 
         public Task<object?> CallPluginFunctionAsync(Guid pluginId, string functionName,
             Dictionary<string, object>? parameters = null) => Task.FromResult<object?>(null);
-    }
-
-    private sealed class FakeWorkflowManagementService : IWorkflowManagementService
-    {
-        public string? LastRunId { get; private set; }
-        public string? LastStopId { get; private set; }
-
-        public Task<bool> RunWorkflowAsync(string workflowId)
-        {
-            LastRunId = workflowId;
-            return Task.FromResult(true);
-        }
-
-        public Task<WorkflowRunResult> RunWorkflowWithDetailsAsync(string workflowId) =>
-            Task.FromResult(new WorkflowRunResult(true, null, null));
-
-        public Task<bool> StopWorkflowAsync(string workflowId)
-        {
-            LastStopId = workflowId;
-            return Task.FromResult(true);
-        }
-
-        public Task<bool> CompileAndPersistWorkflowAsync(string workflowId) => Task.FromResult(true);
-    }
-
-    private sealed class FakeWorkflowStorageService : IWorkflowStorageService
-    {
-        public string? LastCreateName { get; private set; }
-        public string? LastCreateDescription { get; private set; }
-
-        public string StorageDirectory => "./Data/Workflows/";
-
-        public Task<IWorkflowCase> CreateWorkflowAsync(string name, string? description = null, string irVersion = "v6")
-        {
-            LastCreateName = name;
-            LastCreateDescription = description;
-            return Task.FromResult<IWorkflowCase>(new FakeWorkflowCase("wf-created", name));
-        }
-
-        public Task<KcsFileFormat?> LoadWorkflowDataAsync(string workflowId) =>
-            Task.FromResult<KcsFileFormat?>(null);
-
-        public Task SaveWorkflowDataAsync(string workflowId, KcsFileFormat data) => Task.CompletedTask;
-
-        public Task DeleteWorkflowAsync(string workflowId) => Task.CompletedTask;
-
-        public Task<IReadOnlyList<IWorkflowCase>> DiscoverWorkflowsAsync() =>
-            Task.FromResult<IReadOnlyList<IWorkflowCase>>(
-                new List<IWorkflowCase>
-                {
-                    new FakeWorkflowCase("wf-1", "one"),
-                    new FakeWorkflowCase("wf-2", "two")
-                });
-
-        public string GetWorkflowFilePath(string workflowId) => $"wf-{workflowId}.kcs";
     }
 
     private sealed class FakeWorkflowCase : IWorkflowCase

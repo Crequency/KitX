@@ -8,7 +8,6 @@ using Kscript.CSharp.Parser.Models;
 using KitX.Core.Configuration;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Plugin;
-using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.Runtime;
 using Serilog;
 
@@ -24,15 +23,14 @@ using Serilog;
 // JsonElement via AsJsonElement (List-Port-And-Json-
 // Functions-Design.md §1).
 //
-// C-11: the 9 lifecycle/query functions previously raised NotImplementedException
+// C-11: the lifecycle/query functions previously raised NotImplementedException
 // (workflow nodes crashed on use). They are now bridged to real services:
-//   • plugin functions   → IPluginService (PluginsManager — registered in
-//                          AddCoreServices, constructor-injected)
-//   • workflow functions → IWorkflowManagementService / IWorkflowStorageService
-//                          (implementations live in KitX.WorkflowV6, registered by
-//                          AddKitXWorkflowV6 AFTER AddCoreServices — injected lazily
-//                          so PluginHostAdapter construction can never fail on
-//                          registration order)
+//   • plugin functions → IPluginService (PluginsManager — registered in
+//                        AddCoreServices, constructor-injected)
+// The v5 workflow-lifecycle functions (StopWorkflow / CreateWorkflow / RunWorkflow /
+// ListWorkflows) were retired in the B5+B6+B7 cleanup — the v6 IR architecture has
+// no run-by-id service, so they are no longer part of the IPluginHost contract and
+// no longer bridged here.
 // TryGetDevice stays null — it is the interface's documented "device not found"
 // result. All bridge methods swallow failures and return their safe default
 // (false / "" / "[]"), so a failing node yields a visible false/empty result
@@ -49,27 +47,15 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
 
     private readonly IPluginService? _pluginService;
 
-    // Lazy: IWorkflowManagementService/IWorkflowStorageService are registered by
-    // AddKitXWorkflowV6 (after AddCoreServices). Deferring resolution to first use
-    // keeps PluginHostAdapter construction independent of that registration order.
-    private readonly Lazy<IWorkflowManagementService>? _workflowManagement;
-
-    private readonly Lazy<IWorkflowStorageService>? _workflowStorage;
-
     /// <summary>
-    /// Creates an adapter over the given plugin manager, plugin service and
-    /// lazily-resolved workflow services.
+    /// Creates an adapter over the given plugin manager and plugin service.
     /// </summary>
     public PluginHostAdapter(
         IPluginManager pluginManager,
-        IPluginService? pluginService = null,
-        Lazy<IWorkflowManagementService>? workflowManagement = null,
-        Lazy<IWorkflowStorageService>? workflowStorage = null)
+        IPluginService? pluginService = null)
     {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _pluginService = pluginService;
-        _workflowManagement = workflowManagement;
-        _workflowStorage = workflowStorage;
     }
 
     /// <summary>
@@ -186,66 +172,6 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         }
     }
 
-    // ── Workflow lifecycle (C-11: bridged to workflow services) ──
-
-    public bool StopWorkflow(string workflowId)
-    {
-        if (_workflowManagement is null)
-            return false;
-
-        try
-        {
-            return _workflowManagement.Value.StopWorkflowAsync(workflowId).GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[PluginHostAdapter] StopWorkflow failed for '{WorkflowId}'", workflowId);
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Creates a workflow. The storage contract creates an empty-IR workflow
-    /// (<see cref="IWorkflowStorageService.CreateWorkflowAsync"/>); the node's
-    /// <paramref name="source"/> text is carried in the workflow description because
-    /// KcsFileFormat v2 stores IR only (KS/BP text are projections). Returns the
-    /// new workflow's Id.
-    /// </summary>
-    public string CreateWorkflow(string name, string source)
-    {
-        if (_workflowStorage is null)
-            return string.Empty;
-
-        try
-        {
-            var created = _workflowStorage.Value
-                .CreateWorkflowAsync(name, description: source)
-                .GetAwaiter().GetResult();
-            return created.Id;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[PluginHostAdapter] CreateWorkflow failed for '{Name}'", name);
-            return string.Empty;
-        }
-    }
-
-    public bool RunWorkflow(string workflowId)
-    {
-        if (_workflowManagement is null)
-            return false;
-
-        try
-        {
-            return _workflowManagement.Value.RunWorkflowAsync(workflowId).GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[PluginHostAdapter] RunWorkflow failed for '{WorkflowId}'", workflowId);
-            return false;
-        }
-    }
-
     // ── Plugin installation (C-11) ──
 
     public bool InstallPlugin(string kxpPath)
@@ -310,28 +236,6 @@ public sealed class PluginHostAdapter : KitX.WorkflowV6.Backend.Runtime.IPluginH
         catch (Exception ex)
         {
             Log.Error(ex, "[PluginHostAdapter] ListPluginNames failed");
-            return "[]";
-        }
-    }
-
-    /// <summary>
-    /// Returns stored workflow Ids as a JSON array string (e.g. <c>["id1","id2"]</c>).
-    /// </summary>
-    public string ListWorkflows()
-    {
-        if (_workflowStorage is null)
-            return "[]";
-
-        try
-        {
-            var workflows = _workflowStorage.Value.DiscoverWorkflowsAsync().GetAwaiter().GetResult();
-            var ids = workflows.Select(w => w.Id).ToList();
-
-            return JsonSerializer.Serialize(ids);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "[PluginHostAdapter] ListWorkflows failed");
             return "[]";
         }
     }

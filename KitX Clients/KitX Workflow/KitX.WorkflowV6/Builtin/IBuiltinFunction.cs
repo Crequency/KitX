@@ -6,7 +6,7 @@ using KitX.Core.Contract.Workflow;
 // Builtin function descriptor system.
 //
 // v6 model: every builtin implements only IBuiltinFunction (identity + ports).
-// There is no per-role handler split in v6 — all 41 builtins use the default
+// There is no per-role handler split in v6 — all 37 builtins use the default
 // parse / lower / codegen / bp-render paths. Control-flow primitives
 // (if/switch/forEach/while/break/continue) are NOT routed through the registry
 // at all; they are first-class IR statement kinds (see StatementKind).

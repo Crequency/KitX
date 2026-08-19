@@ -149,13 +149,9 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
         public object? TryGetDevice(string deviceName) => null;
         public bool StartPlugin(string pluginName) => true;
         public bool StopPlugin(string pluginName) => true;
-        public bool StopWorkflow(string workflowId) => true;
-        public string CreateWorkflow(string name, string source) => string.Empty;
-        public bool RunWorkflow(string workflowId) => true;
         public bool InstallPlugin(string kxpPath) => true;
         public string GetPluginInfoByName(string pluginName) => string.Empty;
         public string ListPluginNames() => "[]";
-        public string ListWorkflows() => "[]";
     }
 
     private sealed class RecordingBackend : IExecutionBackend

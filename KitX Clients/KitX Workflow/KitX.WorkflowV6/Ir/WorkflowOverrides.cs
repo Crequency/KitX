@@ -7,9 +7,8 @@ namespace KitX.WorkflowV6.Ir;
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkflowOverrides — user constant/global overrides applied before execution.
 //
-// Extracted from the Dashboard VM (P4-α) so that the run-by-id path
-// (WorkflowSessionManager run-by-id) can reuse the exact same
-// override semantics as the in-editor Run/DebugRun. Because v6 codegen inlines
+// Extracted from the Dashboard VM (P4-α) so that the run-by-id path can reuse the
+// exact same override semantics as the in-editor Run/DebugRun. Because v6 codegen inlines
 // InitialValueExpression directly into the generated C# source (CodegenBase
 // RenderIdentifier), an override must be a *valid C# literal expression* for the
 // declared type — hence the type-aware RenderLiteral below.

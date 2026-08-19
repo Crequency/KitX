@@ -15,11 +15,11 @@ using KitX.WorkflowV6.Backend.Runtime;
 // ─────────────────────────────────────────────────────────────────────────────
 // ServiceCollectionExtensions — DI entry point for KitX.WorkflowV6.
 //
-// Registers the reflection-discovered builtin registry (41 v6 builtin functions),
+// Registers the reflection-discovered builtin registry (37 v6 builtin functions),
 // both lenses (KsTextLens + BpGraphLens), the SyncService, the default v6
 // execution backend (StructuredRoslynBackend — structured IR → structured C# via
 // Roslyn, loaded into a collectible AssemblyLoadContext), and the workflow
-// services (WorkflowStorageService / WorkflowSessionManager).
+// storage service (WorkflowStorageService).
 //
 // The Dashboard references this library (KitX.Dashboard.csproj ProjectReference)
 // and calls AddKitXWorkflowV6() in App.axaml.cs. Since the v5.1 WorkflowIR library
@@ -34,17 +34,17 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
-    /// (reflection-discovered, 41 functions across 25 source files), the two lenses
+    /// (reflection-discovered, 37 functions across 25 source files), the two lenses
     /// (KS text + BP graph), the session sync service, the default
-    /// IExecutionBackend (StructuredRoslynBackend), and the workflow services
-    /// (IWorkflowStorageService / IWorkflowManagementService).
+    /// IExecutionBackend (StructuredRoslynBackend), and the workflow storage
+    /// service (IWorkflowStorageService).
     /// </summary>
     public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
     {
         // BuiltinFunctionRegistry — single reflection-discovered instance. Discovers
-        // the 41 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
+        // the 37 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
         // + Pause/ReadTextFile/WriteTextFile + 7 JSON functions + 9 dict functions
-        // + 3 plugin-call functions + 9 service-management functions.
+        // + 3 plugin-call functions + 5 service-management functions.
         //
         // The registry is a DI singleton so other KitX systems can extend it: any
         // IBuiltinFunction registered via AddBuiltinFunction<T>() / AddBuiltinFunctions()
@@ -87,22 +87,20 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IExecutionGlobalsFactory, DefaultExecutionGlobalsFactory>();
 
         // WorkflowRunner — single shared execution path (ApplyConstantOverrides +
-        // ExecuteAsync) used by the editor Run/DebugRun and by WorkflowSessionManager's
-        // run-by-id path. Registered as both its concrete type (for same-library
-        // consumers) and its IWorkflowRunner abstraction (for cross-library
-        // interface-based consumers such as the Dashboard editor), sharing one
-        // singleton instance.
+        // ExecuteAsync) used by the editor Run/DebugRun. Registered as both its
+        // concrete type (for same-library consumers) and its IWorkflowRunner
+        // abstraction (for cross-library interface-based consumers such as the
+        // Dashboard editor), sharing one singleton instance.
         services.AddSingleton<Services.WorkflowRunner>();
         services.AddSingleton<Services.IWorkflowRunner>(sp => sp.GetRequiredService<Services.WorkflowRunner>());
 
-        // Workflow services (migrated from KitX.Dashboard.Services — zero UI deps):
+        // Workflow storage (migrated from KitX.Dashboard.Services — zero UI deps):
         //   • WorkflowStorageService — file-based IWorkflowStorageService for KcsFileFormat v2.
-        //   • WorkflowSessionManager — IWorkflowManagementService run/stop-by-id orchestrator
-        //     (loads stored IR, applies VariableConstants overrides, executes via the backend).
+        //     (The IWorkflowManagementService / WorkflowSessionManager run-by-id orchestrator
+        //     was retired in the B5+B6+B7 cleanup — the v6 IR architecture has no run-by-id
+        //     service, so only the storage service remains registered here.)
         services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowStorageService,
             KitX.WorkflowV6.Services.WorkflowStorageService>();
-        services.AddSingleton<KitX.Core.Contract.Workflow.IWorkflowManagementService,
-            KitX.WorkflowV6.Services.WorkflowSessionManager>();
 
         return services;
     }

@@ -238,13 +238,9 @@ public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains("TryGetDevice", _fixture.Registry.AllNames);
         Assert.Contains("StartPlugin", _fixture.Registry.AllNames);
         Assert.Contains("StopPlugin", _fixture.Registry.AllNames);
-        Assert.Contains("StopWorkflow", _fixture.Registry.AllNames);
-        Assert.Contains("CreateWorkflow", _fixture.Registry.AllNames);
-        Assert.Contains("RunWorkflow", _fixture.Registry.AllNames);
         Assert.Contains("InstallPlugin", _fixture.Registry.AllNames);
         Assert.Contains("GetPluginInfoByName", _fixture.Registry.AllNames);
         Assert.Contains("ListPluginNames", _fixture.Registry.AllNames);
-        Assert.Contains("ListWorkflows", _fixture.Registry.AllNames);
     }
 
     [Fact]
@@ -267,12 +263,6 @@ public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
         Assert.NotNull(sp);
         Assert.Equal(FunctionKind.SideEffect, sp!.Kind);
         Assert.Equal(PinType.Boolean, sp.OutputPorts[0].Type);
-        // CreateWorkflow: (String, String) → String, SideEffect
-        var cw = _fixture.Registry.Get("CreateWorkflow");
-        Assert.NotNull(cw);
-        Assert.Equal(FunctionKind.SideEffect, cw!.Kind);
-        Assert.Equal(2, cw.InputPorts.Count);
-        Assert.Equal(PinType.String, cw.OutputPorts[0].Type);
         // ListPluginNames: () → String, Pure
         var lp = _fixture.Registry.Get("ListPluginNames");
         Assert.NotNull(lp);
@@ -478,42 +468,6 @@ public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task Builtin_StopWorkflow_E2E()
-    {
-        var ir = _fixture.KsLens.Parse("\"wf-1\" > StopWorkflow > Print\n", []);
-        var host = new E2ETests_Inner_Host();
-        var backend = _fixture.MakeBackend(host);
-        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
-        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
-        Assert.Contains("True", result.Output);
-    }
-
-    [Fact]
-    [Trait("Category", "Integration")]
-    public async Task Builtin_CreateWorkflow_E2E()
-    {
-        var ir = _fixture.KsLens.Parse("CreateWorkflow(\"wf\", \"Print(\\\"x\\\")\") > Print\n", []);
-        var host = new E2ETests_Inner_Host();
-        var backend = _fixture.MakeBackend(host);
-        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
-        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
-        Assert.Contains("wf-001", result.Output);
-    }
-
-    [Fact]
-    [Trait("Category", "Integration")]
-    public async Task Builtin_RunWorkflow_E2E()
-    {
-        var ir = _fixture.KsLens.Parse("\"wf-1\" > RunWorkflow > Print\n", []);
-        var host = new E2ETests_Inner_Host();
-        var backend = _fixture.MakeBackend(host);
-        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
-        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
-        Assert.Contains("True", result.Output);
-    }
-
-    [Fact]
-    [Trait("Category", "Integration")]
     public async Task Builtin_InstallPlugin_E2E()
     {
         var ir = _fixture.KsLens.Parse("\"x.kxp\" > InstallPlugin > Print\n", []);
@@ -536,18 +490,6 @@ public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
         Assert.Contains("{}", result.Output);
     }
 
-    [Fact]
-    [Trait("Category", "Integration")]
-    public async Task Builtin_ListWorkflows_E2E()
-    {
-        var ir = _fixture.KsLens.Parse("ListWorkflows() > Print\n", []);
-        var host = new E2ETests_Inner_Host();
-        var backend = _fixture.MakeBackend(host);
-        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
-        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
-        Assert.Contains(result.Output, s => s.Contains("wf-001"));
-    }
-
     private sealed class E2ETests_Inner_Host : IPluginHost
     {
         public object? Call(string pluginName, string methodName, params object[] args) => "{}";
@@ -555,12 +497,8 @@ public class BuiltinFunctionTests : IClassFixture<WorkflowTestFixture>
         public object? TryGetDevice(string deviceName) => null;
         public bool StartPlugin(string pluginName) => true;
         public bool StopPlugin(string pluginName) => true;
-        public bool StopWorkflow(string workflowId) => true;
-        public string CreateWorkflow(string name, string source) => "wf-001";
-        public bool RunWorkflow(string workflowId) => true;
         public bool InstallPlugin(string kxpPath) => true;
         public string GetPluginInfoByName(string pluginName) => "{}";
         public string ListPluginNames() => "[\"plugin1\",\"plugin2\"]";
-        public string ListWorkflows() => "[\"wf-001\"]";
     }
 }

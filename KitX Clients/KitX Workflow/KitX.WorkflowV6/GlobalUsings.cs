@@ -11,9 +11,11 @@
 //   • The IR is immutable (records + ImmutableArray/Dictionary).
 //   • View state (canvas positions, comments) lives in Annotations, separated from
 //     semantic fields so that structural equality is unaffected by view state.
-//   • Builtins are discovered by reflection; v6 ships 41 builtin functions across
+//   • Builtins are discovered by reflection; v6 ships 37 builtin functions across
 //     25 source files (Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat +
-//     Pause/File I/O + 7 JSON + 9 dict + 3 plugin-call + 9 service-management).
+//     Pause/File I/O + 7 JSON + 9 dict + 3 plugin-call + 5 service-management).
+//     (The 4 v5 workflow-lifecycle builtins — StopWorkflow/CreateWorkflow/RunWorkflow/
+//     ListWorkflows — were retired in the B5+B6+B7 cleanup.)
 //
 // Implementation status (see Package/Archive/WorkflowV6-Docs/WorkflowV6-Handoff.md
 // for full reference; test count is tracked in CI):

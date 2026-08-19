@@ -10,11 +10,12 @@ using KitX.WorkflowV6.Ir.Lowering;
 // ─────────────────────────────────────────────────────────────────────────────
 // WorkflowRunner — the single shared workflow execution path.
 //
-// Both the in-editor Run/DebugRun (WorkflowEditorViewModelV6) and the run-by-id
-// path (WorkflowSessionManager) previously applied constant overrides and then
-// executed the IR through the backend themselves. This class owns that shared
-// sequence — ApplyConstantOverrides + IExecutionBackend.ExecuteAsync — so the
-// execution semantics are defined exactly once.
+// The in-editor Run/DebugRun (WorkflowEditorViewModelV6) previously applied
+// constant overrides and then executed the IR through the backend itself. This
+// class owns that shared sequence — ApplyConstantOverrides +
+// IExecutionBackend.ExecuteAsync — so the execution semantics are defined exactly
+// once. (The run-by-id path that also used it, WorkflowSessionManager, was retired
+// in the B5+B6+B7 cleanup.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

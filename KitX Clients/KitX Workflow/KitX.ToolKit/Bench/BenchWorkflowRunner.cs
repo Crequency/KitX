@@ -8,8 +8,7 @@ namespace KitX.ToolKit.Bench;
 /// <summary>
 /// The real <see cref="IWorkflowExecutor"/>: reads the resolved <c>.kcs</c>, deserializes
 /// the v6 IR, applies constant overrides and executes through the shared
-/// <see cref="WorkflowRunner"/>. It deliberately bypasses <see cref="WorkflowSessionManager"/>'s
-/// "one active run per id" constraint: each Bench trigger path gets its own
+/// <see cref="WorkflowRunner"/>. Each Bench trigger path gets its own
 /// <see cref="CancellationTokenSource"/>, enabling the multi-instance concurrency the Bench
 /// requires (RFC §4.5) without modifying v6.
 /// </summary>

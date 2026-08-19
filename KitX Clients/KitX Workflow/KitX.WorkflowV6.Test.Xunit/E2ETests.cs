@@ -34,13 +34,9 @@ public class E2ETests : IClassFixture<WorkflowTestFixture>
         public object? TryGetDevice(string deviceName) => null;
         public bool StartPlugin(string pluginName) => true;
         public bool StopPlugin(string pluginName) => true;
-        public bool StopWorkflow(string workflowId) => true;
-        public string CreateWorkflow(string name, string source) => "wf-001";
-        public bool RunWorkflow(string workflowId) => true;
         public bool InstallPlugin(string kxpPath) => true;
         public string GetPluginInfoByName(string pluginName) => "{}";
         public string ListPluginNames() => "[\"plugin1\",\"plugin2\"]";
-        public string ListWorkflows() => "[\"wf-001\"]";
     }
 
 
