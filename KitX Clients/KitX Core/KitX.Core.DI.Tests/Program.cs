@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using KitX.Core.DI;
 using KitX.Core.Contract.Configuration;
-using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Hosting;
 
 namespace KitX.Core.DI.Tests;
@@ -159,8 +158,9 @@ public class Program
 
         // Dashboard-specific services
         services.AddSingleton<KitX.Dashboard.Services.IFileDialogService, KitX.Dashboard.Services.FileDialogService>();
-        // S2 (WorkflowStorageService) is registered inside AddKitXWorkflowV6() above
-        // (migrated from Dashboard to KitX.WorkflowV6.Services). The former
+        // The legacy standalone-workflow storage service (S2 WorkflowStorageService /
+        // IWorkflowStorageService) was retired in the D2 cleanup — workflows are now
+        // created/edited only through the ToolKit workbench. The former
         // WorkflowSessionManager run-by-id orchestrator was retired in the B5+B6+B7
         // cleanup and is no longer registered.
 
@@ -169,8 +169,6 @@ public class Program
         Console.WriteLine("Testing workflow-related resolution:\n");
 
         // --- Services the workflow UI's constructor bodies call via App.GetService ---
-        // WorkflowPageViewModel ctor needs these two:
-        TestResolve(sp, "IWorkflowStorageService", typeof(IWorkflowStorageService));
         TestResolve(sp, "IEventService", typeof(KitX.Core.Contract.Event.IEventService));
 
         Console.WriteLine();

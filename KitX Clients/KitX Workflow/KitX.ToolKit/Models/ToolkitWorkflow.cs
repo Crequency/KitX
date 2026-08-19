@@ -3,7 +3,7 @@ namespace KitX.ToolKit.Models;
 /// <summary>
 /// A reference to a workflow bundled inside a ToolKit (Bench RFC §7.2 <c>Workflows[]</c>).
 /// The <see cref="File"/> path is relative to the ToolKit storage root; at runtime the
-/// resolved <c>.kcs</c> is loaded through <see cref="KitX.Core.Contract.Workflow.IWorkflowStorageService"/>.
+/// resolved <c>.kcs</c> is loaded through <c>KitX.ToolKit.Bench.ToolkitFileStore</c>.
 /// </summary>
 public sealed class ToolkitWorkflow
 {
