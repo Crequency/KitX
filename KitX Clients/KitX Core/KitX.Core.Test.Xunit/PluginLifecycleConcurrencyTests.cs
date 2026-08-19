@@ -7,7 +7,6 @@ using Kscript.CSharp.Parser.Models;
 using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Configuration;
 using KitX.Core.Contract.Plugin.Events;
-using KitX.Core.Contract.Workflow;
 using KitX.Core.Device;
 using KitX.Core.Plugin;
 using KitX.Core.Test.Xunit.Fakes;
@@ -305,27 +304,6 @@ public class PluginLifecycleConcurrencyTests
 
         public Task<object?> CallPluginFunctionAsync(Guid pluginId, string functionName,
             Dictionary<string, object>? parameters = null) => Task.FromResult<object?>(null);
-    }
-
-    private sealed class FakeWorkflowCase : IWorkflowCase
-    {
-        public FakeWorkflowCase(string id, string name)
-        {
-            Id = id;
-            Name = name;
-        }
-
-        public string Id { get; }
-        public string Name { get; set; }
-        public string Description { get; set; } = string.Empty;
-        public string Author { get; set; } = string.Empty;
-        public bool IsRunning { get; set; }
-        public bool IsError { get; set; }
-        public string? ErrorMessage { get; set; }
-        public string? ScriptPath { get; set; }
-        public DateTime CreatedTime { get; } = DateTime.UtcNow;
-        public DateTime LastModifiedTime { get; set; } = DateTime.UtcNow;
-        public TriggerConfig? TriggerConfig { get; set; }
     }
 
     private sealed class FakePluginConnection : IPluginConnection
