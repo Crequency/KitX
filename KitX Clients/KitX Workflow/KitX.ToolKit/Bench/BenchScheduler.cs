@@ -272,23 +272,30 @@ public sealed class BenchScheduler : IDisposable
     }
 
     /// <summary>Builds a node's output packet = its input packet merged with the keys it
-    /// wrote to its instance-scoped DataStore namespace (the harness "completion + data").</summary>
+    /// wrote to its instance-scoped DataStore namespace (the harness "completion + data").
+    /// Properties are copied by <see cref="JsonValue.Create(JsonElement)"/> reference wrapper
+    /// (F5) and the DataStore scan is narrowed to the target namespace's keys via
+    /// <see cref="DataStore.KeysByPrefix"/> (F4) — no full-key scan, no string re-parse.</summary>
     private JsonElement BuildOutputPacket(BenchRunInstance instance, string workflowId, JsonElement inputPacket)
     {
         var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.NamespaceId, workflowId);
         var prefix = ns + "/";
 
-        var obj = inputPacket.ValueKind == JsonValueKind.Object
-            ? JsonNode.Parse(inputPacket.GetRawText())?.AsObject() ?? new JsonObject()
-            : new JsonObject();
+        var obj = new JsonObject();
 
-        foreach (var key in _dataStore.Keys())
+        if (inputPacket.ValueKind == JsonValueKind.Object)
         {
-            if (!key.StartsWith(prefix, StringComparison.Ordinal) || _dataStore.Get(key) is not { } value)
+            foreach (var prop in inputPacket.EnumerateObject())
+                obj[prop.Name] = WrapElement(prop.Value);
+        }
+
+        foreach (var key in _dataStore.KeysByPrefix(prefix))
+        {
+            if (_dataStore.Get(key) is not { } value)
                 continue;
             var local = key[prefix.Length..];
             if (!string.IsNullOrEmpty(local))
-                obj[local] = JsonNode.Parse(value.GetRawText());
+                obj[local] = WrapElement(value);
         }
 
         return JsonSerializer.SerializeToElement(obj);
@@ -333,6 +340,10 @@ public sealed class BenchScheduler : IDisposable
         _predecessorCount = pred;
     }
 
+    /// <summary>Merges two object packets into one, with <paramref name="second"/> overriding
+    /// <paramref name="first"/> on duplicate property names (later assignment wins). Properties
+    /// are copied by <see cref="WrapElement"/> reference wrapper (F5) so each element's original
+    /// JSON text is written through on serialization — no string re-parse.</summary>
     private static JsonElement Merge(JsonElement first, JsonElement second)
     {
         var obj = new JsonObject();
@@ -340,17 +351,29 @@ public sealed class BenchScheduler : IDisposable
         if (first.ValueKind == JsonValueKind.Object)
         {
             foreach (var prop in first.EnumerateObject())
-                obj[prop.Name] = JsonNode.Parse(prop.Value.GetRawText());
+                obj[prop.Name] = WrapElement(prop.Value);
         }
 
         if (second.ValueKind == JsonValueKind.Object)
         {
             foreach (var prop in second.EnumerateObject())
-                obj[prop.Name] = JsonNode.Parse(prop.Value.GetRawText());
+                obj[prop.Name] = WrapElement(prop.Value);
         }
 
         return JsonSerializer.SerializeToElement(obj);
     }
+
+    /// <summary>Wraps a <see cref="JsonElement"/> as a <see cref="JsonNode"/> by reference
+    /// (F5) without re-parsing its raw text. Objects/arrays use their reference factory
+    /// (<see cref="JsonObject.Create(JsonElement)"/> / <see cref="JsonArray.Create(JsonElement)"/>),
+    /// primitives use <see cref="JsonValue.Create(JsonElement)"/>. The element's backing
+    /// <see cref="JsonDocument"/> is owned by the caller and only read here (never disposed).</summary>
+    private static JsonNode WrapElement(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => JsonObject.Create(element),
+        JsonValueKind.Array => JsonArray.Create(element),
+        _ => JsonValue.Create(element)!,
+    };
 
     private void ThrowIfDisposed()
     {
