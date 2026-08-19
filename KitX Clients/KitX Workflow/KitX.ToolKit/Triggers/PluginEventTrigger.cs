@@ -44,6 +44,7 @@ public sealed class PluginEventTrigger : TriggerSourceBase
     private readonly IPluginServer _pluginServer;
     private readonly TriggerConfig _config;
     private bool _subscribed;
+    private IDisposable? _routerToken;
 
     public PluginEventTrigger(string id, IPluginServer pluginServer, TriggerConfig config)
         : base(id, TriggerType.PluginEvent)
@@ -53,10 +54,25 @@ public sealed class PluginEventTrigger : TriggerSourceBase
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Prefers the shared <see cref="IPluginEventRouter"/> when the provider resolves one (the
+    /// F3 fast path: a single process-wide subscription with O(1) dispatch). When no router is
+    /// available — e.g. a direct-construction test that only supplies an <see cref="IPluginServer"/> —
+    /// it falls back to a private direct subscription (<see cref="OnPluginMessageReceived"/>),
+    /// preserving the historical behavior exactly.
+    /// </remarks>
     public override void Start(IServiceProvider services)
     {
         if (_subscribed)
             return;
+
+        if (services?.GetService(typeof(IPluginEventRouter)) is IPluginEventRouter router)
+        {
+            _routerToken = router.Register(_config.PluginName, _config.TriggerName, Raise);
+            _subscribed = true;
+            return;
+        }
+
         _pluginServer.PluginMessageReceived += OnPluginMessageReceived;
         _subscribed = true;
     }
@@ -66,7 +82,17 @@ public sealed class PluginEventTrigger : TriggerSourceBase
     {
         if (!_subscribed)
             return;
-        _pluginServer.PluginMessageReceived -= OnPluginMessageReceived;
+
+        if (_routerToken is not null)
+        {
+            _routerToken.Dispose();
+            _routerToken = null;
+        }
+        else
+        {
+            _pluginServer.PluginMessageReceived -= OnPluginMessageReceived;
+        }
+
         _subscribed = false;
     }
 

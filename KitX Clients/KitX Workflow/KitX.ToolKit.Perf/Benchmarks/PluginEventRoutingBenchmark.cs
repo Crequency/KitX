@@ -27,15 +27,19 @@ public static class PluginEventRoutingBenchmark
         for (var i = 0; i < ConnectionCount; i++)
             connections.Add(new FakeConnection($"conn-{i}", $"Plugin{i:000}"));
 
-        var server = new FakePluginServer(connections);
         var messages = BuildMessages();
 
+        // Router scenarios measure the F3 shared-dispatcher path (one subscription per
+        // server, parse once, fan out); the direct-subscribe scenario keeps the
+        // pre-F3 fallback path as a comparison baseline.
         var rows = new List<string>
         {
-            RunScenario(server, messages, wide: false,
-                "N=1 · 1 源监听 Plugin000+UserInput · 每消息"),
-            RunScenario(server, messages, wide: true,
-                "N=20 · 10 源 Plugin000+UserInput + 10 源 Plugin150+通配 · 每消息"),
+            RunScenario(connections, messages, wide: false, useRouter: true,
+                "N=1 · Router 路径 · 1 源监听 Plugin000+UserInput · 每消息"),
+            RunScenario(connections, messages, wide: true, useRouter: true,
+                "N=20 · Router 路径 · 10 源 Plugin000+UserInput + 10 源 Plugin150+通配 · 每消息"),
+            RunScenario(connections, messages, wide: true, useRouter: false,
+                "N=20 · 回退直订（F3 前旧路径对照） · 每消息"),
         };
         return rows;
     }
@@ -102,10 +106,18 @@ public static class PluginEventRoutingBenchmark
         return sources;
     }
 
-    private static string RunScenario(FakePluginServer server, Message[] messages, bool wide, string scenario)
+    private static string RunScenario(List<FakeConnection> connections, Message[] messages, bool wide, bool useRouter, string scenario)
     {
+        // A fresh server per scenario: the router keeps its subscription after the last
+        // source unregisters, so reusing one server would stack handlers across scenarios.
+        var server = new FakePluginServer(connections);
         var sources = BuildSources(server, wide);
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = useRouter
+            ? new ServiceCollection()
+                .AddSingleton<IPluginServer>(server)
+                .AddSingleton<IPluginEventRouter, PluginEventRouter>()
+                .BuildServiceProvider()
+            : new ServiceCollection().BuildServiceProvider();
         foreach (var s in sources)
             s.Start(services);
 
