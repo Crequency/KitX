@@ -78,6 +78,13 @@ public static class ServiceCollectionExtensions
         // UIEvent-skeleton / WorkflowCompletion / Timer).
         services.AddSingleton(TriggerSourceRegistry.BuildDefault());
 
+        // Shared plugin-event router — the F3 fast path. A process-wide singleton that owns the
+        // single IPluginServer.PluginMessageReceived subscription and dispatches each TriggerFired
+        // message to every matching PluginEventTrigger source in O(1). PluginEventTrigger.Start
+        // resolves this (via IServiceProvider, so the server is resolved lazily — avoiding a DI
+        // circular dependency) and falls back to a direct subscription when it is absent.
+        services.AddSingleton<IPluginEventRouter, PluginEventRouter>();
+
         // Default workflow executor (deserializes IR + runs via WorkflowV6's WorkflowRunner,
         // which AddKitXWorkflowV6 registers — resolve lazily so registration order does not matter).
         services.AddSingleton<IWorkflowExecutor>(sp =>
@@ -91,6 +98,12 @@ public static class ServiceCollectionExtensions
 
         // The instance-model orchestration entry point (mount / spawn / end).
         services.AddSingleton<ToolkitInstanceManager>();
+
+        // ToolkitInstanceManagerOptions — singleton configuration for the instance
+        // manager (e.g. Completed-instance retention cap). Registered with Add (last
+        // wins) so a host (the Dashboard) can override the default by registering a
+        // config-backed instance AFTER AddKitXToolKit().
+        services.AddSingleton<ToolkitInstanceManagerOptions>();
 
         // Contract services — the frontend depends only on these.
         services.AddSingleton<IToolkitService, ToolkitService>();

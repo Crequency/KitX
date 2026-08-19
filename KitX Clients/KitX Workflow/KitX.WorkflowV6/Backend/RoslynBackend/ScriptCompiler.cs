@@ -25,8 +25,9 @@ using Serilog;
 //   • v6 caches the Assembly (not ICompiledBlockScript) because the G class is
 //     instantiated per-execution to wire different debugger configurations.
 //   • v6's ComputeIrHash traverses the structured AST body (not flat block list).
-//   • The cache is bounded (LRU, see <see cref="MaxCacheEntries"/>) so evicted
-//     entries unload their collectible ALCs instead of pinning them forever.
+//   • The cache is bounded (LRU, capacity is configurable via the ctor
+//     <paramref name="maxCacheEntries"/>, default 256) so evicted entries unload
+//     their collectible ALCs instead of pinning them forever.
 //
 // Lookup: in-memory LRU cache → compile.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ using Serilog;
 internal sealed class ScriptCompiler
 {
     /// <summary>Maximum number of compiled assemblies kept in memory.</summary>
-    private const int MaxCacheEntries = 16;
+    private readonly int _maxCacheEntries;
 
     private readonly Dictionary<string, CompiledScriptEntry> _cache = new(StringComparer.Ordinal);
     private readonly LinkedList<string> _lruOrder = new();
@@ -52,10 +53,12 @@ internal sealed class ScriptCompiler
     /// </summary>
     private readonly Type _baseType;
 
-    public ScriptCompiler(BuiltinFunctionRegistry registry, Type? baseType = null)
+    public ScriptCompiler(BuiltinFunctionRegistry registry, Type? baseType = null, int maxCacheEntries = 256)
     {
         _registry = registry;
         _baseType = baseType ?? typeof(Runtime.ExecutionGlobals);
+        // Defensive lower bound — a non-positive capacity is unusable, clamp to 1.
+        _maxCacheEntries = maxCacheEntries < 1 ? 1 : maxCacheEntries;
     }
 
     /// <summary>Unloads and drops all cached compiled assemblies.</summary>
@@ -169,7 +172,7 @@ internal sealed class ScriptCompiler
         _lruOrder.AddLast(hash);
 
         // Evict least-recently-used entries beyond the capacity limit.
-        while (_lruOrder.Count > MaxCacheEntries)
+        while (_lruOrder.Count > _maxCacheEntries)
         {
             var oldest = _lruOrder.First!;
             _lruOrder.RemoveFirst();

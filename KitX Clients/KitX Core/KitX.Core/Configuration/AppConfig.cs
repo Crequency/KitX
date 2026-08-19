@@ -39,6 +39,8 @@ public class AppConfig : IAppConfig, IConfigWithMetadata
 
     public Config_Loaders Loaders { get; set; } = new();
 
+    public Config_Performance Performance { get; set; } = new();
+
     // Explicit interface implementation with setters
     IAppConf IAppConfig.App { get => App; set => App = (Config_App?)value ?? new(); }
     IWindowsConf IAppConfig.Windows { get => Windows; set => Windows = (Config_Windows?)value ?? new(); }
@@ -48,4 +50,5 @@ public class AppConfig : IAppConfig, IConfigWithMetadata
     IIOConf IAppConfig.IO { get => IO; set => IO = (Config_IO?)value ?? new(); }
     IActivityConf IAppConfig.Activity { get => Activity; set => Activity = (Config_Activity?)value ?? new(); }
     ILoadersConf IAppConfig.Loaders { get => Loaders; set => Loaders = (Config_Loaders?)value ?? new(); }
+    IPerformanceConf IAppConfig.Performance { get => Performance; set => Performance = (Config_Performance?)value ?? new(); }
 }

@@ -77,6 +77,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StructuredRoslynBackend>();
         services.AddSingleton<IExecutionBackend>(sp => sp.GetRequiredService<StructuredRoslynBackend>());
 
+        // WorkflowV6Options — singleton configuration for the v6 service graph. Read by
+        // the default backend at startup to size the ScriptCompiler LRU cache. A host
+        // (the Dashboard) injects the config value by registering an instance after
+        // AddKitXWorkflowV6(); because AddSingleton uses Add (last-registered-wins),
+        // that override is retained.
+        services.AddSingleton<WorkflowV6Options>();
+
         // IExecutionGlobalsFactory — the external ExecutionGlobals extension seam. The
         // default factory keeps historical behaviour (base = ExecutionGlobals, plain
         // Activator). Registered with TryAdd so a host (e.g. KitX.ToolKit) can override

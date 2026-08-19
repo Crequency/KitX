@@ -5,6 +5,7 @@ using System.Reflection;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Builtin;
+using KitX.WorkflowV6.Hosting;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Ir.Lowering;
 using Serilog;
@@ -47,11 +48,15 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
     public StructuredRoslynBackend(
         BuiltinFunctionRegistry registry,
         IPluginHost? pluginHost = null,
-        IExecutionGlobalsFactory? factory = null)
+        IExecutionGlobalsFactory? factory = null,
+        WorkflowV6Options? options = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _factory = factory ?? new DefaultExecutionGlobalsFactory();
-        _compiler = new ScriptCompiler(_registry, _factory.BaseType);
+        // The ScriptCompiler cache capacity is configurable via WorkflowV6Options
+        // (null = default 256, keeping direct `new` callers source-compatible).
+        _compiler = new ScriptCompiler(_registry, _factory.BaseType,
+            maxCacheEntries: options?.ScriptCompilerCacheCapacity ?? 256);
         _pluginHost = pluginHost;
     }
 
