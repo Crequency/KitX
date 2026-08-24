@@ -1,0 +1,9 @@
+{
+  "$type": "MarketConfig",
+  "Sources": {
+    "KitX Official Market Source": "https://cget.catrol.cn/KitX/v1/index.json"
+  },
+  "ConfigFileLocation": "G:\\Dev\\KitX\\Config\\MarketConfig.json",
+  "ConfigFileWatcherName": null,
+  "ConfigGeneratedTime": "2024-09-15T15:03:50.5230006+03:00"
+}

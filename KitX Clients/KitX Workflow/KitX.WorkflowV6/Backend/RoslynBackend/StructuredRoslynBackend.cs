@@ -1,0 +1,173 @@
+namespace KitX.WorkflowV6.Backend.RoslynBackend;
+
+using System.Diagnostics;
+using System.Reflection;
+using KitX.Core.Contract.Workflow;
+using KitX.WorkflowV6.Backend.Runtime;
+using KitX.WorkflowV6.Builtin;
+using KitX.WorkflowV6.Hosting;
+using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Ir.Lowering;
+using Serilog;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StructuredRoslynBackend — the default IExecutionBackend for v6 (discussion notes
+// §5.3, §十二-K).
+//
+// Pipeline: IR → (StructuredCodegen) → C# source string → Roslyn CSharpCompilation
+// → CollectibleAssemblyLoadContext → instantiate G_Workflow → RunAsync → collect
+// OutputLines into BlockScriptExecutionResult.
+//
+// What's gone vs v5's RoslynExecutionBackend:
+//   • No NextBlock trampoline (the generated C# is structured if/foreach/while).
+//   • No block-name addressing.
+//   • Plugin host is optional (injected via constructor, null = no-op defaults).
+//
+// What's preserved:
+//   • String-concatenation codegen: builtin calls emit this.Method(args) directly;
+//     no ICodeGenHandler dispatch (the v5 Roslyn SyntaxFactory path was retired in
+//     favour of the simpler structured-C# string builder).
+//   • LoweringResult-driven strong-typed PubVar fields on the generated G subclass
+//     (§十二-F).
+//   • Collectible ALC for unload.
+//   • In-memory LRU compilation cache (ScriptCompiler).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// The default v6 execution backend: compiles the structured IR to structured C#
+/// via Roslyn, loads the assembly into a collectible ALC, instantiates the generated
+/// <c>G_Workflow</c>, runs <c>RunAsync</c>, and returns the captured output lines.
+/// </summary>
+public sealed class StructuredRoslynBackend : IExecutionBackend
+{
+    private readonly BuiltinFunctionRegistry _registry;
+    private readonly ScriptCompiler _compiler;
+    private readonly IPluginHost? _pluginHost;
+    private readonly IExecutionGlobalsFactory _factory;
+
+    public StructuredRoslynBackend(
+        BuiltinFunctionRegistry registry,
+        IPluginHost? pluginHost = null,
+        IExecutionGlobalsFactory? factory = null,
+        WorkflowV6Options? options = null)
+    {
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _factory = factory ?? new DefaultExecutionGlobalsFactory();
+        // The ScriptCompiler cache capacity is configurable via WorkflowV6Options
+        // (null = default 256, keeping direct `new` callers source-compatible).
+        _compiler = new ScriptCompiler(_registry, _factory.BaseType,
+            maxCacheEntries: options?.ScriptCompilerCacheCapacity ?? 256);
+        _pluginHost = pluginHost;
+    }
+
+    /// <summary>Creates the backend with the default (auto-discovered) registry.</summary>
+    public StructuredRoslynBackend()
+        : this(BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly), null) { }
+
+    public string Name => "StructuredRoslyn";
+
+    /// <summary>Unloads and drops all cached compiled assemblies.</summary>
+    public void ClearCache() => _compiler.ClearCache();
+
+    public Task<BlockScriptExecutionResult> ExecuteAsync(
+        Workflow ir,
+        LoweringResult? lowering,
+        CancellationToken ct,
+        HostRunContext? hostContext = null)
+        => ExecuteAsync(ir, lowering, ct, debugger: null, hostContext);
+
+    public async Task<BlockScriptExecutionResult> ExecuteAsync(
+        Workflow ir,
+        LoweringResult? lowering,
+        CancellationToken ct,
+        IBlueprintDebugController? debugger,
+        HostRunContext? hostContext = null)
+    {
+        ArgumentNullException.ThrowIfNull(ir);
+        ct.ThrowIfCancellationRequested();
+
+        var hasDebugger = debugger is not null;
+
+        // Use ScriptCompiler for cached compilation (in-memory LRU).
+        var (assembly, loadContext, compileErrors) = _compiler.Compile(ir, lowering, hasDebugger);
+        if (assembly is null)
+        {
+            Log.Error("StructuredRoslynBackend: compilation failed. Errors: {Errors}",
+                string.Join("\n", compileErrors));
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = $"Compilation failed:\n{string.Join("\n", compileErrors)}",
+            };
+        }
+
+        try
+        {
+            var gType = assembly.GetType("KitX.WorkflowV6.Generated.G")
+                ?? throw new InvalidOperationException("Generated G type not found.");
+            // Instantiate the generated G through the injected factory so a host-supplied
+            // globals subclass (e.g. KitX.ToolKit's ToolKitExecutionGlobals) is constructed
+            // with its services. The factory receives the generated G type (which derives
+            // from its BaseType) and Activator-creates it, then wires the services.
+            var g = _factory.Create(gType);
+            g.Debugger = debugger;
+            g.DebugToken = ct;
+            g.PluginHost = _pluginHost;
+            // The host-injected run context is carried opaquely; a host globals subclass
+            // casts it back to HostRunContext to read the instance id / namespace / overrides.
+            g.RunContext = hostContext;
+
+            var runMethod = gType.GetMethod("RunAsync", BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Generated RunAsync method not found.");
+
+            // Measure only the generated workflow's RunAsync; compile/load time
+            // is reported separately (or not at all) to keep this metric aligned
+            // with user-perceived "workflow run duration".
+            var sw = Stopwatch.StartNew();
+            runMethod.Invoke(g, null);
+            sw.Stop();
+
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = true,
+                Output = g.OutputLines,
+                ExecutionTimeMs = sw.ElapsedMilliseconds,
+            };
+        }
+        catch (Exception ex) when (ct.IsCancellationRequested
+            && (ex is OperationCanceledException
+                || ex is TargetInvocationException { InnerException: OperationCanceledException }))
+        {
+            // Cancellation surfaces as an OperationCanceledException — wrapped by
+            // reflection's TargetInvocationException when it escapes the generated
+            // RunAsync (the checkpoint wait throws inside G.Checkpoint). Re-throw the
+            // OCE so callers can present "cancelled" instead of a generic failure.
+            throw ex is OperationCanceledException oce
+                ? oce
+                : ((TargetInvocationException)ex).InnerException!;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "StructuredRoslynBackend: execution failed");
+            // Keep the full exception chain (reflection wraps runtime exceptions in
+            // TargetInvocationException, whose InnerException is the real failure);
+            // flattened so callers see the deepest cause without losing the wrapper.
+            var errorMessage = ex.InnerException is not null
+                ? $"{ex.Message} -> {ex.InnerException.Message}"
+                : ex.Message;
+            return new BlockScriptExecutionResult
+            {
+                IsSuccess = false,
+                ErrorMessage = errorMessage,
+            };
+        }
+        finally
+        {
+            // Successful compiles are owned by the ScriptCompiler cache — the cache
+            // entry unloads its ALC on LRU eviction (loadContext is null on those
+            // paths). Only the failure path returns an unregistered load context,
+            // which is dropped here.
+            loadContext?.Unload();
+        }
+    }
+}

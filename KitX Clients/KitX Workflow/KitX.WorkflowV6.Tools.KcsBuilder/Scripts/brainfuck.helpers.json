@@ -1,0 +1,93 @@
+[
+  {
+    "Name": "CharCodeAt",
+    "Parameters": [
+      { "Name": "s", "Type": "string" },
+      { "Name": "index", "Type": "int" }
+    ],
+    "ReturnType": "int",
+    "Code": "if (s == null) return 0;\nif (index < 0 || index >= s.Length) return 0;\nreturn (int)s[index];"
+  },
+  {
+    "Name": "StringSetChar",
+    "Parameters": [
+      { "Name": "s", "Type": "string" },
+      { "Name": "index", "Type": "int" },
+      { "Name": "c", "Type": "char" }
+    ],
+    "ReturnType": "string",
+    "Code": "if (s == null) return s;\nif (index < 0 || index >= s.Length) return s;\nvar chars = s.ToCharArray();\nchars[index] = c;\nreturn new string(chars);"
+  },
+  {
+    "Name": "ModAdd",
+    "Parameters": [
+      { "Name": "a", "Type": "int" },
+      { "Name": "b", "Type": "int" },
+      { "Name": "mod", "Type": "int" }
+    ],
+    "ReturnType": "int",
+    "Code": "if (mod <= 0) return a;\nint result = (a + b) % mod;\nreturn result < 0 ? result + mod : result;"
+  },
+  {
+    "Name": "ModSub",
+    "Parameters": [
+      { "Name": "a", "Type": "int" },
+      { "Name": "b", "Type": "int" },
+      { "Name": "mod", "Type": "int" }
+    ],
+    "ReturnType": "int",
+    "Code": "if (mod <= 0) return a;\nint res = (a - b) % mod;\nreturn res < 0 ? res + mod : res;"
+  },
+  {
+    "Name": "FindMatchingForward",
+    "Parameters": [
+      { "Name": "code", "Type": "string" },
+      { "Name": "ip", "Type": "int" }
+    ],
+    "ReturnType": "int",
+    "Code": "if (string.IsNullOrEmpty(code)) return ip;\nif (ip < 0 || ip >= code.Length) return ip;\nint depth = 1;\nint i = ip + 1;\nwhile (i < code.Length)\n{\n    char ch = code[i];\n    if (ch == '[') depth++;\n    else if (ch == ']')\n    {\n        depth--;\n        if (depth == 0) return i;\n    }\n    i++;\n}\nreturn ip;"
+  },
+  {
+    "Name": "FindMatchingBackward",
+    "Parameters": [
+      { "Name": "code", "Type": "string" },
+      { "Name": "ip", "Type": "int" }
+    ],
+    "ReturnType": "int",
+    "Code": "if (string.IsNullOrEmpty(code) || ip < 0 || ip >= code.Length) return ip;\nint depth = 1;\nfor (int i = ip - 1; i >= 0; i--)\n{\n    if (code[i] == ']') depth++;\n    else if (code[i] == '[')\n    {\n        depth--;\n        if (depth == 0) return i;\n    }\n}\nreturn ip;"
+  },
+  {
+    "Name": "StringAppendChar",
+    "Parameters": [
+      { "Name": "s", "Type": "string" },
+      { "Name": "c", "Type": "char" }
+    ],
+    "ReturnType": "string",
+    "Code": "return s + c;"
+  },
+  {
+    "Name": "CreateMemory",
+    "Parameters": [
+      { "Name": "size", "Type": "int" }
+    ],
+    "ReturnType": "string",
+    "Code": "return new string('\\0', size);"
+  },
+  {
+    "Name": "CharAt",
+    "Parameters": [
+      { "Name": "s", "Type": "string" },
+      { "Name": "index", "Type": "int" }
+    ],
+    "ReturnType": "char",
+    "Code": "if (string.IsNullOrEmpty(s) || index < 0 || index >= s.Length) return '\\0';\nreturn s[index];"
+  },
+  {
+    "Name": "Int2Char",
+    "Parameters": [
+      { "Name": "ascii", "Type": "int" }
+    ],
+    "ReturnType": "char",
+    "Code": "return (char)ascii;"
+  }
+]

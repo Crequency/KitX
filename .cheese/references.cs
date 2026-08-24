@@ -55,4 +55,13 @@
         Type = ReferenceType.GitRepo,
         InSubmodule = true,
     },
+    new ReferenceItem
+    {
+        Name = "NodifyM.Avalonia",
+        Location = "Reference/NodifyM.Avalonia",
+        Url = "git@github.com:Crequency/NodifyM.Avalonia.git",
+        Branch = "ava11",
+        RemoteBranch = "origin/ava11",
+        Type = ReferenceType.GitRepo,
+    },
 };

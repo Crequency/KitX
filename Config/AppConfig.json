@@ -1,0 +1,139 @@
+{
+  "App": {
+    "IconFileName": "KitX-Icon-1920x-margin-2x.png",
+    "CoverIconFileName": "KitX-Icon-Background.png",
+    "AppLanguage": "zh-cn",
+    "Theme": "Follow",
+    "ThemeColor": "#FF3873D9",
+    "SurpportLanguages": {
+      "zh-cn": "\u4E2D\u6587 (\u7B80\u4F53)",
+      "zh-tw": "\u4E2D\u6587 (\u7E41\u9AD4)",
+      "ru-ru": "\u0420\u0443\u0441\u0441\u043A\u0438\u0439",
+      "en-us": "English (US)",
+      "fr-fr": "Fran\u00E7ais",
+      "ja-jp": "\u65E5\u672C\u8A9E",
+      "ko-kr": "\uD55C\uAD6D\uC5B4"
+    },
+    "LocalPluginsFileFolder": "./Plugins/",
+    "LocalPluginsDataFolder": "./PluginsDatas/",
+    "DeveloperSetting": false,
+    "ShowAnnouncementWhenStart": true,
+    "RanTime": 0,
+    "LastBreakAfterExit": 2000
+  },
+  "Windows": {
+    "MainWindow": {
+      "Size": {
+        "Width": 1280,
+        "Height": 720,
+        "FramePerSecond": null,
+        "Area": 921600,
+        "AspectRatio": 1.7777777777777777,
+        "Description": null
+      },
+      "Location": {
+        "Left": -1,
+        "Right": 0,
+        "Top": -1,
+        "Bottom": 0,
+        "Over": 0,
+        "Under": 0
+      },
+      "WindowState": 0,
+      "IsHidden": false,
+      "Tags": {
+        "SelectedPage": "Page_Home"
+      },
+      "EnabledMica": true,
+      "GreetingTextCount_Morning": 5,
+      "GreetingTextCount_Noon": 3,
+      "GreetingTextCount_AfterNoon": 3,
+      "GreetingTextCount_Evening": 2,
+      "GreetingTextCount_Night": 4,
+      "GreetingUpdateInterval": 10
+    },
+    "AnnouncementWindow": {
+      "Size": {
+        "Width": 1280,
+        "Height": 720,
+        "FramePerSecond": null,
+        "Area": 921600,
+        "AspectRatio": 1.7777777777777777,
+        "Description": null
+      },
+      "Location": {
+        "Left": -1,
+        "Right": 0,
+        "Top": -1,
+        "Bottom": 0,
+        "Over": 0,
+        "Under": 0
+      }
+    }
+  },
+  "Pages": {
+    "Home": {
+      "NavigationViewPaneDisplayMode": 0,
+      "SelectedViewName": "View_Recent",
+      "IsNavigationViewPaneOpened": true,
+      "UseAreaExpanded": true
+    },
+    "Device": {},
+    "Market": {},
+    "Settings": {
+      "NavigationViewPaneDisplayMode": 0,
+      "SelectedViewName": "View_General",
+      "PaletteAreaExpanded": false,
+      "WebRelatedAreaExpanded": true,
+      "WebRelatedAreaOfNetworkInterfacesExpanded": false,
+      "LogRelatedAreaExpanded": true,
+      "UpdateRelatedAreaExpanded": true,
+      "AboutAreaExpanded": false,
+      "AuthorsAreaExpanded": false,
+      "LinksAreaExpanded": false,
+      "ThirdPartyLicensesAreaExpanded": false,
+      "IsNavigationViewPaneOpened": true
+    }
+  },
+  "Web": {
+    "DelayStartSeconds": 0.5,
+    "ApiServer": "api.catrol.cn",
+    "ApiPath": "/apps/kitx/",
+    "DevicesViewRefreshDelay": 1000,
+    "AcceptedNetworkInterfaces": null,
+    "UserSpecifiedDevicesServerPort": null,
+    "UserSpecifiedPluginsServerPort": null,
+    "UdpPortSend": 23404,
+    "UdpPortReceive": 24040,
+    "UdpSendFrequency": 1000,
+    "UdpBroadcastAddress": "224.0.0.0",
+    "IPFilter": "192.168",
+    "SocketBufferSize": 102400,
+    "DeviceInfoTTLSeconds": 7,
+    "DisableRemovingOfflineDeviceCard": false,
+    "UpdateServer": "api.catrol.cn",
+    "UpdatePath": "/apps/kitx/%platform%/",
+    "UpdateDownloadPath": "/apps/kitx/update/%platform%/",
+    "UpdateChannel": "stable",
+    "UpdateSource": "latest-components.json",
+    "DebugServicesServerPort": 7777
+  },
+  "Log": {
+    "LogFileSingleMaxSize": 10485760,
+    "LogFilePath": "./Log/",
+    "LogTemplate": "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+    "LogFileMaxCount": 50,
+    "LogFileFlushInterval": 30,
+    "LogLevel": 2
+  },
+  "IO": {
+    "UpdatingCheckPerThreadFilesCount": 20,
+    "OperatingSystemVersionUpdateInterval": 60
+  },
+  "Activity": {
+    "TotalRecorded": 0
+  },
+  "Loaders": {
+    "InstallPath": "./Loaders/"
+  }
+}
