@@ -1,0 +1,250 @@
+namespace KitX.WorkflowV6.Lens.KsTextLens;
+
+using KitX.Core.Contract.Workflow;
+using KitX.WorkflowV6.Builtin;
+using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Ir.Ast;
+using KitX.WorkflowV6.Ir.Lowering;
+using KitX.WorkflowV6.Ir.Statements;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KsLowerer — KsProgram (KS AST) → immutable Workflow (IR).
+//
+// Mostly a 1:1 structural transform: KsConstBlock/KsVarBlock → Workflow.Constants/
+// GlobalVars; KsIf → IfStatement; KsForEach → ForEachStatement; KsWhile →
+// WhileStatement; KsBreak/KsContinue → their IR kinds; KsPipeline →
+// PipelineStatement (carrying the structured KsNode sources + segments).
+//
+// No pipeline flattening, no PubVar capacitor allocation, no nested-call expansion
+// — those v5 smells are gone because the IR keeps pipelines as structured AST.
+// The lowerer is therefore ~3x shorter than v5's BS2CFGConverter.
+//
+// The lowerer consults the <see cref="BuiltinFunctionRegistry"/> only to feed
+// function PortSpec metadata into type inference; the default path is the 1:1
+// transform. Control-flow primitives (if/switch/forEach/while/break/continue)
+// are NOT routed through the registry — they are first-class IR statement
+// kinds per discussion notes §十二-K, so the lowerer builds them directly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Lowers a parsed <see cref="KsProgram"/> AST into an immutable <see cref="Workflow"/>.
+/// Pure: the same AST always yields the same IR. Does NOT flatten pipelines or
+/// allocate PubVar capacitors — the IR keeps pipelines as structured AST.
+/// </summary>
+internal sealed class KsLowerer
+{
+    private readonly BuiltinFunctionRegistry? _registry;
+
+    public KsLowerer(BuiltinFunctionRegistry? registry = null) => _registry = registry;
+
+    /// <summary>
+    /// Lowers <paramref name="program"/> into a <see cref="Workflow"/>. Helper
+    /// functions are carried onto the workflow for downstream codegen. PubVar
+    /// types are inferred from the var block declarations (discussion notes §十二-F).
+    /// </summary>
+    public (Workflow Ir, LoweringResult Result) Lower(
+        KsProgram program,
+        IReadOnlyList<HelperFunction> helpers)
+    {
+        // Build a set of helper function names for segment-tap disambiguation:
+        // `5 > Double > Print` — "Double" has no parens but is a helper, not a variable.
+        var helperNames = new HashSet<string>(helpers.Select(h => h.Name), StringComparer.Ordinal);
+        // ── Declarations ──
+        var constants = ImmutableDictionary.CreateBuilder<string, Constant>();
+        var globalVars = ImmutableDictionary.CreateBuilder<string, GlobalVar>();
+        var pubVarTypes = new Dictionary<string, string>();
+
+        if (program.ConstBlock is not null)
+        {
+            foreach (var d in program.ConstBlock.Declarations)
+            {
+                constants.Add(d.Name, new Constant
+                {
+                    Name = d.Name,
+                    Type = d.Type,
+                    InitialValueExpression = d.InitialValueExpression,
+                    DictInitializer = d.DictInitializer,
+                    LeadingComment = d.LeadingComment,
+                    TrailingComment = d.TrailingComment,
+                });
+                pubVarTypes[d.Name] = d.Type;
+            }
+        }
+        if (program.VarBlock is not null)
+        {
+            foreach (var d in program.VarBlock.Declarations)
+            {
+                globalVars.Add(d.Name, new GlobalVar
+                {
+                    Name = d.Name,
+                    Type = d.Type,
+                    InitialValueExpression = d.InitialValueExpression,
+                    DictInitializer = d.DictInitializer,
+                    LeadingComment = d.LeadingComment,
+                    TrailingComment = d.TrailingComment,
+                });
+                pubVarTypes[d.Name] = d.Type;
+            }
+        }
+
+        // ── Body ──
+        var body = LowerStatements(program.Body, helperNames);
+
+        // ── Type inference: two-pass (Source + Demand) via TypeInferer. ──
+        // Seeds from declared types, then refines from pipeline assignments and
+        // if/while conditions. Supersedes the old one-pass InferVarTypesFromPipelines.
+        var seedTypes = new Dictionary<string, string>(pubVarTypes, StringComparer.Ordinal);
+        var inferredTypes = TypeInferer.Infer(
+            new Workflow { Body = body, Constants = constants.ToImmutable(), GlobalVars = globalVars.ToImmutable(), HelperFunctions = helpers.ToImmutableArray() },
+            new LoweringResult { PubVarTypes = seedTypes },
+            name => _registry?.Contains(name) ?? false,
+            helpers,
+            name => _registry?.FirstDataOutputPinType(name));
+        pubVarTypes = inferredTypes;
+
+        // Propagate inferred types back into the IR's GlobalVars so that downstream
+        // consumers (StructuredRoslynBackend) pick up the corrected types.
+        foreach (var (name, inferredType) in pubVarTypes)
+        {
+            if (globalVars.TryGetValue(name, out var gv) && gv.Type != inferredType)
+                globalVars[name] = gv with { Type = inferredType };
+        }
+
+        var ir = new Workflow
+        {
+            Body = body,
+            Constants = constants.ToImmutable(),
+            GlobalVars = globalVars.ToImmutable(),
+            HelperFunctions = helpers.ToImmutableArray(),
+            // KS-side privileged doc comments: carried verbatim, excluded from equality,
+            // never projected to the BP graph.
+            ConstantsDocComment = program.ConstBlock?.LeadingComment,
+            GlobalVarsDocComment = program.VarBlock?.LeadingComment,
+            TrailingDocComment = program.TrailingDocComment,
+        };
+
+        var result = new LoweringResult
+        {
+            PubVarTypes = pubVarTypes,
+        };
+
+        return (ir, result);
+    }
+
+    private ImmutableArray<Statement> LowerStatements(
+        IReadOnlyList<KsStatement> statements, HashSet<string> helperNames)
+    {
+        var builder = ImmutableArray.CreateBuilder<Statement>(statements.Count);
+        foreach (var s in statements)
+            builder.Add(LowerStatement(s, helperNames));
+        return builder.ToImmutable();
+    }
+
+    private Statement LowerStatement(KsStatement stmt, HashSet<string> helperNames)
+    {
+        Statement ir = stmt switch
+        {
+            KsPipeline pipe => LowerPipeline(pipe, helperNames),
+            KsIf iff => WithFingerprint(new IfStatement
+            {
+                Fingerprint = default,
+                Condition = iff.Condition,
+                ThenBody = LowerStatements(iff.ThenBody, helperNames),
+                ElseBody = LowerStatements(iff.ElseBody, helperNames),
+                SourceLine = iff.SourceLine,
+                LeadingComment = iff.LeadingComment,
+                TrailingComment = iff.TrailingComment,
+            }),
+            KsSwitch sw => WithFingerprint(new SwitchStatement
+            {
+                Fingerprint = default,
+                Selector = sw.Selector,
+                Arms = LowerArms(sw.Arms, helperNames),
+                ArmLabels = sw.ArmLabels,
+                Default = LowerStatements(sw.Default, helperNames),
+                SourceLine = sw.SourceLine,
+                LeadingComment = sw.LeadingComment,
+                TrailingComment = sw.TrailingComment,
+            }),
+            KsForEach fe => WithFingerprint(new ForEachStatement
+            {
+                Fingerprint = default,
+                Source = fe.Source,
+                ItemName = fe.ItemName,
+                Body = LowerStatements(fe.Body, helperNames),
+                SourceLine = fe.SourceLine,
+                LeadingComment = fe.LeadingComment,
+                TrailingComment = fe.TrailingComment,
+            }),
+            KsWhile ws => WithFingerprint(new WhileStatement
+            {
+                Fingerprint = default,
+                Condition = ws.Condition,
+                Body = LowerStatements(ws.Body, helperNames),
+                SourceLine = ws.SourceLine,
+                LeadingComment = ws.LeadingComment,
+                TrailingComment = ws.TrailingComment,
+            }),
+            KsBreak => WithFingerprint(new BreakStatement
+            {
+                Fingerprint = default,
+                SourceLine = stmt.SourceLine,
+                LeadingComment = stmt.LeadingComment,
+                TrailingComment = stmt.TrailingComment,
+            }),
+            KsContinue => WithFingerprint(new ContinueStatement
+            {
+                Fingerprint = default,
+                SourceLine = stmt.SourceLine,
+                LeadingComment = stmt.LeadingComment,
+                TrailingComment = stmt.TrailingComment,
+            }),
+            _ => throw new InvalidOperationException($"Unknown KS statement kind: {stmt.GetType().Name}"),
+        };
+        return ir;
+    }
+
+    /// <summary>Computes the structural fingerprint and returns the statement carrying it.</summary>
+    private static Statement WithFingerprint(Statement stmt) =>
+        stmt with { Fingerprint = Fingerprint.Compute(stmt) };
+
+    private ImmutableArray<ImmutableArray<Statement>> LowerArms(
+        ImmutableArray<ImmutableArray<KsStatement>> arms, HashSet<string> helperNames)
+    {
+        var builder = ImmutableArray.CreateBuilder<ImmutableArray<Statement>>(arms.Length);
+        foreach (var arm in arms)
+            builder.Add(LowerStatements(arm, helperNames));
+        return builder.ToImmutable();
+    }
+
+    private Statement LowerPipeline(KsPipeline pipe, HashSet<string> helperNames)
+    {
+        var sources = ImmutableArray.CreateRange(pipe.Sources);
+        var segments = ImmutableArray.CreateRange(pipe.Segments.Select(s => LowerSegment(s, helperNames)));
+        var stmt = new PipelineStatement
+        {
+            Fingerprint = default,
+            Sources = sources,
+            Segments = segments,
+            SourceLine = pipe.SourceLine,
+            LeadingComment = pipe.LeadingComment,
+            TrailingComment = pipe.TrailingComment,
+        };
+        return WithFingerprint(stmt);
+    }
+
+    private Segment LowerSegment(KsPipelineSegment seg, HashSet<string> helperNames)
+    {
+        var args = ImmutableArray.CreateRange(seg.Args);
+        // Disambiguate: a bare name without parens is a variable tap UNLESS it's a
+        // known helper function (helpers are passed externally; Parser can't know).
+        bool isVarTap = seg.IsVariableTap && !helperNames.Contains(seg.Target);
+        return new Segment
+        {
+            Target = seg.Target,
+            Arguments = args,
+            IsVariableTap = isVarTap,
+            Comment = seg.Comment,
+        };
+    }
+}

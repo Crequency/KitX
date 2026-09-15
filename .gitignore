@@ -362,3 +362,31 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# Claude Code
+.claude/
+Claude.md
+
+# Package folder
+Package/*
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.code-workspace
+.env
+.env.*
+!.env.example
+.next/
+dist/
+build/
+.venv/
+venv/
+target/
+vendor/
+coverage/
+.cache/
+tmp/

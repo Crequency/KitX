@@ -1,0 +1,143 @@
+namespace KitX.WorkflowV6.Hosting;
+
+using System.Reflection;
+using KitX.WorkflowV6.Backend;
+using KitX.WorkflowV6.Backend.RoslynBackend;
+using KitX.WorkflowV6.Builtin;
+using KitX.WorkflowV6.Lens;
+using KitX.WorkflowV6.Lens.KsTextLens;
+using KitX.WorkflowV6.Lens.BpGraphLens;
+using KitX.WorkflowV6.Session;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using KitX.WorkflowV6.Backend.Runtime;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ServiceCollectionExtensions — DI entry point for KitX.WorkflowV6.
+//
+// Registers the reflection-discovered builtin registry (37 v6 builtin functions),
+// both lenses (KsTextLens + BpGraphLens), the SyncService, the default v6
+// execution backend (StructuredRoslynBackend — structured IR → structured C# via
+// Roslyn, loaded into a collectible AssemblyLoadContext), and the shared
+// WorkflowRunner execution path.
+//
+// The Dashboard references this library (KitX.Dashboard.csproj ProjectReference)
+// and calls AddKitXWorkflowV6() in App.axaml.cs. Since the v5.1 WorkflowIR library
+// was archived (Package/Archive), the v6 registrations are the only workflow
+// pipeline — shared interface names (ILens<>, IExecutionBackend) resolve to v6.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// DI registration extensions for the KitX.WorkflowV6 library.
+/// </summary>
+public static class ServiceCollectionExtensions
+{
+    /// <summary>
+    /// Registers the KitX.WorkflowV6 service graph: the builtin-function registry
+    /// (reflection-discovered, 37 functions across 25 source files), the two lenses
+    /// (KS text + BP graph), the session sync service, the default
+    /// IExecutionBackend (StructuredRoslynBackend), and the shared WorkflowRunner.
+    /// </summary>
+    public static IServiceCollection AddKitXWorkflowV6(this IServiceCollection services)
+    {
+        // BuiltinFunctionRegistry — single reflection-discovered instance. Discovers
+        // the 37 v6 builtins: Print/Range/Compare/Add/Sub/Mul/Div/Mod/Len/StringConcat
+        // + Pause/ReadTextFile/WriteTextFile + 7 JSON functions + 9 dict functions
+        // + 3 plugin-call functions + 5 service-management functions.
+        //
+        // The registry is a DI singleton so other KitX systems can extend it: any
+        // IBuiltinFunction registered via AddBuiltinFunction<T>() / AddBuiltinFunctions()
+        // is folded into the same registry on first resolution. This is the public
+        // extension seam for host-side builtins (e.g. KitX.ToolKit's Ui*/DataStore*).
+        services.AddSingleton(sp =>
+        {
+            var registry = BuiltinFunctionRegistry.Discover(typeof(BuiltinFunctionRegistry).Assembly);
+            foreach (var fn in sp.GetServices<IBuiltinFunction>())
+                registry.Register(fn);
+            return registry;
+        });
+
+        // Lenses — bidirectional IR views. Both KsTextLens and BpGraphLens are fully
+        // implemented (Parse/Project/Reverse); BpGraphLens.Diff is the only entry on
+        // the deferred list (P2 milestone — see V6-BpEditAction-Future-Design-ADR.md).
+        services.AddSingleton<KsTextLens>();
+        services.AddSingleton<BpGraphLens>();
+        services.AddSingleton<ILens<string, string>>(sp => sp.GetRequiredService<KsTextLens>());
+        services.AddSingleton<ILens<Blueprint, IReadOnlyList<BpEditAction>>>(
+            sp => sp.GetRequiredService<BpGraphLens>());
+
+        // SyncService — applies KS/BP edits to a WorkflowSession, producing a
+        // WorkflowChangeSet. ApplyKsEdit is fully functional; ApplyBpEdits is
+        // deferred to the P2 dual-pane-live-highlight milestone.
+        services.AddSingleton<SyncService>();
+
+        // IExecutionBackend — StructuredRoslynBackend is the default v6 backend.
+        // Compiles structured IR → structured C# via Roslyn, loads into a collectible
+        // AssemblyLoadContext, runs RunAsync, captures OutputLines.
+        services.AddSingleton<StructuredRoslynBackend>();
+        services.AddSingleton<IExecutionBackend>(sp => sp.GetRequiredService<StructuredRoslynBackend>());
+
+        // WorkflowV6Options — singleton configuration for the v6 service graph. Read by
+        // the default backend at startup to size the ScriptCompiler LRU cache. A host
+        // (the Dashboard) injects the config value by registering an instance after
+        // AddKitXWorkflowV6(); because AddSingleton uses Add (last-registered-wins),
+        // that override is retained.
+        services.AddSingleton<WorkflowV6Options>();
+
+        // IExecutionGlobalsFactory — the external ExecutionGlobals extension seam. The
+        // default factory keeps historical behaviour (base = ExecutionGlobals, plain
+        // Activator). Registered with TryAdd so a host (e.g. KitX.ToolKit) can override
+        // it with a later AddSingleton registration; the host's factory supplies the
+        // base type the generated G derives from and the per-run instances it is
+        // constructed with.
+        services.TryAddSingleton<IExecutionGlobalsFactory, DefaultExecutionGlobalsFactory>();
+
+        // WorkflowRunner — single shared execution path (ApplyConstantOverrides +
+        // ExecuteAsync) used by the editor Run/DebugRun. Registered as both its
+        // concrete type (for same-library consumers) and its IWorkflowRunner
+        // abstraction (for cross-library interface-based consumers such as the
+        // Dashboard editor), sharing one singleton instance.
+        services.AddSingleton<Services.WorkflowRunner>();
+        services.AddSingleton<Services.IWorkflowRunner>(sp => sp.GetRequiredService<Services.WorkflowRunner>());
+
+        // The legacy standalone-workflow storage service (IWorkflowStorageService /
+        // WorkflowStorageService) was retired in the D2 cleanup — workflows are now
+        // created/edited exclusively through the ToolKit workbench and persisted under
+        // Data/Toolkits/{id}/workflows/*.kcs (see KitX.ToolKit.Storage.ToolkitStore +
+        // Bench.ToolkitFileStore). The former WorkflowSessionManager run-by-id
+        // orchestrator was already retired in the B5+B6+B7 cleanup.
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a builtin function, constructed via DI (no parameterless-ctor reflection
+    /// requirement). The function is folded into the shared <see cref="BuiltinFunctionRegistry"/>
+    /// singleton on first resolution, so it appears in the BP palette and type inference.
+    /// This is the public extension seam for host-side builtins (e.g. KitX.ToolKit's
+    /// Ui*/DataStore* families) and any future KitX system.
+    /// </summary>
+    public static IServiceCollection AddBuiltinFunction<T>(this IServiceCollection services)
+        where T : class, IBuiltinFunction
+    {
+        services.AddSingleton<IBuiltinFunction, T>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers every concrete <see cref="IBuiltinFunction"/> in an assembly via reflection
+    /// (parameterless-ctor requirement, like <see cref="BuiltinFunctionRegistry.Discover"/>).
+    /// Prefer <see cref="AddBuiltinFunction{T}"/> for DI-constructed functions.
+    /// </summary>
+    public static IServiceCollection AddBuiltinFunctions(this IServiceCollection services, Assembly assembly)
+    {
+        foreach (var type in assembly.GetTypes())
+        {
+            if (!typeof(IBuiltinFunction).IsAssignableFrom(type)) continue;
+            if (type.IsAbstract || type.IsInterface) continue;
+            if (type.GetConstructor(Type.EmptyTypes) is null) continue;
+            services.AddSingleton(typeof(IBuiltinFunction), type);
+        }
+        return services;
+    }
+}

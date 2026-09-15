@@ -3,6 +3,12 @@
 # <emoji> <types>(<scope>): <subject>
 # <emoji>: 💾/🔧/📄/🎇/🧩/✅/❌/📝/📦/🐛
 # <types>: Feat/Fix/Docs/Style/Refactor/Test/Test/Chore/Struct/Bug
+# 💾-Feat, 🔧-Fix, 📄-Docs, 🎇-Style, 🧩-Refactor, ✅-Test, ❌-Test, 📝-Chore, 📦-Struct, 🐛-Bug
+# Note: Two types (Test) with different emojis (✅/❌):
+#   ✅-Test  = test PASS — changes that make tests pass (implementing a feature so its test goes green, adding a passing test).
+#   ❌-Test  = test FAIL — changes that introduce failing tests (writing red-light/TDD tests for unimplemented behavior, or a test that currently fails).
+#   Quick mnemonic: the emoji mirrors the test result after the commit.
+# Note: "Fix" vs "Bug" - "Fix" is for code changes that fix bugs, while "Bug" is for reporting bugs without code changes.
 # demo: 💾 📝 📦 Feat, Chore, Struct(Scope): issue or changelog
 # docs: https://docs.catrol.cn/rules/team/git/#%25E6%258F%2590%25E4%25BA%25A4%25E6%25B6%2588%25E6%2581%25AF%25E8%25A7%2584%25E8%258C%2583
 

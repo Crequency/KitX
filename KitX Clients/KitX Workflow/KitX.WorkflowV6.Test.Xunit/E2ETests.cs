@@ -1,0 +1,763 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 4 E2E tests for StructuredRoslynBackend.
+//
+// Compiles KS source → IR → C# → runs → asserts on captured OutputLines.
+// ─────────────────────────────────────────────────────────────────────────────
+
+using KitX.WorkflowV6.Backend.RoslynBackend;
+using KitX.WorkflowV6.Backend.Runtime;
+using KitX.WorkflowV6.Builtin;
+using KitX.WorkflowV6.Ir;
+using KitX.WorkflowV6.Lens.KsTextLens;
+using Xunit;
+
+namespace KitX.WorkflowV6.Test.Xunit;
+
+[Trait("Category", "Integration")]
+public class E2ETests : IClassFixture<WorkflowTestFixture>
+{
+    private readonly WorkflowTestFixture _fixture;
+    public E2ETests(WorkflowTestFixture fixture) => _fixture = fixture;
+
+    private sealed class MockPluginHost : IPluginHost
+    {
+        public List<(string Plugin, string Method, object?[] Args)> NotifyCalls { get; } = [];
+
+        public object? Call(string pluginName, string methodName, params object[] args)
+            => "{\"result\":\"ok\"}";
+
+        public void Notify(string pluginName, string methodName, params object[] args)
+            => NotifyCalls.Add((pluginName, methodName, args));
+
+        public object? CallWithTarget(string pluginName, string methodName, string targetDevice, params object[] args)
+            => "{\"result\":\"remote\"}";
+        public object? TryGetDevice(string deviceName) => null;
+        public bool StartPlugin(string pluginName) => true;
+        public bool StopPlugin(string pluginName) => true;
+        public bool InstallPlugin(string kxpPath) => true;
+        public string GetPluginInfoByName(string pluginName) => "{}";
+        public string ListPluginNames() => "[\"plugin1\",\"plugin2\"]";
+    }
+
+
+
+    [Fact]
+    public async Task E2E_Hello_World()
+    {
+        var ir = _fixture.KsLens.Parse("Print(\"hello\")\n", []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Execution failed: {result.ErrorMessage}");
+        Assert.Contains("hello", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_ForEach_Range_Prints_0_1_2()
+    {
+        var src = """
+            forEach Range(0, 3, 1) as i:
+                i > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "0", "1", "2" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_If_Else_True_Branch()
+    {
+        var src = """
+            if 1, 1 > Compare("BEQ"):
+                Print("yes")
+            else:
+                Print("no")
+            """;        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("yes", result.Output);
+        Assert.DoesNotContain("no", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_While_Loop_Terminates()
+    {
+        var src = """
+            var {
+                int counter
+            }
+
+            0 > counter
+            while counter, 3 > Compare("BLT"):
+                counter, 1 > Add > counter
+                Print("tick")
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(3, result.Output.Count(x => x == "tick"));
+    }
+
+    [Fact]
+    public async Task E2E_Break_Exits_ForEach()
+    {
+        var src = """
+            forEach Range(0, 10, 1) as i:
+                if i, 2 > Compare("BEQ"):
+                    break
+                i > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        // i=0 prints 0, i=1 prints 1, i=2 breaks before printing.
+        Assert.Equal(new[] { "0", "1" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Continue_Skips_ForEach_Iteration()
+    {
+        var src = """
+            forEach Range(0, 5, 1) as i:
+                if i, 2 > Compare("BEQ"):
+                    continue
+                i > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        // i=0,1,3,4 print; i=2 is skipped.
+        Assert.Equal(new[] { "0", "1", "3", "4" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Strong_Typed_PubVar()
+    {
+        var src = """
+            var {
+                int counter
+            }
+
+            Add(2, 3) > counter
+            counter > Print
+            """;        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("5", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_StringConcat()
+    {
+        var src = """
+            StringConcat("hello, ", "world") > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("hello, world", result.Output);
+    }
+
+    // ── Phase 3.3: E2E tests for pipeline conditions and new syntax ──
+
+    [Fact]
+    public async Task E2E_Pipeline_Condition_Direct()
+    {
+        // Pipeline condition directly in if — no intermediate variable needed.
+        var src = """
+            if 1, 1 > Compare("BEQ"):
+                Print("equal")
+            else:
+                Print("not equal")
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("equal", result.Output);
+        Assert.DoesNotContain("not equal", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Pipeline_Condition_With_Variables()
+    {
+        var src = """
+            var {
+                int a
+                int b
+            }
+
+            3 > a
+            5 > b
+            if a, b > Compare("BLT"):
+                Print("a less than b")
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("a less than b", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Variable_Tap_Pipeline()
+    {
+        // `0 > counter > Print` — counter is both written and read in one chain.
+        var src = """
+            var {
+                int counter
+            }
+
+            0 > counter > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("0", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Nested_Control_Flow()
+    {
+        // Nested forEach + if/else + if/else (mini guess-number).
+        // target=3, range 0..5: i=0,1,2 → "too low", i=3 → "found it!", break.
+        var src = """
+            const {
+                int target = 3
+            }
+
+            var {
+                int guess
+                int hit
+            }
+
+            0 > hit
+            forEach Range(0, 5, 1) as i:
+                i > guess
+                if guess, target > Compare("BEQ"):
+                    1 > hit
+                    Print("found it!")
+                    break
+                else:
+                    if guess, target > Compare("BLT"):
+                        Print("too low")
+                    else:
+                        Print("too high")
+            hit > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        // i=0,1,2 are too low; i=3 matches.
+        Assert.Equal(3, result.Output.Count(x => x == "too low"));
+        Assert.Contains("found it!", result.Output);
+        Assert.Contains("1", result.Output);  // hit = 1
+    }
+
+    [Fact]
+    public async Task E2E_Placeholder_Pipeline_ForEach()
+    {
+        // `forEach loopMax > Range(0, _, 1) as i` — the `_` placeholder is replaced
+        // by the pipeline source `loopMax`, producing Range(0, 3, 1).
+        var src = """
+            const {
+                int loopMax = 3
+            }
+
+            forEach loopMax > Range(0, _, 1) as i:
+                i > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "0", "1", "2" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Switch_Statement()
+    {
+        // selector=1 → arm 1 prints "one"; arms 0 and default not taken.
+        var src = """
+            var {
+                int sel
+            }
+
+            1 > sel
+            switch sel:
+                0:
+                    Print("zero")
+                1:
+                    Print("one")
+                default:
+                    Print("other")
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "one" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_User_Helper_Function()
+    {
+        // Define a user helper function `int Double(int x) { return x * 2; }`
+        // and call it from KS: `5 > Double > Print` → output "10".
+        var helpers = new List<KitX.Core.Contract.Workflow.HelperFunction>
+        {
+            new()
+            {
+                Name = "Double",
+                ReturnType = "int",
+                Parameters =
+                [
+                    new() { Name = "x", Type = "int" },
+                ],
+                Code = "return x * 2;",
+            },
+        };
+        var ir = _fixture.KsLens.Parse("5 > Double > Print\n", helpers);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("10", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Helper_Return_Type_Inference()
+    {
+        // Helper returns int → PubVar assigned from helper should be strongly typed as int.
+        // `5 > Double > result > Print(result)` — result inferred as int, not object.
+        var helpers = new List<KitX.Core.Contract.Workflow.HelperFunction>
+        {
+            new()
+            {
+                Name = "Double",
+                ReturnType = "int",
+                Parameters = [new() { Name = "x", Type = "int" }],
+                Code = "return x * 2;",
+            },
+        };
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                int result
+            }
+
+            5 > Double > result
+            result > Print
+            """, helpers);
+        // Verify the PubVar type was inferred as int (not object).
+        Assert.True(ir.GlobalVars.TryGetValue("result", out var gv));
+        Assert.Equal("int", gv.Type);
+        // Execute to verify strong-typed field works.
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("10", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Branch_Condition_Type_Inference()
+    {
+        // var { object flag } + true > flag + if flag → flag should be inferred as bool.
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                object flag
+            }
+
+            true > flag
+            if flag:
+                Print("yes")
+            """, []);
+        // Verify the PubVar type was refined to bool by the Demand pass.
+        Assert.True(ir.GlobalVars.TryGetValue("flag", out var gv));
+        Assert.Equal("bool", gv.Type);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("yes", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Helper_Param_Type_Inference()
+    {
+        // Helper Greet(string name) — PubVar passed as arg should be inferred as string.
+        var helpers = new List<KitX.Core.Contract.Workflow.HelperFunction>
+        {
+            new()
+            {
+                Name = "Greet",
+                ReturnType = "string",
+                Parameters = [new() { Name = "name", Type = "string" }],
+                Code = "return \"hello, \" + name;",
+            },
+        };
+        var ir = _fixture.KsLens.Parse("""
+            var {
+                object who
+            }
+
+            "world" > who
+            who > Greet > Print
+            """, helpers);
+        // The Demand pass should refine `who` from object to string.
+        Assert.True(ir.GlobalVars.TryGetValue("who", out var gv));
+        Assert.Equal("string", gv.Type);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("hello, world", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Cache_Hit_On_Second_Execution()
+    {
+        // Same IR executed twice — second call should hit the in-memory cache
+        // (assembly reuse). Verify output is identical.
+        var ir = _fixture.KsLens.Parse("Print(\"cached\")\n", []);
+        var backend = _fixture.MakeBackend();
+        var result1 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        var result2 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result1.IsSuccess, $"First execution failed: {result1.ErrorMessage}");
+        Assert.True(result2.IsSuccess, $"Second execution failed: {result2.ErrorMessage}");
+        Assert.Equal(result1.Output, result2.Output);
+        Assert.Contains("cached", result2.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Cache_Invalidation_On_IR_Change()
+    {
+        // Different IR should produce different output (no stale cache hit).
+        var ir1 = _fixture.KsLens.Parse("Print(\"first\")\n", []);
+        var ir2 = _fixture.KsLens.Parse("Print(\"second\")\n", []);
+        var backend = _fixture.MakeBackend();
+        var result1 = await backend.ExecuteAsync(ir1, null, CancellationToken.None);
+        var result2 = await backend.ExecuteAsync(ir2, null, CancellationToken.None);
+        Assert.Contains("first", result1.Output);
+        Assert.Contains("second", result2.Output);
+        Assert.DoesNotContain("second", result1.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Cache_Invalidation_On_Constant_Override()
+    {
+        // Overriding a constant's InitialValueExpression must invalidate the compile
+        // cache (ComputeIrHash folds the value in) — the second run must execute with
+        // the NEW value, not a stale cached assembly (P4-α-2 regression).
+        var src = """
+            const {
+                int x = 1
+            }
+            x > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result1 = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result1.IsSuccess, $"First run failed: {result1.ErrorMessage}");
+        Assert.Contains("1", result1.Output);
+
+        var overridden = WorkflowOverrides.ApplyConstantOverrides(
+            ir, new Dictionary<string, string?> { ["x"] = "2" });
+        var result2 = await backend.ExecuteAsync(overridden, null, CancellationToken.None);
+        Assert.True(result2.IsSuccess, $"Overridden run failed: {result2.ErrorMessage}");
+        Assert.Contains("2", result2.Output);
+        Assert.DoesNotContain("1", result2.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Arithmetic_Four_Operations()
+    {
+        var src = """
+            Sub(10, 3) > Print
+            Mul(4, 5) > Print
+            Div(20, 4) > Print
+            Mod(10, 3) > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Equal(new[] { "7", "20", "5", "1" }, result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Arithmetic_In_Computation()
+    {
+        // 3 * 4 = 12, then 12 - 5 = 7. Uses pipeline chaining with placeholder.
+        var src = """
+            3, 4 > Mul > Sub(_, 5) > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("7", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Pause_Then_Print()
+    {
+        var src = """
+            Pause(1)
+            Print("after pause")
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("after pause", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Write_And_Read_File()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"kitx_test_{Guid.NewGuid():N}.txt");
+        try
+        {
+            var src = $"""
+                WriteTextFile("{tempFile}", "hello world")
+                ReadTextFile("{tempFile}") > Print
+                """;
+            var ir = _fixture.KsLens.Parse(src, []);
+            var backend = _fixture.MakeBackend();
+            var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+            Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+            Assert.Contains("hello world", result.Output);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task E2E_Len_Of_String()
+    {
+        var src = """
+            Len("hello") > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("5", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_Len_Of_Range_Array()
+    {
+        var src = """
+            Range(0, 5, 1) > Len > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("5", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonAsInt_From_Number()
+    {
+        var src = """
+            "42" > JsonAsInt > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("42", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonAsInt_From_NonIntegral_Number_Truncates()
+    {
+        var src = """
+            "1.5" > JsonAsInt > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("1", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonGetField_Then_AsString()
+    {
+        var src = """
+            "{\"name\":\"world\"}" > JsonGetField(_, "name") > JsonAsString > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("world", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonArrayAt_Then_AsInt()
+    {
+        var src = """
+            "[10, 20, 30]" > JsonArrayAt(_, 1) > JsonAsInt > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("20", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonContains_Path_Exists()
+    {
+        var src = """
+            "{\"name\":\"world\"}" > JsonContains(_, "name") > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonObjectKeys_Then_Len()
+    {
+        var src = """
+            "{\"a\":1,\"b\":2}" > JsonObjectKeys > Len > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("2", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonGetField_Nested_Path()
+    {
+        var src = """
+            "{\"user\":{\"name\":\"Alice\"}}" > JsonGetField(_, "user.name") > JsonAsString > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("Alice", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_JsonAsBool_From_Literal()
+    {
+        var src = """
+            "true" > JsonAsBool > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_PluginCall_Returns_Json()
+    {
+        var src = """
+            PluginCall("test", "method") > JsonGetField(_, "result") > JsonAsString > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(new MockPluginHost());
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("ok", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_StartPlugin_Returns_True()
+    {
+        var src = """
+            StartPlugin("test") > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(new MockPluginHost());
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains("True", result.Output);
+    }
+
+    [Fact]
+    public async Task E2E_ListPluginNames_Returns_Json_Array()
+    {
+        var src = """
+            ListPluginNames() > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(new MockPluginHost());
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        Assert.Contains(result.Output, s => s.Contains("plugin1"));
+    }
+
+    [Fact]
+    public async Task E2E_PluginCall_Null_Without_Host()
+    {
+        // Without IPluginHost injected, PluginCall returns null → Print outputs empty string
+        var src = """
+            PluginCall("test", "method") > Print
+            """;
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend();
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
+    public async Task E2E_PluginNotify_Is_Fire_And_Forget()
+    {
+        // PluginNotify must compile, run, and route through IPluginHost.Notify without
+        // touching the blocking Call path (v5.1 had this for void plugin functions; the
+        // v6 port lost it and only restored it with this test).
+        var src = """
+            PluginNotify("test", "show-popup", "hello")
+            """;
+        var host = new MockPluginHost();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        var notify = Assert.Single(host.NotifyCalls);
+        Assert.Equal("test", notify.Plugin);
+        Assert.Equal("show-popup", notify.Method);
+        Assert.Equal(new object[] { "hello" }, notify.Args);
+    }
+
+    [Fact]
+    public async Task E2E_PluginNotify_Accepts_Pipeline_Arg()
+    {
+        // The common migration shape: `value > PluginCall(p, m, _)` becomes
+        // `value > PluginNotify(p, m, _)` — the pipeline source feeds the variadic arg.
+        var src = """
+            "hello" > PluginNotify("test", "show-popup", _)
+            """;
+        var host = new MockPluginHost();
+        var ir = _fixture.KsLens.Parse(src, []);
+        var backend = _fixture.MakeBackend(host);
+        var result = await backend.ExecuteAsync(ir, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, $"Failed: {result.ErrorMessage}");
+        var notify = Assert.Single(host.NotifyCalls);
+        Assert.Equal("hello", Assert.Single(notify.Args));
+    }
+}

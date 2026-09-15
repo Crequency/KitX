@@ -1,0 +1,250 @@
+using KitX.ToolKit.Models;
+
+namespace KitX.ToolKit.Validation;
+
+/// <summary>
+/// Validates a <see cref="Toolkit"/> config document: structural integrity
+/// (unique ids, dangling references) and the strict-DAG constraint (Bench RFC §4.3 —
+/// no manual cycles; a workflow completion edge must never participate in a loop).
+/// Validation is pure and side-effect free, so it runs both at load time and before a
+/// ToolKit is mounted (the instance manager validates before starting its Spawn sources).
+/// </summary>
+public sealed class ConfigValidator
+{
+    /// <summary>The fixed ten-control UI set (Bench RFC §8.2).</summary>
+    private static readonly HashSet<string> ControlTypes =
+        ["Text", "Icon", "Button", "Input", "Number", "Select", "Switch", "Log", "Progress", "Dialog"];
+
+    /// <summary>Validates the config. Never throws — collects diagnostics instead.</summary>
+    public ConfigValidationResult Validate(Toolkit toolkit)
+    {
+        var result = new ConfigValidationResult();
+
+        ValidateIdentity(toolkit, result);
+        ValidateComments(toolkit, result);
+        ValidateRuntimeParams(toolkit, result);
+        ValidateReferences(toolkit, result);
+        ValidateAcyclic(toolkit, result);
+        ValidateUi(toolkit, result);
+
+        return result;
+    }
+
+    private static void ValidateIdentity(Toolkit toolkit, ConfigValidationResult result)
+    {
+        // The toolkit id (falls back to Meta.Name) becomes a directory name under the
+        // storage root, so it must be a single valid path segment — reject invalid
+        // filename chars and traversal sequences at save time instead of failing at
+        // runtime file IO.
+        var id = toolkit.GetId();
+        if (string.IsNullOrWhiteSpace(id)
+            || id.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || id.Contains("..")
+            || Path.IsPathRooted(id))
+            result.Add($"Toolkit Id '{toolkit.Id}' (or its fallback Meta.Name) must be a non-empty file-name-safe segment.");
+
+        // Workflow ids must be unique.
+        var workflowIds = toolkit.Workflows.Select(w => w.Id).ToList();
+        if (workflowIds.Any(string.IsNullOrWhiteSpace))
+            result.Add("All workflows must have a non-empty Id.");
+        foreach (var dup in workflowIds.Where(id => !string.IsNullOrWhiteSpace(id)).GroupBy(id => id).Where(g => g.Count() > 1))
+            result.Add($"Duplicate workflow Id '{dup.Key}'.");
+
+        // Trigger ids must be unique.
+        var triggerIds = toolkit.Triggers.Select(t => t.Id).ToList();
+        foreach (var dup in triggerIds.Where(id => !string.IsNullOrWhiteSpace(id)).GroupBy(id => id).Where(g => g.Count() > 1))
+            result.Add($"Duplicate trigger Id '{dup.Key}'.");
+    }
+
+    /// <summary>Runtime parameters (MaxInstances + Timer fields) must be sane before mount.</summary>
+    private static void ValidateRuntimeParams(Toolkit toolkit, ConfigValidationResult result)
+    {
+        if (toolkit.MaxInstances is < 0)
+            result.Add($"MaxInstances must be null or >= 0, got {toolkit.MaxInstances}.");
+
+        foreach (var trigger in toolkit.Triggers.Where(t => t.Type == TriggerType.Timer))
+        {
+            var config = trigger.Config;
+            if (config is null)
+                continue;
+
+            if (config.DueTimeMs is < 0)
+                result.Add($"Timer trigger '{trigger.Id}' DueTimeMs must be >= 0.");
+            if (config.IntervalMs is < 0)
+                result.Add($"Timer trigger '{trigger.Id}' IntervalMs must be >= 0.");
+
+            // C7: Cron is not yet supported. Reject any non-empty Cron at save/mount time so
+            // a config that would otherwise validate and then spin uselessly at runtime is
+            // caught here instead of being "validated through" and silently no-op'ing.
+            if (!string.IsNullOrWhiteSpace(config.Cron))
+            {
+                result.Add($"Timer trigger '{trigger.Id}': Cron is not yet supported; use DueTimeMs/IntervalMs/OneShot");
+            }
+            else if (config.OneShot != true && config.IntervalMs is null or <= 0)
+            {
+                result.Add($"Timer trigger '{trigger.Id}' periodic mode requires a positive IntervalMs.");
+            }
+        }
+    }
+
+    private static void ValidateComments(Toolkit toolkit, ConfigValidationResult result)
+    {
+        var commentIds = toolkit.Comments.Select(c => c.Id).ToList();
+        if (commentIds.Any(string.IsNullOrWhiteSpace))
+            result.Add("All comments must have a non-empty Id.");
+        foreach (var dup in commentIds.Where(id => !string.IsNullOrWhiteSpace(id)).GroupBy(id => id).Where(g => g.Count() > 1))
+            result.Add($"Duplicate comment Id '{dup.Key}'.");
+    }
+
+    private static void ValidateReferences(Toolkit toolkit, ConfigValidationResult result)
+    {
+        var workflowIdSet = toolkit.Workflows.Select(w => w.Id).ToHashSet();
+
+        foreach (var trigger in toolkit.Triggers)
+        {
+            foreach (var binding in trigger.Bindings)
+            {
+                if (string.IsNullOrWhiteSpace(binding.Workflow))
+                    result.Add($"Trigger '{trigger.Id}' has a binding with an empty workflow id.");
+                else if (!workflowIdSet.Contains(binding.Workflow))
+                    result.Add($"Trigger '{trigger.Id}' binds to unknown workflow '{binding.Workflow}'.");
+            }
+
+            if (trigger.Type == TriggerType.WorkflowCompletion)
+            {
+                var from = trigger.Config?.From;
+                if (string.IsNullOrWhiteSpace(from))
+                    result.Add($"WorkflowCompletion trigger '{trigger.Id}' is missing Config.From.");
+                else if (!workflowIdSet.Contains(from))
+                    result.Add($"WorkflowCompletion trigger '{trigger.Id}' references unknown predecessor '{from}'.");
+            }
+            else if (trigger.Type == TriggerType.PluginEvent)
+            {
+                if (string.IsNullOrWhiteSpace(trigger.Config?.PluginName))
+                    result.Add($"PluginEvent trigger '{trigger.Id}' is missing Config.PluginName.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// UI rules (ToolKit 前后端分离 GUI 稿 §7.2): Bind paths must be well-formed and stay
+    /// within the <c>panel/</c> namespace; a control's Bind must not alias another Dialog's
+    /// request key; a UIEvent trigger's Control must exist in the panel.
+    /// </summary>
+    private static void ValidateUi(Toolkit toolkit, ConfigValidationResult result)
+    {
+        var controls = toolkit.UiPanel?.Controls ?? [];
+        var controlIds = controls.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        var dialogIds = controls.Where(c => c.Type == "Dialog").Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var control in controls)
+        {
+            if (!ControlTypes.Contains(control.Type))
+                result.Add($"Control '{control.Id}' has unknown type '{control.Type}'.");
+
+            foreach (var (prop, bind) in new[]
+                     { ("Bind", control.Bind), ("BindEnabled", control.BindEnabled), ("BindVisible", control.BindVisible) })
+            {
+                if (string.IsNullOrWhiteSpace(bind))
+                    continue;
+
+                if (!IsValidPanelPath(bind))
+                    result.Add($"Control '{control.Id}' {prop} '{bind}' is not a valid panel path.");
+                else if (!bind.StartsWith("panel/", StringComparison.Ordinal))
+                    result.Add($"Control '{control.Id}' {prop} '{bind}' must stay within the 'panel/' namespace.");
+
+                // A control's Bind must not alias another Dialog's request key.
+                if (bind.StartsWith("panel/", StringComparison.Ordinal) && bind.EndsWith("/request", StringComparison.Ordinal))
+                {
+                    var seg = bind.Split('/');
+                    if (seg.Length >= 3 && dialogIds.Contains(seg[1]))
+                        result.Add($"Control '{control.Id}' {prop} '{bind}' aliases Dialog '{seg[1]}' request key.");
+                }
+            }
+        }
+
+        foreach (var trigger in toolkit.Triggers)
+        {
+            if (trigger.Type != TriggerType.UIEvent)
+                continue;
+            var control = trigger.Config?.Control;
+            if (string.IsNullOrWhiteSpace(control))
+                result.Add($"UIEvent trigger '{trigger.Id}' is missing Config.Control.");
+            else if (controlIds.Count > 0 && !controlIds.Contains(control))
+                result.Add($"UIEvent trigger '{trigger.Id}' references unknown control '{control}'.");
+        }
+    }
+
+    private static bool IsValidPanelPath(string path)
+    {
+        var segments = path.Split('/');
+        if (segments.Length < 2 || segments.Any(string.IsNullOrWhiteSpace))
+            return false;
+        return segments.All(s => s.All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or '.'));
+    }
+
+    /// <summary>
+    /// Builds the WorkflowCompletion edge graph (node = workflow id) and runs a DFS
+    /// cycle check. Non-completion triggers are sources, not edges, so they cannot
+    /// create cycles by themselves.
+    /// </summary>
+    private static void ValidateAcyclic(Toolkit toolkit, ConfigValidationResult result)
+    {
+        var adjacency = toolkit.Triggers
+            .Where(t => t.Type == TriggerType.WorkflowCompletion && !string.IsNullOrWhiteSpace(t.Config?.From))
+            .SelectMany(t => t.Bindings
+                .Where(b => !string.IsNullOrWhiteSpace(b.Workflow))
+                .Select(b => (From: t.Config!.From!, To: b.Workflow)))
+            .ToList();
+
+        // Node set = every workflow id that appears as a From or To of an edge.
+        var nodes = adjacency.Select(e => e.From).Concat(adjacency.Select(e => e.To)).Distinct().ToList();
+        var outgoing = adjacency
+            .GroupBy(e => e.From)
+            .ToDictionary(g => g.Key, g => g.Select(e => e.To).Distinct().ToList());
+
+        var state = new Dictionary<string, int>(); // 0=unvisited 1=visiting 2=done
+        foreach (var node in nodes)
+            state[node] = 0;
+
+        var path = new List<string>();
+        var cycleFound = false;
+
+        foreach (var node in nodes)
+        {
+            if (state[node] != 0)
+                continue;
+
+            void Dfs(string current)
+            {
+                state[current] = 1;
+                path.Add(current);
+
+                if (outgoing.TryGetValue(current, out var neighbors))
+                {
+                    foreach (var next in neighbors)
+                    {
+                        if (state[next] == 1)
+                        {
+                            cycleFound = true;
+                            var cycleStart = path.IndexOf(next);
+                            var cycle = path.Skip(cycleStart).Append(next);
+                            result.Add($"WorkflowCompletion cycle detected: {string.Join(" -> ", cycle)}.");
+                        }
+                        else if (state[next] == 0)
+                        {
+                            Dfs(next);
+                        }
+                    }
+                }
+
+                path.RemoveAt(path.Count - 1);
+                state[current] = 2;
+            }
+
+            Dfs(node);
+            if (cycleFound)
+                return; // stop after the first reported cycle
+        }
+    }
+}
