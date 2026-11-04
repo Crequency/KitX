@@ -47,6 +47,19 @@ public sealed class Toolkit
     public List<ToolkitComment> Comments { get; set; } = [];
 
     /// <summary>
+    /// The ToolKit's key table (ADR-0004 D2/D3, design §5.1).
+    /// </summary>
+    /// <remarks>
+    /// <para>Workflows write key names; the system turns them into fully qualified keys. Declaring
+    /// them here is what makes the data plane a table instead of an open string space, and it is
+    /// the only remaining source of regions.</para>
+    ///
+    /// <para>Empty is legal — a ToolKit that keeps no state declares no keys. A workflow writing a
+    /// key that is not declared here is a load-time error.</para>
+    /// </remarks>
+    public List<KeyDeclaration> Keys { get; set; } = [];
+
+    /// <summary>
     /// Maximum number of concurrently-running instances this ToolKit may have. Null
     /// (default) = unlimited. When exceeded, a spawn is rejected and surfaced via an
     /// event (ToolKit 实例模型定稿 D7).
