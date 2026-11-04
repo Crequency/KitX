@@ -1,5 +1,6 @@
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Models;
+using KitX.ToolKit.Time;
 using KitX.ToolKit.Validation;
 using KitX.WorkflowV6.Serialization;
 
@@ -24,11 +25,24 @@ public sealed class ToolkitStore
 
     private readonly string _root;
     private readonly ConfigValidator _validator;
+    private readonly IIdGenerator _ids;
 
+    /// <summary>Creates a store rooted at <paramref name="root"/> using the default id source.</summary>
     public ToolkitStore(string root, ConfigValidator? validator = null)
+        : this(root, validator, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a store with an explicit id source. <paramref name="idGenerator"/> is internal, so
+    /// this overload is too — a test asserts the generated id instead of matching a random GUID
+    /// (ADR-0006 D1); production code goes through the public constructor.
+    /// </summary>
+    internal ToolkitStore(string root, ConfigValidator? validator, IIdGenerator? idGenerator)
     {
         _root = root ?? throw new ArgumentNullException(nameof(root));
         _validator = validator ?? new ConfigValidator();
+        _ids = idGenerator ?? GuidIdGenerator.Instance;
     }
 
     /// <summary>The storage root directory.</summary>
@@ -81,7 +95,7 @@ public sealed class ToolkitStore
                 "Invalid ToolKit config:\n  " + string.Join("\n  ", validation.Errors));
 
         if (string.IsNullOrWhiteSpace(toolkit.Id))
-            toolkit.Id = Guid.NewGuid().ToString("N");
+            toolkit.Id = _ids.NewToolkitId();
 
         var dir = ToolkitDir(toolkit.Id);
         Directory.CreateDirectory(dir);
