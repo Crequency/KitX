@@ -19,6 +19,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
 using Xunit;
@@ -295,34 +296,72 @@ public class BenchSchedulerPacketEquivalenceTests
             [
                 new Trigger { Id = "manual", Type = TriggerType.Manual,
                     Bindings = [new() { Workflow = "A" }, new() { Workflow = "B" }] },
+
+                // Each edge carries a $output.<producer> param so the delivered packet stays
+                // observable now that the run no longer exposes its internal packet table.
+                // BindingResolver resolves the param against the delivered packet, so whatever
+                // the target receives proves what was delivered to it — same property the old
+                // `instance.Packets[...]` assertions pinned (ADR-0003 predicted this rewrite).
+                // Both C edges carry BOTH params on purpose. Binding params on an AND-join are
+                // taken from whichever predecessor delivered last (pre-existing behaviour, not
+                // changed here), so putting only one param per edge would make this test
+                // non-deterministic. With both on each edge, whichever delivery activates C
+                // resolves both against the merged packet — which is exactly the property under
+                // test: C was started with the merge of A's and B's outputs.
                 new Trigger { Id = "eA1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new() { Workflow = "C" }] },
+                    Bindings = [new() { Workflow = "C", Params = BothParams() }] },
                 new Trigger { Id = "eB1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
-                    Bindings = [new() { Workflow = "C" }] },
+                    Bindings = [new() { Workflow = "C", Params = BothParams() }] },
+                // D's edge also carries the $output.B probe, even though no edge can deliver B's
+                // data to D. Declaring it is what makes "D did not receive B's output" testable:
+                // BindingResolver always sets a param's key, resolving to null when the path is
+                // absent from the packet. Without this param, asserting fromB is missing would
+                // pass trivially — D's binding never asked for it in the first place.
                 new Trigger { Id = "eA2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new() { Workflow = "D" }] },
+                    Bindings = [new() { Workflow = "D", Params = BothParams() }] },
             ],
         };
     }
 
+    /// <summary>
+    /// The two <c>$output</c> probes, on every scenario edge. On C's pair of incoming edges both
+    /// must be present: an AND-join activates on the last arriving delivery and resolves that
+    /// binding's params, so params differing per edge would make the outcome depend on arrival
+    /// order. On D's single edge <c>fromB</c> is declared precisely so it can resolve to null —
+    /// that null is the evidence that B's output never reached D.
+    /// </summary>
+    private static Dictionary<string, string?> BothParams() => new()
+    {
+        ["fromA"] = "$output.A",
+        ["fromB"] = "$output.B",
+    };
+
     /// <summary>A scripted executor that writes a per-node key (<c>{workflowId}</c>) into the
     /// node's own scoped namespace, so the AND-join merge has no duplicate property names and
-    /// the expected merged packet is deterministic regardless of predecessor arrival order.</summary>
+    /// the expected merged packet is deterministic regardless of predecessor arrival order.
+    /// It also records the constant overrides it was handed, which is how the delivered packet
+    /// stays observable now that the run keeps no public packet table.</summary>
     private sealed class KeyedExecutor : IWorkflowExecutor
     {
         private readonly DataStore _store;
 
         public KeyedExecutor(DataStore store) => _store = store;
 
-        public ConcurrentQueue<string> Calls { get; } = new();
+        public ConcurrentQueue<Recorded> Calls { get; } = new();
 
         public List<string> Failed { get; } = [];
+
+        /// <summary>One executor invocation: which workflow, and the constants it started with.</summary>
+        public sealed record Recorded(string WorkflowId, IReadOnlyDictionary<string, string?> Overrides);
 
         public Task<WorkflowExecutionResult> ExecuteAsync(
             string workflowId, string irData,
             IReadOnlyDictionary<string, string?>? overrides, CancellationToken ct)
         {
-            Calls.Enqueue(workflowId);
+            Calls.Enqueue(new Recorded(
+                workflowId,
+                overrides is null ? new Dictionary<string, string?>() : new Dictionary<string, string?>(overrides)));
+
             if (overrides is not null &&
                 overrides.TryGetValue(DataStoreScope.OutputNamespaceConstant, out var ns) &&
                 !string.IsNullOrEmpty(ns))
@@ -333,7 +372,7 @@ public class BenchSchedulerPacketEquivalenceTests
         }
     }
 
-    private static async Task<(BenchRunInstance Instance, KeyedExecutor Executor)> RunScenarioAsync()
+    private static async Task<(WorkflowRun Instance, KeyedExecutor Executor)> RunScenarioAsync()
     {
         var store = new DataStore();
         var executor = new KeyedExecutor(store);
@@ -356,20 +395,27 @@ public class BenchSchedulerPacketEquivalenceTests
         // A and B are roots (null input) and each write a per-node key into its own
         // namespace. A fans out to C and D; B AND-joins C. So regardless of which of
         // A/B completes first:
-        //   Packets[D] = A's output                = { "A": "done:A" }
-        //   Packets[C] = Merge(A's output, B's output) = { "A": "done:A", "B": "done:B" }
-        var (instance, _) = await RunScenarioAsync();
+        //   D receives A's output only          → fromA = "done:A", fromB = null (absent)
+        //   C receives Merge(A's output, B's)   → fromA = "done:A", fromB = "done:B"
+        //
+        // The assertions read the constants the executor was handed, not an internal packet
+        // table: an edge param is resolved by BindingResolver against the delivered packet, so
+        // what the target was started with IS what was delivered to it.
+        var (_, executor) = await RunScenarioAsync();
 
-        lock (instance.Gate)
-        {
-            var d = instance.Packets["D"];
-            Assert.Equal("""{"A":"done:A"}""", d.GetRawText());
+        var calls = executor.Calls.ToList();
+        var dCall = Assert.Single(calls, c => c.WorkflowId == "D");
+        var cCall = Assert.Single(calls, c => c.WorkflowId == "C");
 
-            var c = instance.Packets["C"];
-            Assert.Equal(2, c.EnumerateObject().Count());
-            Assert.Equal("done:A", c.GetProperty("A").GetString());
-            Assert.Equal("done:B", c.GetProperty("B").GetString());
-        }
+        // D is fed by the A→D edge alone, so it sees A's produced key and NOT B's. fromB is
+        // declared on D's edge too, so a null here means "the path was absent from the packet",
+        // not "nobody asked" — the assertion below is a real observation, not a tautology.
+        Assert.Equal("done:A", dCall.Overrides["fromA"]);
+        Assert.Null(dCall.Overrides["fromB"]);
+
+        // C is an AND-join over A and B, so the merged packet must carry both.
+        Assert.Equal("done:A", cCall.Overrides["fromA"]);
+        Assert.Equal("done:B", cCall.Overrides["fromB"]);
     }
 
     [Fact]
@@ -379,8 +425,8 @@ public class BenchSchedulerPacketEquivalenceTests
         // D fan-out target), so the F4/F5 packet path is exercised end-to-end.
         var (_, executor) = await RunScenarioAsync();
 
-        var calls = executor.Calls.ToList();
-        Assert.Equal(new[] { "A", "B", "C", "D" }.OrderBy(x => x), calls.OrderBy(x => x));
+        var called = executor.Calls.Select(c => c.WorkflowId).ToList();
+        Assert.Equal(new[] { "A", "B", "C", "D" }.OrderBy(x => x), called.OrderBy(x => x));
         Assert.Empty(executor.Failed);
     }
 }

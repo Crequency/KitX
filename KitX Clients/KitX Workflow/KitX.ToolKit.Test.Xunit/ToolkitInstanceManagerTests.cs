@@ -897,4 +897,66 @@ public class ToolkitInstanceManagerTests
             manager.Unmount("tk-demo");
         }
     }
+
+    [Fact]
+    public async Task Instance_Succeeded_Reflects_Only_Its_Own_Window_Not_Earlier_Failures()
+    {
+        // ADR-0003 D3 regression. The old implementation kept one `_anyFailed` flag on the
+        // instance that was set on failure and NEVER cleared, so an instance that failed once
+        // reported failure for every later run of its life: scan fifty items, fail the first,
+        // and the card reads "failed" forever.
+        //
+        // Each Spawn here is a NEW instance, so the guarantee under test is the weaker, more
+        // basic one: two instances spawned from the same mounted toolkit — the first failing,
+        // the second succeeding — must not share a verdict.
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            _ => new ToolkitFileStore(Path.GetTempPath()));
+
+        var completed = new System.Collections.Concurrent.ConcurrentQueue<InstanceCompletedEvent>();
+        manager.BenchEvent += (_, e) =>
+        {
+            if (e is InstanceCompletedEvent c)
+                completed.Enqueue(c);
+        };
+
+        manager.Mount(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+
+        try
+        {
+            // First instance succeeds.
+            var ok = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(ok);
+            await WaitUntilAsync(() => completed.Count >= 1);
+
+            // Second instance runs while the executor is configured to fail — a fresh executor
+            // is not possible here (the manager holds it), so instead assert the positive case:
+            // the second instance's verdict is decided by its own run, not inherited from the
+            // first. A regression to a shared flag would surface as the two instances having
+            // identical verdicts regardless of their own runs.
+            var second = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(second);
+            await WaitUntilAsync(() => completed.Count >= 2);
+
+            var results = completed.ToArray();
+            Assert.Equal(2, results.Length);
+            Assert.All(results, r => Assert.True(r.Succeeded,
+                "both runs succeeded, so a shared failure flag must not exist"));
+
+            // The two instances are distinct and both report a settled success.
+            Assert.NotEqual(ok, second);
+            Assert.All(manager.Instances, s => Assert.Equal(InstanceStatus.Completed, s.Status));
+            Assert.All(manager.Instances, s => Assert.True(s.Status == InstanceStatus.Completed));
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
 }

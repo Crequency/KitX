@@ -28,12 +28,17 @@ public sealed class WorkflowGraph
     /// <summary>Every edge. Order follows the config's declaration order.</summary>
     public IReadOnlyList<WorkflowEdge> Edges { get; }
 
-    internal WorkflowGraph(IReadOnlyList<WorkflowEdge> edges)
+    internal WorkflowGraph(IReadOnlyList<WorkflowEdge> edges, IEnumerable<string>? declaredNodes = null)
     {
         Edges = edges;
 
         _byFrom = new Dictionary<string, List<WorkflowEdge>>(StringComparer.Ordinal);
         var nodes = new HashSet<string>(StringComparer.Ordinal);
+
+        if (declaredNodes is not null)
+            foreach (var id in declaredNodes)
+                if (!string.IsNullOrWhiteSpace(id))
+                    nodes.Add(id);
 
         foreach (var edge in edges)
         {
@@ -64,4 +69,16 @@ public sealed class WorkflowGraph
 
     /// <summary>True when no edge references <paramref name="workflowId"/> as a target.</summary>
     public bool IsEntry(string workflowId) => PredecessorCount(workflowId) == 0;
+
+    /// <summary>
+    /// Builds a graph from an edge list, adding any declared node that no edge mentions as an
+    /// isolated node.
+    /// </summary>
+    /// <remarks>
+    /// Isolated nodes matter: a workflow with no edges is still runnable when a trigger names
+    /// it directly. Omitting it would make <see cref="Nodes"/> an incomplete answer to "what
+    /// can run", and the scheduler seeds its join counters from that answer.
+    /// </remarks>
+    internal static WorkflowGraph FromEdges(IEnumerable<WorkflowEdge> edges, IEnumerable<string>? declaredNodes = null)
+        => new(edges as IReadOnlyList<WorkflowEdge> ?? edges.ToList(), declaredNodes);
 }

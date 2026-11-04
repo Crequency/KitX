@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
@@ -210,7 +211,7 @@ public sealed class ToolkitInstanceManager : IDisposable
     /// contract. The owning instance id is the run's namespace — for intra-instance
     /// UIEvent chains that is the existing instance, not the transient run id.
     /// </summary>
-    private void AttachRunEvents(BenchRunInstance run)
+    private void AttachRunEvents(WorkflowRun run)
     {
         run.NodeStarted += (_, e) => Raise(new RunStartedEvent(
             NewId(), run.ToolkitId, run.NamespaceId, Now(), e.InstanceId, e.WorkflowId));

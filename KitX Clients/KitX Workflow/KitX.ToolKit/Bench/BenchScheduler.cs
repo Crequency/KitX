@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using KitX.ToolKit.Data;
+using KitX.ToolKit.Compile;
 using KitX.ToolKit.Contract.Declaration;
+using KitX.ToolKit.Data;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
 using Serilog;
@@ -10,16 +12,23 @@ using Serilog;
 namespace KitX.ToolKit.Bench;
 
 /// <summary>
-/// The Bench execution engine (RFC §5 — harness / pure dataflow). Given a validated
+/// The Bench execution engine — a pure dataflow harness. Given a validated
 /// <see cref="Toolkit"/> it runs the orchestration with exactly two control primitives:
 /// <list type="bullet">
-///   <item><b>fan-out</b> (1→M) — a completed workflow (or a fired source) delivers its
-///   data packet to every successor edge.</item>
-///   <item><b>AND-join</b> (N→1) — a workflow with incoming completion edges activates
-///   only once <i>all</i> predecessors have delivered their packets (join counter).</item>
+///   <item><b>fan-out</b> (1→M) — a completed workflow (or a fired source) delivers its data
+///   packet to every successor edge.</item>
+///   <item><b>AND-join</b> (N→1) — a workflow with incoming completion edges activates only
+///   once <i>all</i> predecessors have delivered their packets.</item>
 /// </list>
-/// The scheduler only counts data packets; it does not do condition/loop (those live inside
-/// workflows). Each <see cref="StartRun"/> creates an isolated <see cref="BenchRunInstance"/>.
+///
+/// <para><b>Where the state lives.</b> The scheduler holds only what is fixed for the life of
+/// the ToolKit: the compiled graph, the executor, the store. Everything that varies per
+/// execution lives in <see cref="WorkflowRun"/>, which the scheduler asks questions of rather
+/// than reaching into (ADR-0003 D1). There is no lock here that is shared with a run.</para>
+///
+/// <para><b>Concurrency.</b> Node bodies run through a bounded gate
+/// (<see cref="BoundedNodeScheduler"/>, ADR-0008 D2). Run admission is a separate limit
+/// described on <see cref="ToolKitRunOptions"/>; the scheduler does not conflate them.</para>
 /// </summary>
 public sealed class BenchScheduler : IDisposable
 {
@@ -28,178 +37,246 @@ public sealed class BenchScheduler : IDisposable
     private readonly DataStore _dataStore;
     private readonly ToolkitFileStore _fileStore;
     private readonly ConfigValidator _validator;
+    private readonly BoundedNodeScheduler _nodeGate;
 
-    // Graph: predecessor workflow → successor edges (target + its binding params).
-    private Dictionary<string, List<(string To, TriggerBinding Binding)>> _successors = new(StringComparer.Ordinal);
+    /// <summary>The single completion-edge graph (ADR-0002 D3). Immutable for the scheduler's lifetime.</summary>
+    private readonly WorkflowGraph _graph;
 
-    // AND-join: target workflow → number of distinct incoming completion edges.
-    private Dictionary<string, int> _predecessorCount = new(StringComparer.Ordinal);
+    /// <summary>The compiled form of the toolkit, when one was supplied. Its graph is authoritative.</summary>
+    private readonly CompiledToolkit? _compiled;
 
-    private readonly ConcurrentDictionary<string, BenchRunInstance> _instances = new();
+    private readonly ConcurrentDictionary<string, WorkflowRun> _runs = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Creates a scheduler over a plain config. The completion graph is derived here with the
+    /// same rules <see cref="ToolkitCompiler"/> uses, so both entries agree.
+    /// </summary>
     internal BenchScheduler(
         Toolkit toolkit,
         IWorkflowExecutor executor,
         DataStore dataStore,
         ToolkitFileStore fileStore,
-        ConfigValidator? validator = null)
+        ConfigValidator? validator = null,
+        ToolKitRunOptions? options = null)
+        : this(toolkit, null, executor, dataStore, fileStore, validator, options)
+    {
+    }
+
+    /// <summary>
+    /// Creates a scheduler over an already-compiled toolkit. Prefer this overload: the graph
+    /// and the resolved workflow files then come from the compile step, so the scheduler cannot
+    /// disagree with what was validated (ADR-0002 D1).
+    /// </summary>
+    internal BenchScheduler(
+        Toolkit toolkit,
+        CompiledToolkit? compiled,
+        IWorkflowExecutor executor,
+        DataStore dataStore,
+        ToolkitFileStore fileStore,
+        ConfigValidator? validator = null,
+        ToolKitRunOptions? options = null)
     {
         _toolkit = toolkit ?? throw new ArgumentNullException(nameof(toolkit));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _fileStore = fileStore ?? throw new ArgumentNullException(nameof(fileStore));
         _validator = validator ?? new ConfigValidator();
-        BuildGraph();
+        _compiled = compiled;
+
+        _graph = compiled?.Graph ?? BuildGraph(_toolkit);
+        _nodeGate = new BoundedNodeScheduler(options?.MaxConcurrentNodes ?? 0);
     }
 
-    /// <summary>Raised when a triggered run completes.</summary>
+    /// <summary>Raised when a triggered run settles.</summary>
     public event EventHandler<BenchRunCompletedEventArgs>? RunCompleted;
+
+    /// <summary>Raised when a run truncates: these nodes will never execute (ADR-0007 D3).</summary>
+    public event EventHandler<RunNodesSkippedEventArgs>? RunNodesSkipped;
 
     /// <summary>The ToolKit this scheduler orchestrates.</summary>
     public Toolkit Toolkit => _toolkit;
 
+    /// <summary>The completion-edge graph this scheduler executes.</summary>
+    public WorkflowGraph Graph => _graph;
+
     /// <summary>Validates the ToolKit config (identity, references, strict DAG).</summary>
     public ConfigValidationResult Validate() => _validator.Validate(_toolkit);
 
-    /// <summary>Number of currently active (in-flight) run instances.</summary>
-    public int ActiveInstanceCount => _instances.Count;
+    /// <summary>Number of currently active runs.</summary>
+    public int ActiveInstanceCount => _runs.Count;
+
+    /// <summary>Maximum node bodies a single run may execute at once.</summary>
+    public int MaxConcurrentNodes => _nodeGate.MaxConcurrency;
 
     /// <summary>
-    /// Starts a run from a fired trigger. Returns the created <see cref="BenchRunInstance"/>,
-    /// or null when the trigger id is unknown or is a scheduler-driven WorkflowCompletion edge.
-    /// <paramref name="namespaceId"/> overrides the run's DataStore namespace (used by the
-    /// instance manager so UIEvent-triggered chains share the owning instance's panel namespace).
-    /// <paramref name="onRunCreated"/> runs before any root workflow is scheduled, so callers
-    /// (the instance manager) can subscribe to the run's node events without a race.
+    /// Starts a run from a fired trigger, or returns <see langword="null"/> when the trigger is
+    /// unknown or is a scheduler-driven <see cref="TriggerType.WorkflowCompletion"/> edge.
     /// </summary>
-    public BenchRunInstance? StartRun(
+    /// <param name="triggerId">The trigger that fired.</param>
+    /// <param name="payload">Trigger payload, normalised into the root packet.</param>
+    /// <param name="initiator">Who asked for this run.</param>
+    /// <param name="namespaceId">Overrides the run's data namespace so a UIEvent chain started
+    /// inside an existing instance shares that instance's panel namespace.</param>
+    /// <param name="onRunCreated">Invoked before any root workflow is scheduled, so callers can
+    /// subscribe without racing the first node.</param>
+    public WorkflowRun? StartRun(
         string triggerId,
         object? payload = null,
         Contract.Initiator? initiator = null,
         string? namespaceId = null,
-        Action<BenchRunInstance>? onRunCreated = null)
+        Action<WorkflowRun>? onRunCreated = null)
     {
         ThrowIfDisposed();
 
-        var trigger = _toolkit.Triggers.FirstOrDefault(t => t.Id == triggerId);
+        var trigger = FindTrigger(triggerId);
         if (trigger is null || trigger.Type == TriggerType.WorkflowCompletion)
             return null;
 
-        var instance = CreateInstance(initiator ?? Contract.Initiator.Unknown, namespaceId);
-        onRunCreated?.Invoke(instance);
+        var run = CreateRun(initiator ?? Contract.Initiator.Unknown, namespaceId);
+        onRunCreated?.Invoke(run);
+
         var packet = TriggerSourceBase.NormalizePayload(payload);
 
-        // Schedule every root binding while holding the instance lock, so all roots are
-        // tracked before any node body (running on a background thread) can complete and
-        // fire the run's Completed event. This prevents a fast/synchronous node from
-        // "completing" the run before its siblings are even started.
-        lock (instance.Gate)
-        {
-            foreach (var binding in trigger.Bindings)
-                DeliverTo(instance, binding.Workflow, packet, binding.Params);
-        }
+        // Seed every root binding before marking the start complete, so a synchronous fast node
+        // cannot settle the run before its siblings are even known.
+        foreach (var binding in trigger.Bindings)
+            Deliver(run, binding.Workflow, packet, binding.Params);
 
-        return instance;
+        run.MarkStartComplete();
+        return run;
     }
 
-    /// <summary>Cancels every active run instance.</summary>
+    /// <summary>Cancels every active run.</summary>
     public void CancelAll()
     {
-        foreach (var instance in _instances.Values)
-            instance.Cancel();
+        foreach (var run in _runs.Values)
+            run.Cancel();
     }
 
-    private BenchRunInstance CreateInstance(Contract.Initiator initiator, string? namespaceId = null)
+    private Trigger? FindTrigger(string triggerId)
     {
-        var runId = Guid.NewGuid().ToString("N");
-        var instance = new BenchRunInstance(_toolkit.GetId(), runId, initiator, namespaceId);
-
-        // Initialize join counters: a node activates when its predecessor deliveries reach 0.
-        lock (instance.Gate)
+        if (_compiled is not null)
         {
-            foreach (var wf in _toolkit.Workflows)
-                instance.JoinRemaining[wf.Id] = _predecessorCount.TryGetValue(wf.Id, out var c) ? c : 0;
+            // The compiled trigger table is a closed type hierarchy, so the bindings still come
+            // from the config — the table is what tells us the trigger exists and is not an edge.
+            foreach (var ct in _compiled.Triggers)
+                if (string.Equals(ct.Id, triggerId, StringComparison.Ordinal))
+                    return _toolkit.Triggers.FirstOrDefault(t => string.Equals(t.Id, triggerId, StringComparison.Ordinal));
+            return null;
         }
 
-        instance.Completed += (sender, e) =>
-        {
-            _instances.TryRemove(e.InstanceId, out _);
-            RunCompleted?.Invoke(this, e);
-        };
-
-        _instances[instance.InstanceId] = instance;
-        return instance;
+        return _toolkit.Triggers.FirstOrDefault(t => t.Id == triggerId);
     }
 
-    /// <summary>Delivers a packet to a node. Decrements the AND-join counter; when it reaches
-    /// 0 the node activates (root nodes start on their first delivery). A node already
-    /// activated in this run is not activated again — a workflow that is BOTH a root
-    /// delivery target and a join target runs exactly once; further deliveries are dropped.</summary>
-    private void DeliverTo(
-        BenchRunInstance instance,
+    private WorkflowRun CreateRun(Contract.Initiator initiator, string? namespaceId)
+    {
+        var runId = Guid.NewGuid().ToString("N");
+
+        var joinCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var node in _graph.Nodes)
+            joinCounts[node] = _graph.PredecessorCount(node);
+        // A workflow the graph never mentions is still startable as a root; give it a counter.
+        foreach (var wf in _toolkit.Workflows)
+            joinCounts.TryAdd(wf.Id, 0);
+
+        var successors = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var node in joinCounts.Keys)
+        {
+            var edges = _graph.Successors(node);
+            successors[node] = edges.Count == 0
+                ? []
+                : edges.Select(e => e.To).ToArray();
+        }
+
+        var run = new WorkflowRun(
+            _toolkit.GetId(), runId, namespaceId ?? runId, initiator, joinCounts, successors);
+
+        run.Completed += (sender, e) =>
+        {
+            _ = sender;
+            _runs.TryRemove(e.InstanceId, out WorkflowRun? _);
+            RunCompleted?.Invoke(this, e);
+        };
+        run.NodesSkipped += (sender, e) =>
+        {
+            _ = sender;
+            RunNodesSkipped?.Invoke(this, e);
+        };
+
+        _runs[run.RunId] = run;
+        return run;
+    }
+
+    /// <summary>
+    /// Delivers a packet to a node and, when that completed its join, schedules it. The
+    /// activation decision belongs to the run; the scheduler only acts on the answer.
+    /// </summary>
+    private void Deliver(
+        WorkflowRun run,
         string target,
         JsonElement packet,
         IReadOnlyDictionary<string, string?>? bindingParams)
     {
-        JsonElement mergedPacket;
-        bool activate;
+        if (!run.TryDeliver(target, packet, out var activation))
+            return;
 
-        lock (instance.Gate)
+        var overrides = BindingResolver.Resolve(bindingParams, activation);
+        StartNode(run, target, activation, overrides);
+    }
+
+    /// <summary>
+    /// Runs a node body once a concurrency slot is available. The node is already claimed by
+    /// the run, so nothing else can start it; if the run is cancelled while it waits, the claim
+    /// is released as cancelled rather than counting as a failure.
+    /// </summary>
+    private void StartNode(
+        WorkflowRun run,
+        string workflowId,
+        JsonElement inputPacket,
+        IReadOnlyDictionary<string, string?> overrides)
+    {
+        _ = Task.Run(async () =>
         {
-            instance.JoinRemaining[target] = instance.JoinRemaining.TryGetValue(target, out var r)
-                ? r - 1
-                : -1;
-            instance.Packets[target] = Merge(
-                instance.Packets.TryGetValue(target, out var cur) ? cur : default,
-                packet);
-            mergedPacket = instance.Packets[target];
-
-            // AND-join still waiting for more predecessors: do not activate yet.
-            if (instance.JoinRemaining[target] > 0)
-                return;
-
-            // Node already activated once in this run: drop this re-delivery.
-            if (!instance.ActivatedNodes.Add(target))
+            try
             {
-                Log.Debug("[BenchScheduler] Node {Workflow} already activated in run {RunId}; dropping packet",
-                    target, instance.InstanceId);
+                await _nodeGate.AcquireAsync(run.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                run.AbandonNode(workflowId);
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                run.AbandonNode(workflowId);
                 return;
             }
 
-            activate = true;
-        }
+            try
+            {
+                run.BeginNode(workflowId);
+                Log.Verbose(
+                    "[BenchScheduler] Node started run={RunId} namespace={Namespace} workflow={Workflow}",
+                    run.RunId, run.NamespaceId, workflowId);
 
-        if (!activate)
-            return;
-
-        var overrides = BindingResolver.Resolve(bindingParams, mergedPacket);
-        StartNode(instance, target, mergedPacket, overrides);
-    }
-
-    private void StartNode(
-        BenchRunInstance instance,
-        string workflowId,
-        JsonElement inputPacket,
-        IReadOnlyDictionary<string, string?> overrides)
-    {
-        instance.TrackStarted(workflowId);
-        Log.Information(
-            "[BenchScheduler] Node started run={RunId} namespace={Namespace} workflow={Workflow} pending={Pending}",
-            instance.InstanceId, instance.NamespaceId, workflowId, instance.ActiveRuns);
-        // Run the node body on a background thread so its completion never happens
-        // synchronously on the scheduling thread (which would let a fast node fire the
-        // run's Completed event before sibling nodes are tracked).
-        _ = Task.Run(() => RunNodeAsync(instance, workflowId, inputPacket, overrides));
+                await RunNodeAsync(run, workflowId, inputPacket, overrides).ConfigureAwait(false);
+            }
+            finally
+            {
+                _nodeGate.Release();
+            }
+        });
     }
 
     private async Task RunNodeAsync(
-        BenchRunInstance instance,
+        WorkflowRun run,
         string workflowId,
         JsonElement inputPacket,
         IReadOnlyDictionary<string, string?> overrides)
     {
-        var failed = false;
+        var succeeded = false;
+        var cancelled = false;
         string? error = null;
 
         try
@@ -207,87 +284,98 @@ public sealed class BenchScheduler : IDisposable
             var file = ResolveFile(workflowId);
             if (file is null)
             {
-                failed = true;
                 error = $"Workflow '{workflowId}' not found in ToolKit";
-                Log.Warning("[BenchScheduler] {Error}; aborting node", error);
+                Log.Error("[BenchScheduler] {Error}; node {Workflow} of run {RunId} failed",
+                    error, workflowId, run.RunId);
                 return;
             }
 
-            // Inject the instance-scoped output namespace so the workflow can write its
-            // produced data via the DataStore built-in plugin without knowing the instance id.
-            var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.NamespaceId, workflowId);
-            var mergedOverrides = new Dictionary<string, string?>(overrides)
-            {
-                [DataStoreScope.OutputNamespaceConstant] = ns,
-                [Instances.InitiatorConstants.DeviceId] = instance.Initiator.DeviceId,
-                [Instances.InitiatorConstants.DeviceName] = instance.Initiator.DeviceName,
-                [Instances.InstanceConstants.InstanceId] = instance.NamespaceId,
-            };
+            var mergedOverrides = BuildOverrides(run, workflowId, overrides);
+            var absolutePath = _fileStore.ResolveWorkflowPath(run.ToolkitId, file);
 
-            // Resolve the relative config file to an absolute path; the executor loads + runs it.
-            var absolutePath = _fileStore.ResolveWorkflowPath(_toolkit.GetId(), file);
-            var result = await _executor.ExecuteAsync(workflowId, absolutePath, mergedOverrides, instance.Token);
+            var result = await _executor
+                .ExecuteAsync(workflowId, absolutePath, mergedOverrides, run.Token)
+                .ConfigureAwait(false);
 
-            var outputPacket = BuildOutputPacket(instance, workflowId, inputPacket);
             if (result.IsSuccess)
             {
-                OnNodeCompleted(instance, workflowId, outputPacket);
+                succeeded = true;
+                var outputPacket = BuildOutputPacket(run, workflowId, inputPacket);
+                OnNodeSucceeded(run, workflowId, outputPacket);
             }
             else
             {
-                failed = true;
                 error = result.Error ?? "Workflow failed";
+                Log.Error("[BenchScheduler] Node {Workflow} of run {RunId} failed: {Error}",
+                    workflowId, run.RunId, error);
             }
         }
         catch (OperationCanceledException)
         {
-            failed = true;
+            // Cancellation is not a failure (ADR-0009 acceptance #2); it is logged low because
+            // it is an expected response to the user's stop button (ADR-0007 D4).
+            cancelled = true;
             error = "Cancelled";
+            Log.Debug("[BenchScheduler] Node {Workflow} of run {RunId} cancelled", workflowId, run.RunId);
         }
         catch (Exception ex)
         {
-            failed = true;
             error = ex.Message;
-            Log.Error(ex, "[BenchScheduler] Node {Id} failed unexpectedly", workflowId);
+            Log.Error(ex, "[BenchScheduler] Node {Workflow} of run {RunId} threw",
+                workflowId, run.RunId);
         }
         finally
         {
-            if (failed)
-                instance.MarkFailed();
-            Log.Information(
-                "[BenchScheduler] Node finished run={RunId} namespace={Namespace} workflow={Workflow} " +
-                "succeeded={Succeeded} error={Error} pendingBefore={Pending}",
-                instance.InstanceId, instance.NamespaceId, workflowId, !failed, error, instance.ActiveRuns);
-            instance.TrackCompleted(workflowId, !failed, error);
+            run.SettleNode(workflowId, succeeded, error, cancelled);
         }
     }
 
-    private void OnNodeCompleted(BenchRunInstance instance, string workflowId, JsonElement outputPacket)
+    /// <summary>
+    /// Builds the constant overrides handed to a workflow. The instance-shaped names live in
+    /// the <c>Instances</c> namespace, which the run deliberately does not know about
+    /// (ADR-0003 D2) — injecting them is the scheduler's job, since it is allowed to see both.
+    /// </summary>
+    private Dictionary<string, string?> BuildOverrides(
+        WorkflowRun run,
+        string workflowId,
+        IReadOnlyDictionary<string, string?> overrides)
     {
-        if (!_successors.TryGetValue(workflowId, out var edges))
-            return;
-
-        foreach (var (to, binding) in edges)
-            DeliverTo(instance, to, outputPacket, binding.Params);
+        var ns = DataStoreScope.WorkflowNamespace(run.ToolkitId, run.NamespaceId, workflowId);
+        var merged = new Dictionary<string, string?>(overrides)
+        {
+            [DataStoreScope.OutputNamespaceConstant] = ns,
+            [Instances.InitiatorConstants.DeviceId] = run.Initiator.DeviceId,
+            [Instances.InitiatorConstants.DeviceName] = run.Initiator.DeviceName,
+            [Instances.InstanceConstants.InstanceId] = run.NamespaceId,
+        };
+        return merged;
     }
 
-    /// <summary>Builds a node's output packet = its input packet merged with the keys it
-    /// wrote to its instance-scoped DataStore namespace (the harness "completion + data").
-    /// Properties are copied by <see cref="JsonValue.Create(JsonElement)"/> reference wrapper
-    /// (F5) and the DataStore scan is narrowed to the target namespace's keys via
-    /// <see cref="DataStore.KeysByPrefix"/> (F4) — no full-key scan, no string re-parse.</summary>
-    private JsonElement BuildOutputPacket(BenchRunInstance instance, string workflowId, JsonElement inputPacket)
+    /// <summary>Fans a successful node's output out to its successors.</summary>
+    private void OnNodeSucceeded(WorkflowRun run, string workflowId, JsonElement outputPacket)
     {
-        var ns = DataStoreScope.WorkflowNamespace(_toolkit.GetId(), instance.NamespaceId, workflowId);
+        var edges = _graph.Successors(workflowId);
+        if (edges.Count == 0)
+            return;
+
+        foreach (var edge in edges)
+            Deliver(run, edge.To, outputPacket, edge.Binding.Params);
+    }
+
+    /// <summary>
+    /// Builds a node's output packet: its input packet merged with the keys it wrote into its
+    /// instance-scoped data namespace (the harness "completion + data" contract).
+    /// </summary>
+    private JsonElement BuildOutputPacket(WorkflowRun run, string workflowId, JsonElement inputPacket)
+    {
+        var ns = DataStoreScope.WorkflowNamespace(run.ToolkitId, run.NamespaceId, workflowId);
         var prefix = ns + "/";
 
         var obj = new JsonObject();
 
         if (inputPacket.ValueKind == JsonValueKind.Object)
-        {
             foreach (var prop in inputPacket.EnumerateObject())
                 obj[prop.Name] = WrapElement(prop.Value);
-        }
 
         foreach (var key in _dataStore.KeysByPrefix(prefix))
         {
@@ -303,19 +391,27 @@ public sealed class BenchScheduler : IDisposable
 
     private string? ResolveFile(string workflowId)
     {
+        if (_compiled is not null && _compiled.FindWorkflow(workflowId) is { } compiledWf)
+            return string.IsNullOrWhiteSpace(compiledWf.File) ? null : compiledWf.File;
+
         var wf = _toolkit.Workflows.FirstOrDefault(w => w.Id == workflowId);
         if (wf is not null && !string.IsNullOrWhiteSpace(wf.File))
             return wf.File;
+
         // Fall back to treating the id as the relative file path (self-contained ToolKits).
         return string.IsNullOrWhiteSpace(workflowId) ? null : workflowId;
     }
 
-    private void BuildGraph()
+    /// <summary>
+    /// Derives the completion graph from config with the same rules the compiler uses. Kept so
+    /// a scheduler built without a <see cref="CompiledToolkit"/> still agrees with one built
+    /// with it — the S1 double-run comparison pinned that equality down.
+    /// </summary>
+    private static WorkflowGraph BuildGraph(Toolkit toolkit)
     {
-        var succ = new Dictionary<string, List<(string, TriggerBinding)>>(StringComparer.Ordinal);
-        var pred = new Dictionary<string, int>(StringComparer.Ordinal);
+        var edges = new List<WorkflowEdge>();
 
-        foreach (var trigger in _toolkit.Triggers)
+        foreach (var trigger in toolkit.Triggers)
         {
             if (trigger.Type != TriggerType.WorkflowCompletion)
                 continue;
@@ -329,45 +425,14 @@ public sealed class BenchScheduler : IDisposable
                 if (string.IsNullOrWhiteSpace(binding.Workflow))
                     continue;
 
-                if (!succ.TryGetValue(from, out var list))
-                    succ[from] = list = [];
-                list.Add((binding.Workflow, binding));
-                pred[binding.Workflow] = pred.TryGetValue(binding.Workflow, out var c) ? c + 1 : 1;
+                edges.Add(new WorkflowEdge(from, binding.Workflow, binding));
             }
         }
 
-        _successors = succ;
-        _predecessorCount = pred;
+        return WorkflowGraph.FromEdges(edges, toolkit.Workflows.Select(w => w.Id));
     }
 
-    /// <summary>Merges two object packets into one, with <paramref name="second"/> overriding
-    /// <paramref name="first"/> on duplicate property names (later assignment wins). Properties
-    /// are copied by <see cref="WrapElement"/> reference wrapper (F5) so each element's original
-    /// JSON text is written through on serialization — no string re-parse.</summary>
-    private static JsonElement Merge(JsonElement first, JsonElement second)
-    {
-        var obj = new JsonObject();
-
-        if (first.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var prop in first.EnumerateObject())
-                obj[prop.Name] = WrapElement(prop.Value);
-        }
-
-        if (second.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var prop in second.EnumerateObject())
-                obj[prop.Name] = WrapElement(prop.Value);
-        }
-
-        return JsonSerializer.SerializeToElement(obj);
-    }
-
-    /// <summary>Wraps a <see cref="JsonElement"/> as a <see cref="JsonNode"/> by reference
-    /// (F5) without re-parsing its raw text. Objects/arrays use their reference factory
-    /// (<see cref="JsonObject.Create(JsonElement)"/> / <see cref="JsonArray.Create(JsonElement)"/>),
-    /// primitives use <see cref="JsonValue.Create(JsonElement)"/>. The element's backing
-    /// <see cref="JsonDocument"/> is owned by the caller and only read here (never disposed).</summary>
+    /// <summary>Wraps a <see cref="JsonElement"/> as a node by reference, without re-parsing its text.</summary>
     private static JsonNode WrapElement(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.Object => JsonObject.Create(element),
@@ -387,9 +452,11 @@ public sealed class BenchScheduler : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+
         CancelAll();
-        foreach (var instance in _instances.Values)
-            instance.Dispose();
-        _instances.Clear();
+        foreach (var run in _runs.Values)
+            run.Dispose();
+        _runs.Clear();
+        _nodeGate.Dispose();
     }
 }
