@@ -1,27 +1,52 @@
 namespace KitX.ToolKit.Bench;
 
 /// <summary>
-/// Raised by <see cref="BenchRunInstance.Completed"/> (surfaced via
-/// <see cref="BenchScheduler.RunCompleted"/>) when a triggered run finishes.
+/// Raised by <see cref="Run.WorkflowRun.Completed"/> (surfaced via
+/// <see cref="BenchScheduler.RunCompleted"/>) when a triggered run settles.
 /// </summary>
+/// <remarks>
+/// The verdict is a <see cref="Contract.RunOutcome"/> rather than a bool because "cancelled"
+/// and "failed" are different answers (ADR-0009 acceptance #2). A bool would force every
+/// caller to decide privately which one cancellation maps to — and they would disagree.
+/// </remarks>
 public sealed class BenchRunCompletedEventArgs : EventArgs
 {
-    public BenchRunCompletedEventArgs(string instanceId, bool isSuccess)
+    public BenchRunCompletedEventArgs(
+        string instanceId,
+        Contract.RunOutcome outcome,
+        int failedCount = 0,
+        int completedCount = 0,
+        int skippedCount = 0)
     {
         InstanceId = instanceId;
-        IsSuccess = isSuccess;
+        Outcome = outcome;
+        FailedCount = failedCount;
+        CompletedCount = completedCount;
+        SkippedCount = skippedCount;
     }
 
     /// <summary>The run's unique id.</summary>
     public string InstanceId { get; }
 
-    /// <summary>True when every workflow in the run completed without a node failure.</summary>
-    public bool IsSuccess { get; }
+    /// <summary>How the run ended: succeeded, failed, or cancelled.</summary>
+    public Contract.RunOutcome Outcome { get; }
+
+    /// <summary>How many nodes ran and failed.</summary>
+    public int FailedCount { get; }
+
+    /// <summary>How many nodes settled after running (completed + failed + cancelled).</summary>
+    public int CompletedCount { get; }
+
+    /// <summary>How many nodes never ran because the run was truncated.</summary>
+    public int SkippedCount { get; }
+
+    /// <summary>True only when every node that ran succeeded and nothing was skipped.</summary>
+    public bool IsSuccess => Outcome == Contract.RunOutcome.Succeeded && SkippedCount == 0;
 }
 
 /// <summary>
-/// Raised by <see cref="BenchRunInstance.NodeStarted"/> when a single workflow of a run
-/// is scheduled (run-monitor primitive; the instance manager projects it to a
+/// Raised by <see cref="Run.WorkflowRun.NodeStarted"/> when a single workflow of a run begins
+/// executing (run-monitor primitive; the instance manager projects it to a
 /// <c>RunStartedEvent</c> on the Bench contract).
 /// </summary>
 public sealed class BenchNodeStartedEventArgs : EventArgs
@@ -40,7 +65,7 @@ public sealed class BenchNodeStartedEventArgs : EventArgs
 }
 
 /// <summary>
-/// Raised by <see cref="BenchRunInstance.NodeCompleted"/> when a single workflow of a run
+/// Raised by <see cref="Run.WorkflowRun.NodeCompleted"/> when a single workflow of a run
 /// finishes (run-monitor primitive; the instance manager projects it to a
 /// <c>RunCompletedEvent</c> on the Bench contract).
 /// </summary>
