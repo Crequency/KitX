@@ -78,11 +78,14 @@ public class BuiltinDescriptorAlignmentTests
     {
         // The other direction. A method with a builtin-shaped name that nobody registered is dead
         // code at best, and at worst a function the author believes is callable from KS. The
-        // Ui*/Toolkit*/Bench* prefix set is what makes "looks like a builtin" decidable.
+        // Toolkit*/Flow* prefix set is what makes "looks like a builtin" decidable.
+        //
+        // The set is not closed: a new family under a name that does not start with one of these
+        // prefixes would escape this check entirely, which is why the prefixes are listed here
+        // rather than derived from the registry — a derivation would trivially agree with itself.
         var builtinShaped = GlobalsMethods.Keys
-            .Where(name => name.StartsWith("Ui", StringComparison.Ordinal)
-                        || name.StartsWith("Toolkit", StringComparison.Ordinal)
-                        || name.StartsWith("Bench", StringComparison.Ordinal))
+            .Where(name => name.StartsWith("Toolkit", StringComparison.Ordinal)
+                        || name.StartsWith("Flow", StringComparison.Ordinal))
             .ToList();
 
         var registered = BuiltinRegistry.Names.ToHashSet(StringComparer.Ordinal);
