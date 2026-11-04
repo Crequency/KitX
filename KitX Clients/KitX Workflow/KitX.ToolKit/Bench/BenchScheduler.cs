@@ -5,6 +5,7 @@ using KitX.ToolKit.Compile;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Run;
+using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
 using Serilog;
@@ -46,6 +47,10 @@ public sealed class BenchScheduler : IDisposable
     private readonly CompiledToolkit? _compiled;
 
     private readonly ConcurrentDictionary<string, WorkflowRun> _runs = new();
+
+    /// <summary>Source of flow ids (ADR-0006 D1). Never <c>Guid.NewGuid</c> at the call site.</summary>
+    private readonly IIdGenerator _ids;
+
     private bool _disposed;
 
     /// <summary>
@@ -58,8 +63,9 @@ public sealed class BenchScheduler : IDisposable
         DataStore dataStore,
         ToolkitFileStore fileStore,
         ConfigValidator? validator = null,
-        ToolKitRunOptions? options = null)
-        : this(toolkit, null, executor, dataStore, fileStore, validator, options)
+        ToolKitRunOptions? options = null,
+        IIdGenerator? idGenerator = null)
+        : this(toolkit, null, executor, dataStore, fileStore, validator, options, idGenerator)
     {
     }
 
@@ -75,7 +81,8 @@ public sealed class BenchScheduler : IDisposable
         DataStore dataStore,
         ToolkitFileStore fileStore,
         ConfigValidator? validator = null,
-        ToolKitRunOptions? options = null)
+        ToolKitRunOptions? options = null,
+        IIdGenerator? idGenerator = null)
     {
         _toolkit = toolkit ?? throw new ArgumentNullException(nameof(toolkit));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
@@ -83,6 +90,7 @@ public sealed class BenchScheduler : IDisposable
         _fileStore = fileStore ?? throw new ArgumentNullException(nameof(fileStore));
         _validator = validator ?? new ConfigValidator();
         _compiled = compiled;
+        _ids = idGenerator ?? GuidIdGenerator.Instance;
 
         _graph = compiled?.Graph ?? BuildGraph(_toolkit);
         _nodeGate = new BoundedNodeScheduler(options?.MaxConcurrentNodes ?? 0);
@@ -171,8 +179,7 @@ public sealed class BenchScheduler : IDisposable
 
     private WorkflowRun CreateRun(Contract.Initiator initiator, string? namespaceId)
     {
-        var runId = Guid.NewGuid().ToString("N");
-
+        var runId = _ids.NewFlowId();
         var joinCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var node in _graph.Nodes)
             joinCounts[node] = _graph.PredecessorCount(node);

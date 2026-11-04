@@ -279,10 +279,10 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
         if (SegmentCount(prefix) < 2)
             return _data.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
 
-        var bucket = NamespaceBucketOf(prefix);
-        if (!_nsIndex.TryGetValue(bucket, out var set))
-            return Array.Empty<string>();
-        return set.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+        return BucketsFor(prefix)
+            .SelectMany(set => set.Keys)
+            .Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
+            .ToList();
     }
 
     /// <summary>
@@ -300,10 +300,10 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
         }
         else
         {
-            var bucket = NamespaceBucketOf(prefix);
-            if (!_nsIndex.TryGetValue(bucket, out var set))
-                return 0;
-            toRemove = set.Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+            toRemove = BucketsFor(prefix)
+                .SelectMany(set => set.Keys)
+                .Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
+                .ToList();
         }
 
         var removed = 0;
@@ -351,6 +351,37 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
             return key;
         var second = key.IndexOf('/', first + 1);
         return second < 0 ? key : key[..second];
+    }
+
+    /// <summary>
+    /// Every index bucket whose keys could start with <paramref name="prefix"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>Buckets are keyed by a key's first two segments, but a prefix does not have to align
+    /// with that: <c>"tk-life/"</c> spans the buckets <c>tk-life/status</c>, <c>tk-life/panel</c>
+    /// and so on. Mapping the prefix to one bucket (<see cref="NamespaceBucketOf"/>) returned the
+    /// literal <c>tk-life/</c>, which never exists as a bucket, so a whole-toolkit sweep silently
+    /// found nothing.</para>
+    /// <para>A prefix with at least two complete segments (<c>a/b/c</c>) pins the bucket exactly,
+    /// which is the case every caller before S4 used. The shorter case is resolved by scanning the
+    /// buckets of the one namespace it can name.</para>
+    /// </remarks>
+    private IEnumerable<ConcurrentDictionary<string, byte>> BucketsFor(string prefix)
+    {
+        var second = prefix.IndexOf('/', prefix.IndexOf('/') + 1);
+        if (second > 0)
+        {
+            // "a/b/..." — the bucket is fully determined.
+            return _nsIndex.TryGetValue(prefix[..second], out var exact)
+                ? [exact]
+                : [];
+        }
+
+        // "a/..." — the namespace segment is known, the rest is not.
+        var namespaceSegment = prefix[..prefix.IndexOf('/')];
+        return _nsIndex
+            .Where(kv => kv.Key.StartsWith(namespaceSegment + "/", StringComparison.Ordinal))
+            .Select(kv => kv.Value);
     }
 
     /// <summary>Number of '/' separated segments in a key (at least 1).</summary>

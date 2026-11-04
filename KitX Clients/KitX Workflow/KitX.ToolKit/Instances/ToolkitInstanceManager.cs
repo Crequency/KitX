@@ -7,6 +7,7 @@ using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Panels;
+using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
 using Serilog;
@@ -45,6 +46,12 @@ public sealed class ToolkitInstanceManager : IDisposable
     // exceed the cap (a TOCTOU window in the pre-existing code).
     private readonly object _spawnGate = new();
 
+    /// <summary>The injected clock (ADR-0006 D1) — no wall-clock reads anywhere in this file.</summary>
+    private readonly IClock _clock;
+
+    /// <summary>The injected id source (ADR-0006 D1) — no <c>Guid.NewGuid</c> at call sites.</summary>
+    private readonly IIdGenerator _ids;
+
     private bool _disposed;
 
     internal ToolkitInstanceManager(
@@ -54,7 +61,9 @@ public sealed class ToolkitInstanceManager : IDisposable
         DataStore dataStore,
         Func<Toolkit, ToolkitFileStore>? fileStoreFactory = null,
         ConfigValidator? validator = null,
-        ToolkitInstanceManagerOptions? options = null)
+        ToolkitInstanceManagerOptions? options = null,
+        IClock? clock = null,
+        IIdGenerator? idGenerator = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -64,6 +73,8 @@ public sealed class ToolkitInstanceManager : IDisposable
             Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits")));
         _validator = validator ?? new ConfigValidator();
         _options = options ?? new ToolkitInstanceManagerOptions();
+        _clock = clock ?? SystemClock.Instance;
+        _ids = idGenerator ?? GuidIdGenerator.Instance;
 
         // The DataStore blackboard is the panel-projection primitive: project every
         // instance-scoped panel write into the Bench event channel so the host can render
@@ -137,16 +148,129 @@ public sealed class ToolkitInstanceManager : IDisposable
     /// Unmounts a ToolKit: stops its Spawn sources, disposes its scheduler, and ends every
     /// running instance of it (D8). Idempotent.
     /// </summary>
+    /// <remarks>
+    /// Unmount is <b>not</b> uninstall: it forgets the toolkit's in-memory scheduler but leaves the
+    /// data alone, because the caller may mount it again. Clearing data is
+    /// <see cref="Uninstall"/>'s job and only <see cref="Uninstall"/>'s job (ADR-0005 D2).
+    /// </remarks>
     public void Unmount(string toolkitId)
     {
         if (!_mounted.TryRemove(toolkitId, out var mounted))
             return;
 
-        foreach (var kv in _instances.Where(kv => kv.Value.ToolkitId == toolkitId).ToList())
-            EndInstance(kv.Key);
-
+        EndInstancesOf(toolkitId, InstanceEndReason.Unmount);
         mounted.Dispose();
         Log.Information("[ToolkitInstanceManager] Unmounted ToolKit {Toolkit}", toolkitId);
+    }
+
+    /// <summary>
+    /// Stops a mounted ToolKit without forgetting it: spawn sources stop, running flows are
+    /// cancelled, <b>declared keys survive</b> (ADR-0005 D2).
+    /// </summary>
+    /// <remarks>
+    /// <para>The toolkit stays in <c>_mounted</c> so its key table still resolves, its panel keys
+    /// stay readable and its instances remain enumerable — a disabled toolkit is still
+    /// <i>addressable</i>, it just cannot be triggered. Anything else would make "disable" and
+    /// "uninstall" the same operation with different log lines.</para>
+    /// <para>Re-enabling is <see cref="Enable"/>. Calling this twice is a no-op.</para>
+    /// </remarks>
+    public void Disable(string toolkitId)
+    {
+        ThrowIfDisposed();
+        if (!_mounted.TryGetValue(toolkitId, out var mounted))
+            return;
+        if (mounted.State == LifecycleState.Disabled)
+            return;
+
+        mounted.StopSources();
+        EndInstancesOf(toolkitId, InstanceEndReason.Disabled);
+        mounted.State = LifecycleState.Disabled;
+        Log.Information("[ToolkitInstanceManager] Disabled ToolKit {Toolkit}; data retained", toolkitId);
+    }
+
+    /// <summary>Re-activates a disabled ToolKit: spawn sources start again and triggering resumes.</summary>
+    /// <remarks>Idempotent. Re-enabling a toolkit that was never disabled is a no-op. This does not
+    /// restart the flows that were cancelled by <see cref="Disable"/> — they are gone, and pretending
+    /// otherwise would mean the toolkit holds state it cannot describe.</remarks>
+    public void Enable(string toolkitId)
+    {
+        ThrowIfDisposed();
+        if (!_mounted.TryGetValue(toolkitId, out var mounted))
+            return;
+        if (mounted.State != LifecycleState.Disabled)
+            return;
+
+        mounted.State = LifecycleState.Enabled;
+        StartSpawnSources(mounted);
+        Log.Information("[ToolkitInstanceManager] Enabled ToolKit {Toolkit}", toolkitId);
+    }
+
+    /// <summary>
+    /// Removes a ToolKit entirely: stops it, ends its instances and <b>deletes every key it
+    /// declared</b> (ADR-0005 D2). Idempotent.
+    /// </summary>
+    /// <remarks>
+    /// <para>This is the operation that actually erases data, which is why it is not just
+    /// "unmount with a flag". The key set is the toolkit's own declaration — the manager is the
+    /// only object that both knows which toolkit is going away and owns the store (Q66).</para>
+    /// <para>Deletion is scoped to full keys, not to a raw prefix: a toolkit whose id is a prefix of
+    /// another's would otherwise take its neighbour's data with it.</para>
+    /// </remarks>
+    public int Uninstall(string toolkitId)
+    {
+        ThrowIfDisposed();
+
+        var hadMounted = _mounted.TryRemove(toolkitId, out var mounted);
+
+        EndInstancesOf(toolkitId, InstanceEndReason.Uninstall);
+        mounted?.Dispose();
+
+        // Every declared key plus the whole panel namespace. Declared keys cover the `Out`/`In`/
+        // `Stream` roles; the panel prefix covers what the old panel host wrote there, which is not
+        // in the declaration but is still this toolkit's data.
+        var removed = 0;
+        var keys = mounted?.Keys.Names.ToList() ?? [];
+        foreach (var local in keys)
+            removed += _dataStore.Remove($"{toolkitId}/{local}") ? 1 : 0;
+
+        removed += _dataStore.RemoveByPrefix($"{toolkitId}/");
+
+        Log.Information(
+            "[ToolkitInstanceManager] Uninstalled ToolKit {Toolkit} (was mounted: {Mounted}); removed {Count} keys",
+            toolkitId, hadMounted, removed);
+        return removed;
+    }
+
+    /// <summary>The lifecycle state of a toolkit, or null when it is not mounted at all.</summary>
+    public LifecycleState? GetLifecycleState(string toolkitId)
+        => _mounted.TryGetValue(toolkitId, out var mounted) ? mounted.State : null;
+
+    /// <summary>Ends every instance belonging to one toolkit, for the given reason.</summary>
+    private void EndInstancesOf(string toolkitId, InstanceEndReason reason)
+    {
+        foreach (var kv in _instances.Where(kv => kv.Value.ToolkitId == toolkitId).ToList())
+            EndInstance(kv.Key, reason);
+    }
+
+    /// <summary>Creates and starts one Spawn source per Spawn trigger on the mounted toolkit.</summary>
+    private void StartSpawnSources(MountedToolkit mounted)
+    {
+        var id = mounted.Toolkit.GetId();
+
+        // Start only Spawn sources. UIEvent/WorkflowCompletion are intra-instance: UIEvent is
+        // wired per-instance in the GUI iteration; WorkflowCompletion is a scheduler edge.
+        foreach (var trigger in mounted.Toolkit.Triggers)
+        {
+            if (!trigger.Type.IsSpawn())
+                continue;
+
+            var source = _registry.Create(trigger, _services);
+            source.Fired += (_, e) => Spawn(id, e.TriggerId, e.Payload, null);
+            mounted.Sources.Add(source);
+            source.Start(_services);
+            Log.Information("[ToolkitInstanceManager] Mounted Spawn source {Id} ({Type}) for {Toolkit}",
+                trigger.Id, trigger.Type, id);
+        }
     }
 
     /// <summary>
@@ -160,6 +284,18 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (!_mounted.TryGetValue(toolkitId, out var mounted))
             return null;
 
+        // A disabled toolkit is still mounted and still readable — only triggering is refused
+        // (ADR-0005 D2, error code `toolkit.not-enabled`). Refusing here rather than at each
+        // trigger source means one check covers every path into a flow, including a stale source
+        // that somehow survived a Disable.
+        if (mounted.State == LifecycleState.Disabled)
+        {
+            Log.Debug("[ToolkitInstanceManager] Spawn of {Toolkit} refused: toolkit.not-enabled", toolkitId);
+            Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+                "toolkit.not-enabled"));
+            return null;
+        }
+
         var trigger = mounted.TriggerById.TryGetValue(triggerId, out var t) ? t : null;
         if (trigger is null || !trigger.Type.IsSpawn())
             return null;
@@ -172,7 +308,7 @@ public sealed class ToolkitInstanceManager : IDisposable
             // MaxInstances cap (D7): count only Running instances of this ToolKit.
             var max = mounted.Toolkit.MaxInstances;
             if (max is > 0 &&
-                _instances.Values.Count(i => i.ToolkitId == toolkitId && i.Status == InstanceStatus.Running) >= max)
+                _instances.Values.Count(i => i.ToolkitId == toolkitId && i.IsRunning) >= max)
             {
                 Log.Warning("[ToolkitInstanceManager] Spawn of {Toolkit} rejected: MaxInstances={Max} reached",
                     toolkitId, max);
@@ -220,7 +356,17 @@ public sealed class ToolkitInstanceManager : IDisposable
     }
 
     /// <summary>Ends an instance (cancels all its runs + destroys it). Idempotent.</summary>
-    public void EndInstance(string instanceId)
+    /// <remarks>Public-face overload: the caller is <see cref="BenchService"/>, i.e. someone asked
+    /// for this specific instance, so the reason is <see cref="InstanceEndReason.Requested"/>.</remarks>
+    public void EndInstance(string instanceId) => EndInstance(instanceId, InstanceEndReason.Requested);
+
+    /// <summary>Ends an instance (cancels all its runs + destroys it). Idempotent.</summary>
+    /// <param name="instanceId">The instance to end. Unknown ids are a no-op.</param>
+    /// <param name="reason">
+    /// Why it is being ended. Never inferred: each caller knows its own motivation, and a
+    /// shutdown that looks like a failure (or the reverse) is worse than no log line.
+    /// </param>
+    internal void EndInstance(string instanceId, InstanceEndReason reason)
     {
         if (!_instances.TryRemove(instanceId, out var instance))
             return;
@@ -237,7 +383,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         if (cleared > 0)
             Log.Debug("[ToolkitInstanceManager] Cleared {Count} wf keys for ended instance {Instance}", cleared, instanceId);
 
-        Log.Information("[ToolkitInstanceManager] Ended instance {Instance}", instanceId);
+        Log.Information("[ToolkitInstanceManager] Ended instance {Instance} ({Reason})", instanceId, reason);
     }
 
     /// <summary>
@@ -256,7 +402,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         // acceptable given completion frequency is low; an incremental counter was considered
         // but rejected to keep the logic simple and the snapshot self-correcting.
         var completed = _instances.Values
-            .Where(i => i.Status == InstanceStatus.Completed)
+            .Where(i => !i.IsRunning)
             .OrderBy(i => i.CompletedAt)
             .ToList();
 
@@ -268,20 +414,35 @@ public sealed class ToolkitInstanceManager : IDisposable
             // A UIEvent chain may have re-activated a Completed instance since the snapshot;
             // skip it so a Running instance is never evicted. Under-eviction self-heals the
             // next time it completes (firing this method again).
-            if (instance.Status != InstanceStatus.Completed)
+            if (instance.IsRunning)
                 continue;
 
             Log.Information("[ToolkitInstanceManager] Instance {Instance} evicted by CompletedInstanceCap (cap={Cap})",
                 instance.InstanceId, cap);
-            EndInstance(instance.InstanceId);
+            EndInstance(instance.InstanceId, InstanceEndReason.Evicted);
         }
     }
 
     /// <summary>Ends every instance of every mounted ToolKit.</summary>
+    /// <remarks>
+    /// <para>Termination order is <b>newest first</b> (ADR-0005 D3): a flow started later is more
+    /// likely to be reading keys left behind by an earlier one, so tearing down the dependants
+    /// before their providers keeps the last observable states meaningful. The order is decided
+    /// here, on a materialised snapshot, rather than by enumerating the dictionary — a
+    /// <see cref="ConcurrentDictionary{TKey,TValue}"/> makes no ordering promise at all.</para>
+    /// <para>Every termination carries a reason, so a reader of the log can tell an orderly
+    /// shutdown from a failure or an operator's decision.</para>
+    /// </remarks>
     public void EndAll()
     {
-        foreach (var id in _instances.Keys.ToList())
-            EndInstance(id);
+        var ordered = _instances
+            .OrderByDescending(kv => kv.Value.StartedAt)
+            .ThenBy(kv => kv.Value.InstanceId, StringComparer.Ordinal)
+            .Select(kv => kv.Key)
+            .ToList();
+
+        foreach (var id in ordered)
+            EndInstance(id, InstanceEndReason.Shutdown);
     }
 
     /// <summary>The toolkit id an instance belongs to, or null when unknown.</summary>
@@ -451,9 +612,9 @@ public sealed class ToolkitInstanceManager : IDisposable
 
     private void Raise(BenchEvent e) => BenchEvent?.Invoke(this, e);
 
-    private static string NewId() => Guid.NewGuid().ToString("N");
+    private string NewId() => _ids.NewFlowId();
 
-    private static DateTimeOffset Now() => DateTimeOffset.UtcNow;
+    private DateTimeOffset Now() => _clock.UtcNow;
 
     private void ThrowIfDisposed()
     {
@@ -499,6 +660,26 @@ public sealed class ToolkitInstanceManager : IDisposable
         public BenchScheduler Scheduler { get; }
 
         /// <summary>
+        /// Whether this toolkit's triggers are live. Starts <see cref="LifecycleState.Enabled"/>
+        /// because mounting is what enables it today; <see cref="ToolkitInstanceManager.Disable"/>
+        /// flips it without forgetting the toolkit, which is what keeps data retention possible.
+        /// </summary>
+        public LifecycleState State { get; set; } = LifecycleState.Enabled;
+
+        /// <summary>Stops every Spawn source and forgets them, so they cannot fire again.</summary>
+        /// <remarks>
+        /// Disposing the sources rather than merely stopping them matters: a source that is stopped
+        /// but still subscribed to an external event can be resurrected by the next
+        /// <see cref="ToolkitInstanceManager.Enable"/>, and then the same trigger fires twice.
+        /// </remarks>
+        public void StopSources()
+        {
+            foreach (var source in Sources)
+                source.Stop();
+            Sources.Clear();
+        }
+
+        /// <summary>
         /// The toolkit's declared key table, resolved against its id (ADR-0004 D2/D3). Workflows
         /// write local names; this is what turns them into full keys, and what rejects a write to a
         /// key the user owns.
@@ -510,9 +691,7 @@ public sealed class ToolkitInstanceManager : IDisposable
 
         public void Dispose()
         {
-            foreach (var source in Sources)
-                source.Stop();
-            Sources.Clear();
+            StopSources();
             Scheduler.Dispose();
         }
     }

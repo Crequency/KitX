@@ -23,7 +23,12 @@ public sealed class BenchService : IBenchService
         => _manager.Spawn(toolkitId, triggerId, payload, initiator);
 
     /// <inheritdoc/>
-    public void EndInstance(string instanceId) => _manager.EndInstance(instanceId);
+    /// <remarks>
+    /// This is the service-level entry point, so the reason is <see cref="InstanceEndReason.Requested"/>:
+    /// someone asked for this instance specifically. The manager's own internal callers pass
+    /// stronger reasons (shutdown / unmount / eviction) because they know more.
+    /// </remarks>
+    public void EndInstance(string instanceId) => _manager.EndInstance(instanceId, InstanceEndReason.Requested);
 
     /// <inheritdoc/>
     public void EndAll() => _manager.EndAll();

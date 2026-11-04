@@ -76,6 +76,27 @@ public sealed class ToolkitService : IToolkitService
     public void Unmount(string toolkitId) => _manager.Unmount(toolkitId);
 
     /// <inheritdoc/>
+    public void Disable(string toolkitId) => _manager.Disable(toolkitId);
+
+    /// <inheritdoc/>
+    public void Enable(string toolkitId) => _manager.Enable(toolkitId);
+
+    /// <inheritdoc/>
+    public int Uninstall(string toolkitId)
+    {
+        var removed = _manager.Uninstall(toolkitId);
+
+        // The on-disk config goes too: "uninstall" that leaves the directory behind would be
+        // re-discovered by ListToolkits on the next scan, which reads as the opposite of removed.
+        _store.Delete(toolkitId);
+        ToolkitListChanged?.Invoke(this, EventArgs.Empty);
+        return removed;
+    }
+
+    /// <inheritdoc/>
+    public LifecycleState? GetLifecycleState(string toolkitId) => _manager.GetLifecycleState(toolkitId);
+
+    /// <inheritdoc/>
     public IReadOnlyList<string> MountedToolkitIds => _manager.MountedToolkitIds;
 
     /// <inheritdoc/>
