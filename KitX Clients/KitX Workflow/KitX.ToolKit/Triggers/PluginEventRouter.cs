@@ -23,7 +23,7 @@ namespace KitX.ToolKit.Triggers;
 /// the command's <c>TriggerName</c> tag matches it. A <see langword="null"/> trigger name is a
 /// wildcard that matches any trigger of the plugin.</para>
 /// </summary>
-public interface IPluginEventRouter
+internal interface IPluginEventRouter
 {
     /// <summary>
     /// Registers a fire callback for the given plugin and trigger. Returns a disposable that,
@@ -61,7 +61,7 @@ public interface IPluginEventRouter
 /// thread (the same fan-out behavior as the old direct subscription); one failing callback is
 /// isolated so it cannot break routing for the others.</para>
 /// </summary>
-public sealed class PluginEventRouter : IPluginEventRouter
+internal sealed class PluginEventRouter : IPluginEventRouter
 {
     private const string TriggerFiredLiteral = "TriggerFired";
 

@@ -8,7 +8,6 @@ using KitX.ToolKit.Panels;
 using KitX.ToolKit.Services;
 using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
-using KitX.ToolKit.Validation;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,16 +23,27 @@ namespace KitX.ToolKit.Hosting;
 ///
 /// <para>The Dashboard references this library and calls <c>AddKitXToolKit()</c> (after
 /// <c>AddKitXWorkflowV6()</c>), then drives ToolKits through the contract services.</para>
+///
+/// <para>This is the only public type in the assembly, and <see cref="AddKitXToolKit"/> the
+/// only public method — see ADR-0012 D1. Everything else is internal on purpose.</para>
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-    /// <summary>Registers the KitX.ToolKit service graph.</summary>
-    public static IServiceCollection AddKitXToolKit(this IServiceCollection services)
-        => services.AddKitXToolKit(Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits"));
-
-    /// <summary>Registers the KitX.ToolKit service graph with an explicit ToolKit storage root.</summary>
-    public static IServiceCollection AddKitXToolKit(this IServiceCollection services, string toolkitStorageRoot)
+    /// <summary>
+    /// Registers the KitX.ToolKit service graph.
+    /// </summary>
+    /// <param name="services">The service collection to extend.</param>
+    /// <param name="toolkitStorageRoot">
+    /// Where ToolKit configs and workflows live. <b>Required</b> — there is deliberately no
+    /// default (ADR-0010 D2). A default derived from <see cref="AppContext.BaseDirectory"/> would
+    /// move with the host's deployment layout, which is unpredictable under NixOS or a service
+    /// deployment; the composition root is the only place that knows where its data belongs.
+    /// </param>
+    public static IServiceCollection AddKitXToolKit(
+        this IServiceCollection services, string toolkitStorageRoot)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolkitStorageRoot);
+
         // DataStore — a singleton shared data blackboard. Its scope-per-instance semantics
         // are achieved via key derivation, not separate instances.
         services.AddSingleton<DataStore>();
@@ -53,26 +63,11 @@ public static class ServiceCollectionExtensions
         // reserved-name plugin bridge (BuiltinUiPlugin / BuiltinDataStorePlugin).
         services.AddSingleton<IExecutionGlobalsFactory, ToolKitExecutionGlobalsFactory>();
 
-        // First-class ToolKit builtin functions (Ui*/DataStore*), registered via the public
-        // WorkflowV6 registration API so they appear in the BP palette and type inference.
-        // Runtime execution lives on ToolKitExecutionGlobals (a host ExecutionGlobals
-        // subclass) and reaches the services directly — no reserved-name bridge.
-        services.AddBuiltinFunction<UiSetFunction>();
-        services.AddBuiltinFunction<UiGetFunction>();
-        services.AddBuiltinFunction<UiLogFunction>();
-        services.AddBuiltinFunction<UiProgressFunction>();
-        services.AddBuiltinFunction<UiDialogFunction>();
-        services.AddBuiltinFunction<UiOpenPanelFunction>();
-        services.AddBuiltinFunction<ToolkitSetFunction>();
-        services.AddBuiltinFunction<ToolkitGetFunction>();
-        services.AddBuiltinFunction<ToolkitWaitFunction>();
-        services.AddBuiltinFunction<ToolkitWaitAnyFunction>();
-        services.AddBuiltinFunction<ToolkitRemoveFunction>();
-        services.AddBuiltinFunction<ToolkitKeysFunction>();
-        services.AddBuiltinFunction<ToolkitContainsFunction>();
-        services.AddBuiltinFunction<ToolkitAppendFunction>();
-        services.AddBuiltinFunction<BenchInFunction>();
-        services.AddBuiltinFunction<BenchOutFunction>();
+        // First-class ToolKit builtin functions — registered from the descriptor registry, not
+        // listed here (ADR-0011 D2). Adding a builtin means adding it to BuiltinRegistry; this
+        // call site does not change, and the palette cannot advertise a function that the
+        // execution globals do not implement.
+        services.AddToolKitBuiltins();
 
         // Config validation.
         services.AddSingleton<ConfigValidator>();

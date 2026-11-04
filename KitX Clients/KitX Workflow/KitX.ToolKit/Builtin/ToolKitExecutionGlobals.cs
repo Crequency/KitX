@@ -374,7 +374,7 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
 /// → (this factory) — which throws at first resolution (e.g. opening the Bench page).
 /// By Create() time the whole container is built, so the lazy path is always safe.</para>
 /// </summary>
-public sealed class ToolKitExecutionGlobalsFactory : IExecutionGlobalsFactory
+internal sealed class ToolKitExecutionGlobalsFactory : IExecutionGlobalsFactory
 {
     private readonly IServiceProvider _services;
 

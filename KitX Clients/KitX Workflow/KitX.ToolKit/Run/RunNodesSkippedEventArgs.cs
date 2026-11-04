@@ -14,7 +14,7 @@ namespace KitX.ToolKit.Run;
 /// unreachable. Naming the failed node lets a consumer attribute the wave without correlating
 /// against the completion stream.</para>
 /// </remarks>
-public sealed class RunNodesSkippedEventArgs : EventArgs
+internal sealed class RunNodesSkippedEventArgs : EventArgs
 {
     public RunNodesSkippedEventArgs(string runId, IReadOnlyList<string> nodeIds, string? failedNodeId)
     {

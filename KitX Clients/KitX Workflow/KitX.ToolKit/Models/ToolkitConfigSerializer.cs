@@ -8,7 +8,7 @@ namespace KitX.ToolKit.Models;
 /// Keeps the JSON human-readable (indented) and case-insensitive so configs authored
 /// by hand or by an AI Agent round-trip losslessly. Enums are serialized as strings.
 /// </summary>
-public static class ToolkitConfigSerializer
+internal static class ToolkitConfigSerializer
 {
     private static readonly JsonSerializerOptions _options = new()
     {

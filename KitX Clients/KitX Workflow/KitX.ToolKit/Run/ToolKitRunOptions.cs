@@ -10,7 +10,7 @@ namespace KitX.ToolKit.Run;
 /// a single wide run and many narrow runs are different pressures, and one number cannot
 /// express both.</para>
 /// </remarks>
-public sealed class ToolKitRunOptions
+internal sealed class ToolKitRunOptions
 {
     /// <summary>
     /// Maximum number of node bodies a single run may execute concurrently. Zero or negative

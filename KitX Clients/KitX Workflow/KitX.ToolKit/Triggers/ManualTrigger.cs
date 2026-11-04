@@ -7,7 +7,7 @@ namespace KitX.ToolKit.Triggers;
 /// programmatic via <see cref="ITriggerSource.Fire"/> (canvas run button, CLI,
 /// tests). Start/Stop are no-ops.
 /// </summary>
-public sealed class ManualTrigger : TriggerSourceBase
+internal sealed class ManualTrigger : TriggerSourceBase
 {
     public ManualTrigger(string id)
         : base(id, TriggerType.Manual)

@@ -18,7 +18,7 @@ using KitX.WorkflowV6.Builtin;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>ToolkitSet(key, value) → writes a declared key the workflow owns.</summary>
-public sealed class ToolkitSetFunction : IBuiltinFunction
+internal sealed class ToolkitSetFunction : IBuiltinFunction
 {
     public string Name => "ToolkitSet";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -33,7 +33,7 @@ public sealed class ToolkitSetFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitGet(key) → reads a declared key.</summary>
-public sealed class ToolkitGetFunction : IBuiltinFunction
+internal sealed class ToolkitGetFunction : IBuiltinFunction
 {
     public string Name => "ToolkitGet";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -50,7 +50,7 @@ public sealed class ToolkitGetFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitWait(keys...) → blocks until all named keys are present (AND).</summary>
-public sealed class ToolkitWaitFunction : IBuiltinFunction
+internal sealed class ToolkitWaitFunction : IBuiltinFunction
 {
     public string Name => "ToolkitWait";
     public FunctionKind Kind => FunctionKind.ControlFlow;
@@ -67,7 +67,7 @@ public sealed class ToolkitWaitFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitWaitAny(keys...) → blocks until any named key is present (OR).</summary>
-public sealed class ToolkitWaitAnyFunction : IBuiltinFunction
+internal sealed class ToolkitWaitAnyFunction : IBuiltinFunction
 {
     public string Name => "ToolkitWaitAny";
     public FunctionKind Kind => FunctionKind.ControlFlow;
@@ -84,7 +84,7 @@ public sealed class ToolkitWaitAnyFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitRemove(key) → removes a declared key the workflow owns.</summary>
-public sealed class ToolkitRemoveFunction : IBuiltinFunction
+internal sealed class ToolkitRemoveFunction : IBuiltinFunction
 {
     public string Name => "ToolkitRemove";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -98,7 +98,7 @@ public sealed class ToolkitRemoveFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitKeys() → the local names of every declared key.</summary>
-public sealed class ToolkitKeysFunction : IBuiltinFunction
+internal sealed class ToolkitKeysFunction : IBuiltinFunction
 {
     public string Name => "ToolkitKeys";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -112,7 +112,7 @@ public sealed class ToolkitKeysFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitContains(key) → whether the declared key currently holds a value.</summary>
-public sealed class ToolkitContainsFunction : IBuiltinFunction
+internal sealed class ToolkitContainsFunction : IBuiltinFunction
 {
     public string Name => "ToolkitContains";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -129,7 +129,7 @@ public sealed class ToolkitContainsFunction : IBuiltinFunction
 }
 
 /// <summary>ToolkitAppend(key, entry) → appends to a key whose role is a stream.</summary>
-public sealed class ToolkitAppendFunction : IBuiltinFunction
+internal sealed class ToolkitAppendFunction : IBuiltinFunction
 {
     public string Name => "ToolkitAppend";
     public FunctionKind Kind => FunctionKind.SideEffect;

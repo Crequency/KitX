@@ -7,7 +7,7 @@ namespace KitX.ToolKit.Triggers;
 /// payload that becomes the target workflow's unified parameter channel
 /// (Bench RFC §4.1 — Trigger.Fired(payload) → Workflow.Run(injected params)).
 /// </summary>
-public sealed class TriggerFiredEventArgs : EventArgs
+internal sealed class TriggerFiredEventArgs : EventArgs
 {
     public TriggerFiredEventArgs(string triggerId, JsonElement payload)
     {

@@ -42,7 +42,7 @@ namespace KitX.ToolKit.Run;
 /// different threads; subscribers must tolerate that, and the counters they read are snapshots
 /// taken under the lock.</para>
 /// </remarks>
-public sealed class WorkflowRun : IDisposable
+internal sealed class WorkflowRun : IDisposable
 {
     /// <summary>Node id → remaining join deliveries. Roots start at 0.</summary>
     private readonly Dictionary<string, int> _joinRemaining;

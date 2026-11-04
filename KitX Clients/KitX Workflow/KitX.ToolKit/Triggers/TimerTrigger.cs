@@ -14,7 +14,7 @@ namespace KitX.ToolKit.Triggers;
 /// scheduled — a non-empty Cron logs a warning and schedules nothing (deferred to a
 /// later iteration with a dedicated Cron parser).</para>
 /// </summary>
-public sealed class TimerTrigger : TriggerSourceBase
+internal sealed class TimerTrigger : TriggerSourceBase
 {
     private readonly TriggerConfig _config;
     private System.Threading.Timer? _timer;

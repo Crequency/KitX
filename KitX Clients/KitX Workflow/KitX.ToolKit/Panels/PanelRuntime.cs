@@ -16,7 +16,7 @@ namespace KitX.ToolKit.Panels;
 /// the workflow's <c>KitX.UI</c> writes both funnel through <see cref="SetControlValue"/> —
 /// the single write-back gating point.</para>
 /// </summary>
-public sealed class PanelRuntime : IPanelRuntime
+internal sealed class PanelRuntime : IPanelRuntime
 {
     private readonly DataStore _dataStore;
     private readonly ToolkitInstanceManager _manager;

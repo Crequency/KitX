@@ -22,7 +22,7 @@ namespace KitX.ToolKit.Instances;
 /// first, and the card reads "failed" forever (ADR-0003 D3). The outcome stored here therefore
 /// covers <i>the runs since the instance last went idle</i>, and resets when new work starts.</para>
 /// </remarks>
-public sealed class ToolkitInstance : IDisposable
+internal sealed class ToolkitInstance : IDisposable
 {
     /// <summary>The primary (Spawn) run — the instance's token source.</summary>
     private readonly WorkflowRun _run;

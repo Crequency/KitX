@@ -6,7 +6,7 @@ namespace KitX.ToolKit.Instances;
 /// the existing constant-override mechanism (<c>WorkflowOverrides.ApplyConstantOverrides</c>),
 /// so it can know who asked for it without any v6 modification.
 /// </summary>
-public static class InitiatorConstants
+internal static class InitiatorConstants
 {
     /// <summary>Reserved constant carrying the initiator's device fingerprint.</summary>
     public const string DeviceId = "__KitXInitiatorDeviceId__";

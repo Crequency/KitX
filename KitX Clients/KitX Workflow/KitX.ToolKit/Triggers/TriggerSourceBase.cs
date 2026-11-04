@@ -8,7 +8,7 @@ namespace KitX.ToolKit.Triggers;
 /// the <see cref="Fired"/> event and a <see cref="Raise"/> helper that normalizes any
 /// payload to a <see cref="JsonElement"/>.
 /// </summary>
-public abstract class TriggerSourceBase : ITriggerSource
+internal abstract class TriggerSourceBase : ITriggerSource
 {
     protected TriggerSourceBase(string id, TriggerType type)
     {

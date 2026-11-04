@@ -30,6 +30,9 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>KitX.WorkflowV6.Test.Xunit</_Parameter1>
     </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>KitX.ToolKit.Hosting</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <!-- DI abstractions (IServiceCollection) come via the shared framework, matching WorkflowV6. -->

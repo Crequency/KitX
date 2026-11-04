@@ -21,7 +21,7 @@ namespace KitX.ToolKit.Bench;
 /// and runs). Only load files from trusted ToolKit packages — never auto-scan arbitrary
 /// directories.</para>
 /// </summary>
-public sealed class ToolkitFileStore : IToolkitWorkflowFileStore
+internal sealed class ToolkitFileStore : IToolkitWorkflowFileStore
 {
     /// <summary>
     /// Built-in minimal runnable v6 workflow template (UX v2 §4.5/V17). The v6 IR has no

@@ -15,7 +15,7 @@ namespace KitX.ToolKit.Compile;
 /// fixed set of characters that are reserved on at least one supported platform. Nothing here
 /// consults the current OS.</para>
 /// </summary>
-public static class ToolkitIdGuard
+internal static class ToolkitIdGuard
 {
     /// <summary>
     /// Characters rejected on <b>every</b> platform, deliberately the union of the Windows and

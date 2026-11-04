@@ -9,7 +9,6 @@ using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Panels;
 using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
-using KitX.ToolKit.Validation;
 using Serilog;
 
 namespace KitX.ToolKit.Instances;
@@ -28,7 +27,7 @@ namespace KitX.ToolKit.Instances;
 ///   triggers and ends all the ToolKit's instances (D8).</item>
 /// </list>
 /// </summary>
-public sealed class ToolkitInstanceManager : IDisposable
+internal sealed class ToolkitInstanceManager : IDisposable
 {
     private readonly IServiceProvider _services;
     private readonly TriggerSourceRegistry _registry;
@@ -69,8 +68,13 @@ public sealed class ToolkitInstanceManager : IDisposable
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
-        _fileStoreFactory = fileStoreFactory ?? (_ => new ToolkitFileStore(
-            Path.Combine(AppContext.BaseDirectory, "Data", "Toolkits")));
+
+        // No fallback here on purpose (ADR-0010 D2). A file store rooted at
+        // AppContext.BaseDirectory would work in a test run and silently point somewhere else in
+        // a deployed host; requiring the factory makes the composition root state its intent.
+        _fileStoreFactory = fileStoreFactory
+            ?? throw new ArgumentNullException(nameof(fileStoreFactory));
+
         _validator = validator ?? new ConfigValidator();
         _options = options ?? new ToolkitInstanceManagerOptions();
         _clock = clock ?? SystemClock.Instance;

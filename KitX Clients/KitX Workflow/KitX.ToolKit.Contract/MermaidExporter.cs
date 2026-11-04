@@ -1,18 +1,21 @@
 using System.Text;
 using KitX.ToolKit.Contract.Declaration;
 
-namespace KitX.ToolKit.Visualization;
+namespace KitX.ToolKit.Contract;
 
 /// <summary>
-/// One-way projection of a <see cref="Toolkit"/> config to a Mermaid <c>flowchart</c>
-/// string (Bench RFC §7.1 — config is the truth, mermaid is a read-only projection).
-/// Pure string generation, zero parser cost; there is no "mermaid → config" reverse
-/// (no round-trip idempotency obligation).
-///
-/// <para>Node mapping: Spawn triggers (Manual/PluginEvent/Timer/UIEvent) are source nodes;
-/// workflows are nodes; a Spawn trigger's bindings and WorkflowCompletion edges become
-/// edges. UIEvent source nodes carry the bound control id as a hint.</para>
+/// One-way projection of a <see cref="Toolkit"/> config to a Mermaid <c>flowchart</c> string —
+/// config is the truth, mermaid is a read-only projection. Pure string generation, zero parser
+/// cost; there is no "mermaid → config" reverse (no round-trip idempotency obligation).
 /// </summary>
+/// <remarks>
+/// <para>Node mapping: Spawn triggers (Manual/PluginEvent/Timer/UIEvent) are source nodes;
+/// workflows are nodes; a Spawn trigger's bindings and WorkflowCompletion edges become edges.
+/// UIEvent source nodes carry the bound control id as a hint.</para>
+/// <para>In the contract because the editor calls it to render a preview of the config it is
+/// editing. It reads only declaration types, so living here adds no dependency in either
+/// direction.</para>
+/// </remarks>
 public static class MermaidExporter
 {
     /// <summary>Exports a config to a Mermaid <c>flowchart LR</c> string.</summary>

@@ -17,7 +17,7 @@ namespace KitX.ToolKit.Compile;
 /// them (ADR-0002 D5). That is what makes the two old readings equivalent instead of having to
 /// keep both of them careful.</para>
 /// </summary>
-public sealed class WorkflowGraph
+internal sealed class WorkflowGraph
 {
     private readonly Dictionary<string, List<WorkflowEdge>> _byFrom;
 

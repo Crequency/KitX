@@ -18,7 +18,7 @@ namespace KitX.ToolKit.Triggers;
 /// per-workflow routing, this is one of several <see cref="ITriggerSource"/>s and its
 /// payload flows into the unified parameter channel.
 /// </summary>
-public sealed class PluginEventTrigger : TriggerSourceBase
+internal sealed class PluginEventTrigger : TriggerSourceBase
 {
     /// <summary>
     /// Fallback plugin display name used when a TriggerFired command's sending connection

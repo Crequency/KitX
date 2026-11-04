@@ -8,4 +8,4 @@ namespace KitX.ToolKit.Compile;
 /// <param name="To">The workflow started by the edge.</param>
 /// <param name="Binding">The declaration that produced this edge — carried so the scheduler
 /// can read the binding's parameters without going back to the config.</param>
-public sealed record WorkflowEdge(string From, string To, Contract.Declaration.TriggerBinding Binding);
+internal sealed record WorkflowEdge(string From, string To, Contract.Declaration.TriggerBinding Binding);

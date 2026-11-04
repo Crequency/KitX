@@ -16,7 +16,7 @@ namespace KitX.ToolKit.Compile;
 /// <para>Resolving here means "the name is known" is decided before anything runs, and a
 /// missing implementation becomes a diagnostic pointing at the workflow that used it.</para>
 /// </summary>
-public sealed class BuiltinResolver
+internal sealed class BuiltinResolver
 {
     private readonly Dictionary<string, IBuiltinFunction> _byName;
 

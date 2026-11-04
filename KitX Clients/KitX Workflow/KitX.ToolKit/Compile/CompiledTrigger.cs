@@ -12,7 +12,7 @@ namespace KitX.ToolKit.Compile;
 /// here?"). This type is the closed form: the discriminant is fixed and only the settings
 /// that actually apply are materialised.</para>
 /// </summary>
-public abstract record CompiledTrigger(string Id, TriggerType Type)
+internal abstract record CompiledTrigger(string Id, TriggerType Type)
 {
     /// <summary>Workflow ids this trigger starts when it fires.</summary>
     public IReadOnlyList<string> Targets { get; init; } = [];
@@ -22,23 +22,23 @@ public abstract record CompiledTrigger(string Id, TriggerType Type)
 }
 
 /// <summary>A manual trigger: starts an instance on explicit request.</summary>
-public sealed record CompiledManualTrigger(string Id) : CompiledTrigger(Id, TriggerType.Manual);
+internal sealed record CompiledManualTrigger(string Id) : CompiledTrigger(Id, TriggerType.Manual);
 
 /// <summary>A plugin-event trigger: starts an instance when the named plugin event fires.</summary>
-public sealed record CompiledPluginEventTrigger(
+internal sealed record CompiledPluginEventTrigger(
     string Id,
     string PluginName,
     string? TriggerName) : CompiledTrigger(Id, TriggerType.PluginEvent);
 
 /// <summary>A timer trigger: starts an instance on a fixed period or one-off delay.</summary>
-public sealed record CompiledTimerTrigger(
+internal sealed record CompiledTimerTrigger(
     string Id,
     double DueTimeMs,
     double? IntervalMs,
     bool OneShot) : CompiledTrigger(Id, TriggerType.Timer);
 
 /// <summary>A UI-event trigger: routes a panel control event into an existing instance.</summary>
-public sealed record CompiledUiEventTrigger(
+internal sealed record CompiledUiEventTrigger(
     string Id,
     string? Control,
     string? Event) : CompiledTrigger(Id, TriggerType.UIEvent);
@@ -48,6 +48,6 @@ public sealed record CompiledUiEventTrigger(
 /// <see cref="CompiledToolkit.Graph"/> rather than forming a trigger of its own; the
 /// compiler keeps it here so callers can still enumerate every declaration.
 /// </summary>
-public sealed record CompiledCompletionTrigger(
+internal sealed record CompiledCompletionTrigger(
     string Id,
     string From) : CompiledTrigger(Id, TriggerType.WorkflowCompletion);

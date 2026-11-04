@@ -17,7 +17,7 @@ using KitX.WorkflowV6.Builtin;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>BenchIn(name, default?) → reads a trigger binding param for this run.</summary>
-public sealed class BenchInFunction : IBuiltinFunction
+internal sealed class BenchInFunction : IBuiltinFunction
 {
     public string Name => "BenchIn";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -35,7 +35,7 @@ public sealed class BenchInFunction : IBuiltinFunction
 }
 
 /// <summary>BenchOut(key, value) → publishes a value on the workflow's completion-edge output packet.</summary>
-public sealed class BenchOutFunction : IBuiltinFunction
+internal sealed class BenchOutFunction : IBuiltinFunction
 {
     public string Name => "BenchOut";
     public FunctionKind Kind => FunctionKind.SideEffect;

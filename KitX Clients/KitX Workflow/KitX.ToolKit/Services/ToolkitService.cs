@@ -11,7 +11,7 @@ namespace KitX.ToolKit.Services;
 /// (persistence) with the <see cref="ToolkitInstanceManager"/> (mount/instances). The
 /// frontend depends only on the contract.
 /// </summary>
-public sealed class ToolkitService : IToolkitService
+internal sealed class ToolkitService : IToolkitService
 {
     private readonly ToolkitStore _store;
     private readonly ToolkitInstanceManager _manager;

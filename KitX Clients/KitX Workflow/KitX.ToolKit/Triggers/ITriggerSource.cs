@@ -8,7 +8,7 @@ namespace KitX.ToolKit.Triggers;
 /// one interface. A source <c>Start</c>s listening and raises <see cref="Fired"/>
 /// with a JSON payload that becomes the target workflow's parameter channel.
 /// </summary>
-public interface ITriggerSource
+internal interface ITriggerSource
 {
     /// <summary>The trigger id (from <see cref="Trigger.Id"/>).</summary>
     string Id { get; }

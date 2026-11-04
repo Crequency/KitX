@@ -9,7 +9,7 @@ namespace KitX.ToolKit.Triggers;
 /// Trigger 类型一实现）"). The built-in types are registered by
 /// <see cref="BuildDefault"/>/DI; a host can register its own factory to override a type.
 /// </summary>
-public sealed class TriggerSourceRegistry
+internal sealed class TriggerSourceRegistry
 {
     private readonly Dictionary<TriggerType, Func<Trigger, IServiceProvider, ITriggerSource>> _factories = new();
 

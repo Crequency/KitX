@@ -2,12 +2,12 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using KitX.ToolKit.Compile;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
-using KitX.ToolKit.Validation;
 using Serilog;
 
 namespace KitX.ToolKit.Bench;
@@ -31,7 +31,7 @@ namespace KitX.ToolKit.Bench;
 /// (<see cref="BoundedNodeScheduler"/>, ADR-0008 D2). Run admission is a separate limit
 /// described on <see cref="ToolKitRunOptions"/>; the scheduler does not conflate them.</para>
 /// </summary>
-public sealed class BenchScheduler : IDisposable
+internal sealed class BenchScheduler : IDisposable
 {
     private readonly Toolkit _toolkit;
     private readonly IWorkflowExecutor _executor;

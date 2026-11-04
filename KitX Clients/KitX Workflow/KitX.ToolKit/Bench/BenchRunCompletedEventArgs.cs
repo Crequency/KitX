@@ -9,7 +9,7 @@ namespace KitX.ToolKit.Bench;
 /// and "failed" are different answers (ADR-0009 acceptance #2). A bool would force every
 /// caller to decide privately which one cancellation maps to — and they would disagree.
 /// </remarks>
-public sealed class BenchRunCompletedEventArgs : EventArgs
+internal sealed class BenchRunCompletedEventArgs : EventArgs
 {
     public BenchRunCompletedEventArgs(
         string instanceId,
@@ -58,7 +58,7 @@ public sealed class BenchRunCompletedEventArgs : EventArgs
 /// executing (run-monitor primitive; the instance manager projects it to a
 /// <c>RunStartedEvent</c> on the Bench contract).
 /// </summary>
-public sealed class BenchNodeStartedEventArgs : EventArgs
+internal sealed class BenchNodeStartedEventArgs : EventArgs
 {
     public BenchNodeStartedEventArgs(string instanceId, string workflowId)
     {
@@ -78,7 +78,7 @@ public sealed class BenchNodeStartedEventArgs : EventArgs
 /// finishes (run-monitor primitive; the instance manager projects it to a
 /// <c>RunCompletedEvent</c> on the Bench contract).
 /// </summary>
-public sealed class BenchNodeCompletedEventArgs : EventArgs
+internal sealed class BenchNodeCompletedEventArgs : EventArgs
 {
     public BenchNodeCompletedEventArgs(string instanceId, string workflowId, bool succeeded, string? error)
     {

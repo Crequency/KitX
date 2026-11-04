@@ -5,7 +5,7 @@ namespace KitX.ToolKit.Data;
 /// synchronous-blocking model (a <c>Wait</c> must eventually unblock even if a writer
 /// never arrives, so the calling workflow does not hang forever).
 /// </summary>
-public sealed class DataStoreOptions
+internal sealed class DataStoreOptions
 {
     /// <summary>Default timeout for blocking <c>Wait</c>/<c>WaitAny</c> calls. On expiry the call returns an empty JSON object.</summary>
     public TimeSpan DefaultWaitTimeout { get; set; } = TimeSpan.FromSeconds(30);

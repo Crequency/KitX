@@ -1,5 +1,5 @@
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Validation;
 
 namespace KitX.ToolKit.Models;
 
@@ -8,7 +8,7 @@ namespace KitX.ToolKit.Models;
 /// (<see cref="Toolkit"/>) is the single source of truth; this is the one entry
 /// point a host / Agent tooling uses to read, write and vet a ToolKit config.
 /// </summary>
-public static class ToolkitConfig
+internal static class ToolkitConfig
 {
     /// <summary>Serializes a <see cref="Toolkit"/> to a JSON document (see <see cref="ToolkitConfigSerializer"/>).</summary>
     public static string Serialize(Toolkit toolkit) => ToolkitConfigSerializer.Serialize(toolkit);

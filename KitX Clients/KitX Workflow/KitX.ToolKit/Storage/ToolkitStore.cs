@@ -1,7 +1,7 @@
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Models;
 using KitX.ToolKit.Time;
-using KitX.ToolKit.Validation;
 using KitX.WorkflowV6.Serialization;
 
 namespace KitX.ToolKit.Storage;
@@ -18,7 +18,7 @@ namespace KitX.ToolKit.Storage;
 /// <para><b>Threat model:</b> a <c>.kcs</c> is executable code — only load ToolKits from
 /// trusted directories (mirrors <c>ToolkitFileStore</c>).</para>
 /// </summary>
-public sealed class ToolkitStore
+internal sealed class ToolkitStore
 {
     /// <summary>The per-ToolKit config file name, stored at <c>{root}/{id}/toolkit.json</c>.</summary>
     public const string ConfigFileName = "toolkit.json";

@@ -20,7 +20,7 @@ using KitX.WorkflowV6.Builtin;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>UiSet(controlId, value) → writes a control's main property key.</summary>
-public sealed class UiSetFunction : IBuiltinFunction
+internal sealed class UiSetFunction : IBuiltinFunction
 {
     public string Name => "UiSet";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -35,7 +35,7 @@ public sealed class UiSetFunction : IBuiltinFunction
 }
 
 /// <summary>UiGet(controlId) → reads a control's main property key.</summary>
-public sealed class UiGetFunction : IBuiltinFunction
+internal sealed class UiGetFunction : IBuiltinFunction
 {
     public string Name => "UiGet";
     public FunctionKind Kind => FunctionKind.Pure;
@@ -52,7 +52,7 @@ public sealed class UiGetFunction : IBuiltinFunction
 }
 
 /// <summary>UiLog(controlId, entry) → appends to a log control (controlId defaults to "log").</summary>
-public sealed class UiLogFunction : IBuiltinFunction
+internal sealed class UiLogFunction : IBuiltinFunction
 {
     public string Name => "UiLog";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -67,7 +67,7 @@ public sealed class UiLogFunction : IBuiltinFunction
 }
 
 /// <summary>UiProgress(controlId, value) → sets a progress control's value.</summary>
-public sealed class UiProgressFunction : IBuiltinFunction
+internal sealed class UiProgressFunction : IBuiltinFunction
 {
     public string Name => "UiProgress";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -82,7 +82,7 @@ public sealed class UiProgressFunction : IBuiltinFunction
 }
 
 /// <summary>UiDialog(controlId, message, buttons...) → writes a dialog request slot.</summary>
-public sealed class UiDialogFunction : IBuiltinFunction
+internal sealed class UiDialogFunction : IBuiltinFunction
 {
     public string Name => "UiDialog";
     public FunctionKind Kind => FunctionKind.SideEffect;
@@ -100,7 +100,7 @@ public sealed class UiDialogFunction : IBuiltinFunction
 }
 
 /// <summary>UiOpenPanel() → requests the host to present the instance's panel.</summary>
-public sealed class UiOpenPanelFunction : IBuiltinFunction
+internal sealed class UiOpenPanelFunction : IBuiltinFunction
 {
     public string Name => "UiOpenPanel";
     public FunctionKind Kind => FunctionKind.SideEffect;

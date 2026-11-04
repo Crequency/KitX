@@ -12,7 +12,7 @@ namespace KitX.ToolKit.Run;
 /// Collapsing them would make a truncated run indistinguishable from a run that is merely
 /// slow, and a cancelled node indistinguishable from a skipped one.</para>
 /// </remarks>
-public enum RunNodeState
+internal enum RunNodeState
 {
     /// <summary>Not yet reached: the AND-join counter is still positive.</summary>
     Pending,

@@ -8,7 +8,7 @@ namespace KitX.ToolKit.Panels;
 /// so the panel is a pure projection of the data blackboard and the instance's namespace is
 /// shared by every run within that instance (including UIEvent-triggered chains).
 /// </summary>
-public static class PanelScope
+internal static class PanelScope
 {
     /// <summary>
     /// The <c>/panel/</c> path segment that marks a DataStore key as an instance panel

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KitX.ToolKit.Hosting</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <Version>24.10.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2024-02-07"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+  </PropertyGroup>
+
+  <!--
+    The third assembly of ADR-0001 D1. It exists for one reason: a DI extension method must be
+    public to be callable, and anything public in the implementation assembly is part of the
+    dependency surface the whole refactor is trying to shrink. Keeping the entry point here means
+    the implementation assembly can be internal throughout.
+
+    The price is an InternalsVisibleTo from the implementation assembly to this one — the
+    registration body has to name DataStore, PanelRuntime, ToolkitInstanceManager and friends.
+    That grant is narrow on purpose: this assembly has one public type, so it can only be reached
+    through the composition root.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KitX.ToolKit\KitX.ToolKit.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -12,7 +12,7 @@ namespace KitX.ToolKit.Bench;
 /// <see cref="CancellationTokenSource"/>, enabling the multi-instance concurrency the Bench
 /// requires (RFC §4.5) without modifying v6.
 /// </summary>
-public sealed class BenchWorkflowRunner : IWorkflowExecutor
+internal sealed class BenchWorkflowRunner : IWorkflowExecutor
 {
     private readonly WorkflowRunner _runner;
 

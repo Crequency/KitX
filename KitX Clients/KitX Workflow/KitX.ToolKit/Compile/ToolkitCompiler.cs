@@ -15,7 +15,7 @@ namespace KitX.ToolKit.Compile;
 /// rules, the trigger shapes and the builtin/plugin name resolution are all decided once, here.
 /// Everything downstream reads the result.</para>
 /// </summary>
-public static class ToolkitCompiler
+internal static class ToolkitCompiler
 {
     /// <summary>
     /// Compiles <paramref name="config"/>. On success, <c>Value</c> is the compiled toolkit and

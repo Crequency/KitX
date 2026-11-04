@@ -17,7 +17,7 @@ namespace KitX.ToolKit.Compile;
 /// removes the possibility of them disagreeing. Similarly, the three path rules become one, and
 /// builtin names resolve here instead of failing at run time when reflection returns null.</para>
 /// </summary>
-public sealed class CompiledToolkit
+internal sealed class CompiledToolkit
 {
     /// <summary>The toolkit id this was compiled from.</summary>
     public required string ToolkitId { get; init; }
@@ -86,7 +86,7 @@ public sealed class CompiledToolkit
 /// The builtin names this workflow calls, as resolved at compile time. Empty when no resolver
 /// was supplied — which means "not checked", not "uses none" (see <see cref="BuiltinResolver.Empty"/>).
 /// </param>
-public sealed record CompiledWorkflow(
+internal sealed record CompiledWorkflow(
     string Id,
     string File,
     string AbsolutePath,
@@ -95,4 +95,4 @@ public sealed record CompiledWorkflow(
     IReadOnlyList<string>? Builtins = null);
 
 /// <summary>A declared workflow parameter (name / default), as written in config.</summary>
-public sealed record WorkflowParameter(string Name, string? Default);
+internal sealed record WorkflowParameter(string Name, string? Default);

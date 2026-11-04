@@ -9,7 +9,7 @@ namespace KitX.ToolKit.Services;
 /// cleanup — validation is a pure <see cref="Validation.ConfigValidator"/> concern that
 /// callers invoke directly, so it no longer lives on the facade.)
 /// </summary>
-public sealed class BenchService : IBenchService
+internal sealed class BenchService : IBenchService
 {
     private readonly ToolkitInstanceManager _manager;
 

@@ -15,7 +15,7 @@ namespace KitX.ToolKit.Triggers;
 /// </list>
 /// The referenced JSON value is rendered to a string (scalars as-is, objects/arrays compact JSON).
 /// </summary>
-public static class BindingResolver
+internal static class BindingResolver
 {
     private const string PayloadPrefix = "$payload.";
     private const string OutputPrefix = "$output.";

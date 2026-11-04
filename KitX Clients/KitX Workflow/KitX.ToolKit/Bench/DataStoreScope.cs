@@ -11,7 +11,7 @@ namespace KitX.ToolKit.Bench;
 /// built-in plugin without knowing the instance id at authoring time — the edge/param
 /// translation contract (RFC §6.2) that keeps the target workflow zero-modified.</para>
 /// </summary>
-public static class DataStoreScope
+internal static class DataStoreScope
 {
     /// <summary>Reserved constant name injected into started workflows carrying their output namespace.
     /// Canonical name lives in WorkflowV6 (<see cref="KitX.WorkflowV6.ToolKitConstants.OutputNamespace"/>)

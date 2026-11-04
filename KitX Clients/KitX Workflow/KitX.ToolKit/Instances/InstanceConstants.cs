@@ -6,7 +6,7 @@ namespace KitX.ToolKit.Instances;
 /// and injected per-run into <c>ExecutionGlobals.InstanceId</c> by the execution backend, so
 /// workflow authors no longer declare or pass it manually.
 /// </summary>
-public static class InstanceConstants
+internal static class InstanceConstants
 {
     /// <summary>Reserved constant carrying the instance id.</summary>
     public const string InstanceId = KitX.WorkflowV6.ToolKitConstants.InstanceId;
