@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KitX.ToolKit.Contract</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <Version>24.10.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2024-02-07"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+  </PropertyGroup>
+
+  <!--
+    ADR-0001 D1: the contract assembly MUST NOT reference KitX.ToolKit (implementation).
+    This list is the whole enforcement mechanism — adding the implementation here is a
+    circular reference and fails the build.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\KitX Standard\KitX Core Contracts\KitX.Core.Contract\KitX.Core.Contract.csproj" />
+    <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
+  </ItemGroup>
+
+</Project>
