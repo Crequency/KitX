@@ -1,6 +1,6 @@
 using KitX.ToolKit.Bench;
 using KitX.ToolKit.Data;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using Xunit;
 
 namespace KitX.ToolKit.Test.Xunit;

@@ -1,10 +1,10 @@
 using System.Text.Json;
 using KitX.ToolKit.Bench;
-using KitX.ToolKit.Contracts;
-using KitX.ToolKit.Contracts.Events;
+using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using Microsoft.Extensions.DependencyInjection;
@@ -129,7 +129,7 @@ public class ToolkitInstanceManagerTests
         var completed = new TaskCompletionSource();
         manager.BenchEvent += (_, e) =>
         {
-            if (e is Contracts.Events.InstanceCompletedEvent)
+            if (e is Contract.Events.InstanceCompletedEvent)
                 completed.TrySetResult();
         };
 
@@ -172,7 +172,7 @@ public class ToolkitInstanceManagerTests
         int remaining = 2;
         manager.BenchEvent += (_, e) =>
         {
-            if (e is Contracts.Events.InstanceCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
+            if (e is Contract.Events.InstanceCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
                 completed.TrySetResult();
         };
 
@@ -360,7 +360,6 @@ public class ToolkitInstanceManagerTests
 
             var snapshot = Assert.Single(manager.Instances);
             Assert.Equal(InstanceConstants.SurfaceSilent, snapshot.Surface);
-            Assert.True(snapshot.IsSilent);
         }
         finally
         {
@@ -710,9 +709,7 @@ public class ToolkitInstanceManagerTests
 
             var snapshots = manager.Instances.ToDictionary(s => s.TriggerId);
             Assert.Equal(InstanceConstants.SurfaceSilent, snapshots["silent"].Surface);
-            Assert.True(snapshots["silent"].IsSilent);
             Assert.Null(snapshots["plain"].Surface);
-            Assert.False(snapshots["plain"].IsSilent);
         }
         finally
         {
@@ -887,7 +884,11 @@ public class ToolkitInstanceManagerTests
             for (var i = 0; i < 5; i++)
                 Assert.NotNull(manager.Spawn("tk-demo", "manual"));
 
-            await WaitUntilAsync(() => manager.Instances.Count == 5);
+            // Wait for every instance to FINISH, not merely to exist. Spawning is
+            // synchronous but execution is not, so waiting on Count == 5 can observe
+            // instances that are still Running — that race is what made this test flaky.
+            await WaitUntilAsync(() => manager.Instances.Count == 5
+                && manager.Instances.All(s => s.Status == InstanceStatus.Completed));
             Assert.Equal(5, manager.Instances.Count);
             Assert.All(manager.Instances, s => Assert.Equal(InstanceStatus.Completed, s.Status));
         }

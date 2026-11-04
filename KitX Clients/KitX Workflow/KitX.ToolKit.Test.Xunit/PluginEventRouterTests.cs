@@ -2,7 +2,7 @@ using System.Text.Json;
 using KitX.Core.Contract.Plugin;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Test.Xunit.Fakes;
 using KitX.ToolKit.Triggers;
 using Microsoft.Extensions.DependencyInjection;

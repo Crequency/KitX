@@ -1,5 +1,5 @@
 using KitX.ToolKit.Builtin;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Hosting;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Hosting;
