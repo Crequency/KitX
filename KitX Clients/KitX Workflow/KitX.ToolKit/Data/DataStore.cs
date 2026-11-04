@@ -15,7 +15,7 @@ namespace KitX.ToolKit.Data;
 /// than the whole ring array. <see cref="Appended"/> defaults to <c>false</c> so existing
 /// Set/Remove subscribers are source-compatible.</para>
 /// </summary>
-public sealed record DataStoreChangedEventArgs(string Key, JsonElement? OldValue, JsonElement? NewValue, bool Removed, bool Appended = false);
+internal sealed record DataStoreChangedEventArgs(string Key, JsonElement? OldValue, JsonElement? NewValue, bool Removed, bool Appended = false);
 
 /// <summary>
 /// The ToolKit-held in-memory JSON data blackboard (Bench RFC §6). Workflow
@@ -35,7 +35,7 @@ public sealed record DataStoreChangedEventArgs(string Key, JsonElement? OldValue
 /// <para><see cref="Changed"/> is the panel-projection / remote-push primitive: the
 /// desktop renderer and (later) the WS bridge subscribe and filter by bound keys.</para>
 /// </summary>
-public sealed class DataStore
+internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
 {
     private readonly ConcurrentDictionary<string, JsonElement> _data = new();
     private readonly object _gate = new();
@@ -43,12 +43,6 @@ public sealed class DataStore
     // F1: authoritative ring state per array key. Guarded by _gate. _data remains the
     // lazily-materialized external view; a ring is only re-serialized on demand (Get).
     private readonly Dictionary<string, RingState> _rings = new();
-
-    // F2: per-key waiter buckets. Guarded by _gate. _waiters is the master set used to
-    // release every pending waiter on Clear; buckets let SignalWaiters touch only the
-    // waiters that could possibly be satisfied by a given key write.
-    private readonly HashSet<Waiter> _waiters = [];
-    private readonly Dictionary<string, HashSet<Waiter>> _waiterBuckets = new();
 
     // F3: inverted index from namespace bucket (first two key segments) to the keys in it.
     // Nested ConcurrentDictionary keeps the hot Set/Append path lock-free for indexing.
@@ -62,9 +56,67 @@ public sealed class DataStore
     }
 
     /// <summary>Raised on Set/Remove/Append, outside the store lock. Subscribers marshal themselves.</summary>
+    /// <remarks>
+    /// This is the <i>internal</i> event, carrying the full change record. The contract's
+    /// <see cref="KitX.ToolKit.Contract.IKeyStore.Changed"/> is a separate, narrower event that
+    /// carries only the key — a per-change payload would allocate on every write, and the
+    /// protocol the View is heading for streams deltas and re-reads rather than values.
+    /// </remarks>
     public event EventHandler<DataStoreChangedEventArgs>? Changed;
 
-    /// <summary>Writes a key, notifying any waiters whose condition is now satisfied.</summary>
+    /// <summary>
+    /// Raised by <see cref="Clear"/> after every key is gone.
+    ///
+    /// <para>Flows blocked on keys listen to this: a clear makes their condition permanently
+    /// unsatisfiable, so releasing them is the only alternative to leaving each one to sit out its
+    /// full timeout on data that is provably gone.</para>
+    /// </summary>
+    public event EventHandler? Cleared;
+
+    /// <inheritdoc/>
+    event EventHandler<string>? KitX.ToolKit.Contract.IKeyStore.Changed
+    {
+        add => _keyChanged += value;
+        remove => _keyChanged -= value;
+    }
+
+    private event EventHandler<string>? _keyChanged;
+
+    /// <inheritdoc/>
+    public bool TryGet(string key, out JsonElement value)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        lock (_gate)
+        {
+            if (_rings.TryGetValue(key, out var ring) && ring.Dirty)
+            {
+                _data[key] = Materialize(ring);
+                ring.Dirty = false;
+            }
+        }
+
+        // _data.TryGetValue distinguishes "absent" from "present and JSON null": the latter
+        // stores a JsonElement whose ValueKind is Null, so the out value is meaningful even
+        // though the payload is null.
+        if (_data.TryGetValue(key, out value))
+            return true;
+
+        value = default;
+        return false;
+    }
+
+    /// <inheritdoc/>
+    void KitX.ToolKit.Contract.IKeyStore.Set(string key, JsonElement value) => Set(key, value);
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> KeysInRegion(string region)
+    {
+        ArgumentNullException.ThrowIfNull(region);
+        return KeysByPrefix(region);
+    }
+
+    /// <summary>Writes a key. Blocked flows are released by <see cref="Cleared"/> / <see cref="Changed"/> subscribers.</summary>
     /// <param name="value">Any value — normalized to a <see cref="JsonElement"/> (JSON object / array / string / number).</param>
     public void Set(string key, object? value)
     {
@@ -98,8 +150,8 @@ public sealed class DataStore
 
         if (isNewKey)
             IndexAdd(key);
-        SignalWaiters(key);
         Changed?.Invoke(this, new DataStoreChangedEventArgs(key, oldValue, newValue, Removed: false));
+        _keyChanged?.Invoke(this, key);
     }
 
     /// <summary>
@@ -158,8 +210,8 @@ public sealed class DataStore
 
         if (isNewKey)
             IndexAdd(key);
-        SignalWaiters(key);
         Changed?.Invoke(this, new DataStoreChangedEventArgs(key, oldValue, newValue, Removed: false, Appended: true));
+        _keyChanged?.Invoke(this, key);
     }
 
     /// <summary>Synchronous read; null when the key is absent. Lazily materializes a dirty ring.</summary>
@@ -177,28 +229,6 @@ public sealed class DataStore
         return _data.TryGetValue(key, out var value) ? value : null;
     }
 
-    /// <summary>
-    /// Blocks until <b>all</b> of <paramref name="keys"/> are present (AND semantics),
-    /// then returns a JSON object <c>{key: value}</c>. Returns an empty object on timeout
-    /// or cancellation (never throws for a cancelled token).
-    /// </summary>
-    public JsonElement Wait(IEnumerable<string> keys, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        var keyArr = NormalizeKeys(keys);
-        return Block(keyArr, any: false, timeout ?? _options.DefaultWaitTimeout, cancellationToken);
-    }
-
-    /// <summary>
-    /// Blocks until <b>any</b> of <paramref name="keys"/> is present (OR semantics),
-    /// then returns a JSON object of the currently-present keys. Returns an empty object
-    /// on timeout or cancellation (never throws for a cancelled token).
-    /// </summary>
-    public JsonElement WaitAny(IEnumerable<string> keys, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        var keyArr = NormalizeKeys(keys);
-        return Block(keyArr, any: true, timeout ?? _options.DefaultWaitTimeout, cancellationToken);
-    }
-
     /// <summary>Removes a key. Returns true when it existed.</summary>
     public bool Remove(string key)
     {
@@ -209,6 +239,7 @@ public sealed class DataStore
             _rings.Remove(key);
         IndexRemove(key);
         Changed?.Invoke(this, new DataStoreChangedEventArgs(key, old, null, Removed: true));
+            _keyChanged?.Invoke(this, key);
         return true;
     }
 
@@ -222,21 +253,19 @@ public sealed class DataStore
         return _data.ContainsKey(key);
     }
 
-    /// <summary>Drops all keys and cancels all pending waiters.</summary>
+    /// <summary>
+    /// Drops every key. Flows blocked on those keys are released through
+    /// <see cref="Cleared"/> — this type no longer knows who is waiting, which is the point
+    /// (ADR-0004 D1: waiting is flow scheduling, not storage).
+    /// </summary>
     public void Clear()
     {
         _data.Clear();
         _nsIndex.Clear();
-        List<Waiter> pending;
         lock (_gate)
-        {
             _rings.Clear();
-            _waiterBuckets.Clear();
-            pending = [.. _waiters];
-            _waiters.Clear();
-        }
-        foreach (var w in pending)
-            w.Tcs.TrySetResult(EmptyObject());
+
+        Cleared?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -287,97 +316,12 @@ public sealed class DataStore
                 IndexRemove(key);
                 removed++;
                 Changed?.Invoke(this, new DataStoreChangedEventArgs(key, old, null, Removed: true));
+            _keyChanged?.Invoke(this, key);
             }
         }
         return removed;
     }
 
-    /// <summary>
-    /// Collects and signals waiters whose condition is now satisfied by a write to
-    /// <paramref name="key"/>. Only the waiters registered against that key's bucket are
-    /// examined. Caller must not hold the lock.
-    /// </summary>
-    private void SignalWaiters(string key)
-    {
-        List<Waiter> toSignal;
-        lock (_gate)
-        {
-            if (!_waiterBuckets.TryGetValue(key, out var bucket))
-                return;
-            toSignal = bucket.Where(w => w.IsSatisfied(this)).ToList();
-            foreach (var w in toSignal)
-                RemoveWaiterFromBuckets(w);
-        }
-        foreach (var w in toSignal)
-            w.Tcs.TrySetResult(w.BuildResult(this));
-    }
-
-    /// <summary>Removes a waiter from the master set and every key bucket it is registered against. Caller must hold the lock.</summary>
-    private void RemoveWaiterFromBuckets(Waiter w)
-    {
-        _waiters.Remove(w);
-        foreach (var key in w.Keys)
-        {
-            if (_waiterBuckets.TryGetValue(key, out var bucket))
-            {
-                bucket.Remove(w);
-                if (bucket.Count == 0)
-                    _waiterBuckets.Remove(key);
-            }
-        }
-    }
-
-    private JsonElement Block(string[] keyArr, bool any, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        if (keyArr.Length == 0)
-            return EmptyObject();
-
-        var waiter = new Waiter(keyArr, any);
-
-        // Fast path: already satisfied.
-        lock (_gate)
-        {
-            if (waiter.IsSatisfied(this))
-                return waiter.BuildResult(this);
-            _waiters.Add(waiter);
-            foreach (var key in keyArr)
-            {
-                if (!_waiterBuckets.TryGetValue(key, out var bucket))
-                {
-                    bucket = new HashSet<Waiter>();
-                    _waiterBuckets[key] = bucket;
-                }
-                bucket.Add(waiter);
-            }
-        }
-
-        // Blocking wait on the workflow's calling thread (mirrors the PluginCall
-        // TaskCompletionSource.Result precedent). A single delay with the caller's token
-        // covers both timeout and cancellation: when the token fires the delay becomes
-        // canceled, WhenAny returns it, and we take the empty-object branch — so a
-        // cancelled run degrades exactly like a timeout (no exception into the workflow).
-        var completed = Task.WhenAny(waiter.Tcs.Task, Task.Delay(timeout, cancellationToken)).GetAwaiter().GetResult();
-        if (completed != waiter.Tcs.Task)
-        {
-            lock (_gate)
-                RemoveWaiterFromBuckets(waiter);
-            return EmptyObject();
-        }
-
-        return waiter.Tcs.Task.GetAwaiter().GetResult();
-    }
-
-    /// <summary>Returns an empty JSON object as a <see cref="JsonElement"/>.</summary>
-    private static JsonElement EmptyObject() => JsonSerializer.SerializeToElement(new JsonObject());
-
-    private static string[] NormalizeKeys(IEnumerable<string> keys)
-    {
-        ArgumentNullException.ThrowIfNull(keys);
-        var arr = keys.Distinct().ToArray();
-        if (arr.Any(string.IsNullOrWhiteSpace))
-            throw new ArgumentException("DataStore keys must be non-empty.", nameof(keys));
-        return arr;
-    }
 
     private static JsonElement Normalize(object? value) => value switch
     {
@@ -444,29 +388,5 @@ public sealed class DataStore
     {
         public Queue<JsonElement> Entries { get; } = new();
         public bool Dirty { get; set; }
-    }
-
-    /// <summary>A pending blocking read registered by <see cref="Block"/> and signalled by <see cref="Set"/>.</summary>
-    private sealed class Waiter(string[] keys, bool any)
-    {
-        public string[] Keys { get; } = keys;
-        public bool Any { get; } = any;
-        public TaskCompletionSource<JsonElement> Tcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public bool IsSatisfied(DataStore store)
-            => Any
-                ? Keys.Any(store._data.ContainsKey)
-                : Keys.All(store._data.ContainsKey);
-
-        public JsonElement BuildResult(DataStore store)
-        {
-            var obj = new JsonObject();
-            foreach (var key in Keys)
-            {
-                if (store._data.TryGetValue(key, out var value))
-                    obj[key] = JsonNode.Parse(value.GetRawText());
-            }
-            return JsonSerializer.SerializeToElement(obj);
-        }
     }
 }
