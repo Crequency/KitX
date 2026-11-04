@@ -25,6 +25,10 @@ public sealed class FakeToolkitService(List<Toolkit> toolkits, List<InstanceSnap
     public bool DeleteToolkit(string toolkitId) => false;
     public void Mount(string toolkitId) { }
     public void Unmount(string toolkitId) { }
+    public void Disable(string toolkitId) { }
+    public void Enable(string toolkitId) { }
+    public int Uninstall(string toolkitId) => 0;
+    public LifecycleState? GetLifecycleState(string toolkitId) => null;
     public IReadOnlyList<string> MountedToolkitIds { get; } = [];
     public bool IsMounted(string toolkitId) => false;
     public IReadOnlyList<InstanceSnapshot> Instances => instances;

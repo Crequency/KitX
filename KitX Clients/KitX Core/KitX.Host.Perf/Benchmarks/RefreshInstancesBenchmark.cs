@@ -53,7 +53,7 @@ public static class RefreshInstancesBenchmark
             {
                 instances.Add(new InstanceSnapshot(
                     $"inst-{t}-{i}", tkId, "manual", Initiator.Unknown,
-                    InstanceStatus.Running, DateTimeOffset.UtcNow, null,
+                    DateTimeOffset.UtcNow, null,
                     ActiveRuns: 1, CompletedRuns: 2, FailedRuns: 0));
             }
         }
