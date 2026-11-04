@@ -8,7 +8,7 @@ namespace KitX.ToolKit.Perf.Fakes;
 /// the <c>BenchOut</c> builtin's real workload: reads the injected output namespace and
 /// writes 5 ~1KB values into the shared <see cref="DataStore"/> under that namespace.
 /// </summary>
-public sealed class InstantExecutor : IWorkflowExecutor
+internal sealed class InstantExecutor : IWorkflowExecutor
 {
     private static readonly string OneKbValue =
         "{\"payload\":\"" + new string('x', 1000) + "\"}";
@@ -22,7 +22,7 @@ public sealed class InstantExecutor : IWorkflowExecutor
         _writeOutput = writeOutput;
     }
 
-    public Task<WorkflowExecutionResult> ExecuteAsync(
+    Task<WorkflowExecutionResult> IWorkflowExecutor.ExecuteAsync(
         string workflowId,
         string filePath,
         IReadOnlyDictionary<string, string?>? overrides,

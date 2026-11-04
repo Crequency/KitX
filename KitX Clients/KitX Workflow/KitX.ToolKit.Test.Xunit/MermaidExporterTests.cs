@@ -1,5 +1,5 @@
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Visualization;
+using KitX.ToolKit.Contract;
 using Xunit;
 
 namespace KitX.ToolKit.Test.Xunit;

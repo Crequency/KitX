@@ -154,10 +154,12 @@ static async Task BuildAndWriteAsync(string ksSource, string outPath, string nam
     {
         // 1. Parse KS → V6 Workflow IR (with helpers when provided). Discover the
         // ToolKit assembly too so host-side Bench builtins (Ui*/DataStore*/BenchIn/
-        // BenchOut) resolve at parse time.
+        // BenchOut) resolve at parse time. The anchor type is the one public type in that
+        // assembly — it is public only because generated workflow code derives from it —
+        // so it is also the only one this tool is allowed to name.
         var registry = BuiltinFunctionRegistry.Discover(
             typeof(BuiltinFunctionRegistry).Assembly,
-            typeof(KitX.ToolKit.Bench.DataStoreScope).Assembly);
+            typeof(KitX.ToolKit.Builtin.ToolKitExecutionGlobals).Assembly);
         var ksTextLens = new KsTextLens(registry);
         var ir = ksTextLens.Parse(ksSource, helpers);
 

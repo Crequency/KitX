@@ -1,5 +1,5 @@
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Validation;
+using KitX.ToolKit.Contract;
 
 namespace KitX.Host.Perf.Benchmarks;
 

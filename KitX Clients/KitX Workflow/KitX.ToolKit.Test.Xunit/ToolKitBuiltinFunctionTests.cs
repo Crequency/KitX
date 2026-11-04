@@ -12,6 +12,7 @@
 // pin the descriptors' own shape.
 // ─────────────────────────────────────────────────────────────────────────────
 
+using System.IO;
 using KitX.Core.Contract.Workflow;
 using KitX.ToolKit.Builtin.Functions;
 using KitX.ToolKit.Hosting;
@@ -30,7 +31,7 @@ public class ToolKitBuiltinFunctionTests
     {
         var services = new ServiceCollection();
         services.AddKitXWorkflowV6();
-        services.AddKitXToolKit();
+        services.AddKitXToolKit(Path.GetTempPath());
         var provider = services.BuildServiceProvider();
 
         var registry = provider.GetRequiredService<BuiltinFunctionRegistry>();
@@ -55,7 +56,7 @@ public class ToolKitBuiltinFunctionTests
         // bypass the key table entirely.
         var services = new ServiceCollection();
         services.AddKitXWorkflowV6();
-        services.AddKitXToolKit();
+        services.AddKitXToolKit(Path.GetTempPath());
         var provider = services.BuildServiceProvider();
 
         var registry = provider.GetRequiredService<BuiltinFunctionRegistry>();

@@ -10,7 +10,7 @@ namespace KitX.ToolKit.Test.Xunit;
 /// DataStore namespace (so the harness "completion + data packet" is observable), can
 /// fail specific workflows, and can introduce an artificial delay.
 /// </summary>
-public sealed class RecordingExecutor : IWorkflowExecutor
+internal sealed class RecordingExecutor : IWorkflowExecutor
 {
     private readonly DataStore _dataStore;
     private readonly bool _writeOutput;
@@ -41,7 +41,7 @@ public sealed class RecordingExecutor : IWorkflowExecutor
     /// <summary>Blocks every execution until the source is set (used to sequence a run).</summary>
     public TaskCompletionSource? Hold => _hold;
 
-    public async Task<WorkflowExecutionResult> ExecuteAsync(
+    async Task<WorkflowExecutionResult> IWorkflowExecutor.ExecuteAsync(
         string workflowId,
         string irData,
         IReadOnlyDictionary<string, string?>? overrides,
