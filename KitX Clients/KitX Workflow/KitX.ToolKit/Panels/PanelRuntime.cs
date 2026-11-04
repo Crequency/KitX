@@ -21,7 +21,7 @@ public sealed class PanelRuntime : IPanelRuntime
     private readonly DataStore _dataStore;
     private readonly ToolkitInstanceManager _manager;
 
-    public PanelRuntime(DataStore dataStore, ToolkitInstanceManager manager)
+    internal PanelRuntime(DataStore dataStore, ToolkitInstanceManager manager)
     {
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));

@@ -38,7 +38,7 @@ public sealed class BenchScheduler : IDisposable
     private readonly ConcurrentDictionary<string, BenchRunInstance> _instances = new();
     private bool _disposed;
 
-    public BenchScheduler(
+    internal BenchScheduler(
         Toolkit toolkit,
         IWorkflowExecutor executor,
         DataStore dataStore,

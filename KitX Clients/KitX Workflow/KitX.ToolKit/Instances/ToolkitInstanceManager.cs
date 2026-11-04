@@ -46,7 +46,7 @@ public sealed class ToolkitInstanceManager : IDisposable
 
     private bool _disposed;
 
-    public ToolkitInstanceManager(
+    internal ToolkitInstanceManager(
         IServiceProvider services,
         TriggerSourceRegistry registry,
         IWorkflowExecutor executor,
@@ -287,6 +287,17 @@ public sealed class ToolkitInstanceManager : IDisposable
     public string? GetToolkitId(string instanceId)
         => _instances.TryGetValue(instanceId, out var i) ? i.ToolkitId : null;
 
+    /// <summary>
+    /// The declared key table of the toolkit an instance belongs to, or null when the instance is
+    /// unknown. This is what the <c>Toolkit*</c> builtins resolve local key names against.
+    /// </summary>
+    internal KeyTable? GetKeyTable(string instanceId)
+    {
+        if (!_instances.TryGetValue(instanceId, out var instance))
+            return null;
+        return _mounted.TryGetValue(instance.ToolkitId, out var mounted) ? mounted.Keys : null;
+    }
+
     /// <summary>Resolves a control definition from the instance's toolkit UiPanel, or null.</summary>
     public UiControl? GetControl(string instanceId, string controlId)
     {
@@ -468,6 +479,7 @@ public sealed class ToolkitInstanceManager : IDisposable
         {
             Toolkit = toolkit;
             Scheduler = scheduler;
+            Keys = KeyTable.From(toolkit.GetId(), toolkit.Keys);
 
             // F7: index triggers by id so per-instance surface resolution and Spawn lookup are
             // O(1) instead of an O(T) linear scan per snapshot. Config validation guarantees
@@ -484,6 +496,14 @@ public sealed class ToolkitInstanceManager : IDisposable
 
         public Toolkit Toolkit { get; }
         public BenchScheduler Scheduler { get; }
+
+        /// <summary>
+        /// The toolkit's declared key table, resolved against its id (ADR-0004 D2/D3). Workflows
+        /// write local names; this is what turns them into full keys, and what rejects a write to a
+        /// key the user owns.
+        /// </summary>
+        public KeyTable Keys { get; }
+
         public Dictionary<string, Trigger> TriggerById { get; }
         public List<ITriggerSource> Sources { get; } = [];
 

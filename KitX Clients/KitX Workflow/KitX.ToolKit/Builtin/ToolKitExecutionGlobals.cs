@@ -43,6 +43,14 @@ namespace KitX.ToolKit.Builtin;
 public class ToolKitExecutionGlobals : ExecutionGlobals
 {
     private DataStore _dataStore;
+
+    /// <summary>
+    /// The flow-scheduling half of the data plane (ADR-0004 D1). Owned here rather than by the
+    /// store, because "block this flow until a key appears" is a statement about the flow — the
+    /// store has no flows, and keeping the two apart is what let its surface shrink to the five
+    /// members the contract allows.
+    /// </summary>
+    private KeyWaitRegistry _waits;
     private PanelRuntime _panelRuntime;
     private ToolkitInstanceManager _manager;
     private DataStoreOptions _options;
@@ -51,13 +59,14 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// Creates a globals instance wired to the ToolKit services. The factory (and the
     /// DI graph) guarantees the services are non-null.
     /// </summary>
-    public ToolKitExecutionGlobals(
+    internal ToolKitExecutionGlobals(
         DataStore dataStore,
         PanelRuntime panelRuntime,
         ToolkitInstanceManager manager,
         DataStoreOptions? options = null)
     {
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
+        _waits = new KeyWaitRegistry(_dataStore);
         _panelRuntime = panelRuntime ?? throw new ArgumentNullException(nameof(panelRuntime));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _options = options ?? new DataStoreOptions();
@@ -68,10 +77,18 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// <c>Activator.CreateInstance</c>s the generated G (which derives from this type),
     /// so this type must be Activator-constructible. Services are null until
     /// <see cref="Inject"/> is called by the factory.
+    /// <para>
+    /// <b>Public, not internal.</b> Generated workflow code derives from this type and is
+    /// constructed by reflection, so the constructor cannot be narrowed just because its
+    /// dependency-taking sibling now is. This is a V6 codegen constraint, not a design statement
+    /// about the surface area (ADR-0012's "implementation assembly exposes zero public types" is
+    /// reached at S5, together with the rest of the surface, not here).
+    /// </para>
     /// </summary>
     public ToolKitExecutionGlobals()
     {
         _dataStore = null!;
+        _waits = null!;
         _panelRuntime = null!;
         _manager = null!;
         _options = new DataStoreOptions();
@@ -82,13 +99,14 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// <see cref="ToolKitExecutionGlobalsFactory.Create"/> after it instantiates the
     /// generated G, so the G's base (this type) has its services before RunAsync runs.
     /// </summary>
-    public void Inject(
+    internal void Inject(
         DataStore dataStore,
         PanelRuntime panelRuntime,
         ToolkitInstanceManager manager,
         DataStoreOptions? options = null)
     {
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
+        _waits = new KeyWaitRegistry(_dataStore);
         _panelRuntime = panelRuntime ?? throw new ArgumentNullException(nameof(panelRuntime));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _options = options ?? new DataStoreOptions();
@@ -205,46 +223,113 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
         return true;
     }
 
-    // ── KitX.DataStore family (data blackboard) — not instance-scoped. ──
+    // ── Toolkit data plane — the workflow's keys, scoped to this toolkit. ──
+    //
+    // Every method here takes a LOCAL key name ("workdir"), never a full key. The toolkit
+    // prefix is applied by KeyTable, which is the only place that knows it — so "read another
+    // toolkit's data" has nowhere to put the prefix (ADR-0004 D2). A write to a key declared
+    // with role In / InOnSubmit throws rather than silently landing (ADR-0004 D3): the user owns
+    // that key, and a workflow writing it would be overwritten by the user's next edit anyway.
 
-    /// <summary>DataStoreSet(key, value) → writes a blackboard key.</summary>
-    public object? DataStoreSet(string key, object? value)
+    /// <summary>ToolkitSet(key, value) → writes a declared key the workflow owns.</summary>
+    public object? ToolkitSet(string key, object? value)
     {
-        _dataStore.Set(key, value);
+        var table = RequireKeyTable();
+        _dataStore.Set(table.ResolveForWorkflowWrite(key), value);
         return true;
     }
 
-    /// <summary>DataStoreGet(key) → reads a blackboard key.</summary>
-    public object? DataStoreGet(string key)
-        => _dataStore.Get(key);
+    /// <summary>ToolkitGet(key) → reads a declared key (any role: a read cannot corrupt).</summary>
+    public object? ToolkitGet(string key)
+    {
+        var table = RequireKeyTable();
+        return _dataStore.Get(table.ResolveForWorkflowRead(key));
+    }
 
-    /// <summary>DataStoreWait(keys...) → blocks until all keys are set (AND), honouring the run's cancellation token.</summary>
-    public object? DataStoreWait(params string[] keys)
+    /// <summary>
+    /// ToolkitWait(keys...) → blocks until all named keys are present (AND), honouring the run's
+    /// cancellation token.
+    ///
+    /// <para><b>Why this is still a workflow-facing function.</b> ADR-0004 D1 removed waiting from
+    /// the <i>storage</i> API, not from the language: a flow that awaits a value another flow
+    /// produces needs a way to say so. It lives on <see cref="KeyWaitRegistry"/> now, which owns
+    /// the waiter bookkeeping the store used to.</para>
+    /// </summary>
+    public object? ToolkitWait(params string[] keys)
     {
         if (keys.Length == 0)
             return EmptyObject();
-        return _dataStore.Wait(keys, _options.DefaultWaitTimeout, RunToken);
+        var table = RequireKeyTable();
+        var full = keys.Select(table.ResolveForWorkflowRead).ToArray();
+        return _waits.Wait(full, _options.DefaultWaitTimeout, RunToken);
     }
 
-    /// <summary>DataStoreWaitAny(keys...) → blocks until any key is set (OR), honouring the run's cancellation token.</summary>
-    public object? DataStoreWaitAny(params string[] keys)
+    /// <summary>ToolkitWaitAny(keys...) → blocks until any named key is present (OR).</summary>
+    public object? ToolkitWaitAny(params string[] keys)
     {
         if (keys.Length == 0)
             return EmptyObject();
-        return _dataStore.WaitAny(keys, _options.DefaultWaitTimeout, RunToken);
+        var table = RequireKeyTable();
+        var full = keys.Select(table.ResolveForWorkflowRead).ToArray();
+        return _waits.WaitAny(full, _options.DefaultWaitTimeout, RunToken);
     }
 
-    /// <summary>DataStoreRemove(key) → removes a blackboard key.</summary>
-    public object? DataStoreRemove(string key)
-        => _dataStore.Remove(key);
+    /// <summary>ToolkitRemove(key) → removes a declared key the workflow owns.</summary>
+    public object? ToolkitRemove(string key)
+    {
+        var table = RequireKeyTable();
+        return _dataStore.Remove(table.ResolveForWorkflowWrite(key));
+    }
 
-    /// <summary>DataStoreKeys() → lists all blackboard keys (as a JSON array element).</summary>
-    public object? DataStoreKeys()
-        => JsonSerializer.SerializeToElement(_dataStore.Keys().ToArray());
+    /// <summary>ToolkitKeys() → the local names of every declared key (a JSON array).</summary>
+    public object? ToolkitKeys()
+    {
+        var table = RequireKeyTable();
+        return JsonSerializer.SerializeToElement(table.Names.ToArray());
+    }
 
-    /// <summary>DataStoreContains(key) → whether a blackboard key exists.</summary>
-    public object? DataStoreContains(string key)
-        => _dataStore.Contains(key);
+    /// <summary>ToolkitContains(key) → whether the declared key currently holds a value.</summary>
+    public object? ToolkitContains(string key)
+    {
+        var table = RequireKeyTable();
+        return table.IsDeclared(key) && _dataStore.Contains(table.FullKey(key));
+    }
+
+    /// <summary>
+    /// ToolkitAppend(key, entry) → appends to a declared key whose role is
+    /// <see cref="Contract.Declaration.KeyRole.Stream"/>.
+    ///
+    /// <para>Appending is an operation on a key, so ADR-0004 D1's "a stream is a key role, not a
+    /// separate storage method" is enforced here: a non-stream key refuses the append rather than
+    /// quietly turning into an array.</para>
+    /// </summary>
+    public object? ToolkitAppend(string key, object? entry)
+    {
+        var table = RequireKeyTable();
+        if (!table.TryResolve(key, out var declaration))
+            throw new KeyAccessException(key, "key.undeclared");
+        if (declaration.Role != Contract.Declaration.KeyRole.Stream)
+            throw new KeyAccessException(key, "key.role-not-stream");
+        _dataStore.Append(table.FullKey(key), entry);
+        return true;
+    }
+
+    /// <summary>
+    /// The toolkit's key table, or a throw when this run is not inside a ToolKit instance.
+    ///
+    /// <para>Failing loudly is deliberate: the previous generation of these builtins wrote into
+    /// whatever string arrived, so a workflow that ran unscoped silently wrote process-global
+    /// keys. There is no correct unscoped behaviour to fall back to.</para>
+    /// </summary>
+    private KeyTable RequireKeyTable()
+    {
+        if (InstanceId is null)
+            throw new InvalidOperationException(
+                "Toolkit* builtins require a ToolKit instance; this workflow is running unscoped.");
+        return _manager.GetKeyTable(InstanceId)
+            ?? throw new InvalidOperationException(
+                $"No key table for instance '{InstanceId}'; the toolkit is not mounted.");
+    }
 
     // ── Bench I/O pair ──
 

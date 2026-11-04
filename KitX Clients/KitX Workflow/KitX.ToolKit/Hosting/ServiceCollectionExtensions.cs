@@ -40,7 +40,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DataStoreOptions>();
 
         // Panel runtime.
-        services.AddSingleton<PanelRuntime>();
+        services.AddSingleton(sp => new PanelRuntime(
+            sp.GetRequiredService<DataStore>(),
+            sp.GetRequiredService<ToolkitInstanceManager>()));
         services.AddSingleton<IPanelRuntime>(sp => sp.GetRequiredService<PanelRuntime>());
 
         // IExecutionGlobalsFactory — the ToolKit execution-globals factory. AddKitXWorkflowV6
@@ -61,13 +63,14 @@ public static class ServiceCollectionExtensions
         services.AddBuiltinFunction<UiProgressFunction>();
         services.AddBuiltinFunction<UiDialogFunction>();
         services.AddBuiltinFunction<UiOpenPanelFunction>();
-        services.AddBuiltinFunction<DataStoreSetFunction>();
-        services.AddBuiltinFunction<DataStoreGetFunction>();
-        services.AddBuiltinFunction<DataStoreWaitFunction>();
-        services.AddBuiltinFunction<DataStoreWaitAnyFunction>();
-        services.AddBuiltinFunction<DataStoreRemoveFunction>();
-        services.AddBuiltinFunction<DataStoreKeysFunction>();
-        services.AddBuiltinFunction<DataStoreContainsFunction>();
+        services.AddBuiltinFunction<ToolkitSetFunction>();
+        services.AddBuiltinFunction<ToolkitGetFunction>();
+        services.AddBuiltinFunction<ToolkitWaitFunction>();
+        services.AddBuiltinFunction<ToolkitWaitAnyFunction>();
+        services.AddBuiltinFunction<ToolkitRemoveFunction>();
+        services.AddBuiltinFunction<ToolkitKeysFunction>();
+        services.AddBuiltinFunction<ToolkitContainsFunction>();
+        services.AddBuiltinFunction<ToolkitAppendFunction>();
         services.AddBuiltinFunction<BenchInFunction>();
         services.AddBuiltinFunction<BenchOutFunction>();
 
@@ -97,7 +100,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IToolkitWorkflowFileStore>(_ => new ToolkitFileStore(toolkitStorageRoot));
 
         // The instance-model orchestration entry point (mount / spawn / end).
-        services.AddSingleton<ToolkitInstanceManager>();
+        //
+        // Constructed explicitly rather than by convention: ToolkitInstanceManager's constructor
+        // takes the internal DataStore, so it cannot be public, and the container only reflects
+        // over public constructors. Naming the arguments here is also where the composition root
+        // should be — it is the one place that decides which store instance the whole ToolKit
+        // shares.
+        services.AddSingleton(sp => new ToolkitInstanceManager(
+            sp,
+            sp.GetRequiredService<TriggerSourceRegistry>(),
+            sp.GetRequiredService<IWorkflowExecutor>(),
+            sp.GetRequiredService<DataStore>(),
+            toolkit => new ToolkitFileStore(toolkitStorageRoot),
+            sp.GetRequiredService<ConfigValidator>(),
+            sp.GetRequiredService<ToolkitInstanceManagerOptions>()));
 
         // ToolkitInstanceManagerOptions — singleton configuration for the instance
         // manager (e.g. Completed-instance retention cap). Registered with Add (last
