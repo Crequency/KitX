@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using KitX.ToolKit.Data;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;
 using Serilog;
@@ -76,7 +76,7 @@ public sealed class BenchScheduler : IDisposable
     public BenchRunInstance? StartRun(
         string triggerId,
         object? payload = null,
-        Contracts.Initiator? initiator = null,
+        Contract.Initiator? initiator = null,
         string? namespaceId = null,
         Action<BenchRunInstance>? onRunCreated = null)
     {
@@ -86,7 +86,7 @@ public sealed class BenchScheduler : IDisposable
         if (trigger is null || trigger.Type == TriggerType.WorkflowCompletion)
             return null;
 
-        var instance = CreateInstance(initiator ?? Contracts.Initiator.Unknown, namespaceId);
+        var instance = CreateInstance(initiator ?? Contract.Initiator.Unknown, namespaceId);
         onRunCreated?.Invoke(instance);
         var packet = TriggerSourceBase.NormalizePayload(payload);
 
@@ -110,7 +110,7 @@ public sealed class BenchScheduler : IDisposable
             instance.Cancel();
     }
 
-    private BenchRunInstance CreateInstance(Contracts.Initiator initiator, string? namespaceId = null)
+    private BenchRunInstance CreateInstance(Contract.Initiator initiator, string? namespaceId = null)
     {
         var runId = Guid.NewGuid().ToString("N");
         var instance = new BenchRunInstance(_toolkit.GetId(), runId, initiator, namespaceId);

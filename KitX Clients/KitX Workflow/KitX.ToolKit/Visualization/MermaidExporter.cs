@@ -1,5 +1,5 @@
 using System.Text;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 
 namespace KitX.ToolKit.Visualization;
 

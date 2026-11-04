@@ -1,8 +1,8 @@
 using System.Text.Json;
 using KitX.Core.Contract.Event;
-using KitX.ToolKit.Contracts;
-using KitX.ToolKit.Contracts.Events;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Events;
+using KitX.ToolKit.Contract.Declaration;
 
 namespace KitX.Host.Perf.Fakes;
 

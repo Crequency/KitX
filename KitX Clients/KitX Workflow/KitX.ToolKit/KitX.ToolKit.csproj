@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+        <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Core Contracts\KitX.Core.Contract\KitX.Core.Contract.csproj" />
     <ProjectReference Include="..\..\..\KitX Standard\KitX Shared\KitX.Shared.CSharp\KitX.Shared.CSharp.csproj" />
     <ProjectReference Include="..\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />

@@ -1,5 +1,5 @@
 using System.Text.Json;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 
 namespace KitX.ToolKit.Bench;
 

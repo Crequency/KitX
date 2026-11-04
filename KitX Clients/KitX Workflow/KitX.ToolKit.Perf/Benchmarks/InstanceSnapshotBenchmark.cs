@@ -1,8 +1,8 @@
 using KitX.ToolKit.Bench;
-using KitX.ToolKit.Contracts.Events;
+using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Perf.Fakes;
 using KitX.ToolKit.Triggers;
 using Microsoft.Extensions.DependencyInjection;

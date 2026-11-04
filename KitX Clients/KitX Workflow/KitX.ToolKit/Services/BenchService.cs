@@ -1,4 +1,4 @@
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Instances;
 
 namespace KitX.ToolKit.Services;

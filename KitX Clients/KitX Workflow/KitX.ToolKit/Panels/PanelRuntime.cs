@@ -1,8 +1,8 @@
 using System.Text.Json;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Models;
 
 namespace KitX.ToolKit.Panels;
 

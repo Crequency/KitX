@@ -1,7 +1,7 @@
 using KitX.ToolKit.Bench;
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Builtin.Functions;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Panels;

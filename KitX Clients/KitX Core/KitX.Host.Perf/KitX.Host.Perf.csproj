@@ -13,6 +13,7 @@
     <ProjectReference Include="..\KitX.Core\KitX.Core.csproj" />
     <ProjectReference Include="..\..\KitX Dashboard\KitX Dashboard\KitX.Dashboard.csproj" />
     <ProjectReference Include="..\..\KitX Workflow\KitX.ToolKit\KitX.ToolKit.csproj" />
+    <ProjectReference Include="..\..\KitX Workflow\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
   </ItemGroup>
 
 </Project>

@@ -12,5 +12,6 @@
          KitX.ToolKit; authoring Bench workflows (e.g. the Agent ToolKit) requires
          them at KS parse time, so the builder discovers both assemblies. -->
     <ProjectReference Include="..\KitX.ToolKit\KitX.ToolKit.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
   </ItemGroup>
 </Project>

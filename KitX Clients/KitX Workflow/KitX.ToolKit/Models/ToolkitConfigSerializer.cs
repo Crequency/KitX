@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KitX.ToolKit.Contract.Declaration;
 
 namespace KitX.ToolKit.Models;
 

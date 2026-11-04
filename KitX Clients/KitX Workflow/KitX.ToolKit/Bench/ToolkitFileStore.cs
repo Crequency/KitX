@@ -1,6 +1,6 @@
 using KitX.Core.Contract.Workflow;
-using KitX.ToolKit.Contracts;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Serialization;
 

@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using KitX.ToolKit.Bench;
-using KitX.ToolKit.Contracts;
-using KitX.ToolKit.Contracts.Events;
+using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.Validation;

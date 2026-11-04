@@ -1,7 +1,7 @@
 using KitX.ToolKit.Bench;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Data;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Perf.Fakes;
 
 namespace KitX.ToolKit.Perf.Benchmarks;

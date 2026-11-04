@@ -1,4 +1,4 @@
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Validation;
 
 namespace KitX.Host.Perf.Benchmarks;

@@ -1,5 +1,5 @@
 using KitX.ToolKit.Bench;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 
 namespace KitX.ToolKit.Instances;
 

@@ -3,7 +3,7 @@ using KitX.Core.Contract.Plugin;
 using KitX.Core.Contract.Plugin.Events;
 using KitX.Shared.CSharp.WebCommand;
 using KitX.Shared.CSharp.WebCommand.Infos;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using Serilog;
 
 namespace KitX.ToolKit.Triggers;

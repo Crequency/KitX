@@ -1,4 +1,4 @@
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.ToolKit.Triggers;

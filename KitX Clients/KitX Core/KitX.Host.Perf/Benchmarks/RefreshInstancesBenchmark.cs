@@ -1,9 +1,9 @@
 using System.Reflection;
 using KitX.Dashboard.ViewModels;
 using KitX.Host.Perf.Fakes;
-using KitX.ToolKit.Contracts;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 
 namespace KitX.Host.Perf.Benchmarks;
 

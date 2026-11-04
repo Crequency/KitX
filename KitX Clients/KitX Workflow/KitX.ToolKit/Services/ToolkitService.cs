@@ -1,7 +1,7 @@
-using KitX.ToolKit.Contracts;
-using KitX.ToolKit.Contracts.Events;
+using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Storage;
 
 namespace KitX.ToolKit.Services;

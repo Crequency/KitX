@@ -1,3 +1,4 @@
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Validation;
 
 namespace KitX.ToolKit.Models;
@@ -18,3 +19,4 @@ public static class ToolkitConfig
     /// <summary>Validates a <see cref="Toolkit"/> (identity, references, strict DAG).</summary>
     public static ConfigValidationResult Validate(Toolkit toolkit) => new ConfigValidator().Validate(toolkit);
 }
+
