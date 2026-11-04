@@ -43,12 +43,10 @@ public class HostingGraphTests : IDisposable
         // A cycle anywhere on that path throws InvalidOperationException here.
         var toolkitService = _provider.GetRequiredService<IToolkitService>();
         var benchService = _provider.GetRequiredService<IBenchService>();
-        var panelRuntime = _provider.GetRequiredService<IPanelRuntime>();
         var fileStore = _provider.GetRequiredService<IToolkitWorkflowFileStore>();
 
         Assert.NotNull(toolkitService);
         Assert.NotNull(benchService);
-        Assert.NotNull(panelRuntime);
         Assert.NotNull(fileStore);
     }
 

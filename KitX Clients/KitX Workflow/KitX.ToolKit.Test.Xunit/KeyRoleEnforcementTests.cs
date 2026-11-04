@@ -4,7 +4,6 @@ using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Data;
 
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Panels;
 using KitX.ToolKit.Bench;
 using KitX.ToolKit.Triggers;
 using KitX.WorkflowV6.Backend;
@@ -53,7 +52,7 @@ public class KeyRoleEnforcementTests
         var instanceId = manager.Spawn(TkId, "manual")!;
 
         var globals = new ToolKitExecutionGlobals(
-            store, new PanelRuntime(store, manager), manager, new DataStoreOptions())
+            store, manager, new DataStoreOptions())
         {
             RunContext = new HostRunContext(instanceId, null, null),
         };
@@ -201,13 +200,12 @@ public class KeyRoleEnforcementTests
             var ia = manager.Spawn("alpha", "manual")!;
             var ib = manager.Spawn("beta", "manual")!;
 
-            var panel = new PanelRuntime(store, manager);
             var options = new DataStoreOptions();
-            var ga = new ToolKitExecutionGlobals(store, panel, manager, options)
+            var ga = new ToolKitExecutionGlobals(store, manager, options)
             {
                 RunContext = new HostRunContext(ia, null, null),
             };
-            var gb = new ToolKitExecutionGlobals(store, panel, manager, options)
+            var gb = new ToolKitExecutionGlobals(store, manager, options)
             {
                 RunContext = new HostRunContext(ib, null, null),
             };
@@ -237,7 +235,7 @@ public class KeyRoleEnforcementTests
         using (manager)
         {
             var globals = new ToolKitExecutionGlobals(
-                store, new PanelRuntime(store, manager), manager, new DataStoreOptions());
+                store, manager, new DataStoreOptions());
             // No RunContext ⇒ no instance ⇒ unscoped.
 
             Assert.Throws<InvalidOperationException>(() => globals.ToolkitSet("status", 1));

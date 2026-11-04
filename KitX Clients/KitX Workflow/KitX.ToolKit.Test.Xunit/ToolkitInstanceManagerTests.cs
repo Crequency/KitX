@@ -5,7 +5,6 @@ using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -454,62 +453,6 @@ public class ToolkitInstanceManagerTests
         }
     }
 
-    [Fact]
-    public void PanelDataStoreWrites_Project_UiControlStateChanged()
-    {
-        var store = new DataStore();
-        var manager = new ToolkitInstanceManager(
-            new ServiceCollection().BuildServiceProvider(),
-            TriggerSourceRegistry.BuildDefault(),
-            new RecordingExecutor(store),
-            store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
-
-        var events = new List<UiControlStateChangedEvent>();
-        manager.BenchEvent += (_, e) =>
-        {
-            if (e is UiControlStateChangedEvent u)
-                events.Add(u);
-        };
-
-        store.Set(PanelScope.Key("tk-demo", "inst-1", "input", "value"), "hello");
-        store.Set(PanelScope.Key("tk-demo", "inst-1", "switch", "enabled"), true);
-
-        Assert.Equal(2, events.Count);
-        Assert.Contains(events, u => u.InstanceId == "inst-1" && u.ControlId == "input" && u.Prop == "value"
-                                     && u.Value is { ValueKind: JsonValueKind.String } v && v.GetString() == "hello");
-        Assert.Contains(events, u => u.ControlId == "switch" && u.Prop == "enabled");
-    }
-
-    [Fact]
-    public void PanelDialogRequest_Projects_DialogRequestedEvent()
-    {
-        var store = new DataStore();
-        var manager = new ToolkitInstanceManager(
-            new ServiceCollection().BuildServiceProvider(),
-            TriggerSourceRegistry.BuildDefault(),
-            new RecordingExecutor(store),
-            store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
-
-        DialogRequestedEvent? dialog = null;
-        manager.BenchEvent += (_, e) =>
-        {
-            if (e is DialogRequestedEvent d)
-                dialog = d;
-        };
-
-        store.Set(
-            PanelScope.Key("tk-demo", "inst-1", "ask", "request"),
-            JsonSerializer.SerializeToElement(new { message = "choose", buttons = new[] { "是", "否" } }));
-
-        Assert.NotNull(dialog);
-        Assert.Equal("inst-1", dialog!.InstanceId);
-        Assert.Equal("ask", dialog.ControlId);
-        Assert.Equal("choose", dialog.Message);
-        Assert.Equal(["是", "否"], dialog.Buttons);
-    }
-
     // ── C6: Completed × UIEvent state-machine aggregation ──
 
     private static Toolkit ToolkitWithSpawnAndUiEvent()
@@ -569,7 +512,7 @@ public class ToolkitInstanceManagerTests
             Assert.False(manager.Instances.Single().IsRunning);
 
             // UIEvent on the Completed instance → back to Running (C6 re-transition).
-            manager.RaiseControlEvent(id!, "btn", "Click", null);
+            manager.RaiseInstanceEvent(id!, "Click");
             Assert.True(manager.Instances.Single().IsRunning);
 
             // The UIEvent chain finishes → back to Completed.
@@ -620,7 +563,7 @@ public class ToolkitInstanceManagerTests
                     second.TrySetResult(c);
             };
 
-            manager.RaiseControlEvent(id!, "btn", "Click", null);
+            manager.RaiseInstanceEvent(id!, "Click");
             var uiResult = await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(uiResult.Succeeded); // aggregate: a run failed → Succeeded=false
             Assert.False(manager.Instances.Single().IsRunning);
@@ -662,7 +605,7 @@ public class ToolkitInstanceManagerTests
             Assert.True(manager.Instances.Single().IsRunning);
 
             // Start a UIEvent chain while the Spawn run is still active.
-            manager.RaiseControlEvent(id!, "btn", "Click", null);
+            manager.RaiseInstanceEvent(id!, "Click");
             // Both runs in flight → still Running, never prematurely Completed.
             Assert.True(manager.Instances.Single().IsRunning);
 
@@ -733,7 +676,7 @@ public class ToolkitInstanceManagerTests
     // ── memory governance: wf-key cleanup on EndInstance / Unmount ──
 
     [Fact]
-    public async Task EndInstance_Clears_Wf_Keys_But_Retains_Panel_Keys()
+    public async Task EndInstance_Clears_Wf_Keys_But_Retains_Toolkit_Keys()
     {
         var store = new DataStore();
         var manager = Build(store, new RecordingExecutor(store));
@@ -752,13 +695,13 @@ public class ToolkitInstanceManagerTests
             // asserting the cleanup, so the write cannot race the removal.
             await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && !s.IsRunning));
 
-            // Extra wf keys + a panel key under the instance's namespace.
+            // Extra wf keys + a toolkit-level declared key, which is not workflow-scoped.
             var wf1 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf1");
             var wf2 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf2");
-            var panel = PanelScope.Key("tk-demo", id!, "input", "value");
+            var toolkitKey = "tk-demo/sessionPath";
             store.Set(wf1, new { a = 1 });
             store.Set(wf2, new { b = 2 });
-            store.Set(panel, "hello");
+            store.Set(toolkitKey, "hello");
 
             lock (removed) removed.Clear(); // observe only the EndInstance-driven removals
 
@@ -767,12 +710,12 @@ public class ToolkitInstanceManagerTests
             Assert.Empty(manager.Instances);
             Assert.False(store.Contains(wf1));
             Assert.False(store.Contains(wf2));
-            Assert.True(store.Contains(panel)); // panel keys are retained by design
+            Assert.True(store.Contains(toolkitKey)); // toolkit-level keys outlive the instance
             lock (removed)
             {
                 Assert.Contains(wf1, removed);
                 Assert.Contains(wf2, removed);
-                Assert.DoesNotContain(panel, removed);
+                Assert.DoesNotContain(toolkitKey, removed);
             }
         }
         finally

@@ -22,7 +22,6 @@ using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using KitX.WorkflowV6.Backend.RoslynBackend;
 using KitX.WorkflowV6.Backend.Runtime;
@@ -119,7 +118,6 @@ public sealed class BenchIoIntegrationTests : IDisposable
             _ => new ToolkitFileStore(_root));
         var services = new ServiceCollection()
             .AddSingleton(_dataStore)
-            .AddSingleton(new PanelRuntime(_dataStore, manager))
             .AddSingleton(manager)
             .AddSingleton(new DataStoreOptions());
         return new ToolKitExecutionGlobalsFactory(services.BuildServiceProvider());

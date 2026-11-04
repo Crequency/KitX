@@ -20,7 +20,6 @@ using KitX.ToolKit.Bench;
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Panels;
 using KitX.ToolKit.Triggers;
 using KitX.WorkflowV6.Backend;
 using KitX.WorkflowV6.Backend.RoslynBackend;
@@ -57,10 +56,8 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
             new NoOpExecutor(),
             store,
             _ => new ToolkitFileStore(Path.GetTempPath()));
-        var runtime = new PanelRuntime(store, manager);
         var services = new ServiceCollection()
             .AddSingleton(store)
-            .AddSingleton(runtime)
             .AddSingleton(manager)
             .AddSingleton(new DataStoreOptions());
         var factory = new ToolKitExecutionGlobalsFactory(services.BuildServiceProvider());
@@ -75,7 +72,7 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
             new NoOpExecutor(),
             store,
             _ => new ToolkitFileStore(Path.GetTempPath()));
-        return new ToolKitExecutionGlobals(store, new PanelRuntime(store, manager), manager);
+        return new ToolKitExecutionGlobals(store, manager);
     }
 
     [Fact]

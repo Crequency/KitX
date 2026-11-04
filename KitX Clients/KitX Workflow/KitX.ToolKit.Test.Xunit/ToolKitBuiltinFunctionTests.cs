@@ -38,7 +38,6 @@ public class ToolKitBuiltinFunctionTests
 
         foreach (var name in new[]
         {
-            "UiSet", "UiGet", "UiLog", "UiProgress", "UiDialog", "UiOpenPanel",
             "ToolkitSet", "ToolkitGet", "ToolkitWait", "ToolkitWaitAny",
             "ToolkitRemove", "ToolkitKeys", "ToolkitContains", "ToolkitAppend",
             "BenchIn", "BenchOut",
@@ -72,25 +71,26 @@ public class ToolKitBuiltinFunctionTests
     }
 
     [Fact]
-    public void Ui_Family_Descriptors_Spec_Correct()
+    public void Ui_family_is_gone_from_the_catalogue()
     {
-        var set = new UiSetFunction();
-        Assert.Equal("UiSet", set.Name);
-        Assert.Equal(FunctionKind.SideEffect, set.Kind);
-        Assert.Equal(2, set.InputPorts.Count);
-        Assert.Equal(PinType.String, set.InputPorts[0].Type);   // ControlId
-        Assert.Equal(PinType.Any, set.InputPorts[1].Type);       // Value
-        Assert.Empty(set.OutputPorts);
+        // Q64 / ADR-0012 D3 / ADR-0013 D4: a panel is not a first-class ToolKit concept, so the
+        // whole Ui* family went with it. Same reasoning as the DataStore family above — a leftover
+        // registration would still be callable from a workflow, and there is nothing left for it to
+        // write to (the panel key derivation is gone).
+        var services = new ServiceCollection();
+        services.AddKitXWorkflowV6();
+        services.AddKitXToolKit(Path.GetTempPath());
+        var provider = services.BuildServiceProvider();
 
-        var get = new UiGetFunction();
-        Assert.Equal(FunctionKind.Pure, get.Kind);
-        Assert.Single(get.InputPorts);
-        Assert.Equal(PinType.Json, get.OutputPorts[0].Type);
+        var registry = provider.GetRequiredService<BuiltinFunctionRegistry>();
 
-        var dialog = new UiDialogFunction();
-        Assert.Equal(FunctionKind.SideEffect, dialog.Kind);
-        Assert.NotNull(dialog.InputVariadic);
-        Assert.Equal(PinType.String, dialog.InputVariadic!.PinType);
+        foreach (var name in new[]
+        {
+            "UiSet", "UiGet", "UiLog", "UiProgress", "UiDialog", "UiOpenPanel",
+        })
+        {
+            Assert.False(registry.Contains(name), $"'{name}' must not be registered any more.");
+        }
     }
 
     [Fact]
