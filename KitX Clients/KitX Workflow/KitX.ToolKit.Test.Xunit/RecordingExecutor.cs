@@ -18,7 +18,7 @@ public sealed class RecordingExecutor : IWorkflowExecutor
     private readonly HashSet<string> _failWorkflows;
     private readonly TaskCompletionSource? _hold;
 
-    public RecordingExecutor(
+    internal RecordingExecutor(
         DataStore dataStore,
         bool writeOutput = true,
         TimeSpan? delay = null,

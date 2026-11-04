@@ -36,11 +36,12 @@ public static class DataStoreBenchmark
         // W persistent, never-satisfied waiters block the whole measurement window; the
         // hot key is Set 10,000x per round against a store with K preset keys.
         var store = new DataStore();
+        using var waits = new KeyWaitRegistry(store);
         for (var i = 0; i < k; i++)
             store.Set($"preset-{i}", "{\"v\":1}");
 
         var waiterKeys = Enumerable.Range(0, w).Select(i => $"never-{i}").ToArray();
-        var waiterTasks = waiterKeys.Select(key => Task.Run(() => store.Wait([key]))).ToArray();
+        var waiterTasks = waiterKeys.Select(key => Task.Run(() => waits.Wait([key], TimeSpan.FromSeconds(30), default))).ToArray();
 
         var m = Benchmark.Measure(1, Rounds, () =>
         {
@@ -80,18 +81,20 @@ public static class DataStoreBenchmark
 
         // Fast path: the awaited key already exists → returns immediately.
         var fast = new DataStore();
+        using var fastWaits = new KeyWaitRegistry(fast);
         for (var i = 0; i < 3000; i++)
             fast.Set($"k{i}", "{\"v\":1}");
         fast.Set("present", "{\"v\":1}");
         var fastM = Benchmark.Measure(1, Rounds, () =>
         {
             for (var i = 0; i < 100; i++)
-                fast.Wait(["present"]);
+                fastWaits.Wait(["present"], TimeSpan.FromSeconds(30), default);
         }, perUnit: 100);
         rows.Add(fastM.Row("DataStore Wait", "fast path · K=3k · 键已存在即返回 · 每 Wait"));
 
         // Slow path: the awaited key is Set ~10ms after the waiter registers (wake-up path).
         var slow = new DataStore();
+        using var slowWaits = new KeyWaitRegistry(slow);
         for (var i = 0; i < 3000; i++)
             slow.Set($"k{i}", "{\"v\":1}");
 
@@ -104,7 +107,7 @@ public static class DataStoreBenchmark
                 .Select(key => Task.Run(async () => { await Task.Delay(10); slow.Set(key, "{\"v\":1}"); }))
                 .ToArray();
             foreach (var key in keys)
-                slow.Wait([key]);
+                slowWaits.Wait([key], TimeSpan.FromSeconds(30), default);
             Task.WaitAll(setters);
         }, perUnit: 100);
         rows.Add(slowM.Row("DataStore Wait", "K=3k · 10ms 后 Set 唤醒 · 每 Wait"));

@@ -59,11 +59,26 @@ public sealed class AgentChatWorkflowTests
     /// <summary>A mounted, spawnable agent ToolKit whose panel carries the controls the
     /// workflows touch (chat log + input). The manager resolves instance → toolkit id so
     /// the Ui* builtins write instance-scoped panel keys into the DataStore.</summary>
+    /// <remarks>
+    /// The <see cref="Toolkit.Keys"/> table is not decoration: since ADR-0004 D3 a workflow
+    /// touching an undeclared key throws, so a test toolkit without one cannot run any workflow
+    /// that reads the data plane. These are the same declarations <c>Package/AgentToolKit</c>
+    /// carries, so the in-memory fixture and the on-disk sample stay honest about each other.
+    /// </remarks>
     private static Toolkit AgentToolkit() => new()
     {
         Id = TkId,
         Meta = new ToolkitMeta { Name = "agent" },
         Workflows = [new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" }],
+        Keys =
+        [
+            new KeyDeclaration("workdir", "string", KeyRole.Out, "settings"),
+            new KeyDeclaration("sessionPath", "string", KeyRole.Out, "session"),
+            new KeyDeclaration("lbl_status", "string", KeyRole.Out, "chat"),
+            new KeyDeclaration("chat", "string", KeyRole.Stream, "chat"),
+            new KeyDeclaration("msg", "string", KeyRole.In, "chat"),
+            new KeyDeclaration("sel_session", "string", KeyRole.In, "session"),
+        ],
         UiPanel = new UiPanel
         {
             Controls =
@@ -119,7 +134,7 @@ public sealed class AgentChatWorkflowTests
         {
             var host = new AgentScriptedHost(_out);
             var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host, factory));
-            dataStore.Set("agentchat/workdir", Path.GetTempPath());
+            dataStore.Set($"{TkId}/workdir", Path.GetTempPath());
 
             var overrides = new Dictionary<string, string?>
             {
@@ -157,7 +172,7 @@ public sealed class AgentChatWorkflowTests
             Assert.Equal(new[] { "user", "assistant", "tool", "assistant" }, host.AppendRoles);
 
             // Cross-run state + BenchOut output namespace keys.
-            Assert.Equal(host.SessionPath, JsonAsString(dataStore.Get("agentchat/sessionPath")));
+            Assert.Equal(host.SessionPath, JsonAsString(dataStore.Get($"{TkId}/sessionPath")));
             var reply = dataStore.Get($"{TkId}/{instanceId}/wf/wf-agent-chat/reply");
             Assert.True(reply.HasValue);
             Assert.Equal("已创建 hello.txt，内容已写入。", reply!.Value.GetString());
@@ -192,7 +207,7 @@ public sealed class AgentChatWorkflowTests
             {
                 var ir = lens.Parse(await File.ReadAllTextAsync(ksFile), []);
                 var dataStore = new DataStore();
-                dataStore.Set("agentchat/workdir", Path.GetTempPath());
+                dataStore.Set($"{TkId}/workdir", Path.GetTempPath());
                 var host = new AgentScriptedHost(_out) { PickFolderOk = false };
                 var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, host, factory));
                 var overrides = new Dictionary<string, string?>

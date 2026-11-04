@@ -1,10 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ToolKit builtin function descriptor tests.
 //
-// Verifies the Ui*/DataStore* builtins are registered into the shared
+// Verifies the Ui*/Toolkit* builtins are registered into the shared
 // BuiltinFunctionRegistry via the public WorkflowV6 registration API when
 // AddKitXToolKit() runs, and that each descriptor's spec (name / kind / ports)
-// matches the ExecutionGlobals.ToolKit method it dispatches to.
+// matches the ExecutionGlobals method it dispatches to.
+//
+// ADR-0011 requires the descriptor set and the implementation type to agree: every
+// registered name must have a same-named method. That check lives in
+// BuiltinResolutionCompileTests, because it needs the implementation type; here we
+// pin the descriptors' own shape.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.Core.Contract.Workflow;
@@ -33,12 +38,35 @@ public class ToolKitBuiltinFunctionTests
         foreach (var name in new[]
         {
             "UiSet", "UiGet", "UiLog", "UiProgress", "UiDialog", "UiOpenPanel",
-            "DataStoreSet", "DataStoreGet", "DataStoreWait", "DataStoreWaitAny",
-            "DataStoreRemove", "DataStoreKeys", "DataStoreContains",
+            "ToolkitSet", "ToolkitGet", "ToolkitWait", "ToolkitWaitAny",
+            "ToolkitRemove", "ToolkitKeys", "ToolkitContains", "ToolkitAppend",
             "BenchIn", "BenchOut",
         })
         {
             Assert.True(registry.Contains(name), $"Expected builtin '{name}' to be registered.");
+        }
+    }
+
+    [Fact]
+    public void DataStore_family_is_gone_from_the_catalogue()
+    {
+        // ADR-0004 D2: the scope lives in the function name, so the old unscoped family must not
+        // merely be deprecated — a leftover registration would still be callable and would
+        // bypass the key table entirely.
+        var services = new ServiceCollection();
+        services.AddKitXWorkflowV6();
+        services.AddKitXToolKit();
+        var provider = services.BuildServiceProvider();
+
+        var registry = provider.GetRequiredService<BuiltinFunctionRegistry>();
+
+        foreach (var name in new[]
+        {
+            "DataStoreSet", "DataStoreGet", "DataStoreWait", "DataStoreWaitAny",
+            "DataStoreRemove", "DataStoreKeys", "DataStoreContains",
+        })
+        {
+            Assert.False(registry.Contains(name), $"'{name}' must not be registered any more.");
         }
     }
 
@@ -65,26 +93,30 @@ public class ToolKitBuiltinFunctionTests
     }
 
     [Fact]
-    public void DataStore_Family_Descriptors_Spec_Correct()
+    public void Toolkit_Family_Descriptors_Spec_Correct()
     {
-        var set = new DataStoreSetFunction();
-        Assert.Equal("DataStoreSet", set.Name);
+        var set = new ToolkitSetFunction();
+        Assert.Equal("ToolkitSet", set.Name);
         Assert.Equal(FunctionKind.SideEffect, set.Kind);
         Assert.Equal(2, set.InputPorts.Count);
         Assert.Empty(set.OutputPorts);
 
-        var get = new DataStoreGetFunction();
+        var get = new ToolkitGetFunction();
         Assert.Equal(FunctionKind.Pure, get.Kind);
         Assert.Single(get.InputPorts);
         Assert.Equal(PinType.Json, get.OutputPorts[0].Type);
 
-        var wait = new DataStoreWaitFunction();
-        Assert.Equal(FunctionKind.Pure, wait.Kind);
+        var wait = new ToolkitWaitFunction();
+        Assert.Equal(FunctionKind.ControlFlow, wait.Kind);
         Assert.NotNull(wait.InputVariadic);
         Assert.Equal(PinType.String, wait.InputVariadic!.PinType);
 
-        var contains = new DataStoreContainsFunction();
+        var contains = new ToolkitContainsFunction();
         Assert.Equal(FunctionKind.Pure, contains.Kind);
         Assert.Equal(PinType.Boolean, contains.OutputPorts[0].Type);
+
+        var append = new ToolkitAppendFunction();
+        Assert.Equal(FunctionKind.SideEffect, append.Kind);
+        Assert.Equal(2, append.InputPorts.Count);
     }
 }

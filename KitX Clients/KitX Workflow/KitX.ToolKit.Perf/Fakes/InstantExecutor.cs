@@ -16,7 +16,7 @@ public sealed class InstantExecutor : IWorkflowExecutor
     private readonly DataStore _store;
     private readonly bool _writeOutput;
 
-    public InstantExecutor(DataStore store, bool writeOutput = true)
+    internal InstantExecutor(DataStore store, bool writeOutput = true)
     {
         _store = store;
         _writeOutput = writeOutput;
