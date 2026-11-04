@@ -4,7 +4,6 @@ using KitX.ToolKit.Builtin.Functions;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Panels;
 using KitX.ToolKit.Services;
 using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
@@ -49,18 +48,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DataStore>();
         services.AddSingleton<DataStoreOptions>();
 
-        // Panel runtime.
-        services.AddSingleton(sp => new PanelRuntime(
-            sp.GetRequiredService<DataStore>(),
-            sp.GetRequiredService<ToolkitInstanceManager>()));
-        services.AddSingleton<IPanelRuntime>(sp => sp.GetRequiredService<PanelRuntime>());
-
         // IExecutionGlobalsFactory — the ToolKit execution-globals factory. AddKitXWorkflowV6
         // registers the default factory with TryAdd; this AddSingleton (registered later, when
         // the host calls AddKitXToolKit after AddKitXWorkflowV6) overrides it, so the generated
         // workflow G class derives from ToolKitExecutionGlobals and each run gets a fresh
-        // instance wired to the DataStore / PanelRuntime above — replacing the retired
-        // reserved-name plugin bridge (BuiltinUiPlugin / BuiltinDataStorePlugin).
+        // instance wired to the DataStore and the instance manager above — replacing the
+        // retired reserved-name plugin bridge (BuiltinDataStorePlugin).
         services.AddSingleton<IExecutionGlobalsFactory, ToolKitExecutionGlobalsFactory>();
 
         // First-class ToolKit builtin functions — registered from the descriptor registry, not

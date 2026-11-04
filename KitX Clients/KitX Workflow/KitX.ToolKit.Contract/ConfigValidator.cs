@@ -16,10 +16,6 @@ namespace KitX.ToolKit.Contract;
 /// </remarks>
 public sealed class ConfigValidator
 {
-    /// <summary>The fixed ten-control UI set (Bench RFC §8.2).</summary>
-    private static readonly HashSet<string> ControlTypes =
-        ["Text", "Icon", "Button", "Input", "Number", "Select", "Switch", "Log", "Progress", "Dialog"];
-
     /// <summary>Validates the config. Never throws — collects diagnostics instead.</summary>
     public ConfigValidationResult Validate(Toolkit toolkit)
     {
@@ -32,7 +28,6 @@ public sealed class ConfigValidator
         ValidateRuntimeParams(toolkit, errors);
         ValidateReferences(toolkit, errors);
         ValidateAcyclic(toolkit, errors);
-        ValidateUi(toolkit, errors);
 
         return new ConfigValidationResult(errors);
     }
@@ -133,62 +128,6 @@ public sealed class ConfigValidator
         }
     }
 
-    /// <summary>
-    /// UI rules: Bind paths must be well-formed and stay within the <c>panel/</c> namespace; a
-    /// control's Bind must not alias another Dialog's request key; a UIEvent trigger's Control
-    /// must exist in the panel.
-    /// </summary>
-    private static void ValidateUi(Toolkit toolkit, List<string> errors)
-    {
-        var controls = toolkit.UiPanel?.Controls ?? [];
-        var controlIds = controls.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-        var dialogIds = controls.Where(c => c.Type == "Dialog").Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-
-        foreach (var control in controls)
-        {
-            if (!ControlTypes.Contains(control.Type))
-                errors.Add($"Control '{control.Id}' has unknown type '{control.Type}'.");
-
-            foreach (var (prop, bind) in new[]
-                     { ("Bind", control.Bind), ("BindEnabled", control.BindEnabled), ("BindVisible", control.BindVisible) })
-            {
-                if (string.IsNullOrWhiteSpace(bind))
-                    continue;
-
-                if (!IsValidPanelPath(bind))
-                    errors.Add($"Control '{control.Id}' {prop} '{bind}' is not a valid panel path.");
-                else if (!bind.StartsWith("panel/", StringComparison.Ordinal))
-                    errors.Add($"Control '{control.Id}' {prop} '{bind}' must stay within the 'panel/' namespace.");
-
-                // A control's Bind must not alias another Dialog's request key.
-                if (bind.StartsWith("panel/", StringComparison.Ordinal) && bind.EndsWith("/request", StringComparison.Ordinal))
-                {
-                    var seg = bind.Split('/');
-                    if (seg.Length >= 3 && dialogIds.Contains(seg[1]))
-                        errors.Add($"Control '{control.Id}' {prop} '{bind}' aliases Dialog '{seg[1]}' request key.");
-                }
-            }
-        }
-
-        foreach (var trigger in toolkit.Triggers)
-        {
-            if (trigger.Type != TriggerType.UIEvent)
-                continue;
-            var control = trigger.Config?.Control;
-            if (string.IsNullOrWhiteSpace(control))
-                errors.Add($"UIEvent trigger '{trigger.Id}' is missing Config.Control.");
-            else if (controlIds.Count > 0 && !controlIds.Contains(control))
-                errors.Add($"UIEvent trigger '{trigger.Id}' references unknown control '{control}'.");
-        }
-    }
-
-    private static bool IsValidPanelPath(string path)
-    {
-        var segments = path.Split('/');
-        if (segments.Length < 2 || segments.Any(string.IsNullOrWhiteSpace))
-            return false;
-        return segments.All(s => s.All(c => char.IsLetterOrDigit(c) || c is '_' or '-' or '.'));
-    }
 
     /// <summary>
     /// Builds the WorkflowCompletion edge graph (node = workflow id) and runs a DFS cycle check.

@@ -445,10 +445,6 @@ internal static class ToolkitCompiler
                             new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
                     }
                     break;
-
-                case TriggerType.UIEvent:
-                    ValidateUiEventTrigger(config, trigger, sink);
-                    break;
             }
         }
     }
@@ -469,42 +465,6 @@ internal static class ToolkitCompiler
                 "trigger.completion.from-unknown",
                 $"WorkflowCompletion trigger '{trigger.Id}' references unknown predecessor '{from}'.",
                 new DiagnosticPath(ToolkitId: config.GetId(), TriggerId: trigger.Id, WorkflowId: from));
-        }
-    }
-
-    private static void ValidateUiEventTrigger(Toolkit config, Trigger trigger, DiagnosticSink sink)
-    {
-        var toolkitId = config.GetId();
-        var control = trigger.Config?.Control;
-
-        if (string.IsNullOrWhiteSpace(control))
-        {
-            sink.Error(
-                "trigger.ui-event.control-missing",
-                $"UIEvent trigger '{trigger.Id}' is missing Config.Control.",
-                new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
-            return;
-        }
-
-        // UI is a deprecated surface (ADR-0012 D3 removes it at S5.5). If a config declares no
-        // panel at all, an event trigger cannot resolve — report it rather than silently
-        // producing a trigger that can never fire.
-        var controls = config.UiPanel?.Controls;
-        if (controls is null || controls.Count == 0)
-        {
-            sink.Warning(
-                "trigger.ui-event.no-panel",
-                $"UIEvent trigger '{trigger.Id}' targets control '{control}', but the ToolKit declares no panel.",
-                new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
-            return;
-        }
-
-        if (!controls.Any(c => string.Equals(c.Id, control, StringComparison.Ordinal)))
-        {
-            sink.Error(
-                "trigger.ui-event.unknown-control",
-                $"UIEvent trigger '{trigger.Id}' references unknown control '{control}'.",
-                new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
         }
     }
 

@@ -6,7 +6,6 @@ using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Panels;
 using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
 using Serilog;
@@ -83,7 +82,6 @@ internal sealed class ToolkitInstanceManager : IDisposable
         // The DataStore blackboard is the panel-projection primitive: project every
         // instance-scoped panel write into the Bench event channel so the host can render
         // live values, log entries and dialog requests (GUI RFC §5.7 / UX v2 C26-C27).
-        _dataStore.Changed += OnDataStoreChanged;
     }
 
     /// <summary>Raised for every Bench event (spawn/complete/cancel/run/data/ui).</summary>
@@ -464,37 +462,39 @@ internal sealed class ToolkitInstanceManager : IDisposable
         return _mounted.TryGetValue(instance.ToolkitId, out var mounted) ? mounted.Keys : null;
     }
 
-    /// <summary>Resolves a control definition from the instance's toolkit UiPanel, or null.</summary>
-    public UiControl? GetControl(string instanceId, string controlId)
-    {
-        if (!_instances.TryGetValue(instanceId, out var instance))
-            return null;
-        if (!_mounted.TryGetValue(instance.ToolkitId, out var mounted))
-            return null;
-        return mounted.Toolkit.UiPanel?.Controls.FirstOrDefault(c => c.Id == controlId);
-    }
-
     /// <summary>
-    /// Routes a panel control event to the owning instance's UIEvent trigger chain (intra —
-    /// never spawns a new instance). Each matching UIEvent trigger starts a run scoped to the
-    /// instance's namespace, so the panel stays a single interaction surface.
+    /// Routes an external event to the owning instance's <see cref="TriggerType.UIEvent"/> chain
+    /// (intra — never spawns a new instance).
     /// </summary>
-    public void RaiseControlEvent(string instanceId, string controlId, string eventName, object? value)
+    /// <param name="instanceId">The instance whose chain should run.</param>
+    /// <param name="eventName">The event name to match against <see cref="TriggerConfig.Event"/>.</param>
+    /// <param name="value">The event payload, surfaced to bindings as <c>$payload.value</c>.</param>
+    /// <remarks>
+    /// <para>This used to be <c>RaiseControlEvent</c> and took a <c>controlId</c>, because the only
+    /// thing that could raise it was a panel control. A panel is no longer a ToolKit concept
+    /// (Q64 / ADR-0013 D4), but the <b>capability</b> it used — "an outside event wakes a flow for
+    /// this instance" — belongs to the trigger model, not to the panel. ADR-0013 D4 says keep it
+    /// and rename it, so it no longer names a control and no longer clears a dialog slot.</para>
+    ///
+    /// <para>What is left is the trigger dispatch alone: match by <see cref="TriggerConfig.Event"/>
+    /// and start the bound workflows. <see cref="TriggerConfig.Control"/> is still consulted when a
+    /// trigger declares one, so a config written before the panel removal keeps its scoping.</para>
+    /// </remarks>
+    public void RaiseInstanceEvent(string instanceId, string eventName, object? value = null)
     {
         if (!_instances.TryGetValue(instanceId, out var instance))
             return;
         if (!_mounted.TryGetValue(instance.ToolkitId, out var mounted))
             return;
 
-        // Dialog contract (GUI RFC §5.7): confirming clears the backend request slot.
-        if (string.Equals(eventName, PanelScope.EventConfirm, StringComparison.OrdinalIgnoreCase))
-            _dataStore.Remove(PanelScope.Key(instance.ToolkitId, instanceId, controlId, PanelScope.PropRequest));
+        var payload = JsonSerializer.SerializeToElement(new { @event = eventName, value });
+        var matching = mounted.Toolkit.Triggers
+            .Where(t => t.Type == TriggerType.UIEvent && MatchesEvent(t.Config, eventName))
+            .ToList();
 
-        var payload = JsonSerializer.SerializeToElement(new { controlId, @event = eventName, value });
-        foreach (var trigger in mounted.Toolkit.Triggers.Where(t =>
-                     t.Type == TriggerType.UIEvent && Matches(t.Config, controlId, eventName)))
+        foreach (var trigger in matching)
         {
-            // C6: a UIEvent chain on a Completed instance re-transitions it back to Running
+            // A UIEvent chain on a Completed instance re-transitions it back to Running
             // (EnsureRunning before StartRun so the RunStarted projection already sees Running),
             // and the new run is tracked so the instance only returns to Completed once it too
             // has finished. StartRun cannot return null here — the trigger is a UIEvent type.
@@ -505,113 +505,8 @@ internal sealed class ToolkitInstanceManager : IDisposable
         }
     }
 
-    /// <summary>Requests the host to present (open/focus) an instance's panel.</summary>
-    public void RequestPanelOpen(string instanceId)
-    {
-        if (!_instances.TryGetValue(instanceId, out var instance))
-            return;
-        Raise(new PanelOpenRequestedEvent(NewId(), instance.ToolkitId, instanceId, Now()));
-    }
-
-    /// <summary>
-    /// Projects instance-scoped panel DataStore writes into Bench events:
-    /// <c>{toolkitId}/{instanceId}/panel/{controlId}/{prop}</c> → control-state changes,
-    /// dialog request slots → <see cref="DialogRequestedEvent"/>. Non-panel keys are
-    /// deliberately not projected (the DataStore viewer is deferred to the Debug system).
-    /// </summary>
-    private void OnDataStoreChanged(object? sender, DataStoreChangedEventArgs e)
-    {
-        if (!TryParsePanelKey(e.Key, out var toolkitId, out var instanceId, out var controlId, out var prop))
-            return;
-
-        if (string.Equals(prop, PanelScope.PropRequest, StringComparison.Ordinal))
-        {
-            if (!e.Removed && e.NewValue is { } request)
-                RaiseDialogRequested(toolkitId, instanceId, controlId, request);
-            return;
-        }
-
-        var value = e.NewValue;
-        if (string.Equals(prop, PanelScope.PropLog, StringComparison.Ordinal) && !e.Appended && value is { ValueKind: JsonValueKind.Array } array)
-        {
-            // UiLog appends to a ring-buffer key. An incremental Append already carries the
-            // single new entry (e.Appended), so only a full-array Set needs the newest-entry
-            // extraction here — surface the last line so the panel appends exactly one.
-            var entries = array.EnumerateArray().ToList();
-            value = entries.Count > 0 ? entries[^1] : (JsonElement?)null;
-        }
-
-        Raise(new UiControlStateChangedEvent(NewId(), toolkitId, instanceId, Now(), controlId, prop, value));
-    }
-
-    private void RaiseDialogRequested(string toolkitId, string instanceId, string controlId, JsonElement request)
-    {
-        var message = string.Empty;
-        var buttons = new List<string> { "确定" };
-
-        try
-        {
-            if (request.ValueKind == JsonValueKind.Object)
-            {
-                if (request.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String)
-                    message = m.GetString() ?? string.Empty;
-                if (request.TryGetProperty("buttons", out var b) && b.ValueKind == JsonValueKind.Array)
-                {
-                    var parsed = b.EnumerateArray()
-                        .Where(x => x.ValueKind == JsonValueKind.String)
-                        .Select(x => x.GetString()!)
-                        .Where(x => !string.IsNullOrWhiteSpace(x))
-                        .ToList();
-                    if (parsed.Count > 0)
-                        buttons = parsed;
-                }
-            }
-            else
-            {
-                message = request.GetRawText();
-            }
-        }
-        catch (JsonException)
-        {
-            message = request.GetRawText();
-        }
-
-        Raise(new DialogRequestedEvent(NewId(), toolkitId, instanceId, Now(), controlId, message, buttons));
-    }
-
-    /// <summary>
-    /// Parses <c>{toolkitId}/{instanceId}/panel/{controlId}/{prop}</c>. Returns false for
-    /// any other key shape (global DataStore keys are not instance panel projections).
-    /// </summary>
-    private static bool TryParsePanelKey(
-        string key, out string toolkitId, out string instanceId, out string controlId, out string prop)
-    {
-        toolkitId = string.Empty;
-        instanceId = string.Empty;
-        controlId = string.Empty;
-        prop = string.Empty;
-
-        var marker = key.IndexOf(PanelScope.PanelKeySegment, StringComparison.Ordinal);
-        if (marker < 0)
-            return false;
-
-        var prefix = key[..marker].Split('/');
-        if (prefix.Length < 2 || string.IsNullOrWhiteSpace(prefix[0]) || string.IsNullOrWhiteSpace(prefix[1]))
-            return false;
-        toolkitId = prefix[0];
-        instanceId = prefix[1];
-
-        var suffix = key[(marker + PanelScope.PanelKeySegment.Length)..].Split('/');
-        if (suffix.Length < 2 || string.IsNullOrWhiteSpace(suffix[0]) || string.IsNullOrWhiteSpace(suffix[1]))
-            return false;
-        controlId = suffix[0];
-        prop = string.Join('/', suffix.Skip(1));
-        return true;
-    }
-
-    private static bool Matches(TriggerConfig? config, string controlId, string eventName)
+    private static bool MatchesEvent(TriggerConfig? config, string eventName)
         => config is not null
-           && string.Equals(config.Control, controlId, StringComparison.Ordinal)
            && string.Equals(config.Event, eventName, StringComparison.OrdinalIgnoreCase);
 
     private void Raise(BenchEvent e) => BenchEvent?.Invoke(this, e);
@@ -632,7 +527,6 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (_disposed)
             return;
         _disposed = true;
-        _dataStore.Changed -= OnDataStoreChanged;
         foreach (var id in _mounted.Keys.ToList())
             Unmount(id);
         EndAll();

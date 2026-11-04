@@ -23,23 +23,19 @@ namespace KitX.ToolKit.Builtin.Functions;
 /// </summary>
 /// <remarks>
 /// Order is the BP palette order, so it is deliberate rather than incidental: the
-/// <c>Ui*</c> family first (presentation), then <c>Toolkit*</c> (data plane), then
-/// <c>Bench*</c> (harness I/O). Within each family the order is the natural reading
-/// order of the operations.
+/// <c>Toolkit*</c> data-plane family first, then <c>Bench*</c> harness I/O. Within each
+/// family the order is the natural reading order of the operations.
+///
+/// <para>The <c>Ui*</c> family used to sit at the head of this list. It is gone: a panel is
+/// not a first-class ToolKit concept (Q64 / ADR-0012 D3 / ADR-0013 D4), and a workflow now
+/// writes ordinary keys through <c>Toolkit*</c> instead of addressing controls. That is why
+/// the data-plane family is first rather than second — there is nothing left to present.</para>
 /// </remarks>
 internal static class BuiltinRegistry
 {
     /// <summary>All builtin descriptor types shipped by KitX.ToolKit.</summary>
     public static IReadOnlyList<Type> All { get; } =
     [
-        // Presentation (scheduled for removal in S5.5 along with the panel host).
-        typeof(UiSetFunction),
-        typeof(UiGetFunction),
-        typeof(UiLogFunction),
-        typeof(UiProgressFunction),
-        typeof(UiDialogFunction),
-        typeof(UiOpenPanelFunction),
-
         // Data plane — the keys a toolkit declared (ADR-0004 / S2).
         typeof(ToolkitSetFunction),
         typeof(ToolkitGetFunction),

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Panels;
 using KitX.WorkflowV6.Backend;
 using KitX.WorkflowV6.Backend.Runtime;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,34 +9,31 @@ namespace KitX.ToolKit.Builtin;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ToolKitExecutionGlobals — the host-side ExecutionGlobals subclass that carries
-// the ToolKit first-class builtins (Ui* panel runtime + DataStore* blackboard +
-// BenchIn/BenchOut).
+// the ToolKit first-class builtins (the Toolkit* data plane + BenchIn/BenchOut).
 //
 // This is the payload of the external ExecutionGlobals extension seam
 // (IExecutionGlobalsFactory, registered by AddKitXWorkflowV6 with TryAdd and
 // overridden here by AddKitXToolKit). The generated structured C# declares
-// `public sealed class G : ToolKitExecutionGlobals`, so workflow calls to UiSet /
-// DataStoreSet / BenchIn &c. resolve directly to these typed methods — the
-// reserved-name plugin bridge (BuiltinUiPlugin / BuiltinDataStorePlugin routed by
+// `public sealed class G : ToolKitExecutionGlobals`, so workflow calls to
+// ToolkitSet / ToolkitAppend / BenchIn &c. resolve directly to these typed
+// methods — the reserved-name plugin bridge (BuiltinDataStorePlugin routed by
 // PluginHostAdapter) is retired.
 //
 // Each method inlines what the retired plugin's Invoke dispatch did, but with
-// strong-typed signatures and direct service access (no PluginHost.Call). The
-// Ui* family is instance-scoped: <see cref="InstanceId"/> (the owning instance)
-// gates them to no-ops when the workflow runs outside a ToolKit instance, matching
-// the historical safe-default convention. The DataStore family is not instance
-// scoped. BenchIn reads the raw trigger-binding overrides; BenchOut writes to the
-// instance's DataStore output namespace.
+// strong-typed signatures and direct service access (no PluginHost.Call).
 //
-// The generated G derives from this sealed class; per-run instances are created by
-// <see cref="ToolKitExecutionGlobalsFactory.Create"/> (not Activator), so the
-// injected services are wired exactly once at factory construction.
+// BenchIn/BenchOut are instance-scoped: <see cref="InstanceId"/> (from the run
+// context) gates BenchOut to a no-op when the workflow runs outside a ToolKit
+// instance, matching the historical safe-default convention. The Toolkit data
+// plane is not scoped that way — it resolves the owning instance's key table and
+// throws when there is none, because a workflow that writes keys without a
+// declared table is a configuration error, not a no-op.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// The ToolKit ExecutionGlobals subclass that carries the first-class Ui* /
-/// DataStore* / Bench* builtins, backed directly by the ToolKit services
-/// (DataStore, PanelRuntime). Generated workflow code derives its <c>G</c> from
+/// The ToolKit ExecutionGlobals subclass that carries the first-class
+/// Toolkit* / Bench* builtins, backed directly by the ToolKit services
+/// (DataStore, ToolkitInstanceManager). Generated workflow code derives its <c>G</c> from
 /// this type, so the methods are reachable without the reserved-name plugin bridge.
 /// </summary>
 public class ToolKitExecutionGlobals : ExecutionGlobals
@@ -51,7 +47,6 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// members the contract allows.
     /// </summary>
     private KeyWaitRegistry _waits;
-    private PanelRuntime _panelRuntime;
     private ToolkitInstanceManager _manager;
     private DataStoreOptions _options;
 
@@ -61,13 +56,11 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// </summary>
     internal ToolKitExecutionGlobals(
         DataStore dataStore,
-        PanelRuntime panelRuntime,
         ToolkitInstanceManager manager,
         DataStoreOptions? options = null)
     {
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _waits = new KeyWaitRegistry(_dataStore);
-        _panelRuntime = panelRuntime ?? throw new ArgumentNullException(nameof(panelRuntime));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _options = options ?? new DataStoreOptions();
     }
@@ -89,7 +82,6 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     {
         _dataStore = null!;
         _waits = null!;
-        _panelRuntime = null!;
         _manager = null!;
         _options = new DataStoreOptions();
     }
@@ -101,13 +93,11 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// </summary>
     internal void Inject(
         DataStore dataStore,
-        PanelRuntime panelRuntime,
         ToolkitInstanceManager manager,
         DataStoreOptions? options = null)
     {
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _waits = new KeyWaitRegistry(_dataStore);
-        _panelRuntime = panelRuntime ?? throw new ArgumentNullException(nameof(panelRuntime));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _options = options ?? new DataStoreOptions();
     }
@@ -117,8 +107,8 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// <summary>
     /// The owning instance's id, read per-run from the backend-injected
     /// <see cref="ExecutionGlobals.RunContext"/> (a <see cref="HostRunContext"/>). Null
-    /// when the workflow runs outside a ToolKit instance; the Ui* family no-ops then.
-    /// </summary>
+    /// when the workflow runs outside a ToolKit instance; only the data-plane
+    /// builtins need it, and they throw rather than no-op (see RequireKeyTable).
     public string? InstanceId => (RunContext as HostRunContext)?.InstanceId;
 
     /// <summary>
@@ -134,94 +124,6 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// instance; <see cref="BenchIn"/> returns its default then.
     /// </summary>
     public IReadOnlyDictionary<string, string?>? RawOverrides => (RunContext as HostRunContext)?.RawOverrides;
-
-    // ── Kit.X.UI family (panel runtime) — instance-scoped. ──
-
-    /// <summary>UiSet(controlId, value) → writes the control's main property key.</summary>
-    public object? UiSet(string controlId, object? value)
-    {
-        if (InstanceId is null) return null;
-        _panelRuntime.SetControlValue(InstanceId, controlId, value);
-        return true;
-    }
-
-    /// <summary>UiSet(controlId, prop, value) → writes panel/{controlId}/{prop}.</summary>
-    public object? UiSet(string controlId, string prop, object? value)
-    {
-        if (InstanceId is null)
-            return null;
-        var toolkitId = _manager.GetToolkitId(InstanceId);
-        if (toolkitId is null)
-            return null;
-        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, prop), value);
-        return true;
-    }
-
-    /// <summary>UiGet(controlId) → reads the control's main property key.</summary>
-    public object? UiGet(string controlId)
-    {
-        if (InstanceId is null)
-            return null;
-        return _panelRuntime.GetControlValue(InstanceId, controlId);
-    }
-
-    /// <summary>UiLog(controlId, entry) → appends to the named log control.</summary>
-    public object? UiLog(string controlId, object? entry)
-    {
-        if (InstanceId is null)
-            return null;
-        var toolkitId = _manager.GetToolkitId(InstanceId);
-        if (toolkitId is null)
-            return null;
-        _dataStore.Append(PanelScope.Key(toolkitId, InstanceId, controlId, PanelScope.PropLog), entry);
-        return true;
-    }
-
-    /// <summary>UiLog(entry) → appends to the default "log" control.</summary>
-    public object? UiLog(object? entry)
-    {
-        if (InstanceId is null)
-            return null;
-        var toolkitId = _manager.GetToolkitId(InstanceId);
-        if (toolkitId is null)
-            return null;
-        _dataStore.Append(PanelScope.Key(toolkitId, InstanceId, PanelScope.PropLog, PanelScope.PropLog), entry);
-        return true;
-    }
-
-    /// <summary>UiProgress(controlId, value) → sets the progress control's value.</summary>
-    public object? UiProgress(string controlId, object? value)
-    {
-        if (InstanceId is null)
-            return null;
-        var toolkitId = _manager.GetToolkitId(InstanceId);
-        if (toolkitId is null)
-            return null;
-        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, PanelScope.PropValue), value);
-        return true;
-    }
-
-    /// <summary>UiDialog(controlId, message, buttons...) → writes the dialog request slot.</summary>
-    public object? UiDialog(string controlId, string message, params string[] buttons)
-    {
-        if (InstanceId is null)
-            return null;
-        var toolkitId = _manager.GetToolkitId(InstanceId);
-        if (toolkitId is null)
-            return null;
-        _dataStore.Set(PanelScope.Key(toolkitId, InstanceId, controlId, PanelScope.PropRequest),
-            new { message, buttons });
-        return true;
-    }
-
-    /// <summary>UiOpenPanel() → requests the host to present the instance's panel.</summary>
-    public object? UiOpenPanel()
-    {
-        if (InstanceId is null)
-            return null;
-        _panelRuntime.RequestPanelOpen(InstanceId);
-        return true;
-    }
 
     // ── Toolkit data plane — the workflow's keys, scoped to this toolkit. ──
     //
@@ -392,11 +294,10 @@ internal sealed class ToolKitExecutionGlobalsFactory : IExecutionGlobalsFactory
     {
         // The generated G derives from ToolKitExecutionGlobals; Activator.CreateInstance
         // calls the parameterless base constructor, then we wire the ToolKit services so
-        // the G's Ui*/DataStore*/Bench* builtins have their backing services at run time.
+        // the G's Toolkit*/Bench* builtins have their backing services at run time.
         var g = (ToolKitExecutionGlobals)Activator.CreateInstance(gType)!;
         g.Inject(
             _services.GetRequiredService<DataStore>(),
-            _services.GetRequiredService<PanelRuntime>(),
             _services.GetRequiredService<ToolkitInstanceManager>(),
             _services.GetRequiredService<DataStoreOptions>());
         return g;

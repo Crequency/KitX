@@ -28,19 +28,6 @@ public sealed class Toolkit
     public List<Trigger> Triggers { get; set; } = [];
 
     /// <summary>
-    /// The optional UI panel definition.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Deprecated at S0; removed at S5.5.</b> ADR-0012 D3 and ADR-0013 D4 delete the panel
-    /// host from ToolKit — a panel is not a first-class ToolKit concept. It stays on the contract
-    /// for now because <c>UiPanel</c> is reachable through this property, so removing it here at S0
-    /// would force Dashboard code changes beyond <c>using</c> (the S0 completion criterion).</para>
-    /// <para>Removal order: S5.5 archives the panel host, then this property and the
-    /// <c>UiPanel</c> / <c>UiControl</c> types go together.</para>
-    /// </remarks>
-    public UiPanel? UiPanel { get; set; }
-
-    /// <summary>
     /// Canvas comment nodes (ToolKit Bench UX v2 §4.2). Text is config truth; canvas
     /// position is intentionally not persisted.
     /// </summary>
