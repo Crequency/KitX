@@ -22,9 +22,13 @@ namespace KitX.ToolKit.Test.Xunit;
 /// the one a workflow actually makes.</para>
 /// </summary>
 [Trait("Category", "Spec")]
-public class KeyRoleEnforcementTests
+public class KeyRoleEnforcementTests : IDisposable
 {
     private const string TkId = "rolecheck";
+
+    private readonly TempToolkitRoot _root = new();
+
+    public void Dispose() => _root.Dispose();
 
     private static Toolkit ToolkitWith(params KeyDeclaration[] keys) => new()
     {
@@ -38,7 +42,7 @@ public class KeyRoleEnforcementTests
         ],
     };
 
-    private static (ToolKitExecutionGlobals Globals, DataStore Store, ToolkitInstanceManager Manager) Create(
+    private (ToolKitExecutionGlobals Globals, DataStore Store, ToolkitInstanceManager Manager) Create(
         params KeyDeclaration[] keys)
     {
         var store = new DataStore();
@@ -47,7 +51,7 @@ public class KeyRoleEnforcementTests
             TriggerSourceRegistry.BuildDefault(),
             new SilentExecutor(),
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            tk => new ToolkitFileStore(_root.Prepare(tk)));
         manager.Mount(ToolkitWith(keys));
         var instanceId = manager.Spawn(TkId, "manual")!;
 
@@ -186,7 +190,7 @@ public class KeyRoleEnforcementTests
             TriggerSourceRegistry.BuildDefault(),
             new SilentExecutor(),
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            tk => new ToolkitFileStore(_root.Prepare(tk)));
 
         using (manager)
         {
@@ -229,7 +233,7 @@ public class KeyRoleEnforcementTests
             TriggerSourceRegistry.BuildDefault(),
             new SilentExecutor(),
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            tk => new ToolkitFileStore(_root.Prepare(tk)));
         manager.Mount(ToolkitWith(new KeyDeclaration("status", "string", KeyRole.Out)));
 
         using (manager)

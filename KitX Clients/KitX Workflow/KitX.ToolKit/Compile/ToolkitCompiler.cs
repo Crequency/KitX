@@ -72,17 +72,40 @@ internal static class ToolkitCompiler
                 absolute = ToolkitIdGuard.IsInside(storageRoot, candidate) ? Path.GetFullPath(candidate) : string.Empty;
             }
 
+            // A declared file that cannot be found is an error whether or not a builtin
+            // catalogue is available. These are two different questions — "is the file where
+            // the config says it is" and "does the code inside use known builtins" — and
+            // binding them together meant a host that compiles without a catalogue (the
+            // production mount path) silently skipped the first one entirely. A toolkit
+            // pointing at a missing .kcs mounted fine and failed at the first run instead.
+            var resolvable = storageRoot is not null
+                             && !string.IsNullOrWhiteSpace(wf.File)
+                             && !string.IsNullOrEmpty(absolute);
+
+            var fileExists = false;
+            if (resolvable)
+            {
+                fileExists = File.Exists(absolute);
+                if (!fileExists)
+                {
+                    sink.Error(
+                        "workflow.file.missing",
+                        $"Workflow '{wf.Id}' declares file '{wf.File}', which does not exist.",
+                        new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: wf.Id));
+                }
+            }
+
             workflows[wf.Id] = new CompiledWorkflow(
                 wf.Id,
                 wf.File,
                 absolute,
                 ExtractParameters(wf),
                 Description: null,
-                // Only resolve when we have both a catalogue and a place on disk to look.
-                // With no storage root the caller asked for pure in-memory validation, and
-                // with an empty catalogue there is nothing to compare against — in both cases
-                // the builtin list stays null ("not checked") rather than falsely empty.
-                Builtins: builtins is null || !builtins.HasCatalogue || storageRoot is null
+                // Builtin names are only resolved when there is a catalogue to compare against
+                // AND a file on disk to read. With no catalogue the list stays null ("not
+                // checked") rather than falsely empty; with no file, the error above already
+                // said so, and reading it again here would report the same absence twice.
+                Builtins: builtins is null || !builtins.HasCatalogue || !fileExists
                     ? null
                     : ResolveBuiltins(wf, absolute, builtins, toolkitId, sink));
         }

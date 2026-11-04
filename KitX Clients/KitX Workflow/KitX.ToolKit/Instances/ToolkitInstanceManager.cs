@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using KitX.ToolKit.Compile;
 using KitX.ToolKit.Run;
+using KitX.WorkflowV6.Builtin;
+using Microsoft.Extensions.DependencyInjection;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
@@ -167,15 +169,25 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// Compiles a toolkit, turning its diagnostics into the exception a caller can act on.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Every diagnostic is listed, not just the first: a config that misses three references
     /// should not need three mount attempts to discover that.
+    /// </para>
+    /// <para>
+    /// The builtin catalogue comes from the container, so a workflow calling a function this host
+    /// does not provide is caught here rather than at the first run. ADR-0011's whole point is
+    /// that a name is resolved once, at compile time, against what is actually registered —
+    /// compiling without the catalogue would leave that half of the compiler unused in
+    /// production, the same shape of defect the file check had.
+    /// </para>
     /// </remarks>
-    private static CompiledToolkit Compile(Toolkit toolkit, ToolkitFileStore fileStore)
+    private CompiledToolkit Compile(Toolkit toolkit, ToolkitFileStore fileStore)
     {
         var result = ToolkitCompiler.Compile(
             toolkit,
             out var diagnostics,
-            storageRoot: fileStore.Root);
+            storageRoot: fileStore.Root,
+            builtins: new BuiltinResolver(_services.GetServices<IBuiltinFunction>()));
 
         if (result.Value is not null)
             return result.Value;

@@ -23,9 +23,13 @@ namespace KitX.ToolKit.Test.Xunit;
 /// would still hold if the manager were rewritten underneath.
 /// </remarks>
 [Trait("Category", "Unit")]
-public class LifecycleTests
+public class LifecycleTests : IDisposable
 {
     private const string TkId = "tk-life";
+
+    private readonly TempToolkitRoot _root = new();
+
+    public void Dispose() => _root.Dispose();
 
     private static Toolkit Toolkit() => new()
     {
@@ -40,7 +44,7 @@ public class LifecycleTests
         ],
     };
 
-    private static (ToolkitInstanceManager Manager, DataStore Store) Build(IClock? clock = null)
+    private (ToolkitInstanceManager Manager, DataStore Store) Build(IClock? clock = null)
     {
         var store = new DataStore();
         var executor = new RecordingExecutor(store);
@@ -49,7 +53,7 @@ public class LifecycleTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()),
+            tk => new ToolkitFileStore(_root.Prepare(tk)),
             null,
             null,
             clock);

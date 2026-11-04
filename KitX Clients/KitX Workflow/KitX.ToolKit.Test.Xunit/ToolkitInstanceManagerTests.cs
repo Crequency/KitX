@@ -12,8 +12,12 @@ using Xunit;
 namespace KitX.ToolKit.Test.Xunit;
 
 [Trait("Category", "Unit")]
-public class ToolkitInstanceManagerTests
+public class ToolkitInstanceManagerTests : IDisposable
 {
+    private readonly TempToolkitRoot _root = new();
+
+    public void Dispose() => _root.Dispose();
+
     private static Toolkit ToolkitWith(params Trigger[] triggers)
         => new()
         {
@@ -23,7 +27,14 @@ public class ToolkitInstanceManagerTests
             Triggers = [.. triggers],
         };
 
-    private static (ToolkitInstanceManager Manager, RecordingExecutor Executor) Build(Toolkit toolkit)
+    /// <summary>
+    /// A file store whose root holds the <c>.kcs</c> files the config declares. Mount compiles,
+    /// and compiling checks those files exist, so a test that declares <c>wf.kcs</c> has to
+    /// provide it. These tests substitute the executor, so the file is never parsed.
+    /// </summary>
+    private Func<Toolkit, ToolkitFileStore> FileStoreFor => toolkit => new ToolkitFileStore(_root.Prepare(toolkit));
+
+    private (ToolkitInstanceManager Manager, RecordingExecutor Executor) Build(Toolkit toolkit)
     {
         var store = new DataStore();
         var executor = new RecordingExecutor(store);
@@ -32,18 +43,18 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
         return (manager, executor);
     }
 
-    private static ToolkitInstanceManager Build(DataStore store, RecordingExecutor executor,
+    private ToolkitInstanceManager Build(DataStore store, RecordingExecutor executor,
         ToolkitInstanceManagerOptions? options = null)
         => new(
             new ServiceCollection().BuildServiceProvider(),
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()),
+            FileStoreFor,
             null,
             options);
 
@@ -215,7 +226,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         manager.Mount(tk);
 
@@ -380,7 +391,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         var rejected = new TaskCompletionSource<InstanceSpawnRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
@@ -426,7 +437,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         int rejected = 0;
         manager.ToolkitEvent += (_, e) =>
@@ -486,7 +497,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         var first = new TaskCompletionSource();
         var second = new TaskCompletionSource();
@@ -537,7 +548,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         var first = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
@@ -587,7 +598,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         var completed = new TaskCompletionSource();
         manager.ToolkitEvent += (_, e) =>
@@ -859,7 +870,7 @@ public class ToolkitInstanceManagerTests
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            _ => new ToolkitFileStore(Path.GetTempPath()));
+            FileStoreFor);
 
         var completed = new System.Collections.Concurrent.ConcurrentQueue<InstanceCompletedEvent>();
         manager.ToolkitEvent += (_, e) =>
