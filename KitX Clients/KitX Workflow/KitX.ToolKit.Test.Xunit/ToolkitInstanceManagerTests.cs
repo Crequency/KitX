@@ -884,11 +884,7 @@ public class ToolkitInstanceManagerTests
             for (var i = 0; i < 5; i++)
                 Assert.NotNull(manager.Spawn("tk-demo", "manual"));
 
-            // Wait for every instance to FINISH, not merely to exist. Spawning is
-            // synchronous but execution is not, so waiting on Count == 5 can observe
-            // instances that are still Running — that race is what made this test flaky.
-            await WaitUntilAsync(() => manager.Instances.Count == 5
-                && manager.Instances.All(s => s.Status == InstanceStatus.Completed));
+            await WaitUntilAsync(() => manager.Instances.Count == 5);
             Assert.Equal(5, manager.Instances.Count);
             Assert.All(manager.Instances, s => Assert.Equal(InstanceStatus.Completed, s.Status));
         }
