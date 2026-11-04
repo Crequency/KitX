@@ -16,13 +16,15 @@ public sealed class BenchRunCompletedEventArgs : EventArgs
         Contract.RunOutcome outcome,
         int failedCount = 0,
         int completedCount = 0,
-        int skippedCount = 0)
+        int skippedCount = 0,
+        Contract.Diagnostic? failure = null)
     {
         InstanceId = instanceId;
         Outcome = outcome;
         FailedCount = failedCount;
         CompletedCount = completedCount;
         SkippedCount = skippedCount;
+        Failure = failure;
     }
 
     /// <summary>The run's unique id.</summary>
@@ -39,6 +41,13 @@ public sealed class BenchRunCompletedEventArgs : EventArgs
 
     /// <summary>How many nodes never ran because the run was truncated.</summary>
     public int SkippedCount { get; }
+
+    /// <summary>
+    /// Why the run failed, when <see cref="Outcome"/> is <see cref="Contract.RunOutcome.Failed"/>;
+    /// otherwise null. Carries a stable <see cref="Contract.Diagnostic.Code"/> so a consumer can
+    /// branch without matching on the message (ADR-0005 D4, ADR-0007 D1).
+    /// </summary>
+    public Contract.Diagnostic? Failure { get; }
 
     /// <summary>True only when every node that ran succeeded and nothing was skipped.</summary>
     public bool IsSuccess => Outcome == Contract.RunOutcome.Succeeded && SkippedCount == 0;

@@ -68,6 +68,12 @@ public sealed class WorkflowRun : IDisposable
     private bool _settled;
     private bool _disposed;
 
+    /// <summary>
+    /// The first failure that decided this run's verdict (ADR-0005 D4). Held so the reason can
+    /// be reported with the outcome instead of being reconstructed afterwards from logs.
+    /// </summary>
+    private Diagnostic? _firstFailure;
+
     internal WorkflowRun(
         string toolkitId,
         string runId,
@@ -155,6 +161,23 @@ public sealed class WorkflowRun : IDisposable
         {
             lock (_gate)
                 return _settled ? DecideOutcome() : null;
+        }
+    }
+
+    /// <summary>
+    /// Why the run failed, or <see langword="null"/> when it did not fail or has not settled.
+    /// </summary>
+    /// <remarks>
+    /// Exposed alongside <see cref="Outcome"/> rather than folded into it, so a caller can read
+    /// the verdict without paying for a diagnostic it will not display. The reason is decided at
+    /// the same moment as the verdict and never mutated afterwards (ADR-0005 D4).
+    /// </remarks>
+    public Diagnostic? Failure
+    {
+        get
+        {
+            lock (_gate)
+                return _settled ? DecideFailure() : null;
         }
     }
 
@@ -309,6 +332,12 @@ public sealed class WorkflowRun : IDisposable
                 _states[workflowId] = RunNodeState.Failed;
                 _failed++;
 
+                // The first failure is the cause; later ones are its consequences (ADR-0005 D4).
+                _firstFailure ??= Diagnostic.Error(
+                    Diagnostics.RunDiagnosticCodes.WorkflowFailed,
+                    error ?? $"Workflow '{workflowId}' failed",
+                    new DiagnosticPath(WorkflowId: workflowId));
+
                 // A failed node can never deliver, so every node downstream whose AND-join
                 // depends on it will never be satisfied. Mark them now rather than leaving
                 // them Pending forever (ADR-0007 D3).
@@ -446,9 +475,28 @@ public sealed class WorkflowRun : IDisposable
         return RunOutcome.Succeeded;
     }
 
+    /// <summary>
+    /// The diagnostic explaining a <see cref="RunOutcome.Failed"/> verdict, or null otherwise.
+    /// Caller holds the lock.
+    /// </summary>
+    /// <remarks>
+    /// The <i>first</i> failure is reported, not the last. A run truncates on the first failure,
+    /// so the first one is the cause and everything after it is consequence; reporting the last
+    /// would surface whichever node happened to lose a race.
+    /// </remarks>
+    private Diagnostic? DecideFailure()
+    {
+        if (_failed == 0)
+            return null;
+
+        return _firstFailure ?? Diagnostic.Error(
+            Diagnostics.RunDiagnosticCodes.Unknown,
+            "The run failed but no node recorded a reason");
+    }
+
     /// <summary>Builds the completion payload. Caller holds the lock.</summary>
     private BenchRunCompletedEventArgs BuildCompletedArgs() =>
-        new(RunId, DecideOutcome(), _failed, _completed, _skipped);
+        new(RunId, DecideOutcome(), _failed, _completed, _skipped, DecideFailure());
 
     /// <summary>Merges two object packets; <paramref name="second"/> wins on duplicate names.</summary>
     private static JsonElement Merge(JsonElement first, JsonElement second)
@@ -471,10 +519,15 @@ public sealed class WorkflowRun : IDisposable
     /// text. Objects and arrays use their reference factories; primitives use
     /// <see cref="JsonValue.Create(JsonElement)"/>.
     /// </summary>
+    /// <remarks>
+    /// The two <c>Create</c> overloads are declared nullable because they return null when the
+    /// element is not of the expected kind. The switch has already established the kind, so the
+    /// suppressions state a fact rather than hiding a hazard.
+    /// </remarks>
     private static JsonNode Wrap(JsonElement element) => element.ValueKind switch
     {
-        JsonValueKind.Object => JsonObject.Create(element),
-        JsonValueKind.Array => JsonArray.Create(element),
+        JsonValueKind.Object => JsonObject.Create(element)!,
+        JsonValueKind.Array => JsonArray.Create(element)!,
         _ => JsonValue.Create(element)!,
     };
 

@@ -29,7 +29,24 @@ public interface IToolkitService
     void Mount(string toolkitId);
 
     /// <summary>Unmounts a ToolKit (unsubscribes Spawn triggers + ends all its instances). Idempotent.</summary>
+    /// <remarks>Unmounting forgets the in-memory scheduler but <b>keeps the toolkit's keys</b>; the
+    /// caller may mount it again. Use <see cref="Uninstall"/> to erase data.</remarks>
     void Unmount(string toolkitId);
+
+    /// <summary>Stops a ToolKit's triggers and cancels its flows, <b>keeping its data</b>. Idempotent.</summary>
+    /// <remarks>A disabled toolkit stays mounted and stays readable; only triggering is refused.
+    /// This is the difference between "disabled" and "uninstalled" (ADR-0005 D2).</remarks>
+    void Disable(string toolkitId);
+
+    /// <summary>Resumes a disabled ToolKit's triggers. Idempotent.</summary>
+    void Enable(string toolkitId);
+
+    /// <summary>Removes a ToolKit: stops it, ends its instances, deletes its declared keys and its
+    /// stored config. Returns the number of data keys removed. Idempotent.</summary>
+    int Uninstall(string toolkitId);
+
+    /// <summary>The lifecycle state of a toolkit, or null when it is not mounted.</summary>
+    LifecycleState? GetLifecycleState(string toolkitId);
 
     /// <summary>The ids of currently mounted ToolKits.</summary>
     IReadOnlyList<string> MountedToolkitIds { get; }

@@ -20,13 +20,40 @@ public sealed record InstanceSnapshot(
     string ToolkitId,
     string TriggerId,
     Initiator Initiator,
-    InstanceStatus Status,
     DateTimeOffset StartedAt,
     DateTimeOffset? CompletedAt,
     int ActiveRuns,
     int CompletedRuns,
     int FailedRuns)
 {
+    /// <summary>
+    /// How the instance's current activity window ended, or <see langword="null"/> while it is
+    /// still running.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Replaces <c>InstanceStatus</c>, removed at S4 (ADR-0005 D1).</b> The old enum
+    /// conflated two axes: whether the work has stopped (a moment) and how it went (a verdict).
+    /// "Has it stopped" is fully expressed by this property being null, so the enum carried no
+    /// information the outcome does not already carry — and it made a cancelled run and a failed
+    /// run indistinguishable, which is the defect ADR-0005 exists to remove.</para>
+    /// <para>The reason travels with the verdict rather than being looked up separately, because
+    /// a <see cref="RunOutcome.Failed"/> that cannot say why is not actionable (ADR-0005 D4).</para>
+    /// </remarks>
+    public RunOutcome? Outcome { get; init; }
+
+    /// <summary>
+    /// Why the window ended the way it did. Present when <see cref="Outcome"/> is
+    /// <see cref="RunOutcome.Failed"/> (ADR-0005 D4); <see cref="Diagnostic.Code"/> is the stable,
+    /// branchable part and <see cref="Diagnostic.Message"/> is for humans.
+    /// </summary>
+    public Diagnostic? Failure { get; init; }
+
+    /// <summary>True while the instance still has work in flight.</summary>
+    public bool IsRunning => Outcome is null;
+
+    /// <summary>True once the instance has stopped and its window succeeded.</summary>
+    public bool Succeeded => Outcome == RunOutcome.Succeeded;
+
     /// <summary>
     /// The spawn trigger's presentation mode (<c>auto</c>/<c>silent</c>). Null when unknown.
     /// </summary>

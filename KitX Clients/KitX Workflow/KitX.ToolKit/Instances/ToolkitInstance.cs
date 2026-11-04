@@ -1,5 +1,6 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Run;
+using KitX.ToolKit.Time;
 
 namespace KitX.ToolKit.Instances;
 
@@ -28,7 +29,12 @@ public sealed class ToolkitInstance : IDisposable
 
     private readonly HashSet<WorkflowRun> _runs = new();
     private readonly object _gate = new();
-    private InstanceStatus _status;
+
+    /// <summary>
+    /// The injected clock (ADR-0006 D1) — this type never reads the wall clock directly.
+    /// </summary>
+    private readonly IClock _clock;
+
     private DateTimeOffset? _completedAt;
 
     /// <summary>Runs tracked but not yet finished.</summary>
@@ -40,13 +46,25 @@ public sealed class ToolkitInstance : IDisposable
     /// <summary>The outcome of the last completed activity window, once the instance went idle.</summary>
     private RunOutcome? _settledOutcome;
 
-    internal ToolkitInstance(string toolkitId, string triggerId, WorkflowRun run, Initiator initiator)
+    /// <summary>Why the last completed window failed; null when it did not fail (ADR-0005 D4).</summary>
+    private Diagnostic? _settledFailure;
+
+    /// <summary>First failure seen in the current window. Kept so the cause survives the window.</summary>
+    private Diagnostic? _windowFailure;
+
+    internal ToolkitInstance(
+        string toolkitId,
+        string triggerId,
+        WorkflowRun run,
+        Initiator initiator,
+        IClock? clock = null)
     {
         _run = run ?? throw new ArgumentNullException(nameof(run));
+        _clock = clock ?? SystemClock.Instance;
         ToolkitId = toolkitId;
         TriggerId = triggerId;
         Initiator = initiator;
-        StartedAt = DateTimeOffset.UtcNow;
+        StartedAt = _clock.UtcNow;
         TrackRun(run);
     }
 
@@ -65,13 +83,17 @@ public sealed class ToolkitInstance : IDisposable
     /// <summary>When the instance was spawned.</summary>
     public DateTimeOffset StartedAt { get; }
 
-    /// <summary>Current lifecycle state (Running → Completed).</summary>
-    public InstanceStatus Status
+    /// <summary>
+    /// Whether the instance currently has work in flight. This replaces the old
+    /// <c>InstanceStatus</c> enum: "running" is not a state the instance stores, it is the
+    /// absence of a settled outcome, so keeping a separate field could only ever disagree with it.
+    /// </summary>
+    public bool IsRunning
     {
-        get { lock (_gate) return _status; }
+        get { lock (_gate) return _settledOutcome is null; }
     }
 
-    /// <summary>When the instance transitioned to Completed, or null while running.</summary>
+    /// <summary>When the instance stopped, or null while it is running.</summary>
     public DateTimeOffset? CompletedAt
     {
         get { lock (_gate) return _completedAt; }
@@ -88,25 +110,26 @@ public sealed class ToolkitInstance : IDisposable
     /// </summary>
     public RunOutcome? Outcome
     {
-        get
-        {
-            lock (_gate)
-                return _status == InstanceStatus.Completed ? _settledOutcome : null;
-        }
+        get { lock (_gate) return _settledOutcome; }
     }
 
     /// <summary>
-    /// True when the most recent activity window succeeded. Only meaningful once the instance
-    /// is <see cref="InstanceStatus.Completed"/>; while Running it reports false rather than
-    /// guessing a verdict.
+    /// Why the most recent activity window failed, or null when it did not fail or is still
+    /// running (ADR-0005 D4). The first failing run's diagnostic wins: it is the cause, and any
+    /// later failure in the same window is its consequence.
+    /// </summary>
+    public Diagnostic? Failure
+    {
+        get { lock (_gate) return _settledFailure; }
+    }
+
+    /// <summary>
+    /// True when the most recent activity window succeeded. False while running, because a
+    /// verdict before the instance stops would be a guess.
     /// </summary>
     public bool Succeeded
     {
-        get
-        {
-            lock (_gate)
-                return _status == InstanceStatus.Completed && _settledOutcome == RunOutcome.Succeeded;
-        }
+        get { lock (_gate) return _settledOutcome == RunOutcome.Succeeded; }
     }
 
     /// <summary>Raised when the instance transitions to Completed (all its runs finished).</summary>
@@ -128,36 +151,38 @@ public sealed class ToolkitInstance : IDisposable
         {
             _runs.Add(run);
             _activeRuns++;
-            _status = InstanceStatus.Running;
+            _settledOutcome = null;
+            _settledFailure = null;
             _completedAt = null;
             _windowOutcome = null; // A new run opens a new window; the previous verdict is history.
+            _windowFailure = null;
         }
 
         run.Completed += OnRunFinished;
     }
 
     /// <summary>
-    /// Re-transitions a Completed instance back to Running. Called by the manager before a
-    /// UIEvent chain starts on an already-completed instance, so the status reflects the new
-    /// run (C6).
+    /// Re-opens the activity window. Called by the manager before a UIEvent chain starts on an
+    /// already-completed instance, so the verdict reflects the new run (C6).
     /// </summary>
     internal void EnsureRunning()
     {
         lock (_gate)
         {
-            if (_status != InstanceStatus.Completed)
+            if (_settledOutcome is null)
                 return;
 
-            _status = InstanceStatus.Running;
+            _settledOutcome = null;
+            _settledFailure = null;
             _completedAt = null;
             _windowOutcome = null;
+            _windowFailure = null;
         }
     }
 
     private void OnRunFinished(object? sender, Bench.BenchRunCompletedEventArgs e)
     {
         bool fire;
-        RunOutcome settled;
 
         lock (_gate)
         {
@@ -167,24 +192,23 @@ public sealed class ToolkitInstance : IDisposable
             // window's verdict, and cancellation only wins when nothing failed.
             _windowOutcome = Combine(_windowOutcome, e.Outcome);
 
+            // The first failure is the cause; anything after it in the same window is a
+            // consequence, so the earliest diagnostic is the one worth keeping (ADR-0005 D4).
+            _windowFailure ??= e.Failure;
+
             if (_activeRuns > 0)
             {
                 fire = false;
-                settled = _windowOutcome ?? RunOutcome.Succeeded;
             }
             else
             {
-                // Last run of the window finished: the instance is now Completed and its
-                // verdict is final until new work starts.
-                _status = InstanceStatus.Completed;
-                _completedAt = DateTimeOffset.UtcNow;
+                // Last run of the window finished: the verdict is final until new work starts.
+                _completedAt = _clock.UtcNow;
                 _settledOutcome = _windowOutcome ?? RunOutcome.Succeeded;
-                settled = _settledOutcome.Value;
+                _settledFailure = _settledOutcome == RunOutcome.Failed ? _windowFailure : null;
                 fire = true;
             }
         }
-
-        _ = settled;
 
         if (fire)
             Completed?.Invoke(this, EventArgs.Empty);
@@ -212,16 +236,27 @@ public sealed class ToolkitInstance : IDisposable
     public InstanceSnapshot ToSnapshot()
     {
         int active, completed, failed;
+        RunOutcome? outcome;
+        Diagnostic? failure;
+        DateTimeOffset? completedAt;
+
         lock (_gate)
         {
             active = _runs.Sum(r => r.ActiveRuns);
             completed = _runs.Sum(r => r.CompletedRuns);
             failed = _runs.Sum(r => r.FailedRuns);
+            outcome = _settledOutcome;
+            failure = _settledFailure;
+            completedAt = _completedAt;
         }
 
         return new(
-            InstanceId, ToolkitId, TriggerId, Initiator, Status, StartedAt, CompletedAt,
-            active, completed, failed);
+            InstanceId, ToolkitId, TriggerId, Initiator, StartedAt, completedAt,
+            active, completed, failed)
+        {
+            Outcome = outcome,
+            Failure = failure,
+        };
     }
 
     /// <summary>Cancels every run of this instance.</summary>
