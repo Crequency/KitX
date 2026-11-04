@@ -1,5 +1,5 @@
 using System.Text.Json;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Contract.Events;
@@ -105,7 +105,7 @@ public class LifecycleTests
             Assert.False(string.IsNullOrEmpty(before));
 
             var rejected = new List<InstanceSpawnRejectedEvent>();
-            manager.BenchEvent += (_, e) =>
+            manager.ToolkitEvent += (_, e) =>
             {
                 if (e is InstanceSpawnRejectedEvent r)
                     lock (rejected) rejected.Add(r);
@@ -220,7 +220,7 @@ public class LifecycleTests
 
             // Observe the actual termination order off the event channel.
             var ended = new List<string>();
-            manager.BenchEvent += (_, e) =>
+            manager.ToolkitEvent += (_, e) =>
             {
                 if (e is InstanceCancelledEvent c)
                     lock (ended) ended.Add(c.InstanceId);

@@ -1,9 +1,9 @@
 using System.Text.Json;
 
-namespace KitX.ToolKit.Bench;
+namespace KitX.ToolKit.Run;
 
 /// <summary>
-/// Result of running a single workflow under the Bench. The scheduler consumes
+/// Result of running a single workflow under a run. The scheduler consumes
 /// <see cref="IsSuccess"/> to decide whether to fan out; it builds the outgoing data
 /// packet itself from the instance-scoped DataStore, not from this record.
 /// </summary>
@@ -12,7 +12,7 @@ internal sealed record WorkflowExecutionResult(string WorkflowId, bool IsSuccess
 /// <summary>
 /// Abstraction over "run one workflow" that the Bench scheduler depends on. Kept behind
 /// an interface so the dataflow scheduler is testable with a scripted fake executor,
-/// while the real <see cref="BenchWorkflowRunner"/> bridges to the stored IR + v6 backend.
+/// while the real <see cref="WorkflowRunnerExecutor"/> bridges to the stored IR + v6 backend.
 /// </summary>
 internal interface IWorkflowExecutor
 {

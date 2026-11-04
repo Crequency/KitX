@@ -1,4 +1,5 @@
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
+using KitX.ToolKit.Compile;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
@@ -21,13 +22,19 @@ public static class SchedulerNodeOverheadBenchmark
     {
         var toolkit = BuildChainToolkit();
 
+        // Compiled once, outside the measured loop: this benchmark measures per-node completion
+        // overhead, and the compile step runs once per mount in production, not once per run.
+        var compiled = ToolkitCompiler.Compile(toolkit, out var diagnostics).Value
+            ?? throw new InvalidOperationException(
+                "benchmark toolkit did not compile: " + string.Join("; ", diagnostics.Select(d => d.Message)));
+
         var rows = new List<string>();
         var measurement = Benchmark.Measure(2, Rounds, () =>
         {
             var store = new DataStore();
             Preload(store, FillerKeyCount);
             var executor = new InstantExecutor(store);
-            using var scheduler = new BenchScheduler(toolkit, executor, store,
+            using var scheduler = new RunScheduler(toolkit, compiled, executor, store,
                 new ToolkitFileStore(Path.GetTempPath()));
 
             var tcs = new TaskCompletionSource();

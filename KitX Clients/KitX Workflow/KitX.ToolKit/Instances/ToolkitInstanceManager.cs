@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Compile;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Events;
@@ -14,7 +14,7 @@ namespace KitX.ToolKit.Instances;
 
 /// <summary>
 /// The instance-model orchestration entry point (ToolKit 实例模型定稿). Replaces the old
-/// single-active trigger-manager semantics (the retired <c>BenchTriggerManager</c>) with a
+/// single-active trigger-manager semantics (the retired <c>the retired single-active manager</c>) with a
 /// multi-instance model — each fired Spawn trigger creates an independent instance:
 /// <list type="bullet">
 ///   <item><b>Mount</b> — subscribes a ToolKit's Spawn triggers (Manual/PluginEvent/Timer),
@@ -85,7 +85,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
     }
 
     /// <summary>Raised for every Bench event (spawn/complete/cancel/run/data/ui).</summary>
-    public event EventHandler<BenchEvent>? BenchEvent;
+    public event EventHandler<ToolkitEvent>? ToolkitEvent;
 
     /// <summary>The ids of currently mounted ToolKits.</summary>
     public IReadOnlyList<string> MountedToolkitIds => _mounted.Keys.ToList();
@@ -107,9 +107,23 @@ internal sealed class ToolkitInstanceManager : IDisposable
     }).ToList();
 
     /// <summary>
-    /// Mounts a ToolKit: validates its config, builds its scheduler, and starts its Spawn
-    /// trigger sources. Idempotent — re-mounting an already-mounted id is a no-op.
+    /// Mounts a ToolKit: validates its config, compiles it, builds its scheduler, and starts its
+    /// Spawn trigger sources. Idempotent — re-mounting an already-mounted id is a no-op.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Compiling here is what makes the compiled form the single source of truth for the graph,
+    /// the trigger table and the resolved file paths. Before this, <see cref="RunScheduler"/>
+    /// fell back to deriving the graph from the config itself, so the compiler was never
+    /// exercised outside its own tests — two implementations of the same rules, only one of
+    /// them running in production.
+    /// </para>
+    /// <para>
+    /// A config that fails to compile throws, exactly like one that fails validation. Both are
+    /// "this toolkit cannot be mounted, and here is why"; inventing a second reporting channel
+    /// for the second half of the same check would split the answer across two places.
+    /// </para>
+    /// </remarks>
     public void Mount(Toolkit toolkit)
     {
         ArgumentNullException.ThrowIfNull(toolkit);
@@ -124,7 +138,10 @@ internal sealed class ToolkitInstanceManager : IDisposable
             throw new InvalidOperationException(
                 "Invalid ToolKit config:\n  " + string.Join("\n  ", validation.Errors));
 
-        var scheduler = new BenchScheduler(toolkit, _executor, _dataStore, _fileStoreFactory(toolkit));
+        var fileStore = _fileStoreFactory(toolkit);
+        var compiled = Compile(toolkit, fileStore);
+
+        var scheduler = new RunScheduler(toolkit, compiled, _executor, _dataStore, fileStore);
         var mounted = new MountedToolkit(toolkit, scheduler);
 
         // Start only Spawn sources. UIEvent/WorkflowCompletion are intra-instance: UIEvent is
@@ -144,6 +161,30 @@ internal sealed class ToolkitInstanceManager : IDisposable
 
         _mounted[id] = mounted;
         Log.Information("[ToolkitInstanceManager] Mounted ToolKit {Toolkit}", id);
+    }
+
+    /// <summary>
+    /// Compiles a toolkit, turning its diagnostics into the exception a caller can act on.
+    /// </summary>
+    /// <remarks>
+    /// Every diagnostic is listed, not just the first: a config that misses three references
+    /// should not need three mount attempts to discover that.
+    /// </remarks>
+    private static CompiledToolkit Compile(Toolkit toolkit, ToolkitFileStore fileStore)
+    {
+        var result = ToolkitCompiler.Compile(
+            toolkit,
+            out var diagnostics,
+            storageRoot: fileStore.Root);
+
+        if (result.Value is not null)
+            return result.Value;
+
+        var errors = diagnostics.Count > 0
+            ? string.Join("\n  ", diagnostics.Select(d => $"[{d.Code}] {d.Message}"))
+            : result.Error?.Message ?? "compilation produced no toolkit";
+
+        throw new InvalidOperationException("ToolKit config failed to compile:\n  " + errors);
     }
 
     /// <summary>
@@ -358,7 +399,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
     }
 
     /// <summary>Ends an instance (cancels all its runs + destroys it). Idempotent.</summary>
-    /// <remarks>Public-face overload: the caller is <see cref="BenchService"/>, i.e. someone asked
+    /// <remarks>Public-face overload: the caller is <see cref="RunService"/>, i.e. someone asked
     /// for this specific instance, so the reason is <see cref="InstanceEndReason.Requested"/>.</remarks>
     public void EndInstance(string instanceId) => EndInstance(instanceId, InstanceEndReason.Requested);
 
@@ -509,7 +550,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         => config is not null
            && string.Equals(config.Event, eventName, StringComparison.OrdinalIgnoreCase);
 
-    private void Raise(BenchEvent e) => BenchEvent?.Invoke(this, e);
+    private void Raise(ToolkitEvent e) => ToolkitEvent?.Invoke(this, e);
 
     private string NewId() => _ids.NewFlowId();
 
@@ -535,7 +576,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// <summary>A mounted ToolKit: its config + scheduler + started Spawn sources.</summary>
     private sealed class MountedToolkit : IDisposable
     {
-        public MountedToolkit(Toolkit toolkit, BenchScheduler scheduler)
+        public MountedToolkit(Toolkit toolkit, RunScheduler scheduler)
         {
             Toolkit = toolkit;
             Scheduler = scheduler;
@@ -555,7 +596,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         }
 
         public Toolkit Toolkit { get; }
-        public BenchScheduler Scheduler { get; }
+        public RunScheduler Scheduler { get; }
 
         /// <summary>
         /// Whether this toolkit's triggers are live. Starts <see cref="LifecycleState.Enabled"/>

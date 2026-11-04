@@ -4,7 +4,7 @@ using KitX.ToolKit.Contract.Declaration;
 using KitX.WorkflowV6.Ir;
 using KitX.WorkflowV6.Serialization;
 
-namespace KitX.ToolKit.Bench;
+namespace KitX.ToolKit.Run;
 
 /// <summary>
 /// File access for a ToolKit's bundled workflows (Bench RFC §10: storage at

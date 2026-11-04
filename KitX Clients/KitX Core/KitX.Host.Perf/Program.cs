@@ -4,10 +4,14 @@ using KitX.Host.Perf.Benchmarks;
 namespace KitX.Host.Perf;
 
 /// <summary>
-/// KitX.Host.Perf 微基准入口：顺序跑五项基准（G1 消息解析链 / G2 Log 集合 / G3 RefreshInstances /
-/// G6 活动日志读取 / G5 ConfigValidator），控制台输出 markdown 结果表，并写入
+/// KitX.Host.Perf 微基准入口：顺序跑四项基准（G1 消息解析链 / G2 Log 集合 / G6 活动日志读取 /
+/// G5 ConfigValidator），控制台输出 markdown 结果表，并写入
 /// <c>results/baseline.md</c>（results 目录不入 git）。
 /// </summary>
+/// <remarks>
+/// G3（RefreshInstances 全量重建）已移除：它测的是 <c>PanelHostViewModel</c>，而面板宿主在
+/// ToolKit 重构 S5.5 中已归档，不再参与编译。
+/// </remarks>
 public static class Program
 {
     private sealed record Result(string Name, List<string> Rows);
@@ -17,9 +21,8 @@ public static class Program
         var results = new List<Result>();
         results.Add(Run("1 · 消息解析链（G1）", MessageParsingBenchmark.Run));
         results.Add(Run("2 · Log 集合追加（G2）", LogCollectionBenchmark.Run));
-        results.Add(Run("3 · RefreshInstances 全量重建（G3）", RefreshInstancesBenchmark.Run));
-        results.Add(Run("4 · 活动日志读取（G6）", ActivityLogBenchmark.Run));
-        results.Add(Run("5 · ConfigValidator 单次校验（G5）", ConfigValidatorBenchmark.Run));
+        results.Add(Run("3 · 活动日志读取（G6）", ActivityLogBenchmark.Run));
+        results.Add(Run("4 · ConfigValidator 单次校验（G5）", ConfigValidatorBenchmark.Run));
 
         var md = BuildMarkdown(results);
         Console.WriteLine();

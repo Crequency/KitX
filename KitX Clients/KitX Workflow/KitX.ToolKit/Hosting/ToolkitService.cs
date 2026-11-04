@@ -4,7 +4,7 @@ using KitX.ToolKit.Instances;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Storage;
 
-namespace KitX.ToolKit.Services;
+namespace KitX.ToolKit.Hosting;
 
 /// <summary>
 /// <see cref="IToolkitService"/> implementation: composes the <see cref="ToolkitStore"/>
@@ -20,14 +20,14 @@ internal sealed class ToolkitService : IToolkitService
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
-        _manager.BenchEvent += (_, e) => BenchEvent?.Invoke(this, e);
+        _manager.ToolkitEvent += (_, e) => ToolkitEvent?.Invoke(this, e);
     }
 
     /// <inheritdoc/>
     public event EventHandler? ToolkitListChanged;
 
     /// <inheritdoc/>
-    public event EventHandler<BenchEvent>? BenchEvent;
+    public event EventHandler<ToolkitEvent>? ToolkitEvent;
 
     /// <inheritdoc/>
     public IReadOnlyList<Toolkit> ListToolkits() => _store.List();

@@ -104,8 +104,7 @@ public class CompileDeterminismTests
 
     /// <summary>
     /// The graph's iteration order must not depend on dictionary insertion or hashing: it is
-    /// ordinally sorted, which is what makes the dual-run comparison in
-    /// <see cref="ToolkitCompilerGraphTests"/> able to compare sequences at all.
+    /// ordinally sorted, so two compiles of the same config compare equal as sequences.
     /// </summary>
     [Fact]
     public void Graph_node_order_is_ordinal_and_repeatable()

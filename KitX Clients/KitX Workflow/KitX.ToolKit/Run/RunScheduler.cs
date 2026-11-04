@@ -10,7 +10,7 @@ using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
 using Serilog;
 
-namespace KitX.ToolKit.Bench;
+namespace KitX.ToolKit.Run;
 
 /// <summary>
 /// The Bench execution engine — a pure dataflow harness. Given a validated
@@ -31,7 +31,7 @@ namespace KitX.ToolKit.Bench;
 /// (<see cref="BoundedNodeScheduler"/>, ADR-0008 D2). Run admission is a separate limit
 /// described on <see cref="ToolKitRunOptions"/>; the scheduler does not conflate them.</para>
 /// </summary>
-internal sealed class BenchScheduler : IDisposable
+internal sealed class RunScheduler : IDisposable
 {
     private readonly Toolkit _toolkit;
     private readonly IWorkflowExecutor _executor;
@@ -43,8 +43,8 @@ internal sealed class BenchScheduler : IDisposable
     /// <summary>The single completion-edge graph (ADR-0002 D3). Immutable for the scheduler's lifetime.</summary>
     private readonly WorkflowGraph _graph;
 
-    /// <summary>The compiled form of the toolkit, when one was supplied. Its graph is authoritative.</summary>
-    private readonly CompiledToolkit? _compiled;
+    /// <summary>The compiled form of the toolkit. Its graph is authoritative.</summary>
+    private readonly CompiledToolkit _compiled;
 
     private readonly ConcurrentDictionary<string, WorkflowRun> _runs = new();
 
@@ -54,29 +54,19 @@ internal sealed class BenchScheduler : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Creates a scheduler over a plain config. The completion graph is derived here with the
-    /// same rules <see cref="ToolkitCompiler"/> uses, so both entries agree.
+    /// Creates a scheduler over an already-compiled toolkit. The graph and the resolved workflow
+    /// files come from the compile step, so the scheduler cannot disagree with what was validated
+    /// (ADR-0002 D1).
     /// </summary>
-    internal BenchScheduler(
+    /// <remarks>
+    /// There is deliberately no overload that derives the graph from the config. One existed
+    /// while the compiled form was being introduced, and it never stopped being the one
+    /// production used — the compiler was exercised only by its own tests. Now the only way to
+    /// build a scheduler is to compile first.
+    /// </remarks>
+    internal RunScheduler(
         Toolkit toolkit,
-        IWorkflowExecutor executor,
-        DataStore dataStore,
-        ToolkitFileStore fileStore,
-        ConfigValidator? validator = null,
-        ToolKitRunOptions? options = null,
-        IIdGenerator? idGenerator = null)
-        : this(toolkit, null, executor, dataStore, fileStore, validator, options, idGenerator)
-    {
-    }
-
-    /// <summary>
-    /// Creates a scheduler over an already-compiled toolkit. Prefer this overload: the graph
-    /// and the resolved workflow files then come from the compile step, so the scheduler cannot
-    /// disagree with what was validated (ADR-0002 D1).
-    /// </summary>
-    internal BenchScheduler(
-        Toolkit toolkit,
-        CompiledToolkit? compiled,
+        CompiledToolkit compiled,
         IWorkflowExecutor executor,
         DataStore dataStore,
         ToolkitFileStore fileStore,
@@ -89,15 +79,15 @@ internal sealed class BenchScheduler : IDisposable
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _fileStore = fileStore ?? throw new ArgumentNullException(nameof(fileStore));
         _validator = validator ?? new ConfigValidator();
-        _compiled = compiled;
+        _compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _ids = idGenerator ?? GuidIdGenerator.Instance;
 
-        _graph = compiled?.Graph ?? BuildGraph(_toolkit);
+        _graph = _compiled.Graph;
         _nodeGate = new BoundedNodeScheduler(options?.MaxConcurrentNodes ?? 0);
     }
 
     /// <summary>Raised when a triggered run settles.</summary>
-    public event EventHandler<BenchRunCompletedEventArgs>? RunCompleted;
+    public event EventHandler<RunCompletedEventArgs>? RunCompleted;
 
     /// <summary>Raised when a run truncates: these nodes will never execute (ADR-0007 D3).</summary>
     public event EventHandler<RunNodesSkippedEventArgs>? RunNodesSkipped;
@@ -164,17 +154,12 @@ internal sealed class BenchScheduler : IDisposable
 
     private Trigger? FindTrigger(string triggerId)
     {
-        if (_compiled is not null)
-        {
-            // The compiled trigger table is a closed type hierarchy, so the bindings still come
-            // from the config — the table is what tells us the trigger exists and is not an edge.
-            foreach (var ct in _compiled.Triggers)
-                if (string.Equals(ct.Id, triggerId, StringComparison.Ordinal))
-                    return _toolkit.Triggers.FirstOrDefault(t => string.Equals(t.Id, triggerId, StringComparison.Ordinal));
-            return null;
-        }
-
-        return _toolkit.Triggers.FirstOrDefault(t => t.Id == triggerId);
+        // The compiled trigger table is a closed type hierarchy, so the bindings still come
+        // from the config — the table is what tells us the trigger exists and is not an edge.
+        foreach (var ct in _compiled.Triggers)
+            if (string.Equals(ct.Id, triggerId, StringComparison.Ordinal))
+                return _toolkit.Triggers.FirstOrDefault(t => string.Equals(t.Id, triggerId, StringComparison.Ordinal));
+        return null;
     }
 
     private WorkflowRun CreateRun(Contract.Initiator initiator, string? namespaceId)
@@ -264,7 +249,7 @@ internal sealed class BenchScheduler : IDisposable
             {
                 run.BeginNode(workflowId);
                 Log.Verbose(
-                    "[BenchScheduler] Node started run={RunId} namespace={Namespace} workflow={Workflow}",
+                    "[RunScheduler] Node started run={RunId} namespace={Namespace} workflow={Workflow}",
                     run.RunId, run.NamespaceId, workflowId);
 
                 await RunNodeAsync(run, workflowId, inputPacket, overrides).ConfigureAwait(false);
@@ -292,7 +277,7 @@ internal sealed class BenchScheduler : IDisposable
             if (file is null)
             {
                 error = $"Workflow '{workflowId}' not found in ToolKit";
-                Log.Error("[BenchScheduler] {Error}; node {Workflow} of run {RunId} failed",
+                Log.Error("[RunScheduler] {Error}; node {Workflow} of run {RunId} failed",
                     error, workflowId, run.RunId);
                 return;
             }
@@ -313,7 +298,7 @@ internal sealed class BenchScheduler : IDisposable
             else
             {
                 error = result.Error ?? "Workflow failed";
-                Log.Error("[BenchScheduler] Node {Workflow} of run {RunId} failed: {Error}",
+                Log.Error("[RunScheduler] Node {Workflow} of run {RunId} failed: {Error}",
                     workflowId, run.RunId, error);
             }
         }
@@ -323,12 +308,12 @@ internal sealed class BenchScheduler : IDisposable
             // it is an expected response to the user's stop button (ADR-0007 D4).
             cancelled = true;
             error = "Cancelled";
-            Log.Debug("[BenchScheduler] Node {Workflow} of run {RunId} cancelled", workflowId, run.RunId);
+            Log.Debug("[RunScheduler] Node {Workflow} of run {RunId} cancelled", workflowId, run.RunId);
         }
         catch (Exception ex)
         {
             error = ex.Message;
-            Log.Error(ex, "[BenchScheduler] Node {Workflow} of run {RunId} threw",
+            Log.Error(ex, "[RunScheduler] Node {Workflow} of run {RunId} threw",
                 workflowId, run.RunId);
         }
         finally
@@ -398,7 +383,7 @@ internal sealed class BenchScheduler : IDisposable
 
     private string? ResolveFile(string workflowId)
     {
-        if (_compiled is not null && _compiled.FindWorkflow(workflowId) is { } compiledWf)
+        if (_compiled.FindWorkflow(workflowId) is { } compiledWf)
             return string.IsNullOrWhiteSpace(compiledWf.File) ? null : compiledWf.File;
 
         var wf = _toolkit.Workflows.FirstOrDefault(w => w.Id == workflowId);
@@ -409,48 +394,18 @@ internal sealed class BenchScheduler : IDisposable
         return string.IsNullOrWhiteSpace(workflowId) ? null : workflowId;
     }
 
-    /// <summary>
-    /// Derives the completion graph from config with the same rules the compiler uses. Kept so
-    /// a scheduler built without a <see cref="CompiledToolkit"/> still agrees with one built
-    /// with it — the S1 double-run comparison pinned that equality down.
-    /// </summary>
-    private static WorkflowGraph BuildGraph(Toolkit toolkit)
-    {
-        var edges = new List<WorkflowEdge>();
-
-        foreach (var trigger in toolkit.Triggers)
-        {
-            if (trigger.Type != TriggerType.WorkflowCompletion)
-                continue;
-
-            var from = trigger.Config?.From;
-            if (string.IsNullOrWhiteSpace(from))
-                continue;
-
-            foreach (var binding in trigger.Bindings)
-            {
-                if (string.IsNullOrWhiteSpace(binding.Workflow))
-                    continue;
-
-                edges.Add(new WorkflowEdge(from, binding.Workflow, binding));
-            }
-        }
-
-        return WorkflowGraph.FromEdges(edges, toolkit.Workflows.Select(w => w.Id));
-    }
-
     /// <summary>Wraps a <see cref="JsonElement"/> as a node by reference, without re-parsing its text.</summary>
     private static JsonNode WrapElement(JsonElement element) => element.ValueKind switch
     {
-        JsonValueKind.Object => JsonObject.Create(element),
-        JsonValueKind.Array => JsonArray.Create(element),
+        JsonValueKind.Object => JsonObject.Create(element)!,
+        JsonValueKind.Array => JsonArray.Create(element)!,
         _ => JsonValue.Create(element)!,
     };
 
     private void ThrowIfDisposed()
     {
         if (_disposed)
-            throw new ObjectDisposedException(nameof(BenchScheduler));
+            throw new ObjectDisposedException(nameof(RunScheduler));
     }
 
     /// <inheritdoc/>

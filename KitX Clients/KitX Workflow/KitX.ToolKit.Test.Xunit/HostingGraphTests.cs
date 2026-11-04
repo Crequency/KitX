@@ -38,15 +38,15 @@ public class HostingGraphTests : IDisposable
     public void Full_Graph_Resolves_Without_Circular_Dependency()
     {
         // Resolving the Bench-page entry points walks the entire ToolKit/V6 chain:
-        // ToolkitService → ToolkitInstanceManager → IWorkflowExecutor → BenchWorkflowRunner
+        // ToolkitService → ToolkitInstanceManager → IWorkflowExecutor → WorkflowRunnerExecutor
         // → WorkflowRunner → StructuredRoslynBackend → IExecutionGlobalsFactory.
         // A cycle anywhere on that path throws InvalidOperationException here.
         var toolkitService = _provider.GetRequiredService<IToolkitService>();
-        var benchService = _provider.GetRequiredService<IBenchService>();
+        var RunService = _provider.GetRequiredService<IRunService>();
         var fileStore = _provider.GetRequiredService<IToolkitWorkflowFileStore>();
 
         Assert.NotNull(toolkitService);
-        Assert.NotNull(benchService);
+        Assert.NotNull(RunService);
         Assert.NotNull(fileStore);
     }
 

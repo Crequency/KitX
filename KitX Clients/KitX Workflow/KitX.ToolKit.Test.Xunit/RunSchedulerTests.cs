@@ -1,4 +1,4 @@
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
@@ -7,7 +7,7 @@ using Xunit;
 namespace KitX.ToolKit.Test.Xunit;
 
 [Trait("Category", "Unit")]
-public class BenchSchedulerTests
+public class RunSchedulerTests
 {
     private static Toolkit ToolkitWith(params Trigger[] triggers)
         => new()
@@ -22,12 +22,13 @@ public class BenchSchedulerTests
             Triggers = [.. triggers],
         };
 
-    private static (BenchScheduler Scheduler, RecordingExecutor Executor) Build(
+    private static (RunScheduler Scheduler, RecordingExecutor Executor) Build(
         Toolkit toolkit, bool writeOutput = true)
     {
         var store = new DataStore();
         var executor = new RecordingExecutor(store, writeOutput: writeOutput);
-        var scheduler = new BenchScheduler(toolkit, executor, store, new ToolkitFileStore(Path.GetTempPath()));
+        var scheduler = new RunScheduler(
+            toolkit, CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
         return (scheduler, executor);
     }
 
@@ -97,7 +98,8 @@ public class BenchSchedulerTests
                 Bindings = [new() { Workflow = "C" }] },
             new Trigger { Id = "e2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
                 Bindings = [new() { Workflow = "C" }] });
-        using var scheduler = new BenchScheduler(toolkit, executor, store, new ToolkitFileStore(Path.GetTempPath()));
+        using var scheduler = new RunScheduler(
+            toolkit, CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };

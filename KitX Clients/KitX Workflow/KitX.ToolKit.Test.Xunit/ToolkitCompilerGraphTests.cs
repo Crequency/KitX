@@ -7,16 +7,20 @@ using Xunit;
 namespace KitX.ToolKit.Test.Xunit;
 
 /// <summary>
-/// S1 acceptance: the compiled graph must agree with what the old scheduler derived from
-/// config, item by item (ADR-0009 D3 "dual-run comparison").
+/// The compiled graph is the only graph: the scheduler no longer derives one of its own.
 /// </summary>
 /// <remarks>
-/// <para>The old <c>BenchScheduler.BuildGraph</c> accumulated one successor entry per
-/// <i>binding</i> and counted predecessors per binding; the old <c>ConfigValidator</c>
-/// de-duplicated by <c>To</c>. Those two readings are only equivalent when no
-/// <c>(From, To)</c> pair repeats — which is exactly what ADR-0002 D5 now rejects at compile
-/// time. These tests pin that down: for configs the compiler accepts, the two readings agree,
-/// and for configs with a repeated pair the compiler refuses rather than picking a winner.</para>
+/// <para>These tests used to include a "dual-run comparison" that rebuilt the graph the way
+/// <c>RunScheduler.BuildGraph</c> did and compared the two item by item (ADR-0009 D3). That
+/// comparison is gone along with the second implementation — an equality check against a copy
+/// transcribed from code that no longer exists measures whether the transcription is accurate,
+/// not whether the compiler is right.</para>
+///
+/// <para>What survives is the reason the comparison found anything at all: the old scheduler
+/// accumulated one successor entry per <i>binding</i>, the old <c>ConfigValidator</c>
+/// de-duplicated by <c>To</c>, and the two readings only agreed when no <c>(From, To)</c> pair
+/// repeated. ADR-0002 D5 now rejects that shape outright, so the tests below check the compiler
+/// refuses it rather than picking a winner.</para>
 /// </remarks>
 public class ToolkitCompilerGraphTests
 {
@@ -42,79 +46,6 @@ public class ToolkitCompilerGraphTests
             ],
             Triggers = [.. triggers],
         };
-
-    /// <summary>
-    /// The dual-run comparison: build the graph the way <c>BenchScheduler.BuildGraph</c> did
-    /// and compare against the compiled one.
-    /// </summary>
-    [Fact]
-    public void Compiled_graph_matches_legacy_scheduler_derivation()
-    {
-        var config = Config(
-            Completion("e1", "a", "b", "c"),
-            Completion("e2", "b", "c"));
-
-        var result = ToolkitCompiler.Compile(config, out var diagnostics);
-
-        Assert.True(result.Succeeded, string.Join("; ", diagnostics.Select(d => d.Message)));
-        var graph = result.Value!.Graph;
-
-        // Legacy derivation, transcribed from BenchScheduler.BuildGraph before the rewrite:
-        // one successor entry per binding, predecessor counted per binding.
-        var legacySucc = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        var legacyPred = new Dictionary<string, int>(StringComparer.Ordinal);
-
-        foreach (var trigger in config.Triggers.Where(t => t.Type == TriggerType.WorkflowCompletion))
-        {
-            var from = trigger.Config?.From;
-            if (string.IsNullOrWhiteSpace(from))
-                continue;
-
-            foreach (var binding in trigger.Bindings.Where(b => !string.IsNullOrWhiteSpace(b.Workflow)))
-            {
-                if (!legacySucc.TryGetValue(from, out var list))
-                    legacySucc[from] = list = [];
-                list.Add(binding.Workflow);
-                legacyPred[binding.Workflow] = legacyPred.TryGetValue(binding.Workflow, out var c) ? c + 1 : 1;
-            }
-        }
-
-        // Node sets equal.
-        var legacyNodes = legacySucc.Keys
-            .Concat(legacyPred.Keys)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(x => x, StringComparer.Ordinal)
-            .ToList();
-
-        Assert.Equal(legacyNodes, graph.Nodes);
-
-        // Edge sets equal, as (From, To) pairs.
-        var legacyEdges = legacySucc
-            .SelectMany(kv => kv.Value.Select(to => (From: kv.Key, To: to)))
-            .OrderBy(e => e.From, StringComparer.Ordinal)
-            .ThenBy(e => e.To, StringComparer.Ordinal)
-            .ToList();
-
-        var compiledEdges = graph.Edges
-            .Select(e => (e.From, e.To))
-            .OrderBy(e => e.From, StringComparer.Ordinal)
-            .ThenBy(e => e.To, StringComparer.Ordinal)
-            .ToList();
-
-        Assert.Equal(legacyEdges, compiledEdges);
-
-        // Successor lists equal, per node.
-        foreach (var node in legacySucc.Keys)
-        {
-            var expected = legacySucc[node].OrderBy(x => x, StringComparer.Ordinal).ToList();
-            var actual = graph.Successors(node).Select(e => e.To).OrderBy(x => x, StringComparer.Ordinal).ToList();
-            Assert.Equal(expected, actual);
-        }
-
-        // Predecessor counts equal ("join arity").
-        foreach (var node in legacyPred.Keys)
-            Assert.Equal(legacyPred[node], graph.PredecessorCount(node));
-    }
 
     /// <summary>
     /// The old validator de-duplicated by <c>To</c>; the old scheduler counted per binding.

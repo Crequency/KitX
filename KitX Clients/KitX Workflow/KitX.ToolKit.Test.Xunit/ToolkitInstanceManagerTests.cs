@@ -1,5 +1,5 @@
 using System.Text.Json;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
@@ -126,7 +126,7 @@ public class ToolkitInstanceManagerTests
                 Bindings = [new() { Workflow = "wf", Params = new() { ["x"] = "$payload.x" } }] }));
 
         var completed = new TaskCompletionSource();
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is Contract.Events.InstanceCompletedEvent)
                 completed.TrySetResult();
@@ -169,7 +169,7 @@ public class ToolkitInstanceManagerTests
 
         var completed = new TaskCompletionSource();
         int remaining = 2;
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is Contract.Events.InstanceCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
                 completed.TrySetResult();
@@ -305,7 +305,7 @@ public class ToolkitInstanceManagerTests
 
         var started = new TaskCompletionSource<RunStartedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         var completed = new TaskCompletionSource<RunCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is RunStartedEvent s)
                 started.TrySetResult(s);
@@ -383,7 +383,7 @@ public class ToolkitInstanceManagerTests
             _ => new ToolkitFileStore(Path.GetTempPath()));
 
         var rejected = new TaskCompletionSource<InstanceSpawnRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceSpawnRejectedEvent r)
                 rejected.TrySetResult(r);
@@ -429,7 +429,7 @@ public class ToolkitInstanceManagerTests
             _ => new ToolkitFileStore(Path.GetTempPath()));
 
         int rejected = 0;
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceSpawnRejectedEvent)
                 Interlocked.Increment(ref rejected);
@@ -491,7 +491,7 @@ public class ToolkitInstanceManagerTests
         var first = new TaskCompletionSource();
         var second = new TaskCompletionSource();
         int count = 0;
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceCompletedEvent)
             {
@@ -540,7 +540,7 @@ public class ToolkitInstanceManagerTests
             _ => new ToolkitFileStore(Path.GetTempPath()));
 
         var first = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceCompletedEvent c)
                 first.TrySetResult(c);
@@ -557,7 +557,7 @@ public class ToolkitInstanceManagerTests
 
             // Reset for the UIEvent phase.
             var second = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-            manager.BenchEvent += (_, e) =>
+            manager.ToolkitEvent += (_, e) =>
             {
                 if (e is InstanceCompletedEvent c)
                     second.TrySetResult(c);
@@ -590,7 +590,7 @@ public class ToolkitInstanceManagerTests
             _ => new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceCompletedEvent)
                 completed.TrySetResult();
@@ -770,7 +770,7 @@ public class ToolkitInstanceManagerTests
             new ToolkitInstanceManagerOptions { CompletedInstanceCap = 3 });
 
         var cancelled = new List<string>();
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceCancelledEvent c)
                 lock (cancelled) cancelled.Add(c.InstanceId);
@@ -862,7 +862,7 @@ public class ToolkitInstanceManagerTests
             _ => new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new System.Collections.Concurrent.ConcurrentQueue<InstanceCompletedEvent>();
-        manager.BenchEvent += (_, e) =>
+        manager.ToolkitEvent += (_, e) =>
         {
             if (e is InstanceCompletedEvent c)
                 completed.Enqueue(c);

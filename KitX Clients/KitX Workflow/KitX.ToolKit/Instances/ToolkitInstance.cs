@@ -180,7 +180,7 @@ internal sealed class ToolkitInstance : IDisposable
         }
     }
 
-    private void OnRunFinished(object? sender, Bench.BenchRunCompletedEventArgs e)
+    private void OnRunFinished(object? sender, RunCompletedEventArgs e)
     {
         bool fire;
 

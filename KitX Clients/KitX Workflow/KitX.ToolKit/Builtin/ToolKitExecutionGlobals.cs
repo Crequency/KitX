@@ -9,21 +9,21 @@ namespace KitX.ToolKit.Builtin;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ToolKitExecutionGlobals — the host-side ExecutionGlobals subclass that carries
-// the ToolKit first-class builtins (the Toolkit* data plane + BenchIn/BenchOut).
+// the ToolKit first-class builtins (the Toolkit* data plane + FlowIn/FlowOut).
 //
 // This is the payload of the external ExecutionGlobals extension seam
 // (IExecutionGlobalsFactory, registered by AddKitXWorkflowV6 with TryAdd and
 // overridden here by AddKitXToolKit). The generated structured C# declares
 // `public sealed class G : ToolKitExecutionGlobals`, so workflow calls to
-// ToolkitSet / ToolkitAppend / BenchIn &c. resolve directly to these typed
+// ToolkitSet / ToolkitAppend / FlowIn &c. resolve directly to these typed
 // methods — the reserved-name plugin bridge (BuiltinDataStorePlugin routed by
 // PluginHostAdapter) is retired.
 //
 // Each method inlines what the retired plugin's Invoke dispatch did, but with
 // strong-typed signatures and direct service access (no PluginHost.Call).
 //
-// BenchIn/BenchOut are instance-scoped: <see cref="InstanceId"/> (from the run
-// context) gates BenchOut to a no-op when the workflow runs outside a ToolKit
+// FlowIn/FlowOut are instance-scoped: <see cref="InstanceId"/> (from the run
+// context) gates FlowOut to a no-op when the workflow runs outside a ToolKit
 // instance, matching the historical safe-default convention. The Toolkit data
 // plane is not scoped that way — it resolves the owning instance's key table and
 // throws when there is none, because a workflow that writes keys without a
@@ -114,14 +114,14 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     /// <summary>
     /// The workflow's instance-scoped DataStore output namespace (Bench scheduler
     /// injected), read from <see cref="ExecutionGlobals.RunContext"/>. Null outside a
-    /// ToolKit instance; <see cref="BenchOut"/> no-ops then.
+    /// ToolKit instance; <see cref="FlowOut"/> no-ops then.
     /// </summary>
     public string? OutputNamespace => (RunContext as HostRunContext)?.OutputNamespace;
 
     /// <summary>
     /// The raw run-time constant overrides (resolved trigger binding params included),
     /// read from <see cref="ExecutionGlobals.RunContext"/>. Null outside a ToolKit
-    /// instance; <see cref="BenchIn"/> returns its default then.
+    /// instance; <see cref="FlowIn"/> returns its default then.
     /// </summary>
     public IReadOnlyDictionary<string, string?>? RawOverrides => (RunContext as HostRunContext)?.RawOverrides;
 
@@ -236,11 +236,11 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     // ── Bench I/O pair ──
 
     /// <summary>
-    /// BenchIn(name, default) → reads a trigger binding param resolved for this run
+    /// FlowIn(name, default) → reads a trigger binding param resolved for this run
     /// (from <see cref="RawOverrides"/>). Returns <paramref name="defaultValue"/> when
     /// the name is absent or the workflow runs outside a ToolKit instance.
     /// </summary>
-    public string BenchIn(string name, string? defaultValue = null)
+    public string FlowIn(string name, string? defaultValue = null)
     {
         if (RawOverrides is not null && RawOverrides.TryGetValue(name, out var value) && value is not null)
             return value;
@@ -248,11 +248,11 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     }
 
     /// <summary>
-    /// BenchOut(key, value) → publishes a value on this workflow's completion-edge output
+    /// FlowOut(key, value) → publishes a value on this workflow's completion-edge output
     /// packet (writes <c>{outputNamespace}/{key}</c> into the DataStore). No-op when the
     /// workflow runs outside a ToolKit instance (no output namespace).
     /// </summary>
-    public void BenchOut(string key, object? value)
+    public void FlowOut(string key, object? value)
     {
         if (string.IsNullOrEmpty(OutputNamespace))
             return;

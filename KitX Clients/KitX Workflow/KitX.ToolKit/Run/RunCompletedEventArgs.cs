@@ -1,17 +1,17 @@
-namespace KitX.ToolKit.Bench;
+namespace KitX.ToolKit.Run;
 
 /// <summary>
 /// Raised by <see cref="Run.WorkflowRun.Completed"/> (surfaced via
-/// <see cref="BenchScheduler.RunCompleted"/>) when a triggered run settles.
+/// <see cref="RunScheduler.RunCompleted"/>) when a triggered run settles.
 /// </summary>
 /// <remarks>
 /// The verdict is a <see cref="Contract.RunOutcome"/> rather than a bool because "cancelled"
 /// and "failed" are different answers (ADR-0009 acceptance #2). A bool would force every
 /// caller to decide privately which one cancellation maps to — and they would disagree.
 /// </remarks>
-internal sealed class BenchRunCompletedEventArgs : EventArgs
+internal sealed class RunCompletedEventArgs : EventArgs
 {
-    public BenchRunCompletedEventArgs(
+    public RunCompletedEventArgs(
         string instanceId,
         Contract.RunOutcome outcome,
         int failedCount = 0,
@@ -58,9 +58,9 @@ internal sealed class BenchRunCompletedEventArgs : EventArgs
 /// executing (run-monitor primitive; the instance manager projects it to a
 /// <c>RunStartedEvent</c> on the Bench contract).
 /// </summary>
-internal sealed class BenchNodeStartedEventArgs : EventArgs
+internal sealed class NodeStartedEventArgs : EventArgs
 {
-    public BenchNodeStartedEventArgs(string instanceId, string workflowId)
+    public NodeStartedEventArgs(string instanceId, string workflowId)
     {
         InstanceId = instanceId;
         WorkflowId = workflowId;
@@ -78,9 +78,9 @@ internal sealed class BenchNodeStartedEventArgs : EventArgs
 /// finishes (run-monitor primitive; the instance manager projects it to a
 /// <c>RunCompletedEvent</c> on the Bench contract).
 /// </summary>
-internal sealed class BenchNodeCompletedEventArgs : EventArgs
+internal sealed class NodeCompletedEventArgs : EventArgs
 {
-    public BenchNodeCompletedEventArgs(string instanceId, string workflowId, bool succeeded, string? error)
+    public NodeCompletedEventArgs(string instanceId, string workflowId, bool succeeded, string? error)
     {
         InstanceId = instanceId;
         WorkflowId = workflowId;

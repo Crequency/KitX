@@ -3,7 +3,7 @@ using KitX.WorkflowV6.Serialization;
 using KitX.WorkflowV6.Services;
 using Serilog;
 
-namespace KitX.ToolKit.Bench;
+namespace KitX.ToolKit.Run;
 
 /// <summary>
 /// The real <see cref="IWorkflowExecutor"/>: reads the resolved <c>.kcs</c>, deserializes
@@ -12,11 +12,11 @@ namespace KitX.ToolKit.Bench;
 /// <see cref="CancellationTokenSource"/>, enabling the multi-instance concurrency the Bench
 /// requires (RFC §4.5) without modifying v6.
 /// </summary>
-internal sealed class BenchWorkflowRunner : IWorkflowExecutor
+internal sealed class WorkflowRunnerExecutor : IWorkflowExecutor
 {
     private readonly WorkflowRunner _runner;
 
-    public BenchWorkflowRunner(WorkflowRunner runner)
+    public WorkflowRunnerExecutor(WorkflowRunner runner)
     {
         _runner = runner ?? throw new ArgumentNullException(nameof(runner));
     }
@@ -41,18 +41,18 @@ internal sealed class BenchWorkflowRunner : IWorkflowExecutor
                 return new WorkflowExecutionResult(workflowId, false, $"Workflow '{workflowId}' IR invalid", null);
 
             var result = await _runner.ExecuteAsync(ir, null, overrides, ct);
-            Log.Information("[BenchWorkflowRunner] Workflow {Id} finished: succeeded={Succeeded} error={Error}",
+            Log.Information("[WorkflowRunnerExecutor] Workflow {Id} finished: succeeded={Succeeded} error={Error}",
                 workflowId, result.IsSuccess, result.ErrorMessage);
             return new WorkflowExecutionResult(workflowId, result.IsSuccess, result.ErrorMessage, null);
         }
         catch (OperationCanceledException)
         {
-            Log.Information("[BenchWorkflowRunner] Workflow {Id} cancelled", workflowId);
+            Log.Information("[WorkflowRunnerExecutor] Workflow {Id} cancelled", workflowId);
             return new WorkflowExecutionResult(workflowId, false, "Cancelled", null);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "[BenchWorkflowRunner] Workflow {Id} failed", workflowId);
+            Log.Error(ex, "[WorkflowRunnerExecutor] Workflow {Id} failed", workflowId);
             return new WorkflowExecutionResult(workflowId, false, ex.Message, null);
         }
     }

@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Bench I/O full-chain integration test: trigger params → BenchIn → BenchOut →
-// completion-edge packet → downstream BenchIn.
+// Bench I/O full-chain integration test: trigger params → FlowIn → FlowOut →
+// completion-edge packet → downstream FlowIn.
 //
 // Exercises the real stack with no fakes on the workflow path: KS → IR → .kcs on
-// disk → BenchScheduler → BenchWorkflowRunner → WorkflowRunner →
-// StructuredRoslynBackend → generated code → ToolKitExecutionGlobals.BenchIn/Out →
+// disk → RunScheduler → WorkflowRunnerExecutor → WorkflowRunner →
+// StructuredRoslynBackend → generated code → ToolKitExecutionGlobals.FlowIn/Out →
 // DataStore. The ToolKit first-class builtins are provided by the
 // ToolKitExecutionGlobalsFactory (the factory the host DI registers), so no
 // reserved-name plugin bridge is involved.
@@ -16,7 +16,7 @@
 
 using System.Text.Json;
 using KitX.Core.Contract.Workflow;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Data;
@@ -36,15 +36,15 @@ using Xunit;
 namespace KitX.ToolKit.Test.Xunit;
 
 [Trait("Category", "Integration")]
-public sealed class BenchIoIntegrationTests : IDisposable
+public sealed class FlowIoIntegrationTests : IDisposable
 {
     private readonly string _root;
     private readonly DataStore _dataStore = new();
     private const string TkId = "tkbenchio0000000001";
 
-    public BenchIoIntegrationTests()
+    public FlowIoIntegrationTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), "kitx-benchio-" + Guid.NewGuid().ToString("N"));
+        _root = Path.Combine(Path.GetTempPath(), "kitx-flowio-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_root, TkId));
     }
 
@@ -54,16 +54,16 @@ public sealed class BenchIoIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Trigger_Params_Flow_Through_BenchIn_Out_To_Downstream()
+    public async Task Trigger_Params_Flow_Through_FlowIn_Out_To_Downstream()
     {
         // A: reads the trigger param, publishes "hello <param>" on its output packet.
         // B: reads A's output key via the completion edge, echoes it into its own
         //    namespace (observable in the DataStore).
         var (registry, lens) = MakeRegistry();
         WriteKcs("a.kcs", lens.Parse(
-            "BenchIn(\"userInput\", \"?\") > StringConcat(\"hello \", _) > BenchOut(\"greeting\", _)\n", []));
+            "FlowIn(\"userInput\", \"?\") > StringConcat(\"hello \", _) > FlowOut(\"greeting\", _)\n", []));
         WriteKcs("b.kcs", lens.Parse(
-            "BenchIn(\"got\", \"none\") > BenchOut(\"echo\", _)\n", []));
+            "FlowIn(\"got\", \"none\") > FlowOut(\"echo\", _)\n", []));
 
         var toolkit = new Toolkit
         {
@@ -91,7 +91,9 @@ public sealed class BenchIoIntegrationTests : IDisposable
 
         var factory = CreateFactory();
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
-        using var scheduler = new BenchScheduler(toolkit, new BenchWorkflowRunner(runner), _dataStore, new ToolkitFileStore(_root));
+        var fileStore = new ToolkitFileStore(_root);
+        using var scheduler = new RunScheduler(
+            toolkit, CompileFixtures.Compile(toolkit, _root), new WorkflowRunnerExecutor(runner), _dataStore, fileStore);
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };

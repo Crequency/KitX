@@ -1,19 +1,19 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Instances;
 
-namespace KitX.ToolKit.Services;
+namespace KitX.ToolKit.Hosting;
 
 /// <summary>
-/// <see cref="IBenchService"/> implementation: delegates spawn/cancel to the
+/// <see cref="IRunService"/> implementation: delegates spawn/cancel to the
 /// <see cref="ToolkitInstanceManager"/>. (The <c>Validate</c> member was retired in the D3
 /// cleanup — validation is a pure <see cref="Validation.ConfigValidator"/> concern that
 /// callers invoke directly, so it no longer lives on the facade.)
 /// </summary>
-internal sealed class BenchService : IBenchService
+internal sealed class RunService : IRunService
 {
     private readonly ToolkitInstanceManager _manager;
 
-    public BenchService(ToolkitInstanceManager manager)
+    public RunService(ToolkitInstanceManager manager)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
     }

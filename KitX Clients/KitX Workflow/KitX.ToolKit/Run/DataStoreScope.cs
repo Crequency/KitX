@@ -1,4 +1,4 @@
-namespace KitX.ToolKit.Bench;
+namespace KitX.ToolKit.Run;
 
 /// <summary>
 /// Instance-scoped DataStore key derivation (Bench RFC §6.4). Concurrent trigger paths
@@ -15,7 +15,7 @@ internal static class DataStoreScope
 {
     /// <summary>Reserved constant name injected into started workflows carrying their output namespace.
     /// Canonical name lives in WorkflowV6 (<see cref="KitX.WorkflowV6.ToolKitConstants.OutputNamespace"/>)
-    /// so the engine-side <c>BenchOut</c> builtin and the scheduler injection cannot drift apart.</summary>
+    /// so the engine-side <c>FlowOut</c> builtin and the scheduler injection cannot drift apart.</summary>
     public const string OutputNamespaceConstant = KitX.WorkflowV6.ToolKitConstants.OutputNamespace;
 
     /// <summary>Builds a workflow's instance-scoped namespace: <c>{toolkitId}/{instanceId}/wf/{workflowId}</c>.</summary>

@@ -47,8 +47,8 @@ internal static class BuiltinRegistry
         typeof(ToolkitAppendFunction),
 
         // Harness I/O — the Bench completion-edge protocol.
-        typeof(BenchInFunction),
-        typeof(BenchOutFunction),
+        typeof(FlowInFunction),
+        typeof(FlowOutFunction),
     ];
 
     /// <summary>

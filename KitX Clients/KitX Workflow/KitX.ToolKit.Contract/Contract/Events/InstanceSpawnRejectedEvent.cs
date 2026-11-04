@@ -7,4 +7,4 @@ namespace KitX.ToolKit.Contract.Events;
 /// </summary>
 public sealed record InstanceSpawnRejectedEvent(
     string EventId, string ToolkitId, string InstanceId, DateTimeOffset Timestamp,
-    string TriggerId, string Reason) : BenchEvent(EventId, ToolkitId, InstanceId, Timestamp);
+    string TriggerId, string Reason) : ToolkitEvent(EventId, ToolkitId, InstanceId, Timestamp);

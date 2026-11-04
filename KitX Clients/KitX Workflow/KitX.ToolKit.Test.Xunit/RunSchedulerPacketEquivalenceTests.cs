@@ -18,7 +18,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
@@ -27,10 +27,10 @@ using Xunit;
 namespace KitX.ToolKit.Test.Xunit;
 
 [Trait("Category", "Unit")]
-public class BenchSchedulerPacketEquivalenceTests
+public class RunSchedulerPacketEquivalenceTests
 {
     // ── new (F5) implementations under test ──────────────────────────────────
-    // Mirrors BenchScheduler.WrapElement: a JsonValue.Create(JsonElement) alone only
+    // Mirrors RunScheduler.WrapElement: a JsonValue.Create(JsonElement) alone only
     // accepts primitives, so objects/arrays dispatch to their reference factories.
     private static JsonNode WrapElement(JsonElement element) => element.ValueKind switch
     {
@@ -376,7 +376,8 @@ public class BenchSchedulerPacketEquivalenceTests
     {
         var store = new DataStore();
         var executor = new KeyedExecutor(store);
-        var scheduler = new BenchScheduler(ScenarioToolkit(), executor, store,
+        var toolkit = ScenarioToolkit();
+        var scheduler = new RunScheduler(toolkit, CompileFixtures.Compile(toolkit), executor, store,
             new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();

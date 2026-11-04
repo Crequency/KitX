@@ -40,7 +40,7 @@ public class ToolKitBuiltinFunctionTests
         {
             "ToolkitSet", "ToolkitGet", "ToolkitWait", "ToolkitWaitAny",
             "ToolkitRemove", "ToolkitKeys", "ToolkitContains", "ToolkitAppend",
-            "BenchIn", "BenchOut",
+            "FlowIn", "FlowOut",
         })
         {
             Assert.True(registry.Contains(name), $"Expected builtin '{name}' to be registered.");

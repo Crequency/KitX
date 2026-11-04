@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
 
 namespace KitX.ToolKit.Test.Xunit;

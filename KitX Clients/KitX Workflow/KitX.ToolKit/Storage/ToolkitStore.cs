@@ -1,6 +1,6 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Serialization;
 using KitX.ToolKit.Time;
 using KitX.WorkflowV6.Serialization;
 
@@ -9,7 +9,7 @@ namespace KitX.ToolKit.Storage;
 /// <summary>
 /// Persistent storage for ToolKit configs (ToolKit 前后端分离 GUI 稿 §9.1). Layout:
 /// <c>{root}/{id}/toolkit.json</c> (the config truth) + <c>{root}/{id}/workflows/*.kcs</c>
-/// (bundled workflows, resolved by <c>Bench.ToolkitFileStore</c>).
+/// (bundled workflows, resolved by <c>ToolkitFileStore</c>).
 ///
 /// <para>An id is a GUID assigned on create; <see cref="ToolkitMeta.Name"/> is display-only.
 /// <c>Update</c>/<c>Delete</c> are rejected for mounted ToolKits (the caller enforces this

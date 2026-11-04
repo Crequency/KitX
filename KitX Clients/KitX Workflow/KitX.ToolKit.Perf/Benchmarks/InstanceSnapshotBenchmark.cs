@@ -1,4 +1,4 @@
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
@@ -40,7 +40,7 @@ public static class InstanceSnapshotBenchmark
             // Spawn 7-8 instances per toolkit to reach ~300, then wait for all Completed.
             var completed = new TaskCompletionSource();
             var done = 0;
-            manager.BenchEvent += (_, e) =>
+            manager.ToolkitEvent += (_, e) =>
             {
                 if (e is InstanceCompletedEvent && Interlocked.Increment(ref done) == TargetInstances)
                     completed.TrySetResult();

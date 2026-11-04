@@ -6,7 +6,7 @@ namespace KitX.ToolKit.Contract;
 ///
 /// <para><b>Cancelled is not Failed.</b> Keeping them as distinct members is the whole
 /// point of this enum — the original implementation stringified cancellation
-/// (<c>Bench/BenchScheduler.cs:242-246</c>, the <c>OperationCanceledException</c> branch),
+/// (<c>Bench/RunScheduler.cs:242-246</c>, the <c>OperationCanceledException</c> branch),
 /// which made "the user stopped it" indistinguishable from "it broke".</para>
 ///
 /// <para><see cref="Failed"/> MUST carry a reason and a stable error code

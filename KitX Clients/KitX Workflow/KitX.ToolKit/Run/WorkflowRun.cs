@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract;
 
 namespace KitX.ToolKit.Run;
@@ -115,13 +115,13 @@ internal sealed class WorkflowRun : IDisposable
     public CancellationToken Token => _cts.Token;
 
     /// <summary>Raised when a node's body actually starts, i.e. after it obtained a slot.</summary>
-    public event EventHandler<BenchNodeStartedEventArgs>? NodeStarted;
+    public event EventHandler<NodeStartedEventArgs>? NodeStarted;
 
     /// <summary>
     /// Raised when a node settled after running. Skipped nodes do not raise this — they never
     /// ran, and reporting them here would claim a body executed (see <see cref="NodesSkipped"/>).
     /// </summary>
-    public event EventHandler<BenchNodeCompletedEventArgs>? NodeCompleted;
+    public event EventHandler<NodeCompletedEventArgs>? NodeCompleted;
 
     /// <summary>
     /// Raised once per truncation wave with the nodes that will never run because an upstream
@@ -131,7 +131,7 @@ internal sealed class WorkflowRun : IDisposable
     public event EventHandler<RunNodesSkippedEventArgs>? NodesSkipped;
 
     /// <summary>Raised exactly once, when the run has nothing left in flight or queued.</summary>
-    public event EventHandler<BenchRunCompletedEventArgs>? Completed;
+    public event EventHandler<RunCompletedEventArgs>? Completed;
 
     /// <summary>Number of node bodies currently in flight.</summary>
     public int ActiveRuns
@@ -249,7 +249,7 @@ internal sealed class WorkflowRun : IDisposable
             _running++;
         }
 
-        NodeStarted?.Invoke(this, new BenchNodeStartedEventArgs(RunId, workflowId));
+        NodeStarted?.Invoke(this, new NodeStartedEventArgs(RunId, workflowId));
     }
 
     /// <summary>
@@ -347,7 +347,7 @@ internal sealed class WorkflowRun : IDisposable
             fire = TrySettle();
         }
 
-        NodeCompleted?.Invoke(this, new BenchNodeCompletedEventArgs(RunId, workflowId, succeeded, error));
+        NodeCompleted?.Invoke(this, new NodeCompletedEventArgs(RunId, workflowId, succeeded, error));
 
         if (skipped is { Count: > 0 })
             NodesSkipped?.Invoke(this, new RunNodesSkippedEventArgs(RunId, skipped, workflowId));
@@ -495,7 +495,7 @@ internal sealed class WorkflowRun : IDisposable
     }
 
     /// <summary>Builds the completion payload. Caller holds the lock.</summary>
-    private BenchRunCompletedEventArgs BuildCompletedArgs() =>
+    private RunCompletedEventArgs BuildCompletedArgs() =>
         new(RunId, DecideOutcome(), _failed, _completed, _skipped, DecideFailure());
 
     /// <summary>Merges two object packets; <paramref name="second"/> wins on duplicate names.</summary>

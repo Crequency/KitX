@@ -1,10 +1,10 @@
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Builtin.Functions;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
-using KitX.ToolKit.Services;
+using KitX.ToolKit.Hosting;
 using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
 using KitX.WorkflowV6.Backend.Runtime;
@@ -18,7 +18,7 @@ namespace KitX.ToolKit.Hosting;
 /// the trigger-source registry (with the default built-in source set), the default
 /// workflow executor, the instance-model <see cref="ToolkitInstanceManager"/>, the
 /// <see cref="ToolkitStore"/> and the contract services (<see cref="IToolkitService"/> /
-/// <see cref="IBenchService"/>).
+/// <see cref="IRunService"/>).
 ///
 /// <para>The Dashboard references this library and calls <c>AddKitXToolKit()</c> (after
 /// <c>AddKitXWorkflowV6()</c>), then drives ToolKits through the contract services.</para>
@@ -79,7 +79,7 @@ public static class ServiceCollectionExtensions
         // Default workflow executor (deserializes IR + runs via WorkflowV6's WorkflowRunner,
         // which AddKitXWorkflowV6 registers — resolve lazily so registration order does not matter).
         services.AddSingleton<IWorkflowExecutor>(sp =>
-            new BenchWorkflowRunner(sp.GetRequiredService<KitX.WorkflowV6.Services.WorkflowRunner>()));
+            new WorkflowRunnerExecutor(sp.GetRequiredService<KitX.WorkflowV6.Services.WorkflowRunner>()));
 
         // Persistent ToolKit storage.
         services.AddSingleton(sp => new ToolkitStore(toolkitStorageRoot, sp.GetRequiredService<ConfigValidator>()));
@@ -111,7 +111,7 @@ public static class ServiceCollectionExtensions
 
         // Contract services — the frontend depends only on these.
         services.AddSingleton<IToolkitService, ToolkitService>();
-        services.AddSingleton<IBenchService, BenchService>();
+        services.AddSingleton<IRunService, RunService>();
 
         return services;
     }

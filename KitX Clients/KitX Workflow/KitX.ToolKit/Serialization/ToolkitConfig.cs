@@ -1,7 +1,7 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 
-namespace KitX.ToolKit.Models;
+namespace KitX.ToolKit.Serialization;
 
 /// <summary>
 /// Convenience facade over config serialization + validation. The config document

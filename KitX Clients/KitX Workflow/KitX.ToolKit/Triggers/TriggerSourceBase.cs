@@ -43,7 +43,7 @@ internal abstract class TriggerSourceBase : ITriggerSource
     /// <see langword="null"/> → JSON null; an existing <c>JsonElement</c>/<c>JsonDocument</c>
     /// is cloned (so the caller's buffer stays owned by the caller); anything else is
     /// serialized via the default options. Single shared implementation — also used by
-    /// <see cref="Bench.BenchScheduler"/> for its trigger-payload plumbing.
+    /// <see cref="Run.RunScheduler"/> for its trigger-payload plumbing.
     /// </summary>
     internal static JsonElement NormalizePayload(object? payload) => payload switch
     {

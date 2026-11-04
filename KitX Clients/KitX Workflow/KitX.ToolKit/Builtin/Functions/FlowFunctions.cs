@@ -10,16 +10,16 @@ using KitX.WorkflowV6.Builtin;
 //
 // The runtime lives on ExecutionGlobals.Bench (WorkflowV6), fed by the
 // ToolKitRunContext the WorkflowRunner extracts from the constant overrides:
-//   • BenchIn(name, default) — reads a resolved trigger binding param.
-//   • BenchOut(key, value)   — publishes a completion-edge output key.
+//   • FlowIn(name, default) — reads a resolved trigger binding param.
+//   • FlowOut(key, value)   — publishes a completion-edge output key.
 // Dispatch is by method-name convention (descriptor Name == ExecutionGlobals
 // method), same as the Ui*/DataStore* families.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>BenchIn(name, default?) → reads a trigger binding param for this run.</summary>
-internal sealed class BenchInFunction : IBuiltinFunction
+/// <summary>FlowIn(name, default?) → reads a trigger binding param for this run.</summary>
+internal sealed class FlowInFunction : IBuiltinFunction
 {
-    public string Name => "BenchIn";
+    public string Name => "FlowIn";
     public FunctionKind Kind => FunctionKind.Pure;
 
     public IReadOnlyList<PortSpec> InputPorts =>
@@ -34,10 +34,10 @@ internal sealed class BenchInFunction : IBuiltinFunction
     ];
 }
 
-/// <summary>BenchOut(key, value) → publishes a value on the workflow's completion-edge output packet.</summary>
-internal sealed class BenchOutFunction : IBuiltinFunction
+/// <summary>FlowOut(key, value) → publishes a value on the workflow's completion-edge output packet.</summary>
+internal sealed class FlowOutFunction : IBuiltinFunction
 {
-    public string Name => "BenchOut";
+    public string Name => "FlowOut";
     public FunctionKind Kind => FunctionKind.SideEffect;
 
     public IReadOnlyList<PortSpec> InputPorts =>

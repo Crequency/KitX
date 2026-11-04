@@ -1,7 +1,7 @@
 using System.Text.Json;
 using KitX.ToolKit.Contract.Declaration;
 
-namespace KitX.ToolKit.Models;
+namespace KitX.ToolKit.Serialization;
 
 /// <summary>
 /// System.Text.Json (de)serialization for <see cref="Toolkit"/> config documents.

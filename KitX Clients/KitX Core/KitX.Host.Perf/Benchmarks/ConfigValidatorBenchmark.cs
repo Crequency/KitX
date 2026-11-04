@@ -68,20 +68,12 @@ public static class ConfigValidatorBenchmark
             });
         }
 
-        var controls = new List<UiControl>();
-        for (var i = 0; i < 20; i++)
-        {
-            controls.Add(new UiControl { Type = "Button", Id = $"btn-{i}" });
-            controls.Add(new UiControl { Type = "Input", Id = $"input-{i}", Bind = $"panel/input-{i}/value" });
-        }
-
         return new Toolkit
         {
             Id = "perf-toolkit",
             Meta = new ToolkitMeta { Name = "Perf Toolkit", Version = "1.0.0" },
             Workflows = workflows,
             Triggers = triggers,
-            UiPanel = new UiPanel { Controls = controls },
         };
     }
 }

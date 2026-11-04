@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Data;
@@ -60,7 +60,7 @@ public class RunOutcomeTests
             Bindings = [new TriggerBinding { Workflow = to }],
         };
 
-    private static (BenchScheduler Scheduler, DelegatingExecutor Executor) Build(
+    private static (RunScheduler Scheduler, DelegatingExecutor Executor) Build(
         Toolkit toolkit,
         Func<string, int, CancellationToken, Task<WorkflowExecutionResult>> execute,
         int maxConcurrentNodes = 0)
@@ -68,8 +68,9 @@ public class RunOutcomeTests
         var store = new DataStore();
         var executor = new DelegatingExecutor(execute);
         var options = new ToolKitRunOptions { MaxConcurrentNodes = maxConcurrentNodes };
-        var scheduler = new BenchScheduler(
-            toolkit, executor, store, new ToolkitFileStore(Path.GetTempPath()), options: options);
+        var scheduler = new RunScheduler(
+            toolkit, CompileFixtures.Compile(toolkit), executor, store,
+            new ToolkitFileStore(Path.GetTempPath()), options: options);
         return (scheduler, executor);
     }
 
@@ -130,7 +131,7 @@ public class RunOutcomeTests
             new WorkflowExecutionResult(id, id != "A", id == "A" ? "injected failure" : null, null)));
 
         var skippedWaves = new ConcurrentQueue<RunNodesSkippedEventArgs>();
-        var completed = new TaskCompletionSource<BenchRunCompletedEventArgs>();
+        var completed = new TaskCompletionSource<RunCompletedEventArgs>();
         scheduler.RunCompleted += (_, e) => completed.TrySetResult(e);
 
         var run = scheduler.StartRun("manual", onRunCreated: r =>
@@ -181,7 +182,7 @@ public class RunOutcomeTests
         });
 
         var completedCount = 0;
-        var completed = new TaskCompletionSource<BenchRunCompletedEventArgs>();
+        var completed = new TaskCompletionSource<RunCompletedEventArgs>();
         var run = scheduler.StartRun("manual", onRunCreated: r =>
             r.Completed += (_, e) =>
             {
@@ -303,7 +304,7 @@ public class RunOutcomeTests
             return new WorkflowExecutionResult(id, true, null, null);
         }, maxConcurrentNodes: 2);
 
-        var completed = new TaskCompletionSource<BenchRunCompletedEventArgs>();
+        var completed = new TaskCompletionSource<RunCompletedEventArgs>();
         scheduler.RunCompleted += (_, e) => completed.TrySetResult(e);
         var run = scheduler.StartRun("manual");
 
@@ -340,7 +341,7 @@ public class RunOutcomeTests
             return new WorkflowExecutionResult(id, true, null, null);
         });
 
-        var completed = new TaskCompletionSource<BenchRunCompletedEventArgs>();
+        var completed = new TaskCompletionSource<RunCompletedEventArgs>();
         scheduler.RunCompleted += (_, e) => completed.TrySetResult(e);
         var run = scheduler.StartRun("manual");
 

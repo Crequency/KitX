@@ -61,5 +61,5 @@ public interface IToolkitService
     event EventHandler? ToolkitListChanged;
 
     /// <summary>Raised for every event on the flow channel (spawn/complete/cancel/run/data/ui).</summary>
-    event EventHandler<BenchEvent>? BenchEvent;
+    event EventHandler<ToolkitEvent>? ToolkitEvent;
 }

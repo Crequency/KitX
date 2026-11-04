@@ -10,7 +10,7 @@ namespace KitX.ToolKit.Contract;
 /// <c>ConfigValidator</c> concern that callers (e.g. the Dashboard editor) invoke directly,
 /// so it does not belong on the orchestration facade.</para>
 /// </summary>
-public interface IBenchService
+public interface IRunService
 {
     /// <summary>
     /// Spawns a new instance of a mounted ToolKit from a Spawn trigger. Returns the new

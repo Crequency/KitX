@@ -3,7 +3,7 @@ namespace KitX.ToolKit.Contract.Declaration;
 /// <summary>
 /// A reference to a workflow bundled inside a ToolKit (Bench RFC §7.2 <c>Workflows[]</c>).
 /// The <see cref="File"/> path is relative to the ToolKit storage root; at runtime the
-/// resolved <c>.kcs</c> is loaded through <c>KitX.ToolKit.Bench.ToolkitFileStore</c>.
+/// resolved <c>.kcs</c> is loaded through <c>KitX.ToolKit.Run.ToolkitFileStore</c>.
 /// </summary>
 public sealed class ToolkitWorkflow
 {

@@ -1,22 +1,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Bench I/O builtin tests (BenchIn / BenchOut).
+// Bench I/O builtin tests (FlowIn / FlowOut).
 //
 // The runtime methods now live on KitX.ToolKit's ToolKitExecutionGlobals (reached
 // through the ToolKitExecutionGlobalsFactory), so these tests drive the real
 // ToolKit stack: generated code derives from ToolKitExecutionGlobals and its
-// BenchIn/BenchOut write straight to a real DataStore — no reserved-name plugin
+// FlowIn/FlowOut write straight to a real DataStore — no reserved-name plugin
 // bridge involved.
 //
 // Covered:
-//   • BenchIn reads a resolved trigger-binding param from the raw overrides
+//   • FlowIn reads a resolved trigger-binding param from the raw overrides
 //     (E2E through WorkflowRunner → backend → generated code).
-//   • BenchIn falls back to its default when absent / running outside a ToolKit.
-//   • BenchOut writes {outputNamespace}/{key} into the DataStore; no-op without
+//   • FlowIn falls back to its default when absent / running outside a ToolKit.
+//   • FlowOut writes {outputNamespace}/{key} into the DataStore; no-op without
 //     a namespace.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using KitX.Core.Contract.Workflow;
-using KitX.ToolKit.Bench;
+using KitX.ToolKit.Run;
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
@@ -34,10 +34,10 @@ using Xunit;
 namespace KitX.WorkflowV6.Test.Xunit;
 
 [Trait("Category", "Integration")]
-public class BenchIoTests : IClassFixture<WorkflowTestFixture>
+public class FlowIoTests : IClassFixture<WorkflowTestFixture>
 {
     private readonly WorkflowTestFixture _fixture;
-    public BenchIoTests(WorkflowTestFixture fixture) => _fixture = fixture;
+    public FlowIoTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
     /// <summary>Builds the WorkflowV6 registry (with local parse-time Bench descriptors)
     /// plus the ToolKit execution stack the generated G derives from.</summary>
@@ -76,10 +76,10 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public async Task BenchIn_Reads_Trigger_Param_E2E()
+    public async Task FlowIn_Reads_Trigger_Param_E2E()
     {
         var (registry, lens, _, factory) = MakeStack();
-        var ir = lens.Parse("BenchIn(\"userInput\", \"hi\") > Print\n", []);
+        var ir = lens.Parse("FlowIn(\"userInput\", \"hi\") > Print\n", []);
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
         var overrides = new Dictionary<string, string?> { ["userInput"] = "hello bench" };
 
@@ -90,10 +90,10 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public async Task BenchIn_Falls_Back_To_Default_E2E()
+    public async Task FlowIn_Falls_Back_To_Default_E2E()
     {
         var (registry, lens, _, factory) = MakeStack();
-        var ir = lens.Parse("BenchIn(\"missing\", \"fallback\") > Print\n", []);
+        var ir = lens.Parse("FlowIn(\"missing\", \"fallback\") > Print\n", []);
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
 
         // Outside a ToolKit instance there are no overrides at all.
@@ -104,20 +104,20 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public void BenchIn_Treats_Null_Override_As_Default()
+    public void FlowIn_Treats_Null_Override_As_Default()
     {
         var store = new DataStore();
         var g = MakeGlobals(store);
         g.RunContext = new HostRunContext(null, null, new Dictionary<string, string?> { ["k"] = null });
-        Assert.Equal("d", g.BenchIn("k", "d"));
-        Assert.Equal("", g.BenchIn("k"));
+        Assert.Equal("d", g.FlowIn("k", "d"));
+        Assert.Equal("", g.FlowIn("k"));
     }
 
     [Fact]
-    public async Task BenchOut_Writes_Namespaced_Key_E2E()
+    public async Task FlowOut_Writes_Namespaced_Key_E2E()
     {
         var (registry, lens, store, factory) = MakeStack();
-        var ir = lens.Parse("BenchOut(\"reply\", \"hi\")\n", []);
+        var ir = lens.Parse("FlowOut(\"reply\", \"hi\")\n", []);
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
         var overrides = new Dictionary<string, string?>
         {
@@ -131,10 +131,10 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public async Task BenchOut_NoOps_Without_Namespace_E2E()
+    public async Task FlowOut_NoOps_Without_Namespace_E2E()
     {
         var (registry, lens, store, factory) = MakeStack();
-        var ir = lens.Parse("BenchOut(\"reply\", \"hi\")\n", []);
+        var ir = lens.Parse("FlowOut(\"reply\", \"hi\")\n", []);
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
 
         var result = await runner.ExecuteAsync(ir, null, null, CancellationToken.None);
@@ -144,12 +144,12 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public void BenchOut_Writes_Direct_With_Namespace()
+    public void FlowOut_Writes_Direct_With_Namespace()
     {
         var store = new DataStore();
         var g = MakeGlobals(store);
         g.RunContext = new HostRunContext(null, "ns", null);
-        g.BenchOut("k", "v");
+        g.FlowOut("k", "v");
         Assert.Equal("v", store.Get("ns/k")?.GetString());
     }
 
@@ -157,7 +157,7 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
 
     private sealed class TestBenchInFunction : IBuiltinFunction
     {
-        public string Name => "BenchIn";
+        public string Name => "FlowIn";
         public FunctionKind Kind => FunctionKind.Pure;
         public IReadOnlyList<PortSpec> InputPorts => [new("Name", PinType.String, 20), new("Default", PinType.String, 35)];
         public IReadOnlyList<PortSpec> OutputPorts => [new("Return", PinType.String, 50)];
@@ -165,7 +165,7 @@ public class BenchIoTests : IClassFixture<WorkflowTestFixture>
 
     private sealed class TestBenchOutFunction : IBuiltinFunction
     {
-        public string Name => "BenchOut";
+        public string Name => "FlowOut";
         public FunctionKind Kind => FunctionKind.SideEffect;
         public IReadOnlyList<PortSpec> InputPorts => [new("Key", PinType.String, 20), new("Value", PinType.Any, 35)];
         public IReadOnlyList<PortSpec> OutputPorts => [];

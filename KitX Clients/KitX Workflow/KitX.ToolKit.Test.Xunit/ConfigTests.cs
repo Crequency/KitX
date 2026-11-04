@@ -1,4 +1,4 @@
-using KitX.ToolKit.Models;
+using KitX.ToolKit.Serialization;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Contract;
 using Xunit;
