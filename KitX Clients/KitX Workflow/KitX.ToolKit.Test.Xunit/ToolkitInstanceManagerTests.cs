@@ -153,7 +153,7 @@ public class ToolkitInstanceManagerTests
             Assert.Equal("dev-1", call.Overrides[InitiatorConstants.DeviceName]);
 
             var snap = manager.Instances.Single();
-            Assert.Equal(InstanceStatus.Completed, snap.Status);
+            Assert.False(snap.IsRunning);
             Assert.Equal("fp-abc", snap.Initiator.DeviceId);
         }
         finally
@@ -566,15 +566,15 @@ public class ToolkitInstanceManagerTests
 
             // Spawn run finishes → instance Completed.
             await Task.WhenAny(first.Task, Task.Delay(5000));
-            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+            Assert.False(manager.Instances.Single().IsRunning);
 
             // UIEvent on the Completed instance → back to Running (C6 re-transition).
             manager.RaiseControlEvent(id!, "btn", "Click", null);
-            Assert.Equal(InstanceStatus.Running, manager.Instances.Single().Status);
+            Assert.True(manager.Instances.Single().IsRunning);
 
             // The UIEvent chain finishes → back to Completed.
             await Task.WhenAny(second.Task, Task.Delay(5000));
-            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+            Assert.False(manager.Instances.Single().IsRunning);
         }
         finally
         {
@@ -623,7 +623,7 @@ public class ToolkitInstanceManagerTests
             manager.RaiseControlEvent(id!, "btn", "Click", null);
             var uiResult = await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(uiResult.Succeeded); // aggregate: a run failed → Succeeded=false
-            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+            Assert.False(manager.Instances.Single().IsRunning);
         }
         finally
         {
@@ -659,17 +659,17 @@ public class ToolkitInstanceManagerTests
             var id = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(id);
             // Spawn run is held in flight → instance Running.
-            Assert.Equal(InstanceStatus.Running, manager.Instances.Single().Status);
+            Assert.True(manager.Instances.Single().IsRunning);
 
             // Start a UIEvent chain while the Spawn run is still active.
             manager.RaiseControlEvent(id!, "btn", "Click", null);
             // Both runs in flight → still Running, never prematurely Completed.
-            Assert.Equal(InstanceStatus.Running, manager.Instances.Single().Status);
+            Assert.True(manager.Instances.Single().IsRunning);
 
             // Release both → both complete → instance Completed.
             hold.TrySetResult();
             await Task.WhenAny(completed.Task, Task.Delay(5000));
-            Assert.Equal(InstanceStatus.Completed, manager.Instances.Single().Status);
+            Assert.False(manager.Instances.Single().IsRunning);
         }
         finally
         {
@@ -750,7 +750,7 @@ public class ToolkitInstanceManagerTests
 
             // Wait for the run to finish (the executor writes a wf key automatically) before
             // asserting the cleanup, so the write cannot race the removal.
-            await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && s.Status == InstanceStatus.Completed));
+            await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && !s.IsRunning));
 
             // Extra wf keys + a panel key under the instance's namespace.
             var wf1 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf1");
@@ -796,7 +796,7 @@ public class ToolkitInstanceManagerTests
             Assert.NotNull(a);
             Assert.NotNull(b);
 
-            await WaitUntilAsync(() => manager.Instances.All(s => s.Status == InstanceStatus.Completed));
+            await WaitUntilAsync(() => manager.Instances.All(s => !s.IsRunning));
 
             var wfA = DataStoreScope.WorkflowNamespace("tk-demo", a!, "wf");
             var wfB = DataStoreScope.WorkflowNamespace("tk-demo", b!, "wf");
@@ -845,7 +845,7 @@ public class ToolkitInstanceManagerTests
                 ids.Add(id!);
                 // Await this instance completing before the next spawn, so the cap evicts the
                 // oldest deterministically (each completion runs the eviction check).
-                await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && s.Status == InstanceStatus.Completed));
+                await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && !s.IsRunning));
             }
 
             // Oldest two (ids[0], ids[1]) were evicted; the three newest remain.
@@ -888,9 +888,9 @@ public class ToolkitInstanceManagerTests
             // synchronous but execution is not, so waiting on Count == 5 can observe
             // instances that are still Running — that race is what made this test flaky.
             await WaitUntilAsync(() => manager.Instances.Count == 5
-                && manager.Instances.All(s => s.Status == InstanceStatus.Completed));
+                && manager.Instances.All(s => !s.IsRunning));
             Assert.Equal(5, manager.Instances.Count);
-            Assert.All(manager.Instances, s => Assert.Equal(InstanceStatus.Completed, s.Status));
+            Assert.All(manager.Instances, s => Assert.False(s.IsRunning));
         }
         finally
         {
@@ -951,8 +951,8 @@ public class ToolkitInstanceManagerTests
 
             // The two instances are distinct and both report a settled success.
             Assert.NotEqual(ok, second);
-            Assert.All(manager.Instances, s => Assert.Equal(InstanceStatus.Completed, s.Status));
-            Assert.All(manager.Instances, s => Assert.True(s.Status == InstanceStatus.Completed));
+            Assert.All(manager.Instances, s => Assert.False(s.IsRunning));
+            Assert.All(manager.Instances, s => Assert.Equal(RunOutcome.Succeeded, s.Outcome));
         }
         finally
         {

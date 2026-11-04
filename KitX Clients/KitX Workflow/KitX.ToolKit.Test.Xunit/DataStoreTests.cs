@@ -216,4 +216,46 @@ public class DataStoreTests
         Assert.All(events, e => Assert.True(e.Removed));
     }
 
+    [Fact]
+    public void Prefix_With_One_Complete_Segment_Spans_Every_Bucket_Of_That_Namespace()
+    {
+        // Regression: the inverted index buckets keys by their first two segments, so a prefix of
+        // "t1/" maps to a bucket literally named "t1/" which never exists. RemoveByPrefix and
+        // KeysByPrefix both returned nothing, which is how a whole-toolkit wipe silently no-ops.
+        var store = Create();
+        store.Set("t1/status", 1);
+        store.Set("t1/workdir", 2);
+        store.Set("t1/panel/i1/p/log", 3);
+        store.Set("t10/status", 4);   // same textual prefix, different toolkit
+        store.Set("t2/status", 5);
+
+        Assert.Equal(3, store.KeysByPrefix("t1/").Count);
+
+        var removed = store.RemoveByPrefix("t1/");
+
+        Assert.Equal(3, removed);
+        Assert.False(store.Contains("t1/status"));
+        Assert.False(store.Contains("t1/workdir"));
+        Assert.False(store.Contains("t1/panel/i1/p/log"));
+
+        // "t10/" is a different namespace and must survive a "t1/" sweep.
+        Assert.True(store.Contains("t10/status"));
+        Assert.True(store.Contains("t2/status"));
+    }
+
+    [Fact]
+    public void Prefix_With_Two_Complete_Segments_Still_Pins_One_Bucket()
+    {
+        // The fast path every pre-S4 caller used must keep working.
+        var store = Create();
+        store.Set("t1/i1/wf/a", 1);
+        store.Set("t1/i1/panel/b", 2);
+        store.Set("t1/i2/wf/c", 3);
+
+        Assert.Equal(1, store.KeysByPrefix("t1/i1/wf").Count);
+        Assert.Equal(2, store.RemoveByPrefix("t1/i1"));
+
+        Assert.True(store.Contains("t1/i2/wf/c"));
+    }
+
 }
