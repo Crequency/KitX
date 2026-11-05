@@ -4,14 +4,13 @@ using KitX.ToolKit.Data;
 namespace KitX.ToolKit.Perf.Fakes;
 
 /// <summary>
-/// A minimal <see cref="IWorkflowExecutor"/> that returns success immediately and simulates
-/// the <c>BenchOut</c> builtin's real workload: reads the injected output namespace and
-/// writes 5 ~1KB values into the shared <see cref="DataStore"/> under that namespace.
+/// A minimal <see cref="IWorkflowExecutor"/> that returns success immediately and simulates a
+/// node producing output: it publishes 5 ~1KB values, which Q48 delivers to the successor as
+/// the output packet instead of writing them into the shared <see cref="DataStore"/>.
 /// </summary>
 internal sealed class InstantExecutor : IWorkflowExecutor
 {
-    private static readonly string OneKbValue =
-        "{\"payload\":\"" + new string('x', 1000) + "\"}";
+    private static readonly string OneKbValue = new('x', 1000);
 
     private readonly DataStore _store;
     private readonly bool _writeOutput;
@@ -28,15 +27,15 @@ internal sealed class InstantExecutor : IWorkflowExecutor
         IReadOnlyDictionary<string, string?>? overrides,
         CancellationToken ct)
     {
-        if (_writeOutput &&
-            overrides is not null &&
-            overrides.TryGetValue(DataStoreScope.OutputNamespaceConstant, out var ns) &&
-            !string.IsNullOrEmpty(ns))
+        System.Text.Json.JsonElement? payload = null;
+        if (_writeOutput)
         {
+            var obj = new System.Text.Json.Nodes.JsonObject();
             for (var i = 0; i < 5; i++)
-                _store.Set(DataStoreScope.ScopedKey(ns, $"out{i}"), OneKbValue);
+                obj[$"out{i}"] = OneKbValue;
+            payload = System.Text.Json.JsonSerializer.SerializeToElement(obj);
         }
 
-        return Task.FromResult(new WorkflowExecutionResult(workflowId, true, null, null));
+        return Task.FromResult(new WorkflowExecutionResult(workflowId, true, null, payload));
     }
 }

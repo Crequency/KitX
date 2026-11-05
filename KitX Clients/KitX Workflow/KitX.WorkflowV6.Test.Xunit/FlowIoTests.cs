@@ -11,8 +11,9 @@
 //   • FlowIn reads a resolved trigger-binding param from the raw overrides
 //     (E2E through WorkflowRunner → backend → generated code).
 //   • FlowIn falls back to its default when absent / running outside a ToolKit.
-//   • FlowOut writes {outputNamespace}/{key} into the DataStore; no-op without
-//     a namespace.
+//   • FlowOut collects published values on the globals instance and returns them
+//     through the execution result (Q48); it touches no store and is silent
+//     without a host.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System.Text.Json;
@@ -109,7 +110,7 @@ public class FlowIoTests : IClassFixture<WorkflowTestFixture>
     {
         var store = new DataStore();
         var g = MakeGlobals(store);
-        g.RunContext = new HostRunContext(null, null, new Dictionary<string, string?> { ["k"] = null });
+        g.RunContext = new HostRunContext(null, new Dictionary<string, string?> { ["k"] = null });
         Assert.Equal("d", g.FlowIn("k", "d"));
         Assert.Equal("", g.FlowIn("k"));
     }
@@ -155,7 +156,7 @@ public class FlowIoTests : IClassFixture<WorkflowTestFixture>
     {
         var store = new DataStore();
         var g = MakeGlobals(store);
-        g.RunContext = new HostRunContext(null, "ns", null);
+        g.RunContext = new HostRunContext(null, null);
 
         g.FlowOut("k", "v");
         g.FlowOut("n", 42);
@@ -168,7 +169,7 @@ public class FlowIoTests : IClassFixture<WorkflowTestFixture>
         // Two different runs never see each other's publications: the payload lives on the
         // instance, not in a process-wide store.
         var other = MakeGlobals(store);
-        other.RunContext = new HostRunContext(null, "ns", null);
+        other.RunContext = new HostRunContext(null, null);
         Assert.False(other.PublishedPayload().TryGetProperty("k", out _));
 
         Assert.Empty(store.Keys());

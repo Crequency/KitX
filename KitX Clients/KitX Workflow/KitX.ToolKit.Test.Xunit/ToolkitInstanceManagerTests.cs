@@ -199,10 +199,10 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             await Task.WhenAny(completed.Task, Task.Delay(5000));
 
-            var namespaces = executor.Calls
-                .Select(c => c.Overrides[DataStoreScope.OutputNamespaceConstant]!)
+            var instanceIds = executor.Calls
+                .Select(c => c.Overrides[InstanceConstants.InstanceId]!)
                 .ToList();
-            Assert.Equal(2, namespaces.Distinct().Count());
+            Assert.Equal(2, instanceIds.Distinct().Count());
             Assert.Equal(2, manager.Instances.Count);
         }
         finally
@@ -684,10 +684,10 @@ public class ToolkitInstanceManagerTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => manager.Mount(tk));
     }
 
-    // ── memory governance: wf-key cleanup on EndInstance / Unmount ──
+    // ── memory governance: instance teardown must not touch toolkit-level keys ──
 
     [Fact]
-    public async Task EndInstance_Clears_Wf_Keys_But_Retains_Toolkit_Keys()
+    public async Task EndInstance_Leaves_Toolkit_Level_Keys_Alone()
     {
         var store = new DataStore();
         var manager = Build(store, new RecordingExecutor(store));
@@ -702,16 +702,10 @@ public class ToolkitInstanceManagerTests : IDisposable
             var id = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(id);
 
-            // Wait for the run to finish (the executor writes a wf key automatically) before
-            // asserting the cleanup, so the write cannot race the removal.
             await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && !s.IsRunning));
 
-            // Extra wf keys + a toolkit-level declared key, which is not workflow-scoped.
-            var wf1 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf1");
-            var wf2 = DataStoreScope.WorkflowNamespace("tk-demo", id!, "wf2");
+            // A toolkit-level declared key, which is not workflow-scoped and must survive.
             var toolkitKey = "tk-demo/sessionPath";
-            store.Set(wf1, new { a = 1 });
-            store.Set(wf2, new { b = 2 });
             store.Set(toolkitKey, "hello");
 
             lock (removed) removed.Clear(); // observe only the EndInstance-driven removals
@@ -719,15 +713,8 @@ public class ToolkitInstanceManagerTests : IDisposable
             manager.EndInstance(id!);
 
             Assert.Empty(manager.Instances);
-            Assert.False(store.Contains(wf1));
-            Assert.False(store.Contains(wf2));
             Assert.True(store.Contains(toolkitKey)); // toolkit-level keys outlive the instance
-            lock (removed)
-            {
-                Assert.Contains(wf1, removed);
-                Assert.Contains(wf2, removed);
-                Assert.DoesNotContain(toolkitKey, removed);
-            }
+            lock (removed) Assert.DoesNotContain(toolkitKey, removed);
         }
         finally
         {
@@ -736,7 +723,7 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Unmount_Cleans_All_Instances_Wf_Keys()
+    public async Task Unmount_Cleans_Toolkit_Keys()
     {
         var store = new DataStore();
         var manager = Build(store, new RecordingExecutor(store));
@@ -752,16 +739,18 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             await WaitUntilAsync(() => manager.Instances.All(s => !s.IsRunning));
 
-            var wfA = DataStoreScope.WorkflowNamespace("tk-demo", a!, "wf");
-            var wfB = DataStoreScope.WorkflowNamespace("tk-demo", b!, "wf");
-            store.Set(DataStoreScope.ScopedKey(wfA, "extra"), 1);
-            store.Set(DataStoreScope.ScopedKey(wfB, "extra"), 2);
+            // Declared toolkit keys — the only keys the data plane still has. Unmount drops the
+            // scheduler but keeps the data, so these must survive; Uninstall is what clears them.
+            var keyA = "tk-demo/sessionPath";
+            var keyB = "tk-demo/status";
+            store.Set(keyA, "a");
+            store.Set(keyB, "b");
 
             manager.Unmount("tk-demo");
 
             Assert.Empty(manager.Instances);
-            Assert.False(store.Contains(wfA));
-            Assert.False(store.Contains(wfB));
+            Assert.True(store.Contains(keyA));
+            Assert.True(store.Contains(keyB));
             Assert.False(manager.IsMounted("tk-demo"));
         }
         finally

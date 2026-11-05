@@ -52,18 +52,15 @@ public sealed class WorkflowRunner : IWorkflowRunner
 
         // The Bench execution context (if any) is carried in the constant overrides;
         // extract it and hand it to the backend so it can inject the ExecutionGlobals
-        // properties for the host-side ToolKit builtins (Ui* family, BenchIn/BenchOut).
+        // properties for the host-side ToolKit builtins.
         // All fields are null when running outside a ToolKit instance.
         string? instanceId = null;
-        string? outputNamespace = null;
         if (constantOverrides is not null)
         {
             if (constantOverrides.TryGetValue(ToolKitConstants.InstanceId, out var id))
                 instanceId = id;
-            if (constantOverrides.TryGetValue(ToolKitConstants.OutputNamespace, out var ns))
-                outputNamespace = ns;
         }
-        var toolkit = new Backend.HostRunContext(instanceId, outputNamespace, constantOverrides);
+        var toolkit = new Backend.HostRunContext(instanceId, constantOverrides);
 
         return _backend.ExecuteAsync(applied, lowering, ct, debugger, toolkit);
     }

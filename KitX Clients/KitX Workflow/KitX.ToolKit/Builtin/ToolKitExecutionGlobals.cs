@@ -112,13 +112,6 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     public string? InstanceId => (RunContext as HostRunContext)?.InstanceId;
 
     /// <summary>
-    /// The workflow's instance-scoped DataStore output namespace (Bench scheduler
-    /// injected), read from <see cref="ExecutionGlobals.RunContext"/>. Null outside a
-    /// ToolKit instance; <see cref="FlowOut"/> no-ops then.
-    /// </summary>
-    public string? OutputNamespace => (RunContext as HostRunContext)?.OutputNamespace;
-
-    /// <summary>
     /// The raw run-time constant overrides (resolved trigger binding params included),
     /// read from <see cref="ExecutionGlobals.RunContext"/>. Null outside a ToolKit
     /// instance; <see cref="FlowIn"/> returns its default then.

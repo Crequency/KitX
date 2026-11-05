@@ -58,7 +58,7 @@ public class KeyRoleEnforcementTests : IDisposable
         var globals = new ToolKitExecutionGlobals(
             store, manager, new DataStoreOptions())
         {
-            RunContext = new HostRunContext(instanceId, null, null),
+            RunContext = new HostRunContext(instanceId, null),
         };
 
         return (globals, store, manager);
@@ -207,11 +207,11 @@ public class KeyRoleEnforcementTests : IDisposable
             var options = new DataStoreOptions();
             var ga = new ToolKitExecutionGlobals(store, manager, options)
             {
-                RunContext = new HostRunContext(ia, null, null),
+                RunContext = new HostRunContext(ia, null),
             };
             var gb = new ToolKitExecutionGlobals(store, manager, options)
             {
-                RunContext = new HostRunContext(ib, null, null),
+                RunContext = new HostRunContext(ib, null),
             };
 
             ga.ToolkitSet("status", "from-alpha");

@@ -56,11 +56,10 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
         await runner.ExecuteAsync(ir, null, null, CancellationToken.None);
 
-        // The context is always handed over (raw overrides feed BenchIn), but the
-        // instance-scoped fields degrade to null outside a ToolKit instance.
+        // The context is always handed over (raw overrides feed FlowIn), but the
+        // instance-scoped field degrades to null outside a ToolKit instance.
         Assert.NotNull(backend.LastContext);
         Assert.Null(backend.LastContext.InstanceId);
-        Assert.Null(backend.LastContext.OutputNamespace);
         Assert.Null(backend.LastContext.RawOverrides);
     }
 
@@ -73,14 +72,12 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
         var overrides = new Dictionary<string, string?>
         {
             [ToolKitConstants.InstanceId] = "inst-9",
-            [ToolKitConstants.OutputNamespace] = "tk/inst-9/wf/wf-a",
             ["userInput"] = "hello",
         };
 
         await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
 
         Assert.Equal("inst-9", backend.LastContext!.InstanceId);
-        Assert.Equal("tk/inst-9/wf/wf-a", backend.LastContext.OutputNamespace);
         Assert.Same(overrides, backend.LastContext.RawOverrides);
     }
 

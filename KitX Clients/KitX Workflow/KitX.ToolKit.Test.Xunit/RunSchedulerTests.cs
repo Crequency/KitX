@@ -1,5 +1,6 @@
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
+using KitX.ToolKit.Instances;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 using Xunit;
@@ -297,8 +298,8 @@ public class RunSchedulerTests
     [Fact]
     public async Task Concurrent_Fires_Are_Instance_Scoped()
     {
-        // Two manual fires fan out to the same workflow; each run must get its own
-        // instance-scoped output namespace (distinct DataStore keys).
+        // Two manual fires fan out to the same workflow; each run must carry its own
+        // instance id in the constant overrides, which is what scopes the key table.
         var (scheduler, executor) = Build(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] }));
 
@@ -310,12 +311,12 @@ public class RunSchedulerTests
         scheduler.StartRun("manual");
         await AwaitAsync(completed.Task);
 
-        var namespaces = executor.Calls
-            .Where(c => c.Overrides.TryGetValue(DataStoreScope.OutputNamespaceConstant, out _))
-            .Select(c => c.Overrides[DataStoreScope.OutputNamespaceConstant]!)
+        var instanceIds = executor.Calls
+            .Where(c => c.Overrides.ContainsKey(InstanceConstants.InstanceId))
+            .Select(c => c.Overrides[InstanceConstants.InstanceId]!)
             .ToList();
 
-        Assert.Equal(2, namespaces.Count);
-        Assert.Equal(2, namespaces.Distinct().Count());
+        Assert.Equal(2, instanceIds.Count);
+        Assert.Equal(2, instanceIds.Distinct().Count());
     }
 }

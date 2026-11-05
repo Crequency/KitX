@@ -552,15 +552,10 @@ internal sealed class ToolkitInstanceManager : IDisposable
         instance.NotifyCancelled();
         instance.Dispose();
 
-        // The instance's data namespace is {toolkitId}/{instanceId}/wf/*; every run (Spawn +
-        // UIEvent chains) writes produced values there and, without this, ended/completed
-        // instances would accumulate DataStore keys forever. Panel keys ({toolkitId}/{instanceId}/
-        // panel/*) are deliberately retained so the panel data stays viewable after the end.
-        var wfPrefix = $"{instance.ToolkitId}/{instance.InstanceId}/wf/";
-        var cleared = _dataStore.RemoveByPrefix(wfPrefix);
-        if (cleared > 0)
-            Log.Debug("[ToolkitInstanceManager] Cleared {Count} wf keys for ended instance {Instance}", cleared, instanceId);
-
+        // No key cleanup here. Q48 removed the per-run data channel, so an instance no longer
+        // owns a namespace to clear: workflow values live under the toolkit's declared keys
+        // ({toolkitId}/{localName}), and those outlive the instance by design. This method used
+        // to sweep "{toolkitId}/{instanceId}/wf/" — a prefix nothing writes any more.
         Log.Information("[ToolkitInstanceManager] Ended instance {Instance} ({Reason})", instanceId, reason);
     }
 

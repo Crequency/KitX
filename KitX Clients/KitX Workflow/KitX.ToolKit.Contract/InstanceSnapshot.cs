@@ -58,8 +58,11 @@ public sealed record InstanceSnapshot(
     /// The spawn trigger's presentation mode (<c>auto</c>/<c>silent</c>). Null when unknown.
     /// </summary>
     /// <remarks>
-    /// <b>Removed at S5.5</b> together with the panel host: "how to present a panel" is a
-    /// View concern, not an instance fact.
+    /// Filled today from <c>TriggerConfig.Surface</c>. <b>No production consumer</b>: the panel
+    /// host that read it was archived at S5.5, and the Bench window does not show it. The field
+    /// stays because where "how to present this instance" belongs is a View-layer question that
+    /// has not been decided yet — deleting it now would decide the answer by accident. Its fate
+    /// is settled together with the View contract, not here.
     /// </remarks>
     public string? Surface { get; init; }
 }

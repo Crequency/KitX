@@ -411,10 +411,8 @@ internal sealed class RunScheduler : IDisposable
         string workflowId,
         IReadOnlyDictionary<string, string?> overrides)
     {
-        var ns = DataStoreScope.WorkflowNamespace(run.ToolkitId, run.NamespaceId, workflowId);
         var merged = new Dictionary<string, string?>(overrides)
         {
-            [DataStoreScope.OutputNamespaceConstant] = ns,
             [Instances.InitiatorConstants.DeviceId] = run.Initiator.DeviceId,
             [Instances.InitiatorConstants.DeviceName] = run.Initiator.DeviceName,
             [Instances.InstanceConstants.InstanceId] = run.NamespaceId,
