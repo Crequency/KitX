@@ -45,9 +45,10 @@ internal sealed class CompiledToolkit
     public required IReadOnlyList<CompiledTrigger> Triggers { get; init; }
 
     /// <summary>
-    /// Declared plugin requirements. The compiler has verified that every <c>PluginCall</c> in
-    /// every workflow targets a name on this list (ADR-0002 D6) — it has <b>not</b> verified the
-    /// plugin is installed; that is an assembly-time question.
+    /// Declared plugin requirements. The compiler has verified that every <c>PluginCall</c> whose
+    /// plugin name is a string literal targets a name on this list (ADR-0002 D6) — it has
+    /// <b>not</b> verified the plugin is installed; that is an assembly-time question. A call
+    /// whose plugin name is computed cannot be checked statically and is left to run time.
     /// </summary>
     public required IReadOnlyList<PluginRequirement> Plugins { get; init; }
 
@@ -83,8 +84,19 @@ internal sealed class CompiledToolkit
 /// <param name="Parameters">Declared parameters (empty when the workflow declares none).</param>
 /// <param name="Description">Optional description.</param>
 /// <param name="Builtins">
-/// The builtin names this workflow calls, as resolved at compile time. Empty when no resolver
+/// The builtin names this workflow calls, as resolved at compile time. Null when no resolver
 /// was supplied — which means "not checked", not "uses none" (see <see cref="BuiltinResolver.Empty"/>).
+/// </param>
+/// <param name="PublishedNames">
+/// Property names this workflow passes as a literal key to <c>FlowOut</c>, ordinally sorted.
+/// This is what an edge's <see cref="WorkflowEdge.Consumes"/> is validated against (design Q70).
+/// Empty together with <paramref name="PublishesDynamicNames"/> = true means "publishes nothing";
+/// empty with that flag false means "publishes unknown names".
+/// </param>
+/// <param name="PublishesDynamicNames">
+/// True when the body calls <c>FlowOut</c> with a key that is not a string literal. The
+/// published set is then unknowable at compile time, so edges consuming from this workflow cannot
+/// be validated — they get a warning, not an error, because the author may well be right.
 /// </param>
 internal sealed record CompiledWorkflow(
     string Id,
@@ -92,7 +104,19 @@ internal sealed record CompiledWorkflow(
     string AbsolutePath,
     IReadOnlyList<WorkflowParameter> Parameters,
     string? Description,
-    IReadOnlyList<string>? Builtins = null);
+    IReadOnlyList<string>? Builtins = null,
+    IReadOnlyList<string>? PublishedNames = null,
+    bool PublishesDynamicNames = false)
+{
+    /// <summary>
+    /// The names this workflow may publish, or null when that is unknowable (no IR was read, or
+    /// the body computes its <c>FlowOut</c> keys).
+    /// </summary>
+    public IReadOnlySet<string>? PublishableNames
+        => PublishedNames is null || PublishesDynamicNames
+            ? null
+            : new HashSet<string>(PublishedNames, StringComparer.Ordinal);
+}
 
 /// <summary>A declared workflow parameter (name / default), as written in config.</summary>
 internal sealed record WorkflowParameter(string Name, string? Default);

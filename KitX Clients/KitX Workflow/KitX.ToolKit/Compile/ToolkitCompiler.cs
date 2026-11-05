@@ -1,5 +1,6 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
+using KitX.WorkflowV6.Builtin;
 
 namespace KitX.ToolKit.Compile;
 
@@ -58,64 +59,22 @@ internal static class ToolkitCompiler
         ValidateComments(config, sink);
         ValidateWorkflowReferences(config, sink);
 
-        var graph = BuildGraph(config, sink);
+        // Workflows are projected first, before the graph and before every name check. Reading
+        // them is not I/O for its own sake: it is where the compiler learns which builtins a body
+        // calls, which plugins it reaches for, and which output-packet names it publishes. The
+        // graph and both name checks are derived from that, so doing it later means either
+        // reading the files twice or validating against something other than what will run.
+        var surface = new Dictionary<string, WorkflowSurface>(StringComparer.Ordinal);
+        var workflows = ProjectWorkflows(config, toolkitId, storageRoot, builtins, surface, sink);
+
+        var graph = BuildGraph(config, surface, sink);
         ValidateAcyclic(graph, sink);
         ValidateTriggers(config, graph, sink);
-        ValidatePluginReferences(config, sink);
+        ValidatePluginReferences(config, surface, toolkitId, sink);
         ValidateMinKitXVersion(config, hostKitXVersion, sink);
+        ValidateEdgeConsumes(graph, workflows, toolkitId, sink);
 
         var triggers = CompileTriggers(config, sink);
-
-        // Workflows are projected before the error gate below, because resolving their builtin
-        // references is itself a validation pass — it reads the .kcs and reports unknown names.
-        // Doing this after the gate would drop exactly those diagnostics.
-        var workflows = new Dictionary<string, CompiledWorkflow>(StringComparer.Ordinal);
-        foreach (var wf in config.Workflows)
-        {
-            var absolute = string.Empty;
-            if (storageRoot is not null && !string.IsNullOrWhiteSpace(wf.File))
-            {
-                var candidate = Path.Combine(storageRoot, toolkitId, wf.File);
-                absolute = ToolkitIdGuard.IsInside(storageRoot, candidate) ? Path.GetFullPath(candidate) : string.Empty;
-            }
-
-            // A declared file that cannot be found is an error whether or not a builtin
-            // catalogue is available. These are two different questions — "is the file where
-            // the config says it is" and "does the code inside use known builtins" — and
-            // binding them together meant a host that compiles without a catalogue (the
-            // production mount path) silently skipped the first one entirely. A toolkit
-            // pointing at a missing .kcs mounted fine and failed at the first run instead.
-            var resolvable = storageRoot is not null
-                             && !string.IsNullOrWhiteSpace(wf.File)
-                             && !string.IsNullOrEmpty(absolute);
-
-            var fileExists = false;
-            if (resolvable)
-            {
-                fileExists = File.Exists(absolute);
-                if (!fileExists)
-                {
-                    sink.Error(
-                        "workflow.file.missing",
-                        $"Workflow '{wf.Id}' declares file '{wf.File}', which does not exist.",
-                        new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: wf.Id));
-                }
-            }
-
-            workflows[wf.Id] = new CompiledWorkflow(
-                wf.Id,
-                wf.File,
-                absolute,
-                ExtractParameters(wf),
-                Description: null,
-                // Builtin names are only resolved when there is a catalogue to compare against
-                // AND a file on disk to read. With no catalogue the list stays null ("not
-                // checked") rather than falsely empty; with no file, the error above already
-                // said so, and reading it again here would report the same absence twice.
-                Builtins: builtins is null || !builtins.HasCatalogue || !fileExists
-                    ? null
-                    : ResolveBuiltins(wf, absolute, builtins, toolkitId, sink));
-        }
 
         diagnostics = sink.All;
 
@@ -325,14 +284,23 @@ internal static class ToolkitCompiler
     /// <c>(From, To)</c> edges (D5).
     /// </summary>
     /// <remarks>
-    /// Two edges with the same endpoints have no single deterministic reading: "the same
+    /// <para>Two edges with the same endpoints have no single deterministic reading: "the same
     /// dependency declared twice" (de-duplicate) and "wait for both branches" (count twice)
     /// are both defensible and the config text is identical for both. A shape with two legal
     /// readings must not be silently accepted — so it is a compile error, and the graph can
-    /// then never contain the ambiguity.
+    /// then never contain the ambiguity.</para>
+    ///
+    /// <para><b>The binding's <c>Params</c> keys become <see cref="WorkflowEdge.Consumes"/></b>
+    /// (design Q70). The keys are names; the values are not carried, because a completion edge
+    /// transports no data. Values are rejected separately by <c>ValidateTriggers</c>.</para>
     /// </remarks>
-    private static WorkflowGraph BuildGraph(Toolkit config, DiagnosticSink sink)
+    private static WorkflowGraph BuildGraph(
+        Toolkit config,
+        IReadOnlyDictionary<string, WorkflowSurface> surface,
+        DiagnosticSink sink)
     {
+        _ = surface; // the publisher side is checked in ValidateEdgeConsumes, once the graph exists
+
         var toolkitId = config.GetId();
         var edges = new List<WorkflowEdge>();
         var seenPairs = new HashSet<(string From, string To)>();
@@ -373,12 +341,80 @@ internal static class ToolkitCompiler
                     continue;
                 }
 
-                edges.Add(new WorkflowEdge(from, binding.Workflow));
+                // The binding's Params keys are the names this edge forwards (design Q70).
+                // Values are not read: a completion edge transports no data, and ValidateTriggers
+                // has already rejected any that are present.
+                var consumes = new HashSet<string>(binding.Params.Keys, StringComparer.Ordinal);
+                edges.Add(new WorkflowEdge(from, binding.Workflow, consumes));
             }
         }
 
         return new WorkflowGraph(edges);
     }
+
+    /// <summary>
+    /// Checks that every name a completion edge forwards is one its predecessor can actually
+    /// publish (design Q70).
+    /// </summary>
+    /// <remarks>
+    /// <para>This is the check that keeps an upstream author's choice of property names from
+    /// silently landing in a downstream author's scope. Without it, an edge forwarding
+    /// <c>count</c> from a workflow that publishes a <em>string</em> <c>count</c> reaches a
+    /// downstream <c>const count: int</c> and the node fails at run time with
+    /// <c>Constant override 'count' is invalid</c> — an error naming neither the edge nor the
+    /// publisher.</para>
+    ///
+    /// <para><b>Two different unknowns, two different severities.</b> When the predecessor's
+    /// published set is unknowable (it computes its <c>FlowOut</c> keys, or there was no storage
+    /// root so no IR was read) this is a <em>warning</em>: the author may be entirely right, and
+    /// refusing to compile would punish a legal program for the compiler's blindness. When the
+    /// set is known and the name is simply absent, that is an <em>error</em> — the edge can never
+    /// forward what does not exist.</para>
+    /// </remarks>
+    private static void ValidateEdgeConsumes(
+        WorkflowGraph graph,
+        IReadOnlyDictionary<string, CompiledWorkflow> workflows,
+        string toolkitId,
+        DiagnosticSink sink)
+    {
+        foreach (var edge in graph.Edges)
+        {
+            if (edge.Consumes.Count == 0)
+                continue;
+
+            var edgeId = $"{edge.From}->{edge.To}";
+
+            if (!workflows.TryGetValue(edge.From, out var publisher) || publisher.PublishableNames is null)
+            {
+                sink.Warning(
+                    "edge.consumes.unknown-publisher",
+                    $"Edge '{edgeId}' forwards {Describe(edge.Consumes)}, but the names published by " +
+                    $"workflow '{edge.From}' cannot be determined statically. The edge will inject " +
+                    "them only if the packet happens to carry them.",
+                    new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: edge.To, EdgeId: edgeId));
+                continue;
+            }
+
+            var declared = publisher.PublishableNames;
+            var missing = edge.Consumes
+                .Where(n => !declared.Contains(n))
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToList();
+
+            if (missing.Count == 0)
+                continue;
+
+            var available = declared.Count == 0 ? "nothing" : Describe(declared);
+            sink.Error(
+                "edge.consumes.undeclared",
+                $"Edge '{edgeId}' forwards {Describe(missing)}, which workflow '{edge.From}' never " +
+                $"publishes. It publishes {available}.",
+                new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: edge.To, EdgeId: edgeId));
+        }
+    }
+
+    private static string Describe(IEnumerable<string> names)
+        => string.Join(", ", names.OrderBy(n => n, StringComparer.Ordinal).Select(n => $"'{n}'"));
 
     /// <summary>Depth-first cycle check over the compiled graph.</summary>
     private static void ValidateAcyclic(WorkflowGraph graph, DiagnosticSink sink)
@@ -491,23 +527,29 @@ internal static class ToolkitCompiler
                 case TriggerType.WorkflowCompletion:
                     ValidateCompletionFrom(config, trigger, workflowIds, sink);
 
-                    // A completion binding carries topology only (design Q44). The scheduler
-                    // passes the predecessor's whole output packet to the node it starts and
-                    // hands that binding no parameters at all, so any Param written here is
-                    // dropped silently. Dropping input without a word is the failure this
-                    // compiler exists to prevent, so it is rejected instead.
+                    // A completion binding carries names, not values (design Q44 + Q70). The keys
+                    // say which packet properties the started node may read; the values have
+                    // nowhere to go, because the edge transports no data.
+                    //
+                    // So a key is fine and a value is the error. That is narrow on purpose: Q70
+                    // made the key meaningful, and rejecting the whole map would have rejected
+                    // the one thing it exists for.
                     foreach (var binding in trigger.Bindings)
                     {
-                        if (binding.Params.Count == 0)
+                        var withValues = binding.Params
+                            .Where(p => !string.IsNullOrEmpty(p.Value))
+                            .Select(p => $"'{p.Key}'")
+                            .ToList();
+
+                        if (withValues.Count == 0)
                             continue;
 
-                        var names = string.Join(", ", binding.Params.Keys.Select(k => $"'{k}'"));
                         sink.Error(
-                            "trigger.binding.params-on-completion",
-                            $"WorkflowCompletion trigger '{trigger.Id}' binding '{binding.Workflow}' declares " +
-                            $"param(s) {names}. A completion edge carries topology only: the started node " +
-                            "reads the predecessor's whole output packet, so these parameters would be " +
-                            "ignored. Remove them and read the packet's own property names instead.",
+                            "trigger.binding.value-on-completion",
+                            $"WorkflowCompletion trigger '{trigger.Id}' binding '{binding.Workflow}' gives " +
+                            $"values to param(s) {string.Join(", ", withValues)}. On a completion edge the " +
+                            "parameter names say which output-packet properties the node may read; a value " +
+                            "has nowhere to go, because the edge carries no data. Leave the value empty.",
                             new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id, WorkflowId: binding.Workflow));
                     }
                     break;
@@ -551,10 +593,28 @@ internal static class ToolkitCompiler
     /// <c>Plugins[].Name</c> is a compile error, not a first-run surprise.
     /// </summary>
     /// <remarks>
-    /// This can only check "declared", not "installed" — plugin calls resolve by name at run
-    /// time. Presence is an assembly-time question (ADR-0010).
+    /// <para>This can only check "declared", not "installed" — plugin calls resolve by name at run
+    /// time. Presence is an assembly-time question (ADR-0010).</para>
+    ///
+    /// <para><b>Why it matters.</b> A plugin call to an unknown name does not fail loudly: the
+    /// plugin host catches the exception and returns a default, the workflow keeps running with a
+    /// null where a value should be, and the mistake surfaces — if at all — far from the line that
+    /// caused it. Catching it here turns a silent wrong answer into a named error.</para>
+    ///
+    /// <para><b>What is checkable.</b> Only calls whose plugin name is a string literal. A computed
+    /// name cannot be resolved statically, and guessing would be worse than silence, so those are
+    /// left to run time.</para>
+    ///
+    /// <para><b>Why an empty declaration list is not reported.</b> "Declares no plugins" and
+    /// "forgot to declare the ones it uses" are indistinguishable from the config alone, and
+    /// failing every config without a plugin section would be wrong far more often than right. The
+    /// check becomes meaningful as soon as at least one requirement is declared.</para>
     /// </remarks>
-    private static void ValidatePluginReferences(Toolkit config, DiagnosticSink sink)
+    private static void ValidatePluginReferences(
+        Toolkit config,
+        IReadOnlyDictionary<string, WorkflowSurface> surface,
+        string toolkitId,
+        DiagnosticSink sink)
     {
         var declared = new HashSet<string>(
             config.Plugins
@@ -563,19 +623,29 @@ internal static class ToolkitCompiler
                 .Select(n => n!),
             StringComparer.Ordinal);
 
-        // When the toolkit declares no plugin requirements at all, we cannot distinguish
-        // "uses no plugins" from "forgot to declare them", and failing every such config would
-        // break every existing sample. Report nothing in that case; the check becomes
-        // meaningful as soon as at least one requirement is declared.
+        // Nothing declared: no list to check against. See the remark above.
         if (declared.Count == 0)
             return;
 
         foreach (var wf in config.Workflows)
         {
-            // Workflow IR is not loaded at compile time (it lives in the .kcs file), so this
-            // check runs against declared plugin names only. Loading IR here would make
-            // compilation depend on disk I/O; that belongs to mount, not compile.
-            _ = wf;
+            // No surface means the body was never read (missing or unreadable file). That has
+            // already been reported; inventing a second complaint here would blame the plugin
+            // check for the file check's finding.
+            if (!surface.TryGetValue(wf.Id, out var wfSurface))
+                continue;
+
+            foreach (var plugin in wfSurface.PluginNames)
+            {
+                if (declared.Contains(plugin))
+                    continue;
+
+                sink.Error(
+                    "workflow.plugin.undeclared",
+                    $"Workflow '{wf.Id}' calls plugin '{plugin}', which is not declared in " +
+                    "Plugins[].Name. Add it there, or the call will return a default at run time.",
+                    new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: wf.Id));
+            }
         }
     }
 
@@ -662,53 +732,114 @@ internal static class ToolkitCompiler
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+    // ── workflow projection ───────────────────────────────────────────────────
 
     /// <summary>
-    /// Reads a workflow's <c>.kcs</c>, extracts the builtin names it calls, and checks each
-    /// against the host catalogue (ADR-0002 D1, ADR-0011).
+    /// Projects every declared workflow into a <see cref="CompiledWorkflow"/> and, in the same
+    /// pass, records the <see cref="WorkflowSurface"/> each body reveals: the builtins it calls,
+    /// the plugins it reaches for, and the output-packet names it publishes.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>One read, three answers.</b> The edge validation (design Q70) and the plugin check
+    /// (ADR-0002 D6) both ask "what names does this body mention", so they must be answered from
+    /// the same traversal — otherwise the two checks can disagree about a workflow that has not
+    /// changed.</para>
     ///
     /// <para><b>Why reading the file is acceptable here.</b> The alternative is to defer the
-    /// check to run time, which is exactly the failure ADR-0011 exists to prevent: a registered
-    /// name with no implementation used to surface as a null type during code generation, far
-    /// from the workflow that asked for it. Compiling is a deliberate act on a toolkit whose
-    /// files are already on disk; reading them is part of deciding whether it is runnable.</para>
+    /// checks to run time, which is exactly the failure ADR-0011 exists to prevent: a registered
+    /// name with no implementation used to surface as a null type during code generation, far from
+    /// the workflow that asked for it. Compiling is a deliberate act on a toolkit whose files are
+    /// already on disk; reading them is part of deciding whether it is runnable.</para>
     ///
-    /// <para><b>What happens when the file is missing.</b> A missing or unreadable workflow file
-    /// produces a diagnostic — a toolkit whose declared workflow cannot be read is not
-    /// runnable, and saying so here is cheaper than discovering it at spawn time.</para>
-    /// </summary>
-    /// <returns>The builtin names the workflow calls; empty when the file could not be read
-    /// (a diagnostic has been reported in that case).</returns>
-    private static IReadOnlyList<string> ResolveBuiltins(
-        ToolkitWorkflow workflow,
-        string absolutePath,
-        BuiltinResolver builtins,
+    /// <para><b>A missing file is not an empty surface.</b> When the file cannot be read, the
+    /// surface stays <em>absent</em> from the dictionary rather than being recorded as empty.
+    /// "We could not look" and "we looked and found nothing" drive different diagnostics, and
+    /// collapsing them is how a Q70 warning silently becomes an error.</para>
+    /// </remarks>
+    private static Dictionary<string, CompiledWorkflow> ProjectWorkflows(
+        Toolkit config,
         string toolkitId,
+        string? storageRoot,
+        BuiltinResolver? builtins,
+        Dictionary<string, WorkflowSurface> surface,
         DiagnosticSink sink)
     {
-        if (string.IsNullOrWhiteSpace(absolutePath))
+        var workflows = new Dictionary<string, CompiledWorkflow>(StringComparer.Ordinal);
+
+        foreach (var wf in config.Workflows)
         {
-            // No storage root, or the declared File escaped it. The path case is reported by
-            // the caller-side resolution; here we simply cannot inspect anything.
-            if (!string.IsNullOrWhiteSpace(workflow.File))
+            var absolute = string.Empty;
+            if (storageRoot is not null && !string.IsNullOrWhiteSpace(wf.File))
             {
-                sink.Error(
-                    "workflow.file.unresolvable",
-                    $"Workflow '{workflow.Id}' declares file '{workflow.File}', which does not resolve inside the toolkit directory.",
-                    new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: workflow.Id));
+                var candidate = Path.Combine(storageRoot, toolkitId, wf.File);
+                absolute = ToolkitIdGuard.IsInside(storageRoot, candidate) ? Path.GetFullPath(candidate) : string.Empty;
             }
 
-            return [];
+            // A declared file that cannot be found is an error whether or not a builtin
+            // catalogue is available. These are two different questions — "is the file where the
+            // config says it is" and "does the code inside use known builtins" — and binding them
+            // together meant a host that compiles without a catalogue (the production mount path)
+            // silently skipped the first one entirely. A toolkit pointing at a missing .kcs
+            // mounted fine and failed at the first run instead.
+            var resolvable = storageRoot is not null
+                             && !string.IsNullOrWhiteSpace(wf.File)
+                             && !string.IsNullOrEmpty(absolute);
+
+            var fileExists = false;
+            if (resolvable)
+            {
+                fileExists = File.Exists(absolute);
+                if (!fileExists)
+                {
+                    sink.Error(
+                        "workflow.file.missing",
+                        $"Workflow '{wf.Id}' declares file '{wf.File}', which does not exist.",
+                        new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: wf.Id));
+                }
+            }
+
+            // The surface is collected whenever the file is readable — even without a builtin
+            // catalogue, because Q70's edge check does not care whether the host knows the
+            // builtins, only whether the bodies publish the names the edges forward.
+            WorkflowSurface? wfSurface = null;
+            var read = fileExists && TryReadSurface(wf, absolute, toolkitId, sink, out wfSurface);
+
+            if (read)
+                surface[wf.Id] = wfSurface!;
+
+            // Builtin names are only *checked* when there is a catalogue to compare against. With
+            // none, the list stays null ("not checked") rather than falsely empty.
+            var called = builtins is null || !builtins.HasCatalogue || !read
+                ? null
+                : ValidateBuiltins(wf, wfSurface!, builtins, toolkitId, sink);
+
+            workflows[wf.Id] = new CompiledWorkflow(
+                wf.Id,
+                wf.File,
+                absolute,
+                ExtractParameters(wf),
+                Description: null,
+                Builtins: called,
+                // Null when the body was never read: "unknown", not "publishes nothing".
+                PublishedNames: read ? wfSurface!.PublishedNames : null,
+                PublishesDynamicNames: read && !wfSurface!.PublishedNamesAreStatic);
         }
 
-        if (!File.Exists(absolutePath))
-        {
-            sink.Error(
-                "workflow.file.missing",
-                $"Workflow '{workflow.Id}' declares file '{workflow.File}', which does not exist.",
-                new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: workflow.Id));
-            return [];
-        }
+        return workflows;
+    }
+
+    /// <summary>
+    /// Reads one workflow file and collects its surface. Returns false — after reporting why —
+    /// when the file cannot be turned into IR.
+    /// </summary>
+    private static bool TryReadSurface(
+        ToolkitWorkflow workflow,
+        string absolutePath,
+        string toolkitId,
+        DiagnosticSink sink,
+        out WorkflowSurface? surface)
+    {
+        surface = null;
 
         string json;
         try
@@ -721,7 +852,7 @@ internal static class ToolkitCompiler
                 "workflow.file.unreadable",
                 $"Workflow '{workflow.Id}' file '{workflow.File}' could not be read: {ex.Message}",
                 new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: workflow.Id));
-            return [];
+            return false;
         }
 
         var kcs = KitX.WorkflowV6.Serialization.KcsFileIo.DeserializeTolerant(json);
@@ -731,7 +862,7 @@ internal static class ToolkitCompiler
                 "workflow.file.invalid",
                 $"Workflow '{workflow.Id}' file '{workflow.File}' is not a readable .kcs document.",
                 new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: workflow.Id));
-            return [];
+            return false;
         }
 
         var ir = KitX.WorkflowV6.Serialization.WorkflowSerializer.Deserialize(kcs.IrData);
@@ -741,12 +872,25 @@ internal static class ToolkitCompiler
                 "workflow.file.invalid-ir",
                 $"Workflow '{workflow.Id}' file '{workflow.File}' carries IR that could not be deserialized.",
                 new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: workflow.Id));
-            return [];
+            return false;
         }
 
-        var called = KitX.WorkflowV6.Builtin.BuiltinCallCollector.Collect(ir);
+        surface = KitX.WorkflowV6.Builtin.BuiltinCallCollector.CollectSurface(ir);
+        return true;
+    }
 
-        foreach (var name in called)
+    /// <summary>
+    /// Reports every builtin a body calls that the host does not provide, and returns the names it
+    /// does call.
+    /// </summary>
+    private static IReadOnlyList<string> ValidateBuiltins(
+        ToolkitWorkflow workflow,
+        WorkflowSurface surface,
+        BuiltinResolver builtins,
+        string toolkitId,
+        DiagnosticSink sink)
+    {
+        foreach (var name in surface.Builtins)
         {
             if (builtins.IsKnown(name))
                 continue;
@@ -757,9 +901,8 @@ internal static class ToolkitCompiler
                 new DiagnosticPath(ToolkitId: toolkitId, WorkflowId: workflow.Id));
         }
 
-        return called;
+        return surface.Builtins;
     }
-
     private static IReadOnlyList<WorkflowParameter> ExtractParameters(ToolkitWorkflow workflow)
     {
         // Parameters are not declared on ToolkitWorkflow today; the workflow's own IR owns them.
