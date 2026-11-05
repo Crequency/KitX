@@ -44,7 +44,7 @@ internal sealed class StructuredCodegen : CodegenBase
         _sb.Clear();
         _indent = 0;
         EmitClassHeader(ir, lowering);
-        EmitLine("public void RunAsync()");
+        EmitLine("public async System.Threading.Tasks.Task RunAsync()");
         EmitLine("{");
         Indent();
         EmitBody(ir.Body);
@@ -246,7 +246,7 @@ internal sealed class StructuredCodegen : CodegenBase
                 ? p.Sources.Select(RenderKsNode)
                 : new[] { currentExpr ?? "null" };
             var allArgs = BuildArgList(seg.Arguments, inputArgs);
-            currentExpr = $"this.{seg.Target}({allArgs})";
+            currentExpr = Await($"{MethodRefFor(seg.Target)}({allArgs})", seg.Target);
         }
 
         if (!lastWasAssignment && currentExpr is not null)

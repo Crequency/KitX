@@ -39,18 +39,28 @@ internal sealed class KeyWaitRegistry : IDisposable
     }
 
     /// <summary>
-    /// Blocks until <b>all</b> of <paramref name="keys"/> are present (AND semantics), then returns
+    /// Waits until <b>all</b> of <paramref name="keys"/> are present (AND semantics), then returns
     /// a JSON object of their values. Returns an empty object on timeout or cancellation — a
     /// cancelled flow degrades exactly like a timeout rather than throwing into the workflow.
     /// </summary>
-    public JsonElement Wait(IReadOnlyList<string> keys, TimeSpan timeout, CancellationToken cancellationToken)
-        => Block(keys, any: false, timeout, cancellationToken);
+    /// <remarks>
+    /// This is a genuinely asynchronous wait: it yields its thread instead of holding one
+    /// (ADR-0008 D1). The three outcomes stay distinguishable at the seams even though timeout and
+    /// cancellation deliberately collapse into the same return value — a workflow cannot act on the
+    /// difference, and "your wait timed out" vs "your flow was stopped" is a reporting concern that
+    /// belongs to the run, not to this method.
+    /// </remarks>
+    public Task<JsonElement> WaitAsync(
+        IReadOnlyList<string> keys, TimeSpan timeout, CancellationToken cancellationToken)
+        => WaitCoreAsync(keys, any: false, timeout, cancellationToken);
 
-    /// <summary>Same as <see cref="Wait"/> but satisfied by <b>any</b> one of the keys (OR semantics).</summary>
-    public JsonElement WaitAny(IReadOnlyList<string> keys, TimeSpan timeout, CancellationToken cancellationToken)
-        => Block(keys, any: true, timeout, cancellationToken);
+    /// <summary>Same as <see cref="WaitAsync"/> but satisfied by <b>any</b> one of the keys (OR semantics).</summary>
+    public Task<JsonElement> WaitAnyAsync(
+        IReadOnlyList<string> keys, TimeSpan timeout, CancellationToken cancellationToken)
+        => WaitCoreAsync(keys, any: true, timeout, cancellationToken);
 
-    private JsonElement Block(IReadOnlyList<string> keys, bool any, TimeSpan timeout, CancellationToken cancellationToken)
+    private async Task<JsonElement> WaitCoreAsync(
+        IReadOnlyList<string> keys, bool any, TimeSpan timeout, CancellationToken cancellationToken)
     {
         if (keys.Count == 0)
             return EmptyObject();
@@ -78,18 +88,18 @@ internal sealed class KeyWaitRegistry : IDisposable
             return pending.BuildResult(_store);
         }
 
-        // Block the workflow's calling thread, mirroring the PluginCall precedent. A single delay
-        // with the caller's token covers both timeout and cancellation: when the token fires the
-        // delay is cancelled, WhenAny returns it, and we take the empty-object branch.
-        var completed = Task.WhenAny(pending.Tcs.Task, Task.Delay(timeout, cancellationToken))
-            .GetAwaiter().GetResult();
+        // One delay covers both timeout and cancellation: when the token fires the delay is
+        // cancelled, WhenAny returns it, and we take the empty-object branch. Awaiting instead of
+        // blocking is the whole point — the thread is released while this flow is parked.
+        var delay = Task.Delay(timeout, cancellationToken);
+        var completed = await Task.WhenAny(pending.Tcs.Task, delay).ConfigureAwait(false);
         if (completed != pending.Tcs.Task)
         {
             Detach(pending);
             return EmptyObject();
         }
 
-        return pending.Tcs.Task.GetAwaiter().GetResult();
+        return await pending.Tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>Removes a waiter from every bucket it registered against.</summary>

@@ -149,31 +149,36 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     }
 
     /// <summary>
-    /// ToolkitWait(keys...) → blocks until all named keys are present (AND), honouring the run's
+    /// ToolkitWait(keys...) → waits until all named keys are present (AND), honouring the run's
     /// cancellation token.
     ///
     /// <para><b>Why this is still a workflow-facing function.</b> ADR-0004 D1 removed waiting from
     /// the <i>storage</i> API, not from the language: a flow that awaits a value another flow
     /// produces needs a way to say so. It lives on <see cref="KeyWaitRegistry"/> now, which owns
     /// the waiter bookkeeping the store used to.</para>
+    ///
+    /// <para><b>Why it returns a Task.</b> A parked flow must not hold a thread (ADR-0008 D1).
+    /// The generator sees the task-returning signature by reflection and emits <c>await</c> at the
+    /// call site, so the workflow's own body is async and the thread goes back to the pool while
+    /// this wait is outstanding.</para>
     /// </summary>
-    public object? ToolkitWait(params string[] keys)
+    public Task<JsonElement> ToolkitWait(params string[] keys)
     {
         if (keys.Length == 0)
-            return EmptyObject();
+            return Task.FromResult(EmptyObject());
         var table = RequireKeyTable();
         var full = keys.Select(table.ResolveForWorkflowRead).ToArray();
-        return _waits.Wait(full, _options.DefaultWaitTimeout, RunToken);
+        return _waits.WaitAsync(full, _options.DefaultWaitTimeout, RunToken);
     }
 
-    /// <summary>ToolkitWaitAny(keys...) → blocks until any named key is present (OR).</summary>
-    public object? ToolkitWaitAny(params string[] keys)
+    /// <summary>ToolkitWaitAny(keys...) → waits until any named key is present (OR).</summary>
+    public Task<JsonElement> ToolkitWaitAny(params string[] keys)
     {
         if (keys.Length == 0)
-            return EmptyObject();
+            return Task.FromResult(EmptyObject());
         var table = RequireKeyTable();
         var full = keys.Select(table.ResolveForWorkflowRead).ToArray();
-        return _waits.WaitAny(full, _options.DefaultWaitTimeout, RunToken);
+        return _waits.WaitAnyAsync(full, _options.DefaultWaitTimeout, RunToken);
     }
 
     /// <summary>ToolkitRemove(key) → removes a declared key the workflow owns.</summary>

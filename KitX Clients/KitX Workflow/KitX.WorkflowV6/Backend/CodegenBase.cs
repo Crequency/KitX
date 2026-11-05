@@ -1,5 +1,7 @@
 namespace KitX.WorkflowV6.Backend;
 
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text;
 using KitX.WorkflowV6.Builtin;
 using KitX.WorkflowV6.Ir;
@@ -53,16 +55,60 @@ internal abstract class CodegenBase
     {
         KsLiteral lit => RenderLiteral(lit),
         KsIdentifier id => RenderIdentifier(id),
-        KsCall call => call.Args.Length == 0
-            ? $"this.{call.MethodName}()"
-            : $"this.{call.MethodName}({string.Join(", ", call.Args.Select(RenderKsNode))})",
+        KsCall call => RenderCall(call.MethodName, call.Args.Select(RenderKsNode)),
         KsPipeline pipe => RenderPipelineAsExpression(pipe),
         KsPipelineSegment seg => seg.IsVariableTap
             ? seg.Target
-            : $"this.{seg.Target}({string.Join(", ", seg.Args.Select(RenderKsNode))})",
+            : RenderCall(seg.Target, seg.Args.Select(RenderKsNode)),
         KsPlaceholder => "_placeholder_",
         _ => throw new InvalidOperationException($"Unknown KS node type: {node.GetType().Name}"),
     };
+
+    /// <summary>
+    /// Renders one call on the generated class, awaiting it when the runtime method is
+    /// task-returning. <paramref name="renderedArgs"/> is evaluated lazily so an argument that is
+    /// itself a call is rendered exactly once.
+    /// </summary>
+    protected string RenderCall(string methodName, IEnumerable<string> renderedArgs)
+        => Await($"{MethodRef(methodName)}({string.Join(", ", renderedArgs)})", methodName);
+
+    private string MethodRef(string methodName) => $"this.{methodName}";
+
+    /// <summary>Same as <see cref="MethodRef"/>; named for call sites in derived generators.</summary>
+    protected string MethodRefFor(string methodName) => MethodRef(methodName);
+
+    /// <summary>
+    /// Prepends <c>await</c> when <paramref name="methodName"/> resolves to a task-returning
+    /// method on <see cref="BaseType"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>Awaiting here rather than at the statement level is what keeps arbitrary nesting
+    /// legal: C# lets an awaited expression sit anywhere inside an async body, so
+    /// <c>await this.StringConcat(await this.ToolkitWait("k"), b)</c> compiles even though
+    /// StringConcat itself is synchronous. The alternative — only awaiting when the result is
+    /// assigned straight to a variable — would have meant the generator had to model which
+    /// positions tolerate a Task, duplicating what the compiler already knows.</para>
+    ///
+    /// <para>Detection is by reflection on the base type, not a hardcoded name list: a host that
+    /// makes one of its own builtins async gets the await for free, and a name that stops being
+    /// async stops being awaited.</para>
+    /// </remarks>
+    protected string Await(string callExpr, string methodName)
+        => IsTaskReturning(methodName) ? $"await {callExpr}" : callExpr;
+
+    protected bool IsTaskReturning(string methodName)
+        => _taskReturning.GetOrAdd(methodName, static (name, baseType) =>
+        {
+            foreach (var m in baseType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (string.Equals(m.Name, name, StringComparison.Ordinal)
+                    && typeof(Task).IsAssignableFrom(m.ReturnType))
+                    return true;
+            }
+            return false;
+        }, BaseType);
+
+    private readonly ConcurrentDictionary<string, bool> _taskReturning = new(StringComparer.Ordinal);
 
     protected string RenderLiteral(KsLiteral lit)
     {
@@ -102,7 +148,7 @@ internal abstract class CodegenBase
                 ? pipe.Sources.Select(RenderKsNode)
                 : [currentExpr];
             var allArgs = BuildArgList(seg.Args, inputArgs);
-            currentExpr = $"this.{seg.Target}({allArgs})";
+            currentExpr = Await($"{MethodRef(seg.Target)}({allArgs})", seg.Target);
         }
         return currentExpr;
     }
@@ -110,7 +156,7 @@ internal abstract class CodegenBase
     protected string RenderCallStatement(KsCall call)
     {
         var args = string.Join(", ", call.Args.Select(RenderKsNode));
-        return $"this.{call.MethodName}({args})";
+        return Await($"{MethodRef(call.MethodName)}({args})", call.MethodName);
     }
 
     protected string BuildArgList(ImmutableArray<KsNode> args, IEnumerable<string> inputs)

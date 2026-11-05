@@ -39,7 +39,7 @@ internal sealed class DebugCodegen : CodegenBase
         _sb.Clear();
         _indent = 0;
         EmitClassHeader(ir, lowering);
-        EmitLine("public void RunAsync()");
+        EmitLine("public async System.Threading.Tasks.Task RunAsync()");
         EmitLine("{");
         Indent();
         EmitBody(ir.Body, NodePath.Top);
@@ -136,7 +136,7 @@ internal sealed class DebugCodegen : CodegenBase
         if (p.Segments.Length == 0 && p.Sources.Length == 1 && p.Sources[0] is KsCall call)
         {
             EmitCheckpoint(NodeId.Of(stmtPath), stmtPath);
-            EmitLine($"this.{call.MethodName}({string.Join(", ", call.Args.Select(RenderKsNode))});");
+            EmitLine($"{RenderCall(call.MethodName, call.Args.Select(RenderKsNode))};");
             // No data output to record (bare call has no Value pin consumer).
             return;
         }
@@ -206,7 +206,7 @@ internal sealed class DebugCodegen : CodegenBase
                     ? p.Sources.Select(RenderKsNode)
                     : [currentVar!];
                 string args = BuildArgList(seg.Arguments, inputs);
-                string callExpr = $"this.{seg.Target}({args})";
+                string callExpr = Await($"{MethodRefFor(seg.Target)}({args})", seg.Target);
 
                 if (IsVoidFunction(seg.Target))
                 {

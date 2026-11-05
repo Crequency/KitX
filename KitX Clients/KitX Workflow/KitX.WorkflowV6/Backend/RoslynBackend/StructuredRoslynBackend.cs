@@ -123,8 +123,15 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
             // Measure only the generated workflow's RunAsync; compile/load time
             // is reported separately (or not at all) to keep this metric aligned
             // with user-perceived "workflow run duration".
+            //
+            // RunAsync is async Task, so awaiting the reflected Task is what actually runs the
+            // workflow. Without the await this method would return before the body did anything
+            // and report a zero-millisecond run as a success. The generated signature is not
+            // negotiable here: a builtin can be task-returning (ToolkitWait parks a flow on a key),
+            // and an async body is the only way to await it from inside the workflow.
             var sw = Stopwatch.StartNew();
-            runMethod.Invoke(g, null);
+            var runTask = (Task)runMethod.Invoke(g, null)!;
+            await runTask.ConfigureAwait(false);
             sw.Stop();
 
             return new BlockScriptExecutionResult
