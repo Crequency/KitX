@@ -43,6 +43,22 @@ internal sealed class ScriptCompiler
 
     private readonly Dictionary<string, CompiledScriptEntry> _cache = new(StringComparer.Ordinal);
     private readonly LinkedList<string> _lruOrder = new();
+
+    /// <summary>
+    /// Guards <see cref="_cache"/> and <see cref="_lruOrder"/>.
+    /// </summary>
+    /// <remarks>
+    /// Both collections were plain fields with no synchronisation, while the type is reachable as
+    /// a singleton: <c>StructuredRoslynBackend</c> is registered with <c>AddSingleton</c> and
+    /// constructs its own compiler, so every concurrent workflow execution drives these two
+    /// collections at once. A <see cref="Dictionary{TKey,TValue}"/> mutated from two threads can
+    /// corrupt its buckets or spin forever; a <see cref="LinkedList{T}"/> hit at the same time
+    /// can lose nodes. Neither failure is reproducible on demand, which is why this sat here.
+    ///
+    /// Held across <see cref="CompiledScriptEntry.Unload"/> on purpose: unloading only marks the
+    /// load context for collection and does not call back into this type.
+    /// </remarks>
+    private readonly object _cacheGate = new();
     private readonly BuiltinFunctionRegistry _registry;
 
     /// <summary>
@@ -64,9 +80,12 @@ internal sealed class ScriptCompiler
     /// <summary>Unloads and drops all cached compiled assemblies.</summary>
     public void ClearCache()
     {
-        foreach (var entry in _cache.Values) entry.Unload();
-        _cache.Clear();
-        _lruOrder.Clear();
+        lock (_cacheGate)
+        {
+            foreach (var entry in _cache.Values) entry.Unload();
+            _cache.Clear();
+            _lruOrder.Clear();
+        }
     }
 
     /// <summary>
@@ -148,36 +167,42 @@ internal sealed class ScriptCompiler
 
     private bool TryGetCached(string hash, out CompiledScriptEntry entry)
     {
-        if (!_cache.TryGetValue(hash, out entry!)) return false;
-
-        // Touch: move to most-recently-used position.
-        var node = _lruOrder.Find(hash);
-        if (node is not null && node != _lruOrder.Last)
+        lock (_cacheGate)
         {
-            _lruOrder.Remove(node);
-            _lruOrder.AddLast(node);
+            if (!_cache.TryGetValue(hash, out entry!)) return false;
+
+            // Touch: move to most-recently-used position.
+            var node = _lruOrder.Find(hash);
+            if (node is not null && node != _lruOrder.Last)
+            {
+                _lruOrder.Remove(node);
+                _lruOrder.AddLast(node);
+            }
+            return true;
         }
-        return true;
     }
 
     private void AddToCache(string hash, CompiledScriptEntry entry)
     {
-        if (_cache.ContainsKey(hash))
+        lock (_cacheGate)
         {
+            if (_cache.ContainsKey(hash))
+            {
+                _cache[hash] = entry;
+                return;
+            }
+
             _cache[hash] = entry;
-            return;
-        }
+            _lruOrder.AddLast(hash);
 
-        _cache[hash] = entry;
-        _lruOrder.AddLast(hash);
-
-        // Evict least-recently-used entries beyond the capacity limit.
-        while (_lruOrder.Count > _maxCacheEntries)
-        {
-            var oldest = _lruOrder.First!;
-            _lruOrder.RemoveFirst();
-            if (_cache.Remove(oldest.Value, out var evicted))
-                evicted.Unload();
+            // Evict least-recently-used entries beyond the capacity limit.
+            while (_lruOrder.Count > _maxCacheEntries)
+            {
+                var oldest = _lruOrder.First!;
+                _lruOrder.RemoveFirst();
+                if (_cache.Remove(oldest.Value, out var evicted))
+                    evicted.Unload();
+            }
         }
     }
 
