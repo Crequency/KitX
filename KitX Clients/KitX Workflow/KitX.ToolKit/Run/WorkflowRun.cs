@@ -241,7 +241,7 @@ internal sealed class WorkflowRun : IDisposable
                 _failed++;
 
                 _firstFailure ??= Diagnostic.Error(
-                    Diagnostics.RunDiagnosticCodes.JoinConflict,
+                    "flow.join.conflict",
                     $"Workflow '{target}' would receive '{collided}' from two branches; " +
                     "an AND-join cannot choose one without depending on arrival order",
                     new DiagnosticPath(WorkflowId: target, Key: collided));
@@ -334,7 +334,13 @@ internal sealed class WorkflowRun : IDisposable
     /// True when the node was cancelled rather than failed. The two are different outcomes
     /// (ADR-0009 acceptance #2) and must not be merged into one bucket.
     /// </param>
-    internal void SettleNode(string workflowId, bool succeeded, string? error, bool cancelled = false)
+    /// <param name="failureCode">
+    /// The stable code for this failure, when the caller knows which kind it was. Falls back to
+    /// <c>flow.workflow.failed</c>: the run still records a failure, it just cannot say more about
+    /// it than the executor did.
+    /// </param>
+    internal void SettleNode(
+        string workflowId, bool succeeded, string? error, bool cancelled = false, string? failureCode = null)
     {
         IReadOnlyList<string>? skipped = null;
         bool fire;
@@ -363,7 +369,7 @@ internal sealed class WorkflowRun : IDisposable
 
                 // The first failure is the cause; later ones are its consequences (ADR-0005 D4).
                 _firstFailure ??= Diagnostic.Error(
-                    Diagnostics.RunDiagnosticCodes.WorkflowFailed,
+                    failureCode ?? "flow.workflow.failed",
                     error ?? $"Workflow '{workflowId}' failed",
                     new DiagnosticPath(WorkflowId: workflowId));
 
@@ -519,7 +525,7 @@ internal sealed class WorkflowRun : IDisposable
             return null;
 
         return _firstFailure ?? Diagnostic.Error(
-            Diagnostics.RunDiagnosticCodes.Unknown,
+            "flow.failed.unknown",
             "The run failed but no node recorded a reason");
     }
 

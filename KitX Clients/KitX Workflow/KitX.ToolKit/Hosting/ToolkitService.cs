@@ -47,7 +47,9 @@ internal sealed class ToolkitService : IToolkitService
     public Toolkit UpdateToolkit(Toolkit toolkit)
     {
         if (_manager.IsMounted(toolkit.GetId()))
-            throw new InvalidOperationException($"ToolKit '{toolkit.GetId()}' is mounted; unmount before updating.");
+            throw new ToolkitServiceException(
+                ToolkitServiceException.MountedCode,
+                $"ToolKit '{toolkit.GetId()}' is mounted; unmount before updating.");
         var saved = _store.Save(toolkit);
         ToolkitListChanged?.Invoke(this, EventArgs.Empty);
         return saved;
@@ -57,7 +59,9 @@ internal sealed class ToolkitService : IToolkitService
     public bool DeleteToolkit(string toolkitId)
     {
         if (_manager.IsMounted(toolkitId))
-            throw new InvalidOperationException($"ToolKit '{toolkitId}' is mounted; unmount before deleting.");
+            throw new ToolkitServiceException(
+                ToolkitServiceException.MountedCode,
+                $"ToolKit '{toolkitId}' is mounted; unmount before deleting.");
         var deleted = _store.Delete(toolkitId);
         if (deleted)
             ToolkitListChanged?.Invoke(this, EventArgs.Empty);
@@ -68,7 +72,9 @@ internal sealed class ToolkitService : IToolkitService
     public void Mount(string toolkitId)
     {
         var toolkit = _store.Load(toolkitId)
-            ?? throw new InvalidOperationException($"ToolKit '{toolkitId}' not found.");
+            ?? throw new ToolkitServiceException(
+                ToolkitServiceException.NotFoundCode,
+                $"ToolKit '{toolkitId}' not found.");
         _manager.Mount(toolkit);
     }
 

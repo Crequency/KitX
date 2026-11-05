@@ -199,6 +199,82 @@ public class RunSchedulerTests
         scheduler.Dispose();
     }
 
+    [Fact]
+    public async Task A_node_that_threw_reports_the_threw_code_not_a_generic_failure()
+    {
+        // The four ways a node can fail used to arrive at the run as bare text and were all
+        // recorded under one code, so a consumer could not tell "the file is gone" from "the body
+        // threw" without parsing English. This pins two of them apart.
+        var toolkit = ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] });
+
+        var scheduler = new RunScheduler(
+            CompileFixtures.Compile(toolkit),
+            new ThrowingExecutor(),
+            new ToolkitFileStore(Path.GetTempPath()));
+
+        RunCompletedEventArgs? completed = null;
+        var done = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, e) => { completed = e; done.TrySetResult(); };
+
+        scheduler.StartRun("manual");
+        await AwaitAsync(done.Task);
+
+        Assert.NotNull(completed);
+        Assert.Equal(RunOutcome.Failed, completed.Outcome);
+        Assert.Equal("flow.workflow.threw", completed.Failure!.Code);
+        Assert.Equal("A", completed.Failure.Path?.WorkflowId);
+
+        scheduler.Dispose();
+    }
+
+    [Fact]
+    public async Task A_node_whose_workflow_is_missing_reports_the_not_found_code()
+    {
+        var toolkit = ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] });
+
+        // A scheduler with no compiled workflow table entry for "A" would mean a broken config;
+        // what this exercises is the executor reporting the file could not be loaded. The
+        // recording executor below answers with that code directly, standing in for the real
+        // one — the assertion is about what the run does with the code, not about file I/O.
+        var scheduler = new RunScheduler(
+            CompileFixtures.Compile(toolkit),
+            new MissingWorkflowExecutor(),
+            new ToolkitFileStore(Path.GetTempPath()));
+
+        RunCompletedEventArgs? completed = null;
+        var done = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, e) => { completed = e; done.TrySetResult(); };
+
+        scheduler.StartRun("manual");
+        await AwaitAsync(done.Task);
+
+        Assert.NotNull(completed);
+        Assert.Equal("flow.workflow.not-found", completed.Failure!.Code);
+
+        scheduler.Dispose();
+    }
+
+    /// <summary>Always throws — the run must report `flow.workflow.threw`.</summary>
+    private sealed class ThrowingExecutor : IWorkflowExecutor
+    {
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            string workflowId, string filePath,
+            IReadOnlyDictionary<string, string?>? overrides, CancellationToken ct)
+            => throw new InvalidOperationException("boom");
+    }
+
+    /// <summary>Reports a missing workflow file the way the real executor does.</summary>
+    private sealed class MissingWorkflowExecutor : IWorkflowExecutor
+    {
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            string workflowId, string filePath,
+            IReadOnlyDictionary<string, string?>? overrides, CancellationToken ct)
+            => Task.FromResult(new WorkflowExecutionResult(
+                workflowId, false, $"Workflow '{workflowId}' not found", null, "flow.workflow.not-found"));
+    }
+
     /// <summary>Publishes one fixed property name from every workflow, so joins collide.</summary>
     private sealed class FixedNameExecutor(string propertyName) : IWorkflowExecutor
     {

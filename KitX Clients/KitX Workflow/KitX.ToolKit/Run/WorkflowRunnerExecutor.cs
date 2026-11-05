@@ -35,26 +35,40 @@ internal sealed class WorkflowRunnerExecutor : IWorkflowExecutor
         {
             var kcs = await LoadKcsAsync(filePath);
             if (kcs is null || string.IsNullOrWhiteSpace(kcs.IrData) || kcs.IrData == "{}")
-                return new WorkflowExecutionResult(workflowId, false, $"Workflow '{workflowId}' not found", null);
+                return new WorkflowExecutionResult(
+                    workflowId, false, $"Workflow '{workflowId}' not found", null,
+                    "flow.workflow.not-found");
 
             var ir = KitX.WorkflowV6.Serialization.WorkflowSerializer.Deserialize(kcs.IrData);
             if (ir is null)
-                return new WorkflowExecutionResult(workflowId, false, $"Workflow '{workflowId}' IR invalid", null);
+                return new WorkflowExecutionResult(
+                    workflowId, false, $"Workflow '{workflowId}' IR invalid", null,
+                    "flow.workflow.unreadable");
 
             var result = await _runner.ExecuteAsync(ir, null, overrides, ct);
             Log.Information("[WorkflowRunnerExecutor] Workflow {Id} finished: succeeded={Succeeded} error={Error}",
                 workflowId, result.IsSuccess, result.ErrorMessage);
-            return new WorkflowExecutionResult(workflowId, result.IsSuccess, result.ErrorMessage, AsPayload(result.ReturnValue));
+            return new WorkflowExecutionResult(
+                workflowId,
+                result.IsSuccess,
+                result.ErrorMessage,
+                AsPayload(result.ReturnValue),
+                // A body that reports failure without throwing is still a body failure; only the
+                // executor's own pre-body problems get the not-found / unreadable codes above.
+                result.IsSuccess ? null : "flow.workflow.failed");
         }
         catch (OperationCanceledException)
         {
+            // Cancellation is not a failure (ADR-0009 acceptance #2), so the code is absent on
+            // purpose: the run reads `cancelled` from the token, not from this result.
             Log.Information("[WorkflowRunnerExecutor] Workflow {Id} cancelled", workflowId);
             return new WorkflowExecutionResult(workflowId, false, "Cancelled", null);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[WorkflowRunnerExecutor] Workflow {Id} failed", workflowId);
-            return new WorkflowExecutionResult(workflowId, false, ex.Message, null);
+            return new WorkflowExecutionResult(
+                workflowId, false, ex.Message, null, "flow.workflow.threw");
         }
     }
 

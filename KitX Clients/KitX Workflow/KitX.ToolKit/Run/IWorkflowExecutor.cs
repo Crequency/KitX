@@ -15,7 +15,19 @@ namespace KitX.ToolKit.Run;
 /// published nothing (design Q48 / §5.6.9.3). This is the transport that replaced the
 /// instance-scoped slice of the store the scheduler used to scan by prefix.
 /// </param>
-internal sealed record WorkflowExecutionResult(string WorkflowId, bool IsSuccess, string? Error, JsonElement? Payload);
+/// <param name="FailureCode">
+/// A stable code describing *which kind* of failure this was, or null when the executor does not
+/// distinguish. ADR-0007 D1 makes the code the interface and the message the commentary; without
+/// this, four different failures — file missing, IR invalid, cancelled, threw — all arrived at the
+/// run as bare text and were recorded under one generic code, so a consumer could not branch on
+/// them without parsing English.
+/// </param>
+internal sealed record WorkflowExecutionResult(
+    string WorkflowId,
+    bool IsSuccess,
+    string? Error,
+    JsonElement? Payload = null,
+    string? FailureCode = null);
 
 /// <summary>
 /// Abstraction over "run one workflow" that the Bench scheduler depends on. Kept behind

@@ -345,6 +345,7 @@ internal sealed class RunScheduler : IDisposable
         var succeeded = false;
         var cancelled = false;
         string? error = null;
+        string? failureCode = null;
 
         try
         {
@@ -352,6 +353,7 @@ internal sealed class RunScheduler : IDisposable
             if (file is null)
             {
                 error = $"Workflow '{workflowId}' not found in ToolKit";
+                failureCode = "flow.workflow.not-found";
                 Log.Error("[RunScheduler] {Error}; node {Workflow} of run {RunId} failed",
                     error, workflowId, run.RunId);
                 return;
@@ -373,6 +375,7 @@ internal sealed class RunScheduler : IDisposable
             else
             {
                 error = result.Error ?? "Workflow failed";
+                failureCode = result.FailureCode;
                 Log.Error("[RunScheduler] Node {Workflow} of run {RunId} failed: {Error}",
                     workflowId, run.RunId, error);
             }
@@ -388,12 +391,13 @@ internal sealed class RunScheduler : IDisposable
         catch (Exception ex)
         {
             error = ex.Message;
+            failureCode = "flow.workflow.threw";
             Log.Error(ex, "[RunScheduler] Node {Workflow} of run {RunId} threw",
                 workflowId, run.RunId);
         }
         finally
         {
-            run.SettleNode(workflowId, succeeded, error, cancelled);
+            run.SettleNode(workflowId, succeeded, error, cancelled, failureCode);
         }
     }
 
