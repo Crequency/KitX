@@ -9,6 +9,7 @@ using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Time;
+using KitX.ToolKit.Storage;
 using KitX.ToolKit.Triggers;
 using Serilog;
 
@@ -38,6 +39,12 @@ internal sealed class ToolkitInstanceManager : IDisposable
     private readonly ConfigValidator _validator;
     private readonly ToolkitInstanceManagerOptions _options;
 
+    /// <summary>
+    /// Where lifecycle state and declared key values survive a restart (design §4, Q12).
+    /// Null means memory only — see the constructor's remark.
+    /// </summary>
+    private readonly IToolkitStateStore? _stateStore;
+
     private readonly ConcurrentDictionary<string, MountedToolkit> _mounted = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ToolkitInstance> _instances = new(StringComparer.Ordinal);
 
@@ -63,12 +70,18 @@ internal sealed class ToolkitInstanceManager : IDisposable
         ConfigValidator? validator = null,
         ToolkitInstanceManagerOptions? options = null,
         IClock? clock = null,
-        IIdGenerator? idGenerator = null)
+        IIdGenerator? idGenerator = null,
+        IToolkitStateStore? stateStore = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
+
+        // Null means "memory only": the lifecycle is lost when the process ends. The composition
+        // root always passes one, so the shipped behaviour persists; a test that does not care
+        // about restart behaviour does not have to invent a directory to say so.
+        _stateStore = stateStore;
 
         // No fallback here on purpose (ADR-0010 D2). A file store rooted at
         // AppContext.BaseDirectory would work in a test run and silently point somewhere else in
@@ -143,8 +156,13 @@ internal sealed class ToolkitInstanceManager : IDisposable
         var fileStore = _fileStoreFactory(toolkit);
         var compiled = Compile(toolkit, fileStore);
 
-        var scheduler = new RunScheduler(compiled, _executor, _dataStore, fileStore);
+        var scheduler = new RunScheduler(compiled, _executor, fileStore);
         var mounted = new MountedToolkit(toolkit, scheduler);
+
+        // Restore before anything can run (design §4: "进程重启 → 声明的键恢复"; Q12/Q66).
+        // Restoring after the sources start would let a flow read a key that is about to be
+        // overwritten by older data, which is a state nobody wrote on purpose.
+        var restored = RestoreState(toolkit, mounted);
 
         // Registered before any source starts (ADR-0005 D5, requirement R2.1). A source may
         // fire synchronously from Start, and Spawn resolves the toolkit through this dictionary
@@ -152,6 +170,18 @@ internal sealed class ToolkitInstanceManager : IDisposable
         // event. The built-in sources do not fire from Start today, but ITriggerSource is an
         // open interface, so the ordering is the only thing that makes the guarantee true.
         _mounted[id] = mounted;
+
+        // A toolkit disabled before the restart comes back disabled: that is the whole point of
+        // persisting the lifecycle. It is registered (so it stays addressable — design §4,
+        // "保留期 = 可寻址期") but its sources do not start.
+        if (mounted.State == LifecycleState.Disabled)
+        {
+            Log.Information(
+                "[ToolkitInstanceManager] Mounted ToolKit {Toolkit} in the disabled state it was left in; " +
+                "restored {Count} keys, triggers stay stopped",
+                id, restored);
+            return;
+        }
 
         // Start only Spawn sources. UIEvent/WorkflowCompletion are intra-instance: UIEvent is
         // wired per-instance in the GUI iteration; WorkflowCompletion is a scheduler edge.
@@ -168,7 +198,80 @@ internal sealed class ToolkitInstanceManager : IDisposable
                 trigger.Id, trigger.Type, id);
         }
 
-        Log.Information("[ToolkitInstanceManager] Mounted ToolKit {Toolkit}", id);
+        Log.Information("[ToolkitInstanceManager] Mounted ToolKit {Toolkit}; restored {Count} keys",
+            id, restored);
+    }
+
+    /// <summary>
+    /// Applies the state file to a freshly constructed mount: the lifecycle state, then the
+    /// values of the keys the toolkit still declares.
+    /// </summary>
+    /// <remarks>
+    /// <para>A value is restored only when its declaration still exists. The declaration is the
+    /// contract, so a value whose key was removed from <c>toolkit.json</c> is dropped rather
+    /// than resurrected as an unaddressable orphan — the workflow would not be allowed to read
+    /// it anyway, so keeping it would only make the file lie about what the toolkit has.</para>
+    ///
+    /// <para>Restoring writes through the same store the workflows use, so a value lands exactly
+    /// where a workflow's read will look for it, with no second key format to keep in sync.</para>
+    /// </remarks>
+    /// <returns>How many declared keys were restored.</returns>
+    private int RestoreState(Toolkit toolkit, MountedToolkit mounted)
+    {
+        if (_stateStore is null)
+            return 0;
+
+        var id = toolkit.GetId();
+
+        var state = _stateStore.Load(id);
+        if (state is null)
+            return 0;
+
+        if (state.State is { } persisted)
+            mounted.State = persisted;
+
+        var restored = 0;
+        foreach (var (local, value) in state.Values)
+        {
+            if (!mounted.Keys.IsDeclared(local))
+            {
+                Log.Warning(
+                    "[ToolkitInstanceManager] Dropping the stored value of '{Key}' for {Toolkit}: " +
+                    "the key is no longer declared",
+                    local, id);
+                continue;
+            }
+
+            _dataStore.Set(mounted.Keys.FullKey(local), value);
+            restored++;
+        }
+
+        return restored;
+    }
+
+    /// <summary>
+    /// Persists the lifecycle state and the current values of the toolkit's declared keys.
+    /// </summary>
+    /// <remarks>
+    /// Called at every state transition rather than on a timer: the lifecycle change is the only
+    /// moment the file has to be right, and a periodic write would also capture half-finished
+    /// values that no workflow intended to commit.
+    /// </remarks>
+    private void PersistState(MountedToolkit mounted)
+    {
+        if (_stateStore is null)
+            return;
+
+        var id = mounted.Toolkit.GetId();
+        var values = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+
+        foreach (var local in mounted.Keys.Names)
+        {
+            if (_dataStore.TryGet(mounted.Keys.FullKey(local), out var value))
+                values[local] = value;
+        }
+
+        _stateStore.Save(id, new ToolkitStateFile { State = mounted.State, Values = values });
     }
 
     /// <summary>
@@ -249,6 +352,11 @@ internal sealed class ToolkitInstanceManager : IDisposable
         mounted.StopSources();
         EndInstancesOf(toolkitId, InstanceEndReason.Disabled);
         mounted.State = LifecycleState.Disabled;
+
+        // Persisted immediately: "restart brings it back disabled" is the whole difference
+        // between a lifecycle state and a runtime flag (design §4, Q12).
+        PersistState(mounted);
+
         Log.Information("[ToolkitInstanceManager] Disabled ToolKit {Toolkit}; data retained", toolkitId);
     }
 
@@ -265,6 +373,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
             return;
 
         mounted.State = LifecycleState.Enabled;
+        PersistState(mounted);
         StartSpawnSources(mounted);
         Log.Information("[ToolkitInstanceManager] Enabled ToolKit {Toolkit}", toolkitId);
     }
@@ -298,6 +407,11 @@ internal sealed class ToolkitInstanceManager : IDisposable
             removed += _dataStore.Remove($"{toolkitId}/{local}") ? 1 : 0;
 
         removed += _dataStore.RemoveByPrefix($"{toolkitId}/");
+
+        // The state file is part of the toolkit (design Q66: persistence is the ToolKit's
+        // property, not the store's). Leaving it behind would re-restore the values this call
+        // just deleted on the next mount — the deletion would look like it did not work.
+        _stateStore?.Delete(toolkitId);
 
         Log.Information(
             "[ToolkitInstanceManager] Uninstalled ToolKit {Toolkit} (was mounted: {Mounted}); removed {Count} keys",

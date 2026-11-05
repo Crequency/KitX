@@ -48,6 +48,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DataStore>();
         services.AddSingleton<DataStoreOptions>();
 
+        // IKeyStore — the same singleton seen through its five-member contract face
+        // (ADR-0004 D1). Registering the interface is the point of having it: without this line
+        // the type exists and nobody can resolve it, so every consumer keeps taking the concrete
+        // class and the narrow surface is decorative. `Wait`/`WaitAny`/`KeysByPrefix`/
+        // `RemoveByPrefix`/`Clear`/`Append` are deliberately absent from it.
+        services.AddSingleton<IKeyStore>(sp => sp.GetRequiredService<DataStore>());
+
         // IExecutionGlobalsFactory — the ToolKit execution-globals factory. AddKitXWorkflowV6
         // registers the default factory with TryAdd; this AddSingleton (registered later, when
         // the host calls AddKitXToolKit after AddKitXWorkflowV6) overrides it, so the generated
@@ -84,6 +91,12 @@ public static class ServiceCollectionExtensions
         // Persistent ToolKit storage.
         services.AddSingleton(sp => new ToolkitStore(toolkitStorageRoot, sp.GetRequiredService<ConfigValidator>()));
 
+        // Lifecycle state and declared key values that survive a restart (design §4, Q12/Q66).
+        // Registered here rather than left to the manager's default: without this line the
+        // persistence exists and nothing reaches it, which is the "interface with no consumer"
+        // shape the implementation review called out (§3.4).
+        services.AddSingleton<IToolkitStateStore>(sp => new ToolkitStateStore(sp.GetRequiredService<ToolkitStore>()));
+
         // ToolKit bundled-workflow file access (resolve / load / save / minimal template).
         services.AddSingleton<IToolkitWorkflowFileStore>(_ => new ToolkitFileStore(toolkitStorageRoot));
 
@@ -101,7 +114,8 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<DataStore>(),
             toolkit => new ToolkitFileStore(toolkitStorageRoot),
             sp.GetRequiredService<ConfigValidator>(),
-            sp.GetRequiredService<ToolkitInstanceManagerOptions>()));
+            sp.GetRequiredService<ToolkitInstanceManagerOptions>(),
+            stateStore: sp.GetRequiredService<IToolkitStateStore>()));
 
         // ToolkitInstanceManagerOptions — singleton configuration for the instance
         // manager (e.g. Completed-instance retention cap). Registered with Add (last

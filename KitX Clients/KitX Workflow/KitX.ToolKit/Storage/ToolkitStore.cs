@@ -133,6 +133,51 @@ internal sealed class ToolkitStore
     public bool Exists(string toolkitId) => Directory.Exists(ToolkitDir(toolkitId));
 
     /// <summary>
+    /// Loads the toolkit's durable runtime state (lifecycle + declared key values). Returns
+    /// null when no state has been written yet, which is the ordinary "never mounted" case.
+    /// </summary>
+    /// <remarks>
+    /// A corrupt state file also returns null: <see cref="ToolkitStateFile.Deserialize"/> treats
+    /// unreadable text as absent, because nothing in that file is a declaration. Losing it costs
+    /// the last-written values, not the toolkit.
+    /// </remarks>
+    public ToolkitStateFile? LoadState(string toolkitId)
+    {
+        var path = StatePath(toolkitId);
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            return ToolkitStateFile.Deserialize(File.ReadAllText(path));
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Writes the toolkit's runtime state. Overwrites atomically.</summary>
+    public void SaveState(string toolkitId, ToolkitStateFile state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        Directory.CreateDirectory(ToolkitDir(toolkitId));
+        KcsFileIo.AtomicWrite(StatePath(toolkitId), state.Serialize());
+    }
+
+    /// <summary>Forgets the toolkit's runtime state, keeping the declaration.</summary>
+    public void DeleteState(string toolkitId)
+    {
+        var path = StatePath(toolkitId);
+        if (File.Exists(path))
+            File.Delete(path);
+    }
+
+    /// <summary>
     /// Resolves the per-ToolKit directory under the storage root. Guards against path
     /// traversal/escape: an id must be a non-empty, non-absolute, single path segment
     /// (no separators, no "." / "..", no invalid file-name characters). Throws
@@ -156,4 +201,6 @@ internal sealed class ToolkitStore
     }
 
     private string ConfigPath(string toolkitId) => Path.Combine(ToolkitDir(toolkitId), ConfigFileName);
+
+    private string StatePath(string toolkitId) => Path.Combine(ToolkitDir(toolkitId), ToolkitStateFile.FileName);
 }
