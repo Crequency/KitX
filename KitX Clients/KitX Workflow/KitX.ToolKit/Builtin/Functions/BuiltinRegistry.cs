@@ -46,7 +46,12 @@ internal static class BuiltinRegistry
         typeof(ToolkitContainsFunction),
         typeof(ToolkitAppendFunction),
 
-        // Harness I/O — the Bench completion-edge protocol.
+        // Cleanup tiers (design Q37 / Q65 §5.5.2). Grouped after the per-key operations because
+        // they widen the scope in that order: one key, then one region, then the whole table.
+        typeof(ToolkitClearRegionFunction),
+        typeof(ToolkitClearFunction),
+
+        // Harness I/O — the completion-edge protocol.
         typeof(FlowInFunction),
         typeof(FlowOutFunction),
     ];

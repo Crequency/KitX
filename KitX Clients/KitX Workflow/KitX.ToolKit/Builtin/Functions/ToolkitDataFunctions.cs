@@ -142,3 +142,52 @@ internal sealed class ToolkitAppendFunction : IBuiltinFunction
 
     public IReadOnlyList<PortSpec> OutputPorts => [];
 }
+
+/// <summary>
+/// ToolkitClearRegion(region) → removes every key declared in that region (design Q65 §5.5.2).
+/// </summary>
+/// <remarks>
+/// <para><b>Why regions and not key lists.</b> The three-tier cleanup table has one grouped form,
+/// and a region is it: after Q64 removed the control list, a region is the only collection the
+/// server still recognises. Passing key names would put key names into the script, which is the
+/// opposite of "declaration is the field".</para>
+///
+/// <para>The motivating case is a real one: "scan one book, then drop this transaction but keep the
+/// running totals" could not be written before — <c>ToolkitRemove</c> takes one key and
+/// <c>ToolkitClear</c> takes everything.</para>
+/// </remarks>
+internal sealed class ToolkitClearRegionFunction : IBuiltinFunction
+{
+    public string Name => "ToolkitClearRegion";
+    public FunctionKind Kind => FunctionKind.SideEffect;
+
+    public IReadOnlyList<PortSpec> InputPorts =>
+    [
+        new("Region", PinType.String, 20),
+    ];
+
+    public IReadOnlyList<PortSpec> OutputPorts =>
+    [
+        new("Removed", PinType.Integer, 50),
+    ];
+}
+
+/// <summary>
+/// ToolkitClear() → removes every key this toolkit declares (design Q37 §5.5.2).
+/// </summary>
+/// <remarks>
+/// The whole-table tier, for the user's "start over" rather than for orchestration. It takes no
+/// arguments on purpose: a parameterised clear would be "key names in source", which Q65 rejected.
+/// </remarks>
+internal sealed class ToolkitClearFunction : IBuiltinFunction
+{
+    public string Name => "ToolkitClear";
+    public FunctionKind Kind => FunctionKind.SideEffect;
+
+    public IReadOnlyList<PortSpec> InputPorts => [];
+
+    public IReadOnlyList<PortSpec> OutputPorts =>
+    [
+        new("Removed", PinType.Integer, 50),
+    ];
+}

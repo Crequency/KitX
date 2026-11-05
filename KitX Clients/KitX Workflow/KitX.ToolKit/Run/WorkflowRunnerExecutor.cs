@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.WorkflowV6.Serialization;
 using KitX.WorkflowV6.Services;
@@ -43,7 +44,7 @@ internal sealed class WorkflowRunnerExecutor : IWorkflowExecutor
             var result = await _runner.ExecuteAsync(ir, null, overrides, ct);
             Log.Information("[WorkflowRunnerExecutor] Workflow {Id} finished: succeeded={Succeeded} error={Error}",
                 workflowId, result.IsSuccess, result.ErrorMessage);
-            return new WorkflowExecutionResult(workflowId, result.IsSuccess, result.ErrorMessage, null);
+            return new WorkflowExecutionResult(workflowId, result.IsSuccess, result.ErrorMessage, AsPayload(result.ReturnValue));
         }
         catch (OperationCanceledException)
         {
@@ -56,6 +57,21 @@ internal sealed class WorkflowRunnerExecutor : IWorkflowExecutor
             return new WorkflowExecutionResult(workflowId, false, ex.Message, null);
         }
     }
+
+    /// <summary>
+    /// Reads what the body published through <c>FlowOut</c> out of the execution result.
+    /// </summary>
+    /// <remarks>
+    /// The value is whatever the host globals subclass handed back — a <see cref="JsonElement"/>
+    /// for ToolKit. A host that publishes nothing returns null, and a packet with no published
+    /// properties is the correct reading of that: the node simply forwards what it received.
+    /// </remarks>
+    private static JsonElement? AsPayload(object? returnValue) => returnValue switch
+    {
+        null => null,
+        JsonElement element when element.ValueKind is JsonValueKind.Object => element,
+        _ => null,
+    };
 
     /// <summary>
     /// Reads + deserializes a <c>.kcs</c>. <b>Threat model:</b> a <c>.kcs</c> is executable

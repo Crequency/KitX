@@ -222,6 +222,65 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     }
 
     /// <summary>
+    /// ToolkitClearRegion(region) → removes every key declared in <paramref name="region"/>
+    /// (design Q65 §5.5.2).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this exists.</b> "Scan one book, then drop this transaction but keep the running
+    /// totals" had no expression: <c>ToolkitRemove</c> takes one key, <c>ToolkitClear</c> takes the
+    /// whole table. A region is the only grouping the declaration already provides.</para>
+    ///
+    /// <para><b>What it does not do:</b> it removes <i>values</i>, never declarations. That is what
+    /// makes it legal while a flow is running (Q68 tier ①) — the set of keys is unchanged, so no
+    /// running flow can find itself writing a name that stopped existing.</para>
+    /// </remarks>
+    /// <returns>How many keys were actually removed.</returns>
+    public object? ToolkitClearRegion(string region)
+    {
+        var table = RequireKeyTable();
+        if (string.IsNullOrWhiteSpace(region))
+            return 0;
+
+        var removed = 0;
+        foreach (var name in table.Names)
+        {
+            if (!table.TryResolve(name, out var declaration))
+                continue;
+
+            if (!string.Equals(declaration.Region, region, StringComparison.Ordinal))
+                continue;
+
+            if (_dataStore.Remove(table.FullKey(name)))
+                removed++;
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// ToolkitClear() → removes every key this toolkit declares (design Q37 §5.5.2).
+    /// </summary>
+    /// <remarks>
+    /// The whole-table tier. It walks the declared names rather than clearing a storage prefix on
+    /// purpose: the store is a plain string→JSON map shared by every mounted toolkit, so a prefix
+    /// clear would be the one operation that could reach outside this toolkit's declarations.
+    /// </remarks>
+    /// <returns>How many keys were actually removed.</returns>
+    public object? ToolkitClear()
+    {
+        var table = RequireKeyTable();
+
+        var removed = 0;
+        foreach (var name in table.Names)
+        {
+            if (_dataStore.Remove(table.FullKey(name)))
+                removed++;
+        }
+
+        return removed;
+    }
+
+    /// <summary>
     /// The toolkit's key table, or a throw when this run is not inside a ToolKit instance.
     ///
     /// <para>Failing loudly is deliberate: the previous generation of these builtins wrote into
@@ -253,16 +312,47 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     }
 
     /// <summary>
-    /// FlowOut(key, value) → publishes a value on this workflow's completion-edge output
-    /// packet (writes <c>{outputNamespace}/{key}</c> into the DataStore). No-op when the
-    /// workflow runs outside a ToolKit instance (no output namespace).
+    /// FlowOut(key, value) → publishes a value onto this node's completion-edge output packet.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Where the value goes</b> (design Q48 / §5.6.9.3). It is held on this instance and
+    /// handed back with the execution result, then merged into the packet by the scheduler. It is
+    /// <i>not</i> written into the process-wide store any more: that version made a node's output
+    /// outlive the run that produced it, and let any later reader address it by prefix.</para>
+    ///
+    /// <para>A body that publishes nothing still produces a packet — the input packet passes
+    /// through unchanged. So the absence of a namespace is no longer a reason to drop the value;
+    /// outside a ToolKit instance there is simply nobody to hand it to.</para>
+    /// </remarks>
     public void FlowOut(string key, object? value)
     {
-        if (string.IsNullOrEmpty(OutputNamespace))
+        if (string.IsNullOrEmpty(key))
             return;
-        _dataStore.Set($"{OutputNamespace}/{key}", value);
+
+        _published[key] = AsJsonElement(value);
     }
+
+    /// <summary>
+    /// The values this body published through <see cref="FlowOut"/>, as a JSON object.
+    /// </summary>
+    /// <remarks>
+    /// Read once by the executor when the body finishes. Kept on the instance rather than in a
+    /// result-shaped field because the generated body calls <c>FlowOut</c> and returns
+    /// <see langword="void"/> — the instance is the only thing that survives from the call to the
+    /// return.
+    /// </remarks>
+    public JsonElement PublishedPayload()
+        => JsonSerializer.SerializeToElement(_published);
+
+    private readonly Dictionary<string, JsonElement> _published = new(StringComparer.Ordinal);
+
+    private static JsonElement AsJsonElement(object? value) => value switch
+    {
+        null => JsonSerializer.SerializeToElement<object?>(null),
+        JsonElement element => element.Clone(),
+        System.Text.Json.Nodes.JsonNode node => JsonSerializer.SerializeToElement(node),
+        _ => JsonSerializer.SerializeToElement(value),
+    };
 
     private static JsonElement EmptyObject()
         => JsonSerializer.SerializeToElement(new System.Text.Json.Nodes.JsonObject());

@@ -139,6 +139,14 @@ public sealed class StructuredRoslynBackend : IExecutionBackend
                 IsSuccess = true,
                 Output = g.OutputLines,
                 ExecutionTimeMs = sw.ElapsedMilliseconds,
+                // A host globals subclass may have collected values the body published (ToolKit's
+                // FlowOut does). Carrying them back here is what lets the caller build the node's
+                // output packet without the body writing into any shared store — the execution
+                // result is the transport, and ReturnValue was unused until now.
+                //
+                // Discovery is by name, not by a base type: WorkflowV6 must not know that ToolKit
+                // exists, and a host that has nothing to publish simply has no such member.
+                ReturnValue = gType.GetMethod("PublishedPayload", Type.EmptyTypes)?.Invoke(g, null),
             };
         }
         catch (Exception ex) when (ct.IsCancellationRequested

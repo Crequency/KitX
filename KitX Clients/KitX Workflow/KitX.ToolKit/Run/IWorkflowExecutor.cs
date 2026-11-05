@@ -4,9 +4,17 @@ namespace KitX.ToolKit.Run;
 
 /// <summary>
 /// Result of running a single workflow under a run. The scheduler consumes
-/// <see cref="IsSuccess"/> to decide whether to fan out; it builds the outgoing data
-/// packet itself from the instance-scoped DataStore, not from this record.
+/// <see cref="IsSuccess"/> to decide whether to fan out, and <see cref="Payload"/> to collect
+/// what the body published through <c>FlowOut</c>.
 /// </summary>
+/// <param name="WorkflowId">The workflow that ran.</param>
+/// <param name="IsSuccess">Whether the body finished without an error.</param>
+/// <param name="Error">Why it failed, when it did.</param>
+/// <param name="Payload">
+/// The values the body published with <c>FlowOut</c>, as a JSON object — or null when it
+/// published nothing (design Q48 / §5.6.9.3). This is the transport that replaced the
+/// instance-scoped slice of the store the scheduler used to scan by prefix.
+/// </param>
 internal sealed record WorkflowExecutionResult(string WorkflowId, bool IsSuccess, string? Error, JsonElement? Payload);
 
 /// <summary>
