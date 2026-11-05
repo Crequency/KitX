@@ -34,7 +34,7 @@ public static class SchedulerNodeOverheadBenchmark
             var store = new DataStore();
             Preload(store, FillerKeyCount);
             var executor = new InstantExecutor(store);
-            using var scheduler = new RunScheduler(compiled, executor, store,
+            using var scheduler = new RunScheduler(compiled, executor,
                 new ToolkitFileStore(Path.GetTempPath()));
 
             var tcs = new TaskCompletionSource();

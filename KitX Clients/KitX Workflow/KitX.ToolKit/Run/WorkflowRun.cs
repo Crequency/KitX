@@ -205,9 +205,19 @@ internal sealed class WorkflowRun : IDisposable
     /// <param name="target">Workflow id receiving the packet.</param>
     /// <param name="packet">The predecessor's output packet.</param>
     /// <param name="activation">On success, the packet the node should start with.</param>
+    /// <param name="conflict">
+    /// On failure, the property name both branches published. Non-null means this delivery could
+    /// not be merged (design Q69) and the target node has been marked failed.
+    /// </param>
     /// <returns><see langword="true"/> when this delivery claimed the node.</returns>
-    internal bool TryDeliver(string target, JsonElement packet, out JsonElement activation)
+    internal bool TryDeliver(
+        string target,
+        JsonElement packet,
+        out JsonElement activation,
+        out string? conflict)
     {
+        conflict = null;
+
         lock (_gate)
         {
             activation = default;
@@ -218,16 +228,35 @@ internal sealed class WorkflowRun : IDisposable
             var remaining = (_joinRemaining.TryGetValue(target, out var r) ? r : 0) - 1;
             _joinRemaining[target] = remaining;
 
-            _packets[target] = Merge(
-                _packets.TryGetValue(target, out var current) ? current : default,
-                packet);
+            var previous = _packets.TryGetValue(target, out var current) ? current : default;
+
+            // Assembling a join means two parallel branches now contribute to one packet. A name
+            // both of them published is a modelling error (design Q69): picking a winner would make
+            // the node's inputs depend on which branch finished first.
+            if (!TryMergeJoin(previous, packet, out var merged, out var collided))
+            {
+                conflict = collided;
+                _packets.Remove(target);
+                _states[target] = RunNodeState.Failed;
+                _failed++;
+
+                _firstFailure ??= Diagnostic.Error(
+                    Diagnostics.RunDiagnosticCodes.JoinConflict,
+                    $"Workflow '{target}' would receive '{collided}' from two branches; " +
+                    "an AND-join cannot choose one without depending on arrival order",
+                    new DiagnosticPath(WorkflowId: target, Key: collided));
+
+                return false;
+            }
+
+            _packets[target] = merged;
 
             if (remaining > 0)
                 return false; // AND-join still waiting on other predecessors.
 
             _states[target] = RunNodeState.Activated;
             _activated++;
-            activation = _packets[target];
+            activation = merged;
             return true;
         }
     }
@@ -512,6 +541,65 @@ internal sealed class WorkflowRun : IDisposable
                 obj[prop.Name] = Wrap(prop.Value);
 
         return JsonSerializer.SerializeToElement(obj);
+    }
+
+    /// <summary>
+    /// Merges two object packets, refusing to pick a winner when both carry the same name
+    /// (design Q69 §5.6.7).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this exists next to <see cref="Merge"/>.</b> The two do different jobs. This
+    /// one decides whether an AND-join can activate at all; <see cref="Merge"/> is still the right
+    /// answer for a single-predecessor delivery, where there is nothing to collide with.</para>
+    ///
+    /// <para><b>Why the collision is an error rather than "last one wins".</b> A join combines the
+    /// output of two branches that ran in parallel. When both name a property the same thing,
+    /// which value the node sees would be decided by <i>which branch happened to finish first</i>
+    /// — a race that changes results without changing any input. The design's ruling is that this
+    /// is a modelling error by the author, and the run reports it instead of hiding it.</para>
+    /// </remarks>
+    /// <param name="first">The packet delivered so far, or <see langword="default"/> if none.</param>
+    /// <param name="second">The packet arriving now.</param>
+    /// <param name="conflict">On failure, the duplicated property name.</param>
+    /// <returns><see langword="false"/> when the two packets collide.</returns>
+    private static bool TryMergeJoin(JsonElement first, JsonElement second, out JsonElement merged, out string? conflict)
+    {
+        merged = default;
+        conflict = null;
+
+        var firstIsObject = first.ValueKind == JsonValueKind.Object;
+        var secondIsObject = second.ValueKind == JsonValueKind.Object;
+
+        if (!firstIsObject || !secondIsObject)
+        {
+            // Nothing can collide. `default` means "this is the first delivery" and must not win
+            // over the packet that just arrived — picking it would silently discard the only data
+            // the node was going to get.
+            if (firstIsObject)
+                merged = secondIsObject ? Merge(first, second) : first;
+            else if (secondIsObject)
+                merged = second;
+            else
+                merged = Merge(first, second); // Neither is an object: same empty-packet result.
+
+            return true;
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var prop in first.EnumerateObject())
+            names.Add(prop.Name);
+
+        foreach (var prop in second.EnumerateObject())
+        {
+            if (names.Contains(prop.Name))
+            {
+                conflict = prop.Name;
+                return false;
+            }
+        }
+
+        merged = Merge(first, second);
+        return true;
     }
 
     /// <summary>

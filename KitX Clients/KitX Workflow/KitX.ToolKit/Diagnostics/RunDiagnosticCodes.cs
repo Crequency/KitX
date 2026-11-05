@@ -29,6 +29,12 @@ internal static class RunDiagnosticCodes
     /// <summary>The workflow threw an exception while executing.</summary>
     public const string WorkflowThrew = "flow.workflow.threw";
 
+    /// <summary>
+    /// Two parallel branches feeding one AND-join published the same property name
+    /// (design Q69 §5.6.7). Choosing one would make the node's inputs depend on arrival order.
+    /// </summary>
+    public const string JoinConflict = "flow.join.conflict";
+
     /// <summary>No failure code applies but the run did not succeed. A defect, not a normal path.</summary>
     public const string Unknown = "flow.failed.unknown";
 }

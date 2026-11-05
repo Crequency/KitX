@@ -34,7 +34,6 @@ namespace KitX.ToolKit.Run;
 internal sealed class RunScheduler : IDisposable
 {
     private readonly IWorkflowExecutor _executor;
-    private readonly DataStore _dataStore;
     private readonly ToolkitFileStore _fileStore;
     private readonly BoundedNodeScheduler _nodeGate;
 
@@ -45,6 +44,13 @@ internal sealed class RunScheduler : IDisposable
     private readonly CompiledToolkit _compiled;
 
     private readonly ConcurrentDictionary<string, WorkflowRun> _runs = new();
+
+    /// <summary>
+    /// Per target node, the union of the packet property names its incoming edges declared
+    /// (design Q70). Computed once — the graph is immutable — so the filter applied at delivery
+    /// is a property of the node's position, not of which predecessor happened to arrive last.
+    /// </summary>
+    private readonly IReadOnlyDictionary<string, IReadOnlySet<string>> _consumesByTarget;
 
     /// <summary>Source of flow ids (ADR-0006 D1). Never <c>Guid.NewGuid</c> at the call site.</summary>
     private readonly IIdGenerator _ids;
@@ -72,19 +78,28 @@ internal sealed class RunScheduler : IDisposable
     internal RunScheduler(
         CompiledToolkit compiled,
         IWorkflowExecutor executor,
-        DataStore dataStore,
         ToolkitFileStore fileStore,
         ToolKitRunOptions? options = null,
         IIdGenerator? idGenerator = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
-        _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _fileStore = fileStore ?? throw new ArgumentNullException(nameof(fileStore));
         _compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _ids = idGenerator ?? GuidIdGenerator.Instance;
 
         _graph = _compiled.Graph;
         _nodeGate = new BoundedNodeScheduler(options?.MaxConcurrentNodes ?? 0);
+
+        // Union the declared names per target once. See the field's remarks for why per-node and
+        // not per-edge: a join activates with one merged packet, so filtering by the edge that
+        // happened to arrive last would make the visible names depend on a race.
+        _consumesByTarget = _graph.Edges
+            .GroupBy(e => e.To, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlySet<string>)new HashSet<string>(
+                    g.SelectMany(e => e.Consumes), StringComparer.Ordinal),
+                StringComparer.Ordinal);
     }
 
     /// <summary>Raised when a triggered run settles.</summary>
@@ -201,22 +216,41 @@ internal sealed class RunScheduler : IDisposable
         WorkflowRun run,
         string target,
         JsonElement packet,
-        IReadOnlyDictionary<string, string?>? bindingParams)
+        IReadOnlyDictionary<string, string?>? bindingParams,
+        IReadOnlySet<string>? consumes = null)
     {
-        if (!run.TryDeliver(target, packet, out var activation))
-            return;
+        if (!run.TryDeliver(target, packet, out var activation, out var conflict))
+        {
+            // A join conflict is a failure of this run, not a dropped packet: the run already
+            // recorded the diagnostic and marked the node failed, so all that is left is to give
+            // the run a chance to settle (it may now have nothing left in flight).
+            if (conflict is not null)
+                Log.Warning(
+                    "[RunScheduler] AND-join conflict run={RunId} workflow={Workflow} property={Property}",
+                    run.RunId, target, conflict);
 
-        // The node's constant overrides come from two places, and only one of them is declared:
+            return;
+        }
+
+        // The node's constant overrides come from two places, and only one of them is undeclared:
         // the trigger's binding params (declared, resolved against the trigger payload) and the
-        // packet itself (undeclared, because it is whatever the predecessor published).
+        // packet properties the edge says this successor consumes (declared by name only, design
+        // Q70 — the values still come from the packet).
         //
-        // The packet has to be visible to the node body, otherwise removing edge parameters
-        // would have removed the data channel with them: FlowOut writes a value, BuildOutputPacket
-        // collects it into the packet, and the only way a downstream FlowIn can see it again is
-        // for the packet's own properties to be readable as names.
+        // Packet properties must be visible to the node body at all, otherwise removing edge
+        // values would have removed the data channel with them: FlowOut publishes a value,
+        // BuildOutputPacket collects it into the packet, and the only way a downstream FlowIn can
+        // see it again is for the packet's own properties to be readable as names.
+        //
+        // `consumes == null` means "not routed through an edge that declares anything" — the
+        // trigger path, where the packet is the trigger payload and there is no upstream author
+        // to collide with. An empty set means the edge explicitly forwards nothing.
         var overrides = new Dictionary<string, string?>(BindingResolver.Resolve(bindingParams, activation));
-        foreach (var (name, value) in PacketConstants(activation))
-            overrides.TryAdd(name, value);
+
+        if (consumes is null || consumes.Count > 0)
+            foreach (var (name, value) in PacketConstants(activation))
+                if (consumes is null || consumes.Contains(name))
+                    overrides.TryAdd(name, value);
 
         StartNode(run, target, activation, overrides);
     }
@@ -333,7 +367,7 @@ internal sealed class RunScheduler : IDisposable
             if (result.IsSuccess)
             {
                 succeeded = true;
-                var outputPacket = BuildOutputPacket(run, workflowId, inputPacket);
+                var outputPacket = BuildOutputPacket(inputPacket, result.Payload);
                 OnNodeSucceeded(run, workflowId, outputPacket);
             }
             else
@@ -391,36 +425,56 @@ internal sealed class RunScheduler : IDisposable
         if (edges.Count == 0)
             return;
 
-        // An edge carries topology only (design Q44): the successor receives the whole output
-        // packet, not a selection from it. Passing null here is what makes $output. references
-        // impossible downstream — there is no binding left to write one on.
+        // An edge carries topology and names, never values (design Q44 + Q70): the successor
+        // receives whatever names its incoming edges declared, and nothing else. Passing null for
+        // the binding params is what makes $output. references impossible downstream — there is no
+        // binding left to write one on — while the declared names decide which packet properties
+        // may reach the next node's constants.
         foreach (var edge in edges)
-            Deliver(run, edge.To, outputPacket, bindingParams: null);
+            Deliver(run, edge.To, outputPacket, bindingParams: null, NamesFor(edge.To));
     }
 
     /// <summary>
-    /// Builds a node's output packet: its input packet merged with the keys it wrote into its
-    /// instance-scoped data namespace (the harness "completion + data" contract).
+    /// The packet property names a node is allowed to see: the union of what every incoming edge
+    /// declared.
     /// </summary>
-    private JsonElement BuildOutputPacket(WorkflowRun run, string workflowId, JsonElement inputPacket)
-    {
-        var ns = DataStoreScope.WorkflowNamespace(run.ToolkitId, run.NamespaceId, workflowId);
-        var prefix = ns + "/";
+    /// <remarks>
+    /// <b>The union is per node, not per delivery.</b> A join activates once, with the merged
+    /// packet from all its predecessors, so filtering by the last-arriving edge's names alone
+    /// would silently drop whatever the earlier edges declared — and which edge arrives last is a
+    /// race, so the node's visible names would be nondeterministic. Returning the union makes the
+    /// filter a property of the node's position in the graph rather than of arrival order.
+    /// </remarks>
+    private IReadOnlySet<string>? NamesFor(string target)
+        => _consumesByTarget.TryGetValue(target, out var names) ? names : null;
 
+    /// <summary>
+    /// Builds a node's output packet: its input packet merged with the values its body published
+    /// through <c>FlowOut</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Where the published values come from</b> (design Q48 / §5.6.9.3). The body hands
+    /// them back through the execution result's payload. There used to be a second source: the
+    /// body wrote them into an instance-scoped slice of the process-wide store and this method
+    /// scanned that prefix. It existed only because <c>FlowOut</c> runs while the body is still
+    /// executing — an ordering artefact, not a semantic need — and it made a node's output
+    /// outlive the run that produced it.</para>
+    ///
+    /// <para><b>The input packet is still passed through.</b> A node that forwards without
+    /// publishing anything must not silently drop what it received; that is Q48's other half, and
+    /// the join in <see cref="WorkflowRun"/> relies on it for nodes with more than one predecessor.</para>
+    /// </remarks>
+    private static JsonElement BuildOutputPacket(JsonElement inputPacket, JsonElement? published)
+    {
         var obj = new JsonObject();
 
         if (inputPacket.ValueKind == JsonValueKind.Object)
             foreach (var prop in inputPacket.EnumerateObject())
                 obj[prop.Name] = WrapElement(prop.Value);
 
-        foreach (var key in _dataStore.KeysByPrefix(prefix))
-        {
-            if (_dataStore.Get(key) is not { } value)
-                continue;
-            var local = key[prefix.Length..];
-            if (!string.IsNullOrEmpty(local))
-                obj[local] = WrapElement(value);
-        }
+        if (published is { ValueKind: JsonValueKind.Object } body)
+            foreach (var prop in body.EnumerateObject())
+                obj[prop.Name] = WrapElement(prop.Value);
 
         return JsonSerializer.SerializeToElement(obj);
     }
