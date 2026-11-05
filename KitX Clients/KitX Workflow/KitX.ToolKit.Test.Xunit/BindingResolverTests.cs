@@ -29,14 +29,18 @@ public class BindingResolverTests
     }
 
     [Fact]
-    public void Resolve_OutputPath_Reads_From_Packet()
+    public void Resolve_Retired_Output_Prefix_Is_Passed_Through_As_A_Literal()
     {
+        // `$output.` no longer resolves (design Q44): an edge carries topology, and the node it
+        // starts receives the predecessor's whole output packet, so there is nothing for an
+        // output reference to select. The resolver passes the string through; rejecting it is
+        // the compiler's job, where a diagnostic can name the trigger and the parameter.
         var packet = Packet("""{ "model": "gpt-4o" }""");
         var @params = new Dictionary<string, string?> { ["model"] = "$output.model" };
 
         var result = BindingResolver.Resolve(@params, packet);
 
-        Assert.Equal("gpt-4o", result["model"]);
+        Assert.Equal("$output.model", result["model"]);
     }
 
     [Fact]
@@ -84,15 +88,13 @@ public class BindingResolverTests
         var @params = new Dictionary<string, string?>
         {
             ["a"] = "$payload.数据.items[1].name",
-            ["b"] = "$payload.items[0]",          // missing root property → null
-            ["c"] = "$output.数据.items[0].name", // output prefix with the same compiled path space
+            ["b"] = "$payload.items[0]", // missing root property → null
         };
 
         var result = BindingResolver.Resolve(@params, packet);
 
         Assert.Equal("第二", result["a"]);
         Assert.Null(result["b"]);
-        Assert.Equal("第一", result["c"]);
     }
 
     [Fact]

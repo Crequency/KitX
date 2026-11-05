@@ -5,20 +5,34 @@ using System.Text.RegularExpressions;
 namespace KitX.ToolKit.Triggers;
 
 /// <summary>
-/// Resolves a binding's <c>Params</c> map into a constant-override dictionary suitable
-/// for <c>WorkflowOverrides.ApplyConstantOverrides</c> (Bench RFC §7.3). Each param value
-/// is one of:
+/// Resolves a trigger binding's <c>Params</c> map into a constant-override dictionary suitable
+/// for <c>WorkflowOverrides.ApplyConstantOverrides</c> (Bench RFC §7.3). Each param value is one
+/// of:
 /// <list type="bullet">
-///   <item><c>"$payload.path"</c> — read from the trigger/data packet JSON (dotted path, array index support).</item>
-///   <item><c>"$output.path"</c> — read from the predecessor's output packet (same packet for a completion edge).</item>
+///   <item><c>"$payload.path"</c> — read from the trigger's payload JSON (dotted path, array index support).</item>
 ///   <item>any literal — passed through verbatim.</item>
 /// </list>
 /// The referenced JSON value is rendered to a string (scalars as-is, objects/arrays compact JSON).
 /// </summary>
+/// <remarks>
+/// <para><b>There is no <c>$output.</c> prefix, on purpose</b> (design Q44/Q48). Bindings exist
+/// only on triggers, and a trigger sees its own payload — never a predecessor's output, because
+/// a trigger has no predecessor. Completion edges carry topology only, and the node they start
+/// receives the predecessor's entire output packet, so there is nothing left for an output
+/// reference to select.</para>
+///
+/// <para>Both prefixes used to be accepted and both called the same extraction routine. That made
+/// <c>$output.x</c> on a trigger binding silently read the trigger payload, and <c>$payload.x</c>
+/// on a completion edge silently read the predecessor's output — two spellings of one thing,
+/// neither diagnosable.</para>
+/// </remarks>
 internal static class BindingResolver
 {
     private const string PayloadPrefix = "$payload.";
-    private const string OutputPrefix = "$output.";
+
+    /// <summary>The retired prefix, kept only so the compiler can reject it by name.</summary>
+    internal const string RetiredOutputPrefix = "$output.";
+
     private static readonly Regex _segment = new(@"[^\[\].]+|\[(\d+)\]", RegexOptions.Compiled);
 
     // F6: precompiled path→segment index so the per-param regex match + int.Parse runs at
@@ -26,7 +40,7 @@ internal static class BindingResolver
     // fixed at mount time, so the key space is bounded by config — an unbounded cache is safe.
     private static readonly ConcurrentDictionary<string, Segment[]> _compiled = new(StringComparer.Ordinal);
 
-    /// <summary>Resolves params against a JSON packet (source payload or predecessor output).</summary>
+    /// <summary>Resolves params against the trigger payload that produced this run.</summary>
     public static IReadOnlyDictionary<string, string?> Resolve(
         IReadOnlyDictionary<string, string?>? params_, JsonElement packet)
     {
@@ -47,10 +61,9 @@ internal static class BindingResolver
         if (value.StartsWith(PayloadPrefix, StringComparison.OrdinalIgnoreCase))
             return Extract(packet, value[PayloadPrefix.Length..]);
 
-        if (value.StartsWith(OutputPrefix, StringComparison.OrdinalIgnoreCase))
-            return Extract(packet, value[OutputPrefix.Length..]);
-
-        return value; // literal
+        // A literal that happens to look like a retired reference is passed through verbatim;
+        // rejecting it is the compiler's job (it has the diagnostic path), not this resolver's.
+        return value;
     }
 
     /// <summary>Navigates a dotted/bracket path and renders the referenced element to a string.</summary>

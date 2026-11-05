@@ -33,11 +33,9 @@ namespace KitX.ToolKit.Run;
 /// </summary>
 internal sealed class RunScheduler : IDisposable
 {
-    private readonly Toolkit _toolkit;
     private readonly IWorkflowExecutor _executor;
     private readonly DataStore _dataStore;
     private readonly ToolkitFileStore _fileStore;
-    private readonly ConfigValidator _validator;
     private readonly BoundedNodeScheduler _nodeGate;
 
     /// <summary>The single completion-edge graph (ADR-0002 D3). Immutable for the scheduler's lifetime.</summary>
@@ -54,31 +52,34 @@ internal sealed class RunScheduler : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Creates a scheduler over an already-compiled toolkit. The graph and the resolved workflow
-    /// files come from the compile step, so the scheduler cannot disagree with what was validated
-    /// (ADR-0002 D1).
+    /// Creates a scheduler over an already-compiled toolkit. Everything the scheduler needs — the
+    /// graph, the trigger bindings, the workflow file table, the toolkit id — comes from the
+    /// compile step, so the scheduler cannot disagree with what was validated and never has to
+    /// consult the config again (ADR-0002 D1).
     /// </summary>
     /// <remarks>
-    /// There is deliberately no overload that derives the graph from the config. One existed
-    /// while the compiled form was being introduced, and it never stopped being the one
+    /// <para>There is deliberately no overload that derives the graph from the config. One
+    /// existed while the compiled form was being introduced, and it never stopped being the one
     /// production used — the compiler was exercised only by its own tests. Now the only way to
-    /// build a scheduler is to compile first.
+    /// build a scheduler is to compile first.</para>
+    ///
+    /// <para>The scheduler used to take the <c>Toolkit</c> as well. That made "the runtime must
+    /// never take a Toolkit again" false while still passing every grep the criterion named: the
+    /// graph came from the compiled form, but triggers, workflow files and the toolkit id were
+    /// re-read from the config beside it. Reading one fact from two places is exactly the failure
+    /// ADR-0002 exists to remove, so the parameter is gone rather than merely unused.</para>
     /// </remarks>
     internal RunScheduler(
-        Toolkit toolkit,
         CompiledToolkit compiled,
         IWorkflowExecutor executor,
         DataStore dataStore,
         ToolkitFileStore fileStore,
-        ConfigValidator? validator = null,
         ToolKitRunOptions? options = null,
         IIdGenerator? idGenerator = null)
     {
-        _toolkit = toolkit ?? throw new ArgumentNullException(nameof(toolkit));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _dataStore = dataStore ?? throw new ArgumentNullException(nameof(dataStore));
         _fileStore = fileStore ?? throw new ArgumentNullException(nameof(fileStore));
-        _validator = validator ?? new ConfigValidator();
         _compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _ids = idGenerator ?? GuidIdGenerator.Instance;
 
@@ -92,14 +93,8 @@ internal sealed class RunScheduler : IDisposable
     /// <summary>Raised when a run truncates: these nodes will never execute (ADR-0007 D3).</summary>
     public event EventHandler<RunNodesSkippedEventArgs>? RunNodesSkipped;
 
-    /// <summary>The ToolKit this scheduler orchestrates.</summary>
-    public Toolkit Toolkit => _toolkit;
-
     /// <summary>The completion-edge graph this scheduler executes.</summary>
     public WorkflowGraph Graph => _graph;
-
-    /// <summary>Validates the ToolKit config (identity, references, strict DAG).</summary>
-    public ConfigValidationResult Validate() => _validator.Validate(_toolkit);
 
     /// <summary>Number of currently active runs.</summary>
     public int ActiveInstanceCount => _runs.Count;
@@ -152,13 +147,11 @@ internal sealed class RunScheduler : IDisposable
             run.Cancel();
     }
 
-    private Trigger? FindTrigger(string triggerId)
+    private CompiledTrigger? FindTrigger(string triggerId)
     {
-        // The compiled trigger table is a closed type hierarchy, so the bindings still come
-        // from the config — the table is what tells us the trigger exists and is not an edge.
         foreach (var ct in _compiled.Triggers)
             if (string.Equals(ct.Id, triggerId, StringComparison.Ordinal))
-                return _toolkit.Triggers.FirstOrDefault(t => string.Equals(t.Id, triggerId, StringComparison.Ordinal));
+                return ct;
         return null;
     }
 
@@ -169,8 +162,8 @@ internal sealed class RunScheduler : IDisposable
         foreach (var node in _graph.Nodes)
             joinCounts[node] = _graph.PredecessorCount(node);
         // A workflow the graph never mentions is still startable as a root; give it a counter.
-        foreach (var wf in _toolkit.Workflows)
-            joinCounts.TryAdd(wf.Id, 0);
+        foreach (var workflowId in _compiled.Workflows.Keys)
+            joinCounts.TryAdd(workflowId, 0);
 
         var successors = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var node in joinCounts.Keys)
@@ -182,7 +175,7 @@ internal sealed class RunScheduler : IDisposable
         }
 
         var run = new WorkflowRun(
-            _toolkit.GetId(), runId, namespaceId ?? runId, initiator, joinCounts, successors);
+            _compiled.ToolkitId, runId, namespaceId ?? runId, initiator, joinCounts, successors);
 
         run.Completed += (sender, e) =>
         {
@@ -213,8 +206,56 @@ internal sealed class RunScheduler : IDisposable
         if (!run.TryDeliver(target, packet, out var activation))
             return;
 
-        var overrides = BindingResolver.Resolve(bindingParams, activation);
+        // The node's constant overrides come from two places, and only one of them is declared:
+        // the trigger's binding params (declared, resolved against the trigger payload) and the
+        // packet itself (undeclared, because it is whatever the predecessor published).
+        //
+        // The packet has to be visible to the node body, otherwise removing edge parameters
+        // would have removed the data channel with them: FlowOut writes a value, BuildOutputPacket
+        // collects it into the packet, and the only way a downstream FlowIn can see it again is
+        // for the packet's own properties to be readable as names.
+        var overrides = new Dictionary<string, string?>(BindingResolver.Resolve(bindingParams, activation));
+        foreach (var (name, value) in PacketConstants(activation))
+            overrides.TryAdd(name, value);
+
         StartNode(run, target, activation, overrides);
+    }
+
+    /// <summary>
+    /// Flattens the delivered packet into constant-override entries, so a downstream workflow can
+    /// read what its predecessor published without an edge having to declare anything
+    /// (design Q44/Q49: "the successor receives the predecessor's output packet").
+    /// </summary>
+    /// <remarks>
+    /// Only top-level scalar properties become entries. Nested objects and arrays are skipped
+    /// deliberately: a constant override is a string, so exposing a subtree would mean inventing
+    /// a serialisation rule at the boundary and a naming rule for its children. A workflow that
+    /// needs a nested value publishes that value under its own name with <c>FlowOut</c>.
+    ///
+    /// <para>Declared binding params win over packet entries of the same name: the binding is the
+    /// author's explicit instruction, the packet is ambient. <c>Deliver</c> applies the resolved
+    /// bindings first for exactly that reason.</para>
+    /// </remarks>
+    private static IEnumerable<KeyValuePair<string, string?>> PacketConstants(JsonElement packet)
+    {
+        if (packet.ValueKind != JsonValueKind.Object)
+            yield break;
+
+        foreach (var property in packet.EnumerateObject())
+        {
+            var rendered = property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString(),
+                JsonValueKind.Number => property.Value.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                JsonValueKind.Null or JsonValueKind.Undefined => null,
+                _ => null, // object / array: not a scalar, not a constant
+            };
+
+            if (rendered is not null)
+                yield return new KeyValuePair<string, string?>(property.Name, rendered);
+        }
     }
 
     /// <summary>
@@ -350,8 +391,11 @@ internal sealed class RunScheduler : IDisposable
         if (edges.Count == 0)
             return;
 
+        // An edge carries topology only (design Q44): the successor receives the whole output
+        // packet, not a selection from it. Passing null here is what makes $output. references
+        // impossible downstream — there is no binding left to write one on.
         foreach (var edge in edges)
-            Deliver(run, edge.To, outputPacket, edge.Binding.Params);
+            Deliver(run, edge.To, outputPacket, bindingParams: null);
     }
 
     /// <summary>
@@ -383,12 +427,11 @@ internal sealed class RunScheduler : IDisposable
 
     private string? ResolveFile(string workflowId)
     {
+        // The compiled workflow table is the only source of file names. The config fallback that
+        // used to live here read the same fact a second time, which is what ADR-0002 D1 forbids
+        // — and it is also how the scheduler kept a live dependency on the config.
         if (_compiled.FindWorkflow(workflowId) is { } compiledWf)
             return string.IsNullOrWhiteSpace(compiledWf.File) ? null : compiledWf.File;
-
-        var wf = _toolkit.Workflows.FirstOrDefault(w => w.Id == workflowId);
-        if (wf is not null && !string.IsNullOrWhiteSpace(wf.File))
-            return wf.File;
 
         // Fall back to treating the id as the relative file path (self-contained ToolKits).
         return string.IsNullOrWhiteSpace(workflowId) ? null : workflowId;

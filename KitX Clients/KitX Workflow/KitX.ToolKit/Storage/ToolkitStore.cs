@@ -3,6 +3,7 @@ using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Serialization;
 using KitX.ToolKit.Time;
 using KitX.WorkflowV6.Serialization;
+using Serilog;
 
 namespace KitX.ToolKit.Storage;
 
@@ -76,8 +77,23 @@ internal sealed class ToolkitStore
         if (toolkit is null)
             return null;
 
-        // Ensure the id is consistent with the directory name.
-        toolkit.Id = toolkitId;
+        // The config owns the identity; the directory is only where it is stored (ADR-0006 D2,
+        // requirement R1.1). This used to overwrite `toolkit.Id` with the directory name, so
+        // copying a directory produced two copies of the same declaration answering to two
+        // different ids — one key space each.
+        //
+        // An empty id is the one case the directory still decides, because such a config
+        // predates ids being written at all. It is reported rather than silently patched: a
+        // toolkit whose id comes from its folder breaks the moment the folder is renamed.
+        if (string.IsNullOrWhiteSpace(toolkit.Id))
+        {
+            Log.Warning(
+                "[ToolkitStore] {Path} declares no Id; falling back to the directory name '{Id}'. " +
+                "Rename the directory and this toolkit becomes a different toolkit.",
+                path, toolkitId);
+            toolkit.Id = toolkitId;
+        }
+
         return toolkit;
     }
 

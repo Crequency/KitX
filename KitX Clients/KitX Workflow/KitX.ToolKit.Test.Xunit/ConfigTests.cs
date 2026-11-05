@@ -33,7 +33,9 @@ public class ConfigTests
                     Id = "trg-init-done",
                     Type = TriggerType.WorkflowCompletion,
                     Config = new TriggerConfig { From = "wf-init" },
-                    Bindings = [new TriggerBinding { Workflow = "wf-trans", Params = new() { ["model"] = "$output.model" } }],
+                    // No params: an edge carries topology only (design Q44), so whatever
+                    // wf-init publishes arrives as the packet's own property names.
+                    Bindings = [new TriggerBinding { Workflow = "wf-trans" }],
                 },
             ],
         };

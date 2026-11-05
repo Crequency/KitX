@@ -27,7 +27,7 @@ public class RunSchedulerTests
         var store = new DataStore();
         var executor = new RecordingExecutor(store, writeOutput: writeOutput);
         var scheduler = new RunScheduler(
-            toolkit, CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
         return (scheduler, executor);
     }
 
@@ -98,7 +98,7 @@ public class RunSchedulerTests
             new Trigger { Id = "e2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
                 Bindings = [new() { Workflow = "C" }] });
         using var scheduler = new RunScheduler(
-            toolkit, CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };

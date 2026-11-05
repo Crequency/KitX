@@ -143,8 +143,15 @@ internal sealed class ToolkitInstanceManager : IDisposable
         var fileStore = _fileStoreFactory(toolkit);
         var compiled = Compile(toolkit, fileStore);
 
-        var scheduler = new RunScheduler(toolkit, compiled, _executor, _dataStore, fileStore);
+        var scheduler = new RunScheduler(compiled, _executor, _dataStore, fileStore);
         var mounted = new MountedToolkit(toolkit, scheduler);
+
+        // Registered before any source starts (ADR-0005 D5, requirement R2.1). A source may
+        // fire synchronously from Start, and Spawn resolves the toolkit through this dictionary
+        // — registering afterwards dropped that first event silently: no error, no log, no
+        // event. The built-in sources do not fire from Start today, but ITriggerSource is an
+        // open interface, so the ordering is the only thing that makes the guarantee true.
+        _mounted[id] = mounted;
 
         // Start only Spawn sources. UIEvent/WorkflowCompletion are intra-instance: UIEvent is
         // wired per-instance in the GUI iteration; WorkflowCompletion is a scheduler edge.
@@ -161,7 +168,6 @@ internal sealed class ToolkitInstanceManager : IDisposable
                 trigger.Id, trigger.Type, id);
         }
 
-        _mounted[id] = mounted;
         Log.Information("[ToolkitInstanceManager] Mounted ToolKit {Toolkit}", id);
     }
 

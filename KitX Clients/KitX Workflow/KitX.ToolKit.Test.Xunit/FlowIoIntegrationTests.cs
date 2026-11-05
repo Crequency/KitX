@@ -56,13 +56,14 @@ public sealed class FlowIoIntegrationTests : IDisposable
     public async Task Trigger_Params_Flow_Through_FlowIn_Out_To_Downstream()
     {
         // A: reads the trigger param, publishes "hello <param>" on its output packet.
-        // B: reads A's output key via the completion edge, echoes it into its own
-        //    namespace (observable in the DataStore).
+        // B: reads A's published key straight from the delivered packet (an edge declares
+        //    nothing — design Q44 — so the packet's own property names are what B can read),
+        //    echoes it into its own namespace (observable in the DataStore).
         var (registry, lens) = MakeRegistry();
         WriteKcs("a.kcs", lens.Parse(
             "FlowIn(\"userInput\", \"?\") > StringConcat(\"hello \", _) > FlowOut(\"greeting\", _)\n", []));
         WriteKcs("b.kcs", lens.Parse(
-            "FlowIn(\"got\", \"none\") > FlowOut(\"echo\", _)\n", []));
+            "FlowIn(\"greeting\", \"none\") > FlowOut(\"echo\", _)\n", []));
 
         var toolkit = new Toolkit
         {
@@ -83,7 +84,7 @@ public sealed class FlowIoIntegrationTests : IDisposable
                 new Trigger
                 {
                     Id = "edge", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new TriggerBinding { Workflow = "B", Params = new() { ["got"] = "$output.greeting" } }],
+                    Bindings = [new TriggerBinding { Workflow = "B" }],
                 },
             ],
         };
@@ -92,7 +93,7 @@ public sealed class FlowIoIntegrationTests : IDisposable
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
         var fileStore = new ToolkitFileStore(_root);
         using var scheduler = new RunScheduler(
-            toolkit, CompileFixtures.Compile(toolkit, _root), new WorkflowRunnerExecutor(runner), _dataStore, fileStore);
+            CompileFixtures.Compile(toolkit, _root), new WorkflowRunnerExecutor(runner), _dataStore, fileStore);
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };

@@ -373,7 +373,7 @@ internal static class ToolkitCompiler
                     continue;
                 }
 
-                edges.Add(new WorkflowEdge(from, binding.Workflow, binding));
+                edges.Add(new WorkflowEdge(from, binding.Workflow));
             }
         }
 
@@ -463,12 +463,53 @@ internal static class ToolkitCompiler
                         $"Trigger '{trigger.Id}' binds to unknown workflow '{binding.Workflow}'.",
                         new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id, WorkflowId: binding.Workflow));
                 }
+
+                // A binding is a trigger-time construct, so it can only read the trigger's own
+                // payload. `$output.` was accepted until now and silently resolved against that
+                // same payload — the reference looked like it reached a predecessor's output and
+                // did not. There is no predecessor at trigger time, so this is always a mistake
+                // (design Q44/Q48).
+                foreach (var (name, source) in binding.Params)
+                {
+                    if (source is null ||
+                        !source.StartsWith(KitX.ToolKit.Triggers.BindingResolver.RetiredOutputPrefix,
+                            StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    sink.Error(
+                        "trigger.binding.output-retired",
+                        $"Trigger '{trigger.Id}' binding '{binding.Workflow}' param '{name}' uses " +
+                        $"'{source}'. There is no $output. reference: a completion edge carries " +
+                        "topology only and passes the predecessor's whole output packet to the " +
+                        "node it starts. Use $payload. on a trigger binding, or nothing on an edge.",
+                        new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id, WorkflowId: binding.Workflow));
+                }
             }
 
             switch (trigger.Type)
             {
                 case TriggerType.WorkflowCompletion:
                     ValidateCompletionFrom(config, trigger, workflowIds, sink);
+
+                    // A completion binding carries topology only (design Q44). The scheduler
+                    // passes the predecessor's whole output packet to the node it starts and
+                    // hands that binding no parameters at all, so any Param written here is
+                    // dropped silently. Dropping input without a word is the failure this
+                    // compiler exists to prevent, so it is rejected instead.
+                    foreach (var binding in trigger.Bindings)
+                    {
+                        if (binding.Params.Count == 0)
+                            continue;
+
+                        var names = string.Join(", ", binding.Params.Keys.Select(k => $"'{k}'"));
+                        sink.Error(
+                            "trigger.binding.params-on-completion",
+                            $"WorkflowCompletion trigger '{trigger.Id}' binding '{binding.Workflow}' declares " +
+                            $"param(s) {names}. A completion edge carries topology only: the started node " +
+                            "reads the predecessor's whole output packet, so these parameters would be " +
+                            "ignored. Remove them and read the packet's own property names instead.",
+                            new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id, WorkflowId: binding.Workflow));
+                    }
                     break;
 
                 case TriggerType.PluginEvent:
@@ -614,7 +655,7 @@ internal static class ToolkitCompiler
                 _ => new CompiledManualTrigger(trigger.Id),
             };
 
-            result.Add(compiled with { Targets = targets });
+            result.Add(compiled with { Targets = targets, Bindings = trigger.Bindings.ToList() });
         }
 
         return result;

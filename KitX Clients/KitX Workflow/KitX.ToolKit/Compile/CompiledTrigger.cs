@@ -17,6 +17,16 @@ internal abstract record CompiledTrigger(string Id, TriggerType Type)
     /// <summary>Workflow ids this trigger starts when it fires.</summary>
     public IReadOnlyList<string> Targets { get; init; } = [];
 
+    /// <summary>
+    /// The bindings this trigger declares, materialised so the scheduler never reads them from
+    /// the config (ADR-0002 D1: "the runtime must never take a Toolkit again").
+    ///
+    /// <para>Only trigger bindings appear here. Completion edges have none — an edge carries
+    /// topology, and the node it starts receives the predecessor's whole output packet
+    /// (design Q44).</para>
+    /// </summary>
+    public IReadOnlyList<TriggerBinding> Bindings { get; init; } = [];
+
     /// <summary>True when firing starts a new instance (Manual / PluginEvent / Timer).</summary>
     public bool Spawns => Type.IsSpawn();
 }

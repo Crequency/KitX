@@ -109,10 +109,54 @@ public class ToolkitCompilerGraphTests
         var result = ToolkitCompiler.Compile(config, out var diagnostics);
 
         Assert.NotNull(result);
-        Assert.NotNull(result);
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         Assert.Equal("tk-graph", result!.ToolkitId);
         Assert.Equal(3, result.Workflows.Count);
+    }
+
+    /// <summary>
+    /// A completion edge passes the predecessor's whole output packet to the node it starts
+    /// (design Q44), so the scheduler hands that binding no parameters at all. A param written
+    /// there would be dropped without a word — exactly the silent loss the compiler exists to
+    /// turn into a diagnostic.
+    /// </summary>
+    [Fact]
+    public void Params_on_a_completion_binding_are_rejected_rather_than_silently_dropped()
+    {
+        var trigger = Completion("e1", "a", "b");
+        trigger.Bindings[0].Params["model"] = "$payload.model";
+
+        var result = ToolkitCompiler.Compile(Config(trigger), out var diagnostics);
+
+        Assert.Null(result);
+        var rejected = Assert.Single(diagnostics, d => d.Code == "trigger.binding.params-on-completion");
+        Assert.Equal(DiagnosticSeverity.Error, rejected.Severity);
+        Assert.Equal("e1", rejected.Path?.TriggerId);
+        Assert.Equal("b", rejected.Path?.WorkflowId);
+        Assert.Contains("model", rejected.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The same param on a trigger-time binding is fine: a trigger binding does read the
+    /// payload, and the node it starts gets exactly the values it declares.
+    /// </summary>
+    [Fact]
+    public void Params_on_a_trigger_time_binding_stay_legal()
+    {
+        var trigger = new Trigger
+        {
+            Id = "manual",
+            Type = TriggerType.Manual,
+            Bindings =
+            [
+                new TriggerBinding { Workflow = "b", Params = new() { ["model"] = "$payload.model" } },
+            ],
+        };
+
+        var result = ToolkitCompiler.Compile(Config(trigger), out var diagnostics);
+
+        Assert.NotNull(result);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]

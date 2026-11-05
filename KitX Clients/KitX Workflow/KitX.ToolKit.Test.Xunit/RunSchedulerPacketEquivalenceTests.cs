@@ -296,44 +296,19 @@ public class RunSchedulerPacketEquivalenceTests
                 new Trigger { Id = "manual", Type = TriggerType.Manual,
                     Bindings = [new() { Workflow = "A" }, new() { Workflow = "B" }] },
 
-                // Each edge carries a $output.<producer> param so the delivered packet stays
-                // observable now that the run no longer exposes its internal packet table.
-                // BindingResolver resolves the param against the delivered packet, so whatever
-                // the target receives proves what was delivered to it — same property the old
-                // `instance.Packets[...]` assertions pinned (ADR-0003 predicted this rewrite).
-                // Both C edges carry BOTH params on purpose. Binding params on an AND-join are
-                // taken from whichever predecessor delivered last (pre-existing behaviour, not
-                // changed here), so putting only one param per edge would make this test
-                // non-deterministic. With both on each edge, whichever delivery activates C
-                // resolves both against the merged packet — which is exactly the property under
-                // test: C was started with the merge of A's and B's outputs.
+                // No edge carries parameters (design Q44): an edge is topology, and the node it
+                // starts receives the predecessor's whole output packet. What the executor was
+                // handed therefore proves what was delivered to it, because the packet's own
+                // property names become the node's constant overrides.
                 new Trigger { Id = "eA1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new() { Workflow = "C", Params = BothParams() }] },
+                    Bindings = [new() { Workflow = "C" }] },
                 new Trigger { Id = "eB1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
-                    Bindings = [new() { Workflow = "C", Params = BothParams() }] },
-                // D's edge also carries the $output.B probe, even though no edge can deliver B's
-                // data to D. Declaring it is what makes "D did not receive B's output" testable:
-                // BindingResolver always sets a param's key, resolving to null when the path is
-                // absent from the packet. Without this param, asserting fromB is missing would
-                // pass trivially — D's binding never asked for it in the first place.
+                    Bindings = [new() { Workflow = "C" }] },
                 new Trigger { Id = "eA2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new() { Workflow = "D", Params = BothParams() }] },
+                    Bindings = [new() { Workflow = "D" }] },
             ],
         };
     }
-
-    /// <summary>
-    /// The two <c>$output</c> probes, on every scenario edge. On C's pair of incoming edges both
-    /// must be present: an AND-join activates on the last arriving delivery and resolves that
-    /// binding's params, so params differing per edge would make the outcome depend on arrival
-    /// order. On D's single edge <c>fromB</c> is declared precisely so it can resolve to null —
-    /// that null is the evidence that B's output never reached D.
-    /// </summary>
-    private static Dictionary<string, string?> BothParams() => new()
-    {
-        ["fromA"] = "$output.A",
-        ["fromB"] = "$output.B",
-    };
 
     /// <summary>A scripted executor that writes a per-node key (<c>{workflowId}</c>) into the
     /// node's own scoped namespace, so the AND-join merge has no duplicate property names and
@@ -376,7 +351,7 @@ public class RunSchedulerPacketEquivalenceTests
         var store = new DataStore();
         var executor = new KeyedExecutor(store);
         var toolkit = ScenarioToolkit();
-        var scheduler = new RunScheduler(toolkit, CompileFixtures.Compile(toolkit), executor, store,
+        var scheduler = new RunScheduler(CompileFixtures.Compile(toolkit), executor, store,
             new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();
@@ -395,27 +370,27 @@ public class RunSchedulerPacketEquivalenceTests
         // A and B are roots (null input) and each write a per-node key into its own
         // namespace. A fans out to C and D; B AND-joins C. So regardless of which of
         // A/B completes first:
-        //   D receives A's output only          → fromA = "done:A", fromB = null (absent)
-        //   C receives Merge(A's output, B's)   → fromA = "done:A", fromB = "done:B"
+        //   D receives A's output only          → A = "done:A", no B
+        //   C receives Merge(A's output, B's)   → A = "done:A", B = "done:B"
         //
         // The assertions read the constants the executor was handed, not an internal packet
-        // table: an edge param is resolved by BindingResolver against the delivered packet, so
-        // what the target was started with IS what was delivered to it.
+        // table. Since an edge declares nothing, every entry below came from the delivered
+        // packet itself — that is the property under test.
         var (_, executor) = await RunScenarioAsync();
 
         var calls = executor.Calls.ToList();
         var dCall = Assert.Single(calls, c => c.WorkflowId == "D");
         var cCall = Assert.Single(calls, c => c.WorkflowId == "C");
 
-        // D is fed by the A→D edge alone, so it sees A's produced key and NOT B's. fromB is
-        // declared on D's edge too, so a null here means "the path was absent from the packet",
-        // not "nobody asked" — the assertion below is a real observation, not a tautology.
-        Assert.Equal("done:A", dCall.Overrides["fromA"]);
-        Assert.Null(dCall.Overrides["fromB"]);
+        // D is fed by the A→D edge alone, so it sees A's produced key and NOT B's. The absence
+        // is now a real observation: nothing was declared on the edge, so fromB can only be
+        // missing if B's output never reached D.
+        Assert.Equal("done:A", dCall.Overrides["A"]);
+        Assert.False(dCall.Overrides.ContainsKey("B"));
 
         // C is an AND-join over A and B, so the merged packet must carry both.
-        Assert.Equal("done:A", cCall.Overrides["fromA"]);
-        Assert.Equal("done:B", cCall.Overrides["fromB"]);
+        Assert.Equal("done:A", cCall.Overrides["A"]);
+        Assert.Equal("done:B", cCall.Overrides["B"]);
     }
 
     [Fact]
