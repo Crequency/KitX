@@ -109,13 +109,6 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
     /// <inheritdoc/>
     void KitX.ToolKit.Contract.IKeyStore.Set(string key, JsonElement value) => Set(key, value);
 
-    /// <inheritdoc/>
-    public IReadOnlyList<string> KeysInRegion(string region)
-    {
-        ArgumentNullException.ThrowIfNull(region);
-        return KeysByPrefix(region);
-    }
-
     /// <summary>Writes a key. Blocked flows are released by <see cref="Cleared"/> / <see cref="Changed"/> subscribers.</summary>
     /// <param name="value">Any value — normalized to a <see cref="JsonElement"/> (JSON object / array / string / number).</param>
     public void Set(string key, object? value)

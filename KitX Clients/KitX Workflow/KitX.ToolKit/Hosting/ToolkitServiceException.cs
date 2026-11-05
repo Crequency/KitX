@@ -13,11 +13,15 @@ namespace KitX.ToolKit.Hosting;
 /// derived from a prose message. That requirement is met here, on the exception, instead of by
 /// changing every signature.</para>
 ///
-/// <para><b>Why the type is internal.</b> The only consumer that needs the code is the adapter
-/// that will serialise it into the View protocol, and that adapter lives in
-/// <c>KitX.ToolKit.Hosting</c>, which already sees implementation internals. Hosts that only want
-/// to show a message keep catching <see cref="InvalidOperationException"/> and reading
-/// <c>Message</c>; nothing about them changes.</para>
+/// <para><b>Why the type is internal, and what that costs.</b> Hosts that only want to show a
+/// message keep catching <see cref="InvalidOperationException"/> and reading <c>Message</c>;
+/// nothing about them changes. The consumer that needs the <i>code</i> is the adapter that will
+/// serialise it into the View protocol's <c>rejected{code,message}</c>. That adapter does not
+/// exist yet, and when it does it may not live in <c>KitX.ToolKit.Hosting</c> — design §9.6 puts
+/// the network server elsewhere. <b>So the cost of <c>internal</c> is: whoever writes that
+/// adapter has to make this type visible first</b> (or copy the two constants, which is worse,
+/// because then the codes have two homes). That is a decision to make then, with the adapter's
+/// shape in hand, not a limitation to hide now.</para>
 ///
 /// <para><b>These codes are frozen once shipped</b>, exactly like the compile-time diagnostics —
 /// renaming one breaks every consumer that branched on it, silently.</para>

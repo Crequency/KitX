@@ -35,11 +35,6 @@ public interface IKeyStore
     /// <summary>Removes a key. Returns true when something was removed.</summary>
     bool Remove(string key);
 
-    /// <summary>Every key in a region (a region is a path prefix such as
-    /// <c>"{toolkitId}/{instanceId}/"</c>). Used for cleanup by region and for
-    /// enumeration, not for polling.</summary>
-    IReadOnlyList<string> KeysInRegion(string region);
-
     /// <summary>
     /// Raised after a key changed. Carries the key only — subscribers that need old/new
     /// values re-read through <see cref="TryGet"/>.
