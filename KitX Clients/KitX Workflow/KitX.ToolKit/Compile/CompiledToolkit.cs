@@ -1,5 +1,6 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
+using KitX.ToolKit.Data;
 
 namespace KitX.ToolKit.Compile;
 
@@ -57,6 +58,20 @@ internal sealed class CompiledToolkit
 
     /// <summary>Maximum concurrent instances, or null for unlimited.</summary>
     public int? MaxInstances { get; init; }
+
+    /// <summary>
+    /// The declared key table, resolved against <see cref="ToolkitId"/>. Workflows write local
+    /// names; this is what turns them into full keys and what rejects a write to a key the user
+    /// owns (ADR-0004 D2/D3).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why here and not rebuilt at mount.</b> ADR-0002 D1 requires the runtime to take
+    /// a <c>CompiledToolkit</c> and never the config again. A table reconstructed at mount from
+    /// <c>toolkit.Keys</c> quietly kept the config alive in the one place the ADR is most
+    /// explicit about — and made "what keys does this toolkit have?" a question with two
+    /// answers: the compiler's and the mount's.</para>
+    /// </remarks>
+    public required KeyTable Keys { get; init; }
 
     /// <summary>
     /// Warnings that did not prevent compilation (e.g. a deprecated field still being read).

@@ -115,7 +115,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (_mounted.TryGetValue(instance.ToolkitId, out var mounted) &&
             mounted.TriggerById.TryGetValue(instance.TriggerId, out var trigger))
         {
-            snapshot = snapshot with { Surface = trigger.Config?.Surface };
+            snapshot = snapshot with { Surface = trigger.Surface };
         }
 
         return snapshot;
@@ -157,12 +157,12 @@ internal sealed class ToolkitInstanceManager : IDisposable
         var compiled = Compile(toolkit, fileStore);
 
         var scheduler = new RunScheduler(compiled, _executor, fileStore);
-        var mounted = new MountedToolkit(toolkit, scheduler);
+        var mounted = new MountedToolkit(compiled, scheduler);
 
         // Restore before anything can run (design §4: "进程重启 → 声明的键恢复"; Q12/Q66).
         // Restoring after the sources start would let a flow read a key that is about to be
         // overwritten by older data, which is a state nobody wrote on purpose.
-        var restored = RestoreState(toolkit, mounted);
+        var restored = RestoreState(mounted);
 
         // Registered before any source starts (ADR-0005 D5, requirement R2.1). A source may
         // fire synchronously from Start, and Spawn resolves the toolkit through this dictionary
@@ -216,12 +216,12 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// where a workflow's read will look for it, with no second key format to keep in sync.</para>
     /// </remarks>
     /// <returns>How many declared keys were restored.</returns>
-    private int RestoreState(Toolkit toolkit, MountedToolkit mounted)
+    private int RestoreState(MountedToolkit mounted)
     {
         if (_stateStore is null)
             return 0;
 
-        var id = toolkit.GetId();
+        var id = mounted.Compiled.ToolkitId;
 
         var state = _stateStore.Load(id);
         if (state is null)
@@ -262,7 +262,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (_stateStore is null)
             return;
 
-        var id = mounted.Toolkit.GetId();
+        var id = mounted.Compiled.ToolkitId;
         var values = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
 
         foreach (var local in mounted.Keys.Names)
@@ -433,16 +433,16 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// <summary>Creates and starts one Spawn source per Spawn trigger on the mounted toolkit.</summary>
     private void StartSpawnSources(MountedToolkit mounted)
     {
-        var id = mounted.Toolkit.GetId();
+        var id = mounted.Compiled.ToolkitId;
 
         // Start only Spawn sources. UIEvent/WorkflowCompletion are intra-instance: UIEvent is
         // wired per-instance in the GUI iteration; WorkflowCompletion is a scheduler edge.
-        foreach (var trigger in mounted.Toolkit.Triggers)
+        foreach (var trigger in mounted.Compiled.Triggers)
         {
-            if (!trigger.Type.IsSpawn())
+            if (!trigger.Spawns)
                 continue;
 
-            var source = _registry.Create(trigger, _services);
+            var source = _registry.Create(trigger.Declaration, _services);
             source.Fired += (_, e) => Spawn(id, e.TriggerId, e.Payload, null);
             mounted.Sources.Add(source);
             source.Start(_services);
@@ -484,7 +484,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         lock (_spawnGate)
         {
             // MaxInstances cap (D7): count only Running instances of this ToolKit.
-            var max = mounted.Toolkit.MaxInstances;
+            var max = mounted.Compiled.MaxInstances;
             if (max is > 0 &&
                 _instances.Values.Count(i => i.ToolkitId == toolkitId && i.IsRunning) >= max)
             {
@@ -664,8 +664,9 @@ internal sealed class ToolkitInstanceManager : IDisposable
             return;
 
         var payload = JsonSerializer.SerializeToElement(new { @event = eventName, value });
-        var matching = mounted.Toolkit.Triggers
-            .Where(t => t.Type == TriggerType.UIEvent && MatchesEvent(t.Config, eventName))
+        var matching = mounted.Compiled.Triggers
+            .OfType<CompiledUiEventTrigger>()
+            .Where(t => MatchesEvent(t.Event, eventName))
             .ToList();
 
         foreach (var trigger in matching)
@@ -681,9 +682,9 @@ internal sealed class ToolkitInstanceManager : IDisposable
         }
     }
 
-    private static bool MatchesEvent(TriggerConfig? config, string eventName)
-        => config is not null
-           && string.Equals(config.Event, eventName, StringComparison.OrdinalIgnoreCase);
+    private static bool MatchesEvent(string? declaredEvent, string eventName)
+        => declaredEvent is not null
+           && string.Equals(declaredEvent, eventName, StringComparison.OrdinalIgnoreCase);
 
     private void Raise(ToolkitEvent e) => ToolkitEvent?.Invoke(this, e);
 
@@ -708,29 +709,33 @@ internal sealed class ToolkitInstanceManager : IDisposable
         EndAll();
     }
 
-    /// <summary>A mounted ToolKit: its config + scheduler + started Spawn sources.</summary>
+    /// <summary>
+    /// A mounted ToolKit: its compiler output, scheduler, and started Spawn sources.
+    /// </summary>
+    /// <remarks>
+    /// <b>No <c>Toolkit</c> here.</b> ADR-0002 D1 says the runtime takes a
+    /// <see cref="CompiledToolkit"/> and never the config again. This type used to keep the
+    /// config alongside the compiled output, which made the ADR true of <c>RunScheduler</c> and
+    /// false of everything around it — the manager went on reading triggers, <c>MaxInstances</c>
+    /// and the key declarations straight from the document it was told not to touch.
+    /// </remarks>
     private sealed class MountedToolkit : IDisposable
     {
-        public MountedToolkit(Toolkit toolkit, RunScheduler scheduler)
+        public MountedToolkit(CompiledToolkit compiled, RunScheduler scheduler)
         {
-            Toolkit = toolkit;
+            Compiled = compiled;
             Scheduler = scheduler;
-            Keys = KeyTable.From(toolkit.GetId(), toolkit.Keys);
 
             // F7: index triggers by id so per-instance surface resolution and Spawn lookup are
-            // O(1) instead of an O(T) linear scan per snapshot. Config validation guarantees
-            // trigger Ids are unique; a defensive first-wins fallback (with a warning) keeps
-            // the dictionary well-defined if a duplicate ever slips through validation.
-            TriggerById = new Dictionary<string, Trigger>(StringComparer.Ordinal);
-            foreach (var trigger in toolkit.Triggers)
-            {
-                if (!TriggerById.TryAdd(trigger.Id, trigger))
-                    Log.Warning("[ToolkitInstanceManager] Duplicate trigger Id '{Id}' in {Toolkit}; using the first",
-                        trigger.Id, toolkit.GetId());
-            }
+            // O(1) instead of an O(T) linear scan per snapshot. The compiler guarantees trigger
+            // Ids are unique (it reports duplicates as diagnostics), so the dictionary is
+            // well-defined without a fallback.
+            TriggerById = new Dictionary<string, CompiledTrigger>(StringComparer.Ordinal);
+            foreach (var trigger in compiled.Triggers)
+                TriggerById[trigger.Id] = trigger;
         }
 
-        public Toolkit Toolkit { get; }
+        public CompiledToolkit Compiled { get; }
         public RunScheduler Scheduler { get; }
 
         /// <summary>
@@ -758,9 +763,10 @@ internal sealed class ToolkitInstanceManager : IDisposable
         /// write local names; this is what turns them into full keys, and what rejects a write to a
         /// key the user owns.
         /// </summary>
-        public KeyTable Keys { get; }
+        /// <remarks>Comes from the compiler, not rebuilt here — see <see cref="CompiledToolkit.Keys"/>.</remarks>
+        public KeyTable Keys => Compiled.Keys;
 
-        public Dictionary<string, Trigger> TriggerById { get; }
+        public Dictionary<string, CompiledTrigger> TriggerById { get; }
         public List<ITriggerSource> Sources { get; } = [];
 
         public void Dispose()

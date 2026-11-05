@@ -1,17 +1,25 @@
 using KitX.ToolKit.Contract.Declaration;
+using KitX.ToolKit.Data;
 
 namespace KitX.ToolKit.Compile;
 
 /// <summary>
-/// A trigger declaration resolved into its closed form (ADR-0002 D1).
-///
-/// <para>The config represents a trigger as one <see cref="TriggerType"/> plus a bag of
-/// nullable <see cref="TriggerConfig"/> fields — 11 properties of which at most a few are
-/// meaningful for any given type. That shape is good for authoring (an Agent writes a flat
-/// JSON document) and bad for execution (every consumer re-checks "which fields matter
-/// here?"). This type is the closed form: the discriminant is fixed and only the settings
-/// that actually apply are materialised.</para>
+/// Everything the runtime needs about a trigger, resolved at compile time (ADR-0002 D1: "the
+/// runtime MUST NOT take a <c>Toolkit</c> again").
 /// </summary>
+/// <remarks>
+/// <para><b>Why the original <see cref="Trigger"/> is carried here.</b> The built-in trigger
+/// sources are constructed from a <see cref="Trigger"/> — <c>TimerTrigger</c> reads
+/// <c>Config.DueTimeMs</c>/<c>IntervalMs</c>/<c>OneShot</c>, <c>PluginEventTrigger</c> reads
+/// <c>Config.PluginName</c>/<c>TriggerName</c>. Keeping the declaration on the compiled trigger
+/// is what lets the manager build sources without holding the whole config: it carries the one
+/// trigger it needs, not the document it came from.</para>
+///
+/// <para>This is deliberately not a blanket permission to re-read config. A compiled trigger is
+/// a snapshot of a trigger the compiler has already validated; anything derivable (targets,
+/// bindings, spawn-ness, affinity) is materialised as its own property so callers use the
+/// resolved form rather than re-reading raw fields.</para>
+/// </remarks>
 internal abstract record CompiledTrigger(string Id, TriggerType Type)
 {
     /// <summary>Workflow ids this trigger starts when it fires.</summary>
@@ -27,8 +35,24 @@ internal abstract record CompiledTrigger(string Id, TriggerType Type)
     /// </summary>
     public IReadOnlyList<TriggerBinding> Bindings { get; init; } = [];
 
+    /// <summary>
+    /// The validated declaration this was compiled from. Present so a trigger source can be
+    /// constructed without the manager holding the config document; see this type's remarks.
+    /// </summary>
+    public required Trigger Declaration { get; init; }
+
+    /// <summary>
+    /// The declared surface mode (<c>auto</c> / <c>silent</c>), resolved. Promoted to this
+    /// object rather than read through <see cref="Declaration"/> so that listing instances
+    /// — a hot path — does not walk back into config fields.
+    /// </summary>
+    public string? Surface { get; init; }
+
     /// <summary>True when firing starts a new instance (Manual / PluginEvent / Timer).</summary>
     public bool Spawns => Type.IsSpawn();
+
+    /// <summary>True when firing routes into an existing instance rather than spawning.</summary>
+    public bool IsIntra => !Spawns;
 }
 
 /// <summary>A manual trigger: starts an instance on explicit request.</summary>

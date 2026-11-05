@@ -1,5 +1,6 @@
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
+using KitX.ToolKit.Data;
 using KitX.WorkflowV6.Builtin;
 
 namespace KitX.ToolKit.Compile;
@@ -103,6 +104,7 @@ internal static class ToolkitCompiler
             Plugins = config.Plugins.ToList(),
             Comments = config.Comments.ToList(),
             MaxInstances = config.MaxInstances,
+            Keys = KeyTable.From(toolkitId, config.Keys),
             Warnings = sink.Warnings,
         };
 
@@ -698,34 +700,60 @@ internal static class ToolkitCompiler
                 .Select(b => b.Workflow)
                 .ToList();
 
+            // `Declaration` is required on every arm on purpose: a compiled trigger that cannot
+            // name the declaration it came from is not something the runtime can build a source
+            // from. `required` turns that into a compile error here instead of a null at mount.
             CompiledTrigger compiled = trigger.Type switch
             {
-                TriggerType.Manual => new CompiledManualTrigger(trigger.Id),
+                TriggerType.Manual => new CompiledManualTrigger(trigger.Id)
+                {
+                    Declaration = trigger,
+                },
 
                 TriggerType.PluginEvent => new CompiledPluginEventTrigger(
                     trigger.Id,
                     trigger.Config?.PluginName ?? string.Empty,
-                    trigger.Config?.TriggerName),
+                    trigger.Config?.TriggerName)
+                {
+                    Declaration = trigger,
+                },
 
                 TriggerType.Timer => new CompiledTimerTrigger(
                     trigger.Id,
                     trigger.Config?.DueTimeMs ?? 0,
                     trigger.Config?.IntervalMs,
-                    trigger.Config?.OneShot ?? false),
+                    trigger.Config?.OneShot ?? false)
+                {
+                    Declaration = trigger,
+                },
 
                 TriggerType.UIEvent => new CompiledUiEventTrigger(
                     trigger.Id,
                     trigger.Config?.Control,
-                    trigger.Config?.Event),
+                    trigger.Config?.Event)
+                {
+                    Declaration = trigger,
+                },
 
                 TriggerType.WorkflowCompletion => new CompiledCompletionTrigger(
                     trigger.Id,
-                    trigger.Config?.From ?? string.Empty),
+                    trigger.Config?.From ?? string.Empty)
+                {
+                    Declaration = trigger,
+                },
 
-                _ => new CompiledManualTrigger(trigger.Id),
+                _ => new CompiledManualTrigger(trigger.Id)
+                {
+                    Declaration = trigger,
+                },
             };
 
-            result.Add(compiled with { Targets = targets, Bindings = trigger.Bindings.ToList() });
+            result.Add(compiled with
+            {
+                Targets = targets,
+                Bindings = trigger.Bindings.ToList(),
+                Surface = trigger.Config?.Surface,
+            });
         }
 
         return result;
