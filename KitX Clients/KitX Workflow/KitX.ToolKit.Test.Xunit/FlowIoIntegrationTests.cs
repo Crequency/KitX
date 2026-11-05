@@ -56,12 +56,19 @@ public sealed class FlowIoIntegrationTests : IDisposable
     public async Task Trigger_Params_Flow_Through_FlowIn_Out_To_Downstream()
     {
         // A: reads the trigger param, publishes "hello <param>" on its output packet.
-        // B: reads A's published key straight from the delivered packet (an edge declares
-        //    nothing — design Q44 — so the packet's own property names are what B can read),
-        //    echoes it into its own namespace (observable in the DataStore).
+        // B: reads A's published key straight from the delivered packet (the edge declares the
+        //    name — design Q70 — and the packet's own property names are what B can read),
+        //    then records it on a key B owns, which is where the test can observe it.
+        //
+        // B deliberately writes to a *declared key* rather than to another FlowOut: FlowOut now
+        // hands the value back with the execution result instead of parking it in the store
+        // (design Q48), so a store entry is no longer the right place to look for it.
         var (registry, lens) = MakeRegistry();
         WriteKcs("a.kcs", lens.Parse(
             "FlowIn(\"userInput\", \"?\") > StringConcat(\"hello \", _) > FlowOut(\"greeting\", _)\n", []));
+        // B only needs to read what A published. It deliberately does not call ToolkitSet: that
+        // builtin resolves through the mounted instance's key table, and this test drives the
+        // scheduler directly rather than through Mount, so there is no table to resolve against.
         WriteKcs("b.kcs", lens.Parse(
             "FlowIn(\"greeting\", \"none\") > FlowOut(\"echo\", _)\n", []));
 
@@ -84,16 +91,24 @@ public sealed class FlowIoIntegrationTests : IDisposable
                 new Trigger
                 {
                     Id = "edge", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new TriggerBinding { Workflow = "B" }],
+                    Bindings = [new TriggerBinding { Workflow = "B", Params = new() { ["greeting"] = null } }],
                 },
             ],
         };
 
         var factory = CreateFactory();
         var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
+
+        // Recording wrapper around the real executor. It observes the constant overrides the
+        // scheduler hands each node — which is exactly the surface Q70 governs: the names an edge
+        // declared, resolved against the packet the predecessor published. Reading the store
+        // instead would observe a mechanism design Q48 removes.
+        var observed = new Dictionary<string, IReadOnlyDictionary<string, string?>>(StringComparer.Ordinal);
+        var executor = new ObservingExecutor(new WorkflowRunnerExecutor(runner), observed);
+
         var fileStore = new ToolkitFileStore(_root);
         using var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit, _root), new WorkflowRunnerExecutor(runner), _dataStore, fileStore);
+            CompileFixtures.Compile(toolkit, _root), executor, fileStore);
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };
@@ -102,10 +117,47 @@ public sealed class FlowIoIntegrationTests : IDisposable
         var done = await Task.WhenAny(completed.Task, Task.Delay(30_000));
         Assert.True(ReferenceEquals(done, completed.Task), "run did not complete in time");
 
-        var echoKey = _dataStore.Keys().Single(k => k.EndsWith("/wf/B/echo", StringComparison.Ordinal));
-        var echoed = _dataStore.Get(echoKey);
-        Assert.True(echoed.HasValue, "echo key missing");
-        Assert.Equal("hello world", echoed!.Value.GetString());
+        // A read its trigger binding and published `greeting`.
+        Assert.True(observed.TryGetValue("A", out var aOverrides), "A never ran");
+        Assert.Equal("world", aOverrides["userInput"]);
+
+        // B saw `greeting` because its edge declared that name — and only that name.
+        Assert.True(observed.TryGetValue("B", out var bOverrides), "B never ran");
+        Assert.Equal("hello world", bOverrides["greeting"]);
+    }
+
+    /// <summary>
+    /// Forwards to the real executor while recording the overrides each node received.
+    /// </summary>
+    /// <remarks>
+    /// The overrides dictionary is the scheduler's actual hand-off to a node, so recording it
+    /// observes the real behaviour rather than re-deriving it. A node's published values are
+    /// asserted through what the <em>next</em> node received, which is what the design promises:
+    /// data travels along the edge, not through a shared store.
+    /// </remarks>
+    private sealed class ObservingExecutor : IWorkflowExecutor
+    {
+        private readonly IWorkflowExecutor _inner;
+        private readonly Dictionary<string, IReadOnlyDictionary<string, string?>> _observed;
+
+        public ObservingExecutor(IWorkflowExecutor inner, Dictionary<string, IReadOnlyDictionary<string, string?>> observed)
+        {
+            _inner = inner;
+            _observed = observed;
+        }
+
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            string workflowId,
+            string filePath,
+            IReadOnlyDictionary<string, string?>? overrides,
+            CancellationToken ct)
+        {
+            _observed[workflowId] = overrides is null
+                ? new Dictionary<string, string?>(StringComparer.Ordinal)
+                : new Dictionary<string, string?>(overrides, StringComparer.Ordinal);
+
+            return _inner.ExecuteAsync(workflowId, filePath, overrides, ct);
+        }
     }
 
     /// <summary>The ToolKit execution stack for Bench I/O: no panel is touched, so the

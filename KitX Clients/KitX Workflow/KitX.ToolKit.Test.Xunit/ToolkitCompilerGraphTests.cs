@@ -115,13 +115,13 @@ public class ToolkitCompilerGraphTests
     }
 
     /// <summary>
-    /// A completion edge passes the predecessor's whole output packet to the node it starts
-    /// (design Q44), so the scheduler hands that binding no parameters at all. A param written
-    /// there would be dropped without a word — exactly the silent loss the compiler exists to
-    /// turn into a diagnostic.
+    /// On a completion edge a parameter's <em>name</em> says which output-packet property the
+    /// started node may read (design Q70), so it is meaningful. Its <em>value</em> has nowhere to
+    /// go: the edge carries no data. A value written there would be dropped without a word —
+    /// exactly the silent loss the compiler exists to turn into a diagnostic.
     /// </summary>
     [Fact]
-    public void Params_on_a_completion_binding_are_rejected_rather_than_silently_dropped()
+    public void Values_on_a_completion_binding_are_rejected_rather_than_silently_dropped()
     {
         var trigger = Completion("e1", "a", "b");
         trigger.Bindings[0].Params["model"] = "$payload.model";
@@ -129,11 +129,28 @@ public class ToolkitCompilerGraphTests
         var result = ToolkitCompiler.Compile(Config(trigger), out var diagnostics);
 
         Assert.Null(result);
-        var rejected = Assert.Single(diagnostics, d => d.Code == "trigger.binding.params-on-completion");
+        var rejected = Assert.Single(diagnostics, d => d.Code == "trigger.binding.value-on-completion");
         Assert.Equal(DiagnosticSeverity.Error, rejected.Severity);
         Assert.Equal("e1", rejected.Path?.TriggerId);
         Assert.Equal("b", rejected.Path?.WorkflowId);
         Assert.Contains("model", rejected.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A completion binding whose params have empty values is the Q70 form: the keys are the names
+    /// the edge forwards, and nothing is rejected.
+    /// </summary>
+    [Fact]
+    public void Names_without_values_on_a_completion_binding_are_legal()
+    {
+        var trigger = Completion("e1", "a", "b");
+        trigger.Bindings[0].Params["model"] = null;
+
+        var result = ToolkitCompiler.Compile(Config(trigger), out var diagnostics);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var edge = Assert.Single(result!.Graph.Edges);
+        Assert.Contains("model", edge.Consumes);
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
 
@@ -63,16 +64,23 @@ internal sealed class RecordingExecutor : IWorkflowExecutor
             return new WorkflowExecutionResult(workflowId, false, "injected failure", null);
         }
 
-        // Simulate the workflow producing data into its instance-scoped namespace.
-        if (_writeOutput &&
-            overrides is not null &&
-            overrides.TryGetValue(DataStoreScope.OutputNamespaceConstant, out var ns) &&
-            !string.IsNullOrEmpty(ns))
-        {
-            _dataStore.Set(DataStoreScope.ScopedKey(ns, "result"), $"done:{workflowId}");
-        }
+        // Simulate the workflow publishing a value on its output packet. This is the only
+        // transport a node has (design Q48): the executor returns what the body published, and the
+        // scheduler merges it. Writing into the store here would test the mechanism that was
+        // removed, not the one that replaced it.
+        //
+        // The property is named after the workflow, not something fixed like "result". A join has
+        // to fail when two branches publish the same name (design Q69), so a fixed name would make
+        // every AND-join in these tests illegal — the fixture would be testing the conflict rule
+        // instead of the join it was written for.
+        JsonElement? payload = _writeOutput
+            ? JsonSerializer.SerializeToElement(new Dictionary<string, string>
+            {
+                [workflowId] = $"done:{workflowId}",
+            })
+            : null;
 
-        return new WorkflowExecutionResult(workflowId, true, null, null);
+        return new WorkflowExecutionResult(workflowId, true, null, payload);
     }
 }
 

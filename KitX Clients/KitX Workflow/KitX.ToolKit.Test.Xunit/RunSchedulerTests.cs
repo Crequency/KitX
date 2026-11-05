@@ -1,5 +1,6 @@
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Data;
+using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
 using Xunit;
 
@@ -27,7 +28,7 @@ public class RunSchedulerTests
         var store = new DataStore();
         var executor = new RecordingExecutor(store, writeOutput: writeOutput);
         var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, new ToolkitFileStore(Path.GetTempPath()));
         return (scheduler, executor);
     }
 
@@ -98,7 +99,7 @@ public class RunSchedulerTests
             new Trigger { Id = "e2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
                 Bindings = [new() { Workflow = "C" }] });
         using var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit), executor, store, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };
@@ -156,6 +157,65 @@ public class RunSchedulerTests
 
         var instance = scheduler.StartRun("edge");
         Assert.Null(instance);
+    }
+
+    [Fact]
+    public async Task AndJoin_Refuses_When_Two_Branches_Publish_The_Same_Property()
+    {
+        // Design Q69: a join that receives one name from two branches is a modelling error, not a
+        // race to resolve. Picking a winner would make the node's inputs depend on which branch
+        // finished first — same inputs, different results.
+        //
+        // A fixed-name executor is what makes the collision happen: every node publishes "shared".
+        var store = new DataStore();
+        var executor = new FixedNameExecutor("shared");
+        var toolkit = ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual,
+                Bindings = [new() { Workflow = "A" }, new() { Workflow = "B" }] },
+            new Trigger { Id = "e1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
+                Bindings = [new() { Workflow = "C" }] },
+            new Trigger { Id = "e2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
+                Bindings = [new() { Workflow = "C" }] });
+
+        var scheduler = new RunScheduler(
+            CompileFixtures.Compile(toolkit), executor, new ToolkitFileStore(Path.GetTempPath()));
+
+        RunCompletedEventArgs? completed = null;
+        var done = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, e) => { completed = e; done.TrySetResult(); };
+
+        scheduler.StartRun("manual");
+        await AwaitAsync(done.Task);
+
+        // C never ran: its join could not be assembled.
+        Assert.DoesNotContain("C", executor.Calls);
+
+        Assert.NotNull(completed);
+        Assert.Equal(RunOutcome.Failed, completed.Outcome);
+        Assert.NotNull(completed.Failure);
+        Assert.Equal("flow.join.conflict", completed.Failure!.Code);
+        Assert.Equal("shared", completed.Failure.Path?.Key);
+
+        scheduler.Dispose();
+    }
+
+    /// <summary>Publishes one fixed property name from every workflow, so joins collide.</summary>
+    private sealed class FixedNameExecutor(string propertyName) : IWorkflowExecutor
+    {
+        public List<string> Calls { get; } = [];
+
+        public Task<WorkflowExecutionResult> ExecuteAsync(
+            string workflowId, string filePath,
+            IReadOnlyDictionary<string, string?>? overrides, CancellationToken ct)
+        {
+            lock (Calls)
+                Calls.Add(workflowId);
+
+            return Task.FromResult(new WorkflowExecutionResult(
+                workflowId, true, null,
+                System.Text.Json.JsonSerializer.SerializeToElement(
+                    new Dictionary<string, string> { [propertyName] = $"from:{workflowId}" })));
+        }
     }
 
     [Fact]

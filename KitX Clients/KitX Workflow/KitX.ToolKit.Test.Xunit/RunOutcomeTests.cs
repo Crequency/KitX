@@ -68,7 +68,7 @@ public class RunOutcomeTests
         var executor = new DelegatingExecutor(execute);
         var options = new ToolKitRunOptions { MaxConcurrentNodes = maxConcurrentNodes };
         var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit), executor, store,
+            CompileFixtures.Compile(toolkit), executor,
             new ToolkitFileStore(Path.GetTempPath()), options: options);
         return (scheduler, executor);
     }

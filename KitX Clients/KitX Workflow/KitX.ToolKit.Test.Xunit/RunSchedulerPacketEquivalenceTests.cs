@@ -296,30 +296,33 @@ public class RunSchedulerPacketEquivalenceTests
                 new Trigger { Id = "manual", Type = TriggerType.Manual,
                     Bindings = [new() { Workflow = "A" }, new() { Workflow = "B" }] },
 
-                // No edge carries parameters (design Q44): an edge is topology, and the node it
-                // starts receives the predecessor's whole output packet. What the executor was
-                // handed therefore proves what was delivered to it, because the packet's own
-                // property names become the node's constant overrides.
+                // An edge names the packet properties it forwards — never their values (design
+                // Q44 + Q70). What the executor was handed therefore proves what was delivered,
+                // because only the declared names become the node's constant overrides. An empty
+                // set would have meant "reads nothing", which is not what this scenario is about.
                 new Trigger { Id = "eA1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new() { Workflow = "C" }] },
+                    Bindings = [new() { Workflow = "C", Params = new() { ["A"] = null } }] },
                 new Trigger { Id = "eB1", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
-                    Bindings = [new() { Workflow = "C" }] },
+                    Bindings = [new() { Workflow = "C", Params = new() { ["B"] = null } }] },
                 new Trigger { Id = "eA2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "A" },
-                    Bindings = [new() { Workflow = "D" }] },
+                    Bindings = [new() { Workflow = "D", Params = new() { ["A"] = null } }] },
             ],
         };
     }
 
-    /// <summary>A scripted executor that writes a per-node key (<c>{workflowId}</c>) into the
-    /// node's own scoped namespace, so the AND-join merge has no duplicate property names and
-    /// the expected merged packet is deterministic regardless of predecessor arrival order.
-    /// It also records the constant overrides it was handed, which is how the delivered packet
-    /// stays observable now that the run keeps no public packet table.</summary>
+    /// <summary>A scripted executor that publishes one property per node: <c>{workflowId}</c> →
+    /// <c>done:{workflowId}</c> — so the AND-join merge has no duplicate property names and the
+    /// expected merged packet is deterministic regardless of predecessor arrival order.
+    ///
+    /// <para>It publishes through <see cref="WorkflowExecutionResult.Payload"/>, which is the
+    /// only transport a node has for its output (design Q48): writing a key into the store and
+    /// expecting the scheduler to scan it back is exactly the mechanism that was removed. It also
+    /// records the constant overrides it was handed, which is how the delivered packet stays
+    /// observable now that the run keeps no public packet table.</para>
+    /// </summary>
     private sealed class KeyedExecutor : IWorkflowExecutor
     {
-        private readonly DataStore _store;
-
-        public KeyedExecutor(DataStore store) => _store = store;
+        public KeyedExecutor(DataStore store) => _ = store;
 
         public ConcurrentQueue<Recorded> Calls { get; } = new();
 
@@ -336,13 +339,12 @@ public class RunSchedulerPacketEquivalenceTests
                 workflowId,
                 overrides is null ? new Dictionary<string, string?>() : new Dictionary<string, string?>(overrides)));
 
-            if (overrides is not null &&
-                overrides.TryGetValue(DataStoreScope.OutputNamespaceConstant, out var ns) &&
-                !string.IsNullOrEmpty(ns))
+            var payload = JsonSerializer.SerializeToElement(new Dictionary<string, string>
             {
-                _store.Set(DataStoreScope.ScopedKey(ns, workflowId), $"done:{workflowId}");
-            }
-            return Task.FromResult(new WorkflowExecutionResult(workflowId, true, null, null));
+                [workflowId] = $"done:{workflowId}",
+            });
+
+            return Task.FromResult(new WorkflowExecutionResult(workflowId, true, null, payload));
         }
     }
 
@@ -351,7 +353,7 @@ public class RunSchedulerPacketEquivalenceTests
         var store = new DataStore();
         var executor = new KeyedExecutor(store);
         var toolkit = ScenarioToolkit();
-        var scheduler = new RunScheduler(CompileFixtures.Compile(toolkit), executor, store,
+        var scheduler = new RunScheduler(CompileFixtures.Compile(toolkit), executor,
             new ToolkitFileStore(Path.GetTempPath()));
 
         var completed = new TaskCompletionSource();
@@ -370,21 +372,21 @@ public class RunSchedulerPacketEquivalenceTests
         // A and B are roots (null input) and each write a per-node key into its own
         // namespace. A fans out to C and D; B AND-joins C. So regardless of which of
         // A/B completes first:
-        //   D receives A's output only          → A = "done:A", no B
-        //   C receives Merge(A's output, B's)   → A = "done:A", B = "done:B"
+        //   D receives A's output, filtered to the "A" name it declared  → A = "done:A", no B
+        //   C receives Merge(A's output, B's), names "A" and "B"         → both present
         //
         // The assertions read the constants the executor was handed, not an internal packet
-        // table. Since an edge declares nothing, every entry below came from the delivered
-        // packet itself — that is the property under test.
+        // table. Every entry below had to be declared on the edge that delivered it — that is the
+        // property under test.
         var (_, executor) = await RunScenarioAsync();
 
         var calls = executor.Calls.ToList();
         var dCall = Assert.Single(calls, c => c.WorkflowId == "D");
         var cCall = Assert.Single(calls, c => c.WorkflowId == "C");
 
-        // D is fed by the A→D edge alone, so it sees A's produced key and NOT B's. The absence
-        // is now a real observation: nothing was declared on the edge, so fromB can only be
-        // missing if B's output never reached D.
+        // D is fed by the A→D edge alone, and that edge forwards only "A". So it sees A's produced
+        // key and NOT B's — and the absence is a real observation: B's output never reached D, and
+        // even if it had, D never asked for the "B" name.
         Assert.Equal("done:A", dCall.Overrides["A"]);
         Assert.False(dCall.Overrides.ContainsKey("B"));
 

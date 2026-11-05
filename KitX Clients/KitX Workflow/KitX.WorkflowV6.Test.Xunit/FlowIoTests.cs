@@ -15,6 +15,7 @@
 //     a namespace.
 // ─────────────────────────────────────────────────────────────────────────────
 
+using System.Text.Json;
 using KitX.Core.Contract.Workflow;
 using KitX.ToolKit.Run;
 using KitX.ToolKit.Builtin;
@@ -114,24 +115,7 @@ public class FlowIoTests : IClassFixture<WorkflowTestFixture>
     }
 
     [Fact]
-    public async Task FlowOut_Writes_Namespaced_Key_E2E()
-    {
-        var (registry, lens, store, factory) = MakeStack();
-        var ir = lens.Parse("FlowOut(\"reply\", \"hi\")\n", []);
-        var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
-        var overrides = new Dictionary<string, string?>
-        {
-            [ToolKitConstants.OutputNamespace] = "tk1/inst1/wf/wf-a",
-        };
-
-        var result = await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
-
-        Assert.True(result.IsSuccess, result.ErrorMessage);
-        Assert.Equal("hi", store.Get("tk1/inst1/wf/wf-a/reply")?.GetString());
-    }
-
-    [Fact]
-    public async Task FlowOut_NoOps_Without_Namespace_E2E()
+    public async Task FlowOut_Publishes_Through_The_Execution_Result_E2E()
     {
         var (registry, lens, store, factory) = MakeStack();
         var ir = lens.Parse("FlowOut(\"reply\", \"hi\")\n", []);
@@ -140,17 +124,54 @@ public class FlowIoTests : IClassFixture<WorkflowTestFixture>
         var result = await runner.ExecuteAsync(ir, null, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.ErrorMessage);
+
+        // The published value travels back with the execution result (design Q48 / §5.6.9.3):
+        // it is no longer parked in the store under the node's namespace, which is what made a
+        // node's output outlive the run that produced it.
+        var payload = Assert.IsType<JsonElement>(result.ReturnValue);
+        Assert.Equal("hi", payload.GetProperty("reply").GetString());
+
+        // And nothing was written to the store: FlowOut has no store side effect any more.
         Assert.Empty(store.Keys());
     }
 
     [Fact]
-    public void FlowOut_Writes_Direct_With_Namespace()
+    public async Task FlowOut_Publishes_Nothing_And_Stays_Silent_Without_A_Host()
+    {
+        var (registry, lens, store, factory) = MakeStack();
+        var ir = lens.Parse("FlowOut(\"reply\", \"hi\")\n", []);
+        var runner = new WorkflowRunner(new StructuredRoslynBackend(registry, factory: factory));
+
+        // No overrides and no run context: outside a ToolKit instance the value is simply
+        // collected, never surfaced, and certainly never thrown.
+        var result = await runner.ExecuteAsync(ir, null, null, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Empty(store.Keys());
+    }
+
+    [Fact]
+    public void FlowOut_Collects_Values_On_The_Instance()
     {
         var store = new DataStore();
         var g = MakeGlobals(store);
         g.RunContext = new HostRunContext(null, "ns", null);
+
         g.FlowOut("k", "v");
-        Assert.Equal("v", store.Get("ns/k")?.GetString());
+        g.FlowOut("n", 42);
+
+        // Multiple publications accumulate on the same payload; a later key wins.
+        var payload = g.PublishedPayload();
+        Assert.Equal("v", payload.GetProperty("k").GetString());
+        Assert.Equal(42, payload.GetProperty("n").GetInt32());
+
+        // Two different runs never see each other's publications: the payload lives on the
+        // instance, not in a process-wide store.
+        var other = MakeGlobals(store);
+        other.RunContext = new HostRunContext(null, "ns", null);
+        Assert.False(other.PublishedPayload().TryGetProperty("k", out _));
+
+        Assert.Empty(store.Keys());
     }
 
     // ── Local parse-time descriptors mirroring KitX.ToolKit's BenchFunctions. ──

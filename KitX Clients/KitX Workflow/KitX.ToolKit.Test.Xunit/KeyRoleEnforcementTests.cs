@@ -246,6 +246,99 @@ public class KeyRoleEnforcementTests : IDisposable
         }
     }
 
+    // ── cleanup tiers (design Q37 / Q65 §5.5.2) ──
+
+    [Fact]
+    public void ToolkitClearRegion_removes_only_the_keys_declared_in_that_region()
+    {
+        // The motivating case from the design: "drop this transaction, keep the running totals".
+        // Before Q65 it had no expression — ToolkitRemove takes one key, ToolkitClear takes all.
+        var (globals, store, manager) = Create(
+            new KeyDeclaration("txn", "string", KeyRole.Out, Region: "current"),
+            new KeyDeclaration("lines", "array", KeyRole.Stream, Region: "current"),
+            new KeyDeclaration("total", "number", KeyRole.Out, Region: "cumulative"));
+        using (manager)
+        {
+            store.Set($"{TkId}/txn", "b1");
+            store.Set($"{TkId}/lines", new[] { 1, 2 });
+            store.Set($"{TkId}/total", 42);
+
+            var removed = globals.ToolkitClearRegion("current");
+
+            Assert.Equal(2, Convert.ToInt32(removed));
+            Assert.False(store.Contains($"{TkId}/txn"));
+            Assert.False(store.Contains($"{TkId}/lines"));
+            // The other region is untouched — that is the whole point of a grouped clear.
+            Assert.True(store.Contains($"{TkId}/total"));
+        }
+    }
+
+    [Fact]
+    public void ToolkitClear_removes_the_whole_declared_table_and_nothing_else()
+    {
+        var (globals, store, manager) = Create(
+            new KeyDeclaration("a", "string", KeyRole.Out),
+            new KeyDeclaration("b", "string", KeyRole.Out));
+        using (manager)
+        {
+            store.Set($"{TkId}/a", 1);
+            store.Set($"{TkId}/b", 2);
+            // A key another toolkit owns must survive: the store is shared and process-wide, so
+            // "clear" walking declared names is what keeps this from reaching outside the table.
+            store.Set("someoneelse/a", 3);
+
+            var removed = globals.ToolkitClear();
+
+            Assert.Equal(2, Convert.ToInt32(removed));
+            Assert.False(store.Contains($"{TkId}/a"));
+            Assert.False(store.Contains($"{TkId}/b"));
+            Assert.True(store.Contains("someoneelse/a"));
+        }
+    }
+
+    [Fact]
+    public void Clearing_a_region_removes_values_but_never_declarations()
+    {
+        // Q68 tier ①: value operations are legal while a flow runs, because the set of keys does
+        // not change. If clearing removed the declaration too, a running flow would be writing a
+        // name that stopped existing.
+        var (globals, store, manager) = Create(
+            new KeyDeclaration("status", "string", KeyRole.Out, Region: "r"),
+            new KeyDeclaration("gone", "string", KeyRole.Out));
+        using (manager)
+        {
+            store.Set($"{TkId}/status", "x");
+
+            globals.ToolkitClearRegion("r");
+
+            // The value is gone (that is what a clear does)...
+            Assert.Equal(false, globals.ToolkitContains("status"));
+
+            // ...but the *declaration* survives, and that is the property that makes a clear legal
+            // while a flow is running (Q68 tier ①): the workflow can write the key again without
+            // the name having stopped existing. ToolkitContains reports presence, not declaration,
+            // so the proof is that the write is accepted rather than rejected as undeclared.
+            globals.ToolkitSet("status", "again");
+            Assert.Equal("again", Str(globals.ToolkitGet("status")));
+
+            // An undeclared name stays undeclared: clearing did not create anything.
+            Assert.Equal(false, globals.ToolkitContains("gone"));
+        }
+    }
+
+    [Fact]
+    public void Clearing_an_unknown_region_removes_nothing_and_does_not_throw()
+    {
+        var (globals, store, manager) = Create(new KeyDeclaration("a", "string", KeyRole.Out, Region: "r"));
+        using (manager)
+        {
+            store.Set($"{TkId}/a", 1);
+
+            Assert.Equal(0, Convert.ToInt32(globals.ToolkitClearRegion("nope")));
+            Assert.True(store.Contains($"{TkId}/a"));
+        }
+    }
+
     // ── introspection ──
 
     [Fact]
