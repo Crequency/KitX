@@ -92,7 +92,7 @@ public class BuiltinResolutionCompileTests : IDisposable
 
         var result = ToolkitCompiler.Compile(config, out var diagnostics, _root.FullName, null, resolver);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         var unknown = Assert.Single(diagnostics, d => d.Code == "workflow.builtin.unknown");
         Assert.Equal(DiagnosticSeverity.Error, unknown.Severity);
         Assert.Contains("Vanished", unknown.Message);
@@ -115,8 +115,8 @@ public class BuiltinResolutionCompileTests : IDisposable
 
         var result = ToolkitCompiler.Compile(config, out var diagnostics, _root.FullName, null, resolver);
 
-        Assert.True(result.Succeeded, string.Join("; ", diagnostics.Select(d => d.Message)));
-        Assert.Equal(["Print", "Range"], result.Value!.FindWorkflow("wf")!.Builtins);
+        Assert.NotNull(result);
+        Assert.Equal(["Print", "Range"], result!.FindWorkflow("wf")!.Builtins);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class BuiltinResolutionCompileTests : IDisposable
         var resolver = new BuiltinResolver([new StubBuiltin("Print")]);
         var result = ToolkitCompiler.Compile(config, out var diagnostics, _root.FullName, null, resolver);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         Assert.Contains(diagnostics, d => d.Code == "workflow.file.missing");
     }
 
@@ -152,7 +152,7 @@ public class BuiltinResolutionCompileTests : IDisposable
         var resolver = new BuiltinResolver([new StubBuiltin("Print")]);
         var result = ToolkitCompiler.Compile(config, out var diagnostics, _root.FullName, null, resolver);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         Assert.Contains(diagnostics, d => d.Code == "workflow.builtin.unknown" && d.Message.Contains("DataStoreWait"));
     }
 
@@ -172,7 +172,7 @@ public class BuiltinResolutionCompileTests : IDisposable
         var resolver = new BuiltinResolver([new StubBuiltin("PluginCall")]);
         var result = ToolkitCompiler.Compile(config, out var diagnostics, _root.FullName, null, resolver);
 
-        Assert.True(result.Succeeded, string.Join("; ", diagnostics.Select(d => d.Message)));
-        Assert.Equal(["PluginCall"], result.Value!.FindWorkflow("wf")!.Builtins);
+        Assert.NotNull(result);
+        Assert.Equal(["PluginCall"], result!.FindWorkflow("wf")!.Builtins);
     }
 }

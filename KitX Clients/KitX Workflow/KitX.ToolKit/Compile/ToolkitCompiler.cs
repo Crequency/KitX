@@ -18,10 +18,17 @@ namespace KitX.ToolKit.Compile;
 internal static class ToolkitCompiler
 {
     /// <summary>
-    /// Compiles <paramref name="config"/>. On success, <c>Value</c> is the compiled toolkit and
-    /// <c>Error</c> is null; on failure, <c>Error</c> is a summary diagnostic and
-    /// <paramref name="diagnostics"/> holds every problem found (errors and warnings).
+    /// Compiles <paramref name="config"/>. Returns the compiled toolkit, or null on failure —
+    /// in which case <paramref name="diagnostics"/> holds every problem found (errors and
+    /// warnings), in discovery order.
     /// </summary>
+    /// <remarks>
+    /// Null-or-value rather than a <c>Result&lt;T&gt;</c>: the only consumer is the mount path,
+    /// which turns a failure into a thrown exception anyway, and a second way to ask "did it
+    /// work" beside "is the value there" is one concept too many. Callers that need to know
+    /// <i>why</i> read <paramref name="diagnostics"/>; <c>diagnostics</c> is non-empty whenever
+    /// the return value is null, so there is no third state to distinguish.
+    /// </remarks>
     /// <param name="config">The declaration to compile. Not mutated.</param>
     /// <param name="storageRoot">Root directory a workflow's relative <c>File</c> resolves
     /// against. Null means "do not resolve absolute paths" — useful for in-memory validation,
@@ -34,7 +41,7 @@ internal static class ToolkitCompiler
     /// "no host available" — builtin references are then left unchecked rather than rejected,
     /// because a compiler that cannot see the catalogue must not claim a name is missing.
     /// </param>
-    public static Result<CompiledToolkit> Compile(
+    public static CompiledToolkit? Compile(
         Toolkit config,
         out IReadOnlyList<Diagnostic> diagnostics,
         string? storageRoot = null,
@@ -114,12 +121,17 @@ internal static class ToolkitCompiler
 
         if (sink.HasErrors)
         {
+            // The per-error diagnostics are already in the sink and are the useful ones; this
+            // summary exists so a caller that only prints diagnostics gets one line saying
+            // "and therefore nothing was produced".
             var first = sink.Errors[0];
-            return Result<CompiledToolkit>.Fail(new Diagnostic(
-                DiagnosticSeverity.Error,
+            sink.Error(
                 "toolkit.compile.failed",
                 $"Compilation produced {sink.Errors.Count} error(s); first: {first.Message}",
-                new DiagnosticPath(ToolkitId: toolkitId)));
+                new DiagnosticPath(ToolkitId: toolkitId));
+
+            diagnostics = sink.All;
+            return null;
         }
 
         var compiled = new CompiledToolkit
@@ -135,7 +147,7 @@ internal static class ToolkitCompiler
             Warnings = sink.Warnings,
         };
 
-        return Result<CompiledToolkit>.Ok(compiled);
+        return compiled;
     }
 
     // ── identity ──────────────────────────────────────────────────────────────

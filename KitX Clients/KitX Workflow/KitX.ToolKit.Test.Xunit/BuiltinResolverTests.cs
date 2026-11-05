@@ -81,8 +81,8 @@ public class BuiltinResolverTests
     {
         var result = ToolkitCompiler.Compile(Config(), out _, builtins: BuiltinResolver.Empty);
 
-        Assert.True(result.Succeeded);
-        var workflow = result.Value!.FindWorkflow("wf");
+        Assert.NotNull(result);
+        var workflow = result!.FindWorkflow("wf");
         Assert.NotNull(workflow);
         Assert.Null(workflow.Builtins);
     }
@@ -96,8 +96,8 @@ public class BuiltinResolverTests
     {
         var result = ToolkitCompiler.Compile(Config(), out _);
 
-        Assert.True(result.Succeeded);
-        Assert.Null(result.Value!.FindWorkflow("wf")!.Builtins);
+        Assert.NotNull(result);
+        Assert.Null(result!.FindWorkflow("wf")!.Builtins);
     }
 
     /// <summary>
@@ -111,8 +111,8 @@ public class BuiltinResolverTests
 
         var result = ToolkitCompiler.Compile(Config(), out _, builtins: resolver);
 
-        Assert.True(result.Succeeded);
-        Assert.Null(result.Value!.FindWorkflow("wf")!.Builtins);
+        Assert.NotNull(result);
+        Assert.Null(result!.FindWorkflow("wf")!.Builtins);
     }
 
     [Fact]

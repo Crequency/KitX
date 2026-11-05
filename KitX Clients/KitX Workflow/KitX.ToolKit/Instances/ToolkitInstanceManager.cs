@@ -183,18 +183,21 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// </remarks>
     private CompiledToolkit Compile(Toolkit toolkit, ToolkitFileStore fileStore)
     {
-        var result = ToolkitCompiler.Compile(
+        var compiled = ToolkitCompiler.Compile(
             toolkit,
             out var diagnostics,
             storageRoot: fileStore.Root,
             builtins: new BuiltinResolver(_services.GetServices<IBuiltinFunction>()));
 
-        if (result.Value is not null)
-            return result.Value;
+        if (compiled is not null)
+            return compiled;
 
+        // A failed compile always has at least one error diagnostic, so this never falls back to
+        // a generic message in practice; the guard is here so a future compiler change cannot
+        // turn a failure into an exception that explains nothing.
         var errors = diagnostics.Count > 0
             ? string.Join("\n  ", diagnostics.Select(d => $"[{d.Code}] {d.Message}"))
-            : result.Error?.Message ?? "compilation produced no toolkit";
+            : "the compiler reported failure without a diagnostic";
 
         throw new InvalidOperationException("ToolKit config failed to compile:\n  " + errors);
     }

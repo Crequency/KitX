@@ -60,7 +60,7 @@ public class ToolkitCompilerGraphTests
 
         var result = ToolkitCompiler.Compile(config, out var diagnostics);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         Assert.Contains(diagnostics, d => d.Code == "graph.edge.duplicate");
         Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
@@ -74,7 +74,7 @@ public class ToolkitCompilerGraphTests
 
         var result = ToolkitCompiler.Compile(config, out var diagnostics);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         Assert.Contains(diagnostics, d => d.Code == "graph.cycle");
     }
 
@@ -96,9 +96,9 @@ public class ToolkitCompilerGraphTests
 
         var result = ToolkitCompiler.Compile(config, out var diagnostics);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         Assert.NotEmpty(diagnostics);
-        Assert.NotNull(result.Error);
+        Assert.NotEmpty(diagnostics);
     }
 
     [Fact]
@@ -108,11 +108,11 @@ public class ToolkitCompilerGraphTests
 
         var result = ToolkitCompiler.Compile(config, out var diagnostics);
 
-        Assert.True(result.Succeeded);
-        Assert.NotNull(result.Value);
+        Assert.NotNull(result);
+        Assert.NotNull(result);
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Equal("tk-graph", result.Value!.ToolkitId);
-        Assert.Equal(3, result.Value.Workflows.Count);
+        Assert.Equal("tk-graph", result!.ToolkitId);
+        Assert.Equal(3, result.Workflows.Count);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class ToolkitCompilerGraphTests
     {
         var config = Config(Completion("e1", "a", "b"));
         var result = ToolkitCompiler.Compile(config, out _);
-        var graph = result.Value!.Graph;
+        var graph = result!.Graph;
 
         // Nodes are ordinally sorted, so iteration order is stable across runs.
         Assert.Equal(graph.Nodes.OrderBy(x => x, StringComparer.Ordinal).ToList(), graph.Nodes);

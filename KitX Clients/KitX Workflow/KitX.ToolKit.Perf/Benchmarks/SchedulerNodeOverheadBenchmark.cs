@@ -24,7 +24,7 @@ public static class SchedulerNodeOverheadBenchmark
 
         // Compiled once, outside the measured loop: this benchmark measures per-node completion
         // overhead, and the compile step runs once per mount in production, not once per run.
-        var compiled = ToolkitCompiler.Compile(toolkit, out var diagnostics).Value
+        var compiled = ToolkitCompiler.Compile(toolkit, out var diagnostics)
             ?? throw new InvalidOperationException(
                 "benchmark toolkit did not compile: " + string.Join("; ", diagnostics.Select(d => d.Message)));
 

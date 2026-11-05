@@ -24,12 +24,12 @@ internal static class CompileFixtures
     /// </summary>
     public static CompiledToolkit Compile(Toolkit toolkit, string? storageRoot = null)
     {
-        var result = ToolkitCompiler.Compile(toolkit, out var diagnostics, storageRoot: storageRoot);
+        var compiled = ToolkitCompiler.Compile(toolkit, out var diagnostics, storageRoot: storageRoot);
 
         Assert.True(
-            result.Succeeded,
+            compiled is not null,
             "config did not compile:\n  " + string.Join("\n  ", diagnostics.Select(d => $"[{d.Code}] {d.Message}")));
 
-        return result.Value!;
+        return compiled!;
     }
 }

@@ -51,7 +51,7 @@ public class CompileDeterminismTests
     {
         var result = ToolkitCompiler.Compile(ConfigWithId(id), out var diagnostics);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         var invalid = Assert.Single(diagnostics, d => d.Code == "toolkit.id.invalid");
         Assert.Contains("id.invalid-character", invalid.Message);
     }
@@ -63,7 +63,7 @@ public class CompileDeterminismTests
     {
         var result = ToolkitCompiler.Compile(ConfigWithId(id), out var diagnostics);
 
-        Assert.False(result.Succeeded);
+        Assert.Null(result);
         var invalid = Assert.Single(diagnostics, d => d.Code == "toolkit.id.invalid");
         Assert.Contains("id.reserved-segment", invalid.Message);
     }
@@ -95,8 +95,8 @@ public class CompileDeterminismTests
         var first = ToolkitCompiler.Compile(config, out var firstDiagnostics);
         var second = ToolkitCompiler.Compile(config, out var secondDiagnostics);
 
-        Assert.False(first.Succeeded);
-        Assert.False(second.Succeeded);
+        Assert.Null(first);
+        Assert.Null(second);
         Assert.Equal(
             firstDiagnostics.Select(d => (d.Severity, d.Code)),
             secondDiagnostics.Select(d => (d.Severity, d.Code)));
@@ -133,7 +133,7 @@ public class CompileDeterminismTests
         var a = ToolkitCompiler.Compile(config, out _);
         var b = ToolkitCompiler.Compile(config, out _);
 
-        Assert.Equal(["apple", "zebra"], a.Value!.Graph.Nodes);
-        Assert.Equal(a.Value.Graph.Nodes, b.Value!.Graph.Nodes);
+        Assert.Equal(["apple", "zebra"], a!.Graph.Nodes);
+        Assert.Equal(a.Graph.Nodes, b!.Graph.Nodes);
     }
 }
