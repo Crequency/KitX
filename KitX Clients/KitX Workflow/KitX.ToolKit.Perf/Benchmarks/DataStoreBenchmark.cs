@@ -40,8 +40,11 @@ public static class DataStoreBenchmark
         for (var i = 0; i < k; i++)
             store.Set($"preset-{i}", "{\"v\":1}");
 
-        var waiterKeys = Enumerable.Range(0, w).Select(i => $"never-{i}").ToArray();
-        var waiterTasks = waiterKeys.Select(key => Task.Run(() => waits.Wait([key], TimeSpan.FromSeconds(30), default))).ToArray();
+        // Not wrapped in Task.Run: WaitAsync is already a Task, and the wrapper would put the
+        // wait back on a pool thread — measuring exactly the state this benchmark must not be in.
+        var waiterTasks = Enumerable.Range(0, w)
+            .Select(i => waits.WaitAsync([$"never-{i}"], TimeSpan.FromSeconds(30), default))
+            .ToArray();
 
         var m = Benchmark.Measure(1, Rounds, () =>
         {
@@ -49,8 +52,8 @@ public static class DataStoreBenchmark
                 store.Set("hot", HotValue);
         }, perUnit: SetCount);
 
-        foreach (var key in waiterKeys)
-            store.Set(key, "x");
+        for (var i = 0; i < w; i++)
+            store.Set($"never-{i}", "x");
         Task.WaitAll(waiterTasks);
 
         return m.Row("DataStore Set", $"K={k} · W={w} · {SetCount:n0} Set · ~64B · 每 Set");
@@ -88,7 +91,7 @@ public static class DataStoreBenchmark
         var fastM = Benchmark.Measure(1, Rounds, () =>
         {
             for (var i = 0; i < 100; i++)
-                fastWaits.Wait(["present"], TimeSpan.FromSeconds(30), default);
+                fastWaits.WaitAsync(["present"], TimeSpan.FromSeconds(30), default).GetAwaiter().GetResult();
         }, perUnit: 100);
         rows.Add(fastM.Row("DataStore Wait", "fast path · K=3k · 键已存在即返回 · 每 Wait"));
 
@@ -106,8 +109,12 @@ public static class DataStoreBenchmark
             var setters = keys
                 .Select(key => Task.Run(async () => { await Task.Delay(10); slow.Set(key, "{\"v\":1}"); }))
                 .ToArray();
+            // The measured loop is synchronous by construction (Benchmark.Measure takes an
+            // Action), so the per-wait cost has to be read from here. The blocking GetResult is
+            // the benchmark harness's shape, not the production call path — ToolkitWait itself
+            // returns the Task and the generated workflow awaits it.
             foreach (var key in keys)
-                slowWaits.Wait([key], TimeSpan.FromSeconds(30), default);
+                slowWaits.WaitAsync([key], TimeSpan.FromSeconds(30), default).GetAwaiter().GetResult();
             Task.WaitAll(setters);
         }, perUnit: 100);
         rows.Add(slowM.Row("DataStore Wait", "K=3k · 10ms 后 Set 唤醒 · 每 Wait"));
