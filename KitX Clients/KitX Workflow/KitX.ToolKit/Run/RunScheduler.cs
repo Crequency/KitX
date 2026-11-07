@@ -195,6 +195,15 @@ internal sealed class RunScheduler : IDisposable
         run.Completed += (sender, e) =>
         {
             _ = sender;
+
+            // The two names below are the same value: RunCompletedEventArgs' first argument is
+            // RunId (see WorkflowRun.BuildCompletedArgs). Storing under RunId and removing under
+            // FlowId only works because of that. If either side ever changes, this run silently
+            // stays in the table, ActiveInstanceCount never drops, and a slot of the machine-wide
+            // MaxConcurrentFlows budget is gone for the life of the process.
+            //
+            // RunOutcomeTests asserts ActiveInstanceCount returns to zero after a run settles,
+            // which is what would catch it.
             _runs.TryRemove(e.FlowId, out WorkflowRun? _);
             RunCompleted?.Invoke(this, e);
         };
