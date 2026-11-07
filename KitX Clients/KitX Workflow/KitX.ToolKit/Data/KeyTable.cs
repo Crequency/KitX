@@ -131,6 +131,6 @@ internal sealed class KeyAccessException(string key, string reason)
     /// <summary>The key the workflow asked for, as it wrote it (local name).</summary>
     public string Key { get; } = key;
 
-    /// <summary>A stable token: <c>key.undeclared</c>, <c>key.role-in</c> or <c>key.role-in-on-submit</c>.</summary>
+    /// <summary>A stable token: <c>key.undeclared</c>.</summary>
     public string Reason { get; } = reason;
 }
