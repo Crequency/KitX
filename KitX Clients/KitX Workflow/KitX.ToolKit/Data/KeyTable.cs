@@ -83,22 +83,13 @@ internal sealed class KeyTable
     /// Why a workflow may not write <paramref name="localName"/>, or null when it may.
     ///
     /// <para>Returns a reason rather than throwing so the caller can choose between a compile-time
-    /// diagnostic and a run-time failure from the same rule. The two roles that reject are both
-    /// "the user is the writer" (ADR-0004 D3); <see cref="KeyRole.In"/> and
-    /// <see cref="KeyRole.InOnSubmit"/> differ in <i>when</i> the user writes, not in who.</para>
+    /// diagnostic and a run-time failure from the same rule. After Q71 there is exactly one
+    /// rejection reason: the key is not declared at all. Every declared role is writable by a
+    /// workflow (the View-only roles were removed because "when the user submits" is a View
+    /// concern, not something the service can observe).</para>
     /// </summary>
     public string? ExplainWorkflowWriteRejection(string localName)
-    {
-        if (!_byName.TryGetValue(localName, out var declaration))
-            return "key.undeclared";
-
-        return declaration.Role switch
-        {
-            KeyRole.In => "key.role-in",
-            KeyRole.InOnSubmit => "key.role-in-on-submit",
-            _ => null,
-        };
-    }
+        => _byName.ContainsKey(localName) ? null : "key.undeclared";
 
     /// <summary>
     /// Validates a workflow's write against the table and returns the full key, or throws.

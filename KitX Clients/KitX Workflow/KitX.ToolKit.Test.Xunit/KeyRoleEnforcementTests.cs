@@ -64,35 +64,23 @@ public class KeyRoleEnforcementTests : IDisposable
         return (globals, store, manager);
     }
 
-    // ── the headline rule: an "in" key refuses a workflow write ──
+    // ── the headline rule: an undeclared key refuses a workflow write ──
 
     [Fact]
-    public void Writing_an_In_key_from_a_workflow_throws()
+    public void Writing_an_Undeclared_key_from_a_workflow_throws()
     {
-        // This is the pickfolder.ks:12 case exactly: the workflow tries to fill a field the user
-        // owns. ADR-0004 D3 says throw, not silently ignore — a dropped write would let the author
-        // believe the value landed and be surprised when the user's next edit replaces it.
-        var (globals, store, manager) = Create(new KeyDeclaration("workdir", "string", KeyRole.In, "settings"));
+        // Q71 removed the two View-only roles, so "the workflow may not write this" now has exactly
+        // one source: the key is not in the table. ADR-0004 D3 still says throw, not silently
+        // ignore — a dropped write would let the author believe the value landed.
+        var (globals, store, manager) = Create(new KeyDeclaration("workdir", "string", KeyRole.Out, "settings"));
         using (manager)
         {
-            var ex = Assert.Throws<KeyAccessException>(() => globals.ToolkitSet("workdir", "/tmp/x"));
-            Assert.Equal("key.role-in", ex.Reason);
-            Assert.Equal("workdir", ex.Key);
+            var ex = Assert.Throws<KeyAccessException>(() => globals.ToolkitSet("undeclared", "/tmp/x"));
+            Assert.Equal("key.undeclared", ex.Reason);
+            Assert.Equal("undeclared", ex.Key);
 
             // And nothing was written: the rejection happens before the store is touched.
-            Assert.False(store.Contains($"{TkId}/workdir"));
-        }
-    }
-
-    [Fact]
-    public void Writing_an_InOnSubmit_key_from_a_workflow_throws()
-    {
-        // Same writer rule as In; the roles differ in *when* the user writes, not in who.
-        var (globals, _, manager) = Create(new KeyDeclaration("draft", "string", KeyRole.InOnSubmit, "settings"));
-        using (manager)
-        {
-            var ex = Assert.Throws<KeyAccessException>(() => globals.ToolkitSet("draft", "v"));
-            Assert.Equal("key.role-in-on-submit", ex.Reason);
+            Assert.False(store.Contains($"{TkId}/undeclared"));
         }
     }
 
@@ -123,11 +111,13 @@ public class KeyRoleEnforcementTests : IDisposable
     }
 
     [Fact]
-    public void Reading_an_In_key_is_allowed()
+    public void Reading_a_declared_key_is_allowed()
     {
-        // Reading is how "react to what the user typed" is expressed, and a read cannot corrupt
-        // the value — only the write side is restricted.
-        var (globals, store, manager) = Create(new KeyDeclaration("workdir", "string", KeyRole.In));
+        // Reads are the other half of the old "in" contract: a workflow reacting to a value it may
+        // not overwrite. That case survives Q71 — the key is declared, so both read and write are
+        // legal now; what the test pins is that a value written by the host is visible to the
+        // workflow.
+        var (globals, store, manager) = Create(new KeyDeclaration("workdir", "string", KeyRole.Out));
         using (manager)
         {
             store.Set($"{TkId}/workdir", "/home/user");
