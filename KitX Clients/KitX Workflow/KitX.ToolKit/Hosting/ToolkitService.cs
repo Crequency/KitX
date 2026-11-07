@@ -44,6 +44,60 @@ internal sealed class ToolkitService : IToolkitService
     }
 
     /// <inheritdoc/>
+    public Toolkit DuplicateToolkit(string sourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceId);
+
+        var source = _store.Load(sourceId)
+            ?? throw new ToolkitServiceException(
+                ToolkitServiceException.NotFoundCode,
+                $"ToolKit '{sourceId}' not found.");
+
+        // Blanking the id is what the three-step manual equivalent gets wrong: leaving it in place
+        // does not fail, it overwrites the original with a copy of itself. The store assigns a fresh
+        // one because the id is empty.
+        //
+        // Every list is rebuilt rather than shared: `Toolkit` is a mutable class, so handing the
+        // source's lists to the copy would make editing one edit both.
+        var copy = new Toolkit
+        {
+            Id = string.Empty,
+            Meta = new ToolkitMeta
+            {
+                Name = CopyName(source.Meta?.Name),
+                Version = source.Meta?.Version ?? "1.0.0",
+                Author = source.Meta?.Author ?? string.Empty,
+                Icon = source.Meta?.Icon ?? string.Empty,
+                Description = source.Meta?.Description ?? string.Empty,
+                MinKitXVersion = source.Meta?.MinKitXVersion ?? "0.0.0.0",
+                Tags = source.Meta?.Tags is { } tags ? [.. tags] : [],
+            },
+            Workflows = [.. source.Workflows],
+            Plugins = [.. source.Plugins],
+            Triggers = [.. source.Triggers],
+            Comments = [.. source.Comments],
+            Keys = [.. source.Keys],
+        };
+
+        // `_store.Save` writes toolkit.json only, so the copy starts with no values under its keys.
+        // That is the intended meaning of "a fresh ToolKit configured the same way", not an
+        // oversight.
+        var saved = _store.Save(copy);
+        ToolkitListChanged?.Invoke(this, EventArgs.Empty);
+        return saved;
+    }
+
+    /// <summary>
+    /// A display name for a copy: the source's name with a suffix, so two identically named cards
+    /// do not both appear in the list.
+    /// </summary>
+    private static string CopyName(string? sourceName)
+    {
+        var name = string.IsNullOrWhiteSpace(sourceName) ? "ToolKit" : sourceName;
+        return $"{name} (copy)";
+    }
+
+    /// <inheritdoc/>
     public Toolkit UpdateToolkit(Toolkit toolkit)
     {
         if (_manager.IsMounted(toolkit.GetId()))

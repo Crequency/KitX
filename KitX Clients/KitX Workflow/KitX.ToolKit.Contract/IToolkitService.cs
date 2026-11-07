@@ -25,6 +25,29 @@ public interface IToolkitService
     /// <summary>Deletes a ToolKit (recursively). Rejected while mounted.</summary>
     bool DeleteToolkit(string toolkitId);
 
+    /// <summary>
+    /// Copies a ToolKit under a fresh id: same contents, no id of its own, written immediately.
+    /// </summary>
+    /// <param name="sourceId">The ToolKit to copy.</param>
+    /// <returns>The newly stored copy.</returns>
+    /// <remarks>
+    /// <para><b>This exists because the three-step manual equivalent fails silently.</b> Read, blank
+    /// the id, create is what a caller has to do otherwise, and forgetting the middle step does not
+    /// error — it overwrites the original with itself. A member that cannot be called wrongly is
+    /// worth more than one that documents the order.</para>
+    ///
+    /// <para><b>It is the only way to get "new id + whole content + none of the old identity" at
+    /// once.</b> Keys and triggers are copied as declarations; the values stored under the source's
+    /// keys are <em>not</em> — a copy is a fresh ToolKit that happens to be configured the same, not
+    /// a snapshot of what the original had accumulated.</para>
+    ///
+    /// <para><b>No parameters for "how many" or "a name template".</b> That is distribution, which
+    /// is out of scope; one unparameterised copy already covers "open a temporary second scanner".
+    /// The copy's display name is the source's name plus a suffix, so two identically named cards
+    /// do not appear in the list.</para>
+    /// </remarks>
+    Toolkit DuplicateToolkit(string sourceId);
+
     /// <summary>Mounts a ToolKit (subscribes its Spawn triggers). Idempotent.</summary>
     void Mount(string toolkitId);
 

@@ -117,6 +117,10 @@ public class ViewContractParityTests
         new("卸载到底", Side.FacadeOnly, nameof(IToolkitService.Uninstall), null),
         new("挂载前闸门", Side.FacadeOnly, nameof(IToolkitService.Validate), null),
         new("活跃 flow 数", Side.FacadeOnly, nameof(IToolkitService.ActiveFlowCounts), null),
+        // Duplicating is a management action: a View may not create a second ToolKit, because the
+        // copy would be a ToolKit it never asked to attach to. ADR-0014 D3 keeps create/edit/delete
+        // /uninstall/duplicate in the process-only row.
+        new("复制副本", Side.FacadeOnly, nameof(IToolkitService.DuplicateToolkit), null),
 
         // Events. Both are process-in events with no wire counterpart, and that is a decision rather
         // than an omission: a View is told about changes to the ToolKit it is attached to, and
