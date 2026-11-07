@@ -630,6 +630,121 @@ internal sealed class ToolkitInstanceManager : IDisposable
     }
 
     /// <summary>
+    /// The declared key table of a mounted ToolKit, or null when it is not mounted.
+    /// </summary>
+    /// <remarks>
+    /// The View protocol needs this to enumerate "which keys does this ToolKit have" — a question
+    /// the declared table answers and the store cannot, because the store holds values and knows
+    /// nothing about declarations. Not a second path to the data plane: it exposes the table, and
+    /// every read still goes through <c>_dataStore</c>.
+    /// </remarks>
+    internal KeyTable? GetKeyTableFor(string toolkitId)
+        => _mounted.TryGetValue(toolkitId, out var mounted) ? mounted.Keys : null;
+
+    /// <summary>
+    /// Every declared key that currently holds a value, keyed by local name.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Enumerates declarations, not the store.</b> The store is process-wide and holds
+    /// every mounted ToolKit's keys; walking it would leak other ToolKits' values into a
+    /// <c>welcome</c> message. Going through the declared table means the scope is the ToolKit's
+    /// own, and an undeclared-but-present value is invisible here by construction rather than by
+    /// filtering.</para>
+    ///
+    /// <para>Values that were never written are omitted rather than reported as JSON null — the
+    /// difference between "no value yet" and "a null value" is one the client has to be able to
+    /// see, and it can only see it if the two shapes differ.</para>
+    /// </remarks>
+    internal IReadOnlyDictionary<string, System.Text.Json.JsonElement> LocalValues(string toolkitId)
+    {
+        if (!_mounted.TryGetValue(toolkitId, out var mounted))
+            return new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+
+        var values = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+        foreach (var local in mounted.Keys.Names)
+        {
+            if (_dataStore.TryGet(mounted.Keys.FullKey(local), out var value))
+                values[local] = value;
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    /// Removes one declared key's value. Returns whether anything was removed.
+    /// </summary>
+    /// <remarks>
+    /// Refuses names the ToolKit does not declare: the View sends local names, and a name it made
+    /// up must not be able to delete a key another ToolKit owns through a crafted prefix.
+    /// </remarks>
+    internal bool RemoveLocal(string toolkitId, string localName)
+    {
+        if (!_mounted.TryGetValue(toolkitId, out var mounted))
+            return false;
+
+        return mounted.Keys.IsDeclared(localName) && _dataStore.Remove(mounted.Keys.FullKey(localName));
+    }
+
+    /// <summary>
+    /// Removes every declared value of one region. Returns how many were removed.
+    /// </summary>
+    /// <remarks>
+    /// Walks the declared names rather than clearing a storage prefix — same reason as
+    /// <c>ToolkitClearRegion</c>: the store is shared, and a prefix sweep is the one write that can
+    /// reach past this ToolKit's declarations.
+    /// </remarks>
+    internal int ClearRegionOf(string toolkitId, string region)
+    {
+        if (!_mounted.TryGetValue(toolkitId, out var mounted) || string.IsNullOrWhiteSpace(region))
+            return 0;
+
+        var removed = 0;
+        foreach (var local in mounted.Keys.Names)
+        {
+            if (!mounted.Keys.TryResolve(local, out var declaration))
+                continue;
+            if (!string.Equals(declaration.Region, region, StringComparison.Ordinal))
+                continue;
+            if (_dataStore.Remove(mounted.Keys.FullKey(local)))
+                removed++;
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// Removes every declared value of a ToolKit. Returns how many were removed.
+    /// </summary>
+    internal int ClearAllOf(string toolkitId)
+    {
+        if (!_mounted.TryGetValue(toolkitId, out var mounted))
+            return 0;
+
+        var removed = 0;
+        foreach (var local in mounted.Keys.Names)
+        {
+            if (_dataStore.Remove(mounted.Keys.FullKey(local)))
+                removed++;
+        }
+
+        return removed;
+    }
+
+    /// <summary>
+    /// The trigger ids a View may fire, i.e. those that start a flow.
+    /// </summary>
+    /// <remarks>
+    /// Scheduler-driven completion triggers are excluded: they fire because another workflow
+    /// finished, so a client asking for one would be asking to start a flow with no predecessor.
+    /// Spawn already refuses them; this keeps the refusal from being something the client has to
+    /// discover by trying.
+    /// </remarks>
+    internal IReadOnlyList<string> SpawnableTriggerIds(string toolkitId)
+        => _mounted.TryGetValue(toolkitId, out var mounted)
+            ? mounted.Compiled.Triggers.Where(t => t.Spawns).Select(t => t.Id).OrderBy(t => t, StringComparer.Ordinal).ToList()
+            : [];
+
+    /// <summary>
     /// Routes an external event to the owning instance's <see cref="TriggerType.UIEvent"/> chain
     /// (intra — never spawns a new instance).
     /// </summary>
