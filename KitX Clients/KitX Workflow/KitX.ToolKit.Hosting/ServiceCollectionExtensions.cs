@@ -100,6 +100,12 @@ public static class ServiceCollectionExtensions
         // ToolKit bundled-workflow file access (resolve / load / save / minimal template).
         services.AddSingleton<IToolkitWorkflowFileStore>(_ => new ToolkitFileStore(toolkitStorageRoot));
 
+        // The card layout store. Separate from ToolkitStore on purpose: layout lives outside the
+        // compiled artifact, so retyping a card must not require unmounting (ADR-0016 D2/D3).
+        // Registered as a singleton so every reader shares one Changed event — two instances would
+        // mean an editor's save notifies nobody who is listening on the other one.
+        services.AddSingleton<ISurfaceStore>(_ => new SurfaceStore(toolkitStorageRoot));
+
         // The instance-model orchestration entry point (mount / spawn / end).
         //
         // Constructed explicitly rather than by convention: ToolkitInstanceManager's constructor
