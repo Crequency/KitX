@@ -79,8 +79,22 @@ public interface IToolkitService
     /// </remarks>
     IReadOnlyList<Diagnostic> Validate(string toolkitId);
 
-    /// <summary>Snapshot of every instance across all mounted ToolKits.</summary>
-    IReadOnlyList<InstanceSnapshot> Instances { get; }
+    /// <summary>How many flows are running right now, per mounted ToolKit.</summary>
+    /// <remarks>
+    /// <para><b>A snapshot query, not a state to maintain.</b> The authoritative count already
+    /// exists inside the runtime — it is the same number the concurrency budget compares against
+    /// — so asking for it is one dictionary walk. Rebuilding it on the client from a stream of
+    /// flow events would create a second source of truth that can drift, and would make the count
+    /// only as correct as the client's event handling (ADR-0015 D5.1).</para>
+    ///
+    /// <para>Replaces <c>Instances</c>, which returned every instance as a snapshot record. Q83
+    /// collapsed "instance" into "the toolkit's execution context", and what callers actually read
+    /// off that snapshot was the running count.</para>
+    ///
+    /// <para>ToolKits with no running flows are absent from the dictionary rather than present
+    /// with zero, so a caller iterating it sees work, not the installed catalogue.</para>
+    /// </remarks>
+    IReadOnlyDictionary<string, int> ActiveFlowCounts();
 
     /// <summary>Raised when the ToolKit list changes (CRUD).</summary>
     event EventHandler? ToolkitListChanged;

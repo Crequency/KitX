@@ -108,9 +108,28 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// <summary>True when the given ToolKit is mounted.</summary>
     public bool IsMounted(string toolkitId) => _mounted.ContainsKey(toolkitId);
 
-    /// <summary>Snapshot of every instance across all mounted ToolKits.</summary>
-    public IReadOnlyList<InstanceSnapshot> Instances
-        => _instances.Values.Select(instance => instance.ToSnapshot()).ToList();
+    /// <summary>How many flows each mounted ToolKit is running right now.</summary>
+    /// <remarks>
+    /// <para>The count comes from the same place the concurrency budget reads
+    /// (<see cref="RunScheduler.ActiveInstanceCount"/>), so an observer and the admission check can
+    /// never disagree about how busy the machine is. That shared source is the whole reason this is
+    /// a query and not a client-side tally of flow events (ADR-0015 D5.1).</para>
+    ///
+    /// <para>ToolKits with nothing running are omitted rather than reported as zero: the
+    /// dictionary is a picture of current work, not of the installed catalogue.</para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, int> ActiveFlowCounts()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (id, mounted) in _mounted)
+        {
+            var active = mounted.Scheduler.ActiveInstanceCount;
+            if (active > 0)
+                counts[id] = active;
+        }
+
+        return counts;
+    }
 
     /// <summary>
     /// Mounts a ToolKit: validates its config, compiles it, builds its scheduler, and starts its
@@ -482,7 +501,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (mounted.State == LifecycleState.Disabled)
         {
             Log.Debug("[ToolkitInstanceManager] Spawn of {Toolkit} refused: toolkit.not-enabled", toolkitId);
-            Raise(new TriggerRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+            Raise(new TriggerRejectedEvent(NewId(), toolkitId, Now(), triggerId,
                 "toolkit.not-enabled"));
             return null;
         }
@@ -508,40 +527,36 @@ internal sealed class ToolkitInstanceManager : IDisposable
             {
                 Log.Information("[ToolkitInstanceManager] Instance {Instance} completed (toolkit {Toolkit})",
                     instance.InstanceId, toolkitId);
-                // C6: Succeeded aggregates across ALL of the instance's runs (Spawn + UIEvent).
-                Raise(new InstanceCompletedEvent(
-                    NewId(), toolkitId, instance.InstanceId, Now(), instance.Succeeded));
                 EvictIfOverCompletedCap();
             };
-            instance.Cancelled += (_, _) => Raise(new InstanceCancelledEvent(
-                NewId(), toolkitId, instance.InstanceId, Now()));
 
             _instances[instance.InstanceId] = instance;
-            Raise(new InstanceSpawnedEvent(NewId(), toolkitId, instance.InstanceId, Now(), triggerId,
-                instance.Initiator, JsonSerializer.SerializeToElement(payload)));
             return instance.InstanceId;
         }
     }
 
     /// <summary>
-    /// Subscribes to a run's per-node events before its root workflows are scheduled
-    /// (StartRun invokes this callback pre-scheduling) and projects them onto the Bench
-    /// contract. The owning instance id is the run's namespace — for intra-instance
-    /// UIEvent chains that is the existing instance, not the transient run id.
+    /// Subscribes to a flow's lifecycle before its root workflows are scheduled (StartRun invokes
+    /// this callback pre-scheduling) and projects the outcome onto the contract.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Flow-granular on purpose.</b> This used to also project <c>run.NodeStarted</c> and
+    /// <c>run.NodeCompleted</c> onto <c>RunStartedEvent</c> / <c>RunCompletedEvent</c>. Those two
+    /// events therefore fired once per <em>node</em> while being named like flow events, and
+    /// carried a <c>bool Succeeded</c> describing a single node's fate. ADR-0015 D2.1 removed
+    /// them: node-level timelines are a debugging feature that exists only in <c>_archived/</c>,
+    /// and maintaining two contract types for an unimplemented panel is worse than not having
+    /// them.</para>
+    ///
+    /// <para><c>WorkflowRun.Completed</c> fires exactly once per flow, which is what
+    /// <see cref="FlowCompletedEvent"/> needs. The failure diagnostic is passed through rather
+    /// than flattened to a message so the stable code survives.</para>
+    /// </remarks>
     private void AttachRunEvents(WorkflowRun run)
     {
-        run.NodeStarted += (_, e) => Raise(new RunStartedEvent(
-            NewId(), run.ToolkitId, run.NamespaceId, Now(), e.InstanceId, e.WorkflowId));
-        run.NodeCompleted += (_, e) => Raise(new RunCompletedEvent(
-            NewId(), run.ToolkitId, run.NamespaceId, Now(), e.InstanceId, e.WorkflowId, e.Succeeded, e.Error));
+        run.Completed += (_, e) => Raise(new FlowCompletedEvent(
+            NewId(), run.ToolkitId, Now(), e.FlowId, e.Outcome, e.Failure));
     }
-
-    /// <summary>Ends an instance (cancels all its runs + destroys it). Idempotent.</summary>
-    /// <remarks>Public-face overload: the caller is <see cref="RunService"/>, i.e. someone asked
-    /// for this specific instance, so the reason is <see cref="InstanceEndReason.Requested"/>.</remarks>
-    public void EndInstance(string instanceId) => EndInstance(instanceId, InstanceEndReason.Requested);
-
     /// <summary>Ends an instance (cancels all its runs + destroys it). Idempotent.</summary>
     /// <param name="instanceId">The instance to end. Unknown ids are a no-op.</param>
     /// <param name="reason">
@@ -599,29 +614,6 @@ internal sealed class ToolkitInstanceManager : IDisposable
             EndInstance(instance.InstanceId, InstanceEndReason.Evicted);
         }
     }
-
-    /// <summary>Ends every instance of every mounted ToolKit.</summary>
-    /// <remarks>
-    /// <para>Termination order is <b>newest first</b> (ADR-0005 D3): a flow started later is more
-    /// likely to be reading keys left behind by an earlier one, so tearing down the dependants
-    /// before their providers keeps the last observable states meaningful. The order is decided
-    /// here, on a materialised snapshot, rather than by enumerating the dictionary — a
-    /// <see cref="ConcurrentDictionary{TKey,TValue}"/> makes no ordering promise at all.</para>
-    /// <para>Every termination carries a reason, so a reader of the log can tell an orderly
-    /// shutdown from a failure or an operator's decision.</para>
-    /// </remarks>
-    public void EndAll()
-    {
-        var ordered = _instances
-            .OrderByDescending(kv => kv.Value.StartedAt)
-            .ThenBy(kv => kv.Value.InstanceId, StringComparer.Ordinal)
-            .Select(kv => kv.Key)
-            .ToList();
-
-        foreach (var id in ordered)
-            EndInstance(id, InstanceEndReason.Shutdown);
-    }
-
     /// <summary>The toolkit id an instance belongs to, or null when unknown.</summary>
     public string? GetToolkitId(string instanceId)
         => _instances.TryGetValue(instanceId, out var i) ? i.ToolkitId : null;
@@ -641,26 +633,32 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// Routes an external event to the owning instance's <see cref="TriggerType.UIEvent"/> chain
     /// (intra — never spawns a new instance).
     /// </summary>
-    /// <param name="instanceId">The instance whose chain should run.</param>
+    /// <summary>Routes an external event to the UIEvent triggers of the named ToolKit.</summary>
+    /// <param name="toolkitId">The ToolKit whose triggers should be matched.</param>
     /// <param name="eventName">The event name to match against <see cref="TriggerConfig.Event"/>.</param>
     /// <param name="value">The event payload, surfaced to bindings as <c>$payload.value</c>.</param>
+    /// <returns>The ids of the flows started, in trigger order. Empty when nothing matched.</returns>
     /// <remarks>
     /// <para>This used to be <c>RaiseControlEvent</c> and took a <c>controlId</c>, because the only
     /// thing that could raise it was a panel control. A panel is no longer a ToolKit concept
-    /// (Q64 / ADR-0013 D4), but the <b>capability</b> it used — "an outside event wakes a flow for
-    /// this instance" — belongs to the trigger model, not to the panel. ADR-0013 D4 says keep it
-    /// and rename it, so it no longer names a control and no longer clears a dialog slot.</para>
+    /// (Q64 / ADR-0013 D4), but the <b>capability</b> it used — "an outside event wakes a flow" —
+    /// belongs to the trigger model, not to the panel.</para>
     ///
-    /// <para>What is left is the trigger dispatch alone: match by <see cref="TriggerConfig.Event"/>
-    /// and start the bound workflows. <see cref="TriggerConfig.Control"/> is still consulted when a
-    /// trigger declares one, so a config written before the panel removal keeps its scoping.</para>
+    /// <para><b>Addressed by ToolKit, not by instance.</b> The old signature took an instance id and
+    /// used it as the run's namespace and initiator. Q83 made "one Toolkit, one instance" true, so
+    /// the instance id added nothing; the namespace is gone entirely (Q48: a flow no longer has a
+    /// data namespace), and a View-sourced event has no device identity to attribute (Q26 removed
+    /// authentication), so the initiator is <see cref="Initiator.Unknown"/>. Passing an identity
+    /// borrowed from some instance would record a fact the caller never asserted.</para>
+    ///
+    /// <para><b>Returns the started flow ids</b> instead of nothing. Silence was ambiguous: a
+    /// caller could not tell "no trigger matched" from "the event never arrived". An empty list is
+    /// a valid answer — the command succeeded and had no effect.</para>
     /// </remarks>
-    public void RaiseInstanceEvent(string instanceId, string eventName, object? value = null)
+    public IReadOnlyList<string> RaiseEvent(string toolkitId, string eventName, object? value = null)
     {
-        if (!_instances.TryGetValue(instanceId, out var instance))
-            return;
-        if (!_mounted.TryGetValue(instance.ToolkitId, out var mounted))
-            return;
+        if (!_mounted.TryGetValue(toolkitId, out var mounted))
+            return [];
 
         var payload = JsonSerializer.SerializeToElement(new { @event = eventName, value });
         var matching = mounted.Compiled.Triggers
@@ -668,25 +666,26 @@ internal sealed class ToolkitInstanceManager : IDisposable
             .Where(t => MatchesEvent(t.Event, eventName))
             .ToList();
 
+        var started = new List<string>(matching.Count);
         foreach (var trigger in matching)
         {
-            // Each chain takes a flow slot, checked the same way Spawn checks it. Under the
-            // gate so two events cannot both consume the last slot.
+            // Each chain takes a flow slot, checked the same way Spawn checks it. Under the gate
+            // so two events cannot both consume the last slot.
             lock (_spawnGate)
             {
-                if (!HasFlowBudget(instance.ToolkitId, trigger.Id))
+                if (!HasFlowBudget(toolkitId, trigger.Id))
                     break;
             }
 
-            // A UIEvent chain on a Completed instance re-transitions it back to Running
-            // (EnsureRunning before StartRun so the RunStarted projection already sees Running),
-            // and the new run is tracked so the instance only returns to Completed once it too
-            // has finished. StartRun cannot return null here — the trigger is a UIEvent type.
-            instance.EnsureRunning();
-            var run = mounted.Scheduler.StartRun(trigger.Id, payload, instance.Initiator, instance.InstanceId, AttachRunEvents);
+            // Initiator.Unknown and a null namespace, deliberately: see the remarks. StartRun
+            // cannot return null here — the trigger is a UIEvent type, which is a spawn type.
+            var run = mounted.Scheduler.StartRun(
+                trigger.Id, payload, Initiator.Unknown, null, AttachRunEvents);
             if (run is not null)
-                instance.TrackRun(run);
+                started.Add(run.RunId);
         }
+
+        return started;
     }
 
     private static bool MatchesEvent(string? declaredEvent, string eventName)
@@ -723,7 +722,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         Log.Warning(
             "[ToolkitInstanceManager] Trigger {Trigger} of {Toolkit} rejected: concurrency-limit ({Active}/{Max})",
             triggerId, toolkitId, active, max);
-        Raise(new TriggerRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+        Raise(new TriggerRejectedEvent(NewId(), toolkitId, Now(), triggerId,
             "concurrency-limit"));
         return false;
     }
@@ -748,7 +747,13 @@ internal sealed class ToolkitInstanceManager : IDisposable
         _disposed = true;
         foreach (var id in _mounted.Keys.ToList())
             Unmount(id);
-        EndAll();
+
+        // Unmount already ended each Toolkit's flows, so this only catches instances whose
+        // Toolkit never mounted. Inlined rather than a public EndAll(): ADR-0015 D5.2 removed that
+        // member because nothing outside Dispose used it, and "stop everything" belongs to the
+        // lifecycle (Disable / Unmount), not to a separate switch.
+        foreach (var id in _instances.Keys.ToList())
+            EndInstance(id, InstanceEndReason.Shutdown);
     }
 
     /// <summary>

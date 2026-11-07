@@ -4,11 +4,15 @@ using KitX.ToolKit.Instances;
 namespace KitX.ToolKit.Hosting;
 
 /// <summary>
-/// <see cref="IRunService"/> implementation: delegates spawn/cancel to the
-/// <see cref="ToolkitInstanceManager"/>. (The <c>Validate</c> member was retired in the D3
-/// cleanup — validation is a pure <see cref="Validation.ConfigValidator"/> concern that
-/// callers invoke directly, so it no longer lives on the facade.)
+/// <see cref="IRunService"/> implementation: delegates spawn to the
+/// <see cref="ToolkitInstanceManager"/>.
 /// </summary>
+/// <remarks>
+/// The cancel family (<c>EndInstance</c> / <c>EndAll</c>) was removed from the contract on
+/// 2026-11-08 (ADR-0015 D5.2). Stopping flows is <see cref="IToolkitService.Disable"/>, which
+/// lives on the other service because it is a lifecycle operation on a ToolKit, not an operation
+/// on a flow.
+/// </remarks>
 internal sealed class RunService : IRunService
 {
     private readonly ToolkitInstanceManager _manager;
@@ -21,15 +25,4 @@ internal sealed class RunService : IRunService
     /// <inheritdoc/>
     public string? Spawn(string toolkitId, string triggerId, object? payload = null, Initiator? initiator = null)
         => _manager.Spawn(toolkitId, triggerId, payload, initiator);
-
-    /// <inheritdoc/>
-    /// <remarks>
-    /// This is the service-level entry point, so the reason is <see cref="InstanceEndReason.Requested"/>:
-    /// someone asked for this instance specifically. The manager's own internal callers pass
-    /// stronger reasons (shutdown / unmount / eviction) because they know more.
-    /// </remarks>
-    public void EndInstance(string instanceId) => _manager.EndInstance(instanceId, InstanceEndReason.Requested);
-
-    /// <inheritdoc/>
-    public void EndAll() => _manager.EndAll();
 }

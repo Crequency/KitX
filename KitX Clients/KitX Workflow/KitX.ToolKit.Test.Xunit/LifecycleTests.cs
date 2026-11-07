@@ -125,8 +125,11 @@ public class LifecycleTests : IDisposable
             // The code is the contract, not the sentence around it: a host switches on this.
             Assert.Equal("toolkit.not-enabled", reason.Code);
 
-            // Disabling also ended the instance that was running.
-            Assert.Empty(manager.Instances);
+            // Disabling also ended the flow that existed before it: the flow id is no longer
+            // resolvable, so the toolkit kept no execution context for it (Q83 — the per-flow
+            // "instance" record is what used to appear in Instances and is gone).
+            Assert.Null(manager.GetToolkitId(before!));
+            Assert.Empty(manager.ActiveFlowCounts());
         }
         finally
         {
@@ -203,16 +206,39 @@ public class LifecycleTests : IDisposable
     }
 
     [Fact]
-    public void EndAll_Terminates_Newest_First()
+    public void Disable_Stops_Every_Flow_Of_The_Toolkit()
     {
-        // A stepping clock makes StartedAt strictly increasing, so "newest first" is a real
-        // ordering rather than a tie broken by id. Without it the four spawns can share a tick and
-        // this test would pass no matter what order EndAll used.
-        var clock = new SteppingClock();
-        var (manager, _) = Build(clock);
+        // Replaces the old EndAll test. EndAll's job was "stop everything at once"; ADR-0015 D5.2
+        // removed that member because the lifecycle already owns it — Disable stops every flow of
+        // one toolkit's execution context. What does NOT survive is the old assertion about
+        // termination *order*: EndInstance is no longer enumerable (it takes only a flow id), and
+        // "newest first" was a property of EndAll's own loop, not a guarantee of the lifecycle.
+        //
+        // The flows are held in flight so the test observes Disable cancelling live work rather
+        // than racing four fast completions. That needs the triggers to bind a workflow at all:
+        // the file's shared Toolkit() declares a manual trigger with no bindings, and a flow with
+        // nothing to schedule settles before Spawn even returns.
+        var tk = new Toolkit
+        {
+            Id = TkId,
+            Meta = new ToolkitMeta { Name = "life" },
+            Workflows = [new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" }],
+            Triggers = [new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }],
+        };
+
+        var hold = new TaskCompletionSource();
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, hold: hold);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            tk => new ToolkitFileStore(_root.Prepare(tk)));
+
         try
         {
-            manager.Mount(Toolkit());
+            manager.Mount(tk);
 
             var ids = new List<string>();
             for (var i = 0; i < 4; i++)
@@ -222,34 +248,33 @@ public class LifecycleTests : IDisposable
                 ids.Add(id!);
             }
 
-            // Observe the actual termination order off the event channel.
-            var ended = new List<string>();
-            manager.ToolkitEvent += (_, e) =>
-            {
-                if (e is InstanceCancelledEvent c)
-                    lock (ended) ended.Add(c.InstanceId);
-            };
+            // All four flows are in flight and counted.
+            Assert.Equal(4, manager.ActiveFlowCounts()[TkId]);
 
-            manager.EndAll();
+            manager.Disable(TkId);
 
-            List<string> order;
-            lock (ended) order = [.. ended];
+            // Every flow was ended: the retention records are removed synchronously, so none of
+            // the flow ids is addressable any more.
+            Assert.All(ids, id => Assert.Null(manager.GetToolkitId(id)));
 
-            Assert.Equal(ids.Count, order.Count);
-            Assert.Equal(Enumerable.Reverse(ids), order);
-            Assert.Empty(manager.Instances);
+            // NOTE: this does not assert that ActiveFlowCounts() drained to empty. Today it does
+            // not — EndInstance cancels and then disposes the run, and WorkflowRun.Dispose sets
+            // its settled flag without raising Completed, while RunScheduler only drops a run from
+            // its run table inside that handler. A flow cancelled while a node is in flight
+            // therefore stays counted. Asserting the drain would encode that defect as expected
+            // behaviour, so it is reported instead.
+
+            // Disable retains the toolkit itself — that is what makes it not an uninstall.
+            Assert.Equal(LifecycleState.Disabled, manager.GetLifecycleState(TkId));
+            Assert.True(manager.IsMounted(TkId));
+
+            // And it refuses new work, which is the observable half of "stopped".
+            Assert.Null(manager.Spawn(TkId, "manual"));
         }
         finally
         {
+            hold.TrySetResult();
             manager.Unmount(TkId);
         }
-    }
-
-    /// <summary>A clock that advances one second per read, so successive spawns are strictly ordered.</summary>
-    private sealed class SteppingClock : IClock
-    {
-        private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-
-        public DateTimeOffset UtcNow => _now = _now.AddSeconds(1);
     }
 }

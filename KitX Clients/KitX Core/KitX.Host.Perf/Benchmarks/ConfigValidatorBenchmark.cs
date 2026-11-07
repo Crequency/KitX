@@ -63,7 +63,7 @@ public static class ConfigValidatorBenchmark
             {
                 Id = $"trg-ui-{i}",
                 Type = TriggerType.UIEvent,
-                Config = new TriggerConfig { Control = $"btn-{i}", Event = "Click" },
+                Config = new TriggerConfig { Event = "Click" },
                 Bindings = [new TriggerBinding { Workflow = $"wf-{i + 60}" }],
             });
         }

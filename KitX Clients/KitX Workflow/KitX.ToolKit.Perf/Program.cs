@@ -17,8 +17,7 @@ public static class Program
         results.Add(Run("1 · PluginEvent 路由", PluginEventRoutingBenchmark.Run));
         results.Add(Run("2 · 节点完成开销", SchedulerNodeOverheadBenchmark.Run));
         results.Add(Run("3 · DataStore Set/Append/Wait", DataStoreBenchmark.Run));
-        results.Add(Run("4 · 实例快照物化", InstanceSnapshotBenchmark.Run));
-        results.Add(Run("5 · BindingResolver", BindingResolverBenchmark.Run));
+        results.Add(Run("4 · BindingResolver", BindingResolverBenchmark.Run));
 
         var md = BuildMarkdown(results);
         Console.WriteLine();

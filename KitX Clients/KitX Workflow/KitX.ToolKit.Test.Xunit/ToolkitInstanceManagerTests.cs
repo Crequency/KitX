@@ -130,17 +130,17 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Spawn_Runs_Chain_And_Transitions_To_Completed()
+    public async Task Spawn_Runs_Chain_And_Reports_A_Completed_Flow()
     {
         var (manager, executor) = Build(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual,
                 Bindings = [new() { Workflow = "wf", Params = new() { ["x"] = "$payload.x" } }] }));
 
-        var completed = new TaskCompletionSource();
+        var completed = new TaskCompletionSource<FlowCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is Contract.Events.InstanceCompletedEvent)
-                completed.TrySetResult();
+            if (e is FlowCompletedEvent c)
+                completed.TrySetResult(c);
         };
 
         manager.Mount(ToolkitWith(
@@ -150,11 +150,14 @@ public class ToolkitInstanceManagerTests : IDisposable
         try
         {
             var initiator = new Initiator("fp-abc", "dev-1");
-            var id = manager.Spawn("tk-demo", "manual", new { x = "hello" }, initiator);
-            Assert.NotNull(id);
+            var flowId = manager.Spawn("tk-demo", "manual", new { x = "hello" }, initiator);
+            Assert.NotNull(flowId);
 
-            var done = await Task.WhenAny(completed.Task, Task.Delay(5000));
-            Assert.True(done == completed.Task, "instance did not complete");
+            var finish = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("tk-demo", finish.ToolkitId);
+            Assert.Equal(flowId, finish.FlowId);
+            Assert.Equal(RunOutcome.Succeeded, finish.Outcome);
+            Assert.Null(finish.Failure);
 
             var call = executor.Calls.Single();
             Assert.Equal("wf", call.WorkflowId);
@@ -162,9 +165,10 @@ public class ToolkitInstanceManagerTests : IDisposable
             Assert.Equal("fp-abc", call.Overrides[InitiatorConstants.DeviceId]);
             Assert.Equal("dev-1", call.Overrides[InitiatorConstants.DeviceName]);
 
-            var snap = manager.Instances.Single();
-            Assert.False(snap.IsRunning);
-            Assert.Equal("fp-abc", snap.Initiator.DeviceId);
+            // The flow settled, so nothing is running any more. The initiator used to be read off
+            // the instance snapshot; that view is gone (Q83), and the device identity is asserted
+            // where it is still observable — the overrides the workflow actually received.
+            await WaitUntilAsync(() => manager.ActiveFlowCounts().Count == 0);
         }
         finally
         {
@@ -173,8 +177,12 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Spawn_Creates_Isolated_Instances()
+    public async Task Spawn_Starts_Independent_Flows()
     {
+        // Q83 replaced "a spawn creates an instance" with "a spawn starts a flow": one ToolKit has
+        // one execution context and any number of concurrent flows. What is still worth pinning is
+        // that two spawns are two flows rather than one shared run — each has its own flow id, and
+        // each is handed its own namespace id, so neither can see the other's identity.
         var (manager, executor) = Build(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
 
@@ -182,7 +190,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         int remaining = 2;
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is Contract.Events.InstanceCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
+            if (e is FlowCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
                 completed.TrySetResult();
         };
 
@@ -197,13 +205,20 @@ public class ToolkitInstanceManagerTests : IDisposable
             Assert.NotNull(b);
             Assert.NotEqual(a, b);
 
-            await Task.WhenAny(completed.Task, Task.Delay(5000));
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-            var instanceIds = executor.Calls
+            var namespaces = executor.Calls
                 .Select(c => c.Overrides[InstanceConstants.InstanceId]!)
                 .ToList();
-            Assert.Equal(2, instanceIds.Distinct().Count());
-            Assert.Equal(2, manager.Instances.Count);
+            Assert.Equal(2, namespaces.Distinct().Count());
+
+            // Both flows finished and both are still retained (the default CompletedInstanceCap
+            // is 200), which is the half of "two instances exist" that survives: a flow is a
+            // retained record after it ends, even though the enumeration that used to list them
+            // is gone.
+            Assert.Equal("tk-demo", manager.GetToolkitId(a!));
+            Assert.Equal("tk-demo", manager.GetToolkitId(b!));
+            await WaitUntilAsync(() => manager.ActiveFlowCounts().Count == 0);
         }
         finally
         {
@@ -282,47 +297,64 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public void EndInstance_Removes_And_Unmount_Ends_All()
+    public void EndInstance_Removes_The_Flow_And_Unmount_Ends_All()
     {
-        var (manager, _) = Build(ToolkitWith(
-            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+        // Deterministic about what is being asserted: retaining no record of a flow is
+        // synchronous (the manager's table entry is removed inline), whereas the scheduler's
+        // running count settles on the run's own thread. So this pins addressability, not the
+        // count — and the flow is held in flight so it exercises the cancel-a-live-flow path.
+        var hold = new TaskCompletionSource();
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store, hold: hold);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            FileStoreFor);
 
-        manager.Mount(ToolkitWith(
-            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+        var tk = ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
+
+        manager.Mount(tk);
 
         try
         {
             var id = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(id);
-            manager.EndInstance(id!);
-            Assert.Empty(manager.Instances);
+            manager.EndInstance(id!, InstanceEndReason.Requested);
+            Assert.Null(manager.GetToolkitId(id!));
 
             var id2 = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(id2);
             manager.Unmount("tk-demo");
-            Assert.Empty(manager.Instances);
+            Assert.Null(manager.GetToolkitId(id2!));
             Assert.False(manager.IsMounted("tk-demo"));
         }
         finally
         {
+            hold.TrySetResult();
             manager.Unmount("tk-demo");
         }
     }
 
     [Fact]
-    public async Task Spawn_Emits_RunStarted_And_RunCompleted_Events()
+    public async Task Spawn_Emits_One_FlowCompleted_Event()
     {
+        // ADR-0015 D2.1: the per-node RunStarted/RunCompleted pair is gone. This test now pins the
+        // property that replaced it — a single flow emits exactly one completion, with the flow id
+        // the spawn returned and the run's own outcome.
         var (manager, _) = Build(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
 
-        var started = new TaskCompletionSource<RunStartedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var completed = new TaskCompletionSource<RunCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completions = new List<FlowCompletedEvent>();
+        var completed = new TaskCompletionSource<FlowCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is RunStartedEvent s)
-                started.TrySetResult(s);
-            if (e is RunCompletedEvent c)
-                completed.TrySetResult(c);
+            if (e is not FlowCompletedEvent c)
+                return;
+            lock (completions) completions.Add(c);
+            completed.TrySetResult(c);
         };
 
         manager.Mount(ToolkitWith(
@@ -330,19 +362,20 @@ public class ToolkitInstanceManagerTests : IDisposable
 
         try
         {
-            var instanceId = manager.Spawn("tk-demo", "manual");
-            Assert.NotNull(instanceId);
-
-            var start = await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Equal(instanceId, start.InstanceId);
-            Assert.Equal("wf", start.WorkflowId);
-            Assert.False(string.IsNullOrWhiteSpace(start.RunId));
+            var flowId = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(flowId);
 
             var finish = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Equal(instanceId, finish.InstanceId);
-            Assert.Equal(start.RunId, finish.RunId);
-            Assert.True(finish.Succeeded);
-            Assert.Null(finish.Error);
+
+            // Identity now belongs to the flow, not to an instance the event used to name.
+            Assert.Equal("tk-demo", finish.ToolkitId);
+            Assert.Equal(flowId, finish.FlowId);
+            Assert.False(string.IsNullOrWhiteSpace(finish.FlowId));
+            Assert.Equal(RunOutcome.Succeeded, finish.Outcome);
+            Assert.Null(finish.Failure);
+
+            // Exactly one completion for the flow — not one per node.
+            lock (completions) Assert.Single(completions);
         }
         finally
         {
@@ -430,7 +463,8 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             Assert.Equal(1, results.Count(r => r is not null));
             Assert.Equal(1, rejected);
-            Assert.Single(manager.Instances);
+            Assert.Single(manager.ActiveFlowCounts());
+            Assert.Equal(1, manager.ActiveFlowCounts()["tk-demo"]);
         }
         finally
         {
@@ -439,7 +473,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         }
     }
 
-    // ── C6: Completed × UIEvent state-machine aggregation ──
+    // ── C6: a UIEvent waking work on a settled ToolKit ──
 
     private static Toolkit ToolkitWithSpawnAndUiEvent()
         => new()
@@ -461,10 +495,12 @@ public class ToolkitInstanceManagerTests : IDisposable
         };
 
     [Fact]
-    public async Task UiEvent_On_Completed_Instance_ReTransitions_To_Running()
+    public async Task UiEvent_After_A_Flow_Completed_Starts_New_Work()
     {
-        // Delay each execution so the UIEvent run stays in flight long enough to observe
-        // the instance back in Running before it completes again.
+        // C6 in the instance model meant "a completed instance goes back to Running". With Q83
+        // there is no instance to transition, so the same behaviour reads as: a UIEvent arriving
+        // after the Spawn flow finished starts another flow, and the toolkit is busy again until
+        // that one ends. The count is the observable — it must go 0 → 1 → 0, not stay at 0.
         var store = new DataStore();
         var executor = new RecordingExecutor(store, delay: TimeSpan.FromMilliseconds(300));
         var manager = new ToolkitInstanceManager(
@@ -479,7 +515,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         int count = 0;
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceCompletedEvent)
+            if (e is FlowCompletedEvent)
             {
                 var n = Interlocked.Increment(ref count);
                 if (n == 1) first.TrySetResult();
@@ -490,20 +526,21 @@ public class ToolkitInstanceManagerTests : IDisposable
         manager.Mount(ToolkitWithSpawnAndUiEvent());
         try
         {
-            var id = manager.Spawn("tk-demo", "manual");
-            Assert.NotNull(id);
+            var flowId = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(flowId);
 
-            // Spawn run finishes → instance Completed.
-            await Task.WhenAny(first.Task, Task.Delay(5000));
-            Assert.False(manager.Instances.Single().IsRunning);
+            // Spawn flow finishes → the toolkit has no work in flight.
+            await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(manager.ActiveFlowCounts());
 
-            // UIEvent on the Completed instance → back to Running (C6 re-transition).
-            manager.RaiseInstanceEvent(id!, "Click");
-            Assert.True(manager.Instances.Single().IsRunning);
+            // A UIEvent on the settled toolkit starts a new flow → busy again.
+            var started = manager.RaiseEvent("tk-demo", "Click");
+            Assert.Single(started);
+            Assert.Equal(1, manager.ActiveFlowCounts()["tk-demo"]);
 
-            // The UIEvent chain finishes → back to Completed.
-            await Task.WhenAny(second.Task, Task.Delay(5000));
-            Assert.False(manager.Instances.Single().IsRunning);
+            // That chain finishes → idle again.
+            await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => manager.ActiveFlowCounts().Count == 0);
         }
         finally
         {
@@ -512,10 +549,13 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task UiEvent_Chain_Completion_Aggregates_Succeeded()
+    public async Task UiEvent_Flow_Failure_Is_Reported_For_That_Flow_Only()
     {
-        // The UIEvent workflow fails, so the aggregate Succeeded must be false even though
-        // the Spawn run succeeded.
+        // The old test asserted an aggregate: the instance stayed Succeeded=false once its UIEvent
+        // chain failed, even though the Spawn run had succeeded. There is no aggregate any more —
+        // one flow, one verdict (ADR-0015 D1). So the property that survived is the one that
+        // matters: the failing chain reports Failed (with a diagnostic) while the earlier,
+        // successful Spawn flow is not retroactively re-labelled.
         var store = new DataStore();
         var executor = new RecordingExecutor(store, failWorkflows: ["wf2"]);
         var manager = new ToolkitInstanceManager(
@@ -525,34 +565,42 @@ public class ToolkitInstanceManagerTests : IDisposable
             store,
             FileStoreFor);
 
-        var first = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = new TaskCompletionSource<FlowCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceCompletedEvent c)
+            if (e is FlowCompletedEvent c)
                 first.TrySetResult(c);
         };
 
         manager.Mount(ToolkitWithSpawnAndUiEvent());
         try
         {
-            var id = manager.Spawn("tk-demo", "manual");
-            Assert.NotNull(id);
+            var flowId = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(flowId);
 
             var spawnResult = await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.True(spawnResult.Succeeded);
+            Assert.Equal(flowId, spawnResult.FlowId);
+            Assert.Equal(RunOutcome.Succeeded, spawnResult.Outcome);
 
             // Reset for the UIEvent phase.
-            var second = new TaskCompletionSource<InstanceCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var second = new TaskCompletionSource<FlowCompletedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
             manager.ToolkitEvent += (_, e) =>
             {
-                if (e is InstanceCompletedEvent c)
+                if (e is FlowCompletedEvent c)
                     second.TrySetResult(c);
             };
 
-            manager.RaiseInstanceEvent(id!, "Click");
+            var started = manager.RaiseEvent("tk-demo", "Click");
+            Assert.Single(started);
+
             var uiResult = await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.False(uiResult.Succeeded); // aggregate: a run failed → Succeeded=false
-            Assert.False(manager.Instances.Single().IsRunning);
+            Assert.Equal(started[0], uiResult.FlowId);
+            Assert.Equal(RunOutcome.Failed, uiResult.Outcome);
+            Assert.NotNull(uiResult.Failure);
+
+            // The first flow's verdict is history, not state: it is not re-reported as failed.
+            Assert.NotEqual(spawnResult.EventId, uiResult.EventId);
+            Assert.Equal(RunOutcome.Succeeded, spawnResult.Outcome);
         }
         finally
         {
@@ -561,10 +609,13 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Spawn_And_UiEvent_Concurrent_Not_Prematurely_Completed()
+    public async Task Spawn_And_UiEvent_Concurrent_Both_Count_Until_They_Finish()
     {
-        // Hold both runs in flight: the instance must stay Running while either run is
-        // active, and only reach Completed once the last one finishes.
+        // Hold both flows in flight. The instance model's "one instance stays Running while any of
+        // its runs is active" has no counterpart after Q83, but the count that replaced it does:
+        // two concurrent flows must read as 2, and each must drop off as it finishes — never
+        // reported as finished while still running (which is what the old "never prematurely
+        // Completed" assertion guarded).
         var hold = new TaskCompletionSource();
         var store = new DataStore();
         var executor = new RecordingExecutor(store, hold: hold);
@@ -576,29 +627,31 @@ public class ToolkitInstanceManagerTests : IDisposable
             FileStoreFor);
 
         var completed = new TaskCompletionSource();
+        int remaining = 2;
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceCompletedEvent)
+            if (e is FlowCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
                 completed.TrySetResult();
         };
 
         manager.Mount(ToolkitWithSpawnAndUiEvent());
         try
         {
-            var id = manager.Spawn("tk-demo", "manual");
-            Assert.NotNull(id);
-            // Spawn run is held in flight → instance Running.
-            Assert.True(manager.Instances.Single().IsRunning);
+            var flowId = manager.Spawn("tk-demo", "manual");
+            Assert.NotNull(flowId);
+            // Spawn flow is held in flight → one flow counted.
+            Assert.Equal(1, manager.ActiveFlowCounts()["tk-demo"]);
 
-            // Start a UIEvent chain while the Spawn run is still active.
-            manager.RaiseInstanceEvent(id!, "Click");
-            // Both runs in flight → still Running, never prematurely Completed.
-            Assert.True(manager.Instances.Single().IsRunning);
+            // Start a UIEvent chain while the Spawn flow is still active.
+            var started = manager.RaiseEvent("tk-demo", "Click");
+            Assert.Single(started);
+            // Both in flight → two flows, and neither is prematurely reported as done.
+            Assert.Equal(2, manager.ActiveFlowCounts()["tk-demo"]);
 
-            // Release both → both complete → instance Completed.
+            // Release both → both complete → nothing left running.
             hold.TrySetResult();
-            await Task.WhenAny(completed.Task, Task.Delay(5000));
-            Assert.False(manager.Instances.Single().IsRunning);
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => manager.ActiveFlowCounts().Count == 0);
         }
         finally
         {
@@ -606,7 +659,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         }
     }
 
-    // ── F7: trigger-by-id index (instances snapshot surface resolution) ──
+    // ── F7: trigger-by-id index ──
 
     [Fact]
     public void Mount_Rejects_Duplicate_Trigger_Ids()
@@ -621,7 +674,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => manager.Mount(tk));
     }
 
-    // ── memory governance: instance teardown must not touch toolkit-level keys ──
+    // ── memory governance: ending a flow must not touch toolkit-level keys ──
 
     [Fact]
     public async Task EndInstance_Leaves_Toolkit_Level_Keys_Alone()
@@ -634,12 +687,22 @@ public class ToolkitInstanceManagerTests : IDisposable
 
         manager.Mount(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+
+        var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.ToolkitEvent += (_, e) =>
+        {
+            if (e is FlowCompletedEvent)
+                settled.TrySetResult();
+        };
+
         try
         {
             var id = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(id);
 
-            await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && !s.IsRunning));
+            // Wait for the flow itself to settle, not for an instance to leave Running: flow ids
+            // are no longer enumerable, so the completion event is the settle signal.
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
             // A toolkit-level declared key, which is not workflow-scoped and must survive.
             var toolkitKey = "tk-demo/sessionPath";
@@ -647,10 +710,10 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             lock (removed) removed.Clear(); // observe only the EndInstance-driven removals
 
-            manager.EndInstance(id!);
+            manager.EndInstance(id!, InstanceEndReason.Requested);
 
-            Assert.Empty(manager.Instances);
-            Assert.True(store.Contains(toolkitKey)); // toolkit-level keys outlive the instance
+            Assert.Empty(manager.ActiveFlowCounts());
+            Assert.True(store.Contains(toolkitKey)); // toolkit-level keys outlive the flow
             lock (removed) Assert.DoesNotContain(toolkitKey, removed);
         }
         finally
@@ -660,13 +723,22 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Unmount_Cleans_Toolkit_Keys()
+    public async Task Unmount_Cleans_Up_While_Retaining_Toolkit_Keys()
     {
         var store = new DataStore();
         var manager = Build(store, new RecordingExecutor(store));
 
         manager.Mount(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
+
+        var settled = new TaskCompletionSource();
+        int remaining = 2;
+        manager.ToolkitEvent += (_, e) =>
+        {
+            if (e is FlowCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
+                settled.TrySetResult();
+        };
+
         try
         {
             var a = manager.Spawn("tk-demo", "manual");
@@ -674,7 +746,9 @@ public class ToolkitInstanceManagerTests : IDisposable
             Assert.NotNull(a);
             Assert.NotNull(b);
 
-            await WaitUntilAsync(() => manager.Instances.All(s => !s.IsRunning));
+            // Both flows must finish before unmount; the flow count is how that is observed now.
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => manager.ActiveFlowCounts().Count == 0);
 
             // Declared toolkit keys — the only keys the data plane still has. Unmount drops the
             // scheduler but keeps the data, so these must survive; Uninstall is what clears them.
@@ -685,7 +759,7 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             manager.Unmount("tk-demo");
 
-            Assert.Empty(manager.Instances);
+            Assert.Empty(manager.ActiveFlowCounts());
             Assert.True(store.Contains(keyA));
             Assert.True(store.Contains(keyB));
             Assert.False(manager.IsMounted("tk-demo"));
@@ -699,18 +773,22 @@ public class ToolkitInstanceManagerTests : IDisposable
     // ── memory governance: CompletedInstanceCap eviction ──
 
     [Fact]
-    public async Task CompletedCap_Evicts_Oldest_Completed_Instances()
+    public async Task CompletedCap_Evicts_Oldest_Completed_Flows()
     {
+        // The cap still exists (CompletedInstanceCap, applied by EvictIfOverCompletedCap), but the
+        // snapshot list that used to expose it is gone. What remains observable is whether a
+        // finished flow is still retained: GetToolkitId resolves only while its instance is in the
+        // manager's table, so a null answer means "this one was evicted".
         var store = new DataStore();
         // Stagger each completion so CompletedAt ordering is deterministic (oldest evicted first).
         var manager = Build(store, new RecordingExecutor(store, delay: TimeSpan.FromMilliseconds(50)),
             new ToolkitInstanceManagerOptions { CompletedInstanceCap = 3 });
 
-        var cancelled = new List<string>();
+        var completions = new List<FlowCompletedEvent>();
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceCancelledEvent c)
-                lock (cancelled) cancelled.Add(c.InstanceId);
+            if (e is FlowCompletedEvent c)
+                lock (completions) completions.Add(c);
         };
 
         manager.Mount(ToolkitWith(
@@ -723,26 +801,32 @@ public class ToolkitInstanceManagerTests : IDisposable
                 var id = manager.Spawn("tk-demo", "manual");
                 Assert.NotNull(id);
                 ids.Add(id!);
-                // Await this instance completing before the next spawn, so the cap evicts the
-                // oldest deterministically (each completion runs the eviction check).
-                await WaitUntilAsync(() => manager.Instances.Any(s => s.InstanceId == id && !s.IsRunning));
+                // Await this flow completing before the next spawn, so the cap evicts the oldest
+                // deterministically (each completion runs the eviction check).
+                var expected = ids.Count;
+                await WaitUntilAsync(() =>
+                {
+                    lock (completions) return completions.Count >= expected;
+                });
             }
 
-            // Oldest two (ids[0], ids[1]) were evicted; the three newest remain.
-            var remaining = manager.Instances.Select(s => s.InstanceId).ToList();
-            Assert.Equal(3, remaining.Count);
-            Assert.DoesNotContain(ids[0], remaining);
-            Assert.DoesNotContain(ids[1], remaining);
-            Assert.Contains(ids[2], remaining);
-            Assert.Contains(ids[3], remaining);
-            Assert.Contains(ids[4], remaining);
+            // Oldest two (ids[0], ids[1]) were evicted; the three newest are still retained.
+            // Eviction runs on the instance's completion callback, which fires just after the
+            // FlowCompletedEvent, so the disappearance is waited for rather than assumed.
+            await WaitUntilAsync(() =>
+                manager.GetToolkitId(ids[0]) is null && manager.GetToolkitId(ids[1]) is null);
 
-            lock (cancelled)
-            {
-                Assert.Equal(2, cancelled.Count);
-                Assert.Contains(ids[0], cancelled);
-                Assert.Contains(ids[1], cancelled);
-            }
+            Assert.Null(manager.GetToolkitId(ids[0]));
+            Assert.Null(manager.GetToolkitId(ids[1]));
+            Assert.Equal("tk-demo", manager.GetToolkitId(ids[2]));
+            Assert.Equal("tk-demo", manager.GetToolkitId(ids[3]));
+            Assert.Equal("tk-demo", manager.GetToolkitId(ids[4]));
+
+            // Eviction does not re-report or alter the completion of a flow that already finished.
+            lock (completions) Assert.Equal(5, completions.Count);
+
+            // Nothing is running: the cap governs retention of finished work, not live work.
+            Assert.Empty(manager.ActiveFlowCounts());
         }
         finally
         {
@@ -751,26 +835,40 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task CompletedCap_Zero_Means_Unlimited()
+    public async Task CompletedCap_Zero_Means_Unlimited_Retention()
     {
         var store = new DataStore();
         var manager = Build(store, new RecordingExecutor(store),
             new ToolkitInstanceManagerOptions { CompletedInstanceCap = 0 });
 
+        var settled = new TaskCompletionSource();
+        int remaining = 5;
+        manager.ToolkitEvent += (_, e) =>
+        {
+            if (e is FlowCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
+                settled.TrySetResult();
+        };
+
         manager.Mount(ToolkitWith(
             new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
         try
         {
+            var ids = new List<string>();
             for (var i = 0; i < 5; i++)
-                Assert.NotNull(manager.Spawn("tk-demo", "manual"));
+            {
+                var id = manager.Spawn("tk-demo", "manual");
+                Assert.NotNull(id);
+                ids.Add(id!);
+            }
 
-            // Wait for every instance to FINISH, not merely to exist. Spawning is
-            // synchronous but execution is not, so waiting on Count == 5 can observe
-            // instances that are still Running — that race is what made this test flaky.
-            await WaitUntilAsync(() => manager.Instances.Count == 5
-                && manager.Instances.All(s => !s.IsRunning));
-            Assert.Equal(5, manager.Instances.Count);
-            Assert.All(manager.Instances, s => Assert.False(s.IsRunning));
+            // Wait for every flow to FINISH, not merely to start. Spawning is synchronous but
+            // execution is not, so waiting only on the spawn count observed flows still Running —
+            // that race is what made the instance-model version of this test flaky.
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(manager.ActiveFlowCounts());
+
+            // Unlimited means every finished flow stays addressable.
+            Assert.All(ids, id => Assert.Equal("tk-demo", manager.GetToolkitId(id)));
         }
         finally
         {
@@ -779,16 +877,16 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Instance_Succeeded_Reflects_Only_Its_Own_Window_Not_Earlier_Failures()
+    public async Task Flow_Verdict_Reflects_Only_Its_Own_Run_Not_Earlier_Flows()
     {
-        // ADR-0003 D3 regression. The old implementation kept one `_anyFailed` flag on the
-        // instance that was set on failure and NEVER cleared, so an instance that failed once
-        // reported failure for every later run of its life: scan fifty items, fail the first,
-        // and the card reads "failed" forever.
+        // ADR-0003 D3 regression, restated for flows. The old implementation kept one `_anyFailed`
+        // flag on the instance that was set on failure and NEVER cleared, so an instance that
+        // failed once reported failure for every later run of its life: scan fifty items, fail the
+        // first, and the card reads "failed" forever.
         //
-        // Each Spawn here is a NEW instance, so the guarantee under test is the weaker, more
-        // basic one: two instances spawned from the same mounted toolkit — the first failing,
-        // the second succeeding — must not share a verdict.
+        // After Q83 each spawn is a flow with its own verdict (ADR-0015 D1), so the guarantee is
+        // even more direct: two flows spawned from the same mounted toolkit must each carry their
+        // own outcome, and neither may inherit the other's.
         var store = new DataStore();
         var executor = new RecordingExecutor(store);
         var manager = new ToolkitInstanceManager(
@@ -798,10 +896,10 @@ public class ToolkitInstanceManagerTests : IDisposable
             store,
             FileStoreFor);
 
-        var completed = new System.Collections.Concurrent.ConcurrentQueue<InstanceCompletedEvent>();
+        var completed = new System.Collections.Concurrent.ConcurrentQueue<FlowCompletedEvent>();
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceCompletedEvent c)
+            if (e is FlowCompletedEvent c)
                 completed.Enqueue(c);
         };
 
@@ -810,15 +908,15 @@ public class ToolkitInstanceManagerTests : IDisposable
 
         try
         {
-            // First instance succeeds.
+            // First flow succeeds.
             var ok = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(ok);
             await WaitUntilAsync(() => completed.Count >= 1);
 
-            // Second instance runs while the executor is configured to fail — a fresh executor
+            // Second flow runs while the executor is configured to fail — a fresh executor
             // is not possible here (the manager holds it), so instead assert the positive case:
-            // the second instance's verdict is decided by its own run, not inherited from the
-            // first. A regression to a shared flag would surface as the two instances having
+            // the second flow's verdict is decided by its own run, not inherited from the
+            // first. A regression to a shared flag would surface as the two flows having
             // identical verdicts regardless of their own runs.
             var second = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(second);
@@ -826,13 +924,15 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             var results = completed.ToArray();
             Assert.Equal(2, results.Length);
-            Assert.All(results, r => Assert.True(r.Succeeded,
-                "both runs succeeded, so a shared failure flag must not exist"));
 
-            // The two instances are distinct and both report a settled success.
-            Assert.NotEqual(ok, second);
-            Assert.All(manager.Instances, s => Assert.False(s.IsRunning));
-            Assert.All(manager.Instances, s => Assert.Equal(RunOutcome.Succeeded, s.Outcome));
+            // Each event names its own flow, and both report a settled success.
+            Assert.Equal(ok, results[0].FlowId);
+            Assert.Equal(second, results[1].FlowId);
+            Assert.NotEqual(results[0].FlowId, results[1].FlowId);
+            Assert.All(results, r => Assert.Equal(RunOutcome.Succeeded, r.Outcome));
+
+            // Nothing is in flight once both have settled.
+            Assert.Empty(manager.ActiveFlowCounts());
         }
         finally
         {

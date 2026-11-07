@@ -247,33 +247,6 @@ internal sealed class ToolkitInstance : IDisposable
         return RunOutcome.Succeeded;
     }
 
-    /// <summary>Builds an immutable snapshot for the run monitor / remote directory.</summary>
-    public InstanceSnapshot ToSnapshot()
-    {
-        int active, completed, failed;
-        RunOutcome? outcome;
-        Diagnostic? failure;
-        DateTimeOffset? completedAt;
-
-        lock (_gate)
-        {
-            active = _runs.Sum(r => r.ActiveRuns);
-            completed = _runs.Sum(r => r.CompletedRuns);
-            failed = _runs.Sum(r => r.FailedRuns);
-            outcome = _settledOutcome;
-            failure = _settledFailure;
-            completedAt = _completedAt;
-        }
-
-        return new(
-            InstanceId, ToolkitId, TriggerId, Initiator, StartedAt, completedAt,
-            active, completed, failed)
-        {
-            Outcome = outcome,
-            Failure = failure,
-        };
-    }
-
     /// <summary>Cancels every run of this instance.</summary>
     public void Cancel()
     {

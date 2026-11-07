@@ -195,7 +195,7 @@ internal sealed class RunScheduler : IDisposable
         run.Completed += (sender, e) =>
         {
             _ = sender;
-            _runs.TryRemove(e.InstanceId, out WorkflowRun? _);
+            _runs.TryRemove(e.FlowId, out WorkflowRun? _);
             RunCompleted?.Invoke(this, e);
         };
         run.NodesSkipped += (sender, e) =>

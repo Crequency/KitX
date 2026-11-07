@@ -129,5 +129,5 @@ internal sealed class ToolkitService : IToolkitService
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<InstanceSnapshot> Instances => _manager.Instances;
+    public IReadOnlyDictionary<string, int> ActiveFlowCounts() => _manager.ActiveFlowCounts();
 }
