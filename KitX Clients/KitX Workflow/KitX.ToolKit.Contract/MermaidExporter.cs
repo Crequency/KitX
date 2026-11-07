@@ -78,8 +78,7 @@ public static class MermaidExporter
             TriggerType.Manual => "手动",
             TriggerType.PluginEvent => $"插件:{trigger.Config?.PluginName}" +
                 (string.IsNullOrWhiteSpace(trigger.Config?.TriggerName) ? "" : $".{trigger.Config!.TriggerName}"),
-            TriggerType.UIEvent => $"UI:{trigger.Config?.Control}" +
-                (string.IsNullOrWhiteSpace(trigger.Config?.Event) ? "" : $".{trigger.Config!.Event}"),
+            TriggerType.UIEvent => $"事件:{trigger.Config?.Event}",
             TriggerType.Timer when !string.IsNullOrWhiteSpace(trigger.Config?.Cron) => $"Cron:{trigger.Config!.Cron}",
             TriggerType.Timer when trigger.Config?.OneShot == true =>
                 $"单次:{(trigger.Config.DueTimeMs is null ? 0 : trigger.Config.DueTimeMs)}ms",

@@ -103,7 +103,6 @@ internal static class ToolkitCompiler
             Triggers = triggers,
             Plugins = config.Plugins.ToList(),
             Comments = config.Comments.ToList(),
-            MaxInstances = config.MaxInstances,
             Keys = KeyTable.From(toolkitId, config.Keys),
             Warnings = sink.Warnings,
         };
@@ -151,13 +150,8 @@ internal static class ToolkitCompiler
 
     private static void ValidateRuntimeParams(Toolkit config, DiagnosticSink sink)
     {
-        if (config.MaxInstances is < 0)
-        {
-            sink.Error(
-                "toolkit.maxinstances.negative",
-                $"MaxInstances must be null or >= 0, got {config.MaxInstances}.",
-                new DiagnosticPath(ToolkitId: config.GetId()));
-        }
+        // The concurrency cap is a Core-level setting (machine-wide), not a per-ToolKit field —
+        // see ToolkitInstanceManagerOptions.MaxConcurrentFlows. Nothing to validate here.
 
         foreach (var trigger in config.Triggers)
         {
@@ -729,7 +723,6 @@ internal static class ToolkitCompiler
 
                 TriggerType.UIEvent => new CompiledUiEventTrigger(
                     trigger.Id,
-                    trigger.Config?.Control,
                     trigger.Config?.Event)
                 {
                     Declaration = trigger,
@@ -752,7 +745,6 @@ internal static class ToolkitCompiler
             {
                 Targets = targets,
                 Bindings = trigger.Bindings.ToList(),
-                Surface = trigger.Config?.Surface,
             });
         }
 

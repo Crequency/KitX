@@ -212,12 +212,11 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public void Spawn_Rejects_When_MaxInstances_Exceeded()
+    public void Spawn_Rejects_When_MaxConcurrentFlows_Exceeded()
     {
         var tk = ToolkitWith(new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
-        tk.MaxInstances = 1;
 
-        // Hold the first instance in Running so the cap is still hit on the second spawn.
+        // Hold the first run in flight so the second spawn still sees the budget taken.
         var hold = new TaskCompletionSource();
         var store = new DataStore();
         var executor = new RecordingExecutor(store, hold: hold);
@@ -226,7 +225,9 @@ public class ToolkitInstanceManagerTests : IDisposable
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            FileStoreFor);
+            FileStoreFor,
+            null,
+            new ToolkitInstanceManagerOptions { MaxConcurrentFlows = 1 });
 
         manager.Mount(tk);
 
@@ -234,7 +235,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         {
             var first = manager.Spawn("tk-demo", "manual");
             Assert.NotNull(first);
-            // Second spawn exceeds the cap of 1 running instance.
+            // Second spawn exceeds the machine-wide cap of 1 running flow.
             var second = manager.Spawn("tk-demo", "manual");
             Assert.Null(second);
         }
@@ -350,38 +351,9 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public void Spawn_SilentTrigger_ExposesSilentSurfaceOnSnapshot()
-    {
-        var tk = ToolkitWith(new Trigger
-        {
-            Id = "manual",
-            Type = TriggerType.Manual,
-            Config = new TriggerConfig { Surface = InstanceConstants.SurfaceSilent },
-            Bindings = [new() { Workflow = "wf" }],
-        });
-        var (manager, _) = Build(tk);
-
-        manager.Mount(tk);
-
-        try
-        {
-            var instanceId = manager.Spawn("tk-demo", "manual");
-            Assert.NotNull(instanceId);
-
-            var snapshot = Assert.Single(manager.Instances);
-            Assert.Equal(InstanceConstants.SurfaceSilent, snapshot.Surface);
-        }
-        finally
-        {
-            manager.Unmount("tk-demo");
-        }
-    }
-
-    [Fact]
     public async Task Spawn_Rejected_Emits_InstanceSpawnRejectedEvent()
     {
         var tk = ToolkitWith(new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
-        tk.MaxInstances = 1;
 
         var hold = new TaskCompletionSource();
         var store = new DataStore();
@@ -391,7 +363,9 @@ public class ToolkitInstanceManagerTests : IDisposable
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            FileStoreFor);
+            FileStoreFor,
+            null,
+            new ToolkitInstanceManagerOptions { MaxConcurrentFlows = 1 });
 
         var rejected = new TaskCompletionSource<InstanceSpawnRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
@@ -409,7 +383,7 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             var rejection = await rejected.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal("tk-demo", rejection.ToolkitId);
-            Assert.Contains("MaxInstances", rejection.Reason);
+            Assert.Equal("concurrency-limit", rejection.Reason);
         }
         finally
         {
@@ -419,15 +393,14 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Concurrent_Spawns_Respect_MaxInstances()
+    public async Task Concurrent_Spawns_Respect_MaxConcurrentFlows()
     {
-        // Two threads race to spawn the same Manual trigger with MaxInstances=1. The cap
-        // check and registration must be atomic, so exactly one succeeds and one is
+        // Two threads race to spawn the same Manual trigger with the machine-wide cap at 1.
+        // The cap check and the start must be atomic, so exactly one succeeds and one is
         // rejected — never both succeeding.
         var tk = ToolkitWith(new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
-        tk.MaxInstances = 1;
 
-        // Hold executions in-flight so both spawns race against the Running-instances cap
+        // Hold executions in-flight so both spawns race against the concurrency cap
         // (no node completes synchronously to change the count mid-race).
         var hold = new TaskCompletionSource();
         var store = new DataStore();
@@ -437,7 +410,9 @@ public class ToolkitInstanceManagerTests : IDisposable
             TriggerSourceRegistry.BuildDefault(),
             executor,
             store,
-            FileStoreFor);
+            FileStoreFor,
+            null,
+            new ToolkitInstanceManagerOptions { MaxConcurrentFlows = 1 });
 
         int rejected = 0;
         manager.ToolkitEvent += (_, e) =>
@@ -480,7 +455,7 @@ public class ToolkitInstanceManagerTests : IDisposable
             [
                 new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] },
                 new Trigger { Id = "ui", Type = TriggerType.UIEvent,
-                    Config = new TriggerConfig { Control = "btn", Event = "Click" },
+                    Config = new TriggerConfig { Event = "Click" },
                     Bindings = [new() { Workflow = "wf2" }] },
             ],
         };
@@ -632,44 +607,6 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     // ── F7: trigger-by-id index (instances snapshot surface resolution) ──
-
-    [Fact]
-    public void Instances_Snapshot_Resolves_Surface_Per_Trigger_From_Index()
-    {
-        // Two triggers with distinct surfaces + one with no Surface (null) — the snapshot
-        // must resolve each instance's Surface from its trigger via the id index.
-        var tk = new Toolkit
-        {
-            Id = "tk-demo",
-            Meta = new ToolkitMeta { Name = "demo" },
-            Workflows = [new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" }],
-            Triggers =
-            [
-                new Trigger { Id = "silent", Type = TriggerType.Manual,
-                    Config = new TriggerConfig { Surface = InstanceConstants.SurfaceSilent },
-                    Bindings = [new() { Workflow = "wf" }] },
-                new Trigger { Id = "plain", Type = TriggerType.Manual,
-                    Config = new TriggerConfig(), // no Surface → null
-                    Bindings = [new() { Workflow = "wf" }] },
-            ],
-        };
-        var (manager, _) = Build(tk);
-
-        manager.Mount(tk);
-        try
-        {
-            Assert.NotNull(manager.Spawn("tk-demo", "silent"));
-            Assert.NotNull(manager.Spawn("tk-demo", "plain"));
-
-            var snapshots = manager.Instances.ToDictionary(s => s.TriggerId);
-            Assert.Equal(InstanceConstants.SurfaceSilent, snapshots["silent"].Surface);
-            Assert.Null(snapshots["plain"].Surface);
-        }
-        finally
-        {
-            manager.Unmount("tk-demo");
-        }
-    }
 
     [Fact]
     public void Mount_Rejects_Duplicate_Trigger_Ids()

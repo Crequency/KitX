@@ -41,14 +41,7 @@ internal abstract record CompiledTrigger(string Id, TriggerType Type)
     /// </summary>
     public required Trigger Declaration { get; init; }
 
-    /// <summary>
-    /// The declared surface mode (<c>auto</c> / <c>silent</c>), resolved. Promoted to this
-    /// object rather than read through <see cref="Declaration"/> so that listing instances
-    /// — a hot path — does not walk back into config fields.
-    /// </summary>
-    public string? Surface { get; init; }
-
-    /// <summary>True when firing starts a new instance (Manual / PluginEvent / Timer).</summary>
+    /// <summary>True when firing starts a new flow (Manual / PluginEvent / Timer).</summary>
     public bool Spawns => Type.IsSpawn();
 
     /// <summary>True when firing routes into an existing instance rather than spawning.</summary>
@@ -71,10 +64,13 @@ internal sealed record CompiledTimerTrigger(
     double? IntervalMs,
     bool OneShot) : CompiledTrigger(Id, TriggerType.Timer);
 
-/// <summary>A UI-event trigger: routes a panel control event into an existing instance.</summary>
+/// <summary>
+/// A UI-event trigger: routes an external event into an existing instance. Named for the
+/// trigger type it declares (<see cref="TriggerType.UIEvent"/>), not for a control — controls
+/// were removed in Q79/Q82; the event name is the only thing left to match on.
+/// </summary>
 internal sealed record CompiledUiEventTrigger(
     string Id,
-    string? Control,
     string? Event) : CompiledTrigger(Id, TriggerType.UIEvent);
 
 /// <summary>

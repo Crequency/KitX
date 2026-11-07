@@ -15,7 +15,7 @@ public interface IRunService
     /// <summary>
     /// Spawns a new instance of a mounted ToolKit from a Spawn trigger. Returns the new
     /// instance id, or null when the trigger is unknown / not a Spawn type / the ToolKit is
-    /// not mounted / the MaxInstances cap is exceeded.
+    /// not mounted / the concurrency cap is exceeded.
     /// </summary>
     string? Spawn(string toolkitId, string triggerId, object? payload = null, Initiator? initiator = null);
 

@@ -48,7 +48,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
     private readonly ConcurrentDictionary<string, MountedToolkit> _mounted = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ToolkitInstance> _instances = new(StringComparer.Ordinal);
 
-    // Serializes the "MaxInstances check → StartRun → _instances registration" sequence
+    // Serializes the "concurrency check → StartRun → _instances registration" sequence
     // so concurrent Spawn calls cannot all observe zero Running instances and jointly
     // exceed the cap (a TOCTOU window in the pre-existing code).
     private readonly object _spawnGate = new();
@@ -109,17 +109,8 @@ internal sealed class ToolkitInstanceManager : IDisposable
     public bool IsMounted(string toolkitId) => _mounted.ContainsKey(toolkitId);
 
     /// <summary>Snapshot of every instance across all mounted ToolKits.</summary>
-    public IReadOnlyList<InstanceSnapshot> Instances => _instances.Values.Select(instance =>
-    {
-        var snapshot = instance.ToSnapshot();
-        if (_mounted.TryGetValue(instance.ToolkitId, out var mounted) &&
-            mounted.TriggerById.TryGetValue(instance.TriggerId, out var trigger))
-        {
-            snapshot = snapshot with { Surface = trigger.Surface };
-        }
-
-        return snapshot;
-    }).ToList();
+    public IReadOnlyList<InstanceSnapshot> Instances
+        => _instances.Values.Select(instance => instance.ToSnapshot()).ToList();
 
     /// <summary>
     /// Mounts a ToolKit: validates its config, compiles it, builds its scheduler, and starts its
@@ -454,7 +445,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// <summary>
     /// Spawns a new instance of a mounted ToolKit from a Spawn trigger. Returns the new
     /// instance id, or null when the trigger is unknown / not a Spawn type / the ToolKit is
-    /// not mounted / the MaxInstances cap is exceeded.
+    /// not mounted / the concurrency cap is exceeded.
     /// </summary>
     public string? Spawn(string toolkitId, string triggerId, object? payload = null, Initiator? initiator = null)
     {
@@ -483,17 +474,8 @@ internal sealed class ToolkitInstanceManager : IDisposable
         // synchronous callback re-enters this lock.
         lock (_spawnGate)
         {
-            // MaxInstances cap (D7): count only Running instances of this ToolKit.
-            var max = mounted.Compiled.MaxInstances;
-            if (max is > 0 &&
-                _instances.Values.Count(i => i.ToolkitId == toolkitId && i.IsRunning) >= max)
-            {
-                Log.Warning("[ToolkitInstanceManager] Spawn of {Toolkit} rejected: MaxInstances={Max} reached",
-                    toolkitId, max);
-                Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
-                    $"MaxInstances={max}"));
+            if (!HasFlowBudget(toolkitId, triggerId))
                 return null;
-            }
 
             var run = mounted.Scheduler.StartRun(triggerId, payload, initiator ?? Initiator.Unknown, null, AttachRunEvents);
             if (run is null)
@@ -666,6 +648,14 @@ internal sealed class ToolkitInstanceManager : IDisposable
 
         foreach (var trigger in matching)
         {
+            // Each chain takes a flow slot, checked the same way Spawn checks it. Under the
+            // gate so two events cannot both consume the last slot.
+            lock (_spawnGate)
+            {
+                if (!HasFlowBudget(instance.ToolkitId, trigger.Id))
+                    break;
+            }
+
             // A UIEvent chain on a Completed instance re-transitions it back to Running
             // (EnsureRunning before StartRun so the RunStarted projection already sees Running),
             // and the new run is tracked so the instance only returns to Completed once it too
@@ -680,6 +670,41 @@ internal sealed class ToolkitInstanceManager : IDisposable
     private static bool MatchesEvent(string? declaredEvent, string eventName)
         => declaredEvent is not null
            && string.Equals(declaredEvent, eventName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether starting one more flow fits under the machine-wide concurrency cap. Callers
+    /// must hold <see cref="_spawnGate"/>: the count and the follow-up <c>StartRun</c> have to
+    /// be atomic, or two threads can both read "one slot left" and both take it.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why the count is <c>ActiveInstanceCount</c> and not a local tally.</b> That
+    /// property is <c>RunScheduler._runs.Count</c>, and the scheduler adds on start and removes
+    /// on completion — so it is the flow count by construction. Summing
+    /// <c>ToolkitInstance.ActiveRuns</c> would work too but would leave <c>RaiseEvent</c>
+    /// uncapped, because it starts runs without creating an instance.</para>
+    ///
+    /// <para><b>Why both entry points call this.</b> Before Q83 the cap was checked only in
+    /// <c>Spawn</c>; an external event starting UIEvent chains walked straight past it, so
+    /// "one spawn + N event chains" could exceed the cap without bound. One check, two callers,
+    /// no path around it.</para>
+    /// </remarks>
+    private bool HasFlowBudget(string toolkitId, string triggerId)
+    {
+        var max = _options.MaxConcurrentFlows;
+        if (max <= 0)
+            return true;
+
+        var active = _mounted.Values.Sum(m => m.Scheduler.ActiveInstanceCount);
+        if (active < max)
+            return true;
+
+        Log.Warning(
+            "[ToolkitInstanceManager] Trigger {Trigger} of {Toolkit} rejected: concurrency-limit ({Active}/{Max})",
+            triggerId, toolkitId, active, max);
+        Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+            "concurrency-limit"));
+        return false;
+    }
 
     private void Raise(ToolkitEvent e) => ToolkitEvent?.Invoke(this, e);
 
@@ -711,7 +736,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// <b>No <c>Toolkit</c> here.</b> ADR-0002 D1 says the runtime takes a
     /// <see cref="CompiledToolkit"/> and never the config again. This type used to keep the
     /// config alongside the compiled output, which made the ADR true of <c>RunScheduler</c> and
-    /// false of everything around it — the manager went on reading triggers, <c>MaxInstances</c>
+    /// false of everything around it — the manager went on reading the config for triggers,
     /// and the key declarations straight from the document it was told not to touch.
     /// </remarks>
     private sealed class MountedToolkit : IDisposable

@@ -37,22 +37,11 @@ public sealed class TriggerConfig
     /// <summary>Initial delay before the first fire, in milliseconds. Default 0.</summary>
     public double? DueTimeMs { get; set; }
 
-    // ── UIEvent (declared; runtime skeleton until the GUI iteration) ──
-    /// <summary>UI panel id the control belongs to.</summary>
-    public string? Panel { get; set; }
-
-    /// <summary>Control id that raises the event.</summary>
-    public string? Control { get; set; }
-
+    // ── UIEvent ──
+    // Panel and Control were removed (Q79/Q82): the panel host is gone, so there is no control
+    // to scope an event to. What is left is the name an external caller fires — the View sends
+    // `command{event}`, the workflow reads its payload. Surfacing and layout are Surface's job
+    // now, not the trigger's.
     /// <summary>Event name, e.g. <c>Click</c>, <c>Submit</c>, <c>Toggled</c>.</summary>
     public string? Event { get; set; }
-
-    // ── Spawn presentation (Manual / PluginEvent / Timer) ──
-    /// <summary>
-    /// How a spawned instance's panel is presented to the user. <c>auto</c> (default) =
-    /// automatically open/focus the instance panel on spawn; <c>silent</c> = run in the
-    /// background (a badge hints it) and only surface when the workflow calls
-    /// <c>KitX.UI.OpenPanel</c> or the user opens it manually.
-    /// </summary>
-    public string? Surface { get; set; }
 }

@@ -46,13 +46,6 @@ public sealed class Toolkit
     /// </remarks>
     public List<KeyDeclaration> Keys { get; set; } = [];
 
-    /// <summary>
-    /// Maximum number of concurrently-running instances this ToolKit may have. Null
-    /// (default) = unlimited. When exceeded, a spawn is rejected and surfaced via an
-    /// event (ToolKit 实例模型定稿 D7).
-    /// </summary>
-    public int? MaxInstances { get; set; }
-
     /// <summary>The canonical id: <see cref="Id"/> when set, else <see cref="ToolkitMeta.Name"/>.</summary>
     public string GetId() => string.IsNullOrWhiteSpace(Id) ? Meta.Name : Id;
 }

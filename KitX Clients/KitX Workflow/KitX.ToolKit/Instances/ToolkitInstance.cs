@@ -93,6 +93,21 @@ internal sealed class ToolkitInstance : IDisposable
         get { lock (_gate) return _settledOutcome is null; }
     }
 
+    /// <summary>
+    /// How many runs the instance currently has in flight. The Spawn run counts, and so does
+    /// every UIEvent-triggered chain started later (<see cref="TrackRun"/>).
+    /// </summary>
+    /// <remarks>
+    /// This is the unit the concurrency cap counts (Q83 + user decision 2026-11-07). It is
+    /// deliberately <i>not</i> "is the instance running": one instance can carry several flows,
+    /// and capping instance count would let a busy Toolkit exceed the cap through the
+    /// intra-instance path.
+    /// </remarks>
+    public int ActiveRuns
+    {
+        get { lock (_gate) return _activeRuns; }
+    }
+
     /// <summary>When the instance stopped, or null while it is running.</summary>
     public DateTimeOffset? CompletedAt
     {

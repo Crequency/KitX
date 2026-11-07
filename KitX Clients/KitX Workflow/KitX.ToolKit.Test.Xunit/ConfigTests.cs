@@ -188,15 +188,4 @@ public class ConfigTests
         Assert.Contains(result.Errors, e => e.Contains("Cron is not yet supported"));
     }
 
-    [Fact]
-    public void Validate_Rejects_NegativeMaxInstances()
-    {
-        var tk = Sample();
-        tk.MaxInstances = -1;
-
-        var result = new ConfigValidator().Validate(tk);
-
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("MaxInstances"));
-    }
 }

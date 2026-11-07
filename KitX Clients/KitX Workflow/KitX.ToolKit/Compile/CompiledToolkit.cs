@@ -56,9 +56,6 @@ internal sealed class CompiledToolkit
     /// <summary>Canvas comments, carried through for export.</summary>
     public required IReadOnlyList<ToolkitComment> Comments { get; init; }
 
-    /// <summary>Maximum concurrent instances, or null for unlimited.</summary>
-    public int? MaxInstances { get; init; }
-
     /// <summary>
     /// The declared key table, resolved against <see cref="ToolkitId"/>. Workflows write local
     /// names; this is what turns them into full keys and what rejects a write to a key the user

@@ -58,12 +58,10 @@ public sealed class ConfigValidator
             errors.Add($"Duplicate trigger Id '{dup.Key}'.");
     }
 
-    /// <summary>Runtime parameters (MaxInstances + Timer fields) must be sane before mount.</summary>
+    /// <summary>Runtime parameters (Timer fields) must be sane before mount. The concurrency
+    /// cap is a machine-wide Core setting, not a per-ToolKit field, so it is not validated here.</summary>
     private static void ValidateRuntimeParams(Toolkit toolkit, List<string> errors)
     {
-        if (toolkit.MaxInstances is < 0)
-            errors.Add($"MaxInstances must be null or >= 0, got {toolkit.MaxInstances}.");
-
         foreach (var trigger in toolkit.Triggers.Where(t => t.Type == TriggerType.Timer))
         {
             var config = trigger.Config;

@@ -26,4 +26,10 @@ public class Config_Performance : IPerformanceConf
     /// bounded. Read at startup and by the Panel host when building a control.
     /// </summary>
     public int PanelLogLimit { get; set; } = 1000;
+
+    /// <summary>
+    /// Machine-wide cap on concurrently-running ToolKit flows, summed across every mounted
+    /// ToolKit. Zero or negative means unlimited. Applies at startup.
+    /// </summary>
+    public int MaxConcurrentFlows { get; set; } = 256;
 }
