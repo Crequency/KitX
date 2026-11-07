@@ -108,10 +108,10 @@ public class LifecycleTests : IDisposable
             var before = manager.Spawn(TkId, "manual");
             Assert.False(string.IsNullOrEmpty(before));
 
-            var rejected = new List<InstanceSpawnRejectedEvent>();
+            var rejected = new List<TriggerRejectedEvent>();
             manager.ToolkitEvent += (_, e) =>
             {
-                if (e is InstanceSpawnRejectedEvent r)
+                if (e is TriggerRejectedEvent r)
                     lock (rejected) rejected.Add(r);
             };
 
@@ -119,11 +119,11 @@ public class LifecycleTests : IDisposable
             var after = manager.Spawn(TkId, "manual");
 
             Assert.Null(after);
-            InstanceSpawnRejectedEvent reason;
+            TriggerRejectedEvent reason;
             lock (rejected) reason = Assert.Single(rejected);
 
             // The code is the contract, not the sentence around it: a host switches on this.
-            Assert.Equal("toolkit.not-enabled", reason.Reason);
+            Assert.Equal("toolkit.not-enabled", reason.Code);
 
             // Disabling also ended the instance that was running.
             Assert.Empty(manager.Instances);

@@ -351,7 +351,7 @@ public class ToolkitInstanceManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task Spawn_Rejected_Emits_InstanceSpawnRejectedEvent()
+    public async Task Spawn_Rejected_Emits_TriggerRejectedEvent()
     {
         var tk = ToolkitWith(new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] });
 
@@ -367,10 +367,10 @@ public class ToolkitInstanceManagerTests : IDisposable
             null,
             new ToolkitInstanceManagerOptions { MaxConcurrentFlows = 1 });
 
-        var rejected = new TaskCompletionSource<InstanceSpawnRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var rejected = new TaskCompletionSource<TriggerRejectedEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceSpawnRejectedEvent r)
+            if (e is TriggerRejectedEvent r)
                 rejected.TrySetResult(r);
         };
 
@@ -383,7 +383,7 @@ public class ToolkitInstanceManagerTests : IDisposable
 
             var rejection = await rejected.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal("tk-demo", rejection.ToolkitId);
-            Assert.Equal("concurrency-limit", rejection.Reason);
+            Assert.Equal("concurrency-limit", rejection.Code);
         }
         finally
         {
@@ -417,7 +417,7 @@ public class ToolkitInstanceManagerTests : IDisposable
         int rejected = 0;
         manager.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceSpawnRejectedEvent)
+            if (e is TriggerRejectedEvent)
                 Interlocked.Increment(ref rejected);
         };
         manager.Mount(tk);

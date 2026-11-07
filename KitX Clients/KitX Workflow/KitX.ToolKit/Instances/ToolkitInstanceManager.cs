@@ -460,7 +460,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (mounted.State == LifecycleState.Disabled)
         {
             Log.Debug("[ToolkitInstanceManager] Spawn of {Toolkit} refused: toolkit.not-enabled", toolkitId);
-            Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+            Raise(new TriggerRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
                 "toolkit.not-enabled"));
             return null;
         }
@@ -701,7 +701,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         Log.Warning(
             "[ToolkitInstanceManager] Trigger {Trigger} of {Toolkit} rejected: concurrency-limit ({Active}/{Max})",
             triggerId, toolkitId, active, max);
-        Raise(new InstanceSpawnRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
+        Raise(new TriggerRejectedEvent(NewId(), toolkitId, string.Empty, Now(), triggerId,
             "concurrency-limit"));
         return false;
     }

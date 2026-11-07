@@ -221,10 +221,10 @@ public class CompositionRootAcceptanceTests : IDisposable
         Service.Mount(id);
         Service.Disable(id);
 
-        var rejected = new TaskCompletionSource<InstanceSpawnRejectedEvent>();
+        var rejected = new TaskCompletionSource<TriggerRejectedEvent>();
         Service.ToolkitEvent += (_, e) =>
         {
-            if (e is InstanceSpawnRejectedEvent r) rejected.TrySetResult(r);
+            if (e is TriggerRejectedEvent r) rejected.TrySetResult(r);
         };
 
         var manager = _provider.GetRequiredService<KitX.ToolKit.Instances.ToolkitInstanceManager>();
@@ -233,7 +233,7 @@ public class CompositionRootAcceptanceTests : IDisposable
         var evt = rejected.Task.Wait(TimeSpan.FromSeconds(5))
             ? rejected.Task.Result
             : throw new InvalidOperationException("no rejection event arrived");
-        Assert.Equal("toolkit.not-enabled", evt.Reason);
+        Assert.Equal("toolkit.not-enabled", evt.Code);
     }
 
     // -------------------------------------------------------------------------------------
