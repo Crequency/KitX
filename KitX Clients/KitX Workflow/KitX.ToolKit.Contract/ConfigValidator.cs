@@ -172,7 +172,7 @@ public sealed class ConfigValidator
                             cycleFound = true;
                             var cycleStart = path.IndexOf(next);
                             var cycle = path.Skip(cycleStart).Append(next);
-                            errors.Add($"WorkflowCompletion cycle detected: {string.Join(" -> ", cycle)}.");
+                            errors.Add(ToolkitDiagnosticText.Cycle(string.Join(" -> ", cycle)));
                         }
                         else if (state[next] == 0)
                         {

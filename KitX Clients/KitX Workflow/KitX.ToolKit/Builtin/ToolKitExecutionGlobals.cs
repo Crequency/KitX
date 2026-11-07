@@ -122,9 +122,10 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     //
     // Every method here takes a LOCAL key name ("workdir"), never a full key. The toolkit
     // prefix is applied by KeyTable, which is the only place that knows it — so "read another
-    // toolkit's data" has nowhere to put the prefix (ADR-0004 D2). A write to a key declared
-    // with role In / InOnSubmit throws rather than silently landing (ADR-0004 D3): the user owns
-    // that key, and a workflow writing it would be overwritten by the user's next edit anyway.
+    // toolkit's data" has nowhere to put the prefix (ADR-0004 D2). A write to an UNDECLARED key
+    // throws rather than silently landing (ADR-0004 D3): after Q71 that is the only rejection
+    // left, because "the user writes this, not the workflow" is no longer a role the service can
+    // observe.
 
     /// <summary>ToolkitSet(key, value) → writes a declared key the workflow owns.</summary>
     public object? ToolkitSet(string key, object? value)

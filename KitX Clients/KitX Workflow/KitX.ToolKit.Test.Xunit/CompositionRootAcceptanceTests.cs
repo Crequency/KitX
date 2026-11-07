@@ -237,6 +237,65 @@ public class CompositionRootAcceptanceTests : IDisposable
     }
 
     // -------------------------------------------------------------------------------------
+    // P1.4 · Validate is the pre-mount gate and must agree with Mount
+    // -------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The contract for <see cref="IToolkitService.Validate"/>: it answers exactly the question
+    /// <see cref="IToolkitService.Mount"/> will answer, one step earlier.
+    /// </summary>
+    /// <remarks>
+    /// <para>Four assertions, and the pairing is the point. Each half alone is satisfiable by a
+    /// useless implementation: "always returns diagnostics" passes the bad case, "always returns
+    /// empty" passes the good one. Only the two together pin the agreement.</para>
+    ///
+    /// <para>The bad case is a config whose declared <c>.kcs</c> does not exist — the same defect
+    /// <c>Mount_Compiles_And_A_Missing_Workflow_File_Stops_It</c> covers from the other side.
+    /// Using the same defect is deliberate: it proves <c>Validate</c> runs the compiler, because
+    /// the missing-file check only exists inside it.</para>
+    /// </remarks>
+    [Fact]
+    public void Validate_Agrees_With_Mount_On_Both_Outcomes()
+    {
+        // ── bad: the file is declared, never written ──
+        var badId = SaveToolkit();
+        var badDiagnostics = Service.Validate(badId);
+
+        Assert.NotEmpty(badDiagnostics);
+        Assert.Contains(badDiagnostics, d => d.Code == "workflow.file.missing");
+
+        var mountFailure = Assert.Throws<InvalidOperationException>(() => Service.Mount(badId));
+        Assert.Contains("toolkit.compile.failed", mountFailure.Message, StringComparison.Ordinal);
+
+        // ── good: the file exists ──
+        var goodId = SaveToolkit(tk =>
+        {
+            tk.Id = TkId + "-good";
+            tk.Workflows = [new ToolkitWorkflow { Id = "wf", Name = "wf", File = "wf.kcs" }];
+        });
+        WriteWorkflowFile(goodId);
+
+        Assert.Empty(Service.Validate(goodId));
+        Service.Mount(goodId);
+        Assert.True(Service.IsMounted(goodId));
+    }
+
+    /// <summary>
+    /// An unknown id is a diagnostic, not an exception: the same call serves "is this config
+    /// valid" and "does this id exist", and a caller checking a deleted toolkit should not have
+    /// to catch.
+    /// </summary>
+    [Fact]
+    public void Validate_Reports_An_Unknown_Id_As_A_Diagnostic()
+    {
+        var diagnostics = Service.Validate("no-such-toolkit");
+
+        var only = Assert.Single(diagnostics);
+        Assert.Equal("toolkit.not-found", only.Code);
+        Assert.Equal("no-such-toolkit", only.Path?.ToolkitId);
+    }
+
+    // -------------------------------------------------------------------------------------
     // Fixtures
     // -------------------------------------------------------------------------------------
 

@@ -54,6 +54,31 @@ public interface IToolkitService
     /// <summary>True when the given ToolKit is mounted.</summary>
     bool IsMounted(string toolkitId);
 
+    /// <summary>
+    /// Validates a stored ToolKit's config without mounting it, returning the diagnostics that
+    /// would stop <see cref="Mount"/>. Empty means it would mount.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the pre-mount gate, not the editor's live check.</b> It reads the copy on
+    /// disk and runs the full compiler — including loading every declared <c>.kcs</c> — because
+    /// that is what <see cref="Mount"/> does. <see cref="ConfigValidator.Validate"/> answers a
+    /// different question: "is this draft, which is in memory and may never be saved, well
+    /// formed?" It does no I/O and runs on every keystroke. The two can legitimately disagree, and
+    /// that asymmetry is load-bearing: a draft with no saved id has nothing to validate here, and
+    /// a config that passes the draft check can still fail to mount because a file is missing.
+    /// <b>Do not merge them.</b></para>
+    ///
+    /// <para><b>Why both this and <see cref="Mount"/> exist.</b> <see cref="Mount"/> has to fail
+    /// loudly for the case the caller skipped the check. The two must never disagree: if this
+    /// returns diagnostics, Mount throws <c>toolkit.compile.failed</c>; if this returns empty,
+    /// Mount succeeds. They share one <c>ToolkitCompiler.Compile</c> call precisely so that
+    /// cannot drift.</para>
+    ///
+    /// <para>Unknown ids return a single <c>toolkit.not-found</c> diagnostic rather than throwing,
+    /// so the same call serves "does this config work" and "does this id exist".</para>
+    /// </remarks>
+    IReadOnlyList<Diagnostic> Validate(string toolkitId);
+
     /// <summary>Snapshot of every instance across all mounted ToolKits.</summary>
     IReadOnlyList<InstanceSnapshot> Instances { get; }
 

@@ -281,6 +281,28 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// production, the same shape of defect the file check had.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Runs the compiler over <paramref name="toolkit"/> and returns its diagnostics instead of
+    /// throwing. Empty means <see cref="Mount"/> would succeed.
+    /// </summary>
+    /// <remarks>
+    /// Mount and this method call the same <see cref="ToolkitCompiler.Compile"/> with the same
+    /// arguments. Keeping them in one place is what makes the check trustworthy: if the two ever
+    /// diverge, the editor reports "fine" for configs that then refuse to mount.
+    /// </remarks>
+    internal IReadOnlyList<Diagnostic> Validate(Toolkit toolkit)
+    {
+        var fileStore = _fileStoreFactory(toolkit);
+        var compiled = ToolkitCompiler.Compile(
+            toolkit,
+            out var diagnostics,
+            storageRoot: fileStore.Root,
+            builtins: new BuiltinResolver(_services.GetServices<IBuiltinFunction>()));
+
+        _ = compiled;
+        return diagnostics;
+    }
+
     private CompiledToolkit Compile(Toolkit toolkit, ToolkitFileStore fileStore)
     {
         var compiled = ToolkitCompiler.Compile(

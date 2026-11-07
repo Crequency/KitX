@@ -431,7 +431,7 @@ internal static class ToolkitCompiler
             {
                 sink.Error(
                     "graph.cycle",
-                    $"WorkflowCompletion cycle detected: {string.Join(" -> ", cycle)}.",
+                    ToolkitDiagnosticText.Cycle(string.Join(" -> ", cycle)),
                     new DiagnosticPath(ToolkitId: null));
                 return; // one cycle report is enough; the shape is already rejected
             }

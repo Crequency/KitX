@@ -109,5 +109,25 @@ internal sealed class ToolkitService : IToolkitService
     public bool IsMounted(string toolkitId) => _manager.IsMounted(toolkitId);
 
     /// <inheritdoc/>
+    public IReadOnlyList<Diagnostic> Validate(string toolkitId)
+    {
+        var toolkit = _store.Load(toolkitId);
+        if (toolkit is null)
+        {
+            return
+            [
+                Diagnostic.Error(
+                    ToolkitServiceException.NotFoundCode,
+                    $"ToolKit '{toolkitId}' not found.",
+                    new DiagnosticPath(ToolkitId: toolkitId)),
+            ];
+        }
+
+        // Same call Mount makes, minus the scheduler. Sharing it is the point: a config that
+        // compiles here and fails there (or the reverse) would make the check worthless.
+        return _manager.Validate(toolkit);
+    }
+
+    /// <inheritdoc/>
     public IReadOnlyList<InstanceSnapshot> Instances => _manager.Instances;
 }
