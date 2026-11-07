@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KitX.ToolKit.View</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <Version>24.10.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2024-02-07"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+  </PropertyGroup>
+
+  <!--
+    ADR-0014 D5: exactly one ProjectReference. This library is the protocol client — it folds
+    welcome/delta/surface into a local projection and nothing else. Every reference added here is
+    a way for a View to reach past the protocol, so the list stays at one.
+
+    In particular it MUST NOT reference KitX.ToolKit: that is where DataStore, the instance
+    manager and the scheduler live, and any of them would let a View compute a value the server
+    has not stated (ADR-0014, "View 类库绕过协议" row).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
+  </ItemGroup>
+
+</Project>
