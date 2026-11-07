@@ -25,10 +25,28 @@ public class ViewContractParityTests
     /// <summary>
     /// Which side of the wire a semantic unit belongs to.
     /// </summary>
+    /// <remarks>
+    /// <para>The fourth value exists because the first three could not describe one interaction
+    /// honestly. A request/response <em>operation</em> — "trigger a flow", "delete a key" — is one
+    /// meaning carried in two shapes: the facade carries it as a method call whose return value or
+    /// exception is the answer, the wire carries it as <c>command</c> plus an
+    /// <c>acked</c>/<c>rejected</c> envelope. The facade has no envelope object, but that does not
+    /// make the operation facade-only or wire-only.</para>
+    ///
+    /// <para>Getting this wrong is not cosmetic. Recording such a row as <see cref="WireOnly"/>
+    /// would make this test demand that the facade grow a reply type nobody asked for — the test
+    /// would be manufacturing the very divergence it exists to prevent.</para>
+    /// </remarks>
     private enum Side
     {
-        /// <summary>Both the in-process facade and the wire carry it.</summary>
+        /// <summary>Both faces carry it, in shapes native to each.</summary>
         Both,
+
+        /// <summary>
+        /// Both faces carry it, but the facade's shape is the call itself — no message object
+        /// appears on that side. The wire adds an envelope the facade has no equivalent for.
+        /// </summary>
+        BothCallAndEnvelope,
 
         /// <summary>Only the in-process facade carries it.</summary>
         FacadeOnly,
@@ -81,11 +99,12 @@ public class ViewContractParityTests
         new("全清通知", Side.WireOnly, null, ViewMessageTypes.Cleared),
 
         // The envelope of every request: a command goes out, an acknowledgement or a refusal comes
-        // back. The facade has no equivalent because it returns a value or throws — there is no
-        // envelope to describe.
-        new("命令信封", Side.WireOnly, null, ViewMessageTypes.Command),
-        new("成功回复", Side.WireOnly, null, ViewMessageTypes.Acked),
-        new("失败回复", Side.WireOnly, null, ViewMessageTypes.Rejected),
+        // back. The facade has no equivalent object — its answer IS the return value or the
+        // exception — which is why this row pairs with the operations above rather than standing
+        // alone as wire-only. See the Side remarks.
+        new("命令信封", Side.BothCallAndEnvelope, null, ViewMessageTypes.Command),
+        new("成功回复", Side.BothCallAndEnvelope, null, ViewMessageTypes.Acked),
+        new("失败回复", Side.BothCallAndEnvelope, null, ViewMessageTypes.Rejected),
 
         // The answer to `connect`. The facade's half is `GetToolkit` + key reads, but the message
         // itself — the payload a client folds into a view — exists only on the wire.
