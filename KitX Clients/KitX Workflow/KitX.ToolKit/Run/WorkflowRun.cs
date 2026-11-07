@@ -632,8 +632,19 @@ internal sealed class WorkflowRun : IDisposable
             return;
         _disposed = true;
 
+        bool fire;
         lock (_gate)
-            _settled = true;
+            fire = TrySettle();
+
+        // Settling here is not bookkeeping: whoever tracks this run (the scheduler's run table,
+        // the instance manager's counters) learns it is over only through this event. Setting the
+        // flag without raising it left cancelled runs counted forever, and a permanent entry in a
+        // concurrency budget never comes back.
+        //
+        // Dispose after the run already settled raises nothing — TrySettle returns false once
+        // _settled is set — so the "exactly once" contract still holds.
+        if (fire)
+            Completed?.Invoke(this, BuildCompletedArgs());
 
         _cts.Dispose();
     }

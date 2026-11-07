@@ -596,11 +596,17 @@ public class ToolkitInstanceManagerTests : IDisposable
             var uiResult = await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(started[0], uiResult.FlowId);
             Assert.Equal(RunOutcome.Failed, uiResult.Outcome);
-            Assert.NotNull(uiResult.Failure);
 
-            // The first flow's verdict is history, not state: it is not re-reported as failed.
-            Assert.NotEqual(spawnResult.EventId, uiResult.EventId);
+            // A failure must carry a stable code, not just a sentence (ADR-0005 D4).
+            Assert.NotNull(uiResult.Failure);
+            Assert.False(string.IsNullOrWhiteSpace(uiResult.Failure!.Code));
+
+            // Two flows, two verdicts, two events: the failing chain did not re-label the
+            // already-finished Spawn flow, which kept its own Succeeded event.
+            Assert.Equal(flowId, spawnResult.FlowId);
             Assert.Equal(RunOutcome.Succeeded, spawnResult.Outcome);
+            Assert.NotEqual(spawnResult.FlowId, uiResult.FlowId);
+            Assert.NotEqual(spawnResult.EventId, uiResult.EventId);
         }
         finally
         {

@@ -206,7 +206,7 @@ public class LifecycleTests : IDisposable
     }
 
     [Fact]
-    public void Disable_Stops_Every_Flow_Of_The_Toolkit()
+    public async Task Disable_Stops_Every_Flow_Of_The_Toolkit()
     {
         // Replaces the old EndAll test. EndAll's job was "stop everything at once"; ADR-0015 D5.2
         // removed that member because the lifecycle already owns it — Disable stops every flow of
@@ -257,12 +257,12 @@ public class LifecycleTests : IDisposable
             // the flow ids is addressable any more.
             Assert.All(ids, id => Assert.Null(manager.GetToolkitId(id)));
 
-            // NOTE: this does not assert that ActiveFlowCounts() drained to empty. Today it does
-            // not — EndInstance cancels and then disposes the run, and WorkflowRun.Dispose sets
-            // its settled flag without raising Completed, while RunScheduler only drops a run from
-            // its run table inside that handler. A flow cancelled while a node is in flight
-            // therefore stays counted. Asserting the drain would encode that defect as expected
-            // behaviour, so it is reported instead.
+            // And the flows stop being counted. This used to leak: EndInstance cancels and then
+            // disposes the run, and disposal settled the run without raising Completed, while the
+            // scheduler only drops a run from its table inside that handler. A flow cancelled
+            // while a node was in flight therefore stayed counted forever, permanently eating a
+            // slot of the machine-wide MaxConcurrentFlows budget.
+            await WaitUntilAsync(() => !manager.ActiveFlowCounts().TryGetValue(TkId, out var live) || live == 0);
 
             // Disable retains the toolkit itself — that is what makes it not an uninstall.
             Assert.Equal(LifecycleState.Disabled, manager.GetLifecycleState(TkId));
@@ -275,6 +275,18 @@ public class LifecycleTests : IDisposable
         {
             hold.TrySetResult();
             manager.Unmount(TkId);
+        }
+    }
+
+    /// <summary>Polls until the condition holds, or fails the test after the timeout.</summary>
+    private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("condition was not satisfied within the timeout");
+            await Task.Delay(10);
         }
     }
 }
