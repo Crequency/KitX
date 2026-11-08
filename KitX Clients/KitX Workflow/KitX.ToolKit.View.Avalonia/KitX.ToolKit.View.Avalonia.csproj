@@ -32,4 +32,20 @@
     <PackageReference Include="Avalonia" Version="11.3.13" />
   </ItemGroup>
 
+  <!--
+    The coverage test has to call SlotsFor and CreateView for every element kind the contract declares,
+    which means it has to see them. InternalsVisibleTo rather than making them public, because a public
+    member here would be a promise this renderer makes to the outside world, and neither of these is
+    one: SlotsFor maps a kind to a slot count, CreateView builds a control. Both are how the card works,
+    not what it offers.
+
+    A grant is one line, it shows up in a diff, and it can be questioned later. A public member is an
+    established fact that nobody revisits.
+  -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>KitX.ToolKit.View.Avalonia.Test.Xunit</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

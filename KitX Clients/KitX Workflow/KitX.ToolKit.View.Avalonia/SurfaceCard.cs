@@ -91,9 +91,10 @@ public sealed class SurfaceCard : Grid
 
         foreach (var element in elements)
         {
+            // No null check: CreateView throws for a kind this renderer does not know, so the row
+            // it would have occupied never silently becomes a gap. A document this renderer cannot
+            // draw is refused as a whole rather than rendered with holes in it.
             var view = CreateView(element, entries);
-            if (view is null)
-                continue;
 
             Grid.SetRow(view, rowIndexOf[element.Row]);
             Grid.SetColumn(view, element.Column - 1);
@@ -111,20 +112,33 @@ public sealed class SurfaceCard : Grid
     /// How many slots this element's row has to be tall enough for.
     /// </summary>
     /// <remarks>
-    /// <b>A second copy of a rule that also exists in <c>SurfaceLayout.SlotCountOf</c>, on purpose.</b>
-    /// The two are supposed to agree, and the only way a test can find out whether they do is if
-    /// neither one is derived from the other. A shared helper here would make the card correct by
-    /// construction and the criterion vacuous.
+    /// <para><b>A second copy of a rule that also exists in <c>SurfaceLayout.SlotCountOf</c>, on
+    /// purpose.</b> The two are supposed to agree, and the only way a test can find out whether they
+    /// do is if neither one is derived from the other. A shared helper here would make the card
+    /// correct by construction and the criterion vacuous.</para>
+    ///
+    /// <para><b><c>internal</c> rather than <c>private</c>, for the coverage test.</b> That test has to
+    /// ask this renderer, for every element kind the contract declares, both "how many slots" and
+    /// "can you draw it" — and it can only ask if it can see them. <c>internal</c> plus an
+    /// <c>InternalsVisibleTo</c> keeps them out of the published surface: these are how the card
+    /// works, not what it offers.</para>
     /// </remarks>
-    private static int SlotsFor(KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
+    internal static int SlotsFor(KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
         element is KitX.ToolKit.Contract.Surface.SurfaceListElement
             ? SurfaceMetrics.ListSlotCount
             : 1;
 
-    /// <summary>Builds the control for one element, or null when this renderer has no view for it.</summary>
+    /// <summary>Builds the control for one element, or throws when this renderer has no view for it.</summary>
     /// <remarks>
-    /// <para>Returning null rather than throwing keeps the card renderable while the remaining element
-    /// kinds are still being built: an unknown kind costs its own row and nothing else.</para>
+    /// <para><b>Throwing rather than returning null, and the difference is the whole point.</b> A null
+    /// return makes "not implemented" look like "implemented but empty" — the card draws a gap and
+    /// nobody is told. Throwing makes it look like what it is. A renderer that does not recognise a
+    /// document should refuse it, not silently drop a cell out of it.</para>
+    ///
+    /// <para>The coverage test asserts that every element kind the contract declares gets a non-null
+    /// view, which is only meaningful if "no view" is an observable failure rather than a quiet
+    /// absence. The two decisions support each other: the test can only exist because this throws,
+    /// and this throwing is only safe because the test will notice if a kind is left out.</para>
     ///
     /// <para><b>Every control is exactly one slot tall, whatever it holds.</b> The empty state of a
     /// text field and the filled state of one are the same height, because the field owns a slot the
@@ -153,14 +167,18 @@ public sealed class SurfaceCard : Grid
     /// <para>Entries arrive as an argument, not read from anywhere: a <c>List</c> shows a resolved
     /// array the same way a <c>Select</c> shows a resolved option set, and for the same reason —
     /// this layer receives values, it does not fetch them.</para>
+    ///
+    /// <para><b><c>internal</c> so the coverage and control-metrics tests can call it.</b> They need
+    /// the real thing rather than a copy of its list of controls: a duplicated list is a second
+    /// answer to "what does a Switch look like", and the two drift without either going red.</para>
     /// </remarks>
-    private static Control? CreateView(
+    internal static Control CreateView(
         KitX.ToolKit.Contract.Surface.SurfaceElement element,
-        IReadOnlyList<string>? entries) =>
+        IReadOnlyList<string>? entries = null) =>
         element switch
         {
             KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key, text.Key),
-            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Labelled(button.Key, button.Label),
+            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label),
             KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
                 input.Key, new global::Avalonia.Controls.TextBox()),
             KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Editing(
@@ -170,21 +188,18 @@ public sealed class SurfaceCard : Grid
             KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Editing(
                 toggle.Key, new global::Avalonia.Controls.CheckBox()),
             KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(list.Key, entries),
-            _ => null,
+            _ => throw new NotSupportedException(
+                "no view for " + element.GetType().Name),
         };
 
     /// <summary>
     /// A control that only displays what it is told: one slot tall, no template of its own.
     /// </summary>
     /// <remarks>
-    /// <para><b><c>Text</c> and <c>Button</c> are both <c>TextBlock</c>s at this stage.</b> For
-    /// <c>Text</c> that is the honest minimum — it shows a value and does nothing else. For
-    /// <c>Button</c> it is a placeholder: a button has a label and a set of events, and neither is
-    /// reachable through a label. Both are on the list of things this stage does not pretend to have
-    /// finished.</para>
-    ///
-    /// <para>Keeping them untemplated also means they are the only two kinds that measure outside a
-    /// window, which is worth remembering when a failure looks like "this element is zero tall".</para>
+    /// <para><b><c>Text</c> is the only remaining caller.</b> It shows a value and does nothing else,
+    /// which is the honest minimum for a display element and needs no template. That also makes it
+    /// the one kind that measures outside a window, which is worth remembering when a failure looks
+    /// like "this element is zero tall".</para>
     /// </remarks>
     private static Control Labelled(string? key, string shown) => new TextBlock
     {
@@ -196,6 +211,27 @@ public sealed class SurfaceCard : Grid
         VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
         Height = SurfaceMetrics.SlotHeight,
     };
+
+    /// <summary>
+    /// Something the user presses: a real button, labelled and one slot tall.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A label is not a button.</b> The two differ in more than appearance: a button is
+    /// focusable, it is in the tab order, it raises a click, and assistive technology announces it as
+    /// something to activate. Drawing one as a <c>TextBlock</c> produces a card where the only
+    /// interactive element is unreachable by keyboard — and every layout test would still pass,
+    /// because a label and a button occupy the same slot.</para>
+    ///
+    /// <para><b>The height is pinned for the same reason the editable kinds pin theirs</b>: a
+    /// button's natural height is a theme decision, while the rule is that an element occupies one
+    /// slot.</para>
+    /// </remarks>
+    private static Control Pressable(string? key, string label) => Editing(key, new Button
+    {
+        Content = label,
+        HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch,
+        HorizontalContentAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
+    });
 
     /// <summary>
     /// A control the user edits: the real widget, pinned to one slot.
