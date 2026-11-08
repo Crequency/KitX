@@ -189,7 +189,10 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
     {
         var eventName = Require(command.EventName, nameof(CommandMessage.EventName));
 
-        var started = _manager.RaiseEvent(toolkitId, eventName);
+        // The value travels as-is; whatever shape the trigger's Fields say it should have is
+        // enforced when the event is projected onto the packet, not here. Passing null means the
+        // client sent an event with no payload, which is a legal event.
+        var started = _manager.RaiseEvent(toolkitId, eventName, command.Value);
         return ChannelReply.Accepted(new AckedReply
         {
             Command = ViewCommands.Event,
