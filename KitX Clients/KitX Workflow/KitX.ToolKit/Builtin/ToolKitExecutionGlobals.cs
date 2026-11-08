@@ -102,14 +102,15 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
         _options = options ?? new DataStoreOptions();
     }
 
-    // ── Instance-scoped run context (from HostRunContext) ──
+    // ── ToolKit-scoped run context (from HostRunContext) ──
 
     /// <summary>
-    /// The owning instance's id, read per-run from the backend-injected
+    /// The id of the ToolKit this run belongs to, read per-run from the backend-injected
     /// <see cref="ExecutionGlobals.RunContext"/> (a <see cref="HostRunContext"/>). Null
-    /// when the workflow runs outside a ToolKit instance; only the data-plane
-    /// builtins need it, and they throw rather than no-op (see RequireKeyTable).
-    public string? InstanceId => (RunContext as HostRunContext)?.InstanceId;
+    /// when the workflow runs outside a ToolKit; only the data-plane builtins need it, and
+    /// they throw rather than no-op (see RequireKeyTable).
+    /// </summary>
+    public string? ToolkitId => (RunContext as HostRunContext)?.ToolkitId;
 
     /// <summary>
     /// The raw run-time constant overrides (resolved trigger binding params included),
@@ -275,20 +276,35 @@ public class ToolKitExecutionGlobals : ExecutionGlobals
     }
 
     /// <summary>
-    /// The toolkit's key table, or a throw when this run is not inside a ToolKit instance.
+    /// The toolkit's key table, or a throw when this run is not inside a mounted ToolKit.
     ///
     /// <para>Failing loudly is deliberate: the previous generation of these builtins wrote into
     /// whatever string arrived, so a workflow that ran unscoped silently wrote process-global
     /// keys. There is no correct unscoped behaviour to fall back to.</para>
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Why the scope is the ToolKit and not the flow.</b> A key table scoped to the flow would
+    /// cut the same application's two chains off from each other — one chain could no longer read
+    /// what the other wrote, and that collaboration is exactly what Q33/Q71 asked for: a ToolKit is
+    /// one application with one set of fields, and a flow is an execution of it, not a copy.
+    /// </para>
+    /// <para>
+    /// The lookup asks the mount table directly. It used to ask the instance table first — the run
+    /// carried its own id, that id was resolved to a ToolKit, and only then could the key table be
+    /// found. When an instance had been evicted but its ToolKit was still mounted, that middle hop
+    /// returned null and the error below blamed the mount. One fact is enough: whether the ToolKit
+    /// is mounted.
+    /// </para>
+    /// </remarks>
     private KeyTable RequireKeyTable()
     {
-        if (InstanceId is null)
+        if (ToolkitId is null)
             throw new InvalidOperationException(
-                "Toolkit* builtins require a ToolKit instance; this workflow is running unscoped.");
-        return _manager.GetKeyTable(InstanceId)
+                "Toolkit* builtins require a ToolKit; this workflow is running unscoped.");
+        return _manager.GetKeyTableFor(ToolkitId)
             ?? throw new InvalidOperationException(
-                $"No key table for instance '{InstanceId}'; the toolkit is not mounted.");
+                $"No key table for toolKit '{ToolkitId}'; the toolkit is not mounted.");
     }
 
     // ── Bench I/O pair ──

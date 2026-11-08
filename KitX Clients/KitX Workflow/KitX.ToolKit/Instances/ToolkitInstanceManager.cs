@@ -620,8 +620,13 @@ internal sealed class ToolkitInstanceManager : IDisposable
 
     /// <summary>
     /// The declared key table of the toolkit an instance belongs to, or null when the instance is
-    /// unknown. This is what the <c>Toolkit*</c> builtins resolve local key names against.
+    /// unknown.
     /// </summary>
+    /// <remarks>
+    /// Runs no longer carry an instance id, so nothing calls this. It is kept until the instance
+    /// table itself is gone — at which point this and <see cref="GetKeyTableFor"/> collapse into
+    /// one, because "which instance owns this run" would no longer be a question.
+    /// </remarks>
     internal KeyTable? GetKeyTable(string instanceId)
     {
         if (!_instances.TryGetValue(instanceId, out var instance))
@@ -820,13 +825,59 @@ internal sealed class ToolkitInstanceManager : IDisposable
             // the only party that knows it is the client. Omitting it still yields Unknown, which
             // is what a caller with no identity to report should get.
             // StartRun cannot return null here — the trigger is a UIEvent type, a spawn type.
+            //
+            // The payload is projected per trigger, not shared: two triggers matched by the same
+            // event name may declare different fields, and each workflow may only see its own.
             var run = mounted.Scheduler.StartRun(
-                trigger.Id, payload, initiator ?? Initiator.Unknown, null, AttachRunEvents);
+                trigger.Id, Project(payload, trigger.FieldNames), initiator ?? Initiator.Unknown,
+                null, AttachRunEvents);
             if (run is not null)
                 started.Add(run.RunId);
         }
 
         return started;
+    }
+
+    /// <summary>
+    /// Keeps only the packet properties the trigger declared, and drops the rest.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is design Q91/Q92's projection, and it is what makes an event's payload safe. Before
+    /// it, the trigger path flattened every top-level scalar into a workflow constant — so a client
+    /// that sent a property named <c>barcode</c> could overwrite a workflow's own
+    /// <c>const barcode</c>. The completion-edge path already had this protection (Q70); the
+    /// trigger path was the hole it came back through.
+    /// </para>
+    /// <para>
+    /// An undeclared property is <b>dropped silently, not reported</b>. A client sending an extra
+    /// field is not making a mistake — a card may serve several triggers with different field sets,
+    /// and the same form is uploaded to whichever one fired. Only the declaration says what the
+    /// workflow will see.
+    /// </para>
+    /// <para>
+    /// A declared field the client did not send is also not an error: the workflow's own logic
+    /// decides whether an absent value is acceptable, and <c>FlowIn</c> already gives it a default.
+    /// </para>
+    /// </remarks>
+    private static JsonElement Project(JsonElement payload, IReadOnlySet<string> declared)
+    {
+        if (payload.ValueKind != JsonValueKind.Object)
+            return payload;
+
+        // No declaration means nothing is projected. This is the deliberate reading of "a trigger
+        // that says nothing about its fields receives nothing", not an accident of the loop: an
+        // empty set and an absent list both mean the author declared no interface.
+        if (declared.Count == 0)
+            return JsonSerializer.SerializeToElement(new { });
+
+        var projected = new System.Text.Json.Nodes.JsonObject();
+
+        foreach (var property in payload.EnumerateObject())
+            if (declared.Contains(property.Name))
+                projected[property.Name] = System.Text.Json.Nodes.JsonNode.Parse(property.Value.GetRawText());
+
+        return JsonSerializer.SerializeToElement(projected);
     }
 
     private static bool MatchesEvent(string? declaredEvent, string eventName)

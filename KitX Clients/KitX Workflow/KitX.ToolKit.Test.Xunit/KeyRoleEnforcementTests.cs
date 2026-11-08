@@ -53,12 +53,12 @@ public class KeyRoleEnforcementTests : IDisposable
             store,
             tk => new ToolkitFileStore(_root.Prepare(tk)));
         manager.Mount(ToolkitWith(keys));
-        var instanceId = manager.Spawn(TkId, "manual")!;
+        manager.Spawn(TkId, "manual");
 
         var globals = new ToolKitExecutionGlobals(
             store, manager, new DataStoreOptions())
         {
-            RunContext = new HostRunContext(instanceId, null),
+            RunContext = new HostRunContext(TkId, null),
         };
 
         return (globals, store, manager);
@@ -191,17 +191,17 @@ public class KeyRoleEnforcementTests : IDisposable
             manager.Mount(a);
             manager.Mount(b);
 
-            var ia = manager.Spawn("alpha", "manual")!;
-            var ib = manager.Spawn("beta", "manual")!;
+            manager.Spawn("alpha", "manual");
+            manager.Spawn("beta", "manual");
 
             var options = new DataStoreOptions();
             var ga = new ToolKitExecutionGlobals(store, manager, options)
             {
-                RunContext = new HostRunContext(ia, null),
+                RunContext = new HostRunContext("alpha", null),
             };
             var gb = new ToolKitExecutionGlobals(store, manager, options)
             {
-                RunContext = new HostRunContext(ib, null),
+                RunContext = new HostRunContext("beta", null),
             };
 
             ga.ToolkitSet("status", "from-alpha");
@@ -211,6 +211,7 @@ public class KeyRoleEnforcementTests : IDisposable
             Assert.Equal("", Str(gb.ToolkitGet("status")));
         }
     }
+
 
     [Fact]
     public void An_unscoped_run_cannot_touch_the_data_plane()

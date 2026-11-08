@@ -4,15 +4,21 @@ namespace KitX.WorkflowV6.Backend;
 // HostRunContext — the host-injected run context handed to the backend per-run.
 //
 // Extracted from the constant overrides by WorkflowRunner (the same chokepoint
-// that already handled the instance id), so host-side globals subclasses get
+// that already handled the toolkit id), so host-side globals subclasses get
 // first-class access to the host's per-run channels without workflow authors
 // declaring reserved constants:
-//   • InstanceId   — scopes the builtin key table to the owning instance.
+//   • ToolkitId    — scopes the builtin key table to the owning ToolKit.
 //   • RawOverrides — the resolved trigger binding params ($payload/literals),
 //     plus the top-level scalar properties of the delivered packet, read by
 //     FlowIn.
 // All fields are null when the workflow runs outside a host that supplies one
 // (in-editor run, unit tests): FlowIn returns its default.
+//
+// The ToolkitId field used to be InstanceId — the run's own id, which the host
+// then resolved through its instance table to reach the ToolKit. That hop could
+// fail for a run whose ToolKit was still mounted, and the error it produced
+// blamed the mount. Carrying the toolkit id directly leaves one fact to be
+// wrong about instead of two.
 //
 // There used to be a third field, OutputNamespace, which scoped FlowOut writes
 // to a DataStore namespace the scheduler then scanned back. Q48 removed that
@@ -27,5 +33,5 @@ namespace KitX.WorkflowV6.Backend;
 
 /// <summary>The host-injected run context stored on <see cref="Runtime.ExecutionGlobals.RunContext"/> per-run.</summary>
 public sealed record HostRunContext(
-    string? InstanceId,
+    string? ToolkitId,
     IReadOnlyDictionary<string, string?>? RawOverrides);

@@ -447,7 +447,7 @@ internal sealed class RunScheduler : IDisposable
             [Instances.InitiatorConstants.DeviceId] = run.Initiator.DeviceId,
             [Instances.InitiatorConstants.DeviceName] = run.Initiator.DeviceName,
             [Instances.InitiatorConstants.TriggerId] = run.TriggerId,
-            [Instances.InstanceConstants.InstanceId] = run.NamespaceId,
+            [Instances.InstanceConstants.ToolkitId] = run.ToolkitId,
         };
         return merged;
     }

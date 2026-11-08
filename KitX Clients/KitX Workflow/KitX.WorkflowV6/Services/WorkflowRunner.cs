@@ -50,17 +50,17 @@ public sealed class WorkflowRunner : IWorkflowRunner
 
         var applied = WorkflowOverrides.ApplyConstantOverrides(ir, constantOverrides);
 
-        // The Bench execution context (if any) is carried in the constant overrides;
+        // The ToolKit execution context (if any) is carried in the constant overrides;
         // extract it and hand it to the backend so it can inject the ExecutionGlobals
         // properties for the host-side ToolKit builtins.
-        // All fields are null when running outside a ToolKit instance.
-        string? instanceId = null;
+        // All fields are null when running outside a mounted ToolKit.
+        string? toolkitId = null;
         if (constantOverrides is not null)
         {
-            if (constantOverrides.TryGetValue(ToolKitConstants.InstanceId, out var id))
-                instanceId = id;
+            if (constantOverrides.TryGetValue(ToolKitConstants.ToolkitId, out var id))
+                toolkitId = id;
         }
-        var toolkit = new Backend.HostRunContext(instanceId, constantOverrides);
+        var toolkit = new Backend.HostRunContext(toolkitId, constantOverrides);
 
         return _backend.ExecuteAsync(applied, lowering, ct, debugger, toolkit);
     }

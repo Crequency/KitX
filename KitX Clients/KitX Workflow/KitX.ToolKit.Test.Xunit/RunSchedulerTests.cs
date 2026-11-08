@@ -295,30 +295,6 @@ public class RunSchedulerTests
         }
     }
 
-    [Fact]
-    public async Task Concurrent_Fires_Are_Instance_Scoped()
-    {
-        // Two manual fires fan out to the same workflow; each run must carry its own
-        // instance id in the constant overrides, which is what scopes the key table.
-        var (scheduler, executor) = Build(ToolkitWith(
-            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] }));
-
-        var completed = new TaskCompletionSource();
-        int remaining = 2;
-        scheduler.RunCompleted += (_, _) => { if (Interlocked.Decrement(ref remaining) == 0) completed.TrySetResult(); };
-
-        scheduler.StartRun("manual");
-        scheduler.StartRun("manual");
-        await AwaitAsync(completed.Task);
-
-        var instanceIds = executor.Calls
-            .Where(c => c.Overrides.ContainsKey(InstanceConstants.InstanceId))
-            .Select(c => c.Overrides[InstanceConstants.InstanceId]!)
-            .ToList();
-
-        Assert.Equal(2, instanceIds.Count);
-        Assert.Equal(2, instanceIds.Distinct().Count());
-    }
 
     // ── reserved constants: what fired this, and who (design Q89) ─────────────────────────
 

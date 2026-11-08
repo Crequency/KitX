@@ -71,7 +71,19 @@ internal sealed record CompiledTimerTrigger(
 /// </summary>
 internal sealed record CompiledUiEventTrigger(
     string Id,
-    string? Event) : CompiledTrigger(Id, TriggerType.UIEvent);
+    string? Event,
+    IReadOnlyList<TriggerField> Fields) : CompiledTrigger(Id, TriggerType.UIEvent)
+{
+    /// <summary>The declared field names, or an empty set when the trigger declares none.</summary>
+    /// <remarks>
+    /// A set for the projection in <c>ToolkitInstanceManager.RaiseEvent</c>, which asks "is this
+    /// name declared" once per received property. Materialised here rather than per event so the
+    /// question does not walk a list on every key of every raise.
+    /// </remarks>
+    public IReadOnlySet<string> FieldNames { get; } = new HashSet<string>(
+        Fields.Where(f => !string.IsNullOrWhiteSpace(f.Name)).Select(f => f.Name),
+        StringComparer.Ordinal);
+}
 
 /// <summary>
 /// A workflow-completion trigger — "canvas edge". It contributes edges to

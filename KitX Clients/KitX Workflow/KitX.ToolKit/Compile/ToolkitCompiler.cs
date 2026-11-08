@@ -876,7 +876,8 @@ internal static class ToolkitCompiler
 
                 TriggerType.UIEvent => new CompiledUiEventTrigger(
                     trigger.Id,
-                    trigger.Config?.Event)
+                    trigger.Config?.Event,
+                    trigger.Config?.Fields ?? [])
                 {
                     Declaration = trigger,
                 },

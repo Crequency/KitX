@@ -176,55 +176,6 @@ public class ToolkitInstanceManagerTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task Spawn_Starts_Independent_Flows()
-    {
-        // Q83 replaced "a spawn creates an instance" with "a spawn starts a flow": one ToolKit has
-        // one execution context and any number of concurrent flows. What is still worth pinning is
-        // that two spawns are two flows rather than one shared run — each has its own flow id, and
-        // each is handed its own namespace id, so neither can see the other's identity.
-        var (manager, executor) = Build(ToolkitWith(
-            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
-
-        var completed = new TaskCompletionSource();
-        int remaining = 2;
-        manager.ToolkitEvent += (_, e) =>
-        {
-            if (e is FlowCompletedEvent && Interlocked.Decrement(ref remaining) == 0)
-                completed.TrySetResult();
-        };
-
-        manager.Mount(ToolkitWith(
-            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "wf" }] }));
-
-        try
-        {
-            var a = manager.Spawn("tk-demo", "manual", null, new Initiator("fp-a", "dev-a"));
-            var b = manager.Spawn("tk-demo", "manual", null, new Initiator("fp-b", "dev-b"));
-            Assert.NotNull(a);
-            Assert.NotNull(b);
-            Assert.NotEqual(a, b);
-
-            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
-            var namespaces = executor.Calls
-                .Select(c => c.Overrides[InstanceConstants.InstanceId]!)
-                .ToList();
-            Assert.Equal(2, namespaces.Distinct().Count());
-
-            // Both flows finished and both are still retained (the default CompletedInstanceCap
-            // is 200), which is the half of "two instances exist" that survives: a flow is a
-            // retained record after it ends, even though the enumeration that used to list them
-            // is gone.
-            Assert.Equal("tk-demo", manager.GetToolkitId(a!));
-            Assert.Equal("tk-demo", manager.GetToolkitId(b!));
-            await WaitUntilAsync(() => manager.ActiveFlowCounts().Count == 0);
-        }
-        finally
-        {
-            manager.Unmount("tk-demo");
-        }
-    }
 
     [Fact]
     public void Spawn_Rejects_When_MaxConcurrentFlows_Exceeded()
@@ -993,6 +944,60 @@ public class ToolkitInstanceManagerTests : IDisposable
 
         Assert.Contains("trigger.ui-event.payload-field-undeclared", refused.Message, StringComparison.Ordinal);
         Assert.Empty(executor.Calls);
+    }
+
+    [Fact]
+    public async Task A_value_the_trigger_never_declared_does_not_reach_the_workflow()
+    {
+        // The projection, not the compilation: `unused` IS a payload property the client sent, and
+        // the workflow's binding does NOT name it — so it must not become anything at all. Before
+        // the projection the trigger path flattened every top-level scalar, which is how a client
+        // could overwrite a workflow's own `const unused`.
+        var (manager, executor) = BuildUiEventManager();
+
+        manager.Mount(ToolkitWithUiEventBinding(
+            new() { ["barcode"] = "$payload.barcode" },
+            fields: ["barcode"]));
+        try
+        {
+            manager.RaiseEvent("tk-demo", "Click", new { barcode = "978", unused = "smuggled" });
+            await WaitUntilAsync(() => executor.Calls.Any(c => c.WorkflowId == "wf2"));
+
+            var overrides = executor.Calls.Single(c => c.WorkflowId == "wf2").Overrides;
+
+            Assert.Equal("978", overrides["barcode"]);
+            Assert.DoesNotContain("unused", overrides.Keys);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task A_field_the_client_omitted_starts_the_flow_anyway_with_nothing_in_it()
+    {
+        // An absent field is not a failed event. The workflow decides whether it can live without
+        // the value; refusing to start would be the transport taking that decision away from it.
+        var (manager, executor) = BuildUiEventManager();
+
+        manager.Mount(ToolkitWithUiEventBinding(
+            new() { ["barcode"] = "$payload.barcode", ["quantity"] = "$payload.quantity" },
+            fields: ["barcode", "quantity"]));
+        try
+        {
+            manager.RaiseEvent("tk-demo", "Click", new { barcode = "978" });
+            await WaitUntilAsync(() => executor.Calls.Any(c => c.WorkflowId == "wf2"));
+
+            var overrides = executor.Calls.Single(c => c.WorkflowId == "wf2").Overrides;
+
+            Assert.Equal("978", overrides["barcode"]);
+            Assert.Null(overrides["quantity"]);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
     }
 
     /// <summary>Builds a ToolKit with one UIEvent trigger whose single binding carries the given params.</summary>
