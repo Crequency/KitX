@@ -1,10 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using System.Text.Json;
 
 namespace KitX.ToolKit.View.Avalonia;
 
 /// <summary>
-/// A 390×845 card that lays out a surface's elements by row.
+/// A 390×845 card that renders a surface, and keeps it current as values change.
 /// </summary>
 /// <remarks>
 /// <para><b>This class does not call <c>SurfaceLayout</c>.</b> That is deliberate and it is the
@@ -16,11 +17,39 @@ namespace KitX.ToolKit.View.Avalonia;
 /// other side of the comparison.</para>
 ///
 /// <para><b>Empty rows are zero tall.</b> A surface whose rows are 1 and 5 looks identical to one
-/// whose rows are 1 and 2: <c>row</c> orders elements, it does not space them. Filling the gaps would
-/// make a skipped row number look like deliberate whitespace.</para>
+/// whose rows are 1 and 2: <c>row</c> orders elements, it does not space them.</para>
+///
+/// <para><b>This class holds a control tree, so it is stateful.</b> That state changes through five
+/// methods and no others, and the list is closed on purpose:</para>
+///
+/// <code>
+/// welcome           -> SetDocument + SetValue per key
+/// surface           -> SetDocument
+/// delta, value      -> SetValue
+/// delta, removed    -> RemoveValue
+/// delta, appended   -> AppendValue
+/// cleared           -> ClearAll
+/// </code>
+///
+/// <para><b>The renderer's change surface is exactly the wire protocol's change surface.</b> That
+/// correspondence is the rule to test any sixth method against: if a method here has no message
+/// behind it, either the protocol is missing something or the method is the renderer growing an
+/// opinion it was not given. A sixth method added because "it would also be convenient" is how that
+/// rule stops being true without anyone noticing it existed.</para>
+///
+/// <para><b>What this class does not do: remember values.</b> <see cref="SetDocument"/> rebuilds the
+/// cells and carries over nothing that came from a key. A caller that wants the card to keep showing
+/// values after a document change sends them again. The alternative — an internal
+/// <c>_lastKnown</c> map — would be a second source of truth beside the protocol's, and it would go
+/// stale the first time a <c>delta</c> was missed, silently. The one exception is the four editing
+/// kinds, whose contents exist nowhere else (Q88): their in-progress user input is carried, because
+/// no one else could resend it.</para>
 /// </remarks>
 public sealed class SurfaceCard : Grid
 {
+    /// <summary>The cells this card has built, by declared key, for the parts that carry state.</summary>
+    private readonly Dictionary<string, Control> _cells = new(StringComparer.Ordinal);
+
     public SurfaceCard()
     {
         Width = SurfaceMetrics.CardWidth;
@@ -43,25 +72,144 @@ public sealed class SurfaceCard : Grid
     }
 
     /// <summary>
-    /// Builds the card for one surface document.
+    /// Rebuilds the cells for a surface document: which cells exist and where they sit.
     /// </summary>
-    /// <param name="elements">The document's elements, in any order.</param>
-    /// <param name="entries">The resolved rows a <c>List</c> should show, or null for none. Entries
-    /// are a value this layer receives, never one it fetches — see <see cref="CreateView"/>.</param>
+    /// <param name="document">The surface to lay out.</param>
     /// <remarks>
-    /// Rows are created only for slots that hold something, and their heights are
-    /// <see cref="SlotsFor"/> times <see cref="SurfaceMetrics.SlotHeight"/>. Slots nobody stands in
-    /// contribute no row at all, which is what makes a gap in the numbering cost nothing.
+    /// <para><b>Cells, not contents.</b> This method decides how many rows there are, how tall each
+    /// one is, and which element stands in which cell. It does not decide what each cell shows: a
+    /// <c>Text</c>, a <c>Button</c>'s contents from the document aside, or a <c>List</c> starts empty
+    /// and waits for <see cref="SetValue"/>.</para>
+    ///
+    /// <para><b>Why nothing is carried over.</b> A caller that keeps values across a document change
+    /// sends them again — it is the party that has them, and the protocol says so: a <c>surface</c>
+    /// message carries a document and no values. Carrying them here instead would mean this class
+    /// held a copy of state the server owns, and a copy that is only ever refreshed by a message the
+    /// card does not see is a copy that goes wrong quietly.</para>
+    ///
+    /// <para><b>Except for the four editing kinds, which is not a contradiction.</b> Q88 says their
+    /// contents exist only in the control — nobody can resend what the user has typed. So their
+    /// in-progress input travels with the rebuild, and it is a single value per control, not a copy
+    /// of anything the server knows.</para>
     /// </remarks>
-    public void Render(
-        IReadOnlyList<KitX.ToolKit.Contract.Surface.SurfaceElement> elements,
-        IReadOnlyList<string>? entries = null)
+    public void SetDocument(KitX.ToolKit.Contract.Surface.SurfaceDocument document)
     {
-        ArgumentNullException.ThrowIfNull(elements);
+        ArgumentNullException.ThrowIfNull(document);
+
+        // Captured before the tree goes away. Only the editing kinds are read: they are the ones
+        // whose contents have no other home. Keyless editing elements are not in this map because
+        // there is no name to carry them by, and an element with no key is not addressable anyway.
+        var carriedInput = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var (key, cell) in _cells)
+            if (LocalInputOf(cell) is { } local)
+                carriedInput[key] = local;
 
         Children.Clear();
         RowDefinitions.Clear();
+        ColumnDefinitions.Clear();
+        _cells.Clear();
 
+        SetCells(document.Elements, carriedInput);
+    }
+
+    /// <summary>
+    /// Shows one value in the cell bound to <paramref name="key"/>, or clears it.
+    /// </summary>
+    /// <param name="key">The declared key.</param>
+    /// <param name="value">
+    /// The value, or <see langword="null"/> when the key has none. Null is a normal state, not an
+    /// error: <c>welcome.values</c> carries only keys that have values, and
+    /// <c>delta{removed:true}</c> produces exactly this.
+    /// </param>
+    /// <remarks>
+    /// <para><b>The parameter is nullable for a reason worth stating.</b> A non-null
+    /// <c>JsonElement</c> has no way to say "no value" — <c>default(JsonElement)</c> is
+    /// <see cref="JsonValueKind.Undefined"/>, which is neither JSON null nor absent, and reaching
+    /// <c>GetRawText()</c> on it throws. The protocol already models this correctly:
+    /// <c>DeltaMessage.Value</c> is <c>JsonElement?</c>.</para>
+    ///
+    /// <para><b>SetValue replaces; it does not merge.</b> For a <c>List</c> that means the array is
+    /// swapped whole and its scroll position goes to the top. That is the honest behaviour: the
+    /// content is not the same content. Appending is a different message and takes a different
+    /// path, <see cref="AppendValue"/>.</para>
+    /// </remarks>
+    public void SetValue(string key, JsonElement? value)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        if (!_cells.TryGetValue(key, out var cell))
+            return;
+
+        Show(cell, value);
+    }
+
+    /// <summary>
+    /// Adds one entry to the end of the cell bound to <paramref name="key"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A different path from <see cref="SetValue"/>, and the difference is the point.</b>
+    /// Appending never replaces the scrolling content, so the reader's position survives because
+    /// nothing was swapped underneath it. Folding append into replace would make every client
+    /// re-read the whole value per appended line — O(n²) for exactly the log-shaped keys streams
+    /// exist for — and, worse here, would jump the reader back to the top on every new line.</para>
+    ///
+    /// <para>There is deliberately no "replace but keep the scroll offset" behaviour. That is a
+    /// third semantic, and a renderer that picks it silently would be answering a question the
+    /// protocol never asked. If it is ever needed it needs a name of its own on the wire.</para>
+    /// </remarks>
+    public void AppendValue(string key, JsonElement item)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        if (!_cells.TryGetValue(key, out var cell) || cell is not ScrollViewer scroller)
+            return;
+
+        if (scroller.Content is not StackPanel rows)
+            return;
+
+        rows.Children.Add(new TextBlock { Text = Scalars(item) });
+    }
+
+    /// <summary>Removes the value shown in the cell bound to <paramref name="key"/>.</summary>
+    /// <remarks>
+    /// The cell stays. Removing a value removes what the cell shows, not the cell — the same rule
+    /// that makes an empty <c>Text</c> occupy its slot.
+    /// </remarks>
+    public void RemoveValue(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        if (!_cells.TryGetValue(key, out var cell))
+            return;
+
+        Show(cell, null);
+    }
+
+    /// <summary>Empties every cell this card holds.</summary>
+    /// <remarks>
+    /// <para><b>The cells stay.</b> <c>cleared</c> means the toolkit's keys are gone, not that the
+    /// card has no layout — a rebuild here would also lose whatever the user had typed into an
+    /// editing control, which is the one thing that cannot be re-sent.</para>
+    /// </remarks>
+    public void ClearAll()
+    {
+        foreach (var cell in _cells.Values)
+            Show(cell, null);
+    }
+
+    /// <summary>The current text of a cell, for tests and for carrying input across a rebuild.</summary>
+    /// <remarks>
+    /// Not part of the change surface — it reads, it does not mutate. It exists so a test can ask
+    /// "what is on screen" without reaching into control types it would otherwise have to know.
+    /// </remarks>
+    public string? ShownTextOf(string key) =>
+        _cells.TryGetValue(key, out var cell) ? Shown(cell) : null;
+
+    /// <summary>Builds the cells for a document, carrying the given local inputs forward.</summary>
+    private void SetCells(
+        IReadOnlyList<KitX.ToolKit.Contract.Surface.SurfaceElement> elements,
+        IReadOnlyDictionary<string, object?> carriedInput)
+    {
         if (elements.Count == 0)
             return;
 
@@ -94,11 +242,17 @@ public sealed class SurfaceCard : Grid
             // No null check: CreateView throws for a kind this renderer does not know, so the row
             // it would have occupied never silently becomes a gap. A document this renderer cannot
             // draw is refused as a whole rather than rendered with holes in it.
-            var view = CreateView(element, entries);
+            var view = CreateView(element);
 
             Grid.SetRow(view, rowIndexOf[element.Row]);
             Grid.SetColumn(view, element.Column - 1);
             Children.Add(view);
+
+            if (!string.IsNullOrEmpty(element.Key))
+                _cells[element.Key] = view;
+
+            if (carriedInput.TryGetValue(element.Key ?? string.Empty, out var local))
+                RestoreLocalInput(view, local);
         }
 
         // Columns follow the document's declared count, which is fixed at four by the schema. Doing
@@ -107,6 +261,154 @@ public sealed class SurfaceCard : Grid
         for (var i = 0; i < SurfaceMetrics.CardColumns; i++)
             ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
     }
+
+    /// <summary>Puts a value into a cell, or clears it when there is none.</summary>
+    /// <remarks>
+    /// <b><c>CheckBox</c> is matched before <c>Button</c>, and the order carries meaning.</b>
+    /// <c>CheckBox</c> derives from <c>ToggleButton</c>, which derives from <c>Button</c> — so a
+    /// <c>Button</c> arm written first would swallow every tick box and quietly treat it as a label.
+    /// That is the same failure this file keeps having to name: two things with the same shape, one
+    /// arm answering for both.
+    /// </remarks>
+    private static void Show(Control cell, JsonElement? value)
+    {
+        switch (cell)
+        {
+            case TextBlock label:
+                label.Text = value is { } labelValue ? Scalars(labelValue) : string.Empty;
+                break;
+
+            case CheckBox tick:
+                tick.IsChecked = value is { ValueKind: JsonValueKind.True };
+                break;
+
+            case Button button:
+                SetButtonValue(button, value);
+                break;
+
+            case ScrollViewer scroller:
+                SetListValues(scroller, value);
+                break;
+
+            case TextBox box:
+                box.Text = value is { } boxValue ? Scalars(boxValue) : string.Empty;
+                break;
+
+            case NumericUpDown spinner:
+                SetNumber(spinner, value);
+                break;
+
+            case ComboBox combo:
+                SetSelection(combo, value);
+                break;
+
+            default:
+                throw new NotSupportedException(
+                    "no way to show a value in " + cell.GetType().Name);
+        }
+    }
+
+    /// <summary>What a cell currently displays, or null when it shows nothing.</summary>
+    /// <remarks>
+    /// <c>CheckBox</c> is matched before <c>Button</c> here for the reason given on
+    /// <see cref="Show"/>: it derives from <c>Button</c>, and an arm written first would answer for
+    /// it with the label branch.
+    /// </remarks>
+    private static string? Shown(Control cell) =>
+        cell switch
+        {
+            TextBlock label => label.Text,
+            TextBox box => box.Text,
+            ScrollViewer scroller => string.Join(
+                "\n", (scroller.Content as StackPanel)?.Children.OfType<TextBlock>().Select(t => t.Text) ?? []),
+            CheckBox tick => tick.IsChecked == true ? "true" : "false",
+            NumericUpDown spinner => spinner.Value?.ToString() ?? string.Empty,
+            ComboBox combo => combo.SelectedItem?.ToString() ?? string.Empty,
+            Button button => button.Content?.ToString() ?? string.Empty,
+            _ => null,
+        };
+
+    /// <summary>The user's in-progress input, for the kinds whose contents live only in the control.</summary>
+    /// <remarks>
+    /// Null for everything else. A <c>TextBlock</c> shows a value the server has; a <c>List</c> shows
+    /// entries the server has; a <c>Button</c> shows a label the document has. None of those need
+    /// carrying — all three can be handed back by whoever changed the document. An editing control's
+    /// half-typed text has no such owner, which is the only reason it is treated differently.
+    /// </remarks>
+    private static object? LocalInputOf(Control cell) =>
+        cell switch
+        {
+            TextBox box => box.Text,
+            NumericUpDown spinner => spinner.Value,
+            ComboBox combo => combo.SelectedItem,
+            CheckBox tick => tick.IsChecked,
+            _ => null,
+        };
+
+    /// <summary>Puts a carried local input back into a freshly built editing control.</summary>
+    private static void RestoreLocalInput(Control cell, object? local)
+    {
+        if (local is null)
+            return;
+
+        switch (cell)
+        {
+            case TextBox box when local is string text:
+                box.Text = text;
+                break;
+            case NumericUpDown spinner when local is decimal number:
+                spinner.Value = number;
+                break;
+            case ComboBox combo:
+                combo.SelectedItem = local;
+                break;
+            case CheckBox tick when local is bool isChecked:
+                tick.IsChecked = isChecked;
+                break;
+        }
+    }
+
+    private static void SetButtonValue(Button button, JsonElement? value) =>
+        button.Content = value is { } v ? Scalars(v) : button.Content;
+
+    private static void SetListValues(ScrollViewer scroller, JsonElement? value)
+    {
+        if (scroller.Content is not StackPanel rows)
+            return;
+
+        rows.Children.Clear();
+
+        if (value is { ValueKind: JsonValueKind.Array } array)
+            foreach (var item in array.EnumerateArray())
+                rows.Children.Add(new TextBlock { Text = Scalars(item) });
+
+        // Replacing content puts the reader back at the top, on purpose: the list is not the same
+        // list any more. AppendValue is the path that keeps the position, because it never swaps
+        // the content in the first place.
+        scroller.Offset = default;
+    }
+
+    private static void SetNumber(NumericUpDown spinner, JsonElement? value) =>
+        spinner.Value = value is { ValueKind: JsonValueKind.Number } v && v.TryGetDecimal(out var number)
+            ? number
+            : null;
+
+    private static void SetSelection(ComboBox combo, JsonElement? value) =>
+        combo.SelectedItem = value is { } v ? Scalars(v) : null;
+
+    /// <summary>The text a JSON scalar shows as, with objects and arrays rendered as their JSON.</summary>
+    /// <remarks>
+    /// A cell shows text, so something has to be chosen for a value that is not text. Writing its
+    /// JSON is the choice that loses nothing: a reader sees what is there rather than a type name or
+    /// an empty box.
+    /// </remarks>
+    private static string Scalars(JsonElement value) =>
+        value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString() ?? string.Empty,
+            JsonValueKind.Null or JsonValueKind.Undefined => string.Empty,
+            _ => value.GetRawText(),
+        };
 
     /// <summary>
     /// How many slots this element's row has to be tall enough for.
@@ -173,11 +475,10 @@ public sealed class SurfaceCard : Grid
     /// answer to "what does a Switch look like", and the two drift without either going red.</para>
     /// </remarks>
     internal static Control CreateView(
-        KitX.ToolKit.Contract.Surface.SurfaceElement element,
-        IReadOnlyList<string>? entries = null) =>
+        KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
         element switch
         {
-            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key, text.Key),
+            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key),
             KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label),
             KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
                 input.Key, new global::Avalonia.Controls.TextBox()),
@@ -187,24 +488,30 @@ public sealed class SurfaceCard : Grid
                 select.Key, new global::Avalonia.Controls.ComboBox()),
             KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Editing(
                 toggle.Key, new global::Avalonia.Controls.CheckBox()),
-            KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(list.Key, entries),
+            KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(list.Key),
             _ => throw new NotSupportedException(
                 "no view for " + element.GetType().Name),
         };
 
     /// <summary>
-    /// A control that only displays what it is told: one slot tall, no template of its own.
+    /// A control that only displays what it is told: one slot tall, no template of its own, empty.
     /// </summary>
     /// <remarks>
     /// <para><b><c>Text</c> is the only remaining caller.</b> It shows a value and does nothing else,
     /// which is the honest minimum for a display element and needs no template. That also makes it
     /// the one kind that measures outside a window, which is worth remembering when a failure looks
     /// like "this element is zero tall".</para>
+    ///
+    /// <para><b>It starts empty rather than showing its key.</b> An earlier version put the key in
+    /// the label as visible placeholder text, which meant a card with no values showed a column of
+    /// key names and looked populated. That is worse than looking empty: it says the toolkit has
+    /// data when the only thing it has is a declaration. The key belongs in <c>Name</c>, where
+    /// lookups can find it and a reader cannot.</para>
     /// </remarks>
-    private static Control Labelled(string? key, string shown) => new TextBlock
+    private static Control Labelled(string? key) => new TextBlock
     {
         Name = key ?? string.Empty,
-        Text = shown,
+        Text = string.Empty,
         // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
         // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
         // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
@@ -277,22 +584,19 @@ public sealed class SurfaceCard : Grid
     /// <para><b>The rows are built directly rather than handed to an <c>ItemsControl</c>.</b> An
     /// <c>ItemsControl</c> with a bare <c>string[]</c> source produces no item containers without a
     /// data template, so its measured extent stays zero and the scroll region has nothing to scroll —
-    /// which reads as "this list does not overflow" rather than as a missing template. The entries
-    /// here are already resolved strings, so a <c>TextBlock</c> per entry is the whole rendering.</para>
+    /// which reads as "this list does not overflow" rather than as a missing template.</para>
+    ///
+    /// <para><b>It starts empty, and its entries arrive through <see cref="SetValue"/>.</b> An earlier
+    /// version took them as a parameter of the render call, which meant the caller had to work out
+    /// which of its values belonged to this control. The key is the same key either way; reading the
+    /// array out of it is a lookup, not a decision.</para>
     /// </remarks>
-    private static Control Entries(string? key, IReadOnlyList<string>? entries)
+    private static Control Entries(string? key) => new ScrollViewer
     {
-        var rows = new StackPanel();
-        foreach (var entry in entries ?? [])
-            rows.Children.Add(new TextBlock { Text = entry });
-
-        return new ScrollViewer
-        {
-            Name = key ?? string.Empty,
-            Height = SurfaceMetrics.SlotHeight,
-            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
-            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = rows,
-        };
-    }
+        Name = key ?? string.Empty,
+        Height = SurfaceMetrics.SlotHeight,
+        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
+        VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        Content = new StackPanel(),
+    };
 }

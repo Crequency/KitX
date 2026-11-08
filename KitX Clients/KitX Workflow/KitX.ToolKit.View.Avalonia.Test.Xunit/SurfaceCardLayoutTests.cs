@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -272,18 +273,22 @@ public sealed class SurfaceCardLayoutTests
         // The overflow has to be absorbed by the control, not by the row: nothing below may move, and
         // the scroll area must actually be taller than what it shows.
         //
-        // Entries arrive as an argument for the same reason a Select receives a resolved option set —
-        // this layer shows values, it does not fetch them. That is what makes the assertion possible
-        // before any resolution path exists.
-        var entries = Enumerable.Range(1, 40).Select(i => $"row {i}").ToList();
+        // The entries now arrive the way the protocol delivers them — a value under the list's own
+        // key — rather than as a render argument. The earlier version passed them in, which meant the
+        // caller had to decide which of its values belonged to this control; the key is the same key
+        // either way, so reading the array out of it is a lookup rather than a decision.
+        var entries = Enumerable.Range(1, 40).Select(i => $"row {i}").ToArray();
 
-        var few = Card([new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
-                        new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" }],
-                       entries.Take(2).ToList());
+        SurfaceCard TwoRows(int count) => Card(
+            [new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
+             new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" }],
+            values: new Dictionary<string, string>
+            {
+                ["sessions"] = JsonSerializer.Serialize(entries.Take(count)),
+            });
 
-        var many = Card([new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
-                         new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" }],
-                        entries);
+        var few = TwoRows(2);
+        var many = TwoRows(40);
 
         // Forty entries move nothing that the layout placed.
         Assert.Equal(TopOf(few, "footer"), TopOf(many, "footer"), tolerance: 0.5);
@@ -320,13 +325,25 @@ public sealed class SurfaceCardLayoutTests
     /// before any Bounds can be read.
     /// </remarks>
     private static SurfaceCard Card(params SurfaceElement[] elements) =>
-        Card(elements, entries: null);
+        Card(elements, values: null);
 
     /// <inheritdoc cref="Card(SurfaceElement[])"/>
-    private static SurfaceCard Card(IReadOnlyList<SurfaceElement> elements, IReadOnlyList<string>? entries)
+    private static SurfaceCard Card(
+        IReadOnlyList<SurfaceElement> elements,
+        IReadOnlyDictionary<string, string>? values)
     {
         var card = new SurfaceCard();
-        card.Render(elements, entries);
+        card.SetDocument(new SurfaceDocument { Elements = elements });
+
+        // Values go through the same door the protocol uses. The card no longer takes them as a
+        // render argument, because there is no such argument on the wire either: a surface message
+        // carries a document and nothing else.
+        //
+        // Parsed rather than SerializeToElement'd: these fixtures are written as JSON text because
+        // that is what a list value is, and serialising the string would hand the card a JSON string
+        // instead of a JSON array — which reads as "the list has one entry whose text is [\"row 1\"]".
+        foreach (var (key, value) in values ?? new Dictionary<string, string>())
+            card.SetValue(key, JsonDocument.Parse(value).RootElement.Clone());
 
         // Re-hosted in a Window because some controls only exist after templating: a ScrollViewer is
         // built from a control template, the template comes from the theme, and the theme is reached
