@@ -31,6 +31,7 @@ public sealed record SurfaceDocument
     /// happen. Empty is honest — "I cannot read this" looks the same to a renderer as "nothing
     /// declared yet", which is the safe thing for it to show.
     /// </remarks>
+    [JsonPropertyName("schemaVersion")]
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
     /// <summary>The version this build writes.</summary>
@@ -49,12 +50,14 @@ public sealed record SurfaceDocument
     /// a reflowed card looks wrong in a way nobody can trace back to a version mismatch. So a value
     /// other than 4 is a load failure, not a hint to adapt.</para>
     /// </remarks>
+    [JsonPropertyName("columns")]
     public int Columns { get; init; } = DefaultColumns;
 
     /// <summary>The only column count this build can lay out. See <see cref="Columns"/>.</summary>
     public const int DefaultColumns = 4;
 
     /// <summary>The elements, in the order they were declared (position, not order, decides layout).</summary>
+    [JsonPropertyName("elements")]
     public IReadOnlyList<SurfaceElement> Elements { get; init; } = [];
 
     /// <summary>An empty document — no elements.</summary>
@@ -89,18 +92,22 @@ public sealed record SurfaceDocument
 public abstract record SurfaceElement
 {
     /// <summary>Which row the element sits in, 1-based.</summary>
+    [JsonPropertyName("row")]
     public int Row { get; init; } = 1;
 
     /// <summary>Which column the element starts at, 1-based, between 1 and the document's columns.</summary>
+    [JsonPropertyName("column")]
     public int Column { get; init; } = 1;
 
     /// <summary>How many columns it spans. Defaults to 1; there is no row span.</summary>
+    [JsonPropertyName("columnSpan")]
     public int ColumnSpan { get; init; } = 1;
 
     /// <summary>
     /// The declared key this element is bound to, or <see langword="null"/> for elements that do
     /// not read a key (<see cref="SurfaceButtonElement"/>).
     /// </summary>
+    [JsonPropertyName("key")]
     public string? Key { get; init; }
 }
 
@@ -115,6 +122,7 @@ public sealed record SurfaceTextElement : SurfaceElement
     /// locale; a format string baked into the surface would make the card's appearance depend on
     /// who edited it rather than on who is looking.
     /// </remarks>
+    [JsonPropertyName("format")]
     public string? Format { get; init; }
 }
 
@@ -122,6 +130,7 @@ public sealed record SurfaceTextElement : SurfaceElement
 public sealed record SurfaceButtonElement : SurfaceElement
 {
     /// <summary>The button's text. Required — a button with no label is unclickable in practice.</summary>
+    [JsonPropertyName("label")]
     public string Label { get; init; } = string.Empty;
 
     /// <summary>
@@ -131,6 +140,7 @@ public sealed record SurfaceButtonElement : SurfaceElement
     /// A list, not a single name: one button can legitimately wake more than one binding, and the
     /// dispatch side already matches per-trigger.
     /// </remarks>
+    [JsonPropertyName("events")]
     public IReadOnlyList<string> Events { get; init; } = [];
 }
 
@@ -141,15 +151,19 @@ public sealed record SurfaceInputElement : SurfaceElement;
 public sealed record SurfaceNumberElement : SurfaceElement
 {
     /// <summary>Lower bound, optional.</summary>
+    [JsonPropertyName("min")]
     public double? Min { get; init; }
 
     /// <summary>Upper bound, optional.</summary>
+    [JsonPropertyName("max")]
     public double? Max { get; init; }
 
     /// <summary>Increment for stepped input, optional.</summary>
+    [JsonPropertyName("step")]
     public double? Step { get; init; }
 
     /// <summary>Digits to show after the decimal point, optional.</summary>
+    [JsonPropertyName("decimals")]
     public int? Decimals { get; init; }
 }
 
@@ -163,9 +177,11 @@ public sealed record SurfaceNumberElement : SurfaceElement
 public sealed record SurfaceSelectElement : SurfaceElement
 {
     /// <summary>Options written into the surface itself.</summary>
+    [JsonPropertyName("options")]
     public IReadOnlyList<string> Options { get; init; } = [];
 
     /// <summary>A declared key whose array value supplies the options. Mutually useful with <see cref="Options"/>.</summary>
+    [JsonPropertyName("optionsKey")]
     public string? OptionsKey { get; init; }
 }
 
@@ -176,8 +192,16 @@ public sealed record SurfaceSwitchElement : SurfaceElement;
 public sealed record SurfaceListElement : SurfaceElement
 {
     /// <summary>Which property of each item to show as the primary line.</summary>
+    /// <remarks>
+    /// Optional, because a scalar array has no properties: <c>["one", "two"]</c> renders the whole
+    /// value as the primary line. When the array holds objects this names the property to show;
+    /// absent, the renderer falls back to the object's first string property rather than dropping
+    /// the element.
+    /// </remarks>
+    [JsonPropertyName("itemTitle")]
     public string? ItemTitle { get; init; }
 
     /// <summary>Which property to show as the secondary line, optional.</summary>
+    [JsonPropertyName("itemSubtitle")]
     public string? ItemSubtitle { get; init; }
 }

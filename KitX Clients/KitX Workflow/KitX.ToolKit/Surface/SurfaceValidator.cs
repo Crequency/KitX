@@ -253,7 +253,6 @@ internal static class SurfaceValidator
 
         return true;
     }
-
     /// <summary>
     /// A number with a reversed or empty range still draws; clamp rather than drop.
     /// </summary>
@@ -332,6 +331,9 @@ internal static class SurfaceDiagnosticCodes
 
     /// <summary>An element referenced a key the ToolKit does not declare.</summary>
     public const string ElementUnknownKey = "surface.element.unknown-key";
+
+    /// <summary>A field name no property on the element type claims. The element is kept.</summary>
+    public const string ElementUnknownField = "surface.element.unknown-field";
 
     /// <summary>A button had no label.</summary>
     public const string ElementEmptyLabel = "surface.element.empty-label";

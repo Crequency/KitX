@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Surface;
+using KitX.ToolKit.Surface;
 using KitX.WorkflowV6.Serialization;
 using Serilog;
 
@@ -192,6 +194,18 @@ internal sealed class SurfaceStore : ISurfaceStore
                 continue;
             }
 
+            // A misspelled field is not an error to the serialiser: it lands in no property and
+            // the element keeps its defaults. That is how a file written with `col` rendered every
+            // element in column 1 while reporting no problems at all. The element is kept — it may
+            // still be perfectly drawable — but the author is told the field went nowhere.
+            foreach (var unknown in UnknownMembers(element, parsed))
+            {
+                (warnings ??= []).Add(ElementError(
+                    toolkitId, SurfaceDiagnosticCodes.ElementUnknownField,
+                    $"Element of type '{parsed.GetType().Name}' has an unrecognised field " +
+                    $"'{unknown}'; it was ignored and the default applied."));
+            }
+
             kept.Add(parsed);
         }
 
@@ -206,6 +220,65 @@ internal sealed class SurfaceStore : ISurfaceStore
             && value.TryGetInt32(out var number)
                 ? number
                 : fallback;
+
+    /// <summary>
+    /// The field names on one element that no property of its type claims.
+    /// </summary>
+    /// <remarks>
+    /// <para>Read straight off the JSON rather than configured, because the point is to compare the
+    /// file against the type as it is compiled today. A hand-maintained list would drift from the
+    /// type, and the drift would be silent in exactly the way this check exists to catch.</para>
+    ///
+    /// <para><c>System.Text.Json</c> can be told to reject unknown members
+    /// (<c>JsonUnmappedMemberHandling.Disallow</c>), but it throws — one misspelled field would
+    /// take the whole card down instead of the one element. The element here is kept and the
+    /// warning names the field, which is the granularity §3.3.4 asks for.</para>
+    /// </remarks>
+    private static IEnumerable<string> UnknownMembers(JsonElement element, SurfaceElement parsed)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+            yield break;
+
+        var known = KnownMembers(parsed.GetType());
+        foreach (var property in element.EnumerateObject())
+        {
+            if (!known.Contains(property.Name))
+                yield return property.Name;
+        }
+    }
+
+    /// <summary>
+    /// The JSON names a concrete element type accepts: every <see cref="JsonPropertyNameAttribute"/>
+    /// on it and its base, plus the polymorphic discriminator.
+    /// </summary>
+    private static HashSet<string> KnownMembers(Type type)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            DiscriminatorName,
+        };
+
+        for (var current = type; current is not null && current != typeof(object); current = current.BaseType)
+        {
+            foreach (var property in current.GetProperties(
+                         System.Reflection.BindingFlags.Public
+                         | System.Reflection.BindingFlags.Instance
+                         | System.Reflection.BindingFlags.DeclaredOnly))
+            {
+                var explicitName = property
+                    .GetCustomAttributes(typeof(JsonPropertyNameAttribute), inherit: true)
+                    .Cast<JsonPropertyNameAttribute>()
+                    .FirstOrDefault();
+
+                names.Add(explicitName?.Name ?? SerializerOptions.PropertyNamingPolicy?.ConvertName(property.Name) ?? property.Name);
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>The discriminator property every element carries. It names a type, not a field.</summary>
+    private const string DiscriminatorName = "type";
 
     private static Diagnostic FileError(string toolkitId, string code, string message)
         => Diagnostic.Error(code, message, new DiagnosticPath(ToolkitId: toolkitId));
