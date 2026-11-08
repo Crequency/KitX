@@ -550,6 +550,10 @@ internal static class ToolkitCompiler
                     }
                     break;
 
+                case TriggerType.UIEvent:
+                    ValidateUiEvent(config, trigger, sink);
+                    break;
+
                 case TriggerType.PluginEvent:
                     if (string.IsNullOrWhiteSpace(trigger.Config?.PluginName))
                     {
@@ -563,8 +567,157 @@ internal static class ToolkitCompiler
         }
     }
 
-    private static void ValidateCompletionFrom(
-        Toolkit config,
+    /// <summary>
+    /// Design §5.4.13: an event trigger is the join point between a surface input and a workflow
+    /// binding, and every part of that join it can check statically is checked here.
+    /// </summary>
+    /// <remarks>
+    /// Three checks, and the third is deliberately absent — see the remarks on
+    /// <see cref="ValidateEventNamesReachBindings"/>.
+    /// </remarks>
+    private static void ValidateUiEvent(Toolkit config, Trigger trigger, DiagnosticSink sink)
+    {
+        var toolkitId = config.GetId();
+        var eventName = trigger.Config?.Event;
+
+        if (string.IsNullOrWhiteSpace(eventName))
+        {
+            sink.Error(
+                "trigger.ui-event.event-missing",
+                $"UIEvent trigger '{trigger.Id}' has no Config.Event. Without an event name nothing " +
+                "can raise it — it is the only link between a surface control and this trigger.",
+                new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
+            return;
+        }
+
+        ValidateEventFields(config, trigger, sink);
+        ValidateEventNamesReachBindings(config, trigger, sink);
+    }
+
+    /// <summary>
+    /// Every declared field must be usable: a name, and a type this build understands.
+    /// </summary>
+    /// <remarks>
+    /// The type list is the same six literals the surface and the key table use. A seventh is a
+    /// mistake in the config rather than an unknown future type, because the value never leaves
+    /// JSON — whatever a client sends already has one of the first five shapes, and <c>enum</c> is
+    /// a constraint on top of <c>string</c>.
+    /// </remarks>
+    private static void ValidateEventFields(Toolkit config, Trigger trigger, DiagnosticSink sink)
+    {
+        var toolkitId = config.GetId();
+        var fields = trigger.Config?.Fields;
+        if (fields is null || fields.Count == 0)
+            return;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var field in fields)
+        {
+            if (string.IsNullOrWhiteSpace(field.Name))
+            {
+                sink.Error(
+                    "trigger.ui-event.field-unnamed",
+                    $"UIEvent trigger '{trigger.Id}' declares a field with no name. A field is " +
+                    "matched to the surface and to $payload.x by name; one without a name matches nothing.",
+                    new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
+                continue;
+            }
+
+            if (!seen.Add(field.Name))
+            {
+                sink.Error(
+                    "trigger.ui-event.field-duplicate",
+                    $"UIEvent trigger '{trigger.Id}' declares field '{field.Name}' more than once. " +
+                    "The later declaration would be the one that survives, which makes the earlier " +
+                    "one look like it is doing something.",
+                    new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
+            }
+
+            if (!EventFieldTypes.Contains(field.Type))
+            {
+                sink.Error(
+                    "trigger.ui-event.field-type-unknown",
+                    $"UIEvent trigger '{trigger.Id}' field '{field.Name}' has type '{field.Type}'. " +
+                    $"Known types: {string.Join(", ", EventFieldTypes.Order(StringComparer.Ordinal))}.",
+                    new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
+            }
+
+            if (string.Equals(field.Type, "enum", StringComparison.Ordinal) &&
+                (field.Options is null || field.Options.Count == 0))
+            {
+                sink.Error(
+                    "trigger.ui-event.field-enum-without-options",
+                    $"UIEvent trigger '{trigger.Id}' field '{field.Name}' is an enum with no options. " +
+                    "An enum's whole purpose is the closed candidate list; without one it is a string.",
+                    new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id));
+            }
+        }
+    }
+
+    /// <summary>
+    /// The types a trigger field may declare (design Q92).
+    /// </summary>
+    /// <remarks>
+    /// The first five are the same literals <c>KeyDeclaration.Type</c> uses. Keeping one
+    /// vocabulary is what lets a <c>Select</c>'s <c>optionsKey</c> point at an <c>array</c>-typed
+    /// key without a translation table; two names for one idea would mean one surface could
+    /// describe the same thing two ways.
+    /// </remarks>
+    private static readonly HashSet<string> EventFieldTypes =
+        new(StringComparer.Ordinal) { "string", "number", "boolean", "object", "array", "enum" };
+
+    /// <summary>
+    /// A binding that reads <c>$payload.x</c> must have <c>x</c> declared.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the check the compiler could not make before: it verified the <c>$payload.</c>
+    /// prefix and never the name after the dot, so a typo compiled, ran, and produced an empty
+    /// string in the workflow.
+    /// </para>
+    /// <para>
+    /// <b>What is deliberately NOT checked:</b> whether a surface element's <c>name</c> appears in
+    /// some trigger's <c>Fields</c>. The surface and the config are edited separately and one card
+    /// may serve several triggers; demanding that every input map to a declared field would make
+    /// adding an input a compile error until a trigger caught up. That is a rule about how cards
+    /// are authored, and it belongs to the editor's warnings, not to the loader's.
+    /// </para>
+    /// </remarks>
+    private static void ValidateEventNamesReachBindings(Toolkit config, Trigger trigger, DiagnosticSink sink)
+    {
+        var toolkitId = config.GetId();
+        var declared = trigger.Config?.Fields?
+            .Where(f => !string.IsNullOrWhiteSpace(f.Name))
+            .Select(f => f.Name)
+            .ToHashSet(StringComparer.Ordinal)
+            ?? [];
+
+        foreach (var binding in trigger.Bindings)
+        {
+            foreach (var (param, source) in binding.Params)
+            {
+                if (source is null ||
+                    !source.StartsWith(KitX.ToolKit.Triggers.BindingResolver.PayloadPrefix, StringComparison.Ordinal))
+                    continue;
+
+                var path = source[KitX.ToolKit.Triggers.BindingResolver.PayloadPrefix.Length..];
+                var head = path.Split('.', 2)[0];
+
+                if (head.Length == 0 || declared.Contains(head))
+                    continue;
+
+                sink.Error(
+                    "trigger.ui-event.payload-field-undeclared",
+                    $"UIEvent trigger '{trigger.Id}' binding '{binding.Workflow}' param '{param}' reads " +
+                    $"'{source}', but '{head}' is not among this trigger's Config.Fields. The reference " +
+                    "would resolve to nothing at run time — a workflow reading a name nobody declared.",
+                    new DiagnosticPath(ToolkitId: toolkitId, TriggerId: trigger.Id, WorkflowId: binding.Workflow));
+            }
+        }
+    }
+
+    private static void ValidateCompletionFrom(Toolkit config,
         Trigger trigger,
         HashSet<string> workflowIds,
         DiagnosticSink sink)

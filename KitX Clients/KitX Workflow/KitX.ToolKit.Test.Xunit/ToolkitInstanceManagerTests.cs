@@ -959,25 +959,20 @@ public class ToolkitInstanceManagerTests : IDisposable
         // trigger path stopped flattening (see RunScheduler.StartRun), a packet property can only
         // reach a node through a reference that names it — so `overrides.ContainsKey("event")`
         // would be false either way and would prove nothing.
+        //
+        // Since §5.4.13 that reference is itself a compile error unless `event` is declared as a
+        // field, and declaring it would be nonsense: the whole point is that the event name is a
+        // flow-level fact and never a payload property. So the assertion moved one step earlier —
+        // a binding that names it cannot be mounted at all.
         var (manager, executor) = BuildUiEventManager();
 
-        manager.Mount(ToolkitWithUiEventBinding(
-            new() { ["seen"] = "$payload.event", ["payload"] = "$payload.payload" }));
-        try
-        {
-            manager.RaiseEvent("tk-demo", "Click", new { payload = "hello" });
-            await WaitUntilAsync(() => executor.Calls.Any(c => c.WorkflowId == "wf2"));
+        var refused = Assert.Throws<InvalidOperationException>(() =>
+            manager.Mount(ToolkitWithUiEventBinding(
+                new() { ["seen"] = "$payload.event", ["payload"] = "$payload.payload" },
+                fields: ["payload"])));
 
-            var overrides = executor.Calls.Single(c => c.WorkflowId == "wf2").Overrides;
-
-            // The name is gone; the value survived.
-            Assert.Null(overrides["seen"]);
-            Assert.Equal("hello", overrides["payload"]);
-        }
-        finally
-        {
-            manager.Unmount("tk-demo");
-        }
+        Assert.Contains("trigger.ui-event.payload-field-undeclared", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(executor.Calls);
     }
 
     [Fact]
@@ -985,27 +980,31 @@ public class ToolkitInstanceManagerTests : IDisposable
     {
         // "no value" and "value null" are the same thing on the wire, and both must give a packet
         // with nothing free in it — not a packet holding a null-valued `value` property.
+        //
+        // Same shift as above: reading `$payload.event` is now a compile error rather than a
+        // null-valued reference, so the event name is proven absent by the fact that no binding may
+        // mention it at all.
         var (manager, executor) = BuildUiEventManager();
 
-        manager.Mount(ToolkitWithUiEventBinding(
-            new() { ["seen"] = "$payload.event", ["value"] = "$payload.value" }));
-        try
-        {
-            manager.RaiseEvent("tk-demo", "Click");
-            await WaitUntilAsync(() => executor.Calls.Any(c => c.WorkflowId == "wf2"));
+        var refused = Assert.Throws<InvalidOperationException>(() =>
+            manager.Mount(ToolkitWithUiEventBinding(
+                new() { ["seen"] = "$payload.event", ["value"] = "$payload.value" },
+                fields: ["value"])));
 
-            var overrides = executor.Calls.Single(c => c.WorkflowId == "wf2").Overrides;
-
-            Assert.Null(overrides["seen"]);
-            Assert.Null(overrides["value"]);
-        }
-        finally
-        {
-            manager.Unmount("tk-demo");
-        }
+        Assert.Contains("trigger.ui-event.payload-field-undeclared", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(executor.Calls);
     }
 
-    private static Toolkit ToolkitWithUiEventBinding(Dictionary<string, string?> bindingParams)
+    /// <summary>Builds a ToolKit with one UIEvent trigger whose single binding carries the given params.</summary>
+    /// <param name="bindingParams">The binding's parameter map.</param>
+    /// <param name="fields">
+    /// The trigger's declared fields. Every name a binding reads through <c>$payload.</c> must be
+    /// declared here as of design §5.4.13 — the compiler rejects an undeclared one, so a test that
+    /// wants to read a payload property has to declare it like real config does.
+    /// </param>
+    private static Toolkit ToolkitWithUiEventBinding(
+        Dictionary<string, string?> bindingParams,
+        params string[] fields)
         => new()
         {
             Id = "tk-demo",
@@ -1017,7 +1016,13 @@ public class ToolkitInstanceManagerTests : IDisposable
                 {
                     Id = "ui",
                     Type = TriggerType.UIEvent,
-                    Config = new TriggerConfig { Event = "Click" },
+                    Config = new TriggerConfig
+                    {
+                        Event = "Click",
+                        Fields = fields
+                            .Select(name => new TriggerField { Name = name, Type = "string" })
+                            .ToList(),
+                    },
                     Bindings = [new() { Workflow = "wf2", Params = bindingParams }],
                 },
             ],

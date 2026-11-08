@@ -44,4 +44,26 @@ public sealed class TriggerConfig
     // now, not the trigger's.
     /// <summary>Event name, e.g. <c>Click</c>, <c>Submit</c>, <c>Toggled</c>.</summary>
     public string? Event { get; set; }
+
+    /// <summary>
+    /// The names this event carries into its workflows, or null when the trigger declares none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Projection, not filtering. With a list, only the names on it reach the packet — a client
+    /// sending an extra property does not get to create a workflow constant, which is what used to
+    /// happen on the trigger path when every top-level scalar was flattened in.
+    /// </para>
+    /// <para>
+    /// Null (absent) and an empty list mean the same thing here: nothing is projected. Empty rather
+    /// than null would be the tidier declaration, but absent has to be legal too, because every
+    /// existing <c>toolkit.json</c> was written before this field existed.
+    /// </para>
+    /// <para>
+    /// Only meaningful for <see cref="TriggerType.UIEvent"/>. A timer or a completion edge has no
+    /// client supplying values, so a non-empty list on those is a declaration mistake rather than
+    /// a feature.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<TriggerField>? Fields { get; set; }
 }

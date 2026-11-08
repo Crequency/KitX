@@ -109,6 +109,26 @@ public abstract record SurfaceElement
     /// </summary>
     [JsonPropertyName("key")]
     public string? Key { get; init; }
+
+    /// <summary>
+    /// The name this element's value travels under when an event is sent, or null when the element
+    /// does not contribute a value.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Distinct from <see cref="Key"/>, and both are needed: <c>key</c> says which stored value to
+    /// display, <c>name</c> says what to call the user's input when uploading it. They are usually
+    /// the same word and must not be assumed to be — the input box may be filled from one key and
+    /// the result filed under another.
+    /// </para>
+    /// <para>
+    /// This is not the retired element <c>id</c> coming back. An id answers "which element is
+    /// this", and nothing addresses elements. A name answers "what is this value called in the
+    /// payload", which the server needs in order to project values onto <c>TriggerConfig.Fields</c>.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
 }
 
 /// <summary>Read-only display of one key's value.</summary>
@@ -145,7 +165,20 @@ public sealed record SurfaceButtonElement : SurfaceElement
 }
 
 /// <summary>Free-text entry for one key.</summary>
-public sealed record SurfaceInputElement : SurfaceElement;
+public sealed record SurfaceInputElement : SurfaceElement
+{
+    /// <summary>
+    /// The events this input can raise on its own, matched against <c>TriggerConfig.Event</c>.
+    /// </summary>
+    /// <remarks>
+    /// An input that only ever feeds a button's event does not need this. It exists for the
+    /// <c>Submit</c>-on-Enter case, where the control itself is what fires — the same shape
+    /// <see cref="SurfaceButtonElement"/> has, because the question ("what can this thing send?")
+    /// is the same.
+    /// </remarks>
+    [JsonPropertyName("events")]
+    public IReadOnlyList<string> Events { get; init; } = [];
+}
 
 /// <summary>Numeric entry for one key.</summary>
 public sealed record SurfaceNumberElement : SurfaceElement

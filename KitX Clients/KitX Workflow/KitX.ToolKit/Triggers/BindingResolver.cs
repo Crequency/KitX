@@ -28,7 +28,15 @@ namespace KitX.ToolKit.Triggers;
 /// </remarks>
 internal static class BindingResolver
 {
-    private const string PayloadPrefix = "$payload.";
+    /// <summary>
+    /// The prefix a trigger-time binding uses to read the event's payload.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private because the compiler has to recognise it too: it checks that
+    /// the name after the dot is declared on the trigger (design §5.4.13), and a second literal in
+    /// the compiler would be a second place for it to drift.
+    /// </remarks>
+    internal const string PayloadPrefix = "$payload.";
 
     /// <summary>The retired prefix, kept only so the compiler can reject it by name.</summary>
     internal const string RetiredOutputPrefix = "$output.";
