@@ -945,4 +945,94 @@ public class ToolkitInstanceManagerTests : IDisposable
             manager.Unmount("tk-demo");
         }
     }
+
+    // ── the event's name is a flow-level fact, not packet data (design Q89) ──────────────
+
+    [Fact]
+    public async Task An_event_carries_its_value_but_not_its_own_name_into_the_packet()
+    {
+        // The packet used to be `{ @event: name, value }`. That put the event's NAME where packet
+        // flattening could turn it into a constant, so a client could shadow a workflow's own
+        // `const event`. The name is now absent from the packet.
+        //
+        // The observable is a `$payload.event` reference, not the final overrides: after the
+        // trigger path stopped flattening (see RunScheduler.StartRun), a packet property can only
+        // reach a node through a reference that names it — so `overrides.ContainsKey("event")`
+        // would be false either way and would prove nothing.
+        var (manager, executor) = BuildUiEventManager();
+
+        manager.Mount(ToolkitWithUiEventBinding(
+            new() { ["seen"] = "$payload.event", ["payload"] = "$payload.payload" }));
+        try
+        {
+            manager.RaiseEvent("tk-demo", "Click", new { payload = "hello" });
+            await WaitUntilAsync(() => executor.Calls.Any(c => c.WorkflowId == "wf2"));
+
+            var overrides = executor.Calls.Single(c => c.WorkflowId == "wf2").Overrides;
+
+            // The name is gone; the value survived.
+            Assert.Null(overrides["seen"]);
+            Assert.Equal("hello", overrides["payload"]);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    [Fact]
+    public async Task An_event_with_no_value_contributes_an_empty_packet()
+    {
+        // "no value" and "value null" are the same thing on the wire, and both must give a packet
+        // with nothing free in it — not a packet holding a null-valued `value` property.
+        var (manager, executor) = BuildUiEventManager();
+
+        manager.Mount(ToolkitWithUiEventBinding(
+            new() { ["seen"] = "$payload.event", ["value"] = "$payload.value" }));
+        try
+        {
+            manager.RaiseEvent("tk-demo", "Click");
+            await WaitUntilAsync(() => executor.Calls.Any(c => c.WorkflowId == "wf2"));
+
+            var overrides = executor.Calls.Single(c => c.WorkflowId == "wf2").Overrides;
+
+            Assert.Null(overrides["seen"]);
+            Assert.Null(overrides["value"]);
+        }
+        finally
+        {
+            manager.Unmount("tk-demo");
+        }
+    }
+
+    private static Toolkit ToolkitWithUiEventBinding(Dictionary<string, string?> bindingParams)
+        => new()
+        {
+            Id = "tk-demo",
+            Meta = new ToolkitMeta { Name = "demo" },
+            Workflows = [new ToolkitWorkflow { Id = "wf2", Name = "wf2", File = "wf2.kcs" }],
+            Triggers =
+            [
+                new Trigger
+                {
+                    Id = "ui",
+                    Type = TriggerType.UIEvent,
+                    Config = new TriggerConfig { Event = "Click" },
+                    Bindings = [new() { Workflow = "wf2", Params = bindingParams }],
+                },
+            ],
+        };
+
+    private (ToolkitInstanceManager Manager, RecordingExecutor Executor) BuildUiEventManager()
+    {
+        var store = new DataStore();
+        var executor = new RecordingExecutor(store);
+        var manager = new ToolkitInstanceManager(
+            new ServiceCollection().BuildServiceProvider(),
+            TriggerSourceRegistry.BuildDefault(),
+            executor,
+            store,
+            FileStoreFor);
+        return (manager, executor);
+    }
 }

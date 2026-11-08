@@ -319,4 +319,81 @@ public class RunSchedulerTests
         Assert.Equal(2, instanceIds.Count);
         Assert.Equal(2, instanceIds.Distinct().Count());
     }
+
+    // ── reserved constants: what fired this, and who (design Q89) ─────────────────────────
+
+    [Fact]
+    public async Task Every_node_in_a_flow_reads_the_same_trigger_id()
+    {
+        // A flow-level fact must not vary per node. BuildOverrides runs once per node, so a
+        // triggerId recomputed anywhere else would show up as a difference here.
+        var (scheduler, executor) = Build(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] }));
+
+        var completed = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, _) => completed.TrySetResult();
+
+        scheduler.StartRun("manual");
+        await AwaitAsync(completed.Task);
+
+        var seen = executor.Calls
+            .Select(c => c.Overrides.TryGetValue(InitiatorConstants.TriggerId, out var v) ? v : null)
+            .ToList();
+
+        Assert.NotEmpty(seen);
+        Assert.DoesNotContain(null, seen);
+        Assert.Single(seen.Distinct());
+        Assert.Equal("manual", seen[0]);
+    }
+
+    [Fact]
+    public async Task A_payload_property_that_no_reference_names_never_becomes_a_constant()
+    {
+        // The old trigger path flattened every top-level packet property into a constant, on the
+        // argument that "there is no upstream author to collide with". That argument expired: the
+        // payload now comes from a client. A property named `event` used to be able to overwrite a
+        // workflow's own `const event` this way.
+        var (scheduler, executor) = Build(ToolkitWith(
+            new Trigger
+            {
+                Id = "manual",
+                Type = TriggerType.Manual,
+                Bindings = [new() { Workflow = "A" }],
+            }));
+
+        var completed = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, _) => completed.TrySetResult();
+
+        scheduler.StartRun("manual", new { @event = "spoofed", secret = "leaked" });
+        await AwaitAsync(completed.Task);
+
+        var overrides = executor.Calls.Single(c => c.WorkflowId == "A").Overrides;
+
+        Assert.False(overrides.ContainsKey("event"));
+        Assert.False(overrides.ContainsKey("secret"));
+    }
+
+    [Fact]
+    public async Task A_payload_property_a_reference_names_still_reaches_the_node()
+    {
+        // The other half of the rule: filtering must not remove the declared path. Without this,
+        // "no free constants" and "no constants at all" would be indistinguishable.
+        var (scheduler, executor) = Build(ToolkitWith(
+            new Trigger
+            {
+                Id = "manual",
+                Type = TriggerType.Manual,
+                Bindings = [new() { Workflow = "A", Params = new() { ["text"] = "$payload.value" } }],
+            }));
+
+        var completed = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, _) => completed.TrySetResult();
+
+        scheduler.StartRun("manual", new { value = "hello" });
+        await AwaitAsync(completed.Task);
+
+        var overrides = executor.Calls.Single(c => c.WorkflowId == "A").Overrides;
+
+        Assert.Equal("hello", overrides["text"]);
+    }
 }

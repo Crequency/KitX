@@ -78,6 +78,7 @@ internal sealed class WorkflowRun : IDisposable
         string toolkitId,
         string runId,
         string namespaceId,
+        string triggerId,
         Initiator initiator,
         IReadOnlyDictionary<string, int> joinCounts,
         IReadOnlyDictionary<string, IReadOnlyList<string>> successors)
@@ -85,6 +86,7 @@ internal sealed class WorkflowRun : IDisposable
         ToolkitId = toolkitId ?? throw new ArgumentNullException(nameof(toolkitId));
         RunId = runId ?? throw new ArgumentNullException(nameof(runId));
         NamespaceId = namespaceId ?? runId;
+        TriggerId = triggerId ?? throw new ArgumentNullException(nameof(triggerId));
         Initiator = initiator ?? throw new ArgumentNullException(nameof(initiator));
         _successors = successors ?? throw new ArgumentNullException(nameof(successors));
 
@@ -100,6 +102,13 @@ internal sealed class WorkflowRun : IDisposable
 
     /// <summary>Unique id for this run.</summary>
     public string RunId { get; }
+
+    /// <summary>
+    /// The trigger that started this run. Injected into every node as a reserved constant so a
+    /// workflow can tell what fired it — a flow-level fact, so it lives here rather than in the
+    /// packet (design Q89).
+    /// </summary>
+    public string TriggerId { get; }
 
     /// <summary>
     /// The data namespace this run writes under. Equals <see cref="RunId"/> for a

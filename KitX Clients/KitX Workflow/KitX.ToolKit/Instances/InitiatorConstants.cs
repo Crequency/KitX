@@ -13,4 +13,16 @@ internal static class InitiatorConstants
 
     /// <summary>Reserved constant carrying the initiator's human-readable device name.</summary>
     public const string DeviceName = "__KitXInitiatorDeviceName__";
+
+    /// <summary>
+    /// Reserved constant carrying the id of the trigger that started this flow.
+    /// </summary>
+    /// <remarks>
+    /// A flow-level fact: it answers "what fired this", which no node in the flow could work out on
+    /// its own, and it must NOT travel in the packet. A client-supplied property named <c>event</c>
+    /// used to be able to collide with a workflow's own constant through the packet flattening
+    /// (design Q89), which is why the trigger's identity is injected like the initiator's rather
+    /// than carried as data.
+    /// </remarks>
+    public const string TriggerId = "__KitXTriggerId__";
 }

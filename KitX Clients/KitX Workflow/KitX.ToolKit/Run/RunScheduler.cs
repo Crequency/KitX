@@ -52,6 +52,16 @@ internal sealed class RunScheduler : IDisposable
     /// </summary>
     private readonly IReadOnlyDictionary<string, IReadOnlySet<string>> _consumesByTarget;
 
+    /// <summary>
+    /// The set handed to a trigger-path delivery: no packet property becomes a constant.
+    /// </summary>
+    /// <remarks>
+    /// A named constant rather than an inline empty set, because the value is a decision and the
+    /// name is where the decision is explained. See the call site in <c>StartRun</c>.
+    /// </remarks>
+    private static readonly IReadOnlySet<string> EmptyConsumes =
+        new HashSet<string>(StringComparer.Ordinal);
+
     /// <summary>Source of flow ids (ADR-0006 D1). Never <c>Guid.NewGuid</c> at the call site.</summary>
     private readonly IIdGenerator _ids;
 
@@ -141,15 +151,22 @@ internal sealed class RunScheduler : IDisposable
         if (trigger is null || trigger.Type == TriggerType.WorkflowCompletion)
             return null;
 
-        var run = CreateRun(initiator ?? Contract.Initiator.Unknown, namespaceId);
+        var run = CreateRun(trigger.Id, initiator ?? Contract.Initiator.Unknown, namespaceId);
         onRunCreated?.Invoke(run);
 
         var packet = TriggerSourceBase.NormalizePayload(payload);
 
         // Seed every root binding before marking the start complete, so a synchronous fast node
         // cannot settle the run before its siblings are even known.
+        //
+        // The empty set is deliberate, not a placeholder (design Q89/Q91). Passing the binding's
+        // own names here would look like forwarding and do nothing: BindingResolver.Resolve has
+        // already written every one of those names into the overrides, so every TryAdd below
+        // would fail. What the empty set actually says is "this packet contributes no free
+        // constants" — a payload property only becomes a constant when a `$payload.x` reference
+        // names it.
         foreach (var binding in trigger.Bindings)
-            Deliver(run, binding.Workflow, packet, binding.Params);
+            Deliver(run, binding.Workflow, packet, binding.Params, EmptyConsumes);
 
         run.MarkStartComplete();
         return run;
@@ -170,7 +187,7 @@ internal sealed class RunScheduler : IDisposable
         return null;
     }
 
-    private WorkflowRun CreateRun(Contract.Initiator initiator, string? namespaceId)
+    private WorkflowRun CreateRun(string triggerId, Contract.Initiator initiator, string? namespaceId)
     {
         var runId = _ids.NewFlowId();
         var joinCounts = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -190,7 +207,7 @@ internal sealed class RunScheduler : IDisposable
         }
 
         var run = new WorkflowRun(
-            _compiled.ToolkitId, runId, namespaceId ?? runId, initiator, joinCounts, successors);
+            _compiled.ToolkitId, runId, namespaceId ?? runId, triggerId, initiator, joinCounts, successors);
 
         run.Completed += (sender, e) =>
         {
@@ -251,9 +268,14 @@ internal sealed class RunScheduler : IDisposable
         // BuildOutputPacket collects it into the packet, and the only way a downstream FlowIn can
         // see it again is for the packet's own properties to be readable as names.
         //
-        // `consumes == null` means "not routed through an edge that declares anything" — the
-        // trigger path, where the packet is the trigger payload and there is no upstream author
-        // to collide with. An empty set means the edge explicitly forwards nothing.
+        // `consumes == null` used to mean "the trigger path, where there is no upstream author to
+        // collide with". That reason expired: since Q90/Q91 the trigger payload comes from a View
+        // client, so there IS an upstream author and it may be anyone. The trigger path now passes
+        // an empty set like any edge that forwards nothing, and a payload property only becomes a
+        // constant when a `$payload.x` reference names it (BindingResolver, above).
+        //
+        // Null is kept as a distinguishable state rather than folded into the empty set, because
+        // the two say different things: "nobody said" versus "somebody said none".
         var overrides = new Dictionary<string, string?>(BindingResolver.Resolve(bindingParams, activation));
 
         if (consumes is null || consumes.Count > 0)
@@ -424,6 +446,7 @@ internal sealed class RunScheduler : IDisposable
         {
             [Instances.InitiatorConstants.DeviceId] = run.Initiator.DeviceId,
             [Instances.InitiatorConstants.DeviceName] = run.Initiator.DeviceName,
+            [Instances.InitiatorConstants.TriggerId] = run.TriggerId,
             [Instances.InstanceConstants.InstanceId] = run.NamespaceId,
         };
         return merged;

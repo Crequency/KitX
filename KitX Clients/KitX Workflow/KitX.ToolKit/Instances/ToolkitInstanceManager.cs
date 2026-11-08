@@ -777,7 +777,24 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (!_mounted.TryGetValue(toolkitId, out var mounted))
             return [];
 
-        var payload = JsonSerializer.SerializeToElement(new { @event = eventName, value });
+        // The event's name does NOT go into the packet (design Q89: flow-level facts travel as
+        // reserved constants, node-level facts travel in the packet). Putting it there meant a
+        // client could collide with a workflow's `const event` through the packet flattening.
+        //
+        // The value's shape is deliberately flattened toward what D2 will project: an object is
+        // spread as the packet itself, a scalar is wrapped under `value`, and no value gives an
+        // empty packet.
+        //
+        // "is an object" is decided on the VALUE, not on its static type. Testing only for
+        // JsonElement would mean a caller passing an anonymous object — which serializes to a JSON
+        // object just the same — silently got the scalar wrapping instead. The distinction that
+        // matters is what the packet will look like, so the check runs after normalization.
+        var payload = value switch
+        {
+            null => JsonSerializer.SerializeToElement(new { }),
+            JsonElement element => FlattenOrWrap(element),
+            _ => FlattenOrWrap(TriggerSourceBase.NormalizePayload(value)),
+        };
         var matching = mounted.Compiled.Triggers
             .OfType<CompiledUiEventTrigger>()
             .Where(t => MatchesEvent(t.Event, eventName))
@@ -808,6 +825,21 @@ internal sealed class ToolkitInstanceManager : IDisposable
     private static bool MatchesEvent(string? declaredEvent, string eventName)
         => declaredEvent is not null
            && string.Equals(declaredEvent, eventName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Turns an event value into the packet its handlers will see: an object is spread, anything
+    /// else is wrapped under <c>value</c>.
+    /// </summary>
+    /// <remarks>
+    /// A packet has to be a JSON object — a bare scalar is not one, so it cannot be the packet
+    /// itself. That is why the scalar case wraps rather than replacing. The check is on the
+    /// normalized shape, so a caller handing over an anonymous object gets the same treatment as
+    /// one handing over an equivalent <see cref="JsonElement"/>.
+    /// </remarks>
+    private static JsonElement FlattenOrWrap(JsonElement normalized)
+        => normalized.ValueKind == JsonValueKind.Object
+            ? normalized
+            : JsonSerializer.SerializeToElement(new { value = normalized });
 
     /// <summary>
     /// Whether starting one more flow fits under the machine-wide concurrency cap. Callers
