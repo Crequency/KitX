@@ -33,7 +33,7 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
     public ToolKitBuiltinDispatchTests(WorkflowTestFixture fixture) => _fixture = fixture;
 
     [Fact]
-    public async Task Runner_Extracts_InstanceId_From_Overrides()
+    public async Task Runner_Extracts_ToolkitId_From_Overrides()
     {
         var ir = _fixture.ParseKS("Print(\"x\")\n");
         var backend = new RecordingBackend();
@@ -41,14 +41,14 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
 
         await runner.ExecuteAsync(
             ir, null,
-            new Dictionary<string, string?> { [ToolKitConstants.InstanceId] = "inst-9" },
+            new Dictionary<string, string?> { [ToolKitConstants.ToolkitId] = "tk-9" },
             CancellationToken.None);
 
-        Assert.Equal("inst-9", backend.LastContext?.InstanceId);
+        Assert.Equal("tk-9", backend.LastContext?.ToolkitId);
     }
 
     [Fact]
-    public async Task Runner_Passes_Null_InstanceId_When_Absent()
+    public async Task Runner_Passes_Null_ToolkitId_When_Absent()
     {
         var ir = _fixture.ParseKS("Print(\"x\")\n");
         var backend = new RecordingBackend();
@@ -57,9 +57,9 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
         await runner.ExecuteAsync(ir, null, null, CancellationToken.None);
 
         // The context is always handed over (raw overrides feed FlowIn), but the
-        // instance-scoped field degrades to null outside a ToolKit instance.
+        // toolKit-scoped field degrades to null outside a mounted ToolKit.
         Assert.NotNull(backend.LastContext);
-        Assert.Null(backend.LastContext.InstanceId);
+        Assert.Null(backend.LastContext.ToolkitId);
         Assert.Null(backend.LastContext.RawOverrides);
     }
 
@@ -71,13 +71,13 @@ public class ToolKitBuiltinDispatchTests : IClassFixture<WorkflowTestFixture>
         var runner = new WorkflowRunner(backend);
         var overrides = new Dictionary<string, string?>
         {
-            [ToolKitConstants.InstanceId] = "inst-9",
+            [ToolKitConstants.ToolkitId] = "tk-9",
             ["userInput"] = "hello",
         };
 
         await runner.ExecuteAsync(ir, null, overrides, CancellationToken.None);
 
-        Assert.Equal("inst-9", backend.LastContext!.InstanceId);
+        Assert.Equal("tk-9", backend.LastContext!.ToolkitId);
         Assert.Same(overrides, backend.LastContext.RawOverrides);
     }
 
