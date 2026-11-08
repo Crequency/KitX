@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using KitX.ToolKit.Contract.View;
 using System.Text.Json;
 
 namespace KitX.ToolKit.View.Avalonia;
@@ -19,8 +20,8 @@ namespace KitX.ToolKit.View.Avalonia;
 /// <para><b>Empty rows are zero tall.</b> A surface whose rows are 1 and 5 looks identical to one
 /// whose rows are 1 and 2: <c>row</c> orders elements, it does not space them.</para>
 ///
-/// <para><b>This class holds a control tree, so it is stateful.</b> That state changes through five
-/// methods and no others, and the list is closed on purpose:</para>
+/// <para><b>This class holds a control tree, so it is stateful.</b> Every change comes in through
+/// <see cref="Apply"/>, which is the one place a message becomes an edit:</para>
 ///
 /// <code>
 /// welcome           -> SetDocument + SetValue per key
@@ -32,10 +33,17 @@ namespace KitX.ToolKit.View.Avalonia;
 /// </code>
 ///
 /// <para><b>The renderer's change surface is exactly the wire protocol's change surface.</b> That
-/// correspondence is the rule to test any sixth method against: if a method here has no message
-/// behind it, either the protocol is missing something or the method is the renderer growing an
-/// opinion it was not given. A sixth method added because "it would also be convenient" is how that
-/// rule stops being true without anyone noticing it existed.</para>
+/// correspondence is the rule to test any sixth change method against: if a method here has no
+/// message behind it, either the protocol is missing something or the renderer is growing an opinion
+/// it was not given. A sixth method added because "it would also be convenient" is how that rule
+/// stops being true without anyone noticing it existed.</para>
+///
+/// <para><b>Why there is no <c>From(WelcomeMessage)</c> factory.</b> A factory beside a message
+/// entry point is the same action with two doors, and two doors drift: whatever the factory forgot,
+/// the other one would not report. One entry point also makes the protocol's one gap visible instead
+/// of documented — an <c>Apply(surfaceMessage)</c> empties every key-bound cell, because that
+/// message carries a document and no values. That is a property of the protocol, and here it is
+/// something a test can assert rather than a sentence in a comment.</para>
 ///
 /// <para><b>What this class does not do: remember values.</b> <see cref="SetDocument"/> rebuilds the
 /// cells and carries over nothing that came from a key. A caller that wants the card to keep showing
@@ -69,6 +77,74 @@ public sealed class SurfaceCard : Grid
         // round. A renderer that later adopts fractional slot heights would have to revisit this,
         // and the test below would then fail loudly instead of drifting.
         UseLayoutRounding = false;
+    }
+
+    /// <summary>
+    /// Applies one message from the view protocol, which is the only way this card changes.
+    /// </summary>
+    /// <param name="message">A server-to-client message.</param>
+    /// <exception cref="NotSupportedException">
+    /// The message travels the other way. A client-to-server message reaching a renderer means the
+    /// wiring is wrong, and throwing says so at the point of the mistake — a <c>default: break</c>
+    /// would turn that same mistake into "the interface does nothing".
+    /// </exception>
+    /// <remarks>
+    /// <para><b>This method caches nothing.</b> It translates one message into one of the five
+    /// changes and returns. Any state kept here would make the card a second
+    /// <c>ToolkitView</c> — and the assertion that a document change leaves key-bound cells empty is
+    /// what keeps it from happening by accident.</para>
+    ///
+    /// <para><b>An applied <c>surface</c> message empties every key-bound cell.</b> That is not a
+    /// defect in this method: the message carries a document and no values, so after rebuilding there
+    /// is nothing to show until the caller sends values again. The gap is the protocol's, and this is
+    /// where it becomes assertable rather than merely written down.</para>
+    /// </remarks>
+    public void Apply(ViewMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        switch (message)
+        {
+            case WelcomeMessage welcome:
+                SetDocument(welcome.Surface);
+
+                foreach (var (key, value) in welcome.Values)
+                    SetValue(key, value);
+
+                break;
+
+            case SurfaceMessage surface:
+                SetDocument(surface.Surface);
+                break;
+
+            case DeltaMessage { Value: null } removal:
+                RemoveValue(removal.Key);
+                break;
+
+            case DeltaMessage { Appended: true } append:
+                AppendValue(append.Key, append.Value!.Value);
+                break;
+
+            case DeltaMessage delta:
+                SetValue(delta.Key, delta.Value);
+                break;
+
+            case ClearedMessage:
+                ClearAll();
+                break;
+
+            // The other four travel client to server, or are replies to something this side sent.
+            case ConnectMessage:
+            case CommandMessage:
+            case AckedReply:
+            case RejectedReply:
+            case ListMessage:
+            case ToolkitsMessage:
+            default:
+                throw new NotSupportedException(
+                    $"a renderer does not consume {message.GetType().Name}; it travels the other way, "
+                    + "or it is a reply to a request this side did not make");
+        }
     }
 
     /// <summary>
@@ -466,9 +542,11 @@ public sealed class SurfaceCard : Grid
     /// heights coincide while only <c>Text</c> exists, which is why the distinction only shows up
     /// here.</para>
     ///
-    /// <para>Entries arrive as an argument, not read from anywhere: a <c>List</c> shows a resolved
-    /// array the same way a <c>Select</c> shows a resolved option set, and for the same reason —
-    /// this layer receives values, it does not fetch them.</para>
+    /// <para><b>A cell is built empty and filled later.</b> Everything this method returns starts
+    /// with nothing in it: a <c>List</c> gets an empty scroll panel, a <c>Text</c> an empty label, a
+    /// <c>Select</c> no selection. The values arrive through the five change methods, which is where
+    /// the protocol puts them — a <c>surface</c> message carries a document and no values at all, so
+    /// a builder that wanted them would have nowhere to look.</para>
     ///
     /// <para><b><c>internal</c> so the coverage and control-metrics tests can call it.</b> They need
     /// the real thing rather than a copy of its list of controls: a duplicated list is a second

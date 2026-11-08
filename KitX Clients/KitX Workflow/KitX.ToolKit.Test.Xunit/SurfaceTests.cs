@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
@@ -79,6 +80,30 @@ public class SurfaceTests : IDisposable
         Assert.Equal(2, loaded.Document.Elements.Count);
         Assert.IsType<SurfaceTextElement>(loaded.Document.Elements[0]);
         Assert.IsType<SurfaceButtonElement>(loaded.Document.Elements[1]);
+
+        // The clause that makes the whole chain safe to send.
+        //
+        // A WelcomeMessage carries this document to a client, and the client deserialises it with the
+        // very same polymorphic machinery that produced the warning above. That machinery refuses an
+        // unknown discriminator by throwing for the whole payload — so if an unknown element ever
+        // survived this loader, one bad element would take down an entire welcome message on the
+        // other side of the wire, and the drop-plus-warning contract here would be meaningless.
+        //
+        // Asserting that the survivor count is two says the element was dropped. Asserting that the
+        // serialised form no longer names it says the drop is COMPLETE — that nothing downstream can
+        // be handed the thing the loader just rejected.
+        //
+        // This assertion has no mutation that can break it, and that is worth saying out loud rather
+        // than leaving as a silent gap: Elements is IReadOnlyList<SurfaceElement>, the seven subtypes
+        // are closed, and no eighth type exists to construct. So "let the unknown element through"
+        // cannot be written in C# — the count assertion above would catch it first, and this one
+        // covers a path the type system already closes. It is here because the guarantee it states
+        // is what a reader of WelcomeMessage needs to know, and because the day a plugin-supplied
+        // element kind is allowed, the type system stops closing it and this clause starts working.
+        var reserialised = JsonSerializer.Serialize(
+            loaded.Document, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.DoesNotContain("Holographic", reserialised);
     }
 
     [Fact]
