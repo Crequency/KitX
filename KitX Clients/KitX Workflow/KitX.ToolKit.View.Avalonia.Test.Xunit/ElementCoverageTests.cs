@@ -51,7 +51,7 @@ public sealed class ElementCoverageTests
 
             try
             {
-                SurfaceCard.CreateView(element);
+                new SurfaceCard().CreateView(element);
             }
             catch (NotSupportedException)
             {
@@ -115,7 +115,7 @@ public sealed class ElementCoverageTests
         foreach (var kind in ContractElementKinds())
         {
             var element = (SurfaceElement)Activator.CreateInstance(kind)!;
-            var view = SurfaceCard.CreateView(element);
+            var view = new SurfaceCard().CreateView(element);
 
             Assert.True(
                 expected.TryGetValue(kind.Name, out var want),

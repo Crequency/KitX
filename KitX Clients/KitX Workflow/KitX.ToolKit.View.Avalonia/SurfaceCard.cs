@@ -58,6 +58,9 @@ public sealed class SurfaceCard : Grid
     /// <summary>The cells this card has built, by declared key, for the parts that carry state.</summary>
     private readonly Dictionary<string, Control> _cells = new(StringComparer.Ordinal);
 
+    /// <summary>Cells that declare a <c>name</c>: the ones that can contribute to an event.</summary>
+    private readonly Dictionary<string, Control> _names = new(StringComparer.Ordinal);
+
     public SurfaceCard()
     {
         Width = SurfaceMetrics.CardWidth;
@@ -184,6 +187,7 @@ public sealed class SurfaceCard : Grid
         RowDefinitions.Clear();
         ColumnDefinitions.Clear();
         _cells.Clear();
+        _names.Clear();
 
         SetCells(document.Elements, carriedInput);
     }
@@ -327,6 +331,13 @@ public sealed class SurfaceCard : Grid
             if (!string.IsNullOrEmpty(element.Key))
                 _cells[element.Key] = view;
 
+
+            // Name is a separate field from Key and is not defaulted from it: a cell may show one
+            // stored value and upload its input under another word, and a cell that declares neither
+            // contributes nothing. Registering only named cells is what keeps a display element out
+            // of every upload without an extra check later.
+            if (!string.IsNullOrEmpty(element.Name))
+                _names[element.Name] = view;
             if (carriedInput.TryGetValue(element.Key ?? string.Empty, out var local))
                 RestoreLocalInput(view, local);
         }
@@ -404,6 +415,59 @@ public sealed class SurfaceCard : Grid
             _ => null,
         };
 
+    /// <summary>
+    /// Every named value on the card right now, ready to travel with an event.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Keyed by <c>name</c>, and only elements that declare one contribute.</b> A display
+    /// element with no name is not part of an upload, and a button has nothing of its own to send.
+    /// Reading the control rather than the store is deliberate: what the person typed is in the
+    /// control and has never been stored.</para>
+    ///
+    /// <para>Strings keep their text, switches keep their bool, numbers keep their decimal as a JSON
+    /// number, and a <c>Select</c> keeps the selected item's text. Everything else is skipped — a
+    /// cell whose value the renderer cannot express as JSON is not an error, it is a cell that was
+    /// never meant to be uploaded.</para>
+    /// </remarks>
+    private IReadOnlyDictionary<string, JsonElement> CollectNamedValues()
+    {
+        var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+        foreach (var (name, cell) in _names)
+        {
+            var value = cell switch
+            {
+                global::Avalonia.Controls.TextBox box => JsonSerializer.SerializeToElement(box.Text ?? string.Empty),
+                global::Avalonia.Controls.NumericUpDown spinner => JsonSerializer.SerializeToElement(spinner.Value),
+                global::Avalonia.Controls.ComboBox combo => JsonSerializer.SerializeToElement(combo.SelectedItem?.ToString()),
+                global::Avalonia.Controls.CheckBox tick => JsonSerializer.SerializeToElement(tick.IsChecked ?? false),
+                _ => (JsonElement?)null,
+            };
+
+            if (value is { } present)
+                values[name] = present;
+        }
+
+        return values;
+    }
+
+    /// <summary>Raised when the person at the card does something the card declares.</summary>
+    /// <remarks>
+    /// One event per declared name, all carrying the same snapshot. See <see cref="SurfaceEvent"/>
+    /// for why they are not bundled.
+    /// </remarks>
+    public event EventHandler<SurfaceEvent>? SomethingHappened;
+
+    private void Raise(IReadOnlyList<string> eventNames, string? triggerId = null)
+    {
+        if (eventNames.Count == 0)
+            return;
+
+        var values = CollectNamedValues();
+
+        foreach (var name in eventNames)
+            SomethingHappened?.Invoke(this, new SurfaceEvent(SurfaceEvent.KindOf(name), values));
+    }
     /// <summary>The user's in-progress input, for the kinds whose contents live only in the control.</summary>
     /// <remarks>
     /// Null for everything else. A <c>TextBlock</c> shows a value the server has; a <c>List</c> shows
@@ -552,12 +616,12 @@ public sealed class SurfaceCard : Grid
     /// the real thing rather than a copy of its list of controls: a duplicated list is a second
     /// answer to "what does a Switch look like", and the two drift without either going red.</para>
     /// </remarks>
-    internal static Control CreateView(
+    internal Control CreateView(
         KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
         element switch
         {
             KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key),
-            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label),
+            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label, button.Events),
             KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
                 input.Key, new global::Avalonia.Controls.TextBox()),
             KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Editing(
@@ -611,12 +675,22 @@ public sealed class SurfaceCard : Grid
     /// button's natural height is a theme decision, while the rule is that an element occupies one
     /// slot.</para>
     /// </remarks>
-    private static Control Pressable(string? key, string label) => Editing(key, new Button
+    private Control Pressable(string? key, string label, IReadOnlyList<string> events)
     {
-        Content = label,
-        HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch,
-        HorizontalContentAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
-    });
+        var pressable = new Button
+        {
+            Content = label,
+            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
+        };
+
+        // The click is wired here rather than by whoever hosts the card: the card knows which names
+        // this button declares, and asking a host to read the document back to find out would mean
+        // two parties deciding what a click means.
+        pressable.Click += (_, _) => Raise(events);
+
+        return Editing(key, pressable);
+    }
 
     /// <summary>
     /// A control the user edits: the real widget, pinned to one slot.
