@@ -123,6 +123,11 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
 
         ArgumentException.ThrowIfNullOrWhiteSpace(connect.ToolkitId);
 
+        // Recorded before the attach, so a trigger that fires during the welcome already knows who
+        // it is running for. Recorded on every connect, not just the first: a client may reconnect
+        // from a different device, and the session outlives the connection.
+        _session.SetDevice(connect.DeviceId, connect.DeviceName);
+
         var welcome = _session.Attach(connect.ToolkitId);
         return ChannelReply.Accepted(welcome);
     }
@@ -169,7 +174,10 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
     {
         var triggerId = Require(command.TriggerId, nameof(CommandMessage.TriggerId));
 
-        var flowId = _manager.Spawn(toolkitId, triggerId)
+        // The device comes from the session, not from the command: who a client is was settled at
+        // connect and does not vary per trigger. A client cannot claim a different device for each
+        // command it sends.
+        var flowId = _manager.Spawn(toolkitId, triggerId, initiator: _session.Device)
             ?? throw new ViewProtocolException(
                 ViewErrorCodes.Failed,
                 $"Trigger '{triggerId}' did not start a flow — it may be disabled, unknown, or " +
@@ -192,7 +200,10 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
         // The value travels as-is; whatever shape the trigger's Fields say it should have is
         // enforced when the event is projected onto the packet, not here. Passing null means the
         // client sent an event with no payload, which is a legal event.
-        var started = _manager.RaiseEvent(toolkitId, eventName, command.Value);
+        //
+        // The initiator comes from the session for the same reason as in Trigger: identity is a
+        // property of the connection, not of the message.
+        var started = _manager.RaiseEvent(toolkitId, eventName, command.Value, _session.Device);
         return ChannelReply.Accepted(new AckedReply
         {
             Command = ViewCommands.Event,

@@ -772,7 +772,11 @@ internal sealed class ToolkitInstanceManager : IDisposable
     /// caller could not tell "no trigger matched" from "the event never arrived". An empty list is
     /// a valid answer — the command succeeded and had no effect.</para>
     /// </remarks>
-    public IReadOnlyList<string> RaiseEvent(string toolkitId, string eventName, object? value = null)
+    public IReadOnlyList<string> RaiseEvent(
+        string toolkitId,
+        string eventName,
+        object? value = null,
+        Initiator? initiator = null)
     {
         if (!_mounted.TryGetValue(toolkitId, out var mounted))
             return [];
@@ -811,10 +815,13 @@ internal sealed class ToolkitInstanceManager : IDisposable
                     break;
             }
 
-            // Initiator.Unknown and a null namespace, deliberately: see the remarks. StartRun
-            // cannot return null here — the trigger is a UIEvent type, which is a spawn type.
+            // A null namespace, deliberately: see the remarks. The initiator, by contrast, is now
+            // supplied by the caller — since Q90 it is the View client's self-reported device, and
+            // the only party that knows it is the client. Omitting it still yields Unknown, which
+            // is what a caller with no identity to report should get.
+            // StartRun cannot return null here — the trigger is a UIEvent type, a spawn type.
             var run = mounted.Scheduler.StartRun(
-                trigger.Id, payload, Initiator.Unknown, null, AttachRunEvents);
+                trigger.Id, payload, initiator ?? Initiator.Unknown, null, AttachRunEvents);
             if (run is not null)
                 started.Add(run.RunId);
         }

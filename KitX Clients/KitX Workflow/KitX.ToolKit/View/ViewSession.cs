@@ -68,6 +68,33 @@ internal sealed class ViewSession : IDisposable
     /// <summary>Raised for messages the server pushes without being asked.</summary>
     public event EventHandler<ViewMessage>? Received;
 
+    /// <summary>Who the client said it was at connect time, or null if it said nothing.</summary>
+    /// <remarks>
+    /// Set once by <see cref="SetDevice"/>, before any attach. It is not per-attachment: a session
+    /// represents one connected client, and that client does not become a different device by
+    /// attaching to a different ToolKit.
+    /// <para>
+    /// It is a report, not a credential (Q26 removed authentication here). Treat it as a hint.
+    /// </para>
+    /// </remarks>
+    public Initiator Device { get; private set; } = Initiator.Unknown;
+
+    /// <summary>Records the device the client claims to be. Called once, at connect.</summary>
+    /// <remarks>
+    /// Both fields are optional and independent: a client may know its id and not a display name,
+    /// or the reverse. <see cref="Initiator.Unknown"/> is what "said nothing" looks like — its
+    /// <see cref="Initiator.IsUnknown"/> check reads the empty id, so a client that names itself
+    /// but has no device id is still unknown, which is the honest answer: a display name is not
+    /// an identity.
+    /// </remarks>
+    public void SetDevice(string? deviceId, string? deviceName)
+    {
+        var id = string.IsNullOrWhiteSpace(deviceId) ? string.Empty : deviceId;
+        var name = string.IsNullOrWhiteSpace(deviceName) ? string.Empty : deviceName;
+
+        Device = new Initiator(id, name);
+    }
+
     /// <summary>
     /// Attaches to a ToolKit, replacing any previous attachment, and returns the welcome message.
     /// </summary>

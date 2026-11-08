@@ -396,4 +396,55 @@ public class RunSchedulerTests
 
         Assert.Equal("hello", overrides["text"]);
     }
+
+    [Fact]
+    public async Task Every_node_in_a_flow_reads_the_same_initiator()
+    {
+        // Same shape as the trigger-id test, and the same risk: BuildOverrides runs once per node,
+        // so an initiator recomputed anywhere else would surface here as a difference between two
+        // nodes of one flow. The initiator is a flow-level fact (Q90) and lives on the run.
+        var (scheduler, executor) = Build(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] }));
+
+        var completed = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, _) => completed.TrySetResult();
+
+        scheduler.StartRun("manual", initiator: new Contract.Initiator("device-7", "Laptop"));
+        await AwaitAsync(completed.Task);
+
+        var ids = executor.Calls
+            .Select(c => c.Overrides.TryGetValue(InitiatorConstants.DeviceId, out var v) ? v : null)
+            .ToList();
+        var names = executor.Calls
+            .Select(c => c.Overrides.TryGetValue(InitiatorConstants.DeviceName, out var v) ? v : null)
+            .ToList();
+
+        Assert.NotEmpty(ids);
+        Assert.DoesNotContain(null, ids);
+        Assert.Single(ids.Distinct());
+        Assert.Equal("device-7", ids[0]);
+        Assert.Single(names.Distinct());
+        Assert.Equal("Laptop", names[0]);
+    }
+
+    [Fact]
+    public async Task A_caller_with_no_initiator_gets_the_unknown_device_not_an_empty_one()
+    {
+        // "said nothing" and "said an empty string" must not both arrive as an empty constant a
+        // workflow cannot tell apart. Skipping the initiator is a legal, documented case: a local
+        // manual run has no device to report.
+        var (scheduler, executor) = Build(ToolkitWith(
+            new Trigger { Id = "manual", Type = TriggerType.Manual, Bindings = [new() { Workflow = "A" }] }));
+
+        var completed = new TaskCompletionSource();
+        scheduler.RunCompleted += (_, _) => completed.TrySetResult();
+
+        scheduler.StartRun("manual");
+        await AwaitAsync(completed.Task);
+
+        var overrides = executor.Calls.Single(c => c.WorkflowId == "A").Overrides;
+
+        Assert.Equal(string.Empty, overrides[InitiatorConstants.DeviceId]);
+        Assert.Equal(string.Empty, overrides[InitiatorConstants.DeviceName]);
+    }
 }

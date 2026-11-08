@@ -95,6 +95,28 @@ public sealed record ConnectMessage(string ToolkitId) : ViewMessage
 
     /// <summary>The protocol version this build speaks.</summary>
     public const int CurrentProtocolVersion = 1;
+
+    /// <summary>Who the client says it is. Reported, never verified.</summary>
+    /// <remarks>
+    /// <para>
+    /// Q26 removed authentication from this layer, so this is a claim, not a credential. It exists
+    /// because "who triggered this workflow" is a fact a workflow can ask about, and the only party
+    /// that knows is the client — the host stopped being the only initiator once the View channel
+    /// arrived.
+    /// </para>
+    /// <para>
+    /// Absent is legal. A local client has no device to report, and inventing one would make a
+    /// client that has no id indistinguishable from one that forgot to send it.
+    /// </para>
+    /// </remarks>
+    public string? DeviceId { get; init; }
+
+    /// <summary>A human-readable name for the same device, for display and logs only.</summary>
+    /// <remarks>
+    /// Not an identifier: two devices may report the same name, and a name may change while the
+    /// id does not. Never compare on it.
+    /// </remarks>
+    public string? DeviceName { get; init; }
 }
 
 /// <summary>Server → client: everything a freshly attached client needs.</summary>
