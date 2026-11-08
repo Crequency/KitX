@@ -25,6 +25,13 @@ namespace KitX.ToolKit.View.Avalonia.Test.Xunit;
 /// <para><b>Top differences, not absolute pixels.</b> A card may carry margins or a header; none of
 /// that is the renderer's opinion about vertical position. Differences are unaffected by such
 /// padding, and "which row is above which, and how far apart" is the entire content of the rule.</para>
+///
+/// <para><b>If a Top difference comes out slightly wrong, do not widen the tolerance.</b> Avalonia
+/// round layout by default, and a rounded <c>Grid</c> measures a 64px row as 65 — every row, so
+/// differences read 65 where 64 was declared. Widening the tolerance to 1.5 makes the test pass on
+/// one slot height; at 63.5 the same tolerance sits exactly on the boundary, and at ten rows the
+/// error has grown to ten pixels. The tolerance is not what is broken. Ask why the number is not
+/// what was declared; <see cref="SurfaceCard"/> answers that by turning rounding off.</para>
 /// </remarks>
 public sealed class SurfaceCardLayoutTests
 {

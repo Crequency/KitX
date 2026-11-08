@@ -26,6 +26,17 @@ namespace KitX.ToolKit.View;
 /// many slots a <c>List</c> occupies; both arrive as parameters. That is the one disagreement the
 /// contract leaves open, and keeping it out of the signatures is what keeps it to a single named
 /// place per renderer.</para>
+///
+/// <para><b>SurfaceLayout takes the renderer's numbers as parameters. SurfaceMetrics states
+/// them.</b> Both are needed, and the split is the point: a number declared here would be shared by
+/// every renderer, which is why this type holds none.</para>
+///
+/// <para>The distinction matters because the test that guards this type asserts "no constant field
+/// exists" — and that assertion would be wrong if pointed at <c>SurfaceMetrics</c>, whose whole job
+/// is to declare them. So the rule is not "constants are suspect"; it is <b>"a shared layer may not
+/// decide a number that belongs to one renderer"</b>. Moving <c>SurfaceMetrics</c>' constants in here
+/// to "unify" them would not make the library tidier — it would give every renderer the same density
+/// and take away the freedom §10.2.2 grants them.</para>
 /// </remarks>
 public static class SurfaceLayout
 {
