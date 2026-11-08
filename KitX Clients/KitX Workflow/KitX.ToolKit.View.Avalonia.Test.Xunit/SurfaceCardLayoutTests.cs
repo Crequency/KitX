@@ -328,27 +328,59 @@ public sealed class SurfaceCardLayoutTests
         var card = new SurfaceCard();
         card.Render(elements, entries);
 
-        // <b>Hosted in a Window, because some controls only exist after templating.</b> A TextBlock
-        // has no template and measures on its own, so the first tests were content with a bare
-        // Measure/Arrange. A ScrollViewer is built from a control template, and a control template
-        // comes from the theme, and the theme is reached through the visual root — with no window
-        // there is no root, so its Extent and Viewport stay zero and its content is never measured.
-        // That reads as "this list does not overflow" rather than as "this list has no template",
-        // which is the same shape of false negative as the rounding note above.
-        var window = new Window
-        {
-            Width = SurfaceMetrics.CardWidth,
-            Height = SurfaceMetrics.CardHeight,
-            Content = card,
-        };
+        // Re-hosted in a Window because some controls only exist after templating: a ScrollViewer is
+        // built from a control template, the template comes from the theme, and the theme is reached
+        // through the visual root — with no root the template never instantiates and the content is
+        // never measured. That reads as "this list does not overflow" rather than as "this list has
+        // no template".
+        //
+        // <b>One window for the whole class, not one per card.</b> Each Show() leaves a window
+        // holding native resources and stacking above the previous one; nine of them in a run is
+        // invisible until a test starts failing for a reason unrelated to what it asserts. Replacing
+        // the content of a single host costs one line and removes the question.
+        var window = Host;
+        window.Content = card;
 
-        window.Show();
         window.Measure(new Size(SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
         window.Arrange(new Rect(0, 0, SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
         window.UpdateLayout();
 
         return card;
     }
+
+    /// <summary>The single window every card is laid out inside.</summary>
+    /// <remarks>
+    /// <para>Built once, lazily, and never closed: an <c>AvaloniaFact</c> runs on the platform thread
+    /// and the window outlives any one test. Its size is the card's, so a card's DesiredSize and its
+    /// arranged bounds coincide — reading Bounds off a control is only meaningful when the surface it
+    /// was arranged into is the size the layout rules assume.</para>
+    ///
+    /// <para><b><c>Show()</c> is what makes the templates exist.</b> A window that was measured but
+    /// never shown has no visual root, so a control template is never instantiated and a templated
+    /// control measures to zero — the failure the whole hosting arrangement exists to avoid. Showing
+    /// it once at construction is the single line that supplies the root; the card underneath is
+    /// swapped per test.</para>
+    /// </remarks>
+    private static Window Host
+    {
+        get
+        {
+            if (_host is not null)
+                return _host;
+
+            _host = new Window
+            {
+                Width = SurfaceMetrics.CardWidth,
+                Height = SurfaceMetrics.CardHeight,
+            };
+
+            _host.Show();
+
+            return _host;
+        }
+    }
+
+    private static Window? _host;
 
     /// <summary>
     /// The laid-out control for an element, found by key.
