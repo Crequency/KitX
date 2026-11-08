@@ -1,11 +1,18 @@
 using KitX.ToolKit.Contract.Surface;
 
-namespace KitX.ToolKit.Surface;
+namespace KitX.ToolKit.View;
 
 /// <summary>
 /// How tall a slot is and where it lands — in slots, never in pixels.
 /// </summary>
 /// <remarks>
+/// <para><b>Why this type lives in this assembly (Q86).</b> ADR-0014 D5 forbids
+/// <c>KitX.ToolKit.View</c> from referencing <c>KitX.ToolKit</c>, and the renderer has to consult
+/// these functions to be judged against them. Keeping them in the implementation assembly would
+/// make them unreachable from any real renderer, with tests as the only consumer — which is the
+/// situation Q86 was resolved to end. Moving them to the Contract was rejected too: the contract
+/// must not promise anything beyond "height belongs to the renderer".</para>
+///
 /// <para><b>Two quantities that look like one today.</b> Every element fills a single slot, so
 /// "which row" and "how many slots down" agree for every input this code can currently receive.
 /// They are separate questions, and the moment a <c>List</c> fills more than one slot they diverge
@@ -15,15 +22,20 @@ namespace KitX.ToolKit.Surface;
 /// slot taller never renumbers the slots after it, which is what makes vertical order identical on
 /// every renderer.</para>
 ///
-/// <para><b>Pixel constants stay in here.</b> A renderer may pick different ones; that is the one
-/// disagreement the contract leaves open, and keeping it out of the signatures is what keeps it to
-/// a single named place.</para>
+/// <para><b>No pixel constant lives in here.</b> A renderer picks its own slot height, and picks how
+/// many slots a <c>List</c> occupies; both arrive as parameters. That is the one disagreement the
+/// contract leaves open, and keeping it out of the signatures is what keeps it to a single named
+/// place per renderer.</para>
 /// </remarks>
-internal static class SurfaceLayout
+public static class SurfaceLayout
 {
     /// <summary>
     /// How many slots tall this element's slot grows.
     /// </summary>
+    /// <param name="element">The element to measure.</param>
+    /// <param name="listSlots">How many slots a <c>List</c> fills — the renderer's choice, per
+    /// §10.2.1. It arrives as a parameter rather than as a constant here because a denser renderer
+    /// (a desktop card) may pick a different number, and the file must not have to change.</param>
     /// <remarks>
     /// <para><b>Returns a count of slots, never pixels.</b> The unit lives in the name because it is
     /// invisible today: with every element at one slot, an implementation returning <c>96</c>
@@ -31,26 +43,17 @@ internal static class SurfaceLayout
     /// <c>List</c> filled more than one slot.</para>
     ///
     /// <para><b>Takes neither a value nor a constant.</b> A <c>value</c> parameter would invite the
-    /// implementation to read the data, which is precisely what makes layout depend on it; a
-    /// constant parameter would move a renderer's pixel choice into the layer the file speaks for.
-    /// The signature is the specification here, and it is the harder of the two.</para>
+    /// implementation to read the data, which is precisely what makes layout depend on it. The
+    /// pixel choice and the <c>List</c> slot count are both caller-supplied, so nothing here is a
+    /// number this layer made up.</para>
     /// </remarks>
-    internal static int SlotCountOf(SurfaceElement element)
-        => element is SurfaceListElement ? ListSlotCount : 1;
+    public static int SlotCountOf(SurfaceElement element, int listSlots)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(listSlots);
 
-    /// <summary>
-    /// How many slots a <c>List</c> fills, whatever number of entries it holds.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Independent of the data on purpose.</b> A list that grew with its contents would
-    /// push everything below it down, and then a value would decide vertical order instead of
-    /// <c>row</c>. A short list leaves its spare slots blank rather than shrinking: a blank gap is
-    /// recoverable, unpredictable layout is not.</para>
-    ///
-    /// <para>Six is a rendering choice, not a contract term. A renderer that scrolls the list
-    /// internally may pick another number, and doing so changes pixels only.</para>
-    /// </remarks>
-    internal const int ListSlotCount = 6;
+        return element is SurfaceListElement ? listSlots : 1;
+    }
 
     /// <summary>Which slot the element sits in — always the row the file declared.</summary>
     /// <remarks>
@@ -58,12 +61,18 @@ internal static class SurfaceLayout
     /// named member so the invariant has somewhere to be asserted against, instead of living as
     /// "we happen to use Row everywhere".
     /// </remarks>
-    internal static int SlotIndex(SurfaceElement element) => element.Row;
+    public static int SlotIndex(SurfaceElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+
+        return element.Row;
+    }
 
     /// <summary>How many slots one row occupies — as tall as the tallest element standing in it.</summary>
     /// <param name="elements">Every element on the card.</param>
     /// <param name="slot">The slot number to measure.</param>
-    internal static int SlotHeightOf(IReadOnlyList<SurfaceElement> elements, int slot)
+    /// <param name="listSlots">How many slots a <c>List</c> fills (the renderer's choice).</param>
+    public static int SlotHeightOf(IReadOnlyList<SurfaceElement> elements, int slot, int listSlots)
     {
         ArgumentNullException.ThrowIfNull(elements);
 
@@ -73,7 +82,7 @@ internal static class SurfaceLayout
             if (SlotIndex(element) != slot)
                 continue;
 
-            var count = SlotCountOf(element);
+            var count = SlotCountOf(element, listSlots);
             if (count > height)
                 height = count;
         }
@@ -87,8 +96,8 @@ internal static class SurfaceLayout
     /// <param name="elements">Every element on the card — needed for slot heights, never for
     /// values, which is why no value is supplied.</param>
     /// <param name="target">The element to locate.</param>
-    /// <param name="rowHeightPx">What one slot is worth in pixels — the single pixel quantity a
-    /// caller supplies. Every other pixel constant this method needs is its own.</param>
+    /// <param name="rowHeightPx">What one slot is worth in pixels.</param>
+    /// <param name="listSlots">How many slots a <c>List</c> fills (the renderer's choice).</param>
     /// <remarks>
     /// <para><b>Measures the slots above the target, not through it.</b> A slot grows to hold its
     /// tallest element, so the elements above are what push the target down. The target's own
@@ -98,15 +107,15 @@ internal static class SurfaceLayout
     /// element fills one slot</b> — every element written today — which is why the difference needs
     /// a synthetic input to become visible.</para>
     /// </remarks>
-    internal static int PixelTopOf(
-        IReadOnlyList<SurfaceElement> elements, SurfaceElement target, int rowHeightPx)
+    public static int PixelTopOf(
+        IReadOnlyList<SurfaceElement> elements, SurfaceElement target, int rowHeightPx, int listSlots)
     {
         ArgumentNullException.ThrowIfNull(elements);
         ArgumentNullException.ThrowIfNull(target);
 
         var slotsAbove = 0;
         for (var slot = 1; slot < SlotIndex(target); slot++)
-            slotsAbove += SlotHeightOf(elements, slot);
+            slotsAbove += SlotHeightOf(elements, slot, listSlots);
 
         return slotsAbove * rowHeightPx;
     }

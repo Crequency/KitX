@@ -1,9 +1,8 @@
 using System.Reflection;
 using KitX.ToolKit.Contract.Surface;
-using KitX.ToolKit.Surface;
 using Xunit;
 
-namespace KitX.ToolKit.Test.Xunit;
+namespace KitX.ToolKit.View.Test.Xunit;
 
 /// <summary>
 /// P8: the layout semantics, with no UI toolkit in sight.
@@ -16,11 +15,24 @@ namespace KitX.ToolKit.Test.Xunit;
 /// <para><b>Every assertion here is about a quantity that is invisible today.</b> All seven element
 /// kinds fill one slot, so "which row" and "how far down" agree for every surface anyone can write
 /// right now. That agreement is what the tests are designed to outlive.</para>
+///
+/// <para><b>Q86 moved this type out of the implementation assembly and into this library.</b> It
+/// used to be <c>internal</c> in <c>KitX.ToolKit</c>, reachable only because the test project held an
+/// <c>InternalsVisibleTo</c> grant — which meant no shipable renderer could consult it, while the
+/// completion criterion requires exactly that comparison. These tests now see it through an ordinary
+/// public reference, which is the point: a specification the renderer cannot read is not a
+/// specification.</para>
 /// </remarks>
 public sealed class SurfaceLayoutTests
 {
     private const int RowHeight = 96;
 
+    /// <summary>What the renderer under test says a <c>List</c> occupies.</summary>
+    /// <remarks>
+    /// Passed in rather than read from a constant: §10.2.1 leaves K to the renderer, and one test
+    /// below asserts that this library contains no opinion about it.
+    /// </remarks>
+    private const int ListSlots = 6;
     // ── Criterion 1: the slot index is the file's row, for every element ─────────────────
 
     [Fact]
@@ -50,7 +62,7 @@ public sealed class SurfaceLayoutTests
 
         Assert.Equal(1, SurfaceLayout.SlotIndex(tall));
         Assert.Equal(2, SurfaceLayout.SlotIndex(below));
-        Assert.True(SurfaceLayout.SlotCountOf(tall) > 1);
+        Assert.True(SurfaceLayout.SlotCountOf(tall, ListSlots) > 1);
     }
 
     // ── Criterion 2: data does not move anything ─────────────────────────────────────────
@@ -66,14 +78,14 @@ public sealed class SurfaceLayoutTests
         var button = elements.Single(e => e is SurfaceButtonElement);
 
         // What sits above the button: the title's slot, then the list's six.
-        var expected = (1 + SurfaceLayout.ListSlotCount) * RowHeight;
-        var actual = SurfaceLayout.PixelTopOf(elements, button, RowHeight);
+        var expected = (1 + ListSlots) * RowHeight;
+        var actual = SurfaceLayout.PixelTopOf(elements, button, RowHeight, ListSlots);
 
         // The entries never reach the layout — they are not even an argument, so there is nothing
         // for a bigger or smaller list to change here.
         _ = list;
         Assert.Equal(expected, actual);
-        Assert.Equal(expected, SurfaceLayout.PixelTopOf(elements, button, RowHeight));
+        Assert.Equal(expected, SurfaceLayout.PixelTopOf(elements, button, RowHeight, ListSlots));
     }
 
     [Fact]
@@ -87,11 +99,11 @@ public sealed class SurfaceLayoutTests
         elements.Add(below);
 
         // Above the element under the list: the title's slot plus the list's six.
-        var expected = (1 + SurfaceLayout.ListSlotCount) * RowHeight;
-        var once = SurfaceLayout.PixelTopOf(elements, below, RowHeight);
+        var expected = (1 + ListSlots) * RowHeight;
+        var once = SurfaceLayout.PixelTopOf(elements, below, RowHeight, ListSlots);
 
         Assert.Equal(expected, once);
-        Assert.Equal(once, SurfaceLayout.PixelTopOf(elements, below, RowHeight));
+        Assert.Equal(once, SurfaceLayout.PixelTopOf(elements, below, RowHeight, ListSlots));
     }
 
     // ── Criterion 3: neither signature can reach the data ────────────────────────────────
@@ -125,30 +137,49 @@ public sealed class SurfaceLayoutTests
     }
 
     [Fact]
-    public void PixelTopOf_takes_the_slot_height_and_nothing_else_pixel_shaped()
+    public void PixelTopOf_exposes_density_as_parameters_and_no_slot_number()
     {
-        // The one disagreement the contract leaves open is the slot height. A second pixel parameter
-        // would widen it without the document saying so.
+        // Two integers now arrive from the caller: the slot height and K. Both are density choices a
+        // renderer makes; neither is a coordinate the file states.
         //
-        // Scoped to PixelTopOf's own signature, not the whole class: a slot number is an int too,
-        // and treating "is an int" as "is a pixel" is the numeric-characteristic mistake this file
-        // is meant to avoid. What separates them is which method they belong to — a structural
-        // fact — not their type.
-        var pixelParameters = typeof(SurfaceLayout)
-            .GetMethod("PixelTopOf", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)!
-            .GetParameters()
-            .Where(p => p.ParameterType == typeof(int) || p.ParameterType == typeof(double))
+        // The distinction that keeps this test meaningful is structural, not numeric. A slot number
+        // is also an int, so "is an int" cannot be what tells them apart — what does is WHICH
+        // PARAMETER EACH ONE IS, which is why the assertions name them instead of counting them.
+        var parameters = typeof(SurfaceLayout)
+            .GetMethod(nameof(SurfaceLayout.PixelTopOf))!
+            .GetParameters();
+
+        var integers = parameters.Where(p => p.ParameterType == typeof(int)).ToList();
+
+        Assert.Equal(2, integers.Count);
+        Assert.Equal(["rowHeightPx", "listSlots"], integers.Select(p => p.Name));
+
+        // Neither may be a slot index: a caller that supplied one would be handing the function a
+        // coordinate, and then position would no longer be derived from `row`.
+        Assert.DoesNotContain(
+            integers,
+            p => p.Name is not null
+                 && p.Name.Contains("slot", StringComparison.OrdinalIgnoreCase)
+                 && p.Name != "listSlots");
+    }
+
+    [Fact]
+    public void The_library_holds_no_opinion_about_how_many_slots_a_list_fills()
+    {
+        // Q86's second half: K is the renderer's choice (§10.2.1), so this assembly must not carry a
+        // K of its own. Before the move, `SurfaceLayout.ListSlotCount` was `6` baked into a shared
+        // library — while the renderer needed its own 6 elsewhere — and the two had to agree with
+        // nothing enforcing it.
+        //
+        // Asserted as "no such constant exists" rather than "it equals the renderer's 6", because the
+        // second version would pass if someone reintroduced a duplicated constant that happened to
+        // match.
+        var constants = typeof(SurfaceLayout)
+            .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(int))
             .ToList();
 
-        var only = Assert.Single(pixelParameters);
-        Assert.Equal("rowHeightPx", only.Name);
-
-        // And the constant that would otherwise have become a parameter stays a field.
-        var listCount = typeof(SurfaceLayout).GetField("ListSlotCount",
-            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-
-        Assert.NotNull(listCount);
-        Assert.True(listCount.IsLiteral);
+        Assert.Empty(constants);
     }
 
     // ── Criterion 4: a synthetic input, because all real ones are degenerate ─────────────
@@ -165,14 +196,14 @@ public sealed class SurfaceLayoutTests
         var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "title" };
         var elements = new List<SurfaceElement> { tall, below };
 
-        var actual = SurfaceLayout.PixelTopOf(elements, below, RowHeight);
+        var actual = SurfaceLayout.PixelTopOf(elements, below, RowHeight, ListSlots);
 
         // The slot index is still 2 — the row the file declared, not the seventh slot the tall
         // element reaches into.
         Assert.Equal(2, SurfaceLayout.SlotIndex(below));
 
         // Correct: everything above row 2, which is the list's own slot.
-        Assert.Equal(SurfaceLayout.ListSlotCount * RowHeight, actual);
+        Assert.Equal(ListSlots * RowHeight, actual);
 
         // The wrong implementation — position from the row number alone — lands here instead.
         Assert.NotEqual(RowHeight, actual);
@@ -188,10 +219,10 @@ public sealed class SurfaceLayoutTests
         var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "title" };
         var elements = new List<SurfaceElement> { tall, shortOne, below };
 
-        Assert.Equal(SurfaceLayout.ListSlotCount, SurfaceLayout.SlotHeightOf(elements, 1));
+        Assert.Equal(ListSlots, SurfaceLayout.SlotHeightOf(elements, 1, ListSlots));
         Assert.Equal(
-            SurfaceLayout.ListSlotCount * RowHeight,
-            SurfaceLayout.PixelTopOf(elements, below, RowHeight));
+            ListSlots * RowHeight,
+            SurfaceLayout.PixelTopOf(elements, below, RowHeight, ListSlots));
     }
 
     [Fact]
@@ -199,7 +230,7 @@ public sealed class SurfaceLayoutTests
     {
         var first = new SurfaceTextElement { Row = 1, Column = 1, Key = "title" };
 
-        Assert.Equal(0, SurfaceLayout.PixelTopOf([first], first, RowHeight));
+        Assert.Equal(0, SurfaceLayout.PixelTopOf([first], first, RowHeight, ListSlots));
     }
 
     [Fact]
@@ -224,8 +255,8 @@ public sealed class SurfaceLayoutTests
             new SurfaceTextElement { Row = 5, Column = 1, Key = "subtitle" },
         };
 
-        var adjacentTop = SurfaceLayout.PixelTopOf(adjacent, adjacent[1], RowHeight);
-        var gapTop = SurfaceLayout.PixelTopOf(withGap, withGap[1], RowHeight);
+        var adjacentTop = SurfaceLayout.PixelTopOf(adjacent, adjacent[1], RowHeight, ListSlots);
+        var gapTop = SurfaceLayout.PixelTopOf(withGap, withGap[1], RowHeight, ListSlots);
 
         Assert.Equal(adjacentTop, gapTop);
 
@@ -235,7 +266,7 @@ public sealed class SurfaceLayoutTests
         Assert.Equal(5, SurfaceLayout.SlotIndex(withGap[1]));
 
         // An empty slot contributes nothing, whatever its number.
-        Assert.Equal(0, SurfaceLayout.SlotHeightOf(withGap, 4));
+        Assert.Equal(0, SurfaceLayout.SlotHeightOf(withGap, 4, ListSlots));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────

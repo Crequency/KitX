@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KitX.ToolKit.View.Avalonia</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <Version>24.10.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2024-02-07"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+  </PropertyGroup>
+
+  <!--
+    ADR-0014 D5 says KitX.ToolKit.View has exactly one ProjectReference. That rule constrains
+    what the View layer can SEE, not what it can draw, so Avalonia belongs here rather than there:
+    putting it in KitX.ToolKit.View would make the protocol client unusable on a machine with no
+    display, which is the same kind of coupling D5 exists to prevent, just pointing the other way.
+
+    The layering is Contract <- View (pure data projection, zero UI) <- View.Avalonia (rendering).
+    KitX.ToolKit itself is still off-limits: a renderer that could reach DataStore or the
+    scheduler would be able to compute values the server never stated.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.View\KitX.ToolKit.View.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.13" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="11.3.13" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.13" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <!--
+    The test references the renderer and the layout library it is judged against, and nothing else.
+    In particular it does NOT reference KitX.ToolKit: the criterion compares two implementations that
+    must not be able to consult each other, and a test project with a path to the scheduler would be
+    the first place that boundary got crossed for convenience.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\KitX.ToolKit.View.Avalonia\KitX.ToolKit.View.Avalonia.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.View\KitX.ToolKit.View.csproj" />
+  </ItemGroup>
+
+</Project>
