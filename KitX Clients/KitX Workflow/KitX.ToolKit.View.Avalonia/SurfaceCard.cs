@@ -46,12 +46,16 @@ public sealed class SurfaceCard : Grid
     /// Builds the card for one surface document.
     /// </summary>
     /// <param name="elements">The document's elements, in any order.</param>
+    /// <param name="entries">The resolved rows a <c>List</c> should show, or null for none. Entries
+    /// are a value this layer receives, never one it fetches — see <see cref="CreateView"/>.</param>
     /// <remarks>
     /// Rows are created only for slots that hold something, and their heights are
     /// <see cref="SlotsFor"/> times <see cref="SurfaceMetrics.SlotHeight"/>. Slots nobody stands in
     /// contribute no row at all, which is what makes a gap in the numbering cost nothing.
     /// </remarks>
-    public void Render(IReadOnlyList<KitX.ToolKit.Contract.Surface.SurfaceElement> elements)
+    public void Render(
+        IReadOnlyList<KitX.ToolKit.Contract.Surface.SurfaceElement> elements,
+        IReadOnlyList<string>? entries = null)
     {
         ArgumentNullException.ThrowIfNull(elements);
 
@@ -87,7 +91,7 @@ public sealed class SurfaceCard : Grid
 
         foreach (var element in elements)
         {
-            var view = CreateView(element);
+            var view = CreateView(element, entries);
             if (view is null)
                 continue;
 
@@ -137,8 +141,22 @@ public sealed class SurfaceCard : Grid
     /// answered. How candidates reach the renderer is the next stage's problem, and keeping the key
     /// name out of these signatures is the same rule that keeps <c>value</c> out of
     /// <c>SurfaceLayout</c>: what appears in a signature, the implementation will use.</para>
+    ///
+    /// <para><b>List carries entries, and its control is one slot tall like everything else.</b>
+    /// §10.2.1.0 separates the two heights: the slot it stands in grows to K, the control itself
+    /// stays one slot and scrolls its overflow. Painting it K tall instead would put the scrollbar
+    /// on the cell boundary rather than the control's, and would move "empty space below when there
+    /// are few entries" from the slot (where it belongs) into the control (where it does not). Both
+    /// heights coincide while only <c>Text</c> exists, which is why the distinction only shows up
+    /// here.</para>
+    ///
+    /// <para>Entries arrive as an argument, not read from anywhere: a <c>List</c> shows a resolved
+    /// array the same way a <c>Select</c> shows a resolved option set, and for the same reason —
+    /// this layer receives values, it does not fetch them.</para>
     /// </remarks>
-    private static Control? CreateView(KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
+    private static Control? CreateView(
+        KitX.ToolKit.Contract.Surface.SurfaceElement element,
+        IReadOnlyList<string>? entries) =>
         element switch
         {
             KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Field(text.Key, text.Key),
@@ -146,8 +164,44 @@ public sealed class SurfaceCard : Grid
             KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Field(number.Key, string.Empty),
             KitX.ToolKit.Contract.Surface.SurfaceSelectElement select => Field(select.Key, string.Empty),
             KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Field(toggle.Key, string.Empty),
+            KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(list.Key, entries),
             _ => null,
         };
+
+    /// <summary>
+    /// A list's control: one slot tall, scrolling whatever does not fit.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>One slot, not K.</b> The row it sits in is K slots tall (§10.2.1.0); this control is
+    /// not. It occupies the top of that row and scrolls its own overflow, so the scrollbar belongs to
+    /// the control rather than sitting on the cell boundary — and the space left below a short list
+    /// is the row's, not the control's.</para>
+    ///
+    /// <para>That the two heights are equal today, with only <c>Text</c> on the card, is exactly why
+    /// the distinction needs saying: an implementation that painted the list K tall would look
+    /// correct until something was drawn beside it.</para>
+    ///
+    /// <para><b>The rows are built directly rather than handed to an <c>ItemsControl</c>.</b> An
+    /// <c>ItemsControl</c> with a bare <c>string[]</c> source produces no item containers without a
+    /// data template, so its measured extent stays zero and the scroll region has nothing to scroll —
+    /// which reads as "this list does not overflow" rather than as a missing template. The entries
+    /// here are already resolved strings, so a <c>TextBlock</c> per entry is the whole rendering.</para>
+    /// </remarks>
+    private static Control Entries(string? key, IReadOnlyList<string>? entries)
+    {
+        var rows = new StackPanel();
+        foreach (var entry in entries ?? [])
+            rows.Children.Add(new TextBlock { Text = entry });
+
+        return new ScrollViewer
+        {
+            Name = key ?? string.Empty,
+            Height = SurfaceMetrics.SlotHeight,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = rows,
+        };
+    }
 
     /// <summary>One control occupying one slot.</summary>
     /// <remarks>

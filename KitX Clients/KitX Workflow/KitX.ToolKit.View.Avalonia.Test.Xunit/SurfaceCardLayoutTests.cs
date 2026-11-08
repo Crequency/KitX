@@ -238,6 +238,70 @@ public sealed class SurfaceCardLayoutTests
         Assert.Equal(3, card.Children.OfType<Control>().Count());
     }
 
+    [AvaloniaFact]
+    public void A_list_control_is_one_slot_tall_even_though_its_row_is_six()
+    {
+        // §10.2.1.0: "how tall the element is painted" and "how tall the slot it stands in grows" are
+        // two quantities, and only the second is K.
+        //
+        // This is the assertion that keeps the two apart, and it is the one that would look correct
+        // before this stage existed — with only Text on the card both heights are one slot, so a
+        // renderer that painted a list K tall passes everything else in this file. It stops looking
+        // correct the moment a scrollbar has to sit on the control's boundary rather than the cell's.
+        var listSlot = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
+        var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" };
+
+        var card = Card([listSlot, below]);
+
+        // The row grew by K slots — that half already holds.
+        Assert.Equal(
+            ListSlots * SurfaceMetrics.SlotHeight,
+            TopOf(card, "footer"),
+            tolerance: 0.5);
+
+        // The control did not grow with it.
+        Assert.Equal(
+            SurfaceMetrics.SlotHeight,
+            Child(card, "sessions").Bounds.Height,
+            tolerance: 0.5);
+    }
+
+    [AvaloniaFact]
+    public void A_list_with_more_entries_than_fit_scrolls_inside_its_own_control()
+    {
+        // The overflow has to be absorbed by the control, not by the row: nothing below may move, and
+        // the scroll area must actually be taller than what it shows.
+        //
+        // Entries arrive as an argument for the same reason a Select receives a resolved option set —
+        // this layer shows values, it does not fetch them. That is what makes the assertion possible
+        // before any resolution path exists.
+        var entries = Enumerable.Range(1, 40).Select(i => $"row {i}").ToList();
+
+        var few = Card([new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
+                        new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" }],
+                       entries.Take(2).ToList());
+
+        var many = Card([new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
+                         new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" }],
+                        entries);
+
+        // Forty entries move nothing that the layout placed.
+        Assert.Equal(TopOf(few, "footer"), TopOf(many, "footer"), tolerance: 0.5);
+
+        // And the two lists are still the same height, because the growth went into scrolling.
+        Assert.Equal(
+            Child(few, "sessions").Bounds.Height,
+            Child(many, "sessions").Bounds.Height,
+            tolerance: 0.5);
+
+        var scroller = (ScrollViewer)Child(many, "sessions");
+
+        Assert.True(
+            scroller.Extent.Height > scroller.Viewport.Height,
+            $"expected the list to overflow its control: extent {scroller.Extent.Height}, "
+            + $"viewport {scroller.Viewport.Height}");
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────
     /// <summary>What this renderer says a slot is worth, taken from the renderer and not restated.</summary>
     private const int SlotHeight = (int)SurfaceMetrics.SlotHeight;
@@ -255,14 +319,33 @@ public sealed class SurfaceCardLayoutTests
     /// request. Running the pass by hand is what a window would otherwise do, and it has to happen
     /// before any Bounds can be read.
     /// </remarks>
-    private static SurfaceCard Card(params SurfaceElement[] elements)
+    private static SurfaceCard Card(params SurfaceElement[] elements) =>
+        Card(elements, entries: null);
+
+    /// <inheritdoc cref="Card(SurfaceElement[])"/>
+    private static SurfaceCard Card(IReadOnlyList<SurfaceElement> elements, IReadOnlyList<string>? entries)
     {
         var card = new SurfaceCard();
-        card.Render(elements);
+        card.Render(elements, entries);
 
-        card.Measure(new Size(SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
-        card.Arrange(new Rect(0, 0, SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
-        card.UpdateLayout();
+        // <b>Hosted in a Window, because some controls only exist after templating.</b> A TextBlock
+        // has no template and measures on its own, so the first tests were content with a bare
+        // Measure/Arrange. A ScrollViewer is built from a control template, and a control template
+        // comes from the theme, and the theme is reached through the visual root — with no window
+        // there is no root, so its Extent and Viewport stay zero and its content is never measured.
+        // That reads as "this list does not overflow" rather than as "this list has no template",
+        // which is the same shape of false negative as the rounding note above.
+        var window = new Window
+        {
+            Width = SurfaceMetrics.CardWidth,
+            Height = SurfaceMetrics.CardHeight,
+            Content = card,
+        };
+
+        window.Show();
+        window.Measure(new Size(SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
+        window.Arrange(new Rect(0, 0, SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
+        window.UpdateLayout();
 
         return card;
     }
