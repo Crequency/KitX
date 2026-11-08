@@ -83,7 +83,7 @@ public static class ViewMessageTypes
 /// belongs to. Reconnecting is how you switch.
 /// </remarks>
 /// <param name="ToolkitId">The ToolKit to attach to.</param>
-public sealed record ConnectMessage(string ToolkitId) : ViewMessage
+public sealed record ConnectMessage([property: JsonPropertyName("toolkitId")] string ToolkitId) : ViewMessage
 {
     /// <summary>The protocol version the client speaks.</summary>
     /// <remarks>
@@ -91,6 +91,7 @@ public sealed record ConnectMessage(string ToolkitId) : ViewMessage
     /// means the client renders with rules the server did not intend, and the mismatch shows up as
     /// a wrong value rather than a failed connection.
     /// </remarks>
+    [JsonPropertyName("protocolVersion")]
     public int ProtocolVersion { get; init; } = CurrentProtocolVersion;
 
     /// <summary>The protocol version this build speaks.</summary>
@@ -109,6 +110,7 @@ public sealed record ConnectMessage(string ToolkitId) : ViewMessage
     /// client that has no id indistinguishable from one that forgot to send it.
     /// </para>
     /// </remarks>
+    [JsonPropertyName("deviceId")]
     public string? DeviceId { get; init; }
 
     /// <summary>A human-readable name for the same device, for display and logs only.</summary>
@@ -116,6 +118,7 @@ public sealed record ConnectMessage(string ToolkitId) : ViewMessage
     /// Not an identifier: two devices may report the same name, and a name may change while the
     /// id does not. Never compare on it.
     /// </remarks>
+    [JsonPropertyName("deviceName")]
     public string? DeviceName { get; init; }
 }
 
@@ -124,18 +127,19 @@ public sealed record ConnectMessage(string ToolkitId) : ViewMessage
 /// <param name="Values">Every declared key that currently has a value, by local name.</param>
 /// <param name="Surface">The card layout, or an empty document when none is saved.</param>
 public sealed record WelcomeMessage(
-    string ToolkitId,
-    IReadOnlyDictionary<string, System.Text.Json.JsonElement> Values,
-    SurfaceDocument Surface) : ViewMessage
+    [property: JsonPropertyName("toolkitId")] string ToolkitId,
+    [property: JsonPropertyName("values")] IReadOnlyDictionary<string, System.Text.Json.JsonElement> Values,
+    [property: JsonPropertyName("surface")] SurfaceDocument Surface) : ViewMessage
 {
     /// <summary>The protocol version the server speaks.</summary>
+    [JsonPropertyName("protocolVersion")]
     public int ProtocolVersion { get; init; } = ConnectMessage.CurrentProtocolVersion;
 }
 
 /// <summary>Server → client: one key changed.</summary>
 /// <param name="Key">The key's local name.</param>
 /// <param name="Value">Its new value, or <see langword="null"/> when it was removed.</param>
-public sealed record DeltaMessage(string Key, System.Text.Json.JsonElement? Value) : ViewMessage
+public sealed record DeltaMessage([property: JsonPropertyName("key")] string Key, [property: JsonPropertyName("value")] System.Text.Json.JsonElement? Value) : ViewMessage
 {
     /// <summary>
     /// Whether the value was appended to the key's existing sequence rather than replacing it.
@@ -150,6 +154,7 @@ public sealed record DeltaMessage(string Key, System.Text.Json.JsonElement? Valu
     /// carries the value that was added, and reconstructing a batch from it would mean the client
     /// re-deriving something the server already knew.</para>
     /// </remarks>
+    [JsonPropertyName("appended")]
     public bool Appended { get; init; }
 }
 
@@ -160,7 +165,7 @@ public sealed record DeltaMessage(string Key, System.Text.Json.JsonElement? Valu
 /// position is the identity (Q80). Diffing it would require an identity to diff by, and inventing
 /// one to save bytes on a rare message is the wrong trade.
 /// </remarks>
-public sealed record SurfaceMessage(SurfaceDocument Surface) : ViewMessage;
+public sealed record SurfaceMessage([property: JsonPropertyName("surface")] SurfaceDocument Surface) : ViewMessage;
 
 /// <summary>Server → client: every key of the attached ToolKit is gone.</summary>
 /// <param name="ToolkitId">The ToolKit that was cleared.</param>
@@ -169,25 +174,30 @@ public sealed record SurfaceMessage(SurfaceDocument Surface) : ViewMessage;
 /// <c>Clear()</c>; projecting that into per-key deltas would make the wire do more work than the
 /// event it mirrors, and would leave the client briefly holding a half-cleared state.
 /// </remarks>
-public sealed record ClearedMessage(string ToolkitId) : ViewMessage;
+public sealed record ClearedMessage([property: JsonPropertyName("toolkitId")] string ToolkitId) : ViewMessage;
 
 /// <summary>Client → server: perform one operation.</summary>
 /// <param name="Command">Which operation. See <see cref="ViewCommands"/>.</param>
-public sealed record CommandMessage(string Command) : ViewMessage
+public sealed record CommandMessage([property: JsonPropertyName("command")] string Command) : ViewMessage
 {
     /// <summary>The key a key-scoped command acts on, or <see langword="null"/>.</summary>
+    [JsonPropertyName("key")]
     public string? Key { get; init; }
 
     /// <summary>The region a region-scoped command acts on, or <see langword="null"/>.</summary>
+    [JsonPropertyName("region")]
     public string? Region { get; init; }
 
     /// <summary>The trigger id for <c>trigger</c>.</summary>
+    [JsonPropertyName("triggerId")]
     public string? TriggerId { get; init; }
 
     /// <summary>The event name for <c>event</c>.</summary>
+    [JsonPropertyName("eventName")]
     public string? EventName { get; init; }
 
     /// <summary>The value a write command carries, or <see langword="null"/>.</summary>
+    [JsonPropertyName("value")]
     public System.Text.Json.JsonElement? Value { get; init; }
 }
 
@@ -233,9 +243,11 @@ public static class ViewCommands
 public sealed record AckedReply : ViewMessage
 {
     /// <summary>The command this acknowledges, echoed so a client can match it to its request.</summary>
+    [JsonPropertyName("command")]
     public string Command { get; init; } = string.Empty;
 
     /// <summary>Values the command produced, when it produced any.</summary>
+    [JsonPropertyName("values")]
     public IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Values { get; init; }
 }
 
@@ -247,12 +259,15 @@ public sealed record AckedReply : ViewMessage
 public sealed record RejectedReply : ViewMessage
 {
     /// <summary>A stable code, e.g. <c>view.not-attached</c>. See <see cref="ViewErrorCodes"/>.</summary>
+    [JsonPropertyName("code")]
     public string Code { get; init; } = string.Empty;
 
     /// <summary>A human-readable explanation. Never branch on this.</summary>
+    [JsonPropertyName("message")]
     public string Message { get; init; } = string.Empty;
 
     /// <summary>The command that was refused, when one was involved.</summary>
+    [JsonPropertyName("command")]
     public string? Command { get; init; }
 }
 
@@ -261,7 +276,7 @@ public sealed record ListMessage : ViewMessage;
 
 /// <summary>Server → client: the answer to <see cref="ListMessage"/>.</summary>
 /// <param name="Toolkits">One entry per ToolKit.</param>
-public sealed record ToolkitsMessage(IReadOnlyList<ToolkitSummary> Toolkits) : ViewMessage;
+public sealed record ToolkitsMessage([property: JsonPropertyName("toolkits")] IReadOnlyList<ToolkitSummary> Toolkits) : ViewMessage;
 
 /// <summary>One row of <see cref="ToolkitsMessage"/>.</summary>
 /// <remarks>
@@ -273,7 +288,7 @@ public sealed record ToolkitsMessage(IReadOnlyList<ToolkitSummary> Toolkits) : V
 /// <param name="Name">Its display name.</param>
 /// <param name="State">Whether it is installed, enabled or disabled.</param>
 /// <param name="Mounted">Whether it is currently mounted.</param>
-public sealed record ToolkitSummary(string Id, string Name, LifecycleState State, bool Mounted);
+public sealed record ToolkitSummary([property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("name")] string Name, [property: JsonPropertyName("state")] LifecycleState State, [property: JsonPropertyName("mounted")] bool Mounted);
 
 /// <summary>Stable codes the View protocol refuses with.</summary>
 public static class ViewErrorCodes

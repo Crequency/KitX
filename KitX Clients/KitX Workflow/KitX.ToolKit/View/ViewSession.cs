@@ -121,11 +121,16 @@ internal sealed class ViewSession : IDisposable
         // A refused surface is reported as an empty card plus the reason on the server's log. It
         // does not fail the attach: the keys are still perfectly displayable, and refusing to
         // connect because a layout is broken would take the working half down with the other.
-        if (loaded.Errors.Count > 0)
-        {
-            foreach (var error in loaded.Errors)
-                Log.Warning("[ViewSession] {Code}: {Message}", error.Code, error.Message);
-        }
+        //
+        // Warnings get the same treatment, and they need it just as much. A warning means one
+        // element was dropped and the rest loaded — so the card is *missing a row*, which is far
+        // easier to blame on the renderer than on a typo in the file. Without a log line the only
+        // observable is "the card looks short", and nothing connects that to a mistyped `type`
+        // discriminator three layers down. `SurfaceLoadResult` already distinguishes the two lists
+        // so callers can act differently; here they act the same way, because a server has exactly
+        // one place to say anything at all.
+        foreach (var diagnostic in loaded.Errors.Concat(loaded.Warnings))
+            Log.Warning("[ViewSession] {Code}: {Message}", diagnostic.Code, diagnostic.Message);
 
         return new WelcomeMessage(toolkitId, _manager.LocalValues(toolkitId), loaded.Document);
     }
