@@ -119,22 +119,56 @@ public sealed class SurfaceCard : Grid
 
     /// <summary>Builds the control for one element, or null when this renderer has no view for it.</summary>
     /// <remarks>
-    /// Returning null rather than throwing keeps the card renderable while the remaining element
-    /// kinds are still being built: an unknown kind costs its own row and nothing else.
+    /// <para>Returning null rather than throwing keeps the card renderable while the remaining element
+    /// kinds are still being built: an unknown kind costs its own row and nothing else.</para>
+    ///
+    /// <para><b>Every control is exactly one slot tall, whatever it holds.</b> The empty state of a
+    /// text field and the filled state of one are the same height, because the field owns a slot the
+    /// way any other element does — a value decides what the cell shows, not whether the cell is
+    /// there (§10.2.1.1). That holds for the four editable kinds the same way it holds for
+    /// <c>Text</c>, and for them it costs nothing to check: their contents are empty by construction
+    /// here, so "it occupies its slot while empty" is what every assertion about them is already
+    /// saying.</para>
+    ///
+    /// <para><b>Select carries no candidates at this stage.</b> <c>Options</c> is declaration data the
+    /// renderer is entitled to read, while <c>optionsKey</c> names a runtime value read from the
+    /// session — by something upstream, not here. This stage passes neither: an empty <c>Select</c>
+    /// still occupies its slot and still lands in the right place, which is the whole question being
+    /// answered. How candidates reach the renderer is the next stage's problem, and keeping the key
+    /// name out of these signatures is the same rule that keeps <c>value</c> out of
+    /// <c>SurfaceLayout</c>: what appears in a signature, the implementation will use.</para>
     /// </remarks>
     private static Control? CreateView(KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
         element switch
         {
-            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => new TextBlock
-            {
-                Name = text.Key,
-                Text = text.Key,
-                // global:: because this assembly's own namespace ends in ".Avalonia", which shadows
-                // the package's root namespace inside every file here — `Avalonia.Layout.X` would
-                // resolve to `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
-                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
-                Height = SurfaceMetrics.SlotHeight,
-            },
+            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Field(text.Key, text.Key),
+            KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Field(input.Key, string.Empty),
+            KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Field(number.Key, string.Empty),
+            KitX.ToolKit.Contract.Surface.SurfaceSelectElement select => Field(select.Key, string.Empty),
+            KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Field(toggle.Key, string.Empty),
             _ => null,
         };
+
+    /// <summary>One control occupying one slot.</summary>
+    /// <remarks>
+    /// <para>The four editable kinds and <c>Text</c> differ in what they show, not in how much room
+    /// they take, so they share the sizing and nothing else. Giving each its own height is how a
+    /// renderer ends up with a card whose row spacing depends on which widget a document happened to
+    /// use.</para>
+    ///
+    /// <para><b>A control with no key is still a control.</b> <see cref="SurfaceElement.Key"/> is
+    /// nullable — an element that reads nothing yet still occupies its row — so the name is left
+    /// empty rather than the element being skipped. Skipping it would make the row's height depend on
+    /// whether a key was written, which is the same failure as letting a value decide the layout.</para>
+    /// </remarks>
+    private static TextBlock Field(string? key, string shown) => new()
+    {
+        Name = key ?? string.Empty,
+        Text = shown,
+        // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
+        // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
+        // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
+        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
+        Height = SurfaceMetrics.SlotHeight,
+    };
 }

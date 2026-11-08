@@ -178,8 +178,67 @@ public sealed class SurfaceCardLayoutTests
         Assert.Equal(adjacentDelta, gapDelta, tolerance: 0.5);
     }
 
-    // ── helpers ─────────────────────────────────────────────────────────────────────────
+    [AvaloniaFact]
+    public void The_four_editable_kinds_each_occupy_exactly_one_slot()
+    {
+        // Four kinds in four rows, every one of them empty — no value has been typed and none can be,
+        // since this stage builds them blank on purpose.
+        //
+        // That emptiness is the point. An empty field and a filled field are the same height, because
+        // a field owns its slot the way any other element does: the value decides what the cell shows,
+        // not whether the cell exists (§10.2.1.1). A renderer that sized a text box to its contents
+        // would collapse four rows onto one another here, and would do it in every real card too.
+        //
+        // Written as "the differences between consecutive tops are all one slot" rather than as four
+        // absolute numbers, so the assertion survives a card that gains a header or padding.
+        var elements = new List<SurfaceElement>
+        {
+            new SurfaceInputElement { Row = 1, Column = 1, Key = "barcode" },
+            new SurfaceNumberElement { Row = 2, Column = 1, Key = "count" },
+            new SurfaceSelectElement { Row = 3, Column = 1, Key = "mode" },
+            new SurfaceSwitchElement { Row = 4, Column = 1, Key = "enabled" },
+        };
 
+        var card = Card([.. elements]);
+
+        foreach (var key in new[] { "barcode", "count", "mode", "enabled" })
+        {
+            Assert.Equal(
+                SurfaceMetrics.SlotHeight,
+                Child(card, key).Bounds.Height,
+                tolerance: 0.5);
+        }
+
+        Assert.Equal(SlotHeight, TopOf(card, "count") - TopOf(card, "barcode"), tolerance: 0.5);
+        Assert.Equal(SlotHeight, TopOf(card, "mode") - TopOf(card, "count"), tolerance: 0.5);
+        Assert.Equal(SlotHeight, TopOf(card, "enabled") - TopOf(card, "mode"), tolerance: 0.5);
+    }
+
+    [AvaloniaFact]
+    public void A_control_without_a_key_still_occupies_its_slot()
+    {
+        // SurfaceElement.Key is nullable: an element may read nothing and still be a thing on the
+        // card. Skipping it would make a row's height depend on whether a key was written — the same
+        // failure as letting a value decide the layout, arriving from the other side.
+        var elements = new List<SurfaceElement>
+        {
+            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
+            new SurfaceInputElement { Row = 2, Column = 1, Key = null },
+            new SurfaceTextElement { Row = 3, Column = 1, Key = "footer" },
+        };
+
+        var card = Card([.. elements]);
+
+        // Two slot-heights from title to footer: the keyless input still takes its row.
+        Assert.Equal(
+            2 * SurfaceMetrics.SlotHeight,
+            TopOf(card, "footer") - TopOf(card, "title"),
+            tolerance: 0.5);
+
+        Assert.Equal(3, card.Children.OfType<Control>().Count());
+    }
+
+    // ── helpers ─────────────────────────────────────────────────────────────────────────
     /// <summary>What this renderer says a slot is worth, taken from the renderer and not restated.</summary>
     private const int SlotHeight = (int)SurfaceMetrics.SlotHeight;
 
@@ -213,7 +272,6 @@ public sealed class SurfaceCardLayoutTests
     /// </summary>
     private static Control Child(SurfaceCard card, string key) =>
         card.Children.OfType<Control>().Single(c => c.Name == key);
-
     /// <summary>
     /// The element's top edge, measured down from the card.
     /// </summary>
