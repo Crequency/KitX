@@ -171,15 +171,37 @@ public sealed class SurfaceLayoutTests
         // library — while the renderer needed its own 6 elsewhere — and the two had to agree with
         // nothing enforcing it.
         //
-        // Asserted as "no such constant exists" rather than "it equals the renderer's 6", because the
-        // second version would pass if someone reintroduced a duplicated constant that happened to
-        // match.
+        // <b>The wording matters here.</b> An earlier version of this assertion checked for "no int
+        // constants", which is wrong in both directions: a new `const int MaxRegionNameLength = 64`
+        // would fail it while K stayed put, and a K reintroduced as a `double` or `long` would pass.
+        // What the rule actually says is that this type holds no constant of ANY type — it derives
+        // every number from its caller, so nothing here can be a stale copy of a renderer's choice.
         var constants = typeof(SurfaceLayout)
             .GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(f => f.IsLiteral && f.FieldType == typeof(int))
+            .Where(f => f.IsLiteral || (f.IsStatic && f.IsInitOnly))
             .ToList();
 
         Assert.Empty(constants);
+    }
+
+    [Fact]
+    public void Every_density_is_a_parameter_and_every_index_is_named_as_one()
+    {
+        // The companion to the assertion above, from the other direction: the type owns no constants,
+        // so every number a caller supplies must be visible in a signature. Enumerated rather than
+        // counted, because "there are three ints" would still pass if one of them were a slot index.
+        var intParameters = typeof(SurfaceLayout)
+            .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+            .SelectMany(m => m.GetParameters())
+            .Where(p => p.ParameterType == typeof(int))
+            .Select(p => p.Name!)
+            .Distinct()
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        // `slot` is SlotHeightOf's index — an index, not a density, and named as one. The other two
+        // are the renderer's own numbers.
+        Assert.Equal(["listSlots", "rowHeightPx", "slot"], intParameters);
     }
 
     // ── Criterion 4: a synthetic input, because all real ones are degenerate ─────────────

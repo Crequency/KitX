@@ -72,30 +72,76 @@ public sealed class SurfaceCardLayoutTests
     }
 
     [AvaloniaFact]
-    public void A_list_pushes_everything_below_it_down_by_its_full_height()
+    public void A_list_makes_the_row_below_it_sit_exactly_its_extra_slots_lower()
     {
-        // The synthetic input again, this time in pixels rather than slots: all seven real element
-        // kinds are one slot tall, so a renderer that ignored the List's extra slots would pass every
-        // other assertion here.
+        // The synthetic input, in pixels rather than slots: all seven real element kinds are one slot
+        // tall, so a renderer that ignored the List's extra slots would pass every other assertion
+        // here.
         //
-        // Asserted from the element BELOW the list, not from the list itself: at this stage the card
-        // only builds a view for Text, and the point being tested is where the next row lands, not
-        // how a list looks. Reading the position of something the card did draw keeps the assertion
-        // about the one thing that is finished.
+        // <b>Two cards, and both sides of the comparison are differences.</b> An earlier version read
+        // the absolute Top of the element below the list and compared it against a difference; that
+        // only held because the first slot happens to start at zero. Comparing "the same element on
+        // two cards" drops that assumption and is strictly stronger — the left side comes from
+        // SurfaceMetrics and the right side from the visual tree, so a wrong ListSlotCount on either
+        // side cannot cancel out.
+        //
+        // <b>What this measures is slot height, not what a List looks like.</b> At this stage the
+        // card draws only Text, so a List contributes its row height and no control. A later reader
+        // who assumes this covers List rendering would delete it while writing List — it does not,
+        // and it must not be deleted then, because that row height is what makes a List occupy six
+        // slots of space.
+        var withList = Card(
+            new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
+            new SurfaceTextElement { Row = 2, Column = 1, Key = "below" });
+
+        var withText = Card(
+            new SurfaceTextElement { Row = 1, Column = 1, Key = "sessions" },
+            new SurfaceTextElement { Row = 2, Column = 1, Key = "below" });
+
+        var extra = TopOf(withList, "below") - TopOf(withText, "below");
+        var expected = (SurfaceMetrics.ListSlotCount - 1) * SurfaceMetrics.SlotHeight;
+
+        Assert.Equal(expected, extra, tolerance: 0.5);
+    }
+
+    [AvaloniaFact]
+    public void Removing_a_value_does_not_move_anything_on_the_card()
+    {
+        // §10.2.1.1: a value decides what a cell shows, not whether the cell is there.
+        //
+        // Text is the only element that can exercise this today — it binds a key, and
+        // `welcome.values` may or may not contain that key. Button is the opposite sample: it never
+        // binds a key, so "has a value" is not a state it can be in, and it cannot demonstrate this
+        // rule at all. (Both still occupy a row; the two facts are separate.)
+        //
+        // The card draws a Text the same way whether or not a value arrived, so the two layouts agree
+        // by construction. Saying so out loud matters: a future renderer that starts hiding empty
+        // cells fails here instead of silently reflowing the card.
         var elements = new List<SurfaceElement>
         {
-            new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "below" },
+            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
+            new SurfaceTextElement { Row = 2, Column = 1, Key = "subtitle" },
+            new SurfaceTextElement { Row = 3, Column = 1, Key = "note" },
         };
 
-        var card = Card([.. elements]);
-        var actual = TopOf(card, "below");
+        var withValues = Card([.. elements]);
+        var withoutValues = Card([.. elements]);
 
-        var expected = SurfaceLayout.PixelTopOf(elements, elements[1], SlotHeight, ListSlots)
-                     - SurfaceLayout.PixelTopOf(elements, elements[0], SlotHeight, ListSlots);
+        Assert.Equal(
+            TopOf(withValues, "subtitle") - TopOf(withValues, "title"),
+            TopOf(withoutValues, "subtitle") - TopOf(withoutValues, "title"),
+            tolerance: 0.5);
 
-        Assert.Equal(expected, actual, tolerance: 0.5);
-        Assert.Equal(SurfaceMetrics.ListSlotCount * SlotHeight, expected);
+        Assert.Equal(
+            TopOf(withValues, "note") - TopOf(withValues, "subtitle"),
+            TopOf(withoutValues, "note") - TopOf(withoutValues, "subtitle"),
+            tolerance: 0.5);
+
+        // And the cells are still cell-sized, not collapsed to nothing.
+        Assert.Equal(
+            SurfaceMetrics.SlotHeight,
+            Child(withoutValues, "title").Bounds.Height,
+            tolerance: 0.5);
     }
 
     [AvaloniaFact]
