@@ -148,6 +148,61 @@ internal sealed class KeyWaitRegistry : IDisposable
     }
 
     /// <summary>
+    /// A batch deletion touched some keys. Re-evaluates the waiters those keys belonged to, and
+    /// releases only the ones whose condition is now met.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Deliberately not a release.</b> <see cref="OnCleared"/> may release everyone because
+    /// a clear empties the whole store — nothing a waiter wanted can still arrive. A batch deletion
+    /// is a <i>subset</i>: deleting one ToolKit's keys says nothing about another ToolKit's, and
+    /// waking those waiters with an empty object would hand them "your key is gone" for a key that
+    /// is still sitting in the store.</para>
+    ///
+    /// <para>Deletion can still satisfy a wait that was already unsatisfiable, which is why this is
+    /// not a no-op: a waiter whose condition became false (its key was among those removed) must be
+    /// re-checked, and one that never had a value will keep waiting until its timeout. That is the
+    /// honest outcome.</para>
+    /// </remarks>
+    private void OnRemovedMany(object? sender, DataStoreRemovedManyEventArgs e)
+    {
+        List<Pending> affected = [];
+        lock (_gate)
+        {
+            foreach (var key in e.Keys)
+            {
+                if (!_byKey.TryGetValue(key, out var bucket))
+                    continue;
+
+                foreach (var p in bucket)
+                {
+                    if (!affected.Contains(p))
+                        affected.Add(p);
+                }
+            }
+
+            // A removed key never satisfies an AND-join, so nothing leaves `_pending` here unless
+            // the waiter's condition is already met for other reasons. Re-checking is still right:
+            // an OR-wait may be satisfied by a key that was not touched.
+            foreach (var p in affected.Where(p => p.IsSatisfied(_store)))
+            {
+                _pending.Remove(p);
+                foreach (var key in p.Keys)
+                {
+                    if (_byKey.TryGetValue(key, out var b))
+                    {
+                        b.Remove(p);
+                        if (b.Count == 0)
+                            _byKey.Remove(key);
+                    }
+                }
+            }
+        }
+
+        foreach (var p in affected.Where(p => p.IsSatisfied(_store)))
+            p.Tcs.TrySetResult(p.BuildResult(_store));
+    }
+
+    /// <summary>
     /// A clear wipes every key, so no waiter can ever be satisfied; each is released with an empty
     /// object the same way a timeout releases it. Leaking them would leave a flow blocked for its
     /// entire timeout on data that is provably gone.

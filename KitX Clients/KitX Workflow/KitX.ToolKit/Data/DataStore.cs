@@ -18,6 +18,17 @@ namespace KitX.ToolKit.Data;
 internal sealed record DataStoreChangedEventArgs(string Key, JsonElement? OldValue, JsonElement? NewValue, bool Removed, bool Appended = false);
 
 /// <summary>
+/// A batch deletion: several keys went away as one action.
+/// </summary>
+/// <remarks>
+/// Deliberately distinct from <see cref="DataStoreChangedEventArgs"/> and from the store's
+/// <c>Cleared</c> event. A batch is neither one change nor a wipe: it names the keys so a subscriber
+/// can decide, and it cannot be mistaken for "everything is gone".
+/// </remarks>
+/// <param name="Keys">The keys that were asked for. Some may already have been absent.</param>
+internal sealed record DataStoreRemovedManyEventArgs(IReadOnlyCollection<string> Keys);
+
+/// <summary>
 /// The ToolKit-held in-memory JSON data blackboard (Bench RFC §6). Workflow
 /// instances read/write shared keys through it; data outlives the individual run.
 ///
@@ -72,6 +83,17 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
     /// full timeout on data that is provably gone.</para>
     /// </summary>
     public event EventHandler? Cleared;
+
+    /// <summary>
+    /// Raised once by <see cref="RemoveMany"/> when at least one key was dropped.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="Cleared"/> on purpose. A subscriber that reacts to <c>Cleared</c> by
+    /// treating every key as gone must not see it for a partial deletion — the other ToolKits' keys
+    /// are still there, and releasing a flow waiting on them would hand it an empty object for data
+    /// that exists.
+    /// </remarks>
+    public event EventHandler<DataStoreRemovedManyEventArgs>? RemovedMany;
 
     /// <inheritdoc/>
     event EventHandler<string>? KitX.ToolKit.Contract.IKeyStore.Changed
@@ -244,6 +266,47 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
     {
         ArgumentNullException.ThrowIfNull(key);
         return _data.ContainsKey(key);
+    }
+
+    /// <summary>
+    /// Drops a whole set of keys and reports it once. Returns how many were actually there.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this is not a loop of <see cref="Remove"/>.</b> Each <see cref="Remove"/> raises
+    /// <see cref="Changed"/>, so deleting n keys as a single user action produced n deltas — a
+    /// thousand-key table meant a thousand messages, and a client watching them could see the table
+    /// half gone. One action, one notification.</para>
+    ///
+    /// <para><b>Why it does not raise <see cref="Cleared"/>.</b> That event means "the whole store is
+    /// empty", and <see cref="Clear"/> is the only thing that can honestly say it. Callers of this
+    /// method delete a <i>subset</i> — one ToolKit's declared keys — while other ToolKits' keys stay
+    /// put. Telling blocked flows their keys are gone when they are not would wake them with an
+    /// empty object for data that is still there, which is worse than letting them keep waiting.</para>
+    /// </remarks>
+    /// <param name="fullKeys">Fully qualified keys to drop.</param>
+    public int RemoveMany(IReadOnlyCollection<string> fullKeys)
+    {
+        ArgumentNullException.ThrowIfNull(fullKeys);
+
+        if (fullKeys.Count == 0)
+            return 0;
+
+        var removed = 0;
+        foreach (var key in fullKeys)
+        {
+            if (_data.TryRemove(key, out _))
+            {
+                lock (_gate)
+                    _rings.Remove(key);
+                IndexRemove(key);
+                removed++;
+            }
+        }
+
+        if (removed > 0)
+            RemovedMany?.Invoke(this, new DataStoreRemovedManyEventArgs(fullKeys));
+
+        return removed;
     }
 
     /// <summary>

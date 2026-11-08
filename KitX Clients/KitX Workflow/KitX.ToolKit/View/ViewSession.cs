@@ -52,6 +52,7 @@ internal sealed class ViewSession : IDisposable
 
         _store.Changed += OnStoreChanged;
         _store.Cleared += OnStoreCleared;
+        _store.RemovedMany += OnStoreRemovedMany;
         _surfaces.Changed += OnSurfaceChanged;
     }
 
@@ -144,6 +145,45 @@ internal sealed class ViewSession : IDisposable
         Raise(new ClearedMessage(toolkitId));
     }
 
+    /// <summary>
+    /// A batch deletion finished. Projects it as one <c>cleared</c>, but only when it touched this
+    /// session's ToolKit.
+    /// </summary>
+    /// <remarks>
+    /// <para>The message carries no key names, and that is safe for a structural reason worth
+    /// writing down: everything in a client's projection arrived through a <c>welcome</c> or a
+    /// <c>delta</c>, and both were filtered to this ToolKit's declared keys on the way out. So
+    /// "clear everything I have" and "clear this ToolKit's keys" describe the same set — not because
+    /// they happen to coincide today, but because the projection can hold nothing else.</para>
+    ///
+    /// <para>This is separate from <see cref="OnStoreCleared"/> because the two events mean
+    /// different things. <c>Cleared</c> says the whole store is empty; this one says a subset went
+    /// away, and a subscriber that treated it as a wipe would clear a client that is attached to a
+    /// different ToolKit.</para>
+    /// </remarks>
+    private void OnStoreRemovedMany(object? sender, DataStoreRemovedManyEventArgs e)
+    {
+        var toolkitId = ToolkitId;
+        if (toolkitId is null || _disposed)
+            return;
+
+        var prefix = toolkitId + "/";
+        var touched = false;
+        foreach (var key in e.Keys)
+        {
+            if (key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                touched = true;
+                break;
+            }
+        }
+
+        if (!touched)
+            return;
+
+        Raise(new ClearedMessage(toolkitId));
+    }
+
     private void OnSurfaceChanged(object? sender, SurfaceChangedEventArgs e)
     {
         if (_disposed)
@@ -190,6 +230,7 @@ internal sealed class ViewSession : IDisposable
 
         _store.Changed -= OnStoreChanged;
         _store.Cleared -= OnStoreCleared;
+        _store.RemovedMany -= OnStoreRemovedMany;
         _surfaces.Changed -= OnSurfaceChanged;
 
         lock (_gate)

@@ -698,18 +698,20 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (!_mounted.TryGetValue(toolkitId, out var mounted) || string.IsNullOrWhiteSpace(region))
             return 0;
 
-        var removed = 0;
+        var full = new List<string>();
         foreach (var local in mounted.Keys.Names)
         {
             if (!mounted.Keys.TryResolve(local, out var declaration))
                 continue;
             if (!string.Equals(declaration.Region, region, StringComparison.Ordinal))
                 continue;
-            if (_dataStore.Remove(mounted.Keys.FullKey(local)))
-                removed++;
+            full.Add(mounted.Keys.FullKey(local));
         }
 
-        return removed;
+        // One notification for the whole region, not one per key: clearing a region is a single
+        // action a person took, and a client that watched per-key deltas would see the region half
+        // gone in the middle of it.
+        return _dataStore.RemoveMany(full);
     }
 
     /// <summary>
@@ -720,14 +722,14 @@ internal sealed class ToolkitInstanceManager : IDisposable
         if (!_mounted.TryGetValue(toolkitId, out var mounted))
             return 0;
 
-        var removed = 0;
+        var full = new List<string>(mounted.Keys.Names.Count);
         foreach (var local in mounted.Keys.Names)
-        {
-            if (_dataStore.Remove(mounted.Keys.FullKey(local)))
-                removed++;
-        }
+            full.Add(mounted.Keys.FullKey(local));
 
-        return removed;
+        // Deliberately not `DataStore.Clear()`: that empties the process-wide store, taking every
+        // other mounted ToolKit's keys with it. This ToolKit's declarations are the whole of what
+        // "clear this card" means, and `RemoveMany` says that as one notification.
+        return _dataStore.RemoveMany(full);
     }
 
     /// <summary>
