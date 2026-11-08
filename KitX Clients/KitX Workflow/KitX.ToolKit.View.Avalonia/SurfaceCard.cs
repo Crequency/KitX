@@ -159,14 +159,71 @@ public sealed class SurfaceCard : Grid
         IReadOnlyList<string>? entries) =>
         element switch
         {
-            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Field(text.Key, text.Key),
-            KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Field(input.Key, string.Empty),
-            KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Field(number.Key, string.Empty),
-            KitX.ToolKit.Contract.Surface.SurfaceSelectElement select => Field(select.Key, string.Empty),
-            KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Field(toggle.Key, string.Empty),
+            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key, text.Key),
+            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Labelled(button.Key, button.Label),
+            KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
+                input.Key, new global::Avalonia.Controls.TextBox()),
+            KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Editing(
+                number.Key, new global::Avalonia.Controls.NumericUpDown()),
+            KitX.ToolKit.Contract.Surface.SurfaceSelectElement select => Editing(
+                select.Key, new global::Avalonia.Controls.ComboBox()),
+            KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Editing(
+                toggle.Key, new global::Avalonia.Controls.CheckBox()),
             KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(list.Key, entries),
             _ => null,
         };
+
+    /// <summary>
+    /// A control that only displays what it is told: one slot tall, no template of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para><b><c>Text</c> and <c>Button</c> are both <c>TextBlock</c>s at this stage.</b> For
+    /// <c>Text</c> that is the honest minimum — it shows a value and does nothing else. For
+    /// <c>Button</c> it is a placeholder: a button has a label and a set of events, and neither is
+    /// reachable through a label. Both are on the list of things this stage does not pretend to have
+    /// finished.</para>
+    ///
+    /// <para>Keeping them untemplated also means they are the only two kinds that measure outside a
+    /// window, which is worth remembering when a failure looks like "this element is zero tall".</para>
+    /// </remarks>
+    private static Control Labelled(string? key, string shown) => new TextBlock
+    {
+        Name = key ?? string.Empty,
+        Text = shown,
+        // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
+        // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
+        // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
+        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
+        Height = SurfaceMetrics.SlotHeight,
+    };
+
+    /// <summary>
+    /// A control the user edits: the real widget, pinned to one slot.
+    /// </summary>
+    /// <param name="key">The declared key this element binds, or null.</param>
+    /// <param name="control">A text box, a spinner, a drop-down, a tick box — the actual type.</param>
+    /// <remarks>
+    /// <para><b>These are the real controls, not stand-ins.</b> An earlier version drew all four
+    /// kinds as <c>TextBlock</c>s. Those measured correctly and asserted nothing: the tests were
+    /// checking that a label occupies a slot while the claim was that a text box does, so swapping in
+    /// a <c>TextBox</c> would have changed every real card and broken none of the tests.</para>
+    ///
+    /// <para><b>The height is pinned here rather than left to the template.</b> A template's natural
+    /// height is a platform and theme decision — a text box padded for touch is not one slot — while
+    /// the layout rule is that every element occupies exactly one slot. Pinning it keeps the rule true
+    /// across themes.</para>
+    ///
+    /// <para>It is also why these only measure once a window exists: a templated control with no
+    /// visual root has no template to be measured from.</para>
+    /// </remarks>
+    private static Control Editing(string? key, Control control)
+    {
+        control.Name = key ?? string.Empty;
+        control.Height = SurfaceMetrics.SlotHeight;
+        control.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top;
+
+        return control;
+    }
 
     /// <summary>
     /// A list's control: one slot tall, scrolling whatever does not fit.
@@ -202,27 +259,4 @@ public sealed class SurfaceCard : Grid
             Content = rows,
         };
     }
-
-    /// <summary>One control occupying one slot.</summary>
-    /// <remarks>
-    /// <para>The four editable kinds and <c>Text</c> differ in what they show, not in how much room
-    /// they take, so they share the sizing and nothing else. Giving each its own height is how a
-    /// renderer ends up with a card whose row spacing depends on which widget a document happened to
-    /// use.</para>
-    ///
-    /// <para><b>A control with no key is still a control.</b> <see cref="SurfaceElement.Key"/> is
-    /// nullable — an element that reads nothing yet still occupies its row — so the name is left
-    /// empty rather than the element being skipped. Skipping it would make the row's height depend on
-    /// whether a key was written, which is the same failure as letting a value decide the layout.</para>
-    /// </remarks>
-    private static TextBlock Field(string? key, string shown) => new()
-    {
-        Name = key ?? string.Empty,
-        Text = shown,
-        // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
-        // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
-        // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
-        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
-        Height = SurfaceMetrics.SlotHeight,
-    };
 }
