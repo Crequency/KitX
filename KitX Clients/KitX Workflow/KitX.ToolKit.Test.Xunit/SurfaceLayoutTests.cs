@@ -202,6 +202,42 @@ public sealed class SurfaceLayoutTests
         Assert.Equal(0, SurfaceLayout.PixelTopOf([first], first, RowHeight));
     }
 
+    [Fact]
+    public void A_gap_in_the_row_numbers_leaves_no_gap_on_the_card()
+    {
+        // Rows are ordinals, not coordinates (§10.2.1.2). A file that writes row 1 and row 5 puts
+        // its two elements directly above one another, exactly as row 1 and row 2 would.
+        //
+        // Asserted as "the two files agree" rather than "the answer is zero": an implementation
+        // that reserved one slot per skipped number would still return zero for the adjacent file,
+        // so a literal expected value would pass on both. Equality between the two files is what
+        // forces the implementation to ignore the skipped numbers.
+        var adjacent = new List<SurfaceElement>
+        {
+            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
+            new SurfaceTextElement { Row = 2, Column = 1, Key = "subtitle" },
+        };
+
+        var withGap = new List<SurfaceElement>
+        {
+            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
+            new SurfaceTextElement { Row = 5, Column = 1, Key = "subtitle" },
+        };
+
+        var adjacentTop = SurfaceLayout.PixelTopOf(adjacent, adjacent[1], RowHeight);
+        var gapTop = SurfaceLayout.PixelTopOf(withGap, withGap[1], RowHeight);
+
+        Assert.Equal(adjacentTop, gapTop);
+
+        // And the slot index still records where the author put it — that is the half the file
+        // owns. Only the distance ignores the gap.
+        Assert.Equal(2, SurfaceLayout.SlotIndex(adjacent[1]));
+        Assert.Equal(5, SurfaceLayout.SlotIndex(withGap[1]));
+
+        // An empty slot contributes nothing, whatever its number.
+        Assert.Equal(0, SurfaceLayout.SlotHeightOf(withGap, 4));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────
 
     private static IEnumerable<MethodInfo> LayoutMethods() =>
