@@ -126,6 +126,28 @@ public sealed record ConnectMessage([property: JsonPropertyName("toolkitId")] st
 /// <param name="ToolkitId">The ToolKit this session is attached to.</param>
 /// <param name="Values">Every declared key that currently has a value, by local name.</param>
 /// <param name="Surface">The card layout, or an empty document when none is saved.</param>
+/// <remarks>
+/// <para><b>Two questions this message does not answer.</b> They were found while writing the first
+/// client, and are kept here because that is where the next one — a Flutter client, on a phone —
+/// will look. <b>Neither is a promise that an answer is coming.</b></para>
+///
+/// <para><b>Q1 — the message does not say elements are ordered, unique per cell, or
+/// non-overlapping.</b> A client that trusts <c>row</c>/<c>column</c> as written will happily draw
+/// two elements into one cell, on top of each other, with nothing in the message saying which one
+/// wins. Today the server clamps and drops before it gets here, so the case does not arise — but
+/// that is a property of <c>SurfaceValidator</c>, not of this message.</para>
+///
+/// <para><b>Q2 — <c>row</c> is a row index, not a y coordinate.</b> So nothing in the message says
+/// how tall a row is, and a client that has never rendered this card cannot compute a pixel
+/// position from the message alone. It has to pick a row height, or lay out in grid units and let
+/// its own control do the arithmetic. <b>This is why <c>SlotHeight</c> belongs to the renderer and
+/// not to the contract</b>: the message deliberately leaves it open.</para>
+///
+/// <para>When one of these is answered, it becomes <c>Answered by Qnnn:</c> here. When one is
+/// decided to stay unanswered, it becomes <c>Deliberately not answered (Qnnn):</c> — that second
+/// form matters more, because it is the only thing that stops the next reader from raising the same
+/// question again. Deleting either one turns an open question into silence.</para>
+/// </remarks>
 public sealed record WelcomeMessage(
     [property: JsonPropertyName("toolkitId")] string ToolkitId,
     [property: JsonPropertyName("values")] IReadOnlyDictionary<string, System.Text.Json.JsonElement> Values,
