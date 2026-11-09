@@ -45,6 +45,12 @@ public static class SurfaceEventCommand
         return new CommandMessage(ViewCommands.Event)
         {
             EventName = eventName,
+
+            // This line turning into a JSON object rests on `Values` being a dictionary: the serialiser
+            // writes a dictionary of elements as an object, and nothing here says so. Give it a custom
+            // type, a converter, or a different collection, and the same expression produces an array or
+            // a string without failing — the server would then project onto nothing while every local
+            // assertion about "the values arrived" still passed, because they did arrive, one layer down.
             Value = JsonSerializer.SerializeToElement(raised.Values),
         };
     }

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using KitX.ToolKit.Contract.Surface;
 using KitX.ToolKit.Contract.View;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace KitX.ToolKit.View.Avalonia;
