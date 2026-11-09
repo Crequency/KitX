@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace KitX.ToolKit.View.Avalonia;
+namespace KitX.ToolKit.Contract.View;
 
 /// <summary>
 /// Something the person at the card did, in the only shape a renderer can honestly produce.

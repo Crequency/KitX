@@ -4,6 +4,7 @@ using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
 using KitX.ToolKit.Contract.Surface;
 using System.Text.Json;
+using KitX.ToolKit.Contract.View;
 using Xunit;
 
 namespace KitX.ToolKit.View.Avalonia.Test.Xunit;

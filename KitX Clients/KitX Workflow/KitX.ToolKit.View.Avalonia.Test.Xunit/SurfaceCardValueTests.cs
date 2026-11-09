@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KitX.ToolKit.Contract.View;
 using Avalonia.Controls;
 using global::Avalonia;
 using Avalonia.Headless.XUnit;
