@@ -974,7 +974,8 @@ public sealed class SurfaceCard : Grid
         // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
         // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
         VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
-        Height = SurfaceMetrics.SlotHeight,
+        Height = SurfaceMetrics.FieldHeight,
+        Margin = new Thickness(0, SurfaceMetrics.FieldInset, 0, 0),
     };
 
     /// <summary>
@@ -1039,8 +1040,13 @@ public sealed class SurfaceCard : Grid
     /// </remarks>
     private static Control Editing(Control control)
     {
-        control.Height = SurfaceMetrics.SlotHeight;
+        // Q100, as its own acceptance criterion states it: 32 tall, and (SlotHeight - 32) / 2 down
+        // from the cell's top. Not VerticalAlignment = Center, which was Q100's prose and is wrong
+        // for a K-slot cell: a control centred in a six-slot cell lands 176px down, in the middle of
+        // the list beside it. See SurfaceMetrics.FieldInset for the arithmetic and the reasoning.
+        control.Height = SurfaceMetrics.FieldHeight;
         control.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top;
+        control.Margin = new Thickness(0, SurfaceMetrics.FieldInset, 0, 0);
 
         return control;
     }

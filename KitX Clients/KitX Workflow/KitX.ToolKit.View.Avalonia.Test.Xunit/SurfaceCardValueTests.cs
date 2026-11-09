@@ -73,7 +73,7 @@ public sealed class SurfaceCardValueTests
 
         // No value ever set: the cell is empty and still one slot tall.
         Assert.Equal(string.Empty, card.ShownTextOf("cleared"));
-        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.FieldHeight, Cells(card)[0].Bounds.Height, 0.5);
 
         // Then a value, then removal — back to empty, still one slot.
         card.SetValue("cleared", Json("\"something\""));
@@ -81,13 +81,13 @@ public sealed class SurfaceCardValueTests
 
         card.RemoveValue("cleared");
         Assert.Equal(string.Empty, card.ShownTextOf("cleared"));
-        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.FieldHeight, Cells(card)[0].Bounds.Height, 0.5);
 
         // An empty string is a value, and it shows as empty too — but it arrived as a value, which
         // is what the assertion below the empty check is really pinning.
         card.SetValue("blank", Json("\"\""));
         Assert.Equal(string.Empty, card.ShownTextOf("blank"));
-        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.FieldHeight, Cells(card)[0].Bounds.Height, 0.5);
     }
 
     [AvaloniaFact]
@@ -189,7 +189,7 @@ public sealed class SurfaceCardValueTests
         Assert.Equal(string.Empty, card.ShownTextOf("subtitle"));
 
         // The cells themselves are still there, one slot tall each.
-        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.FieldHeight, Cells(card)[0].Bounds.Height, 0.5);
         Assert.Equal(2, card.Children.OfType<Control>().Count());
     }
 

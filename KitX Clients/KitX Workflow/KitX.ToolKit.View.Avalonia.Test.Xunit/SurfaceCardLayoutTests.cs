@@ -149,9 +149,11 @@ public sealed class SurfaceCardLayoutTests
         Assert.Equal(TopAt(withValues, 1), TopAt(withoutValues, 1), tolerance: 0.5);
         Assert.Equal(TopAt(withValues, 2), TopAt(withoutValues, 2), tolerance: 0.5);
 
-        // And the cells are still cell-sized, not collapsed to nothing.
+        // And the cells are still there, each with a control in it — not collapsed to nothing.
+        // Since Q100 the control is FieldHeight and the cell it sits in is still a full slot, so
+        // the assertion that "the cell survived" is about the row, not about the control's height.
         Assert.Equal(
-            SurfaceMetrics.SlotHeight,
+            SurfaceMetrics.FieldHeight,
             CellAt(withoutValues, 0).Bounds.Height,
             tolerance: 0.5);
     }
@@ -216,12 +218,61 @@ public sealed class SurfaceCardLayoutTests
 
         Assert.Equal(4, cells.Count);
 
+        // Two quantities, and Q100 made them differ: the slot is 64, the control in it is 32.
+        // Asserting that both equal SlotHeight was true before Q100 and had to stop being true —
+        // it is exactly the assertion that would have hidden a control shrinking to 32 while the
+        // row stayed 64, which is what the verdict now asks for on purpose.
         foreach (var cell in cells)
-            Assert.Equal(SurfaceMetrics.SlotHeight, cell.Bounds.Height, tolerance: 0.5);
+            Assert.Equal(SurfaceMetrics.FieldHeight, cell.Bounds.Height, tolerance: 0.5);
 
+        // The rows themselves are still one slot apart — that half is unchanged by Q100.
         var tops = cells.Select(c => c.Bounds.Top).ToList();
         foreach (var (a, b) in tops.Zip(tops.Skip(1)))
             Assert.Equal(SurfaceMetrics.SlotHeight, b - a, tolerance: 0.5);
+
+        // The other half of the verdict: the control sits (SlotHeight - FieldHeight) / 2 below its
+        // row's top, for every element. On four single-slot rows this does not separate "centred in
+        // the row" from "inset from the row's top" — those two agree at 16 when the row is 64. The
+        // test below is where they diverge; this one is here so the four-kind case is covered too.
+        foreach (var cell in cells)
+            Assert.Equal(SurfaceMetrics.FieldInset, cell.Bounds.Top - RowTopAt(card, cells.IndexOf(cell)), 0.5);
+    }
+
+    [AvaloniaFact]
+    public void A_button_beside_a_tall_row_sits_at_the_top_of_its_row_not_in_the_middle_of_it()
+    {
+        // The verdict for Q100 reads "(SlotHeight - FieldHeight) / 2 below its row's top", and the
+        // design note says "VerticalAlignment = Center". Those two agree on a one-slot row and
+        // disagree on a taller one: centring a 32px control in a row that grew to K slots puts it at
+        // the row's middle, while an inset from the top puts it 16px below the row's start.
+        //
+        // A button sharing a row with a six-slot list is the smallest card where the two readings
+        // differ — 208 against 368 on this geometry. Asserting on a one-slot card cannot tell them
+        // apart, which is why this fixture exists rather than one more assertion above.
+        var list = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
+        var button = new SurfaceButtonElement { Row = 1, Column = 2, Label = "Add", Events = ["Add"] };
+
+        var card = Card([list, button]);
+
+        var listView = Scroller(card);
+        var buttonView = card.GetVisualDescendants().OfType<Button>().Single();
+
+        // The row is six slots tall, and its top is the card's top — no element above it. Both
+        // elements are in Grid row 0, so the row's own height is what says "six slots", not a
+        // difference between two elements' tops.
+        Assert.Equal(ListSlots * SurfaceMetrics.SlotHeight, card.RowDefinitions[0].ActualHeight, 0.5);
+
+        // Both elements start the card, so their row top is zero.
+        Assert.Equal(0.0, RowTopAt(card, 0), tolerance: 0.5);
+
+        // Insets from its row's top. Centring in a 384px row would put it at 192 + 176 = 368.
+        Assert.Equal(
+            SurfaceMetrics.FieldInset,
+            buttonView.Bounds.Top - RowTopAt(card, 0),
+            tolerance: 0.5);
+
+        // The list's control, on the other hand, is still one slot tall — §10.2.1.0's other half.
+        Assert.Equal(SurfaceMetrics.SlotHeight, listView.Bounds.Height, tolerance: 0.5);
     }
 
     [AvaloniaFact]
@@ -268,10 +319,11 @@ public sealed class SurfaceCardLayoutTests
 
         var card = Card([listSlot, below]);
 
-        // The row grew by K slots — that half already holds.
+        // The row grew by K slots — that half already holds, and it is read from the row structure
+        // rather than from the control's edge, so it is not an identity.
         Assert.Equal(
             ListSlots * SurfaceMetrics.SlotHeight,
-            TopAt(card, 1),
+            RowTopAt(card, 1),
             tolerance: 0.5);
 
         // The control did not grow with it.
@@ -450,4 +502,28 @@ public sealed class SurfaceCardLayoutTests
     /// somebody checks the numbers against the height they set.
     /// </remarks>
     private static double TopAt(SurfaceCard card, int index) => CellAt(card, index).Bounds.Top;
+
+    /// <summary>
+    /// The top edge of the row the element sits in, measured down from the card.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why this is not <see cref="TopAt"/> minus a constant.</b> Since Q100 a control is
+    /// <c>FieldHeight</c> tall and sits <c>FieldInset</c> below its row's top, so the control's own top
+    /// is not the row's top. The verdict says the element's <c>Top</c> must be
+    /// <c>(SlotHeight - FieldHeight) / 2</c> below where its row starts — and testing that needs the
+    /// row's start computed from the row structure, not from the control's position. Deriving it as
+    /// <c>TopAt(...) - FieldInset</c> would make the assertion below an identity: it would hold for any
+    /// inset, including <c>SlotHeight / 2</c>, and would therefore say nothing about which of the two
+    /// readings the renderer implements.
+    /// </remarks>
+    private static double RowTopAt(SurfaceCard card, int index)
+    {
+        var row = Grid.GetRow(CellAt(card, index));
+
+        var top = 0.0;
+        for (var i = 0; i < row; i++)
+            top += card.RowDefinitions[i].ActualHeight;
+
+        return top;
+    }
 }

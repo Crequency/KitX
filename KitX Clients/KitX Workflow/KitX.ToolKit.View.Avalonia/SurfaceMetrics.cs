@@ -50,6 +50,50 @@ public static class SurfaceMetrics
     public const double SlotHeight = 64;
 
     /// <summary>
+    /// How tall a single-slot control is drawn, in device-independent pixels.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A slot is 64 and a control is 32, and the 32 sits centred in the 64.</b> The slot is
+    /// the row's; the control is the element's. Q100 (2026-11-09) changed the alignment from
+    /// <c>Top</c> to <c>Center</c> after the user looked at a render of <c>30-light</c> and said
+    /// "vertically not filling, 32 centred is fine". That overruled §10.2.1.0's earlier "the control
+    /// is always one slot tall and <c>VerticalAlignment = Top</c>" — a rule change, not a bug fix.</para>
+    ///
+    /// <para><b>32 is not a new number, it is what Fluent desktop controls already are.</b>
+    /// Measured on this renderer: <c>TextBox</c>, <c>NumericUpDown</c>, <c>ComboBox</c> and
+    /// <c>CheckBox</c> all report a natural height of 32 — see
+    /// <c>EditingControlMetricsTests.Every_editable_control_fits_within_one_slot_at_its_natural_height</c>.
+    /// So the layout is not compressing them; a filling control would be stretching them.</para>
+    ///
+    /// <para><b>What this does not change.</b> How many slots an element occupies is unchanged
+    /// (<c>Text</c> 1, <c>List</c> K), and "slot height does not depend on data" is unchanged — this
+    /// number is a renderer constant, not something computed from a value. Only the alignment
+    /// inside the slot changed.</para>
+    /// </remarks>
+    public const double FieldHeight = 32;
+
+    /// <summary>
+    /// How far a single-slot control sits below its cell's top edge, in device-independent pixels.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is Q100's acceptance criterion, not its prose.</b> The verdict says the control
+    /// is 32 tall; its own criterion says <c>Top − cellTop == (SlotHeight − 32) / 2</c>, which is
+    /// 16 for every element. Those two agree on a one-slot row and disagree on a K-slot one, which
+    /// is why the difference is worth naming.</para>
+    ///
+    /// <para><b>The prose said <c>VerticalAlignment = Center</c>, and that is wrong for a
+    /// multi-slot cell.</b> Centring is relative to the whole cell, so a button sharing a row with
+    /// a six-slot list is pushed to 176px down — the middle of the list it sits beside, not the top
+    /// of the row. Measured: <c>Moving_one_button_to_its_own_row_lowers_it_and_leaves_the_others</c>
+    /// expects 208 and <c>Center</c> produced 368. The criterion is the one that keeps "the top of
+    /// the row" meaning the top of the row, so it is the one implemented here.</para>
+    ///
+    /// <para>16 is <c>(SlotHeight − FieldHeight) / 2</c>, written out so that changing either
+    /// constant moves this one with it rather than leaving a magic number behind.</para>
+    /// </remarks>
+    public const double FieldInset = (SlotHeight - FieldHeight) / 2;
+
+    /// <summary>
     /// Width of the card, in device-independent pixels.
     /// </summary>
     public const double CardWidth = 390;
