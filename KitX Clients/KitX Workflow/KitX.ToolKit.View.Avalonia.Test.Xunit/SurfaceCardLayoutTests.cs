@@ -2,6 +2,7 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using KitX.ToolKit.Contract.Surface;
 using Xunit;
 
@@ -435,7 +436,7 @@ public sealed class SurfaceCardLayoutTests
     /// rather than about what it is called.
     /// </remarks>
     private static ScrollViewer Scroller(SurfaceCard card) =>
-        card.Children.OfType<ScrollViewer>().Single();
+        card.GetVisualDescendants().OfType<ScrollViewer>().Single();
 
     /// <summary>
     /// The element's top edge, measured down from the card.

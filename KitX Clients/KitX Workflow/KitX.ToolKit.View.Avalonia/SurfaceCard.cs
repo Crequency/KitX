@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using KitX.ToolKit.Contract.Surface;
 using KitX.ToolKit.Contract.View;
 using System.Diagnostics;
@@ -551,6 +552,14 @@ public sealed class SurfaceCard : Grid
                 SetListValues(scroller, value);
                 break;
 
+            // Since Q99 a List's cell is the group container, not the scroller itself. The value a
+            // List shows lives in the scroller inside it, so the container forwards. Reaching for
+            // the child by shape rather than by name keeps this independent of what the container
+            // is called.
+            case Border group:
+                SetListValues(group.GetVisualDescendants().OfType<ScrollViewer>().Single(), value);
+                break;
+
             default:
                 throw new NotSupportedException(
                     "no way to show a value in " + cell.GetType().Name
@@ -571,11 +580,17 @@ public sealed class SurfaceCard : Grid
         cell switch
         {
             TextBlock label => label.Text,
-            ScrollViewer scroller => string.Join(
-                "\n", (scroller.Content as StackPanel)?.Children.OfType<TextBlock>().Select(t => t.Text) ?? []),
+            ScrollViewer scroller => ShownList(scroller),
+            // Since Q99 the cell a List occupies is its group container. What the list shows is in
+            // the scroller inside it, so this reads through the same shape the Show method does.
+            Border group when group.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault() is { } inner
+                => ShownList(inner),
             Button button => button.Content?.ToString() ?? string.Empty,
             _ => null,
         };
+
+    private static string ShownList(ScrollViewer scroller) => string.Join(
+        "\n", (scroller.Content as StackPanel)?.Children.OfType<TextBlock>().Select(t => t.Text) ?? []);
 
     /// <summary>
     /// Every named value on the card right now, ready to travel with an event.
@@ -907,7 +922,7 @@ public sealed class SurfaceCard : Grid
         var view = element switch
         {
             KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key),
-            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label, button.Events),
+            KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label, button.Events, button.Emphasis),
             KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
                 new global::Avalonia.Controls.TextBox()),
             KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Editing(
@@ -976,7 +991,7 @@ public sealed class SurfaceCard : Grid
     /// button's natural height is a theme decision, while the rule is that an element occupies one
     /// slot.</para>
     /// </remarks>
-    private Control Pressable(string? key, string label, IReadOnlyList<string> events)
+    private Control Pressable(string? key, string label, IReadOnlyList<string> events, string? emphasis)
     {
         var pressable = new Button
         {
@@ -989,6 +1004,16 @@ public sealed class SurfaceCard : Grid
         // this button declares, and asking a host to read the document back to find out would mean
         // two parties deciding what a click means.
         pressable.Click += (_, _) => Raise(events);
+
+        // Emphasis is a class, not a size. Setting a font weight or a margin here would make the three
+        // values differ in Bounds, and then `row` would stop being the only thing that decides where a
+        // card's contents sit. Nothing below touches geometry.
+        pressable.Classes.Add(emphasis switch
+        {
+            "primary" => "kitx-primary",
+            "quiet" => "kitx-quiet",
+            _ => "kitx-button",
+        });
 
         return Editing(pressable);
     }
@@ -1042,12 +1067,42 @@ public sealed class SurfaceCard : Grid
     /// version took them as a parameter of the render call, which meant the caller had to work out
     /// which of its values belonged to this control. The key is the same key either way; reading the
     /// array out of it is a lookup, not a decision.</para>
+    ///
+    /// <para><b>It sits inside a group container, and the container is what fills the row.</b> Q99:
+    /// the container takes the whole K-slot area it was given; the scroller is one slot tall at the
+    /// container's top. Two consequences worth naming, because both were decisions rather than
+    /// incidental.</para>
+    ///
+    /// <para>The container wraps only the columns this element spans, not the full card width. A
+    /// half-width list that looked like a full-width region would tell the reader the wrong thing
+    /// about what the author declared.</para>
+    ///
+    /// <para>There is no title. <c>SurfaceListElement</c> carries only <c>itemTitle</c> and
+    /// <c>itemSubtitle</c> — S8 ruled that out. And even if a <c>title</c> field existed, the renderer
+    /// should not fill it: a heading like "扫描记录（3）" counts the entries, and counting is the one
+    /// thing a renderer must not do on the author's behalf. An author who wants that heading puts a
+    /// <c>Text</c> element above the list.</para>
     /// </remarks>
-    private static Control Entries() => new ScrollViewer
+    private static Control Entries()
     {
-        Height = SurfaceMetrics.SlotHeight,
-        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
-        VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-        Content = new StackPanel(),
-    };
+        var scroller = new ScrollViewer
+        {
+            Height = SurfaceMetrics.SlotHeight,
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
+            VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = new StackPanel(),
+        };
+
+        // No height here: the container is placed in the Grid cell, whose RowDefinition already carries
+        // K slots. Asking for a height would be this control deciding how tall the row is, which is the
+        // row's job.
+        return new Border
+        {
+            Name = "kitx-list-group",
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Stretch,
+            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch,
+            Padding = new Thickness(0, 6, 0, 6),
+            Child = scroller,
+        };
+    }
 }

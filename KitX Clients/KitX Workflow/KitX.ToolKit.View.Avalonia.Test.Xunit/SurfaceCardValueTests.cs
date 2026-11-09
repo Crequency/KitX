@@ -3,6 +3,7 @@ using KitX.ToolKit.Contract.View;
 using Avalonia.Controls;
 using global::Avalonia;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using KitX.ToolKit.Contract.Surface;
 using Xunit;
 
@@ -302,7 +303,7 @@ public sealed class SurfaceCardValueTests
     /// name would make these assertions about what the element is called instead of what it does.
     /// </remarks>
     private static T CellOfType<T>(SurfaceCard card) where T : Control =>
-        card.Children.OfType<T>().Single();
+        card.GetVisualDescendants().OfType<T>().Single();
 
     /// <summary>Runs the layout pass a live window would otherwise run for us.</summary>
     /// <remarks>

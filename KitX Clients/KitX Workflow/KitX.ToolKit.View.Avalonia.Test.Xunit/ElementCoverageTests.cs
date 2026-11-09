@@ -109,7 +109,10 @@ public sealed class ElementCoverageTests
             [nameof(SurfaceNumberElement)] = typeof(NumericUpDown),
             [nameof(SurfaceSelectElement)] = typeof(ComboBox),
             [nameof(SurfaceSwitchElement)] = typeof(CheckBox),
-            [nameof(SurfaceListElement)] = typeof(ScrollViewer),
+            // Since Q99 a List is a group container with the scroller inside it, so the type
+            // CreateView returns is the container, not the ScrollViewer. The scroller is still what
+            // makes it a list; what this row pins is what the card puts in the slot.
+            [nameof(SurfaceListElement)] = typeof(Border),
         };
 
         foreach (var kind in ContractElementKinds())

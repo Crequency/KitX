@@ -162,6 +162,32 @@ public sealed record SurfaceButtonElement : SurfaceElement
     /// </remarks>
     [JsonPropertyName("events")]
     public IReadOnlyList<string> Events { get; init; } = [];
+
+    /// <summary>
+    /// How much weight this button carries next to the others on the same card.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One of <c>primary</c> / <c>normal</c> / <c>quiet</c>. Absent means <c>normal</c>.
+    /// </para>
+    /// <para>
+    /// A string rather than an enum, for the same reason as <c>KeyDeclaration.Type</c>: a file that
+    /// carries a value this build has never heard of should get a warning the author can act on,
+    /// not a deserialisation failure that drops the whole card.
+    /// </para>
+    /// <para>
+    /// <b>This field never affects layout.</b> The three values differ in background, foreground and
+    /// border only — same height, same margins, same slot. A card that reflowed when a button became
+    /// primary would make <c>row</c> stop being the only thing that decides position.
+    /// </para>
+    /// <para>
+    /// <c>quiet</c> is a <i>visual</i> weakening, not a functional one: a quiet button is still a
+    /// button, still focusable, still in the tab order. Making a destructive action harder to reach
+    /// by accident is a look, not a keyboard trap.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("emphasis")]
+    public string? Emphasis { get; init; }
 }
 
 /// <summary>Free-text entry for one key.</summary>

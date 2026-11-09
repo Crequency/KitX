@@ -66,7 +66,8 @@ internal static class SurfaceValidator
                         continue;
                     }
 
-                    kept.Add(button);
+                    if (ValidateEmphasis(button, keys, ref warnings) is { } keptButton)
+                        kept.Add(keptButton);
                     break;
 
                 case SurfaceSelectElement select:
@@ -98,10 +99,73 @@ internal static class SurfaceValidator
             }
         }
 
+        // A document-level question, asked once after every element has had its say: how many main
+        // actions does this card claim? One is a design; two means nobody decided.
+        var primaries = kept
+            .OfType<SurfaceButtonElement>()
+            .Count(b => string.Equals(b.Emphasis, "primary", StringComparison.Ordinal));
+
+        if (primaries > 1)
+        {
+            Warn(ref warnings, keys, kept[0], SurfaceDiagnosticCodes.ButtonRepeatedPrimary,
+                $"{primaries} buttons claim 'primary'; a card reads best with at most one main action");
+        }
+
         if (warnings is null)
             return new SurfaceValidationResult(document, []);
 
         return new SurfaceValidationResult(document with { Elements = kept }, warnings);
+    }
+
+    /// <summary>The three emphasis values this build understands, in increasing weight order.</summary>
+    private static readonly string[] KnownEmphasis = ["primary", "normal", "quiet"];
+
+    /// <summary>
+    /// Checks a button's emphasis and, separately, whether the card ends up with more than one
+    /// primary button.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Two different questions, so two different codes: "this value means nothing to me" is about one
+    /// element, while "the card has two main actions" is about the whole document. Folding them into
+    /// one warning would leave the reader unable to tell which one to fix.
+    /// </para>
+    /// <para>
+    /// Neither drops or rewrites the element. An unknown emphasis is drawn as <c>normal</c> at render
+    /// time; the validator only records that it did not understand the value. Two primaries are still
+    /// two primaries — the card is drawable, it just has no single obvious first action.
+    /// </para>
+    /// </remarks>
+    /// <summary>
+    /// <c>emphasis</c> is one of three words, and anything else is drawn as <c>normal</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The word is cleared, not just reported.</b> Returning the button with <c>prominent</c>
+    /// still on it would leave every reader of the document — the renderer, the next validator, a
+    /// test — with a value no specification defines, and the warning would be the only place the
+    /// decision lived. Clearing it makes the effective document say what is actually drawn.</para>
+    ///
+    /// <para>Cleared to <see langword="null"/> rather than to <c>"normal"</c>: an author who wrote
+    /// nothing and an author who wrote a word nobody knows both land on the same appearance, and the
+    /// difference between them is exactly whether a warning was raised. Storing <c>"normal"</c> here
+    /// would erase that difference for anyone reading the effective document.</para>
+    /// </remarks>
+    private static SurfaceButtonElement? ValidateEmphasis(
+        SurfaceButtonElement button, KeyTable keys, ref List<Diagnostic>? warnings)
+    {
+        if (button.Emphasis is null)
+            return button;
+
+        if (!KnownEmphasis.Contains(button.Emphasis, StringComparer.Ordinal))
+        {
+            Warn(ref warnings, keys, button, SurfaceDiagnosticCodes.ButtonUnknownEmphasis,
+                $"'emphasis' is '{button.Emphasis}', which is not one of " +
+                $"{string.Join(" / ", KnownEmphasis)}; it is drawn as 'normal'");
+
+            return button with { Emphasis = null };
+        }
+
+        return button;
     }
 
     /// <summary>
@@ -402,6 +466,27 @@ internal static class SurfaceDiagnosticCodes
 
     /// <summary>A button had no label.</summary>
     public const string ElementEmptyLabel = "surface.element.empty-label";
+
+    /// <summary>
+    /// A button named an emphasis this build does not know. The element is kept and drawn as
+    /// <c>normal</c>.
+    /// </summary>
+    /// <remarks>
+    /// A warning rather than an error, for the same reason as <see cref="ElementUnknownField"/>: the
+    /// reader who can act on it is the author, and the card is still drawable without that detail.
+    /// </remarks>
+    public const string ButtonUnknownEmphasis = "surface.element.button.unknown-emphasis";
+
+    /// <summary>
+    /// More than one button on the card claims <c>primary</c>. The card is still drawable — it just
+    /// has no single obvious first action.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately a warning, not a rejection. "Which one is the main action" is a review comment on
+    /// a card, not a reason to refuse to render it; refusing would make the author fix the card
+    /// before they can even look at what they wrote.
+    /// </remarks>
+    public const string ButtonRepeatedPrimary = "surface.element.button.repeated-primary";
 
     /// <summary>A select had neither option source; it was dropped.</summary>
     public const string SelectNoOptions = "surface.element.select.no-options";

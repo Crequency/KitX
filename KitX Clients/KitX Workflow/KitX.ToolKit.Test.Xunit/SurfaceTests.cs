@@ -252,6 +252,104 @@ public class SurfaceTests : IDisposable
     }
 
     [Fact]
+    public void A_button_emphasis_is_kept_and_does_not_change_the_element()
+    {
+        // Q98: emphasis is a word the author writes, and the validator's only job with it is to
+        // decide whether it is one of the three. Everything else about the element survives
+        // untouched — the warning path rewrites Key, and a rewrite that also dropped Emphasis would
+        // be the kind of quiet loss this file has caught before.
+        foreach (var emphasis in (string[])["primary", "normal", "quiet"])
+        {
+            var document = new SurfaceDocument
+            {
+                Elements =
+                [
+                    new SurfaceButtonElement
+                    {
+                        Label = "go", Events = ["Click"], Emphasis = emphasis,
+                    },
+                ],
+            };
+
+            var result = SurfaceValidator.Validate(document, Keys());
+
+            var kept = Assert.Single(result.Effective.Elements);
+            Assert.Equal(emphasis, Assert.IsType<SurfaceButtonElement>(kept).Emphasis);
+            Assert.Empty(result.Warnings);
+        }
+    }
+
+    [Fact]
+    public void A_button_emphasis_nobody_defined_falls_back_to_normal_and_says_so()
+    {
+        var document = new SurfaceDocument
+        {
+            Elements =
+            [
+                new SurfaceButtonElement
+                {
+                    Label = "go", Events = ["Click"], Emphasis = "prominent",
+                },
+            ],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        // Kept, not dropped: a word the renderer does not know is a reason to leave the button
+        // looking ordinary, not a reason to take the button off the card. The warning is what makes
+        // the typo visible instead of silent.
+        var kept = Assert.IsType<SurfaceButtonElement>(Assert.Single(result.Effective.Elements));
+        Assert.Null(kept.Emphasis);
+        Assert.Equal(
+            SurfaceDiagnosticCodes.ButtonUnknownEmphasis,
+            Assert.Single(result.Warnings).Code);
+    }
+
+    [Fact]
+    public void Two_primary_buttons_on_one_card_are_both_kept_and_reported()
+    {
+        // A warning rather than an error: two primaries is a design mistake, and a design mistake
+        // should not cost the author the whole card. What it must not be is silent — a card with two
+        // "the one to press" buttons has no primary at all.
+        var document = new SurfaceDocument
+        {
+            Elements =
+            [
+                new SurfaceButtonElement { Label = "save", Events = ["Save"], Emphasis = "primary" },
+                new SurfaceButtonElement { Label = "also", Events = ["Also"], Emphasis = "primary" },
+            ],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        Assert.Equal(2, result.Effective.Elements.Count);
+        Assert.Contains(
+            result.Warnings,
+            w => w.Code == SurfaceDiagnosticCodes.ButtonRepeatedPrimary);
+    }
+
+    [Fact]
+    public void One_primary_button_is_not_reported()
+    {
+        // The negative control for the test above: without it, a validator that warned on every
+        // card carrying a button would pass. One primary is the ordinary case.
+        var document = new SurfaceDocument
+        {
+            Elements =
+            [
+                new SurfaceButtonElement { Label = "save", Events = ["Save"], Emphasis = "primary" },
+                new SurfaceButtonElement { Label = "later", Events = ["Later"], Emphasis = "quiet" },
+            ],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        Assert.DoesNotContain(
+            result.Warnings,
+            w => w.Code == SurfaceDiagnosticCodes.ButtonRepeatedPrimary);
+    }
+
+    [Fact]
     public void A_select_with_neither_option_source_is_dropped()
     {
         var document = new SurfaceDocument

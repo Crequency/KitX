@@ -29,6 +29,17 @@ public sealed class FullCardLayoutTests
         }
         """;
 
+    /// <summary>
+    /// The runtime type name of a List's group container, as <see cref="Geometry"/> reports it.
+    /// </summary>
+    /// <remarks>
+    /// Since Q99 a List is drawn as a <c>Border</c> holding the scroller, so that the visible area is
+    /// one slot tall while the slot itself is six. Any geometry comparison that means "everything
+    /// except the list" has to skip that container, and it has to skip it by a name this file owns
+    /// rather than by a literal scattered through the assertions.
+    /// </remarks>
+    private const string ListGroupKind = "Border";
+
     private static SurfaceCard Card(string json)
     {
         var document = JsonSerializer.Deserialize<SurfaceDocument>(json)!;
@@ -73,11 +84,19 @@ public sealed class FullCardLayoutTests
         // while a fifth element never made it onto the card.
         var card = Card(ScanBook);
 
+        // Seven cells, one per element. The List's cell is a Border that holds the scroller — the
+        // group container introduced with Q99 — so the cell count still counts it once.
         Assert.Equal(7, card.Children.Count);
         Assert.Equal(3, card.Children.OfType<global::Avalonia.Controls.Button>().Count());
-        Assert.Single(card.Children.OfType<global::Avalonia.Controls.ScrollViewer>());
         Assert.Single(card.Children.OfType<global::Avalonia.Controls.TextBox>());
         Assert.Equal(2, card.Children.OfType<global::Avalonia.Controls.TextBlock>().Count());
+
+        // The List cell is the group container, and the one scroller inside it is the list itself.
+        // Not "one ScrollViewer in the visual tree": ComboBox and NumericUpDown are built from
+        // templates that contain a ScrollViewer of their own, and this card has both. Counting by
+        // type over the whole tree would find three and say the List was drawn twice.
+        var listCell = Assert.Single(card.Children.OfType<global::Avalonia.Controls.Border>());
+        Assert.Single(listCell.GetVisualDescendants().OfType<global::Avalonia.Controls.ScrollViewer>());
     }
 
     [AvaloniaFact]
@@ -140,16 +159,16 @@ public sealed class FullCardLayoutTests
     public void Widening_an_element_changes_its_width_and_moves_nothing_else()
     {
         var narrow = Card(ScanBook);
-        var narrowCells = Geometry(narrow).Where(c => c.Kind != "ScrollViewer").ToList();
+        var narrowCells = Geometry(narrow).Where(c => c.Kind != ListGroupKind).ToList();
 
         var wide = Card(ScanBook.Replace(
             "\"key\": \"sessions\", \"row\": 4, \"column\": 1, \"columnSpan\": 4",
             "\"key\": \"sessions\", \"row\": 4, \"column\": 1, \"columnSpan\": 1",
             StringComparison.Ordinal));
 
-        var list = wide.Children.OfType<global::Avalonia.Controls.ScrollViewer>().Single();
+        var list = wide.Children.OfType<global::Avalonia.Controls.Border>().Single();
         Assert.Equal(ColumnWidth, list.Bounds.Width, tolerance: 0.5);
-        Assert.Equal(narrowCells, Geometry(wide).Where(c => c.Kind != "ScrollViewer").ToList());
+        Assert.Equal(narrowCells, Geometry(wide).Where(c => c.Kind != ListGroupKind).ToList());
     }
 
     [AvaloniaFact]
@@ -224,6 +243,68 @@ public sealed class FullCardLayoutTests
     /// upload identity and exists only where the author wrote one. This fixture is arranged so that
     /// every control has a distinct type, which is what makes the sequence comparable — and it means
     /// these assertions say nothing about what anything is called.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Emphasis_changes_how_a_button_looks_and_nothing_about_where_it_is()
+    {
+        // Q98: emphasis is a class, not a size. Each card below is the same document with one word
+        // changed, so their geometry must be identical — including the cells that are not buttons,
+        // because a wider primary would push the list down as well.
+        //
+        // Asserting geometry rather than the class name is the point. A test that read
+        // "the button has class kitx-primary" would pass for an implementation that also set FontSize
+        // to 18, and that implementation would move the list.
+        var plain = Card(TwoButtons("normal", "normal"));
+        var loudBoth = Card(TwoButtons("primary", "primary"));
+        var softBoth = Card(TwoButtons("quiet", "quiet"));
+        var mixed = Card(TwoButtons("primary", "quiet"));
+
+        Assert.Equal(Geometry(plain), Geometry(loudBoth));
+        Assert.Equal(Geometry(plain), Geometry(softBoth));
+        Assert.Equal(Geometry(plain), Geometry(mixed));
+
+        // The classes are the other half: an implementation that ignored the word entirely would pass
+        // every comparison above, because ignoring it changes nothing either. This card puts three
+        // values side by side — one primary, one quiet, and — on a second reading — no emphasis at
+        // all, so the fallback to `normal` is covered too.
+        Assert.Equal(["kitx-primary", "kitx-quiet"], ButtonClasses(mixed));
+        Assert.Equal(["kitx-button", "kitx-button"], ButtonClasses(plain));
+    }
+
+    /// <summary>
+    /// Two buttons on one row plus a list below, with the two emphases given.
+    /// </summary>
+    private static string TwoButtons(string first, string second) => $$"""
+        { "schemaVersion": 1, "columns": 4, "elements": [
+          { "type": "Button", "label": "Left",  "events": ["left"],  "row": 1, "column": 1, "emphasis": "{{first}}" },
+          { "type": "Button", "label": "Right", "events": ["right"], "row": 1, "column": 2, "emphasis": "{{second}}" },
+          { "type": "List",   "key": "sessions", "row": 2, "column": 1, "columnSpan": 4 }
+        ] }
+        """;
+
+    /// <summary>
+    /// The class each button carries, in the order the document declares them.
+    /// </summary>
+    /// <remarks>
+    /// Cards do not preserve a lookup order a test can rely on, so the buttons are read back in a
+    /// fixed order — left to right within a row, top to bottom across rows — and the fixture above is
+    /// written so that this is the declared order too.
+    /// </remarks>
+    private static List<string> ButtonClasses(SurfaceCard card) =>
+    [
+        .. card.Children.OfType<global::Avalonia.Controls.Button>()
+            .OrderBy(b => b.Bounds.Top)
+            .ThenBy(b => b.Bounds.Left)
+            .Select(b => string.Join(" ", b.Classes.Where(c => c.StartsWith("kitx-", StringComparison.Ordinal)))),
+    ];
+
+    /// <summary>
+    /// Where every direct child of the card sits, in reading order.
+    /// </summary>
+    /// <remarks>
+    /// The list's cell is a group container, so a card with one list yields a <c>Border</c> here.
+    /// Callers comparing two cards filter that kind out: the container is the one cell whose type is
+    /// not the element's own, and its position is already implied by the cells around it.
     /// </remarks>
     private static List<(string Kind, double Top, double Left)> Geometry(SurfaceCard card) =>
     [
