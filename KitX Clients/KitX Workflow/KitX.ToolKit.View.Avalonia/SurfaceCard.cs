@@ -434,7 +434,9 @@ public sealed class SurfaceCard : Grid
 
             // No clamp here. The validator clamps `ColumnSpan` on the loading path, and the Grid
             // clamps it again at layout time, so a second `Math.Min` in this method could not change
-            // any output — and it did not: removing it leaves all 41 renderer tests green.
+            // any output — and it did not: with the clamp gone all 41 renderer tests still pass.
+            // That is a statement about the current tests, not about the clamp. None of them
+            // observes the case it was guarding, and they could grow one tomorrow.
             //
             // It was not merely redundant. `Math.Min(span, CardColumns - Column + 1)` goes to zero
             // or negative once `Column` is past the last column, and `Grid.SetColumnSpan` rejects
