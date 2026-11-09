@@ -91,9 +91,9 @@ internal static class SurfaceValidator
                     break;
 
                 default:
-                    if (!ValidateKeyed(element, keys, ref warnings))
-                        continue;
-                    kept.Add(element);
+                    // Input and Switch. They show what the person typed, so they carry no key.
+                    if (ValidateEditing(element, keys, ref warnings) is { } keptInput)
+                        kept.Add(keptInput);
                     break;
             }
         }
@@ -175,9 +175,14 @@ internal static class SurfaceValidator
         ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, "text", "date", "datetime", "percent");
 
     /// <summary>
-    /// The common check for every element that shows or edits a key: the key must be named and
-    /// declared. Returns false when the element cannot be drawn.
+    /// The check for the two kinds that show a stored value: the key must be named and declared.
+    /// Returns false when the element cannot be drawn.
     /// </summary>
+    /// <remarks>
+    /// Only <c>Text</c> and <c>List</c> reach this. `key` answers "which stored value to display",
+    /// so the four kinds that display something the person typed have nothing to point it at —
+    /// see <see cref="ValidateEditing"/>.
+    /// </remarks>
     private static bool ValidateKeyed(
         SurfaceElement element, KeyTable keys, ref List<Diagnostic>? warnings)
     {
@@ -199,6 +204,49 @@ internal static class SurfaceValidator
     }
 
     /// <summary>
+    /// The check for the four kinds that show something the person typed rather than something the
+    /// ToolKit stored: an input, a number, a select and a switch.
+    /// </summary>
+    /// <remarks>
+    /// Such an element carries no key. `key` says which stored value to display, and there is no
+    /// stored value behind these — the value travels the other way, from the control to the server,
+    /// under the element's <c>name</c>. An author who writes one anyway is not wrong about what they
+    /// want; they are using the only field they could find, so the key is dropped with a warning
+    /// rather than the element.
+    ///
+    /// What does make an element undrawable is having neither a name nor any events: it neither
+    /// contributes a value to a payload nor speaks on its own, so it is not an input at all — it is
+    /// an input-shaped decoration, and dropping it is the honest reading.
+    /// </remarks>
+    /// <returns>The element to keep, or <see langword="null"/> when it cannot be drawn.</returns>
+    private static SurfaceElement? ValidateEditing(
+        SurfaceElement element, KeyTable keys, ref List<Diagnostic>? warnings)
+    {
+        var kept = element;
+
+        if (!string.IsNullOrWhiteSpace(element.Key))
+        {
+            Warn(ref warnings, keys, element, SurfaceDiagnosticCodes.ElementKeyIgnored,
+                $"an '{element.GetType().Name}' shows what the person typed, not a stored value; "
+                + $"key '{element.Key}' is ignored — use 'name' to say what it uploads as");
+            kept = element with { Key = null };
+        }
+
+        var named = !string.IsNullOrWhiteSpace(element.Name);
+        var raises = element is SurfaceInputElement { Events.Count: > 0 }
+            || element is SurfaceButtonElement;
+
+        if (!named && !raises)
+        {
+            Drop(ref warnings, keys, element, SurfaceDiagnosticCodes.ElementInert,
+                "it has no 'name' and no 'events', so it neither contributes a value nor sends one");
+            return null;
+        }
+
+        return kept;
+    }
+
+    /// <summary>
     /// A select must have exactly one source of options. Both means the static list wins — it is
     /// what the author typed on this element — and neither means there is nothing to choose from.
     /// </summary>
@@ -206,9 +254,11 @@ internal static class SurfaceValidator
     private static SurfaceSelectElement? ValidateSelect(
         SurfaceSelectElement select, KeyTable keys, ref List<Diagnostic>? warnings)
     {
-        if (!ValidateKeyed(select, keys, ref warnings))
+        if (ValidateEditing(select, keys, ref warnings) is not { } keptSelect)
             return null;
 
+        select = keptSelect as SurfaceSelectElement
+            ?? throw new InvalidOperationException("ValidateEditing returned a different element");
         var hasStatic = select.Options.Count > 0;
         var hasKey = !string.IsNullOrWhiteSpace(select.OptionsKey);
 
@@ -260,8 +310,11 @@ internal static class SurfaceValidator
     private static SurfaceNumberElement? ValidateNumber(
         SurfaceNumberElement number, KeyTable keys, ref List<Diagnostic>? warnings)
     {
-        if (!ValidateKeyed(number, keys, ref warnings))
+        if (ValidateEditing(number, keys, ref warnings) is not { } keptNumber)
             return null;
+
+        number = keptNumber as SurfaceNumberElement
+            ?? throw new InvalidOperationException("ValidateEditing returned a different element");
 
         var result = number;
 
@@ -331,6 +384,18 @@ internal static class SurfaceDiagnosticCodes
 
     /// <summary>An element referenced a key the ToolKit does not declare.</summary>
     public const string ElementUnknownKey = "surface.element.unknown-key";
+
+    /// <summary>
+    /// An editing element declared a key. `key` says which stored value to display, and these four
+    /// show what the person typed, so the key is dropped and the element kept.
+    /// </summary>
+    public const string ElementKeyIgnored = "surface.element.key-ignored";
+
+    /// <summary>
+    /// An editing element declared neither a name nor any events, so it neither contributes a value
+    /// to a payload nor speaks on its own.
+    /// </summary>
+    public const string ElementInert = "surface.element.inert";
 
     /// <summary>A field name no property on the element type claims. The element is kept.</summary>
     public const string ElementUnknownField = "surface.element.unknown-field";

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using KitX.ToolKit.Contract.Surface;
 using KitX.ToolKit.Contract.View;
 using System.Text.Json;
 
@@ -60,6 +61,39 @@ public sealed class SurfaceCard : Grid
 
     /// <summary>Cells that declare a <c>name</c>: the ones that can contribute to an event.</summary>
     private readonly Dictionary<string, Control> _names = new(StringComparer.Ordinal);
+
+    /// <summary>Selects whose candidates come from a key, grouped by that key.</summary>
+    /// <remarks>
+    /// <para>Grouped rather than one-per-key because one list can feed several cells, and a
+    /// dictionary of single cells would silently update only the last one registered.</para>
+    ///
+    /// <para><b>A list with static <c>options</c> never appears here.</b> Two candidate sources for
+    /// one control is the disagreement this map exists to make impossible.</para>
+    /// </remarks>
+    private readonly Dictionary<string, List<ComboBox>> _optionSources = new(StringComparer.Ordinal);
+
+    /// <summary>The authoritative value of every <c>Select</c> cell, by declared key.</summary>
+    /// <remarks>
+    /// <para><b>A <c>ComboBox</c> cannot hold this value, which is why it lives here.</b> Measured in
+    /// Avalonia 11.3.13: assigning <c>"a"</c> while the list contains it works; swapping
+    /// <c>ItemsSource</c> to a list that does not contain it sets <c>SelectedItem</c> to null; and
+    /// assigning <c>"a"</c> again while it is still absent leaves it null. The control fuses "the
+    /// value" with "a row of the list" and refuses the former when the latter is missing.</para>
+    ///
+    /// <para>The value therefore outlives the list, and the control shows it when it can. This is not
+    /// a second source of truth: the <c>ComboBox</c> never was one for this kind. It is the same
+    /// arrangement the server has, where a value exists whether or not any view can draw it.</para>
+    ///
+    /// <para><b>Keyed by <c>name</c>, not by <c>key</c>.</b> An editing element carries no key at
+    /// all: it is not showing a stored value, it is where a value comes from. The name is the only
+    /// stable identity such an element has, and it is the same word the value uploads under.</para>
+    ///
+    /// <para>Written from two places — the person picking a row, and a rebuild carrying that pick
+    /// forward — and both go through <c>ShowSelection</c>, which owns the single judgement of whether
+    /// the value is currently expressible in the list. A value arriving from the session cannot write
+    /// here: a <c>Select</c> has no key, so no <c>SetValue</c> reaches it.</para>
+    /// </remarks>
+    private readonly Dictionary<string, string> _selection = new(StringComparer.Ordinal);
 
     public SurfaceCard()
     {
@@ -175,19 +209,21 @@ public sealed class SurfaceCard : Grid
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        // Captured before the tree goes away. Only the editing kinds are read: they are the ones
-        // whose contents have no other home. Keyless editing elements are not in this map because
-        // there is no name to carry them by, and an element with no key is not addressable anyway.
+        // Captured before the tree goes away. Only the editing kinds contribute: they are the ones
+        // whose contents have no other home. They are read through _names, not _cells, because an
+        // editing element has no key — its name is the only identity it has, and it is the same word
+        // its value uploads under. A cell that declares neither is unaddressable and is not carried.
         var carriedInput = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var (key, cell) in _cells)
-            if (LocalInputOf(cell) is { } local)
-                carriedInput[key] = local;
+        foreach (var (name, cell) in _names)
+            if (LocalInputOf(name, cell) is { } local)
+                carriedInput[name] = local;
 
         Children.Clear();
         RowDefinitions.Clear();
         ColumnDefinitions.Clear();
         _cells.Clear();
         _names.Clear();
+        _selection.Clear();
 
         SetCells(document.Elements, carriedInput);
     }
@@ -217,11 +253,71 @@ public sealed class SurfaceCard : Grid
     {
         ArgumentNullException.ThrowIfNull(key);
 
+        if (ReplaceCandidates(key, value))
+            return;
+
         if (!_cells.TryGetValue(key, out var cell))
             return;
 
-        Show(cell, value);
+        Show(key, cell, value);
     }
+
+    /// <summary>
+    /// Swaps the candidate list of every <c>Select</c> that takes its options from <paramref name="key"/>.
+    /// </summary>
+    /// <returns>True when the key feeds at least one list, so the caller should stop here.</returns>
+    /// <remarks>
+    /// <para><b>The value does not change.</b> A session list refreshing is not a statement about
+    /// which session the person picked; it only changes what the drop-down can offer. Clearing the
+    /// selection here would make the renderer decide that the pick is no longer valid, which is the
+    /// server's call, not the renderer's.</para>
+    ///
+    /// <para><b>A list that declares static <c>options</c> is not touched.</b> Two sources for one
+    /// list would mean the validator and the renderer could disagree about what it offers, so the
+    /// static list wins and the key is ignored entirely — the same rule the validator enforces.</para>
+    /// </remarks>
+    private bool ReplaceCandidates(string key, JsonElement? value)
+    {
+        if (!_optionSources.TryGetValue(key, out var lists))
+            return false;
+
+        var candidates = value is { ValueKind: JsonValueKind.Array } array
+            ? array.EnumerateArray().Select(Scalars).ToArray()
+            : [];
+
+        foreach (var list in lists)
+        {
+            // The swap itself raises SelectionChanged — the control clears a selection that the new
+            // list does not contain — so the guard has to cover it, not just the projection that
+            // follows. Wrapping only ShowSelection left the echo of the swap reaching the record and
+            // writing "" over the pick.
+            var wasSilent = _projecting;
+
+            _projecting = true;
+
+            try
+            {
+                list.ItemsSource = candidates;
+            }
+            finally
+            {
+                _projecting = wasSilent;
+            }
+
+            // Re-apply what the cell holds so a value that is still offered becomes a selection
+            // again, and one that is not becomes a placeholder. Without this the control would be
+            // showing whatever survived the swap.
+            ShowSelection(list, _selection.TryGetValue(list.Name ?? string.Empty, out var chosen) ? chosen : null);
+        }
+
+        return true;
+    }
+
+    /// <summary>What a <c>Select</c> currently offers, in order. Used by tests and diagnostics.</summary>
+    internal IReadOnlyList<string> CandidatesOf(string key) =>
+        _optionSources.TryGetValue(key, out var lists) && lists.Count > 0 && lists[0].ItemsSource is { } source
+            ? source.Cast<object?>().Select(item => item?.ToString() ?? string.Empty).ToArray()
+            : [];
 
     /// <summary>
     /// Adds one entry to the end of the cell bound to <paramref name="key"/>.
@@ -259,10 +355,18 @@ public sealed class SurfaceCard : Grid
     {
         ArgumentNullException.ThrowIfNull(key);
 
+        if (_optionSources.TryGetValue(key, out var lists))
+        {
+            foreach (var list in lists)
+                list.ItemsSource = Array.Empty<string>();
+
+            return;
+        }
+
         if (!_cells.TryGetValue(key, out var cell))
             return;
 
-        Show(cell, null);
+        Show(key, cell, null);
     }
 
     /// <summary>Empties every cell this card holds.</summary>
@@ -273,8 +377,8 @@ public sealed class SurfaceCard : Grid
     /// </remarks>
     public void ClearAll()
     {
-        foreach (var cell in _cells.Values)
-            Show(cell, null);
+        foreach (var (key, cell) in _cells)
+            Show(key, cell, null);
     }
 
     /// <summary>The current text of a cell, for tests and for carrying input across a rebuild.</summary>
@@ -328,8 +432,41 @@ public sealed class SurfaceCard : Grid
             Grid.SetColumn(view, element.Column - 1);
             Children.Add(view);
 
+            // Only the two kinds that show a stored value are registered here. An editing element
+            // has no key at all: it is not showing a value, it is where a value comes from, and
+            // registering one would let SetValue and ClearAll write into what the person is typing.
             if (!string.IsNullOrEmpty(element.Key))
                 _cells[element.Key] = view;
+
+            // A Select's static candidates are set now; its runtime ones arrive as a value under
+            // optionsKey, which is the same array the session carries. Both are candidates — the
+            // difference is only who hands them over.
+            if (view is ComboBox chooser && element is SurfaceSelectElement picker)
+            {
+                chooser.ItemsSource = picker.Options;
+                chooser.PlaceholderText = string.Empty;
+
+                // The pick is remembered under the element's name, and replayed whenever the control
+                // is rebuilt or its candidates change. That is the only place a Select's value lives:
+                // the control refuses to hold a value its list cannot express, so trusting it would
+                // lose the pick precisely when the list changed under the person.
+                if (!string.IsNullOrEmpty(element.Name))
+                {
+                    chooser.Name = element.Name;
+                    chooser.SelectionChanged += (sender, _) => RememberSelection((ComboBox)sender!);
+                    ShowSelection(chooser, _selection.TryGetValue(element.Name, out var remembered) ? remembered : null);
+                }
+
+                // Static wins: a picker that declares its own options is never fed by a key, so the
+                // validator and the renderer cannot end up describing different lists.
+                if (picker.Options.Count == 0 && !string.IsNullOrEmpty(picker.OptionsKey))
+                {
+                    if (!_optionSources.TryGetValue(picker.OptionsKey, out var feeding))
+                        _optionSources[picker.OptionsKey] = feeding = [];
+
+                    feeding.Add(chooser);
+                }
+            }
 
 
             // Name is a separate field from Key and is not defaulted from it: a cell may show one
@@ -338,8 +475,12 @@ public sealed class SurfaceCard : Grid
             // of every upload without an extra check later.
             if (!string.IsNullOrEmpty(element.Name))
                 _names[element.Name] = view;
-            if (carriedInput.TryGetValue(element.Key ?? string.Empty, out var local))
-                RestoreLocalInput(view, local);
+
+            // A rebuild carries the editing kinds' current input forward, keyed by name — the same
+            // identity their value uploads under. They cannot be re-sent, so this is the only way
+            // their content survives SetDocument.
+            if (!string.IsNullOrEmpty(element.Name) && carriedInput.TryGetValue(element.Name, out var local))
+                RestoreLocalInput(element.Name, view, local);
         }
 
         // Columns follow the document's declared count, which is fixed at four by the schema. Doing
@@ -351,22 +492,22 @@ public sealed class SurfaceCard : Grid
 
     /// <summary>Puts a value into a cell, or clears it when there is none.</summary>
     /// <remarks>
-    /// <b><c>CheckBox</c> is matched before <c>Button</c>, and the order carries meaning.</b>
-    /// <c>CheckBox</c> derives from <c>ToggleButton</c>, which derives from <c>Button</c> — so a
-    /// <c>Button</c> arm written first would swallow every tick box and quietly treat it as a label.
-    /// That is the same failure this file keeps having to name: two things with the same shape, one
-    /// arm answering for both.
+    /// <para><b>Only the kinds that show a stored value have arms here.</b> A <c>TextBlock</c> and a
+    /// <c>List</c> show what a key holds; a <c>Button</c> shows a label the document carries. The four
+    /// editing kinds are absent on purpose — they show what the person entered, and a value from the
+    /// session must never reach them. Registering one in <c>_cells</c> would make this method write
+    /// into half-typed input, which is the one thing on a card that cannot be re-sent.</para>
+    ///
+    /// <para><b>An unregistered control reaching here is a defect, not a no-op.</b> The lookup in
+    /// <see cref="SetValue"/> only finds cells that were registered, so an arm for a kind that can
+    /// never be registered would be dead code wearing the costume of coverage.</para>
     /// </remarks>
-    private static void Show(Control cell, JsonElement? value)
+    private void Show(string key, Control cell, JsonElement? value)
     {
         switch (cell)
         {
             case TextBlock label:
                 label.Text = value is { } labelValue ? Scalars(labelValue) : string.Empty;
-                break;
-
-            case CheckBox tick:
-                tick.IsChecked = value is { ValueKind: JsonValueKind.True };
                 break;
 
             case Button button:
@@ -377,40 +518,28 @@ public sealed class SurfaceCard : Grid
                 SetListValues(scroller, value);
                 break;
 
-            case TextBox box:
-                box.Text = value is { } boxValue ? Scalars(boxValue) : string.Empty;
-                break;
-
-            case NumericUpDown spinner:
-                SetNumber(spinner, value);
-                break;
-
-            case ComboBox combo:
-                SetSelection(combo, value);
-                break;
-
             default:
                 throw new NotSupportedException(
-                    "no way to show a value in " + cell.GetType().Name);
+                    "no way to show a value in " + cell.GetType().Name
+                    + " — an editing control is never registered for values");
         }
     }
 
     /// <summary>What a cell currently displays, or null when it shows nothing.</summary>
     /// <remarks>
-    /// <c>CheckBox</c> is matched before <c>Button</c> here for the reason given on
-    /// <see cref="Show"/>: it derives from <c>Button</c>, and an arm written first would answer for
-    /// it with the label branch.
+    /// <para><b>Only the kinds registered in <c>_cells</c> answer.</b> A <c>TextBlock</c> shows what a
+    /// key holds, a <c>List</c> shows its entries, a <c>Button</c> shows a label the document carries.
+    /// The editing kinds are absent: their contents are not a value anybody stored, and reading them
+    /// here would answer a question this method is not asked. What they hold is read by
+    /// <see cref="CollectNamedValues"/> and <see cref="LocalInputOf"/>, both of which go through
+    /// <c>_names</c>.</para>
     /// </remarks>
-    private static string? Shown(Control cell) =>
+    private string? Shown(Control cell) =>
         cell switch
         {
             TextBlock label => label.Text,
-            TextBox box => box.Text,
             ScrollViewer scroller => string.Join(
                 "\n", (scroller.Content as StackPanel)?.Children.OfType<TextBlock>().Select(t => t.Text) ?? []),
-            CheckBox tick => tick.IsChecked == true ? "true" : "false",
-            NumericUpDown spinner => spinner.Value?.ToString() ?? string.Empty,
-            ComboBox combo => combo.SelectedItem?.ToString() ?? string.Empty,
             Button button => button.Content?.ToString() ?? string.Empty,
             _ => null,
         };
@@ -425,9 +554,11 @@ public sealed class SurfaceCard : Grid
     /// control and has never been stored.</para>
     ///
     /// <para>Strings keep their text, switches keep their bool, numbers keep their decimal as a JSON
-    /// number, and a <c>Select</c> keeps the selected item's text. Everything else is skipped — a
-    /// cell whose value the renderer cannot express as JSON is not an error, it is a cell that was
-    /// never meant to be uploaded.</para>
+    /// number, and a <c>Select</c> keeps its recorded value — which is not always what the control
+    /// shows, since a value absent from the candidates appears as a placeholder. Uploading what the
+    /// control displays would silently drop such a value. Everything else is skipped — a cell whose
+    /// value the renderer cannot express as JSON is not an error, it is a cell that was never meant
+    /// to be uploaded.</para>
     /// </remarks>
     private IReadOnlyDictionary<string, JsonElement> CollectNamedValues()
     {
@@ -439,7 +570,9 @@ public sealed class SurfaceCard : Grid
             {
                 global::Avalonia.Controls.TextBox box => JsonSerializer.SerializeToElement(box.Text ?? string.Empty),
                 global::Avalonia.Controls.NumericUpDown spinner => JsonSerializer.SerializeToElement(spinner.Value),
-                global::Avalonia.Controls.ComboBox combo => JsonSerializer.SerializeToElement(combo.SelectedItem?.ToString()),
+                global::Avalonia.Controls.ComboBox => _selection.TryGetValue(name, out var chosen)
+                    ? JsonSerializer.SerializeToElement(chosen)
+                    : null,
                 global::Avalonia.Controls.CheckBox tick => JsonSerializer.SerializeToElement(tick.IsChecked ?? false),
                 _ => (JsonElement?)null,
             };
@@ -450,6 +583,40 @@ public sealed class SurfaceCard : Grid
 
         return values;
     }
+
+    /// <summary>Records the row the person just picked, so a rebuild or a candidate swap cannot lose it.</summary>
+    /// <remarks>
+    /// <para><b>This is the only write that comes from the person, and until now it did not exist.</b>
+    /// The handler was never wired, so <c>_selection</c> was only ever written by a rebuild carrying a
+    /// previous pick forward — which meant a fresh card uploaded nothing for a <c>Select</c> no matter
+    /// what was chosen on it. Every other editing kind reads its control at upload time; a
+    /// <c>ComboBox</c> cannot, because it shows a placeholder whenever the list does not contain the
+    /// value.</para>
+    ///
+    /// <para><b>Clearing the pick is recorded too.</b> <c>SelectedItem</c> going back to null is a
+    /// person saying "nothing", and leaving the old value in the map would upload a pick the card is
+    /// no longer showing.</para>
+    /// </remarks>
+    private void RememberSelection(ComboBox combo)
+    {
+        // A projection in progress is writing the value into the control; the control's echo of that
+        // write is not the person speaking, and recording it would overwrite the very value being
+        // projected. See ShowSelection.
+        if (_projecting)
+            return;
+
+        if (string.IsNullOrEmpty(combo.Name))
+            return;
+
+        _selection[combo.Name] = combo.SelectedItem?.ToString() ?? string.Empty;
+    }
+
+    /// <summary>True while a value is being written into a control, so its echo is not taken as input.</summary>
+    /// <remarks>
+    /// Nesting is tracked rather than assumed: a candidate swap runs a projection from inside another
+    /// projection, and the inner one must not clear the flag on its way out.
+    /// </remarks>
+    private bool _projecting;
 
     /// <summary>Raised when the person at the card does something the card declares.</summary>
     /// <remarks>
@@ -470,23 +637,32 @@ public sealed class SurfaceCard : Grid
     }
     /// <summary>The user's in-progress input, for the kinds whose contents live only in the control.</summary>
     /// <remarks>
-    /// Null for everything else. A <c>TextBlock</c> shows a value the server has; a <c>List</c> shows
-    /// entries the server has; a <c>Button</c> shows a label the document has. None of those need
+    /// <para><b>Keyed by <c>name</c>, because that is the only identity an editing element has.</b> It
+    /// has no key: it is not showing a stored value, it is where a value comes from.</para>
+    ///
+    /// <para>Null for everything else. A <c>TextBlock</c> shows a value the server has; a <c>List</c>
+    /// shows entries the server has; a <c>Button</c> shows a label the document has. None of those need
     /// carrying — all three can be handed back by whoever changed the document. An editing control's
-    /// half-typed text has no such owner, which is the only reason it is treated differently.
+    /// half-typed text has no such owner, which is the only reason it is treated differently.</para>
     /// </remarks>
-    private static object? LocalInputOf(Control cell) =>
+    private object? LocalInputOf(string name, Control cell) =>
         cell switch
         {
             TextBox box => box.Text,
             NumericUpDown spinner => spinner.Value,
-            ComboBox combo => combo.SelectedItem,
+            ComboBox => _selection.TryGetValue(name, out var chosen) ? chosen : null,
             CheckBox tick => tick.IsChecked,
             _ => null,
         };
 
     /// <summary>Puts a carried local input back into a freshly built editing control.</summary>
-    private static void RestoreLocalInput(Control cell, object? local)
+    /// <remarks>
+    /// <para><b>A carried <c>Select</c> goes through the same judgement as a value arriving from the
+    /// session</b> — <see cref="ShowSelection"/>. Assigning <c>SelectedItem</c> directly was the
+    /// second position of the same defect: at rebuild time the control's list is still empty, so the
+    /// assignment silently produced null and the person's choice disappeared without a word.</para>
+    /// </remarks>
+    private void RestoreLocalInput(string name, Control cell, object? local)
     {
         if (local is null)
             return;
@@ -500,7 +676,10 @@ public sealed class SurfaceCard : Grid
                 spinner.Value = number;
                 break;
             case ComboBox combo:
-                combo.SelectedItem = local;
+                var carried = local as string;
+                if (carried is not null)
+                    _selection[name] = carried;
+                ShowSelection(combo, carried);
                 break;
             case CheckBox tick when local is bool isChecked:
                 tick.IsChecked = isChecked;
@@ -533,8 +712,65 @@ public sealed class SurfaceCard : Grid
             ? number
             : null;
 
-    private static void SetSelection(ComboBox combo, JsonElement? value) =>
-        combo.SelectedItem = value is { } v ? Scalars(v) : null;
+    /// <summary>
+    /// Makes a <c>ComboBox</c> display a value, as a selection when the list contains it and as a
+    /// placeholder otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the one place that decides "is this value expressible in the list".</b> Two
+    /// callers need that judgement — a rebuild carrying a pick forward, and candidates arriving —
+    /// and writing it twice is how one of them ends up out of date. The person picking a row does not
+    /// need it: they picked something that is by construction in the list, and
+    /// <c>RememberSelection</c> records what the control now holds.</para>
+    ///
+    /// <para><b>The control is not asked to hold what it cannot.</b> Measured in Avalonia 11.3.13:
+    /// assigning <c>SelectedItem</c> to a value absent from <c>ItemsSource</c> leaves it null, and
+    /// swapping the list drops an existing selection. So when the value is not in the list it is
+    /// shown as <see cref="ComboBox.PlaceholderText"/> instead, which is honest — it says "this is
+    /// the value" without claiming the list contains it. The value itself lives in
+    /// <c>_selection</c> throughout, so it still uploads and still survives a rebuild.</para>
+    ///
+    /// <para><b>The projection is made silent first, and that is not a detail.</b> Every assignment
+    /// below can raise <c>SelectionChanged</c> — swapping a list drops the selection, and clearing
+    /// one does too — so an unguarded projection writes the empty string over the value it is in the
+    /// middle of projecting. The person's pick was "two"; the list no longer offers it; the projection
+    /// says so with a placeholder; and the echo would have said "nothing was picked". Those are
+    /// different facts and only one of them is true.</para>
+    /// </remarks>
+    private void ShowSelection(ComboBox combo, string? text)
+    {
+        var wasSilent = _projecting;
+
+        _projecting = true;
+
+        try
+        {
+            Project(combo, text);
+        }
+        finally
+        {
+            _projecting = wasSilent;
+        }
+    }
+
+    private static void Project(ComboBox combo, string? text)
+    {
+        var candidates = combo.ItemsSource;
+
+        if (text is not null && candidates is not null)
+            foreach (var candidate in candidates)
+                if (candidate is not null && string.Equals(candidate.ToString(), text, StringComparison.Ordinal))
+                {
+                    combo.SelectedItem = candidate;
+                    combo.PlaceholderText = string.Empty;
+                    return;
+                }
+
+        // Not in the list, or no value at all. Clearing first matters: the control refuses a foreign
+        // selection but keeps an old one if it is still a member of the new list.
+        combo.SelectedItem = null;
+        combo.PlaceholderText = text ?? string.Empty;
+    }
 
     /// <summary>The text a JSON scalar shows as, with objects and arrays rendered as their JSON.</summary>
     /// <remarks>
@@ -590,13 +826,29 @@ public sealed class SurfaceCard : Grid
     /// here, so "it occupies its slot while empty" is what every assertion about them is already
     /// saying.</para>
     ///
-    /// <para><b>Select carries no candidates at this stage.</b> <c>Options</c> is declaration data the
-    /// renderer is entitled to read, while <c>optionsKey</c> names a runtime value read from the
-    /// session — by something upstream, not here. This stage passes neither: an empty <c>Select</c>
-    /// still occupies its slot and still lands in the right place, which is the whole question being
-    /// answered. How candidates reach the renderer is the next stage's problem, and keeping the key
-    /// name out of these signatures is the same rule that keeps <c>value</c> out of
-    /// <c>SurfaceLayout</c>: what appears in a signature, the implementation will use.</para>
+    /// <para><b>A <c>Select</c> keeps its own value, because no control there can hold it.</b> An
+    /// earlier revision of this comment said candidates were "the next stage's problem", and that was
+    /// wrong twice over: candidates had already arrived — <c>optionsKey</c> names a declared key, and
+    /// <c>welcome.values</c> carries every declared key that has a value, so the array was in hand —
+    /// and the sentence was used to justify a signature that could not have carried it. The reason it
+    /// looked plausible is the rule that <c>value</c> stays out of <c>SurfaceLayout</c>, which is about
+    /// <em>position</em>: a value never changes where a cell goes. Candidates change what a cell
+    /// <em>shows</em>, which is the renderer's whole job.</para>
+    ///
+    /// <para><b>So the authoritative value of a <c>Select</c> lives in <c>_selection</c>, not in
+    /// <c>ComboBox.SelectedItem</c>.</b> The other four editable kinds happen to keep their value in
+    /// their control, and it is tempting to read that as a rule — it is a property of those four
+    /// controls, and a <c>ComboBox</c> is the one that does not have it: it fuses "the value" with
+    /// "one row of the list", so it cannot hold a value the list does not contain. Swapping the list
+    /// drops the selection (measured: assigning <c>"a"</c>, then setting <c>ItemsSource</c> to
+    /// <c>["c"]</c>, leaves <c>SelectedItem</c> null; assigning <c>"a"</c> again leaves it null). The
+    /// selection is therefore a <em>projection</em> of the value, and when the list cannot express it
+    /// the projection is a placeholder — the value still travels, which is the behaviour that matters.
+    /// </para>
+    ///
+    /// <para>There is one judgement here and one place that makes it: <c>ShowSelection</c>. Every path
+    /// that changes either the candidates or the value goes through it, so "is this value in the
+    /// list" is decided once and grep finds it.</para>
     ///
     /// <para><b>List carries entries, and its control is one slot tall like everything else.</b>
     /// §10.2.1.0 separates the two heights: the slot it stands in grows to K, the control itself
@@ -617,23 +869,40 @@ public sealed class SurfaceCard : Grid
     /// answer to "what does a Switch look like", and the two drift without either going red.</para>
     /// </remarks>
     internal Control CreateView(
-        KitX.ToolKit.Contract.Surface.SurfaceElement element) =>
-        element switch
+        KitX.ToolKit.Contract.Surface.SurfaceElement element)
+    {
+        var view = element switch
         {
             KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key),
             KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label, button.Events),
             KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
-                input.Key, new global::Avalonia.Controls.TextBox()),
+                new global::Avalonia.Controls.TextBox()),
             KitX.ToolKit.Contract.Surface.SurfaceNumberElement number => Editing(
-                number.Key, new global::Avalonia.Controls.NumericUpDown()),
+                new global::Avalonia.Controls.NumericUpDown()),
             KitX.ToolKit.Contract.Surface.SurfaceSelectElement select => Editing(
-                select.Key, new global::Avalonia.Controls.ComboBox()),
+                new global::Avalonia.Controls.ComboBox()),
             KitX.ToolKit.Contract.Surface.SurfaceSwitchElement toggle => Editing(
-                toggle.Key, new global::Avalonia.Controls.CheckBox()),
-            KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(list.Key),
+                new global::Avalonia.Controls.CheckBox()),
+            KitX.ToolKit.Contract.Surface.SurfaceListElement list => Entries(),
             _ => throw new NotSupportedException(
                 "no view for " + element.GetType().Name),
         };
+
+        // This is the only place a control gets a Name, and the only value it can be given is the
+        // element's own Name. Control.Name is Avalonia's element address — what x:Name becomes at
+        // runtime, what automation and styling resolve — so assigning one is saying "this element
+        // can be pointed at". Q80 deleted the element id from the model; letting Control.Name carry
+        // Key would have kept an address alive by borrowing another field's value.
+        //
+        // A surface element without a Name therefore has no address and is left unassigned — null,
+        // not the empty string. "" is still an address, one whose content happens to be empty, and
+        // it is reachable by FindControl("") or Name == ""; a later test could start using it as a
+        // lookup key with nothing visible to say the choice was accidental.
+        if (!string.IsNullOrEmpty(element.Name))
+            view.Name = element.Name;
+
+        return view;
+    }
 
     /// <summary>
     /// A control that only displays what it is told: one slot tall, no template of its own, empty.
@@ -652,7 +921,6 @@ public sealed class SurfaceCard : Grid
     /// </remarks>
     private static Control Labelled(string? key) => new TextBlock
     {
-        Name = key ?? string.Empty,
         Text = string.Empty,
         // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
         // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
@@ -689,7 +957,7 @@ public sealed class SurfaceCard : Grid
         // two parties deciding what a click means.
         pressable.Click += (_, _) => Raise(events);
 
-        return Editing(key, pressable);
+        return Editing(pressable);
     }
 
     /// <summary>
@@ -711,9 +979,8 @@ public sealed class SurfaceCard : Grid
     /// <para>It is also why these only measure once a window exists: a templated control with no
     /// visual root has no template to be measured from.</para>
     /// </remarks>
-    private static Control Editing(string? key, Control control)
+    private static Control Editing(Control control)
     {
-        control.Name = key ?? string.Empty;
         control.Height = SurfaceMetrics.SlotHeight;
         control.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top;
 
@@ -743,9 +1010,8 @@ public sealed class SurfaceCard : Grid
     /// which of its values belonged to this control. The key is the same key either way; reading the
     /// array out of it is a lookup, not a decision.</para>
     /// </remarks>
-    private static Control Entries(string? key) => new ScrollViewer
+    private static Control Entries() => new ScrollViewer
     {
-        Name = key ?? string.Empty,
         Height = SurfaceMetrics.SlotHeight,
         VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
         VerticalScrollBarVisibility = global::Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,

@@ -190,8 +190,11 @@ public class SurfaceTests : IDisposable
     }
 
     [Fact]
-    public void A_keyed_element_with_no_key_is_dropped()
+    public void An_input_that_neither_feeds_a_payload_nor_speaks_is_dropped()
     {
+        // An editing element carries no key: the value travels the other way, under its name.
+        // With neither a name nor any events it contributes nothing, so it is not drawable —
+        // and `no-key` is the wrong reason, because it was never supposed to have one.
         var document = new SurfaceDocument
         {
             Elements = [new SurfaceInputElement { Key = null }],
@@ -200,7 +203,38 @@ public class SurfaceTests : IDisposable
         var result = SurfaceValidator.Validate(document, Keys(new KeyDeclaration("a", "string", KeyRole.Out)));
 
         Assert.Empty(result.Effective.Elements);
-        Assert.Equal(SurfaceDiagnosticCodes.ElementNoKey, result.Warnings[0].Code);
+        Assert.Equal(SurfaceDiagnosticCodes.ElementInert, Assert.Single(result.Warnings).Code);
+    }
+
+    [Fact]
+    public void An_input_that_uploads_under_a_name_is_kept_even_with_no_key()
+    {
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceInputElement { Name = "barcode" }],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        Assert.Single(result.Effective.Elements);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
+    public void An_editing_element_that_declares_a_key_has_it_dropped_with_a_warning()
+    {
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceInputElement { Key = "barcode", Name = "barcode" }],
+        };
+
+        var result = SurfaceValidator.Validate(
+            document, Keys(new KeyDeclaration("barcode", "string", KeyRole.Out)));
+
+        var kept = Assert.IsType<SurfaceInputElement>(Assert.Single(result.Effective.Elements));
+        Assert.Null(kept.Key);
+        Assert.Equal("barcode", kept.Name);
+        Assert.Equal(SurfaceDiagnosticCodes.ElementKeyIgnored, Assert.Single(result.Warnings).Code);
     }
 
     [Fact]
@@ -222,14 +256,16 @@ public class SurfaceTests : IDisposable
     {
         var document = new SurfaceDocument
         {
-            Elements = [new SurfaceSelectElement { Key = "mode" }],
+            Elements = [new SurfaceSelectElement { Name = "mode" }],
         };
 
         var result = SurfaceValidator.Validate(
             document, Keys(new KeyDeclaration("mode", "string", KeyRole.Out)));
 
         Assert.Empty(result.Effective.Elements);
-        Assert.Equal(SurfaceDiagnosticCodes.SelectNoOptions, result.Warnings[0].Code);
+        // The element also declared `key`, so a `key-ignored` warning comes first. Look for the
+        // code this test is about rather than assuming it is the only one.
+        Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.SelectNoOptions);
     }
 
     [Fact]
@@ -298,7 +334,7 @@ public class SurfaceTests : IDisposable
     {
         var document = new SurfaceDocument
         {
-            Elements = [new SurfaceNumberElement { Key = "n", Min = 10, Max = 1 }],
+            Elements = [new SurfaceNumberElement { Name = "n", Min = 10, Max = 1 }],
         };
 
         var result = SurfaceValidator.Validate(
@@ -307,7 +343,8 @@ public class SurfaceTests : IDisposable
         var kept = Assert.IsType<SurfaceNumberElement>(Assert.Single(result.Effective.Elements));
         Assert.Null(kept.Min);
         Assert.Null(kept.Max);
-        Assert.Equal(SurfaceDiagnosticCodes.NumberRangeReversed, Assert.Single(result.Warnings).Code);
+        // Two warnings now: the element declared `key`, which an editing element may not have.
+        Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.NumberRangeReversed);
     }
 
     [Fact]
@@ -331,7 +368,7 @@ public class SurfaceTests : IDisposable
     {
         var document = new SurfaceDocument
         {
-            Elements = [new SurfaceSelectElement { Key = "mode", Options = ["a"], OptionsKey = "k" }],
+            Elements = [new SurfaceSelectElement { Name = "mode", Options = ["a"], OptionsKey = "k" }],
         };
 
         var result = SurfaceValidator.Validate(
@@ -343,7 +380,8 @@ public class SurfaceTests : IDisposable
         var kept = Assert.IsType<SurfaceSelectElement>(Assert.Single(result.Effective.Elements));
         Assert.Null(kept.OptionsKey);
         Assert.Single(kept.Options);
-        Assert.Equal(SurfaceDiagnosticCodes.SelectOptionsAmbiguous, Assert.Single(result.Warnings).Code);
+        // Static wins, and the element's `key` was dropped too — assert the code, not the count.
+        Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.SelectOptionsAmbiguous);
     }
 
     // ── change notification ────────────────────────────────────────────────────────────────────

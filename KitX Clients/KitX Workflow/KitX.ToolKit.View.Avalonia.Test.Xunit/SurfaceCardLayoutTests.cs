@@ -50,7 +50,7 @@ public sealed class SurfaceCardLayoutTests
         // suite that passes and a renderer that draws nothing.
         var card = Card(new SurfaceTextElement { Row = 1, Column = 1, Key = "title" });
 
-        var child = Child(card, "title");
+        var child = CellAt(card, 0);
 
         Assert.True(card.Bounds.Width > 0, $"card width is {card.Bounds.Width}");
         Assert.True(card.Bounds.Height > 0, $"card height is {card.Bounds.Height}");
@@ -71,7 +71,7 @@ public sealed class SurfaceCardLayoutTests
         };
 
         var card = Card([.. elements]);
-        var actual = TopOf(card, "second") - TopOf(card, "first");
+        var actual = TopAt(card, 1) - TopAt(card, 0);
 
         var expected = SurfaceLayout.PixelTopOf(elements, elements[1], SlotHeight, ListSlots)
                      - SurfaceLayout.PixelTopOf(elements, elements[0], SlotHeight, ListSlots);
@@ -106,7 +106,7 @@ public sealed class SurfaceCardLayoutTests
             new SurfaceTextElement { Row = 1, Column = 1, Key = "sessions" },
             new SurfaceTextElement { Row = 2, Column = 1, Key = "below" });
 
-        var extra = TopOf(withList, "below") - TopOf(withText, "below");
+        var extra = TopAt(withList, 1) - TopAt(withText, 1);
         var expected = (SurfaceMetrics.ListSlotCount - 1) * SurfaceMetrics.SlotHeight;
 
         Assert.Equal(expected, extra, tolerance: 0.5);
@@ -136,19 +136,19 @@ public sealed class SurfaceCardLayoutTests
         var withoutValues = Card([.. elements]);
 
         Assert.Equal(
-            TopOf(withValues, "subtitle") - TopOf(withValues, "title"),
-            TopOf(withoutValues, "subtitle") - TopOf(withoutValues, "title"),
+            TopAt(withValues, 1) - TopAt(withValues, 0),
+            TopAt(withoutValues, 1) - TopAt(withoutValues, 0),
             tolerance: 0.5);
 
         Assert.Equal(
-            TopOf(withValues, "note") - TopOf(withValues, "subtitle"),
-            TopOf(withoutValues, "note") - TopOf(withoutValues, "subtitle"),
+            TopAt(withValues, 2) - TopAt(withValues, 1),
+            TopAt(withoutValues, 2) - TopAt(withoutValues, 1),
             tolerance: 0.5);
 
         // And the cells are still cell-sized, not collapsed to nothing.
         Assert.Equal(
             SurfaceMetrics.SlotHeight,
-            Child(withoutValues, "title").Bounds.Height,
+            CellAt(withoutValues, 0).Bounds.Height,
             tolerance: 0.5);
     }
 
@@ -173,8 +173,8 @@ public sealed class SurfaceCardLayoutTests
         var adjacentCard = Card([.. adjacent]);
         var gapCard = Card([.. withGap]);
 
-        var adjacentDelta = TopOf(adjacentCard, "b") - TopOf(adjacentCard, "a");
-        var gapDelta = TopOf(gapCard, "b") - TopOf(gapCard, "a");
+        var adjacentDelta = TopAt(adjacentCard, 1) - TopAt(adjacentCard, 0);
+        var gapDelta = TopAt(gapCard, 1) - TopAt(gapCard, 0);
 
         Assert.Equal(adjacentDelta, gapDelta, tolerance: 0.5);
     }
@@ -190,29 +190,34 @@ public sealed class SurfaceCardLayoutTests
         // not whether the cell exists (§10.2.1.1). A renderer that sized a text box to its contents
         // would collapse four rows onto one another here, and would do it in every real card too.
         //
-        // Written as "the differences between consecutive tops are all one slot" rather than as four
-        // absolute numbers, so the assertion survives a card that gains a header or padding.
+        // Written without naming a single element. That is not shorthand: a layout assertion that
+        // has to know which element it is looking at is testing the wiring of names, not the layout.
+        // Naming them also checks less — the four named cells could be one slot tall while a fifth
+        // element was not, and this version would miss it the other way round: it walks every child
+        // the card added, so an extra one cannot hide.
         var elements = new List<SurfaceElement>
         {
-            new SurfaceInputElement { Row = 1, Column = 1, Key = "barcode" },
-            new SurfaceNumberElement { Row = 2, Column = 1, Key = "count" },
-            new SurfaceSelectElement { Row = 3, Column = 1, Key = "mode" },
-            new SurfaceSwitchElement { Row = 4, Column = 1, Key = "enabled" },
+            new SurfaceInputElement { Row = 1, Column = 1 },
+            new SurfaceNumberElement { Row = 2, Column = 1 },
+            new SurfaceSelectElement { Row = 3, Column = 1 },
+            new SurfaceSwitchElement { Row = 4, Column = 1 },
         };
 
         var card = Card([.. elements]);
 
-        foreach (var key in new[] { "barcode", "count", "mode", "enabled" })
-        {
-            Assert.Equal(
-                SurfaceMetrics.SlotHeight,
-                Child(card, key).Bounds.Height,
-                tolerance: 0.5);
-        }
+        var cells = card.Children
+            .OfType<Control>()
+            .OrderBy(c => c.Bounds.Top)
+            .ToList();
 
-        Assert.Equal(SlotHeight, TopOf(card, "count") - TopOf(card, "barcode"), tolerance: 0.5);
-        Assert.Equal(SlotHeight, TopOf(card, "mode") - TopOf(card, "count"), tolerance: 0.5);
-        Assert.Equal(SlotHeight, TopOf(card, "enabled") - TopOf(card, "mode"), tolerance: 0.5);
+        Assert.Equal(4, cells.Count);
+
+        foreach (var cell in cells)
+            Assert.Equal(SurfaceMetrics.SlotHeight, cell.Bounds.Height, tolerance: 0.5);
+
+        var tops = cells.Select(c => c.Bounds.Top).ToList();
+        foreach (var (a, b) in tops.Zip(tops.Skip(1)))
+            Assert.Equal(SurfaceMetrics.SlotHeight, b - a, tolerance: 0.5);
     }
 
     [AvaloniaFact]
@@ -221,10 +226,15 @@ public sealed class SurfaceCardLayoutTests
         // SurfaceElement.Key is nullable: an element may read nothing and still be a thing on the
         // card. Skipping it would make a row's height depend on whether a key was written — the same
         // failure as letting a value decide the layout, arriving from the other side.
+        //
+        // The sample is a Button, not an Input. Since Q71 an editing element may not carry a key at
+        // all — the validator strips it and warns — so an Input with Key = null would satisfy this
+        // test by construction and prove nothing. A Button never has one, and still has to take up
+        // its slot.
         var elements = new List<SurfaceElement>
         {
             new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-            new SurfaceInputElement { Row = 2, Column = 1, Key = null },
+            new SurfaceButtonElement { Row = 2, Column = 1, Label = "Save" },
             new SurfaceTextElement { Row = 3, Column = 1, Key = "footer" },
         };
 
@@ -233,7 +243,7 @@ public sealed class SurfaceCardLayoutTests
         // Two slot-heights from title to footer: the keyless input still takes its row.
         Assert.Equal(
             2 * SurfaceMetrics.SlotHeight,
-            TopOf(card, "footer") - TopOf(card, "title"),
+            TopAt(card, 2) - TopAt(card, 0),
             tolerance: 0.5);
 
         Assert.Equal(3, card.Children.OfType<Control>().Count());
@@ -257,13 +267,13 @@ public sealed class SurfaceCardLayoutTests
         // The row grew by K slots — that half already holds.
         Assert.Equal(
             ListSlots * SurfaceMetrics.SlotHeight,
-            TopOf(card, "footer"),
+            TopAt(card, 1),
             tolerance: 0.5);
 
         // The control did not grow with it.
         Assert.Equal(
             SurfaceMetrics.SlotHeight,
-            Child(card, "sessions").Bounds.Height,
+            Scroller(card).Bounds.Height,
             tolerance: 0.5);
     }
 
@@ -291,15 +301,15 @@ public sealed class SurfaceCardLayoutTests
         var many = TwoRows(40);
 
         // Forty entries move nothing that the layout placed.
-        Assert.Equal(TopOf(few, "footer"), TopOf(many, "footer"), tolerance: 0.5);
+        Assert.Equal(TopAt(few, 1), TopAt(many, 1), tolerance: 0.5);
 
         // And the two lists are still the same height, because the growth went into scrolling.
         Assert.Equal(
-            Child(few, "sessions").Bounds.Height,
-            Child(many, "sessions").Bounds.Height,
+            Scroller(few).Bounds.Height,
+            Scroller(many).Bounds.Height,
             tolerance: 0.5);
 
-        var scroller = (ScrollViewer)Child(many, "sessions");
+        var scroller = Scroller(many);
 
         Assert.True(
             scroller.Extent.Height > scroller.Viewport.Height,
@@ -400,10 +410,30 @@ public sealed class SurfaceCardLayoutTests
     private static Window? _host;
 
     /// <summary>
-    /// The laid-out control for an element, found by key.
+    /// The n-th control the card added, top edge first — the card's own order, not a name.
     /// </summary>
-    private static Control Child(SurfaceCard card, string key) =>
-        card.Children.OfType<Control>().Single(c => c.Name == key);
+    /// <remarks>
+    /// <b>Why positional, and why that is not the compromise it looks like.</b> In the product,
+    /// pointing at an element by position is wrong: the author moves a row and every reference goes
+    /// quietly stale, which is exactly why Q80 deleted the element <c>id</c>. In a test the fixture
+    /// and the assertion sit in one file and change together, so there is no "somebody reordered it
+    /// and I did not notice". The dangerous version of positional addressing is the one that crosses
+    /// a boundary; this one does not.
+    /// </remarks>
+    private static Control CellAt(SurfaceCard card, int index) =>
+        card.Children.OfType<Control>().OrderBy(c => c.Bounds.Top).ElementAt(index);
+
+    /// <summary>
+    /// The one <c>List</c> on the card, found by type rather than by key.
+    /// </summary>
+    /// <remarks>
+    /// Every fixture that calls this has exactly one list, so the type identifies it. Reading a
+    /// <c>ScrollViewer</c> needs no name, which keeps these assertions about what the list does
+    /// rather than about what it is called.
+    /// </remarks>
+    private static ScrollViewer Scroller(SurfaceCard card) =>
+        card.Children.OfType<ScrollViewer>().Single();
+
     /// <summary>
     /// The element's top edge, measured down from the card.
     /// </summary>
@@ -415,6 +445,5 @@ public sealed class SurfaceCardLayoutTests
     /// at twice the right answer, which looks like a plausible slot height. It only surfaces when
     /// somebody checks the numbers against the height they set.
     /// </remarks>
-    private static double TopOf(SurfaceCard card, string key) =>
-        card.Children.OfType<Control>().Single(c => c.Name == key).Bounds.Top;
+    private static double TopAt(SurfaceCard card, int index) => CellAt(card, index).Bounds.Top;
 }

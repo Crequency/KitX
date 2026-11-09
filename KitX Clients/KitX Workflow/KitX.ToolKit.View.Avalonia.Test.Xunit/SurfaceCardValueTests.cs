@@ -71,7 +71,7 @@ public sealed class SurfaceCardValueTests
 
         // No value ever set: the cell is empty and still one slot tall.
         Assert.Equal(string.Empty, card.ShownTextOf("cleared"));
-        Assert.Equal(SurfaceMetrics.SlotHeight, ChildOf(card, "cleared").Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
 
         // Then a value, then removal — back to empty, still one slot.
         card.SetValue("cleared", Json("\"something\""));
@@ -79,13 +79,13 @@ public sealed class SurfaceCardValueTests
 
         card.RemoveValue("cleared");
         Assert.Equal(string.Empty, card.ShownTextOf("cleared"));
-        Assert.Equal(SurfaceMetrics.SlotHeight, ChildOf(card, "cleared").Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
 
         // An empty string is a value, and it shows as empty too — but it arrived as a value, which
         // is what the assertion below the empty check is really pinning.
         card.SetValue("blank", Json("\"\""));
         Assert.Equal(string.Empty, card.ShownTextOf("blank"));
-        Assert.Equal(SurfaceMetrics.SlotHeight, ChildOf(card, "blank").Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
     }
 
     [AvaloniaFact]
@@ -120,26 +120,21 @@ public sealed class SurfaceCardValueTests
     }
 
     [AvaloniaFact]
-    public void An_editing_controls_half_typed_input_survives_a_document_change()
+    public void An_editing_control_is_never_written_to_from_a_value()
     {
-        // The one exception to "nothing is carried", and it is not a contradiction: Q88 says an
-        // Input's contents exist only inside the control, so nobody can resend what the user typed.
-        // Every other kind has an owner who can.
-        var first = Doc(new SurfaceInputElement { Row = 1, Column = 1, Key = "barcode" });
-        var card = Card(first);
+        // Since Q71 an editing element carries no key at all — the validator strips one if the author
+        // wrote it. So there is no path from a stored value into a TextBox, and the value the person
+        // typed is the only one the control will ever hold. SetValue is called here with the element's
+        // *name*, which is an upload identity rather than a data key, to show that the two are not
+        // interchangeable: a name addresses an event payload, never a cell.
+        var card = Card(Doc(new SurfaceInputElement { Row = 1, Column = 1, Name = "barcode" }));
+        var box = CellOfType<TextBox>(card);
 
-        var box = Assert.IsType<TextBox>(ChildOf(card, "barcode"));
-        box.Text = "half-typed";
+        box.Text = "scanned";
+        card.SetValue("barcode", Json("\"from-the-server\""));
+        Relayout();
 
-        // Same document, one row added above it — enough to force a full rebuild.
-        var second = Doc(
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "heading" },
-            new SurfaceInputElement { Row = 2, Column = 1, Key = "barcode" });
-
-        card.SetDocument(second);
-
-        var rebuilt = Assert.IsType<TextBox>(ChildOf(card, "barcode"));
-        Assert.Equal("half-typed", rebuilt.Text);
+        Assert.Equal("scanned", box.Text);
     }
 
     [AvaloniaFact]
@@ -158,7 +153,7 @@ public sealed class SurfaceCardValueTests
         // list that holds forty entries yet claims to need 64 pixels.
         Relayout();
 
-        var scroller = Assert.IsType<ScrollViewer>(ChildOf(card, "log"));
+        var scroller = CellOfType<ScrollViewer>(card);
         scroller.Offset = new Vector(0, 100);
         var afterScroll = scroller.Offset.Y;
         Assert.True(afterScroll > 0, "the list has to be scrolled for this assertion to mean anything");
@@ -166,13 +161,13 @@ public sealed class SurfaceCardValueTests
         card.AppendValue("log", Json("\"line 40\""));
 
         // Same control instance throughout: appending did not rebuild it.
-        Assert.Same(scroller, ChildOf(card, "log"));
+        Assert.Same(scroller, CellOfType<ScrollViewer>(card));
         Assert.Equal(afterScroll, scroller.Offset.Y, 0.5);
 
         // Replacing does rebuild the content, and the offset goes with it.
         card.SetValue("log", Json($"[{many}]"));
         Relayout();
-        Assert.Equal(0, Assert.IsType<ScrollViewer>(ChildOf(card, "log")).Offset.Y, 0.5);
+        Assert.Equal(0, CellOfType<ScrollViewer>(card).Offset.Y, 0.5);
     }
 
     [AvaloniaFact]
@@ -192,29 +187,121 @@ public sealed class SurfaceCardValueTests
         Assert.Equal(string.Empty, card.ShownTextOf("subtitle"));
 
         // The cells themselves are still there, one slot tall each.
-        Assert.Equal(SurfaceMetrics.SlotHeight, ChildOf(card, "title").Bounds.Height, 0.5);
+        Assert.Equal(SurfaceMetrics.SlotHeight, Cells(card)[0].Bounds.Height, 0.5);
         Assert.Equal(2, card.Children.OfType<Control>().Count());
     }
 
     [AvaloniaFact]
-    public void A_switch_shows_whether_its_value_is_true()
+    public void A_switch_is_drawn_as_a_tick_box_and_ignores_stored_values()
     {
         // CheckBox derives from Button, so an arm ordering that put Button first would treat every
         // tick box as a label and this assertion would read "False" forever.
-        var card = Card(Doc(new SurfaceSwitchElement { Row = 1, Column = 1, Key = "enabled" }));
+        var card = Card(Doc(new SurfaceSwitchElement { Row = 1, Column = 1, Name = "enabled" }));
 
-        var tick = Assert.IsType<CheckBox>(ChildOf(card, "enabled"));
+        var tick = CellOfType<CheckBox>(card);
+
+        // A stored value does not reach an editing control — it carries no key to arrive by. What
+        // the control shows is the person's own input, which is the whole reason the payload has to
+        // come from the client rather than from the key table.
+        Assert.NotEqual(true, tick.IsChecked);
 
         card.SetValue("enabled", Json("true"));
-        Assert.True(tick.IsChecked);
+        Relayout();
+        Assert.NotEqual(true, tick.IsChecked);
 
-        card.SetValue("enabled", Json("false"));
-        Assert.False(tick.IsChecked);
+        tick.IsChecked = true;
+        Assert.Equal(true, tick.IsChecked);
     }
 
-    /// <summary>One laid-out cell, by key.</summary>
-    private static Control ChildOf(SurfaceCard card, string key) =>
-        card.Children.OfType<Control>().Single(c => c.Name == key);
+    /// <summary>A row the person picked travels with the next event.</summary>
+    /// <remarks>
+    /// <para><b>This test had no reason to exist until the wiring was fixed, because the wiring was
+    /// missing.</b> <c>SelectionChanged</c> was never subscribed: <c>_selection</c> was written only
+    /// when a rebuild carried a previous pick forward, so a freshly built card uploaded nothing for a
+    /// <c>Select</c> no matter what was chosen on it. Every other editing kind reads its control at
+    /// upload time and so got away with it; a <c>ComboBox</c> cannot, because it shows a placeholder
+    /// whenever its list does not contain the value.</para>
+    ///
+    /// <para>The failure this pins down is silent in production: the card looks right, the person's
+    /// choice is visible, and the event payload simply has no entry for it.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_row_a_person_picks_travels_with_the_next_event()
+    {
+        var card = Card(Doc(
+            new SurfaceSelectElement { Row = 1, Column = 1, Name = "mode", Options = ["fast", "safe"] },
+            new SurfaceButtonElement { Row = 2, Column = 1, Label = "Submit", Events = ["Submit"] }));
+
+        var picker = CellOfType<ComboBox>(card);
+        Assert.Null(picker.SelectedItem);
+
+        picker.SelectedItem = "safe";
+        Relayout();
+
+        SurfaceEvent? sent = null;
+        card.SomethingHappened += (_, e) => sent = e;
+        Press(CellOfType<Button>(card));
+
+        Assert.Equal("event:Submit", sent?.Kind);
+        Assert.Equal("safe", sent?.Values["mode"].GetString());
+    }
+
+    /// <summary>A pick that leaves the candidate list is still what the card holds and uploads.</summary>
+    /// <remarks>
+    /// The list changing under a pick is the normal case, not a corner: a session list refreshes and
+    /// the row the person chose is gone from it. The renderer keeps the value rather than deciding it
+    /// stopped being valid — that judgement belongs to whoever owns the list.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_pick_that_the_candidates_no_longer_offer_is_kept_rather_than_cleared()
+    {
+        var card = Card(Doc(
+            new SurfaceSelectElement { Row = 1, Column = 1, Name = "mode", OptionsKey = "choices" },
+            new SurfaceButtonElement { Row = 2, Column = 1, Label = "Submit", Events = ["Submit"] }));
+
+        var picker = CellOfType<ComboBox>(card);
+
+        card.SetValue("choices", Json("[\"one\",\"two\"]"));
+        Relayout();
+        picker.SelectedItem = "two";
+        Relayout();
+
+        card.SetValue("choices", Json("[\"three\"]"));
+        Relayout();
+
+        // The control cannot hold what its list does not contain, so it shows a placeholder — but
+        // the value itself is still there, and still uploads.
+        Assert.Null(picker.SelectedItem);
+        Assert.Equal(["three"], card.CandidatesOf("choices"));
+
+        SurfaceEvent? sent = null;
+        card.SomethingHappened += (_, e) => sent = e;
+        Press(CellOfType<Button>(card));
+
+        Assert.Equal("two", sent?.Values["mode"].GetString());
+    }
+
+    /// <summary>Presses a button the way the input system would, minus the pointer.</summary>
+    /// <remarks>
+    /// A headless session runs no pointer input, so a click has to be delivered as the routed event
+    /// the pointer would have raised. This is the same handler the real click reaches — not a second
+    /// path into <c>Raise</c>.
+    /// </remarks>
+    private static void Press(Button button) =>
+        button.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+
+    /// <summary>Every control the card added, in the card's own order.</summary>
+    private static List<Control> Cells(SurfaceCard card) =>
+        [.. card.Children.OfType<Control>().OrderBy(c => c.Bounds.Top)];
+
+    /// <summary>The one cell of the given type on the card.</summary>
+    /// <remarks>
+    /// By type, not by key. Since Q71 an editing element may not carry a key at all, and its name is
+    /// an upload identity rather than a handle for the test to hold — reaching into the visual tree by
+    /// name would make these assertions about what the element is called instead of what it does.
+    /// </remarks>
+    private static T CellOfType<T>(SurfaceCard card) where T : Control =>
+        card.Children.OfType<T>().Single();
 
     /// <summary>Runs the layout pass a live window would otherwise run for us.</summary>
     /// <remarks>

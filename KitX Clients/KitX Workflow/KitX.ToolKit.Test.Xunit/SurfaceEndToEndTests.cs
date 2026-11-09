@@ -53,7 +53,7 @@ public class SurfaceEndToEndTests : IDisposable
           "schemaVersion": 1,
           "columns": 4,
           "elements": [
-            { "type": "Input",  "key": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
+            { "type": "Input",  "name": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
 
             { "type": "Text",   "key": "title",   "row": 2, "column": 1, "columnSpan": 3 },
             { "type": "Text",   "key": "cover",   "row": 2, "column": 4, "columnSpan": 1 },

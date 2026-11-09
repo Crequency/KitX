@@ -18,9 +18,9 @@ public sealed class FullCardLayoutTests
           "schemaVersion": 1,
           "columns": 4,
           "elements": [
-            { "type": "Input",  "key": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
-            { "type": "Text",   "key": "title",   "row": 2, "column": 1, "columnSpan": 3 },
-            { "type": "Text",   "key": "cover",   "row": 2, "column": 4, "columnSpan": 1 },
+            { "type": "Input",  "name": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
+            { "type": "Text",   "key": "title", "name": "heading", "row": 2, "column": 1, "columnSpan": 3 },
+            { "type": "Text",   "key": "cover", "name": "thumb", "row": 2, "column": 4, "columnSpan": 1 },
             { "type": "Button", "label": "Scan",     "events": ["scan"],     "row": 3, "column": 1, "columnSpan": 1 },
             { "type": "Button", "label": "Add",      "events": ["add"],      "row": 3, "column": 2, "columnSpan": 1 },
             { "type": "Button", "label": "Sessions", "events": ["sessions"], "row": 3, "column": 3, "columnSpan": 2 },
@@ -66,13 +66,38 @@ public sealed class FullCardLayoutTests
     [AvaloniaFact]
     public void Every_element_on_the_document_becomes_a_control_on_the_card()
     {
+        // By count and by type, not by name. A test that has to know what each element is called is
+        // testing the wiring of names; it also checks less, because four named cells can be present
+        // while a fifth element never made it onto the card.
         var card = Card(ScanBook);
-        Assert.Equal(
-            ["barcode", "cover", "sessions", "title"],
-            Named(card).Select(c => c.Name!)
-                .Where(n => n is "barcode" or "title" or "cover" or "sessions")
-                .Distinct().Order(StringComparer.Ordinal).ToArray());
-        Assert.Equal(3, card.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>().Count());
+
+        Assert.Equal(7, card.Children.Count);
+        Assert.Equal(3, card.Children.OfType<global::Avalonia.Controls.Button>().Count());
+        Assert.Single(card.Children.OfType<global::Avalonia.Controls.ScrollViewer>());
+        Assert.Single(card.Children.OfType<global::Avalonia.Controls.TextBox>());
+        Assert.Equal(2, card.Children.OfType<global::Avalonia.Controls.TextBlock>().Count());
+    }
+
+    [AvaloniaFact]
+    public void An_element_without_a_name_has_no_address()
+    {
+        // Control.Name is Avalonia's element address, and since Q71 the only thing that may fill it
+        // is the element's own Name. The Input below has one; the Text does not. The assertion is
+        // that the unnamed one is left unassigned rather than given "" — an empty string is still an
+        // address, one whose content happens to be empty, and a later test could start using it as a
+        // lookup key with nothing visible to say the choice was accidental.
+        var card = Card("""
+            { "schemaVersion": 1, "columns": 4, "elements": [
+              { "type": "Input", "row": 1, "column": 1, "name": "barcode" },
+              { "type": "Text",  "key": "title", "row": 2, "column": 1 }
+            ] }
+            """);
+
+        var cells = card.Children.OfType<global::Avalonia.Controls.Control>().ToList();
+
+        Assert.Equal("barcode", Assert.Single(cells, c => c is global::Avalonia.Controls.TextBox).Name);
+        Assert.Null(Assert.Single(cells, c => c is global::Avalonia.Controls.TextBlock).Name);
+        Assert.DoesNotContain(cells, c => c.Name == string.Empty);
     }
 
     [AvaloniaFact]
@@ -113,18 +138,32 @@ public sealed class FullCardLayoutTests
     public void Widening_an_element_changes_its_width_and_moves_nothing_else()
     {
         var narrow = Card(ScanBook);
-        var narrowCells = Cells(narrow).Where(c => c.Key != "sessions").ToList();
+        var narrowCells = Geometry(narrow).Where(c => c.Kind != "ScrollViewer").ToList();
 
         var wide = Card(ScanBook.Replace(
             "\"key\": \"sessions\", \"row\": 4, \"column\": 1, \"columnSpan\": 4",
             "\"key\": \"sessions\", \"row\": 4, \"column\": 1, \"columnSpan\": 1",
             StringComparison.Ordinal));
 
-        var list = Named(wide).Single(c => c.Name == "sessions");
+        var list = wide.Children.OfType<global::Avalonia.Controls.ScrollViewer>().Single();
         Assert.Equal(ColumnWidth, list.Bounds.Width, tolerance: 0.5);
-        Assert.Equal(narrowCells, Cells(wide).Where(c => c.Key != "sessions").ToList());
+        Assert.Equal(narrowCells, Geometry(wide).Where(c => c.Kind != "ScrollViewer").ToList());
     }
 
-    private static List<(string Key, double Top, double Left)> Cells(SurfaceCard card) =>
-        [.. Named(card).Select(c => (c.Name!, c.Bounds.Top, c.Bounds.Left))];
+    /// <summary>
+    /// Every control the card added, as (type, top, left), in top-to-bottom order.
+    /// </summary>
+    /// <remarks>
+    /// Keyed by type rather than by <c>Control.Name</c>, because since Q71 a name is an element's
+    /// upload identity and exists only where the author wrote one. This fixture is arranged so that
+    /// every control has a distinct type, which is what makes the sequence comparable — and it means
+    /// these assertions say nothing about what anything is called.
+    /// </remarks>
+    private static List<(string Kind, double Top, double Left)> Geometry(SurfaceCard card) =>
+    [
+        .. card.Children.OfType<global::Avalonia.Controls.Control>()
+            .OrderBy(c => c.Bounds.Top)
+            .ThenBy(c => c.Bounds.Left)
+            .Select(c => (c.GetType().Name, c.Bounds.Top, c.Bounds.Left)),
+    ];
 }
