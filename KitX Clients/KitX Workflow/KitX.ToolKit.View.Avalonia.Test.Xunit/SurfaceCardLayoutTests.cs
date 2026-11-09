@@ -122,9 +122,12 @@ public sealed class SurfaceCardLayoutTests
         // binds a key, so "has a value" is not a state it can be in, and it cannot demonstrate this
         // rule at all. (Both still occupy a row; the two facts are separate.)
         //
-        // The card draws a Text the same way whether or not a value arrived, so the two layouts agree
-        // by construction. Saying so out loud matters: a future renderer that starts hiding empty
-        // cells fails here instead of silently reflowing the card.
+        // The two cards must actually differ, or this proves nothing. An earlier version built both
+        // from the same document with no SetValue on either side and compared Top *differences*: it
+        // pitted one implementation against itself, so it passed under every renderer — including one
+        // that hides empty cells, which is exactly what its own comment claimed it would catch.
+        // Absolute positions from two genuinely different cards is what a hiding renderer fails on:
+        // it collapses the three empty cells and every Top below them shifts up.
         var elements = new List<SurfaceElement>
         {
             new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
@@ -132,18 +135,18 @@ public sealed class SurfaceCardLayoutTests
             new SurfaceTextElement { Row = 3, Column = 1, Key = "note" },
         };
 
-        var withValues = Card([.. elements]);
+        var withValues = Card(elements, new Dictionary<string, string>
+        {
+            ["title"] = "\"T\"",
+            ["subtitle"] = "\"S\"",
+            ["note"] = "\"N\"",
+        });
+
         var withoutValues = Card([.. elements]);
 
-        Assert.Equal(
-            TopAt(withValues, 1) - TopAt(withValues, 0),
-            TopAt(withoutValues, 1) - TopAt(withoutValues, 0),
-            tolerance: 0.5);
-
-        Assert.Equal(
-            TopAt(withValues, 2) - TopAt(withValues, 1),
-            TopAt(withoutValues, 2) - TopAt(withoutValues, 1),
-            tolerance: 0.5);
+        Assert.Equal(TopAt(withValues, 0), TopAt(withoutValues, 0), tolerance: 0.5);
+        Assert.Equal(TopAt(withValues, 1), TopAt(withoutValues, 1), tolerance: 0.5);
+        Assert.Equal(TopAt(withValues, 2), TopAt(withoutValues, 2), tolerance: 0.5);
 
         // And the cells are still cell-sized, not collapsed to nothing.
         Assert.Equal(

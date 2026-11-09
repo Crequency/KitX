@@ -432,17 +432,34 @@ public sealed class SurfaceCard : Grid
             Grid.SetRow(view, rowIndexOf[element.Row]);
             Grid.SetColumn(view, element.Column - 1);
 
-            // The clamp repeats a rule the validator already applied. `SetDocument` is a public
-            // entry point: anyone holding a card can hand it a document that never went through
-            // validation, and the validator is a step on the loading path, not a constraint the
-            // type system enforces here. Without the clamp, an element whose span runs past the
-            // last declared column is placed outside the card, where it is clipped rather than
-            // reported. The bound comes from `SurfaceMetrics.CardColumns` in both places, so there
-            // is one number — but two call sites, and changing one without the other leaves them
-            // disagreeing.
-            Grid.SetColumnSpan(
-                view,
-                Math.Min(element.ColumnSpan, SurfaceMetrics.CardColumns - element.Column + 1));
+            // No clamp here. The validator clamps `ColumnSpan` on the loading path, and the Grid
+            // clamps it again at layout time, so a second `Math.Min` in this method could not change
+            // any output — and it did not: removing it leaves all 41 renderer tests green.
+            //
+            // It was not merely redundant. `Math.Min(span, CardColumns - Column + 1)` goes to zero
+            // or negative once `Column` is past the last column, and `Grid.SetColumnSpan` rejects
+            // both: a column of 5 throws "0 is not a valid value for 'ColumnSpan'", a column of 6
+            // throws "-1 …". So the guard threw on exactly the input it was written to defend
+            // against, while doing nothing on the input that actually occurs.
+            //
+            // Measured against Avalonia 11.3.13 — the numbers below are why this reads oddly:
+            // `Grid.GetColumnSpan` reports back whatever was set, but the layout clamps it.
+            //
+            //   col 2 span 4  ->  W=292.0  L=98.0   R=390.0   GetColumnSpan=4
+            //   col 2 span 3  ->  W=292.0  L=98.0   R=390.0   GetColumnSpan=3
+            //   col 4 span 4  ->  W= 97.0  L=293.0  R=390.0   GetColumnSpan=4
+            //   col 1 span 4  ->  W=390.0  L=  0.0  R=390.0   GetColumnSpan=4
+            //
+            // Identical geometry from spans of 4 and 3, both landing flush with the card edge.
+            //
+            // To reproduce: a Grid of Width=390 with four star columns and one 64px row, inside a
+            // Window that has been Show()n, then Measure/Arrange/UpdateLayout after each change —
+            // without Show() the Grid's children are never laid out at all.
+            //
+            // If you are about to add the clamp back, first satisfy yourself that Grid does not
+            // clamp: `GetColumnSpan` will not tell you, because it reports what you set rather than
+            // what the layout did with it.
+            Grid.SetColumnSpan(view, element.ColumnSpan);
 
             Children.Add(view);
 

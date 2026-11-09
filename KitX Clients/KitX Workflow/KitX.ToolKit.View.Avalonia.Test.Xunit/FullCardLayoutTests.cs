@@ -56,12 +56,14 @@ public sealed class FullCardLayoutTests
 
     private static global::Avalonia.Controls.Window? _host;
 
-    private static List<global::Avalonia.Controls.Control> Named(SurfaceCard card) =>
-    [
-        .. card.GetVisualDescendants().OfType<global::Avalonia.Controls.Control>()
-            .Where(c => !string.IsNullOrEmpty(c.Name))
-            .OrderBy(c => c.Name, StringComparer.Ordinal),
-    ];
+    // There used to be a `Named(card)` helper here that returned the keyed cells ordered by
+    // Control.Name. It is gone, and the reason is worth stating because it will be reached for
+    // again: since Q71 an element's Name is its upload identity and exists only where the author
+    // wrote one, so most cells have no name and the helper silently returned a subset. A layout
+    // assertion built on it therefore depended on which elements happened to be named. Keeping it
+    // around as an unused-but-available shortcut would have made "find cells by name" look like a
+    // normal technique that merely fell out of favour, when what actually happened is that element
+    // identity was removed from the model. Use the type-and-order helpers below instead.
 
     [AvaloniaFact]
     public void Every_element_on_the_document_becomes_a_control_on_the_card()
@@ -176,11 +178,29 @@ public sealed class FullCardLayoutTests
         Assert.Equal(SurfaceMetrics.CardWidth, last.Bounds.Right, tolerance: 0.5);
     }
 
+    /// <summary>
+    /// A span wider than the columns that remain stops at the card edge instead of running past
+    /// it — and it stops there even though nothing in <c>SurfaceCard</c> clamps it.
+    /// </summary>
+    /// <remarks>
+    /// The property is ours; the mechanism today is Avalonia's. <c>Grid</c> clamps an over-wide
+    /// <c>ColumnSpan</c> at layout time: with four columns, a column of 2 and a span of 4 and a span
+    /// of 3 both produce width 292 and right edge 390. <c>SurfaceCard</c> used to repeat the clamp
+    /// with <c>Math.Min</c>, and deleting it left every test in this file green — proof that it
+    /// could not change any output. It also threw on the input it was meant to defend against: past
+    /// the last column the arithmetic goes to zero or negative, and <c>Grid.SetColumnSpan</c>
+    /// rejects both.
+    ///
+    /// So this is a **fourth-layer** criterion: it is true today, and what makes it true is not our
+    /// code. It is kept because a renderer that swaps the container, or that lets <c>CardColumns</c>
+    /// drift from the Grid's column count, would stop being clamped — and this is the assertion that
+    /// would say so. Anything touching <c>Grid.SetColumnSpan</c> should expect to land here.
+    /// </remarks>
     [AvaloniaFact]
-    public void A_span_running_past_the_last_column_is_clamped_to_the_edge_rather_than_clipped()
+    public void A_span_running_past_the_last_column_stops_at_the_card_edge()
     {
         // Equality, not inequality. `Bounds.Right <= CardWidth` would also pass an implementation
-        // that clamped the span down to nothing; only the equation says "clamped to the edge".
+        // that clamped the span down to nothing; only the equation says "stops at the edge".
         //
         // The element starts at column 2 and asks for 4, so 3 columns remain. That choice matters:
         // at column 4 the clamp and "one column" both end at the right edge, and this test would
