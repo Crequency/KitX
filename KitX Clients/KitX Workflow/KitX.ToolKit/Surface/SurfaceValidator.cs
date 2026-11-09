@@ -48,7 +48,7 @@ internal static class SurfaceValidator
             // Position is checked first and for every kind: an element outside the grid cannot be
             // drawn at all, so nothing else about it matters. A span that merely overflows is
             // clamped instead — the cell still exists.
-            var placed = ValidatePosition(declared, document.Columns, keys, ref warnings);
+            var placed = ValidatePosition(declared, keys, ref warnings);
             if (placed is null)
                 continue;
 
@@ -169,12 +169,18 @@ internal static class SurfaceValidator
     }
 
     /// <summary>
-    /// The cell must exist and the span must fit. A cell outside the grid is undrawable and returns
-    /// <see langword="null"/>; a span that overflows is still drawable, so it is clamped and the
-    /// element comes back adjusted.
+    /// The element must be in a real row and carry a usable weight. A row below 1 is undrawable and
+    /// returns <see langword="null"/>; a bad weight is drawable (it means "one part"), so it is
+    /// repaired to 1 and the element comes back adjusted.
     /// </summary>
+    /// <remarks>
+    /// There is no column to validate any more: horizontal placement is the row's own division by
+    /// weight, so the only horizontal thing a single element can get wrong is a weight that is not a
+    /// positive integer. The two clamping rules this replaces (column out of range, span too wide)
+    /// had no counterpart here — there is nothing to run out of.
+    /// </remarks>
     private static SurfaceElement? ValidatePosition(
-        SurfaceElement element, int columns, KeyTable keys, ref List<Diagnostic>? warnings)
+        SurfaceElement element, KeyTable keys, ref List<Diagnostic>? warnings)
     {
         if (element.Row < 1)
         {
@@ -183,28 +189,12 @@ internal static class SurfaceValidator
             return null;
         }
 
-        if (element.Column < 1 || element.Column > columns)
+        if (element.Weight < 1)
         {
-            Drop(ref warnings, keys, element, SurfaceDiagnosticCodes.PositionOutOfGrid,
-                $"'column' is {element.Column}, outside 1..{columns}");
-            return null;
-        }
-
-        var room = columns - element.Column + 1;
-
-        if (element.ColumnSpan < 1)
-        {
-            Warn(ref warnings, keys, element, SurfaceDiagnosticCodes.SpanClamped,
-                $"'columnSpan' is {element.ColumnSpan}; it is treated as 1");
-            return element with { ColumnSpan = 1 };
-        }
-
-        if (element.ColumnSpan > room)
-        {
-            Warn(ref warnings, keys, element, SurfaceDiagnosticCodes.SpanClamped,
-                $"'columnSpan' is {element.ColumnSpan} but only {room} column(s) remain from " +
-                $"column {element.Column}; it is clamped to {room}");
-            return element with { ColumnSpan = room };
+            Warn(ref warnings, keys, element, SurfaceDiagnosticCodes.WeightRepaired,
+                $"'weight' is {element.Weight}; it is treated as 1. A weight is a positive number " +
+                "of parts, and a row divides its width by the sum of the parts in it.");
+            return element with { Weight = 1 };
         }
 
         return element;
@@ -425,7 +415,7 @@ internal static class SurfaceValidator
         var verb = dropped ? "Dropped" : "Kept";
         (warnings ??= []).Add(Diagnostic.Warning(
             code,
-            $"{verb} {element.GetType().Name} at row {element.Row}, column {element.Column}: {detail}.",
+            $"{verb} {element.GetType().Name} at row {element.Row}, weight {element.Weight}: {detail}.",
             new DiagnosticPath(ToolkitId: keys.ToolkitId, Key: element.Key)));
     }
 
@@ -443,6 +433,18 @@ internal sealed record SurfaceValidationResult(
 /// <summary>Stable codes the surface validator emits.</summary>
 internal static class SurfaceDiagnosticCodes
 {
+    /// <summary>
+    /// The file did not declare a version field. Absent is not "the current one": a file that does
+    /// not say which model it is written in cannot be read as if it said the current one.
+    /// </summary>
+    public const string FileMissingVersion = "surface.file.missing-version";
+
+    /// <summary>
+    /// The file carried a top-level field no property claims. The document still loads; the warning
+    /// names the field so the author knows it went nowhere.
+    /// </summary>
+    public const string FileUnknownField = "surface.file.unknown-field";
+
     /// <summary>A non-button element named no key.</summary>
     public const string ElementNoKey = "surface.element.no-key";
 
@@ -497,11 +499,11 @@ internal static class SurfaceDiagnosticCodes
     /// <summary>A list's key was not declared as an array.</summary>
     public const string ListKeyNotArray = "surface.element.list.key-not-array";
 
-    /// <summary>A row or column fell outside the grid.</summary>
+    /// <summary>A row fell outside the document.</summary>
     public const string PositionOutOfGrid = "surface.element.position-out-of-grid";
 
-    /// <summary>A span was not positive or did not fit; it was clamped.</summary>
-    public const string SpanClamped = "surface.element.span-clamped";
+    /// <summary>A weight was not a positive number of parts; it was treated as 1.</summary>
+    public const string WeightRepaired = "surface.element.weight-repaired";
 
     /// <summary>A text element named a <c>format</c> this build does not know.</summary>
     public const string TextUnknownFormat = "surface.element.text.unknown-format";

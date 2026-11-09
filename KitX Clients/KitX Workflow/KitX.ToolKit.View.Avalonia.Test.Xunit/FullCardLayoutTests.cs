@@ -11,20 +11,40 @@ namespace KitX.ToolKit.View.Avalonia.Test.Xunit;
 public sealed class FullCardLayoutTests
 {
     private const double Slot = SurfaceMetrics.SlotHeight;
-    private const double ColumnWidth = SurfaceMetrics.CardWidth / SurfaceMetrics.CardColumns;
+
+    /// <summary>The gap the renderer leaves between two elements on one row.</summary>
+    private const double Gap = SurfaceMetrics.FieldGap;
+
+    /// <summary>
+    /// One part's share of a row: the card's width minus that row's gaps, divided by its parts.
+    /// </summary>
+    /// <remarks>
+    /// <b>Why the gaps come out first, and why this takes two numbers.</b> Q101's formula is
+    /// <c>available × weight_i / Σ weights</c>, and <c>available</c> is the card's width minus the
+    /// <c>(n − 1)</c> gaps. Dividing the full width instead and then leaving room for the gaps would
+    /// make the row overrun the card: three parts of a 390-wide card plus two 8-pixel gaps add up to
+    /// 406.
+    ///
+    /// The two numbers are separate because they answer different questions: <paramref name="elementsInRow"/>
+    /// is how many controls share the row (that is what sets the gap count), and
+    /// <paramref name="partsInRow"/> is the sum of their weights (that is what sets each share). They
+    /// happen to be equal only on a row whose weights are all 1.
+    /// </remarks>
+    private static double Share(int elementsInRow, int partsInRow) =>
+        (SurfaceMetrics.CardWidth - ((elementsInRow - 1) * Gap)) / partsInRow;
 
     private const string ScanBook = """
         {
           "schemaVersion": 1,
-          "columns": 4,
+          "layoutVersion": 1,
           "elements": [
-            { "type": "Input",  "name": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
-            { "type": "Text",   "key": "title", "name": "heading", "row": 2, "column": 1, "columnSpan": 3 },
-            { "type": "Text",   "key": "cover", "name": "thumb", "row": 2, "column": 4, "columnSpan": 1 },
-            { "type": "Button", "label": "Scan",     "events": ["scan"],     "row": 3, "column": 1, "columnSpan": 1 },
-            { "type": "Button", "label": "Add",      "events": ["add"],      "row": 3, "column": 2, "columnSpan": 1 },
-            { "type": "Button", "label": "Sessions", "events": ["sessions"], "row": 3, "column": 3, "columnSpan": 2 },
-            { "type": "List",   "key": "sessions", "row": 4, "column": 1, "columnSpan": 4, "itemTitle": "startedAt" }
+            { "type": "Input",  "name": "barcode", "row": 1, "weight": 4 },
+            { "type": "Text",   "key": "title", "name": "heading", "row": 2, "weight": 3 },
+            { "type": "Text",   "key": "cover", "name": "thumb", "row": 2, "weight": 1 },
+            { "type": "Button", "label": "Scan",     "events": ["scan"],     "row": 3, "weight": 1 },
+            { "type": "Button", "label": "Add",      "events": ["add"],      "row": 3, "weight": 1 },
+            { "type": "Button", "label": "Sessions", "events": ["sessions"], "row": 3, "weight": 2 },
+            { "type": "List",   "key": "sessions", "row": 4, "weight": 4, "itemTitle": "startedAt" }
           ]
         }
         """;
@@ -86,16 +106,22 @@ public sealed class FullCardLayoutTests
 
         // Seven cells, one per element. The List's cell is a Border that holds the scroller — the
         // group container introduced with Q99 — so the cell count still counts it once.
-        Assert.Equal(7, card.Children.Count);
-        Assert.Equal(3, card.Children.OfType<global::Avalonia.Controls.Button>().Count());
-        Assert.Single(card.Children.OfType<global::Avalonia.Controls.TextBox>());
-        Assert.Equal(2, card.Children.OfType<global::Avalonia.Controls.TextBlock>().Count());
+        //
+        // Through CardProbe because since Q101 the card's own children are rows, not elements: the
+        // four elements above sit in four rows, so card.Children.Count would read 4 here and the
+        // assertion would still look like it was counting elements.
+        var elements = CardProbe.Elements(card);
+
+        Assert.Equal(7, elements.Count);
+        Assert.Equal(3, elements.OfType<global::Avalonia.Controls.Button>().Count());
+        Assert.Single(elements.OfType<global::Avalonia.Controls.TextBox>());
+        Assert.Equal(2, elements.OfType<global::Avalonia.Controls.TextBlock>().Count());
 
         // The List cell is the group container, and the one scroller inside it is the list itself.
         // Not "one ScrollViewer in the visual tree": ComboBox and NumericUpDown are built from
         // templates that contain a ScrollViewer of their own, and this card has both. Counting by
         // type over the whole tree would find three and say the List was drawn twice.
-        var listCell = Assert.Single(card.Children.OfType<global::Avalonia.Controls.Border>());
+        var listCell = Assert.Single(elements.OfType<global::Avalonia.Controls.Border>());
         Assert.Single(listCell.GetVisualDescendants().OfType<global::Avalonia.Controls.ScrollViewer>());
     }
 
@@ -108,13 +134,13 @@ public sealed class FullCardLayoutTests
         // address, one whose content happens to be empty, and a later test could start using it as a
         // lookup key with nothing visible to say the choice was accidental.
         var card = Card("""
-            { "schemaVersion": 1, "columns": 4, "elements": [
-              { "type": "Input", "row": 1, "column": 1, "name": "barcode" },
-              { "type": "Text",  "key": "title", "row": 2, "column": 1 }
+            { "schemaVersion": 1, "layoutVersion": 1, "elements": [
+              { "type": "Input", "row": 1, "name": "barcode" },
+              { "type": "Text",  "key": "title", "row": 2 }
             ] }
             """);
 
-        var cells = card.Children.OfType<global::Avalonia.Controls.Control>().ToList();
+        var cells = CardProbe.Elements(card).ToList();
 
         Assert.Equal("barcode", Assert.Single(cells, c => c is global::Avalonia.Controls.TextBox).Name);
         Assert.Null(Assert.Single(cells, c => c is global::Avalonia.Controls.TextBlock).Name);
@@ -122,19 +148,32 @@ public sealed class FullCardLayoutTests
     }
 
     [AvaloniaFact]
-    public void Three_buttons_on_one_row_sit_side_by_side_in_column_order()
+    public void Three_buttons_on_one_row_sit_side_by_side_in_declaration_order()
     {
         var card = Card(ScanBook);
+
         var buttons = card.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>()
             .OrderBy(b => b.Bounds.Left).ToList();
+
         Assert.Equal(3, buttons.Count);
+
+        // All three share row 3, so each one's top matches the first one's. Since Q101 there is no
+        // column index to compare: the row is one strip, and "side by side" means each starts where
+        // the previous one ended, plus the gap. The weights on that row are 1, 1 and 2 out of 4, so
+        // the third is twice the width of the others and the three fill the row exactly.
         Assert.All(buttons, b => Assert.Equal(buttons[0].Bounds.Top, b.Bounds.Top, tolerance: 0.5));
-        Assert.Equal(ColumnWidth, buttons[1].Bounds.Left - buttons[0].Bounds.Left, tolerance: 0.5);
-        Assert.Equal(ColumnWidth, buttons[2].Bounds.Left - buttons[1].Bounds.Left, tolerance: 0.5);
+        Assert.Equal(Share(3, 4), buttons[0].Bounds.Width, tolerance: 0.5);
+        Assert.Equal(Share(3, 4), buttons[1].Bounds.Width, tolerance: 0.5);
+        Assert.Equal(2 * Share(3, 4), buttons[2].Bounds.Width, tolerance: 0.5);
+
+        // Each one starts one gap past where the previous one ended.
+        Assert.Equal(buttons[0].Bounds.Right + Gap, buttons[1].Bounds.Left, tolerance: 0.5);
+        Assert.Equal(buttons[1].Bounds.Right + Gap, buttons[2].Bounds.Left, tolerance: 0.5);
+        Assert.Equal(SurfaceMetrics.CardWidth, buttons[2].Bounds.Right, tolerance: 0.5);
     }
 
     [AvaloniaFact]
-    public void Moving_one_button_to_its_own_row_lowers_it_and_leaves_the_others()
+    public void Moving_one_button_to_its_own_row_lowers_it_and_leaves_the_other_rows_alone()
     {
         var before = Card(ScanBook);
         var beforeButtons = before.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>()
@@ -148,91 +187,111 @@ public sealed class FullCardLayoutTests
             .OrderBy(b => b.Bounds.Left).ToList();
 
         Assert.Equal(beforeButtons.Count, afterButtons.Count);
-        Assert.Equal(beforeButtons[1].Bounds.Top + Slot, afterButtons[1].Bounds.Top, tolerance: 0.5);
-        Assert.Equal(beforeButtons[0].Bounds.Top, afterButtons[0].Bounds.Top, tolerance: 0.5);
-        Assert.Equal(beforeButtons[2].Bounds.Top, afterButtons[2].Bounds.Top, tolerance: 0.5);
-        Assert.Equal(beforeButtons[0].Bounds.Left, afterButtons[0].Bounds.Left, tolerance: 0.5);
-        Assert.Equal(beforeButtons[2].Bounds.Left, afterButtons[2].Bounds.Left, tolerance: 0.5);
+
+        // The moved button sits exactly one slot lower. Rows 3 and 4 are neighbours — both are one
+        // slot tall, and only the List's row grows — so moving down by one row is moving down by
+        // exactly one slot.
+        Assert.Equal(
+            CardProbe.TopOf(before, beforeButtons[1]) + Slot,
+            CardProbe.TopOf(after, afterButtons[1]),
+            tolerance: 0.5);
+
+        // The two that stayed are on the same rows at the same tops.
+        Assert.Equal(CardProbe.TopOf(before, beforeButtons[0]), CardProbe.TopOf(after, afterButtons[0]), tolerance: 0.5);
+        Assert.Equal(CardProbe.TopOf(before, beforeButtons[2]), CardProbe.TopOf(after, afterButtons[2]), tolerance: 0.5);
+
+        // <b>Their widths necessarily change, and that is Q101 working rather than a regression.</b>
+        // Row 3 held weights 1, 1 and 2 (four parts over three elements); with the middle one gone it
+        // holds 1 and 2 (three parts over two elements), so each survivor takes a larger share of a
+        // row that also has one fewer gap to subtract.
+        //
+        // Note the direction of the lefts: the last button starts *earlier* after the move, not later
+        // — it grew, and one gap disappeared ahead of it. Asserting that its left moved right would
+        // have been asserting the shape of the arithmetic rather than the rule. What the rule
+        // promises its survivors is width, so width is what is asserted.
+        Assert.True(
+            afterButtons[0].Bounds.Width > beforeButtons[0].Bounds.Width,
+            "the first survivor should take more of a row that has one fewer element");
+        Assert.True(
+            afterButtons[2].Bounds.Width > beforeButtons[2].Bounds.Width,
+            "the second survivor should take more of a row that has one fewer element");
+
+        // Both survivors still fill the row between them: their widths plus one gap are the card.
+        Assert.Equal(
+            SurfaceMetrics.CardWidth,
+            afterButtons[0].Bounds.Width + Gap + afterButtons[2].Bounds.Width,
+            tolerance: 0.5);
     }
 
     [AvaloniaFact]
-    public void Widening_an_element_changes_its_width_and_moves_nothing_else()
+    public void A_row_divides_its_width_by_weight_and_leaves_other_rows_alone()
     {
-        var narrow = Card(ScanBook);
-        var narrowCells = Geometry(narrow).Where(c => c.Kind != ListGroupKind).ToList();
-
-        var wide = Card(ScanBook.Replace(
-            "\"key\": \"sessions\", \"row\": 4, \"column\": 1, \"columnSpan\": 4",
-            "\"key\": \"sessions\", \"row\": 4, \"column\": 1, \"columnSpan\": 1",
+        var asDeclared = Card(ScanBook);
+        var swapped = Card(ScanBook.Replace(
+            "\"key\": \"title\", \"name\": \"heading\", \"row\": 2, \"weight\": 3",
+            "\"key\": \"title\", \"name\": \"heading\", \"row\": 2, \"weight\": 9",
             StringComparison.Ordinal));
 
-        var list = wide.Children.OfType<global::Avalonia.Controls.Border>().Single();
-        Assert.Equal(ColumnWidth, list.Bounds.Width, tolerance: 0.5);
-        Assert.Equal(narrowCells, Geometry(wide).Where(c => c.Kind != ListGroupKind).ToList());
-    }
+        // Row 2 holds two elements: title (weight 3) and cover (weight 1), four parts in total. Give
+        // title nine parts instead and the split becomes 9:1 — both widths must follow, and nothing
+        // else on the card may move.
+        var wide = Share(2, 10) * 9;
+        var thin = Share(2, 10) * 1;
 
-    [AvaloniaFact]
-    public void A_span_wider_than_one_column_makes_the_element_actually_wider()
-    {
-        // The three buttons on row 3 are columnSpan 1, 1 and 2 — so the third one is twice as wide.
-        // Before this was implemented every element occupied exactly one column, and nothing failed:
-        // the fixture declared spans 4, 3, 2 and 4, and no assertion read a width.
-        var card = Card(ScanBook);
-        var buttons = card.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>()
-            .OrderBy(b => b.Bounds.Left).ToList();
+        var titleAfter = CardProbe.Elements(swapped).OfType<global::Avalonia.Controls.TextBlock>()
+            .Single(t => t.Name == "heading");
+        var coverAfter = CardProbe.Elements(swapped).OfType<global::Avalonia.Controls.TextBlock>()
+            .Single(t => t.Name == "thumb");
 
-        Assert.Equal(3, buttons.Count);
-        Assert.Equal(ColumnWidth, buttons[0].Bounds.Width, tolerance: 0.5);
-        Assert.Equal(ColumnWidth, buttons[1].Bounds.Width, tolerance: 0.5);
-        Assert.Equal(2 * ColumnWidth, buttons[2].Bounds.Width, tolerance: 0.5);
-    }
+        Assert.Equal(wide, titleAfter.Bounds.Width, tolerance: 0.5);
+        Assert.Equal(thin, coverAfter.Bounds.Width, tolerance: 0.5);
 
-    [AvaloniaFact]
-    public void A_span_that_reaches_the_last_column_ends_at_the_card_edge()
-    {
-        var card = Card(ScanBook);
-        var last = card.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>()
-            .OrderBy(b => b.Bounds.Left).Last();
+        // Same row, same top: the row is one slot tall however its parts are split.
+        Assert.Equal(titleAfter.Bounds.Top, coverAfter.Bounds.Top, tolerance: 0.5);
 
-        Assert.Equal(SurfaceMetrics.CardWidth, last.Bounds.Right, tolerance: 0.5);
+        // <b>Every other row is exactly where it was.</b> This is the half that catches a renderer
+        // that lets one row's weights leak into another — which is what a single shared column set
+        // would do, because a shared set has to pick one normalisation for all rows at once.
+        var before = CardProbe.Elements(asDeclared)
+            .Select(e => (e.GetType().Name, CardProbe.TopOf(asDeclared, e)))
+            .OrderBy(t => t.Item2).ToList();
+        var after = CardProbe.Elements(swapped)
+            .Select(e => (e.GetType().Name, CardProbe.TopOf(swapped, e)))
+            .OrderBy(t => t.Item2).ToList();
+        Assert.Equal(before, after);
     }
 
     /// <summary>
-    /// A span wider than the columns that remain stops at the card edge instead of running past
-    /// it — and it stops there even though nothing in <c>SurfaceCard</c> clamps it.
+    /// An element alone on its row fills the whole row, whatever weight it asks for.
     /// </summary>
     /// <remarks>
-    /// The property is ours; the mechanism today is Avalonia's. <c>Grid</c> clamps an over-wide
-    /// <c>ColumnSpan</c> at layout time: with four columns, a column of 2 and a span of 4 and a span
-    /// of 3 both produce width 292 and right edge 390. <c>SurfaceCard</c> used to repeat the clamp
-    /// with <c>Math.Min</c>, and deleting it left every test in this file green — proof that it
-    /// could not change any output. It also threw on the input it was meant to defend against: past
-    /// the last column the arithmetic goes to zero or negative, and <c>Grid.SetColumnSpan</c>
-    /// rejects both.
+    /// <b>Why "whatever weight" is the point.</b> Q102 says a row of one means 100%, and it says so
+    /// instead of offering a "natural width, right aligned" opt-out. That is a real decision rather
+    /// than a convenience: a weight is a share of a row, and with one element the only share that
+    /// exists is all of it. An implementation that treated <c>weight: 1</c> as "one part out of some
+    /// implied four" would render a quarter-width element here, and this is the assertion that says
+    /// so — the earlier `columnSpan` model could express the same card two ways, and this one cannot.
     ///
-    /// So this is a **fourth-layer** criterion: it is true today, and what makes it true is not our
-    /// code. It is kept because a renderer that swaps the container, or that lets <c>CardColumns</c>
-    /// drift from the Grid's column count, would stop being clamped — and this is the assertion that
-    /// would say so. Anything touching <c>Grid.SetColumnSpan</c> should expect to land here.
+    /// The two cards below differ only in the weight. Their element must land in the same place,
+    /// because a lone element's weight has nothing to divide.
     /// </remarks>
     [AvaloniaFact]
-    public void A_span_running_past_the_last_column_stops_at_the_card_edge()
+    public void An_element_alone_on_its_row_fills_the_row_whatever_weight_it_asks_for()
     {
-        // Equality, not inequality. `Bounds.Right <= CardWidth` would also pass an implementation
-        // that clamped the span down to nothing; only the equation says "stops at the edge".
-        //
-        // The element starts at column 2 and asks for 4, so 3 columns remain. That choice matters:
-        // at column 4 the clamp and "one column" both end at the right edge, and this test would
-        // pass with no column span at all.
-        var card = Card("""
-            { "schemaVersion": 1, "columns": 4, "elements": [
-              { "type": "Text", "key": "tail", "row": 1, "column": 2, "columnSpan": 4 }
+        static string Lone(string weight) => $$"""
+            { "schemaVersion": 1, "layoutVersion": 1, "elements": [
+              { "type": "Text", "key": "tail", "row": 1, "weight": {{weight}} }
             ] }
-            """);
+            """;
 
-        var cell = card.Children.OfType<global::Avalonia.Controls.Control>().Single();
-        Assert.Equal(3 * ColumnWidth, cell.Bounds.Width, tolerance: 0.5);
-        Assert.Equal(SurfaceMetrics.CardWidth, cell.Bounds.Right, tolerance: 0.5);
+        foreach (var weight in new[] { "1", "3", "9" })
+        {
+            var cell = Assert.Single(CardProbe.Elements(Card(Lone(weight))));
+
+            Assert.Equal(SurfaceMetrics.CardWidth, cell.Bounds.Width, tolerance: 0.5);
+            Assert.Equal(0d, cell.Bounds.Left, tolerance: 0.5);
+            Assert.Equal(SurfaceMetrics.CardWidth, cell.Bounds.Right, tolerance: 0.5);
+        }
     }
 
     /// <summary>
@@ -275,10 +334,10 @@ public sealed class FullCardLayoutTests
     /// Two buttons on one row plus a list below, with the two emphases given.
     /// </summary>
     private static string TwoButtons(string first, string second) => $$"""
-        { "schemaVersion": 1, "columns": 4, "elements": [
-          { "type": "Button", "label": "Left",  "events": ["left"],  "row": 1, "column": 1, "emphasis": "{{first}}" },
-          { "type": "Button", "label": "Right", "events": ["right"], "row": 1, "column": 2, "emphasis": "{{second}}" },
-          { "type": "List",   "key": "sessions", "row": 2, "column": 1, "columnSpan": 4 }
+        { "schemaVersion": 1, "layoutVersion": 1, "elements": [
+          { "type": "Button", "label": "Left",  "events": ["left"],  "row": 1, "emphasis": "{{first}}" },
+          { "type": "Button", "label": "Right", "events": ["right"], "row": 1, "emphasis": "{{second}}" },
+          { "type": "List",   "key": "sessions", "row": 2, "weight": 4 }
         ] }
         """;
 
@@ -288,29 +347,35 @@ public sealed class FullCardLayoutTests
     /// <remarks>
     /// Cards do not preserve a lookup order a test can rely on, so the buttons are read back in a
     /// fixed order — left to right within a row, top to bottom across rows — and the fixture above is
-    /// written so that this is the declared order too.
+    /// written so that this is the declared order too. Since Q101 the top of an element is the top of
+    /// its row plus its own offset, so the sort goes through <see cref="CardProbe.TopOf"/>.
     /// </remarks>
     private static List<string> ButtonClasses(SurfaceCard card) =>
     [
-        .. card.Children.OfType<global::Avalonia.Controls.Button>()
-            .OrderBy(b => b.Bounds.Top)
+        .. CardProbe.Elements(card).OfType<global::Avalonia.Controls.Button>()
+            .OrderBy(b => CardProbe.TopOf(card, b))
             .ThenBy(b => b.Bounds.Left)
             .Select(b => string.Join(" ", b.Classes.Where(c => c.StartsWith("kitx-", StringComparison.Ordinal)))),
     ];
 
     /// <summary>
-    /// Where every direct child of the card sits, in reading order.
+    /// Where every element on the card sits, in reading order, measured down from the card.
     /// </summary>
     /// <remarks>
     /// The list's cell is a group container, so a card with one list yields a <c>Border</c> here.
     /// Callers comparing two cards filter that kind out: the container is the one cell whose type is
     /// not the element's own, and its position is already implied by the cells around it.
+    ///
+    /// <b>Why the top comes from <see cref="CardProbe.TopOf"/> rather than from <c>Bounds</c>.</b>
+    /// Since Q101 each row is its own <c>Grid</c>, so a control's <c>Bounds.Top</c> is measured from
+    /// the top of its row, not from the top of the card. Every row would read zero, and two cards
+    /// with different row orders would compare equal.
     /// </remarks>
     private static List<(string Kind, double Top, double Left)> Geometry(SurfaceCard card) =>
     [
-        .. card.Children.OfType<global::Avalonia.Controls.Control>()
-            .OrderBy(c => c.Bounds.Top)
-            .ThenBy(c => c.Bounds.Left)
-            .Select(c => (c.GetType().Name, c.Bounds.Top, c.Bounds.Left)),
+        .. CardProbe.Elements(card)
+            .Select(c => (c.GetType().Name, CardProbe.TopOf(card, c), c.Bounds.Left))
+            .OrderBy(t => t.Item2)
+            .ThenBy(t => t.Item3),
     ];
 }

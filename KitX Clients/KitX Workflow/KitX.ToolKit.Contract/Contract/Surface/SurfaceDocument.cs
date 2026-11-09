@@ -3,13 +3,18 @@ using System.Text.Json.Serialization;
 namespace KitX.ToolKit.Contract.Surface;
 
 /// <summary>
-/// One card on a ToolKit's surface: a 4-column grid of elements that read and write declared keys.
+/// One card on a ToolKit's surface: rows of elements that read and write declared keys.
 /// </summary>
 /// <remarks>
 /// <para><b>A surface is a view of keys, nothing more.</b> Every element either displays one
 /// declared key or offers a way to write one. Elements carry no id — position is the identity
 /// (Q80), so moving an element is an edit, not a delete-and-add. That also means the grid can be
 /// sent as a whole and diffed by position.</para>
+///
+/// <para><b>Horizontal placement is a ratio, not a coordinate.</b> An element says which row it is
+/// in and what share of that row it takes. There is no column index and no column count: a card is
+/// as wide as the screen, and the only portable statement about widths is "this one gets three
+/// parts of the row and that one gets one" (Q101).</para>
 ///
 /// <para><b>Deliberately not part of the compiled artifact.</b> Retyping the layout must not
 /// require unmounting the ToolKit, which is only true if compiling never reads this file
@@ -38,23 +43,29 @@ public sealed record SurfaceDocument
     public const int CurrentSchemaVersion = 1;
 
     /// <summary>
-    /// How many columns the grid has.
+    /// The horizontal layout model this document is written in.
     /// </summary>
     /// <remarks>
-    /// <para>Fixed at 4 and not authorable: a phone in portrait is roughly 360–430 dp wide, so four
-    /// columns are about 90–107 dp each — enough for one input or two buttons side by side. Making
-    /// it tunable invites layouts that only work on one screen width.</para>
+    /// <para><b>Fixed at 1, and required.</b> The predecessor of this field was <c>columns: 4</c>,
+    /// which said how many equal columns the grid had. There is no grid any more — an element carries
+    /// a <see cref="SurfaceElement.Weight"/> and a row divides its own width by the weights in it — so
+    /// a field that still said "4 columns" would be describing a structure the file no longer has.
+    /// The name changed with the meaning, not for decoration.</para>
     ///
-    /// <para><b>It is also a version probe.</b> A build that writes six columns would put
-    /// <c>6</c> here, and an older renderer must refuse the file rather than reflow it into four —
-    /// a reflowed card looks wrong in a way nobody can trace back to a version mismatch. So a value
-    /// other than 4 is a load failure, not a hint to adapt.</para>
+    /// <para><b>It is a version probe, and its job is unchanged.</b> A build that writes a different
+    /// layout model would put <c>2</c> here, and an older renderer must refuse the file rather than
+    /// lay it out under the wrong rules — a mislaid card looks wrong in a way nobody can trace back
+    /// to a version mismatch. So a value other than 1 is a load failure, not a hint to adapt.</para>
+    ///
+    /// <para><b>Absent is not the same as 1.</b> A file with no <c>layoutVersion</c> has not said
+    /// which model it was written in; filling in 1 is the one guess this field exists to prevent.
+    /// Loading refuses such a file — see <c>SurfaceStore</c>.</para>
     /// </remarks>
-    [JsonPropertyName("columns")]
-    public int Columns { get; init; } = DefaultColumns;
+    [JsonPropertyName("layoutVersion")]
+    public int LayoutVersion { get; init; } = CurrentLayoutVersion;
 
-    /// <summary>The only column count this build can lay out. See <see cref="Columns"/>.</summary>
-    public const int DefaultColumns = 4;
+    /// <summary>The only layout model this build can lay out. See <see cref="LayoutVersion"/>.</summary>
+    public const int CurrentLayoutVersion = 1;
 
     /// <summary>The elements, in the order they were declared (position, not order, decides layout).</summary>
     [JsonPropertyName("elements")]
@@ -95,13 +106,31 @@ public abstract record SurfaceElement
     [JsonPropertyName("row")]
     public int Row { get; init; } = 1;
 
-    /// <summary>Which column the element starts at, 1-based, between 1 and the document's columns.</summary>
-    [JsonPropertyName("column")]
-    public int Column { get; init; } = 1;
-
-    /// <summary>How many columns it spans. Defaults to 1; there is no row span.</summary>
-    [JsonPropertyName("columnSpan")]
-    public int ColumnSpan { get; init; } = 1;
+    /// <summary>
+    /// How much of its row this element takes, relative to the others in the same row.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Normalised within the row, not across the card.</b> "A wide input and a narrow
+    /// dropdown" is an intention about one row; a card-wide unit would let row 1's weights change
+    /// row 5's widths. Widths are computed as
+    /// <c>available × weight_i / (weight_1 + … + weight_n)</c>, where <c>available</c> is the card's
+    /// inner width minus the gaps between the row's <c>n</c> elements.</para>
+    ///
+    /// <para><b>A positive integer, 1 by default.</b> Not a fraction: <c>1.5</c> serialises as
+    /// <c>1.5</c> on one machine and <c>1.5000000001</c> on the next, so two identical-looking files
+    /// would not be identical. And nobody writes <c>1.5</c> anyway — they write 3:2.</para>
+    ///
+    /// <para><b>Order within a row is the order in the file.</b> There is no <c>column</c> to say
+    /// otherwise, so the array carries that meaning now. It was always sorted; before, nothing read
+    /// it.</para>
+    ///
+    /// <para><b>A single element alone in its row takes the whole width</b> — 1/1 is 100%. There is
+    /// deliberately no "hug the content and float right" mode: that would be a second layout rule,
+    /// and welding "visual weight" to "horizontal placement" is how <c>Bind</c>/<c>BindEnabled</c>
+    /// died.</para>
+    /// </remarks>
+    [JsonPropertyName("weight")]
+    public int Weight { get; init; } = 1;
 
     /// <summary>
     /// The declared key this element is bound to, or <see langword="null"/> for elements that do

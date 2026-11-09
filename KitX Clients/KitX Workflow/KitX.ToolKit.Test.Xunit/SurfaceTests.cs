@@ -61,11 +61,11 @@ public class SurfaceTests : IDisposable
         WriteRaw("""
         {
           "schemaVersion": 1,
-          "columns": 4,
+          "layoutVersion": 1,
           "elements": [
-            { "type": "Text",        "row": 1, "column": 1, "key": "title" },
-            { "type": "Holographic", "row": 1, "column": 2, "key": "x" },
-            { "type": "Button",      "row": 2, "column": 1, "label": "go" }
+            { "type": "Text",        "row": 1, "key": "title" },
+            { "type": "Holographic", "row": 1, "weight": 2, "key": "x" },
+            { "type": "Button",      "row": 2, "label": "go" }
           ]
         }
         """);
@@ -107,20 +107,23 @@ public class SurfaceTests : IDisposable
     }
 
     [Fact]
-    public void Columns_other_than_four_refuse_the_whole_file()
+    public void A_layout_version_this_build_does_not_know_refuses_the_whole_file()
     {
+        // `columns: 6` used to be the example here. Q101 removed the column model, so the version
+        // this build speaks is `layoutVersion`, and a file written for a newer one must be refused
+        // rather than laid out by rules that no longer describe it.
         WriteRaw("""
         {
           "schemaVersion": 1,
-          "columns": 6,
-          "elements": [ { "type": "Button", "row": 1, "column": 1, "label": "go" } ]
+          "layoutVersion": 2,
+          "elements": [ { "type": "Button", "row": 1, "label": "go" } ]
         }
         """);
 
         var loaded = Store().Load(TkId);
 
         Assert.Single(loaded.Errors);
-        Assert.Equal("surface.file.unsupported-columns", loaded.Errors[0].Code);
+        Assert.Equal("surface.file.unsupported-layout-version", loaded.Errors[0].Code);
         Assert.Empty(loaded.Document.Elements);
         Assert.Empty(loaded.Warnings);
     }
@@ -129,7 +132,7 @@ public class SurfaceTests : IDisposable
     public void An_unsupported_schema_version_refuses_the_whole_file()
     {
         WriteRaw("""
-        { "schemaVersion": 2, "columns": 4, "elements": [] }
+        { "schemaVersion": 2, "layoutVersion": 1, "elements": [] }
         """);
 
         var loaded = Store().Load(TkId);
@@ -164,7 +167,7 @@ public class SurfaceTests : IDisposable
     [Fact]
     public void Elements_missing_from_the_file_refuses_it()
     {
-        WriteRaw("""{ "schemaVersion": 1, "columns": 4 }""");
+        WriteRaw("""{ "schemaVersion": 1, "layoutVersion": 1 }""");
 
         var loaded = Store().Load(TkId);
 
@@ -397,11 +400,13 @@ public class SurfaceTests : IDisposable
     }
 
     [Fact]
-    public void A_column_outside_the_grid_is_dropped()
+    public void A_row_outside_the_document_is_dropped()
     {
+        // There is no column any more (Q101): horizontal placement is a ratio, so the only
+        // position that can fall outside the document is the row.
         var document = new SurfaceDocument
         {
-            Elements = [new SurfaceButtonElement { Label = "go", Column = 9 }],
+            Elements = [new SurfaceButtonElement { Label = "go", Row = 0 }],
         };
 
         var result = SurfaceValidator.Validate(document, Keys());
@@ -413,18 +418,21 @@ public class SurfaceTests : IDisposable
     // ── field tier ─────────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void A_span_wider_than_the_remaining_columns_is_clamped_not_dropped()
+    public void A_weight_that_is_not_a_positive_number_of_parts_is_repaired_to_one()
     {
+        // Q101 replaced the clamp with a repair. A `columnSpan` that ran past the last column used
+        // to be shortened to fit; a weight has nothing to fit into, so the only broken value left is
+        // one that asks for no share of the row at all.
         var document = new SurfaceDocument
         {
-            Elements = [new SurfaceButtonElement { Label = "go", Column = 3, ColumnSpan = 4 }],
+            Elements = [new SurfaceButtonElement { Label = "go", Weight = 0 }],
         };
 
         var result = SurfaceValidator.Validate(document, Keys());
 
         var kept = Assert.IsType<SurfaceButtonElement>(Assert.Single(result.Effective.Elements));
-        Assert.Equal(2, kept.ColumnSpan); // columns 3..4
-        Assert.Equal(SurfaceDiagnosticCodes.SpanClamped, Assert.Single(result.Warnings).Code);
+        Assert.Equal(1, kept.Weight);
+        Assert.Equal(SurfaceDiagnosticCodes.WeightRepaired, Assert.Single(result.Warnings).Code);
     }
 
     [Fact]

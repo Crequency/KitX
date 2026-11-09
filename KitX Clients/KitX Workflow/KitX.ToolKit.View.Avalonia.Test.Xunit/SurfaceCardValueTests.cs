@@ -51,7 +51,7 @@ public sealed class SurfaceCardValueTests
     public void A_value_sent_to_a_text_element_appears_on_the_card()
     {
         // The one assertion this whole stage exists for.
-        var card = Card(Doc(new SurfaceTextElement { Row = 1, Column = 1, Key = "title" }));
+        var card = Card(Doc(new SurfaceTextElement { Row = 1, Key = "title" }));
 
         card.SetValue("title", Json("\"KitX Dashboard\""));
 
@@ -66,8 +66,8 @@ public sealed class SurfaceCardValueTests
         // absence. Folded into one assertion — "both look empty" — the second could be broken and
         // nobody would find out, because the first would still pass.
         var document = Doc(
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "cleared" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "blank" });
+            new SurfaceTextElement { Row = 1, Key = "cleared" },
+            new SurfaceTextElement { Row = 2, Key = "blank" });
 
         var card = Card(document);
 
@@ -100,7 +100,7 @@ public sealed class SurfaceCardValueTests
         // the one that matters: after a rebuild with no SetValue, the bound cell is EMPTY. An
         // implementation that cached values internally would pass the first three assertions and
         // fail the last, which is exactly the point of writing it.
-        var first = Doc(new SurfaceTextElement { Row = 1, Column = 1, Key = "title" });
+        var first = Doc(new SurfaceTextElement { Row = 1, Key = "title" });
         var card = Card(first);
 
         card.SetValue("title", Json("\"X\""));
@@ -108,8 +108,8 @@ public sealed class SurfaceCardValueTests
 
         // A second version of the document: same key, moved one row down.
         var second = Doc(
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "padding" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "title" });
+            new SurfaceTextElement { Row = 1, Key = "padding" },
+            new SurfaceTextElement { Row = 2, Key = "title" });
 
         card.SetDocument(second);
 
@@ -129,7 +129,7 @@ public sealed class SurfaceCardValueTests
         // typed is the only one the control will ever hold. SetValue is called here with the element's
         // *name*, which is an upload identity rather than a data key, to show that the two are not
         // interchangeable: a name addresses an event payload, never a cell.
-        var card = Card(Doc(new SurfaceInputElement { Row = 1, Column = 1, Name = "barcode" }));
+        var card = Card(Doc(new SurfaceInputElement { Row = 1, Name = "barcode" }));
         var box = CellOfType<TextBox>(card);
 
         box.Text = "scanned";
@@ -145,7 +145,7 @@ public sealed class SurfaceCardValueTests
         // Append and replace are different messages, so they are different paths. Append never swaps
         // the scrolling content, so the position survives without anyone remembering it; replace
         // puts the reader back at the top because the content is not the same content.
-        var card = Card(Doc(new SurfaceListElement { Row = 1, Column = 1, Key = "log" }));
+        var card = Card(Doc(new SurfaceListElement { Row = 1, Key = "log" }));
 
         var many = string.Join(",", Enumerable.Range(0, 40).Select(i => $"\"line {i}\""));
         card.SetValue("log", Json($"[{many}]"));
@@ -177,8 +177,8 @@ public sealed class SurfaceCardValueTests
     {
         // cleared means the toolkit's keys are gone, not that the card has no layout.
         var card = Card(Doc(
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "subtitle" }));
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceTextElement { Row = 2, Key = "subtitle" }));
 
         card.SetValue("title", Json("\"A\""));
         card.SetValue("subtitle", Json("\"B\""));
@@ -190,7 +190,7 @@ public sealed class SurfaceCardValueTests
 
         // The cells themselves are still there, one slot tall each.
         Assert.Equal(SurfaceMetrics.FieldHeight, Cells(card)[0].Bounds.Height, 0.5);
-        Assert.Equal(2, card.Children.OfType<Control>().Count());
+        Assert.Equal(2, CardProbe.Elements(card).Count);
     }
 
     [AvaloniaFact]
@@ -198,7 +198,7 @@ public sealed class SurfaceCardValueTests
     {
         // CheckBox derives from Button, so an arm ordering that put Button first would treat every
         // tick box as a label and this assertion would read "False" forever.
-        var card = Card(Doc(new SurfaceSwitchElement { Row = 1, Column = 1, Name = "enabled" }));
+        var card = Card(Doc(new SurfaceSwitchElement { Row = 1, Name = "enabled" }));
 
         var tick = CellOfType<CheckBox>(card);
 
@@ -231,8 +231,8 @@ public sealed class SurfaceCardValueTests
     public void The_row_a_person_picks_travels_with_the_next_event()
     {
         var card = Card(Doc(
-            new SurfaceSelectElement { Row = 1, Column = 1, Name = "mode", Options = ["fast", "safe"] },
-            new SurfaceButtonElement { Row = 2, Column = 1, Label = "Submit", Events = ["Submit"] }));
+            new SurfaceSelectElement { Row = 1, Name = "mode", Options = ["fast", "safe"] },
+            new SurfaceButtonElement { Row = 2, Label = "Submit", Events = ["Submit"] }));
 
         var picker = CellOfType<ComboBox>(card);
         Assert.Null(picker.SelectedItem);
@@ -258,8 +258,8 @@ public sealed class SurfaceCardValueTests
     public void A_pick_that_the_candidates_no_longer_offer_is_kept_rather_than_cleared()
     {
         var card = Card(Doc(
-            new SurfaceSelectElement { Row = 1, Column = 1, Name = "mode", OptionsKey = "choices" },
-            new SurfaceButtonElement { Row = 2, Column = 1, Label = "Submit", Events = ["Submit"] }));
+            new SurfaceSelectElement { Row = 1, Name = "mode", OptionsKey = "choices" },
+            new SurfaceButtonElement { Row = 2, Label = "Submit", Events = ["Submit"] }));
 
         var picker = CellOfType<ComboBox>(card);
 
@@ -293,8 +293,11 @@ public sealed class SurfaceCardValueTests
         button.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
 
     /// <summary>Every control the card added, in the card's own order.</summary>
-    private static List<Control> Cells(SurfaceCard card) =>
-        [.. card.Children.OfType<Control>().OrderBy(c => c.Bounds.Top)];
+    /// <remarks>
+    /// Through <see cref="CardProbe"/> because since Q101 the card's children are rows, not elements —
+    /// reading them directly would count rows and call them cells.
+    /// </remarks>
+    private static IReadOnlyList<Control> Cells(SurfaceCard card) => CardProbe.Elements(card);
 
     /// <summary>The one cell of the given type on the card.</summary>
     /// <remarks>

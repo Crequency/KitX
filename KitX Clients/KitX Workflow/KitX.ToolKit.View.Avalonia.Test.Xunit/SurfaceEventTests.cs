@@ -28,16 +28,16 @@ public sealed class SurfaceEventTests
     private const string Document = """
         {
           "schemaVersion": 1,
-          "columns": 4,
+          "layoutVersion": 1,
           "elements": [
-            { "type": "Input",  "key": "barcode", "name": "scanned",  "row": 1, "column": 1, "columnSpan": 2 },
-            { "type": "Number", "key": "count",   "name": "quantity", "row": 1, "column": 3, "columnSpan": 1 },
-            { "type": "Switch", "key": "gift",    "name": "isGift",   "row": 1, "column": 4, "columnSpan": 1 },
+            { "type": "Input",  "key": "barcode", "name": "scanned",  "row": 1, "weight": 2 },
+            { "type": "Number", "key": "count",   "name": "quantity", "row": 1, "weight": 1 },
+            { "type": "Switch", "key": "gift",    "name": "isGift",   "row": 1, "weight": 1 },
 
-            { "type": "Button", "label": "Save",   "events": ["Save"],               "row": 2, "column": 1, "columnSpan": 2 },
-            { "type": "Button", "label": "Save all", "events": ["Save", "Sync"],     "row": 2, "column": 3, "columnSpan": 2 },
+            { "type": "Button", "label": "Save",   "events": ["Save"],               "row": 2, "weight": 1 },
+            { "type": "Button", "label": "Save all", "events": ["Save", "Sync"],     "row": 2, "weight": 1 },
 
-            { "type": "Text",   "key": "title",   "row": 3, "column": 1, "columnSpan": 4 }
+            { "type": "Text",   "key": "title",   "row": 3, "weight": 1 }
           ]
         }
         """;
@@ -75,13 +75,14 @@ public sealed class SurfaceEventTests
 
     /// <summary>The buttons this card added, found by label.</summary>
     /// <remarks>
-    /// <b>Children, not GetVisualDescendants.</b> A <c>NumericUpDown</c> puts two templated
-    /// <c>Button</c>s with <c>PathIcon</c> content in its own template, so walking the whole visual
-    /// tree finds spinner arrows. They are not the card's buttons, and asking the card which
-    /// children it added is the question that has one answer.
+    /// <b>The card's own elements, not GetVisualDescendants.</b> A <c>NumericUpDown</c> puts two
+    /// templated <c>Button</c>s with <c>PathIcon</c> content in its own template, so walking the whole
+    /// visual tree finds spinner arrows. They are not the card's buttons. <see cref="CardProbe.Elements"/>
+    /// asks the card which elements it added — since Q101 that means walking the card's rows, because
+    /// the card's own children are rows rather than elements.
     /// </remarks>
     private static Button ButtonByLabel(SurfaceCard card, string label) =>
-        card.Children.OfType<Button>().Single(b => (string?)b.Content == label);
+        CardProbe.Elements(card).OfType<Button>().Single(b => (string?)b.Content == label);
 
     [AvaloniaFact]
     public void Clicking_a_button_sends_the_events_it_declares()

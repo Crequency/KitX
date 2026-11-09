@@ -31,11 +31,11 @@ public sealed class SurfaceEventOnTheWireTests
     private static readonly string CardJson = """
         {
           "schemaVersion": 1,
-          "columns": 4,
+          "layoutVersion": 1,
           "elements": [
-            { "type": "Input",  "name": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
-            { "type": "Number", "name": "count",   "row": 2, "column": 1, "columnSpan": 2 },
-            { "type": "Button", "label": "Submit", "events": ["Submit"], "row": 3, "column": 1 }
+            { "type": "Input",  "name": "barcode", "row": 1, "weight": 1 },
+            { "type": "Number", "name": "count",   "row": 2, "weight": 1 },
+            { "type": "Button", "label": "Submit", "events": ["Submit"], "row": 3 }
           ]
         }
         """;
@@ -104,7 +104,7 @@ public sealed class SurfaceEventOnTheWireTests
     }
 
     private static T CellOfType<T>(SurfaceCard card) where T : Control =>
-        card.Children.OfType<T>().Single();
+        CardProbe.Elements(card).OfType<T>().Single();
 
     /// <summary>The one host window, shown once — a template-driven control has no template outside one.</summary>
     private static Window Host

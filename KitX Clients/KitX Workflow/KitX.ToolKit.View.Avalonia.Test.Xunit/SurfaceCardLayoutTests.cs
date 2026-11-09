@@ -49,7 +49,7 @@ public sealed class SurfaceCardLayoutTests
         // This is not ceremony: a missing FluentTheme leaves controls with no template, and an
         // untemplated control measures to zero without any error anywhere. The failure mode is a
         // suite that passes and a renderer that draws nothing.
-        var card = Card(new SurfaceTextElement { Row = 1, Column = 1, Key = "title" });
+        var card = Card(new SurfaceTextElement { Row = 1, Key = "title" });
 
         var child = CellAt(card, 0);
 
@@ -67,8 +67,8 @@ public sealed class SurfaceCardLayoutTests
         // stacked tightly, not spread to fill the card.
         var elements = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "first" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "second" },
+            new SurfaceTextElement { Row = 1, Key = "first" },
+            new SurfaceTextElement { Row = 2, Key = "second" },
         };
 
         var card = Card([.. elements]);
@@ -100,12 +100,12 @@ public sealed class SurfaceCardLayoutTests
         // and it must not be deleted then, because that row height is what makes a List occupy six
         // slots of space.
         var withList = Card(
-            new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "below" });
+            new SurfaceListElement { Row = 1, Key = "sessions" },
+            new SurfaceTextElement { Row = 2, Key = "below" });
 
         var withText = Card(
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "sessions" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "below" });
+            new SurfaceTextElement { Row = 1, Key = "sessions" },
+            new SurfaceTextElement { Row = 2, Key = "below" });
 
         var extra = TopAt(withList, 1) - TopAt(withText, 1);
         var expected = (SurfaceMetrics.ListSlotCount - 1) * SurfaceMetrics.SlotHeight;
@@ -131,9 +131,9 @@ public sealed class SurfaceCardLayoutTests
         // it collapses the three empty cells and every Top below them shifts up.
         var elements = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "subtitle" },
-            new SurfaceTextElement { Row = 3, Column = 1, Key = "note" },
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceTextElement { Row = 2, Key = "subtitle" },
+            new SurfaceTextElement { Row = 3, Key = "note" },
         };
 
         var withValues = Card(elements, new Dictionary<string, string>
@@ -166,14 +166,14 @@ public sealed class SurfaceCardLayoutTests
         // a claim about the layout function and becomes a claim about the card.
         var adjacent = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "a" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "b" },
+            new SurfaceTextElement { Row = 1, Key = "a" },
+            new SurfaceTextElement { Row = 2, Key = "b" },
         };
 
         var withGap = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "a" },
-            new SurfaceTextElement { Row = 5, Column = 1, Key = "b" },
+            new SurfaceTextElement { Row = 1, Key = "a" },
+            new SurfaceTextElement { Row = 5, Key = "b" },
         };
 
         var adjacentCard = Card([.. adjacent]);
@@ -203,18 +203,15 @@ public sealed class SurfaceCardLayoutTests
         // the card added, so an extra one cannot hide.
         var elements = new List<SurfaceElement>
         {
-            new SurfaceInputElement { Row = 1, Column = 1 },
-            new SurfaceNumberElement { Row = 2, Column = 1 },
-            new SurfaceSelectElement { Row = 3, Column = 1 },
-            new SurfaceSwitchElement { Row = 4, Column = 1 },
+            new SurfaceInputElement { Row = 1 },
+            new SurfaceNumberElement { Row = 2 },
+            new SurfaceSelectElement { Row = 3 },
+            new SurfaceSwitchElement { Row = 4 },
         };
 
         var card = Card([.. elements]);
 
-        var cells = card.Children
-            .OfType<Control>()
-            .OrderBy(c => c.Bounds.Top)
-            .ToList();
+        var cells = CardProbe.Elements(card);
 
         Assert.Equal(4, cells.Count);
 
@@ -225,8 +222,10 @@ public sealed class SurfaceCardLayoutTests
         foreach (var cell in cells)
             Assert.Equal(SurfaceMetrics.FieldHeight, cell.Bounds.Height, tolerance: 0.5);
 
-        // The rows themselves are still one slot apart — that half is unchanged by Q100.
-        var tops = cells.Select(c => c.Bounds.Top).ToList();
+        // The rows themselves are still one slot apart — that half is unchanged by Q100. The tops
+        // come from CardProbe because since Q101 each row is its own Grid: a raw Bounds.Top is
+        // measured from the top of its row and would read 0 for all four.
+        var tops = cells.Select(c => CardProbe.TopOf(card, c)).ToList();
         foreach (var (a, b) in tops.Zip(tops.Skip(1)))
             Assert.Equal(SurfaceMetrics.SlotHeight, b - a, tolerance: 0.5);
 
@@ -235,7 +234,7 @@ public sealed class SurfaceCardLayoutTests
         // the row" from "inset from the row's top" — those two agree at 16 when the row is 64. The
         // test below is where they diverge; this one is here so the four-kind case is covered too.
         foreach (var cell in cells)
-            Assert.Equal(SurfaceMetrics.FieldInset, cell.Bounds.Top - RowTopAt(card, cells.IndexOf(cell)), 0.5);
+            Assert.Equal(SurfaceMetrics.FieldInset, CardProbe.TopOf(card, cell) - CardProbe.RowTopOf(card, cell), 0.5);
     }
 
     [AvaloniaFact]
@@ -249,8 +248,12 @@ public sealed class SurfaceCardLayoutTests
         // A button sharing a row with a six-slot list is the smallest card where the two readings
         // differ — 208 against 368 on this geometry. Asserting on a one-slot card cannot tell them
         // apart, which is why this fixture exists rather than one more assertion above.
-        var list = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
-        var button = new SurfaceButtonElement { Row = 1, Column = 2, Label = "Add", Events = ["Add"] };
+        //
+        // The button comes second in the array because since Q101 that is the only thing that says
+        // "to the right of the list": there is no column index any more, and a row divides its width
+        // among its elements in the order the file lists them.
+        var list = new SurfaceListElement { Row = 1, Key = "sessions", Weight = 3 };
+        var button = new SurfaceButtonElement { Row = 1, Label = "Add", Events = ["Add"] };
 
         var card = Card([list, button]);
 
@@ -288,9 +291,9 @@ public sealed class SurfaceCardLayoutTests
         // its slot.
         var elements = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-            new SurfaceButtonElement { Row = 2, Column = 1, Label = "Save" },
-            new SurfaceTextElement { Row = 3, Column = 1, Key = "footer" },
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceButtonElement { Row = 2, Label = "Save" },
+            new SurfaceTextElement { Row = 3, Key = "footer" },
         };
 
         var card = Card([.. elements]);
@@ -301,7 +304,7 @@ public sealed class SurfaceCardLayoutTests
             TopAt(card, 2) - TopAt(card, 0),
             tolerance: 0.5);
 
-        Assert.Equal(3, card.Children.OfType<Control>().Count());
+        Assert.Equal(3, CardProbe.Elements(card).Count);
     }
 
     [AvaloniaFact]
@@ -314,8 +317,8 @@ public sealed class SurfaceCardLayoutTests
         // before this stage existed — with only Text on the card both heights are one slot, so a
         // renderer that painted a list K tall passes everything else in this file. It stops looking
         // correct the moment a scrollbar has to sit on the control's boundary rather than the cell's.
-        var listSlot = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
-        var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" };
+        var listSlot = new SurfaceListElement { Row = 1, Key = "sessions" };
+        var below = new SurfaceTextElement { Row = 2, Key = "footer" };
 
         var card = Card([listSlot, below]);
 
@@ -346,8 +349,8 @@ public sealed class SurfaceCardLayoutTests
         var entries = Enumerable.Range(1, 40).Select(i => $"row {i}").ToArray();
 
         SurfaceCard TwoRows(int count) => Card(
-            [new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" },
-             new SurfaceTextElement { Row = 2, Column = 1, Key = "footer" }],
+            [new SurfaceListElement { Row = 1, Key = "sessions" },
+             new SurfaceTextElement { Row = 2, Key = "footer" }],
             values: new Dictionary<string, string>
             {
                 ["sessions"] = JsonSerializer.Serialize(entries.Take(count)),
@@ -476,8 +479,7 @@ public sealed class SurfaceCardLayoutTests
     /// and I did not notice". The dangerous version of positional addressing is the one that crosses
     /// a boundary; this one does not.
     /// </remarks>
-    private static Control CellAt(SurfaceCard card, int index) =>
-        card.Children.OfType<Control>().OrderBy(c => c.Bounds.Top).ElementAt(index);
+    private static Control CellAt(SurfaceCard card, int index) => CardProbe.ElementAt(card, index);
 
     /// <summary>
     /// The one <c>List</c> on the card, found by type rather than by key.
@@ -501,7 +503,8 @@ public sealed class SurfaceCardLayoutTests
     /// at twice the right answer, which looks like a plausible slot height. It only surfaces when
     /// somebody checks the numbers against the height they set.
     /// </remarks>
-    private static double TopAt(SurfaceCard card, int index) => CellAt(card, index).Bounds.Top;
+    private static double TopAt(SurfaceCard card, int index) =>
+        CardProbe.TopOf(card, CellAt(card, index));
 
     /// <summary>
     /// The top edge of the row the element sits in, measured down from the card.
@@ -516,14 +519,6 @@ public sealed class SurfaceCardLayoutTests
     /// inset, including <c>SlotHeight / 2</c>, and would therefore say nothing about which of the two
     /// readings the renderer implements.
     /// </remarks>
-    private static double RowTopAt(SurfaceCard card, int index)
-    {
-        var row = Grid.GetRow(CellAt(card, index));
-
-        var top = 0.0;
-        for (var i = 0; i < row; i++)
-            top += card.RowDefinitions[i].ActualHeight;
-
-        return top;
-    }
+    private static double RowTopAt(SurfaceCard card, int index) =>
+        CardProbe.RowTopAt(card, index);
 }

@@ -139,8 +139,19 @@ internal sealed class SurfaceStore : ISurfaceStore
                 $"'{FileName}' must contain a JSON object."));
         }
 
-        // File layer: the two numbers that say how to read everything else.
-        var schemaVersion = ReadInt(root, "schemaVersion", SurfaceDocument.CurrentSchemaVersion);
+        // File layer: the two numbers that say how to read everything else. Both are probed with
+        // TryReadInt rather than ReadInt, because "the field is absent" and "the field says the
+        // current value" have to be different answers. A file with no layoutVersion has not said
+        // which layout model it was written in; filling in the current one is exactly the guess
+        // this field exists to prevent.
+        if (!TryReadInt(root, "schemaVersion", out var schemaVersion))
+        {
+            return SurfaceLoadResult.Refused(FileError(
+                toolkitId, SurfaceDiagnosticCodes.FileMissingVersion,
+                $"'{FileName}' does not declare 'schemaVersion'. A file that does not say which " +
+                "schema it is written in cannot be read as if it said the current one."));
+        }
+
         if (schemaVersion != SurfaceDocument.CurrentSchemaVersion)
         {
             return SurfaceLoadResult.Refused(FileError(
@@ -149,15 +160,23 @@ internal sealed class SurfaceStore : ISurfaceStore
                 $"{SurfaceDocument.CurrentSchemaVersion}. Refusing rather than guessing."));
         }
 
-        var columns = ReadInt(root, "columns", SurfaceDocument.DefaultColumns);
-        if (columns != SurfaceDocument.DefaultColumns)
+        if (!TryReadInt(root, "layoutVersion", out var layoutVersion))
         {
-            // A probe, not a preference: a future build that writes six columns must be refused
-            // here rather than rendered as if it were four.
             return SurfaceLoadResult.Refused(FileError(
-                toolkitId, "surface.file.unsupported-columns",
-                $"'{FileName}' declares columns {columns}; this build lays out " +
-                $"{SurfaceDocument.DefaultColumns}. Refusing rather than reflowing."));
+                toolkitId, SurfaceDiagnosticCodes.FileMissingVersion,
+                $"'{FileName}' does not declare 'layoutVersion'. This file was written before the " +
+                "layout model had a version, or it predates the model entirely; either way laying " +
+                "it out under the current rules would be a guess."));
+        }
+
+        if (layoutVersion != SurfaceDocument.CurrentLayoutVersion)
+        {
+            // A probe, not a preference: a future build that writes layout model 2 must be refused
+            // here rather than laid out as if it were model 1.
+            return SurfaceLoadResult.Refused(FileError(
+                toolkitId, "surface.file.unsupported-layout-version",
+                $"'{FileName}' declares layoutVersion {layoutVersion}; this build lays out " +
+                $"{SurfaceDocument.CurrentLayoutVersion}. Refusing rather than reflowing."));
         }
 
         if (!root.TryGetProperty("elements", out var elements) || elements.ValueKind != JsonValueKind.Array)
@@ -169,6 +188,18 @@ internal sealed class SurfaceStore : ISurfaceStore
 
         var kept = new List<SurfaceElement>(elements.GetArrayLength());
         List<Diagnostic>? warnings = null;
+
+        // The document layer gets the same unknown-field check the element layer has had since the
+        // `col`/`column` incident. Without it, `columns: 4` on an old file was read by nothing and
+        // reported by nothing — the field was simply gone. A warning rather than a refusal: the
+        // document may still lay out perfectly, and the author is the one who can act on it.
+        foreach (var unknown in UnknownDocumentMembers(root))
+        {
+            (warnings ??= []).Add(ElementError(
+                toolkitId, SurfaceDiagnosticCodes.FileUnknownField,
+                $"'{FileName}' has an unrecognised top-level field '{unknown}'; it was ignored. " +
+                "Layout files written for an older layout model often carry one."));
+        }
 
         foreach (var element in elements.EnumerateArray())
         {
@@ -210,16 +241,53 @@ internal sealed class SurfaceStore : ISurfaceStore
         }
 
         return new SurfaceLoadResult(
-            new SurfaceDocument { SchemaVersion = schemaVersion, Columns = columns, Elements = kept },
+            new SurfaceDocument { SchemaVersion = schemaVersion, LayoutVersion = layoutVersion, Elements = kept },
             [],
             warnings ?? []);
     }
 
+    /// <summary>Reads an integer, or reports that it was not there or was not one.</summary>
+    /// <remarks>
+    /// The difference from <see cref="ReadInt"/> is the whole reason this overload exists: a missing
+    /// field must not be readable as a value. Callers that genuinely want a default (nothing in this
+    /// file does, since both version probes are mandatory) should say so by name.
+    /// </remarks>
+    private static bool TryReadInt(JsonElement root, string name, out int value)
+    {
+        if (root.TryGetProperty(name, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out value))
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
+    }
+
     private static int ReadInt(JsonElement root, string name, int fallback)
-        => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
-            && value.TryGetInt32(out var number)
-                ? number
-                : fallback;
+        => TryReadInt(root, name, out var value) ? value : fallback;
+
+    /// <summary>The field names on the document itself that no property of <see cref="SurfaceDocument"/> claims.</summary>
+    /// <remarks>
+    /// The same comparison <see cref="UnknownMembers"/> makes for one element, made one level up.
+    /// It exists because the element layer had it and the document layer did not: a file could carry
+    /// <c>columns: 4</c> — a field this build no longer reads — and be silently laid out with no one
+    /// told the value went nowhere. See the `col`/`column` incident for what that looks like when it
+    /// happens to a field that <i>was</i> being read.
+    /// </remarks>
+    private static IEnumerable<string> UnknownDocumentMembers(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+            yield break;
+
+        var known = KnownMembers(typeof(SurfaceDocument), includeDiscriminator: false);
+        foreach (var property in root.EnumerateObject())
+        {
+            if (!known.Contains(property.Name))
+                yield return property.Name;
+        }
+    }
 
     /// <summary>
     /// The field names on one element that no property of its type claims.
@@ -248,15 +316,20 @@ internal sealed class SurfaceStore : ISurfaceStore
     }
 
     /// <summary>
-    /// The JSON names a concrete element type accepts: every <see cref="JsonPropertyNameAttribute"/>
-    /// on it and its base, plus the polymorphic discriminator.
+    /// The JSON names a type accepts: every <see cref="JsonPropertyNameAttribute"/> on it and its
+    /// base, plus the polymorphic discriminator when <paramref name="includeDiscriminator"/> is set.
     /// </summary>
-    private static HashSet<string> KnownMembers(Type type)
+    /// <remarks>
+    /// The discriminator is an element-only field: it says which concrete record an array entry is.
+    /// A document has no such thing, so asking for it there would quietly excuse a stray
+    /// <c>type</c> on the root — a field nothing reads, reported by nothing, which is the exact shape
+    /// this whole check exists to catch.
+    /// </remarks>
+    private static HashSet<string> KnownMembers(Type type, bool includeDiscriminator = true)
     {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            DiscriminatorName,
-        };
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (includeDiscriminator)
+            names.Add(DiscriminatorName);
 
         for (var current = type; current is not null && current != typeof(object); current = current.BaseType)
         {

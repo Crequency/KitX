@@ -399,14 +399,19 @@ public sealed class SurfaceCard : Grid
         if (elements.Count == 0)
             return;
 
-        // Slot -> tallest element standing in it. The height of a slot is decided once, by whoever
-        // is tallest, so two elements sharing a row do not stack their heights.
-        var slots = new SortedDictionary<int, int>();
+        // One row of the card, and the elements that stand in it in the order the file lists them.
+        //
+        // The order used to be carried by each element's `column`; since Q101 there is no column,
+        // and the array order is the only thing that says "left to right". It was always there —
+        // the file has always been a list — but nothing read it, so a document and a shuffled copy
+        // of it drew the same card.
+        var rows = new SortedDictionary<int, List<SurfaceElement>>();
         foreach (var element in elements)
         {
-            var height = SlotsFor(element);
-            if (!slots.TryGetValue(element.Row, out var existing) || height > existing)
-                slots[element.Row] = height;
+            if (!rows.TryGetValue(element.Row, out var row))
+                rows[element.Row] = row = [];
+
+            row.Add(element);
         }
 
         // Avalonia's Grid indexes rows from zero while the file numbers them from one, and it
@@ -414,57 +419,63 @@ public sealed class SurfaceCard : Grid
         // five. This map is where "row is an ordinal" becomes true of the pixels.
         var rowIndexOf = new Dictionary<int, int>();
         var next = 0;
-        foreach (var (slot, height) in slots)
+        foreach (var (slot, row) in rows)
         {
             rowIndexOf[slot] = next++;
+
+            // The tallest element in a row decides that row's height, so two elements sharing a row
+            // do not stack their heights.
+            var height = row.Max(SlotsFor);
             RowDefinitions.Add(new RowDefinition
             {
                 Height = new GridLength(height * SurfaceMetrics.SlotHeight),
             });
         }
 
-        foreach (var element in elements)
+        foreach (var (slot, row) in rows)
+            Children.Add(BuildRow(row, rowIndexOf[slot]));
+
+        return;
+
+        // Each row is its own Grid, and that is load-bearing rather than tidy.
+        //
+        // A card-wide Grid has one set of ColumnDefinitions shared by every row, so dividing a row
+        // by its own weights would mean picking a column count that works for all of them at once —
+        // the least common multiple of the weights used anywhere in the file. That says the "one
+        // part" of a 1:2 row and the "one part" of a 1:1 row are the same quantity, which is exactly
+        // what per-row normalisation denies. A row-local Grid has no such question: it divides the
+        // width it is given by the weights it is given.
+        Grid BuildRow(IReadOnlyList<SurfaceElement> rowElements, int rowIndex)
         {
-            // No null check: CreateView throws for a kind this renderer does not know, so the row
+            var rowGrid = new Grid
+            {
+                ColumnSpacing = SurfaceMetrics.FieldGap,
+            };
+
+            // A weight of `w` becomes `w` star shares, and Avalonia divides the space left after
+            // ColumnSpacing among them — which is the order the design requires: take the gaps out
+            // first, then divide what remains. Summing the weights here would be arithmetic the
+            // Grid already does, and a second copy of it is a second thing that can disagree.
+            foreach (var element in rowElements)
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition(element.Weight, GridUnitType.Star));
+
+            Grid.SetRow(rowGrid, rowIndex);
+
+            var column = 0;
+            foreach (var element in rowElements)
+                rowGrid.Children.Add(BuildCell(element, column++));
+
+            return rowGrid;
+        }
+
+        Control BuildCell(SurfaceElement element, int column)
+        {
+            // No null check: CreateView throws for a kind this renderer does not know, so the cell
             // it would have occupied never silently becomes a gap. A document this renderer cannot
             // draw is refused as a whole rather than rendered with holes in it.
             var view = CreateView(element);
 
-            Grid.SetRow(view, rowIndexOf[element.Row]);
-            Grid.SetColumn(view, element.Column - 1);
-
-            // No clamp here. The validator clamps `ColumnSpan` on the loading path, and the Grid
-            // clamps it again at layout time, so a second `Math.Min` in this method could not change
-            // any output — and it did not: with the clamp gone all 41 renderer tests still pass.
-            // That is a statement about the current tests, not about the clamp. None of them
-            // observes the case it was guarding, and they could grow one tomorrow.
-            //
-            // It was not merely redundant. `Math.Min(span, CardColumns - Column + 1)` goes to zero
-            // or negative once `Column` is past the last column, and `Grid.SetColumnSpan` rejects
-            // both: a column of 5 throws "0 is not a valid value for 'ColumnSpan'", a column of 6
-            // throws "-1 …". So the guard threw on exactly the input it was written to defend
-            // against, while doing nothing on the input that actually occurs.
-            //
-            // Measured against Avalonia 11.3.13 — the numbers below are why this reads oddly:
-            // `Grid.GetColumnSpan` reports back whatever was set, but the layout clamps it.
-            //
-            //   col 2 span 4  ->  W=292.0  L=98.0   R=390.0   GetColumnSpan=4
-            //   col 2 span 3  ->  W=292.0  L=98.0   R=390.0   GetColumnSpan=3
-            //   col 4 span 4  ->  W= 97.0  L=293.0  R=390.0   GetColumnSpan=4
-            //   col 1 span 4  ->  W=390.0  L=  0.0  R=390.0   GetColumnSpan=4
-            //
-            // Identical geometry from spans of 4 and 3, both landing flush with the card edge.
-            //
-            // To reproduce: a Grid of Width=390 with four star columns and one 64px row, inside a
-            // Window that has been Show()n, then Measure/Arrange/UpdateLayout after each change —
-            // without Show() the Grid's children are never laid out at all.
-            //
-            // If you are about to add the clamp back, first satisfy yourself that Grid does not
-            // clamp: `GetColumnSpan` will not tell you, because it reports what you set rather than
-            // what the layout did with it.
-            Grid.SetColumnSpan(view, element.ColumnSpan);
-
-            Children.Add(view);
+            Grid.SetColumn(view, column);
 
             // Only the two kinds that show a stored value are registered here. An editing element
             // has no key at all: it is not showing a value, it is where a value comes from, and
@@ -502,7 +513,6 @@ public sealed class SurfaceCard : Grid
                 }
             }
 
-
             // Name is a separate field from Key and is not defaulted from it: a cell may show one
             // stored value and upload its input under another word, and a cell that declares neither
             // contributes nothing. Registering only named cells is what keeps a display element out
@@ -515,13 +525,9 @@ public sealed class SurfaceCard : Grid
             // their content survives SetDocument.
             if (!string.IsNullOrEmpty(element.Name) && carriedInput.TryGetValue(element.Name, out var local))
                 RestoreLocalInput(element.Name, view, local);
-        }
 
-        // Columns follow the document's declared count, which is fixed at four by the schema. Doing
-        // it from the maximum column that happens to appear would make the card's width per column
-        // depend on which elements a given file used.
-        for (var i = 0; i < SurfaceMetrics.CardColumns; i++)
-            ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+            return view;
+        }
     }
 
     /// <summary>Puts a value into a cell, or clears it when there is none.</summary>

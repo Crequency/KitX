@@ -45,24 +45,25 @@ public class SurfaceEndToEndTests : IDisposable
     /// A scan-a-book card: barcode entry, title, cover, three buttons, and a session list.
     /// </summary>
     /// <remarks>
-    /// Every element is placed by hand with a row and a column, because that is all the format
-    /// carries — there is no flow layout and no ordering rule.
+    /// Every element is placed by hand with a row and a weight, because that is all the format
+    /// carries — there is no flow layout and no ordering rule. Within a row the order is the order
+    /// the elements appear here, and the weights divide the row (Q101).
     /// </remarks>
     private const string SurfaceJson = """
         {
           "schemaVersion": 1,
-          "columns": 4,
+          "layoutVersion": 1,
           "elements": [
-            { "type": "Input",  "name": "barcode", "row": 1, "column": 1, "columnSpan": 4 },
+            { "type": "Input",  "name": "barcode", "row": 1, "weight": 4 },
 
-            { "type": "Text",   "key": "title",   "row": 2, "column": 1, "columnSpan": 3 },
-            { "type": "Text",   "key": "cover",   "row": 2, "column": 4, "columnSpan": 1 },
+            { "type": "Text",   "key": "title",   "row": 2, "weight": 3 },
+            { "type": "Text",   "key": "cover",   "row": 2, "weight": 1 },
 
-            { "type": "Button", "label": "Scan",     "events": ["scan"],     "row": 3, "column": 1, "columnSpan": 1 },
-            { "type": "Button", "label": "Add",      "events": ["add"],      "row": 3, "column": 2, "columnSpan": 1 },
-            { "type": "Button", "label": "Sessions", "events": ["sessions"], "row": 3, "column": 3, "columnSpan": 2 },
+            { "type": "Button", "label": "Scan",     "events": ["scan"],     "row": 3, "weight": 1 },
+            { "type": "Button", "label": "Add",      "events": ["add"],      "row": 3, "weight": 1 },
+            { "type": "Button", "label": "Sessions", "events": ["sessions"], "row": 3, "weight": 2 },
 
-            { "type": "List",   "key": "sessions", "row": 4, "column": 1, "columnSpan": 4,
+            { "type": "List",   "key": "sessions", "row": 4, "weight": 4,
               "itemTitle": "startedAt", "itemSubtitle": "duration" }
           ]
         }
@@ -115,7 +116,7 @@ public class SurfaceEndToEndTests : IDisposable
 
         // File level: accepted, and the document that came back is the one on disk.
         Assert.Empty(loaded.Errors);
-        Assert.Equal(4, loaded.Document.Columns);
+        Assert.Equal(SurfaceDocument.CurrentLayoutVersion, loaded.Document.LayoutVersion);
         Assert.Equal(7, loaded.Document.Elements.Count);
 
         // Element level: nothing is dropped. A warning here would mean the palette and the
@@ -153,14 +154,14 @@ public class SurfaceEndToEndTests : IDisposable
     [Fact]
     public void A_field_name_the_type_does_not_have_is_reported_instead_of_landing_in_a_default()
     {
-        // The defect this pins: the design document wrote `col` for months, the property is
+        // The defect this pins: the design document wrote `col` for months while the property was
         // `Column`, and System.Text.Json put the misspelling nowhere without a word. The element
-        // kept Column = 1, so a whole card silently stacked in the first column.
+        // kept the default, so a whole card silently stacked in the first column.
         //
         // The element is still kept — it may well be drawable — but the author is told.
         WriteSurface(SurfaceJson.Replace(
-            "\"row\": 2, \"column\": 1, \"columnSpan\": 3",
-            "\"row\": 2, \"col\": 1, \"colSpan\": 3",
+            "\"row\": 2, \"weight\": 3",
+            "\"row\": 2, \"wieght\": 3, \"wight\": 1",
             StringComparison.Ordinal));
 
         var store = new SurfaceStore(_root.Root);
@@ -175,10 +176,10 @@ public class SurfaceEndToEndTests : IDisposable
             .ToList();
 
         // One line per stray field, not per element: both misspellings on that one element are
-        // named, so an author fixing `col` does not discover `colSpan` on the next load.
+        // named, so an author fixing `wieght` does not discover `wight` on the next load.
         Assert.Equal(2, misspelled.Count);
-        Assert.Contains(misspelled, m => m.Contains("'col'", StringComparison.Ordinal));
-        Assert.Contains(misspelled, m => m.Contains("'colSpan'", StringComparison.Ordinal));
+        Assert.Contains(misspelled, m => m.Contains("'wieght'", StringComparison.Ordinal));
+        Assert.Contains(misspelled, m => m.Contains("'wight'", StringComparison.Ordinal));
     }
 
     [Fact]

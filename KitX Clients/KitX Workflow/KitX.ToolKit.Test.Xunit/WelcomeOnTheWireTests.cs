@@ -56,7 +56,7 @@ public sealed class WelcomeOnTheWireTests
     /// property that makes splitting this test across two assemblies worth the trouble.</para>
     /// </remarks>
     internal const string Wire =
-        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"columns":4,"elements":[{"type":"Text","format":null,"row":1,"column":1,"columnSpan":1,"key":"title","name":null},{"type":"Text","format":null,"row":2,"column":1,"columnSpan":1,"key":"cover","name":null}]},"protocolVersion":1}""";
+        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","format":null,"row":1,"weight":1,"key":"title","name":null},{"type":"Text","format":null,"row":2,"weight":1,"key":"cover","name":null}]},"protocolVersion":1}""";
 
     private readonly ITestOutputHelper _output;
 
@@ -87,10 +87,10 @@ public sealed class WelcomeOnTheWireTests
             """
             {
               "schemaVersion": 1,
-              "columns": 4,
+              "layoutVersion": 1,
               "elements": [
-                { "type": "Text", "row": 1, "column": 1, "key": "title" },
-                { "type": "Text", "row": 2, "column": 1, "key": "cover" }
+                { "type": "Text", "row": 1, "key": "title" },
+                { "type": "Text", "row": 2, "key": "cover" }
               ]
             }
             """);

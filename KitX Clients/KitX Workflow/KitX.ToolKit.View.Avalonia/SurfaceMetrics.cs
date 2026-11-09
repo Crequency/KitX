@@ -106,7 +106,32 @@ public static class SurfaceMetrics
     /// <summary>
     /// How many columns a card has, per the schema's <c>columns</c> field.
     /// </summary>
+    /// <remarks>
+    /// <b>Unused since Q101.</b> Horizontal placement is a ratio now, so the card has no column
+    /// count at all — a row's columns are made from the weights of the elements in it, and a card
+    /// with four single-weight elements in one row has four of them while a card with one has one.
+    /// Kept because <c>EditingControlMetricsTests</c> measures a control against one column's
+    /// width; delete that measurement and this constant can go with it.
+    /// </remarks>
     public const int CardColumns = 4;
+
+    /// <summary>
+    /// The space between two elements that share a row, in device-independent pixels.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The document does not carry this number and must not.</b> A surface says "this one
+    /// gets three parts of the row and that one gets one"; how many pixels a part is, and how much
+    /// of the row the gaps eat, is a property of the screen the card is drawn on. Same rule as
+    /// <see cref="SlotHeight"/> and <see cref="ListSlotCount"/>: the document writes ratios, the
+    /// renderer writes pixels.</para>
+    ///
+    /// <para><b>It is subtracted before the division, not after.</b> Three parts to one over a
+    /// 390-wide card with 8px between them is 264/86 with the gap taken out first, and 288/94
+    /// without — the second pair does not sum to 390 minus anything, so the card edge stops
+    /// meaning anything. <c>Grid.ColumnSpacing</c> takes it out first, which is why the row is a
+    /// Grid and not arithmetic here.</para>
+    /// </remarks>
+    public const double FieldGap = 8;
 
     /// <summary>
     /// How many slots a <c>List</c> occupies, per the Surface design's §10.2.1 rules.

@@ -57,8 +57,8 @@ public sealed class SurfaceLayoutTests
         // A List fills six slots. That makes its own slot taller — it must not push the element
         // below it from row 2 to row 7. If it did, "row is the author's number" would be false and
         // the card's order would depend on what is drawn above.
-        var tall = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
-        var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "title" };
+        var tall = new SurfaceListElement { Row = 1, Key = "sessions" };
+        var below = new SurfaceTextElement { Row = 2, Key = "title" };
 
         Assert.Equal(1, SurfaceLayout.SlotIndex(tall));
         Assert.Equal(2, SurfaceLayout.SlotIndex(below));
@@ -95,7 +95,7 @@ public sealed class SurfaceLayoutTests
         // any single element's position either.
         var elements = Card();
         var list = elements.OfType<SurfaceListElement>().Single();
-        var below = new SurfaceTextElement { Row = list.Row + 1, Column = 1, Key = "title" };
+        var below = new SurfaceTextElement { Row = list.Row + 1, Key = "title" };
         elements.Add(below);
 
         // Above the element under the list: the title's slot plus the list's six.
@@ -214,8 +214,8 @@ public sealed class SurfaceLayoutTests
         // ignored slot heights would pass every other assertion in this file.
         //
         // A List fills more than one slot, which is the only multi-slot case the contract has.
-        var tall = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
-        var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "title" };
+        var tall = new SurfaceListElement { Row = 1, Key = "sessions" };
+        var below = new SurfaceTextElement { Row = 2, Key = "title" };
         var elements = new List<SurfaceElement> { tall, below };
 
         var actual = SurfaceLayout.PixelTopOf(elements, below, RowHeight, ListSlots);
@@ -236,9 +236,9 @@ public sealed class SurfaceLayoutTests
     {
         // Several elements share a row; the row is as tall as the tallest, counted once. Summing
         // the heights of everyone in the row would push the row below down twice.
-        var tall = new SurfaceListElement { Row = 1, Column = 1, Key = "sessions" };
-        var shortOne = new SurfaceTextElement { Row = 1, Column = 2, Key = "title" };
-        var below = new SurfaceTextElement { Row = 2, Column = 1, Key = "title" };
+        var tall = new SurfaceListElement { Row = 1, Key = "sessions" };
+        var shortOne = new SurfaceTextElement { Row = 1, Key = "title" };
+        var below = new SurfaceTextElement { Row = 2, Key = "title" };
         var elements = new List<SurfaceElement> { tall, shortOne, below };
 
         Assert.Equal(ListSlots, SurfaceLayout.SlotHeightOf(elements, 1, ListSlots));
@@ -250,7 +250,7 @@ public sealed class SurfaceLayoutTests
     [Fact]
     public void An_element_in_the_first_slot_starts_at_the_top()
     {
-        var first = new SurfaceTextElement { Row = 1, Column = 1, Key = "title" };
+        var first = new SurfaceTextElement { Row = 1, Key = "title" };
 
         Assert.Equal(0, SurfaceLayout.PixelTopOf([first], first, RowHeight, ListSlots));
     }
@@ -267,14 +267,14 @@ public sealed class SurfaceLayoutTests
         // forces the implementation to ignore the skipped numbers.
         var adjacent = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-            new SurfaceTextElement { Row = 2, Column = 1, Key = "subtitle" },
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceTextElement { Row = 2, Key = "subtitle" },
         };
 
         var withGap = new List<SurfaceElement>
         {
-            new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-            new SurfaceTextElement { Row = 5, Column = 1, Key = "subtitle" },
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceTextElement { Row = 5, Key = "subtitle" },
         };
 
         var adjacentTop = SurfaceLayout.PixelTopOf(adjacent, adjacent[1], RowHeight, ListSlots);
@@ -301,20 +301,20 @@ public sealed class SurfaceLayoutTests
     /// <summary>The seven kinds, one each, all stood in the given slot.</summary>
     private static List<SurfaceElement> AllSevenKinds(int row) =>
     [
-        new SurfaceTextElement { Row = row, Column = 1, Key = "title" },
-        new SurfaceButtonElement { Row = row, Column = 2, Label = "Scan", Events = ["Click"] },
-        new SurfaceInputElement { Row = row, Column = 3, Key = "barcode" },
-        new SurfaceNumberElement { Row = row, Column = 4, Key = "count" },
-        new SurfaceSelectElement { Row = row, Column = 1, Key = "mode", Options = ["a", "b"] },
-        new SurfaceSwitchElement { Row = row, Column = 2, Key = "enabled" },
-        new SurfaceListElement { Row = row, Column = 3, Key = "sessions" },
+        new SurfaceTextElement { Row = row, Key = "title" },
+        new SurfaceButtonElement { Row = row, Label = "Scan", Events = ["Click"] },
+        new SurfaceInputElement { Row = row, Key = "barcode" },
+        new SurfaceNumberElement { Row = row, Key = "count" },
+        new SurfaceSelectElement { Row = row, Key = "mode", Options = ["a", "b"] },
+        new SurfaceSwitchElement { Row = row, Key = "enabled" },
+        new SurfaceListElement { Row = row, Key = "sessions" },
     ];
 
     /// <summary>A card with one list above a button — the shape the layout criteria are written about.</summary>
     private static List<SurfaceElement> Card() =>
     [
-        new SurfaceTextElement { Row = 1, Column = 1, Key = "title" },
-        new SurfaceListElement { Row = 2, Column = 1, Key = "sessions" },
-        new SurfaceButtonElement { Row = 3, Column = 1, Label = "Scan", Events = ["Click"] },
+        new SurfaceTextElement { Row = 1, Key = "title" },
+        new SurfaceListElement { Row = 2, Key = "sessions" },
+        new SurfaceButtonElement { Row = 3, Label = "Scan", Events = ["Click"] },
     ];
 }
