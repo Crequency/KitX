@@ -150,6 +150,52 @@ public sealed class FullCardLayoutTests
         Assert.Equal(narrowCells, Geometry(wide).Where(c => c.Kind != "ScrollViewer").ToList());
     }
 
+    [AvaloniaFact]
+    public void A_span_wider_than_one_column_makes_the_element_actually_wider()
+    {
+        // The three buttons on row 3 are columnSpan 1, 1 and 2 — so the third one is twice as wide.
+        // Before this was implemented every element occupied exactly one column, and nothing failed:
+        // the fixture declared spans 4, 3, 2 and 4, and no assertion read a width.
+        var card = Card(ScanBook);
+        var buttons = card.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>()
+            .OrderBy(b => b.Bounds.Left).ToList();
+
+        Assert.Equal(3, buttons.Count);
+        Assert.Equal(ColumnWidth, buttons[0].Bounds.Width, tolerance: 0.5);
+        Assert.Equal(ColumnWidth, buttons[1].Bounds.Width, tolerance: 0.5);
+        Assert.Equal(2 * ColumnWidth, buttons[2].Bounds.Width, tolerance: 0.5);
+    }
+
+    [AvaloniaFact]
+    public void A_span_that_reaches_the_last_column_ends_at_the_card_edge()
+    {
+        var card = Card(ScanBook);
+        var last = card.GetVisualDescendants().OfType<global::Avalonia.Controls.Button>()
+            .OrderBy(b => b.Bounds.Left).Last();
+
+        Assert.Equal(SurfaceMetrics.CardWidth, last.Bounds.Right, tolerance: 0.5);
+    }
+
+    [AvaloniaFact]
+    public void A_span_running_past_the_last_column_is_clamped_to_the_edge_rather_than_clipped()
+    {
+        // Equality, not inequality. `Bounds.Right <= CardWidth` would also pass an implementation
+        // that clamped the span down to nothing; only the equation says "clamped to the edge".
+        //
+        // The element starts at column 2 and asks for 4, so 3 columns remain. That choice matters:
+        // at column 4 the clamp and "one column" both end at the right edge, and this test would
+        // pass with no column span at all.
+        var card = Card("""
+            { "schemaVersion": 1, "columns": 4, "elements": [
+              { "type": "Text", "key": "tail", "row": 1, "column": 2, "columnSpan": 4 }
+            ] }
+            """);
+
+        var cell = card.Children.OfType<global::Avalonia.Controls.Control>().Single();
+        Assert.Equal(3 * ColumnWidth, cell.Bounds.Width, tolerance: 0.5);
+        Assert.Equal(SurfaceMetrics.CardWidth, cell.Bounds.Right, tolerance: 0.5);
+    }
+
     /// <summary>
     /// Every control the card added, as (type, top, left), in top-to-bottom order.
     /// </summary>

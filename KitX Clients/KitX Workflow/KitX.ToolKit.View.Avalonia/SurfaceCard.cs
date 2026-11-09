@@ -431,6 +431,19 @@ public sealed class SurfaceCard : Grid
 
             Grid.SetRow(view, rowIndexOf[element.Row]);
             Grid.SetColumn(view, element.Column - 1);
+
+            // The clamp repeats a rule the validator already applied. `SetDocument` is a public
+            // entry point: anyone holding a card can hand it a document that never went through
+            // validation, and the validator is a step on the loading path, not a constraint the
+            // type system enforces here. Without the clamp, an element whose span runs past the
+            // last declared column is placed outside the card, where it is clipped rather than
+            // reported. The bound comes from `SurfaceMetrics.CardColumns` in both places, so there
+            // is one number — but two call sites, and changing one without the other leaves them
+            // disagreeing.
+            Grid.SetColumnSpan(
+                view,
+                Math.Min(element.ColumnSpan, SurfaceMetrics.CardColumns - element.Column + 1));
+
             Children.Add(view);
 
             // Only the two kinds that show a stored value are registered here. An editing element
