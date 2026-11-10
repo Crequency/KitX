@@ -367,8 +367,14 @@ public class CompositionRootAcceptanceTests : IDisposable
         Assert.Empty(reloaded.Workflows);
         Assert.Empty(reloaded.Triggers);
 
-        // And nothing can be running, because there is nothing to trigger.
-        Assert.Equal(0, Service.ActiveFlowCounts().GetValueOrDefault(saved.GetId()));
+        // Nothing can be running, because there is nothing to trigger.
+        //
+        // Asserted as "the key is absent", not "the count is zero". ActiveFlowCounts skips
+        // toolkits whose active count is zero (`if (active > 0)`), so the two readings are the
+        // same observation for a mounted-but-idle toolkit — and the zero form would also hold
+        // for a toolkit that was never mounted at all. Absence at least distinguishes "this
+        // toolkit is not in the running set" from "it is in the running set with nothing in it".
+        Assert.False(Service.ActiveFlowCounts().ContainsKey(saved.GetId()));
 
         // The behavioural half: a mounted ToolKit with no triggers cannot start a flow.
         //
@@ -378,6 +384,10 @@ public class CompositionRootAcceptanceTests : IDisposable
         // nothing can be started. That is the property "it mounted and has nothing to run",
         // which the structural asserts above can only gesture at.
         Assert.Null(Runs.Spawn(saved.GetId(), "anything"));
+
+        // And the flow count stayed empty through that attempt — the refusal happened before
+        // any run was registered, not after one was started and cleaned up.
+        Assert.False(Service.ActiveFlowCounts().ContainsKey(saved.GetId()));
     }
 
     /// <summary>
