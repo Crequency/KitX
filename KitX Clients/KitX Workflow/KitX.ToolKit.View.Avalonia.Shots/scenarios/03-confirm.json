@@ -1,0 +1,18 @@
+{
+  "name": "03-confirm",
+  "caption": "点击之后：确认覆盖层（渲染器的，不是 ToolKit 的）",
+  "document": {
+    "schemaVersion": 1,
+    "layoutVersion": 1,
+    "elements": [
+      { "type": "Text", "key": "title", "row": 1, "weight": 1 },
+      { "type": "Text", "key": "note", "row": 2, "weight": 1 },
+      { "type": "Button", "label": "结束这一批", "events": ["finish"], "emphasis": "danger", "row": 3, "weight": 1 }
+    ]
+  },
+  "values": {
+    "title": "\"这一批已经扫入 3 本\"",
+    "note": "\"结束后不能继续往这一批追加。\""
+  },
+  "click": "结束这一批"
+}

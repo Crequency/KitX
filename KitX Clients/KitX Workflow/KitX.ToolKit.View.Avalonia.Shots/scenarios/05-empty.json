@@ -1,0 +1,9 @@
+{
+  "name": "05-empty",
+  "caption": "空文档",
+  "document": {
+    "schemaVersion": 1,
+    "layoutVersion": 1,
+    "elements": []
+  }
+}
