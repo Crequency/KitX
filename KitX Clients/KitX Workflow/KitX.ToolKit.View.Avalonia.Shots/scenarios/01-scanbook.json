@@ -1,0 +1,23 @@
+{
+  "name": "01-scanbook",
+  "caption": "扫描一本书 · 文本、输入、下拉、三个按钮、会话列表",
+  "document": {
+    "schemaVersion": 1,
+    "layoutVersion": 1,
+    "elements": [
+      { "type": "Text", "key": "title", "row": 1, "weight": 1 },
+      { "type": "Text", "key": "author", "row": 2, "weight": 1 },
+      { "type": "Input", "name": "barcode", "row": 3, "weight": 3 },
+      { "type": "Select", "name": "genre", "row": 3, "weight": 1, "options": ["文学", "计算机"] },
+      { "type": "Button", "label": "扫下一本", "events": ["scan"], "emphasis": "primary", "row": 4, "weight": 1 },
+      { "type": "Button", "label": "提交", "events": ["submit"], "row": 4, "weight": 1 },
+      { "type": "Button", "label": "结束这一批", "events": ["finish"], "emphasis": "danger", "row": 5, "weight": 1 },
+      { "type": "List", "key": "sessions", "row": 6, "weight": 1, "itemTitle": "startedAt", "itemSubtitle": "duration" }
+    ]
+  },
+  "values": {
+    "title": "\"C# 高级编程（第 12 版）\"",
+    "author": "\"Christian Nagel · 清华大学出版社\"",
+    "sessions": "[\"09:12 · 41 秒\", \"09:14 · 38 秒\", \"09:15 · 52 秒\"]"
+  }
+}

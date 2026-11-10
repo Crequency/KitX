@@ -1,0 +1,20 @@
+{
+  "name": "04-weights",
+  "caption": "权重按行归一化 · 3:1 / 5:2 / 2:1 / 独占一行",
+  "document": {
+    "schemaVersion": 1,
+    "layoutVersion": 1,
+    "elements": [
+      { "type": "Input",  "name": "a", "row": 1, "weight": 3 },
+      { "type": "Select", "name": "s", "row": 1, "weight": 1, "options": ["文学", "计算机"] },
+
+      { "type": "Input",  "name": "b", "row": 2, "weight": 5 },
+      { "type": "Select", "name": "t", "row": 2, "weight": 2, "options": ["甲", "乙"] },
+
+      { "type": "Button", "label": "扫下一本", "events": ["scan"], "row": 3, "weight": 2 },
+      { "type": "Button", "label": "提交", "events": ["submit"], "row": 3, "weight": 1 },
+
+      { "type": "Button", "label": "独占一行 → 权重 1/1 = 整行", "events": ["x"], "row": 4, "weight": 1 }
+    ]
+  }
+}
