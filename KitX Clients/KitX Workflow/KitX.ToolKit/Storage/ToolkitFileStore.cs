@@ -42,13 +42,31 @@ internal sealed class ToolkitFileStore : IToolkitWorkflowFileStore
 
     /// <inheritdoc/>
     public string ResolveWorkflowPath(string toolkitId, string relativeFile)
+        => Resolve(_root, toolkitId, relativeFile);
+
+    /// <summary>
+    /// Resolves a relative workflow file under <c>{toolkitRoot}/{toolkitId}</c>, refusing paths that
+    /// escape that directory.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Static so a caller holding only a root can resolve without inventing a store.</b>
+    /// <see cref="RunScheduler"/> needs exactly this and nothing else from the type — it resolves one
+    /// path per node and never loads or saves. Handing it a whole <see cref="ToolkitFileStore"/> made
+    /// "any directory will do" compile, and eight test sites promptly passed
+    /// <c>Path.GetTempPath()</c>: legal, and meaning "some directory" rather than "this toolkit's".</para>
+    ///
+    /// <para>The escape check is the reason this is one implementation rather than two. A second
+    /// copy in the scheduler would drift from this one, and the drift would be a path-traversal hole
+    /// in whichever copy was wrong.</para>
+    /// </remarks>
+    public static string Resolve(string toolkitRoot, string toolkitId, string relativeFile)
     {
         if (string.IsNullOrWhiteSpace(relativeFile))
             relativeFile = "workflow.kcs";
         if (!relativeFile.EndsWith(".kcs", StringComparison.OrdinalIgnoreCase))
             relativeFile += ".kcs";
 
-        var root = ToolkitDir(toolkitId);
+        var root = Path.Combine(toolkitRoot, toolkitId);
         var path = Path.GetFullPath(Path.Combine(root, relativeFile));
         if (!path.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
             && !string.Equals(path, Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
@@ -104,6 +122,4 @@ internal sealed class ToolkitFileStore : IToolkitWorkflowFileStore
 
         await KcsFileIo.WriteKcsAsync(path, kcs);
     }
-
-    private string ToolkitDir(string toolkitId) => Path.Combine(_root, toolkitId);
 }

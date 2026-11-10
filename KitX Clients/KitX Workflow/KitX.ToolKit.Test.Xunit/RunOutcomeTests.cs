@@ -69,7 +69,7 @@ public class RunOutcomeTests
         var options = new ToolKitRunOptions { MaxConcurrentNodes = maxConcurrentNodes };
         var scheduler = new RunScheduler(
             CompileFixtures.Compile(toolkit), executor,
-            new ToolkitFileStore(Path.GetTempPath()), options: options);
+            RunSchedulerTests.StorageRoot, options: options);
         return (scheduler, executor);
     }
 

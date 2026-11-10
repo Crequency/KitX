@@ -18,6 +18,18 @@ public static class SchedulerNodeOverheadBenchmark
     private const int FillerKeyCount = 3000;
     private const int Rounds = 10;
 
+    /// <summary>
+    /// A storage root, required by the scheduler even though this benchmark never reads a file.
+    ///
+    /// <para>The chain's nodes are executed by <c>InstantExecutor</c>, which answers without
+    /// touching disk; the scheduler only resolves <c>{root}/{toolkitId}/{file}</c> and hands the
+    /// string on. Saying that explicitly beats the previous
+    /// <c>new ToolkitFileStore(Path.GetTempPath())</c>, which passed a whole store — load and save
+    /// included — where one root was needed.</para>
+    /// </summary>
+    private static readonly string StorageRoot =
+        Path.Combine(Path.GetTempPath(), "kitx-perf-root");
+
     public static List<string> Run()
     {
         var toolkit = BuildChainToolkit();
@@ -35,7 +47,7 @@ public static class SchedulerNodeOverheadBenchmark
             Preload(store, FillerKeyCount);
             var executor = new InstantExecutor(store);
             using var scheduler = new RunScheduler(compiled, executor,
-                new ToolkitFileStore(Path.GetTempPath()));
+                StorageRoot);
 
             var tcs = new TaskCompletionSource();
             scheduler.RunCompleted += (_, _) => tcs.TrySetResult();

@@ -34,7 +34,7 @@ namespace KitX.ToolKit.Run;
 internal sealed class RunScheduler : IDisposable
 {
     private readonly IWorkflowExecutor _executor;
-    private readonly ToolkitFileStore _fileStore;
+    private readonly string _toolkitRoot;
     private readonly BoundedNodeScheduler _nodeGate;
 
     /// <summary>The single completion-edge graph (ADR-0002 D3). Immutable for the scheduler's lifetime.</summary>
@@ -85,15 +85,30 @@ internal sealed class RunScheduler : IDisposable
     /// re-read from the config beside it. Reading one fact from two places is exactly the failure
     /// ADR-0002 exists to remove, so the parameter is gone rather than merely unused.</para>
     /// </remarks>
+    /// <param name="toolkitRoot">
+    /// The root directory this toolkit's workflow files live under — <c>Data/Toolkits</c>, with one
+    /// sub-directory per toolkit id.
+    ///
+    /// <para><b>Why a root and not a file store.</b> The parameter used to be a
+    /// <c>ToolkitFileStore</c>, and that type accepted any directory: eight test sites passed
+    /// <c>new ToolkitFileStore(Path.GetTempPath())</c>, compiled cleanly, and meant "some directory"
+    /// rather than "this toolkit's". The store also brought <see cref="IToolkitWorkflowFileStore"/>'s
+    /// load and save along, neither of which the scheduler does — it resolves one path per node and
+    /// stops.</para>
+    ///
+    /// <para>A string is not self-describing either, so it is named for the relationship and the
+    /// resolution is <see cref="Storage.ToolkitFileStore.Resolve"/>, which is the one place the path
+    /// rule and its escape check live.</para>
+    /// </param>
     internal RunScheduler(
         CompiledToolkit compiled,
         IWorkflowExecutor executor,
-        ToolkitFileStore fileStore,
+        string toolkitRoot,
         ToolKitRunOptions? options = null,
         IIdGenerator? idGenerator = null)
     {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
-        _fileStore = fileStore ?? throw new ArgumentNullException(nameof(fileStore));
+        _toolkitRoot = toolkitRoot ?? throw new ArgumentNullException(nameof(toolkitRoot));
         _compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _ids = idGenerator ?? GuidIdGenerator.Instance;
 
@@ -391,7 +406,7 @@ internal sealed class RunScheduler : IDisposable
             }
 
             var mergedOverrides = BuildOverrides(run, workflowId, overrides);
-            var absolutePath = _fileStore.ResolveWorkflowPath(run.ToolkitId, file);
+            var absolutePath = ToolkitFileStore.Resolve(_toolkitRoot, run.ToolkitId, file);
 
             var result = await _executor
                 .ExecuteAsync(workflowId, absolutePath, mergedOverrides, run.Token)

@@ -166,7 +166,7 @@ internal sealed class ToolkitInstanceManager : IDisposable
         var fileStore = _fileStoreFactory(toolkit);
         var compiled = Compile(toolkit, fileStore);
 
-        var scheduler = new RunScheduler(compiled, _executor, fileStore);
+        var scheduler = new RunScheduler(compiled, _executor, fileStore.Root);
         var mounted = new MountedToolkit(compiled, scheduler);
 
         // Restore before anything can run (design §4: "进程重启 → 声明的键恢复"; Q12/Q66).

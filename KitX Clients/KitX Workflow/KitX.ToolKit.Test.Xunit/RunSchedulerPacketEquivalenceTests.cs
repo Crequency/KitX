@@ -354,7 +354,7 @@ public class RunSchedulerPacketEquivalenceTests
         var executor = new KeyedExecutor(store);
         var toolkit = ScenarioToolkit();
         var scheduler = new RunScheduler(CompileFixtures.Compile(toolkit), executor,
-            new ToolkitFileStore(Path.GetTempPath()));
+            RunSchedulerTests.StorageRoot);
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, _) => completed.TrySetResult();

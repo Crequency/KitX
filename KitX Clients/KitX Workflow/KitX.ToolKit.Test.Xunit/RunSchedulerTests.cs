@@ -10,6 +10,24 @@ namespace KitX.ToolKit.Test.Xunit;
 [Trait("Category", "Unit")]
 public class RunSchedulerTests
 {
+    /// <summary>
+    /// A storage root, for tests whose workflow bodies are produced by an executor double rather
+    /// than read from disk.
+    /// </summary>
+    /// <remarks>
+    /// <para>The scheduler resolves <c>{root}/{toolkitId}/{file}</c> and hands the result to the
+    /// executor; it never opens the file. So these tests need a root only because the constructor
+    /// asks for one — and saying that out loud is the reason this constant exists.</para>
+    ///
+    /// <para>Before the parameter was narrowed, these sites passed
+    /// <c>StorageRoot</c>. That compiled, and it meant "some
+    /// directory" rather than "the root this toolkit's files live under". The type could not tell
+    /// the difference; the name now does. See <c>RunSchedulerPathResolutionTests</c> for the test
+    /// that pins the path actually produced.</para>
+    /// </remarks>
+    internal static string StorageRoot { get; } =
+        Path.Combine(Path.GetTempPath(), "kitx-scheduler-root");
+
     private static Toolkit ToolkitWith(params Trigger[] triggers)
         => new()
         {
@@ -29,7 +47,7 @@ public class RunSchedulerTests
         var store = new DataStore();
         var executor = new RecordingExecutor(store, writeOutput: writeOutput);
         var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit), executor, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, StorageRoot);
         return (scheduler, executor);
     }
 
@@ -100,7 +118,7 @@ public class RunSchedulerTests
             new Trigger { Id = "e2", Type = TriggerType.WorkflowCompletion, Config = new() { From = "B" },
                 Bindings = [new() { Workflow = "C" }] });
         using var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit), executor, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, StorageRoot);
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };
@@ -179,7 +197,7 @@ public class RunSchedulerTests
                 Bindings = [new() { Workflow = "C" }] });
 
         var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit), executor, new ToolkitFileStore(Path.GetTempPath()));
+            CompileFixtures.Compile(toolkit), executor, StorageRoot);
 
         RunCompletedEventArgs? completed = null;
         var done = new TaskCompletionSource();
@@ -212,7 +230,7 @@ public class RunSchedulerTests
         var scheduler = new RunScheduler(
             CompileFixtures.Compile(toolkit),
             new ThrowingExecutor(),
-            new ToolkitFileStore(Path.GetTempPath()));
+            StorageRoot);
 
         RunCompletedEventArgs? completed = null;
         var done = new TaskCompletionSource();
@@ -242,7 +260,7 @@ public class RunSchedulerTests
         var scheduler = new RunScheduler(
             CompileFixtures.Compile(toolkit),
             new MissingWorkflowExecutor(),
-            new ToolkitFileStore(Path.GetTempPath()));
+            StorageRoot);
 
         RunCompletedEventArgs? completed = null;
         var done = new TaskCompletionSource();

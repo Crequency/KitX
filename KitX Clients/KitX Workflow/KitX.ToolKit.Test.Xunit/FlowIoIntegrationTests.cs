@@ -106,9 +106,11 @@ public sealed class FlowIoIntegrationTests : IDisposable
         var observed = new Dictionary<string, IReadOnlyDictionary<string, string?>>(StringComparer.Ordinal);
         var executor = new ObservingExecutor(new WorkflowRunnerExecutor(runner), observed);
 
-        var fileStore = new ToolkitFileStore(_root);
+        // The real storage root: this test writes actual .kcs files under _root and has the real
+        // executor load them, so the root handed to the scheduler is the same one the compile step
+        // resolved against. That is the relationship the parameter now names.
         using var scheduler = new RunScheduler(
-            CompileFixtures.Compile(toolkit, _root), executor, fileStore);
+            CompileFixtures.Compile(toolkit, _root), executor, _root);
 
         var completed = new TaskCompletionSource();
         scheduler.RunCompleted += (_, e) => { if (e.IsSuccess) completed.TrySetResult(); };
