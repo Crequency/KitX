@@ -412,62 +412,30 @@ internal static class ToolkitCompiler
     private static string Describe(IEnumerable<string> names)
         => string.Join(", ", names.OrderBy(n => n, StringComparer.Ordinal).Select(n => $"'{n}'"));
 
-    /// <summary>Depth-first cycle check over the compiled graph.</summary>
+    /// <summary>Cycle check over the compiled graph, using the shared search.</summary>
+    /// <remarks>
+    /// <para><b>The search is <see cref="WorkflowCycle"/>'s; the edges are this compiler's.</b> The
+    /// editor runs the same search over its declared edges, so the two cannot disagree about what a
+    /// cycle is. They still can — legitimately — disagree about which edges exist, because this one
+    /// reads the result of compiling and that one reads the declaration.</para>
+    /// <para><b>Edges pointing at an undeclared workflow are dropped, not searched.</b> That is a
+    /// reference error reported elsewhere; treating such an edge as a leaf here keeps it from being
+    /// blamed for a cycle it cannot be part of.</para>
+    /// </remarks>
     private static void ValidateAcyclic(WorkflowGraph graph, DiagnosticSink sink)
     {
-        // 0 = unvisited, 1 = on the current path, 2 = fully explored.
-        var state = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var node in graph.Nodes)
-            state[node] = 0;
+        var declared = new HashSet<string>(graph.Nodes, StringComparer.Ordinal);
+        var edges = graph.Nodes
+            .SelectMany(node => graph.Successors(node).Select(edge => (From: node, To: edge.To)))
+            .Where(edge => declared.Contains(edge.To))
+            .ToList();
 
-        var path = new List<string>();
-
-        foreach (var start in graph.Nodes)
+        if (WorkflowCycle.Find(graph.Nodes, edges) is { } cycle)
         {
-            if (state[start] != 0)
-                continue;
-
-            if (Visit(start) is { } cycle)
-            {
-                sink.Error(
-                    "graph.cycle",
-                    ToolkitDiagnosticText.Cycle(string.Join(" -> ", cycle)),
-                    new DiagnosticPath(ToolkitId: null));
-                return; // one cycle report is enough; the shape is already rejected
-            }
-        }
-
-        List<string>? Visit(string node)
-        {
-            state[node] = 1;
-            path.Add(node);
-
-            foreach (var edge in graph.Successors(node))
-            {
-                var next = edge.To;
-
-                if (!state.TryGetValue(next, out var s))
-                {
-                    // An edge may point at a workflow that is never declared; that is a
-                    // reference error reported elsewhere. Treat it as a leaf here.
-                    continue;
-                }
-
-                if (s == 1)
-                {
-                    var at = path.IndexOf(next);
-                    var cycle = path.Skip(at < 0 ? 0 : at).ToList();
-                    cycle.Add(next);
-                    return cycle;
-                }
-
-                if (s == 0 && Visit(next) is { } found)
-                    return found;
-            }
-
-            path.RemoveAt(path.Count - 1);
-            state[node] = 2;
-            return null;
+            sink.Error(
+                "graph.cycle",
+                ToolkitDiagnosticText.Cycle(string.Join(" -> ", cycle)),
+                new DiagnosticPath(ToolkitId: null));
         }
     }
 

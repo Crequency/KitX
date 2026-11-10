@@ -128,66 +128,32 @@ public sealed class ConfigValidator
 
 
     /// <summary>
-    /// Builds the WorkflowCompletion edge graph (node = workflow id) and runs a DFS cycle check.
-    /// Non-completion triggers are sources, not edges, so they cannot create cycles by themselves.
+    /// Builds the WorkflowCompletion edge graph (node = workflow id) and runs the shared cycle
+    /// search over it. Non-completion triggers are sources, not edges, so they cannot create cycles
+    /// by themselves.
     /// </summary>
+    /// <remarks>
+    /// <para><b>This decides what counts as an edge; <see cref="WorkflowCycle"/> decides what counts
+    /// as a cycle.</b> The compiler runs the same search over its own edges — the compiled ones —
+    /// and the two inputs really do differ: this one reads declarations, the other reads the result
+    /// of compiling those declarations. Keeping the two adjacency rules apart is deliberate, because
+    /// the editor must answer without compiling; sharing the search keeps the two from disagreeing
+    /// about what a cycle <em>is</em>.</para>
+    /// <para><b>Deterministic now, and that is a behaviour change.</b> Nodes are visited in ordinal
+    /// order, so a config with several cycles always reports the same one. Before this the order
+    /// came from wherever the triggers happened to be listed, so adding an unrelated trigger could
+    /// change which cycle was named.</para>
+    /// </remarks>
     private static void ValidateAcyclic(Toolkit toolkit, List<string> errors)
     {
-        var adjacency = toolkit.Triggers
+        var edges = toolkit.Triggers
             .Where(t => t.Type == TriggerType.WorkflowCompletion && !string.IsNullOrWhiteSpace(t.Config?.From))
             .SelectMany(t => t.Bindings
                 .Where(b => !string.IsNullOrWhiteSpace(b.Workflow))
                 .Select(b => (From: t.Config!.From!, To: b.Workflow)))
             .ToList();
 
-        // Node set = every workflow id that appears as a From or To of an edge.
-        var nodes = adjacency.Select(e => e.From).Concat(adjacency.Select(e => e.To)).Distinct().ToList();
-        var outgoing = adjacency
-            .GroupBy(e => e.From)
-            .ToDictionary(g => g.Key, g => g.Select(e => e.To).Distinct().ToList());
-
-        var state = new Dictionary<string, int>(); // 0=unvisited 1=visiting 2=done
-        foreach (var node in nodes)
-            state[node] = 0;
-
-        var path = new List<string>();
-        var cycleFound = false;
-
-        foreach (var node in nodes)
-        {
-            if (state[node] != 0)
-                continue;
-
-            void Dfs(string current)
-            {
-                state[current] = 1;
-                path.Add(current);
-
-                if (outgoing.TryGetValue(current, out var neighbors))
-                {
-                    foreach (var next in neighbors)
-                    {
-                        if (state[next] == 1)
-                        {
-                            cycleFound = true;
-                            var cycleStart = path.IndexOf(next);
-                            var cycle = path.Skip(cycleStart).Append(next);
-                            errors.Add(ToolkitDiagnosticText.Cycle(string.Join(" -> ", cycle)));
-                        }
-                        else if (state[next] == 0)
-                        {
-                            Dfs(next);
-                        }
-                    }
-                }
-
-                path.RemoveAt(path.Count - 1);
-                state[current] = 2;
-            }
-
-            Dfs(node);
-            if (cycleFound)
-                return; // stop after the first reported cycle
-        }
+        if (WorkflowCycle.Find(nodes: [], edges) is { } cycle)
+            errors.Add(ToolkitDiagnosticText.Cycle(string.Join(" -> ", cycle)));
     }
 }
