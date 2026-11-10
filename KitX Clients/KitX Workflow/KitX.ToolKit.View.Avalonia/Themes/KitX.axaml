@@ -220,6 +220,31 @@
     <Setter Property="ClipToBounds" Value="True"/>
   </Style>
 
+  <!--
+    The confirmation overlay. These four only exist while a danger button has been pressed and the
+    person has not answered yet, so a card taken straight from a document has none of them. The
+    reverse direction of the class test is what keeps them honest: it asserts that every class named
+    in a selector here is produced by the renderer at least once, which is why these were written in
+    the same change that started producing them rather than one commit earlier.
+  -->
+  <Style Selector="Panel.kitx-scrim">
+    <Setter Property="Background" Value="{DynamicResource KitXScrim}"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+
+  <Style Selector="TextBlock.kitx-dialog-title">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeTitle}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextPrimary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.kitx-dialog-body">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextSecondary}"/>
+  </Style>
+
   <Style Selector="Border.kitx-dialog">
     <Setter Property="Background" Value="{DynamicResource KitXCardBg}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource KitXCardBorder}"/>

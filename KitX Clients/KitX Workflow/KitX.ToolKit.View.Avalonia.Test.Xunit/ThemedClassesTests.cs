@@ -1,5 +1,6 @@
 using global::Avalonia;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using global::Avalonia.Markup.Xaml.Styling;
 using global::Avalonia.Styling;
 using global::Avalonia.VisualTree;
@@ -146,14 +147,116 @@ public sealed class ThemedClassesTests
             SurfaceCard.ThemedText,
             SurfaceCard.ThemedField,
             SurfaceCard.ThemedListGroup,
+            SurfaceCard.ThemedScrim,
+            SurfaceCard.ThemedDialog,
+            SurfaceCard.ThemedDialogTitle,
+            SurfaceCard.ThemedDialogBody,
             "kitx-button",
             "kitx-primary",
             "kitx-danger",
         ];
 
+        // The four overlay classes only exist while a question is open, so the card is asked one
+        // before the walk. A test that checked only a resting card would report them missing and
+        // invite somebody to delete the assertion.
+        var danger = CardProbe.Elements(card).OfType<Button>().Single(b => (string?)b.Content == "End");
+        danger.RaiseEvent(new RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+
+        foreach (var name in ClassesOf(card))
+            classes.Add(name);
+
         var missing = expected.Where(name => !classes.Contains(name)).ToList();
 
         Assert.True(missing.Count == 0, "the card no longer puts these classes on anything: " + string.Join(", ", missing));
+    }
+
+    /// <summary>
+    /// Every class a selector in the theme mentions is produced by some card.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The other direction, and the one that was missing.</b> The test above walks the
+    /// renderer and asks the theme about each name it finds. This one walks the theme and asks the
+    /// renderer. They are not the same claim: the first is blind to a selector whose class nothing
+    /// produces, which is exactly how <c>quiet</c> survived — the style was still there, the name was
+    /// gone, and every test passed.</para>
+    ///
+    /// <para><b>An orphan selector is not harmless.</b> It reads as "this renderer draws this", so the
+    /// next person to change the dialog looks at <c>Border.kitx-dialog</c>, assumes something uses it,
+    /// and either keeps a style for a control that no longer exists or wonders why it never applies.
+    /// Deleting the selector to make this test green is the one repair that is wrong: the red is the
+    /// to-do, and it goes away when the renderer starts producing the class.</para>
+    ///
+    /// <para>Two cards are needed rather than one: the overlay classes only exist while a question is
+    /// open, so a resting card produces seven of the eleven.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void Every_class_the_shipped_theme_styles_is_produced_by_some_card()
+    {
+        var produced = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var name in ClassesOf(Render(EveryKind)))
+            produced.Add(name);
+
+        var confirming = Render(EveryKind);
+        var danger = CardProbe.Elements(confirming).OfType<Button>().Single(b => (string?)b.Content == "End");
+        danger.RaiseEvent(new RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+
+        foreach (var name in ClassesOf(confirming))
+            produced.Add(name);
+
+        Assert.NotEmpty(produced);
+
+        var themed = ThemedClasses(SelectorText(LoadTheme()));
+
+        var orphans = themed.Where(name => !produced.Contains(name)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            orphans.Count == 0,
+            $"These classes have a selector in {ThemeUri} but no card produces them: "
+            + string.Join(", ", orphans)
+            + ". An orphan selector reads as something the renderer draws, so it misleads whoever "
+            + "changes the control it names. Either the renderer stopped producing the class, or the "
+            + "selector was written for something that was never built; deleting the selector without "
+            + "answering that question hides which one it was.");
+    }
+
+    /// <summary>The authored class names on a card and everything under it.</summary>
+    private static List<string> ClassesOf(SurfaceCard card) =>
+    [
+        .. card.GetVisualDescendants()
+            .OfType<Control>()
+            .SelectMany(control => control.Classes)
+            .Concat(card.Classes)
+            .Where(name => !IsPseudoClass(name))
+            .Distinct(StringComparer.Ordinal),
+    ];
+
+    /// <summary>
+    /// The class names a selector refers to.
+    /// </summary>
+    /// <remarks>
+    /// <para>Read out of the selector text rather than from a second hand-written list, which would be
+    /// the same drift this test exists to catch. A selector is <c>Type.class</c>, optionally with
+    /// pseudo-classes and template parts; the dot is what separates a class from everything else in
+    /// there.</para>
+    ///
+    /// <para><c>:pointerover</c> and <c>#PART_ContentPresenter</c> produce no dot, so they contribute
+    /// nothing; a name appearing twice is deduplicated by the set.</para>
+    /// </remarks>
+    private static List<string> ThemedClasses(IReadOnlyList<string> selectors)
+    {
+        var found = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var selector in selectors)
+        {
+            foreach (System.Text.RegularExpressions.Match match in
+                System.Text.RegularExpressions.Regex.Matches(selector, @"\.([A-Za-z][A-Za-z0-9_-]*)"))
+            {
+                found.Add(match.Groups[1].Value);
+            }
+        }
+
+        return [.. found];
     }
 
     private static bool HasSelector(IReadOnlyList<string> selectors, string class_) =>

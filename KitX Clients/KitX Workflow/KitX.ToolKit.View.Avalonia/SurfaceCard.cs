@@ -107,6 +107,15 @@ public sealed class SurfaceCard : Grid
     internal const string ThemedField = "kitx-field";
     internal const string ThemedListGroup = "kitx-list-group";
 
+    // The four below only appear while a danger confirmation is open. They are listed here with the
+    // rest rather than beside ShowConfirm because the rule that binds them is the same one: every
+    // class this assembly puts on a control needs a selector in the shipped theme, and a test walks
+    // both the resting card and the confirming card to check it.
+    internal const string ThemedScrim = "kitx-scrim";
+    internal const string ThemedDialog = "kitx-dialog";
+    internal const string ThemedDialogTitle = "kitx-dialog-title";
+    internal const string ThemedDialogBody = "kitx-dialog-body";
+
     public SurfaceCard()
     {
         Width = SurfaceMetrics.CardWidth;
@@ -222,6 +231,11 @@ public sealed class SurfaceCard : Grid
     public void SetDocument(KitX.ToolKit.Contract.Surface.SurfaceDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
+
+        // A confirmation describes a button that may not survive this rebuild. Dismissing first is the
+        // lesser evil: confirming an action that no longer exists is worse than dropping the click,
+        // because the person believes they approved something and nothing was sent.
+        Dismiss();
 
         // Captured before the tree goes away. Only the editing kinds contribute: they are the ones
         // whose contents have no other home. They are read through _names, not _cells, because an
@@ -701,6 +715,147 @@ public sealed class SurfaceCard : Grid
         foreach (var name in eventNames)
             SomethingHappened?.Invoke(this, new SurfaceEvent(SurfaceEvent.KindOf(name), values));
     }
+
+    /// <summary>The names a confirming dialog would raise if it is continued.</summary>
+    /// <remarks>
+    /// Null while no dialog is open. It holds the event names rather than a prepared event: nothing
+    /// has been decided until the person confirms, and an event object waiting to be sent is a
+    /// decision the card made on their behalf.
+    /// </remarks>
+    private IReadOnlyList<string>? _pending;
+
+    /// <summary>Whether a danger confirmation is currently covering the card.</summary>
+    private bool IsConfirming => _pending is not null;
+
+    /// <summary>
+    /// Asks before raising: the layer a <c>danger</c> button's click goes through.
+    /// </summary>
+    /// <param name="eventNames">The names that click would have raised.</param>
+    /// <remarks>
+    /// <para><b>The dialog is drawn inside the card, not in a window of its own.</b> A separate
+    /// <c>Window.ShowDialog()</c> returns a <c>Task</c>, which forces the click handler to be
+    /// <c>async void</c> — an exception there is swallowed by the framework rather than surfacing,
+    /// and the modal loop is the one construct headless UI tests handle worst. A non-modal window is
+    /// no better: its position and size are the operating system's to choose, so the renderer would
+    /// stop deciding how it looks. An overlay is a <c>Panel</c> inside this control, which means the
+    /// tests can find it in the visual tree and click its buttons synchronously, like any other
+    /// element.</para>
+    ///
+    /// <para><b>Calling this while one is already open does nothing.</b> Two scrims stacked on each
+    /// other would let a person cancel one and believe they had cancelled the action, while the
+    /// other still asks. The second click is the same question, not a new one.</para>
+    /// </remarks>
+    private void ShowConfirm(IReadOnlyList<string> eventNames)
+    {
+        if (eventNames.Count == 0 || IsConfirming)
+            return;
+
+        _pending = eventNames;
+
+        var title = new TextBlock
+        {
+            Text = Message("KitXDangerTitle", "Are you sure?"),
+            TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
+        };
+        title.Classes.Add(ThemedDialogTitle);
+
+        var body = new TextBlock
+        {
+            Text = Message("KitXDangerBody", "This cannot be undone."),
+            TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
+        };
+        body.Classes.Add(ThemedDialogBody);
+
+        var cancel = new Button { Content = Message("KitXDangerCancel", "Cancel") };
+        cancel.Classes.Add("kitx-button");
+        cancel.Click += (_, _) => Dismiss();
+
+        var confirm = new Button { Content = Message("KitXDangerConfirm", "Continue") };
+        confirm.Classes.Add("kitx-danger");
+        confirm.Click += (_, _) =>
+        {
+            // The names are read out before dismissing: Dismiss clears _pending, and the button that
+            // was asked about is identified by what it was going to say, not by anything the dialog
+            // still holds afterwards.
+            var approved = _pending;
+            Dismiss();
+
+            if (approved is not null)
+                Raise(approved);
+        };
+
+        var buttons = new StackPanel
+        {
+            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right,
+            Spacing = SurfaceMetrics.FieldGap,
+            Children = { cancel, confirm },
+        };
+
+        var dialog = new Border
+        {
+            Child = new StackPanel { Spacing = SurfaceMetrics.FieldGap, Children = { title, body, buttons } },
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
+            Padding = new Thickness(16),
+            MinWidth = 220,
+        };
+        dialog.Classes.Add(ThemedDialog);
+
+        var scrim = new Panel
+        {
+            Background = Resource("KitXScrim"),
+            Children = { dialog },
+        };
+        scrim.Classes.Add(ThemedScrim);
+
+        Children.Add(scrim);
+    }
+
+    /// <summary>Closes the confirmation if one is open. Does nothing otherwise.</summary>
+    private void Dismiss()
+    {
+        if (!IsConfirming)
+            return;
+
+        _pending = null;
+
+        // Removed by identity rather than by position: the card's children are rows as well, and
+        // "the last one" would be a guess about ordering that ShowConfirm is not entitled to make.
+        foreach (var scrim in Scrims().ToList())
+            Children.Remove(scrim);
+    }
+
+    /// <summary>The confirmation overlays currently on this card.</summary>
+    /// <remarks>
+    /// <b>Filtered by class, not by type.</b> A row is a <c>Grid</c>, and <c>Grid</c> derives from
+    /// <c>Panel</c> — so "the Panels among my children" is every row plus the overlay. The class is
+    /// what actually distinguishes them.
+    /// </remarks>
+    private IEnumerable<Panel> Scrims() =>
+        Children.Where(control => control.Classes.Contains(ThemedScrim)).OfType<Panel>();
+
+    /// <summary>Looks a string up in the renderer's own resources, falling back to the given text.</summary>
+    /// <remarks>
+    /// The theme ships inside this assembly and carries English text for the confirmation dialog, so a
+    /// host that does nothing still gets a working dialog. A host that wants another language puts a
+    /// resource with the same key in a scope the card can see; <c>TryFindResource</c> walks outward
+    /// from this control, so the host's value wins without the card knowing where it came from. That
+    /// is the same arrangement the colours use, and it is why these four are resources rather than
+    /// constants: a constant cannot be overridden, and the constraint Q104 states is on the author,
+    /// not on the host.
+    /// </remarks>
+    private string Message(string resourceKey, string fallback) =>
+        this.TryFindResource(resourceKey, out var value) && value is string text ? text : fallback;
+
+    /// <summary>Looks a brush up in the renderer's own resources, or nothing if there is none.</summary>
+    /// <remarks>
+    /// Nothing rather than a hard-coded colour: the theme ships inside this assembly, so a missing
+    /// brush means the theme was not loaded — and an overlay drawing with a colour invented here would
+    /// look deliberate while the actual problem was a missing <c>StyleInclude</c> in the host.
+    /// </remarks>
+    private global::Avalonia.Media.IBrush? Resource(string resourceKey) =>
+        this.TryFindResource(resourceKey, out var value) ? value as global::Avalonia.Media.IBrush : null;
     /// <summary>The user's in-progress input, for the kinds whose contents live only in the control.</summary>
     /// <remarks>
     /// <para><b>Keyed by <c>name</c>, because that is the only identity an editing element has.</b> It
@@ -1028,7 +1183,22 @@ public sealed class SurfaceCard : Grid
         // The click is wired here rather than by whoever hosts the card: the card knows which names
         // this button declares, and asking a host to read the document back to find out would mean
         // two parties deciding what a click means.
-        pressable.Click += (_, _) => Raise(events);
+        //
+        // A danger button is the one case where the click does not raise straight away. That is a
+        // routing decision, not a filter: Raise is not told about emphasis at all, and it is still
+        // called on the confirming path — by the dialog's Continue handler instead of by the button.
+        // Keeping the decision outside Raise is what lets Raise stay "send what has already been
+        // decided", with no second reason to change.
+        pressable.Click += (_, _) =>
+        {
+            if (emphasis == "danger")
+            {
+                ShowConfirm(events);
+                return;
+            }
+
+            Raise(events);
+        };
 
         // Emphasis is a class, not a size. Setting a font weight or a margin here would make the three
         // values differ in Bounds, and then `row` would stop being the only thing that decides where a
