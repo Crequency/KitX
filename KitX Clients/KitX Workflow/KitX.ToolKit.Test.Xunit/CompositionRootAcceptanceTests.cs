@@ -66,6 +66,7 @@ public class CompositionRootAcceptanceTests : IDisposable
     }
 
     private IToolkitService Service => _provider.GetRequiredService<IToolkitService>();
+    private IRunService Runs => _provider.GetRequiredService<IRunService>();
 
     /// <summary>Writes a toolkit dir + config the way the product does, then returns its id.</summary>
     private string SaveToolkit(Action<Toolkit>? configure = null)
@@ -358,12 +359,25 @@ public class CompositionRootAcceptanceTests : IDisposable
         // test that asserts its own fixture has no observable consequence, so it would stay
         // green whether or not Mount did anything at all. That is the failure mode this file
         // was written to avoid, so it should not reappear here.
+        //
+        // These two are still structural facts — they read the config back off disk. They say
+        // "the file I wrote is the file that is there", not "Mount built a trigger table".
+        // The behavioural assertion is further down.
         var reloaded = Service.ListToolkits().Single(t => t.GetId() == saved.GetId());
         Assert.Empty(reloaded.Workflows);
         Assert.Empty(reloaded.Triggers);
 
         // And nothing can be running, because there is nothing to trigger.
         Assert.Equal(0, Service.ActiveFlowCounts().GetValueOrDefault(saved.GetId()));
+
+        // The behavioural half: a mounted ToolKit with no triggers cannot start a flow.
+        //
+        // Spawn alone does not prove this — it returns null both for "not mounted" and for
+        // "no such trigger", so on its own it stays green even if Mount never ran. Paired
+        // with the IsMounted assertion above it becomes discriminating: mounted, and still
+        // nothing can be started. That is the property "it mounted and has nothing to run",
+        // which the structural asserts above can only gesture at.
+        Assert.Null(Runs.Spawn(saved.GetId(), "anything"));
     }
 
     /// <summary>
