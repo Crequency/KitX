@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Avalonia;
@@ -62,6 +63,22 @@ internal static class Program
         }
 
         Directory.CreateDirectory(outDir);
+
+        // Refuse to write into a build artifact. The repository-root walk above skips `bin` and
+        // `obj`, but a caller can pass any directory, and a stale binary or a wrong cwd once put
+        // the images under `bin/Debug/net10.0/out` — where `dotnet clean` deletes them and nobody
+        // ever looks. Writing there is not a rendering problem; it is the difference between a
+        // path people see and one they do not, so it fails loudly instead of succeeding quietly.
+        var buildArtifact = $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}";
+        var objArtifact = $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}";
+        if (outDir.Contains(buildArtifact, StringComparison.OrdinalIgnoreCase)
+            || outDir.Contains(objArtifact, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine(
+                $"refusing to write images under a build artifact: {outDir}\n" +
+                "Those disappear on `dotnet clean` and nobody looks there. Pass a real directory.");
+            return 1;
+        }
 
         AppBuilder.Configure<ShotsApp>()
             .UseSkia()
@@ -291,8 +308,13 @@ internal static class Program
         var path = Path.Combine(outDir, name);
         frame?.Save(path);
 
-        var bytes = new FileInfo(path).Length;
-        Console.WriteLine($"{name}  ({bytes} bytes)");
+        // Two numbers per image, on purpose. The byte count is what a human compares when looking
+        // at two runs side by side; the hash is what tells you they are the same picture rather
+        // than the same size. Neither one is checked here — they are printed so that a reviewer
+        // comparing two commits has something comparable, since images do not diff.
+        var info = new FileInfo(path);
+        var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))[..16];
+        Console.WriteLine($"{name}  ({info.Length} bytes, sha256 {hash}…)");
     }
 
     /// <summary>Binds a property to a resource the renderer's theme ships.</summary>
