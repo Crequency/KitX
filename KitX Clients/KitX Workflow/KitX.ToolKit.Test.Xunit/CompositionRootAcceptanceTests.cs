@@ -208,7 +208,7 @@ public class CompositionRootAcceptanceTests : IDisposable
     /// host subscribes to — not as an exception at some caller's stack frame.
     /// </summary>
     [Fact]
-    public void Disabled_Toolkit_Refuses_To_Spawn_With_A_Stable_Code()
+    public async Task Disabled_Toolkit_Refuses_To_Spawn_With_A_Stable_Code()
     {
         var id = SaveToolkit(tk => tk.Triggers =
         [
@@ -231,8 +231,12 @@ public class CompositionRootAcceptanceTests : IDisposable
         var manager = _provider.GetRequiredService<KitX.ToolKit.Instances.ToolkitInstanceManager>();
         manager.Spawn(id, "manual", payload: null, initiator: null);
 
-        var evt = rejected.Task.Wait(TimeSpan.FromSeconds(5))
-            ? rejected.Task.Result
+        // Awaited rather than blocked on: the event is raised on the spawning thread's
+        // continuation, and blocking this one would leave nothing to deliver it on in a
+        // single-threaded sync context. The timeout still bounds a hung run.
+        var deliver = await Task.WhenAny(rejected.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+        var evt = deliver == rejected.Task
+            ? await rejected.Task
             : throw new InvalidOperationException("no rejection event arrived");
         Assert.Equal("toolkit.not-enabled", evt.Code);
     }
