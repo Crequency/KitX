@@ -354,12 +354,16 @@ public class CompositionRootAcceptanceTests : IDisposable
         Assert.True(Service.IsMounted(saved.GetId()));
         Assert.Equal(LifecycleState.Enabled, Service.GetLifecycleState(saved.GetId()));
 
-        // Mounted, and yet there is nothing that could ever run: no trigger to fire and no
-        // workflow to execute. This is the gap between "the create → mount path works" and
-        // "a user can accomplish something", and it is not a defect — it is where the user is
-        // expected to start authoring.
-        Assert.Empty(saved.Workflows);
-        Assert.Empty(saved.Triggers);
+        // Read back through the service rather than asserting on the local `saved` object: a
+        // test that asserts its own fixture has no observable consequence, so it would stay
+        // green whether or not Mount did anything at all. That is the failure mode this file
+        // was written to avoid, so it should not reappear here.
+        var reloaded = Service.ListToolkits().Single(t => t.GetId() == saved.GetId());
+        Assert.Empty(reloaded.Workflows);
+        Assert.Empty(reloaded.Triggers);
+
+        // And nothing can be running, because there is nothing to trigger.
+        Assert.Equal(0, Service.ActiveFlowCounts().GetValueOrDefault(saved.GetId()));
     }
 
     /// <summary>
