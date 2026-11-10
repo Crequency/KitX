@@ -43,6 +43,7 @@ internal sealed class PluginEventTrigger : TriggerSourceBase
 
     private readonly IPluginServer _pluginServer;
     private readonly TriggerConfig _config;
+    private readonly string _pluginName;
     private bool _subscribed;
     private IDisposable? _routerToken;
 
@@ -51,6 +52,26 @@ internal sealed class PluginEventTrigger : TriggerSourceBase
     {
         _pluginServer = pluginServer ?? throw new ArgumentNullException(nameof(pluginServer));
         _config = config ?? throw new ArgumentNullException(nameof(config));
+
+        // PluginName is nullable in the contract because the field is shared by every trigger
+        // type, but it is not optional *for this type*: the compiler rejects a PluginEvent trigger
+        // without it (trigger.plugin-event.plugin-missing), so a trigger object that reaches here
+        // empty can only come from direct construction. Failing here turns that into one
+        // exception with the trigger's id in it, instead of two different wrong behaviours
+        // depending on whether an IPluginEventRouter happens to be registered — a null name throws
+        // out of the router's Register, and without a router it matches nothing at all, silently,
+        // forever.
+        if (string.IsNullOrWhiteSpace(config.PluginName))
+        {
+            throw new ArgumentException(
+                $"PluginEvent trigger '{id}' has no Config.PluginName, so it can never match a message.",
+                nameof(config));
+        }
+
+        // Captured once so the compiler can see it is non-null at every use site. The field on
+        // TriggerConfig stays nullable (it is shared with trigger types that do not use it), but
+        // this instance has already refused to exist without one.
+        _pluginName = config.PluginName;
     }
 
     /// <inheritdoc/>
@@ -68,7 +89,7 @@ internal sealed class PluginEventTrigger : TriggerSourceBase
 
         if (services?.GetService(typeof(IPluginEventRouter)) is IPluginEventRouter router)
         {
-            _routerToken = router.Register(_config.PluginName, _config.TriggerName, Raise);
+            _routerToken = router.Register(_pluginName, _config.TriggerName, Raise);
             _subscribed = true;
             return;
         }
@@ -120,7 +141,7 @@ internal sealed class PluginEventTrigger : TriggerSourceBase
             var triggerName = command.Tags?.TryGetValue(TriggerNameTagKey, out var name) == true
                 ? name : null;
 
-            if (!string.Equals(pluginName, _config.PluginName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(pluginName, _pluginName, StringComparison.OrdinalIgnoreCase))
                 return;
             if (!string.IsNullOrEmpty(_config.TriggerName) &&
                 !string.Equals(triggerName, _config.TriggerName, StringComparison.OrdinalIgnoreCase))

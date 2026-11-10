@@ -31,10 +31,13 @@ public class RunSchedulerPacketEquivalenceTests
     // ── new (F5) implementations under test ──────────────────────────────────
     // Mirrors RunScheduler.WrapElement: a JsonValue.Create(JsonElement) alone only
     // accepts primitives, so objects/arrays dispatch to their reference factories.
+    // The `!` on all three arms matches the production line — this copy exists to be
+    // *compared against* the scheduler's, so a nullability annotation that differs
+    // here and there would be a difference in the thing under test, not in the test.
     private static JsonNode WrapElement(JsonElement element) => element.ValueKind switch
     {
-        JsonValueKind.Object => JsonObject.Create(element),
-        JsonValueKind.Array => JsonArray.Create(element),
+        JsonValueKind.Object => JsonObject.Create(element)!,
+        JsonValueKind.Array => JsonArray.Create(element)!,
         _ => JsonValue.Create(element)!,
     };
 
