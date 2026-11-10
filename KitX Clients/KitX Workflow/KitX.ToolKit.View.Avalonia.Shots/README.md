@@ -61,3 +61,16 @@ images, and **every unit test had let them through**:
 
 A run that fails a check exits non-zero, so this can be wired into CI without anyone watching the
 pictures.
+
+## The images themselves are reproducible byte for byte
+
+The ten PNGs are committed. Running the tool again on a clean tree leaves `git status --porcelain`
+empty — not "looks the same", the same bytes. That was measured, not designed, and it means the
+images work as a second baseline:
+
+- the self-checks above catch the two failures that were already known;
+- a diff in `out/` catches the ones nobody has thought of yet.
+
+If a change is meant to alter the rendering, the diff is the review. If it is not, the diff is the
+bug.
+
