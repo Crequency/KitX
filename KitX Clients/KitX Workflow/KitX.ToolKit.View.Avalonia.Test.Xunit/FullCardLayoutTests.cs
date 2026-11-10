@@ -315,18 +315,18 @@ public sealed class FullCardLayoutTests
         // to 18, and that implementation would move the list.
         var plain = Card(TwoButtons("normal", "normal"));
         var loudBoth = Card(TwoButtons("primary", "primary"));
-        var softBoth = Card(TwoButtons("quiet", "quiet"));
-        var mixed = Card(TwoButtons("primary", "quiet"));
+        var dangerousBoth = Card(TwoButtons("danger", "danger"));
+        var mixed = Card(TwoButtons("primary", "danger"));
 
         Assert.Equal(Geometry(plain), Geometry(loudBoth));
-        Assert.Equal(Geometry(plain), Geometry(softBoth));
+        Assert.Equal(Geometry(plain), Geometry(dangerousBoth));
         Assert.Equal(Geometry(plain), Geometry(mixed));
 
         // The classes are the other half: an implementation that ignored the word entirely would pass
         // every comparison above, because ignoring it changes nothing either. This card puts three
-        // values side by side — one primary, one quiet, and — on a second reading — no emphasis at
+        // values side by side — one primary, one danger, and — on a second reading — no emphasis at
         // all, so the fallback to `normal` is covered too.
-        Assert.Equal(["kitx-primary", "kitx-quiet"], ButtonClasses(mixed));
+        Assert.Equal(["kitx-primary", "kitx-danger"], ButtonClasses(mixed));
         Assert.Equal(["kitx-button", "kitx-button"], ButtonClasses(plain));
     }
 

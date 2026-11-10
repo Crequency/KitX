@@ -261,7 +261,7 @@ public class SurfaceTests : IDisposable
         // decide whether it is one of the three. Everything else about the element survives
         // untouched — the warning path rewrites Key, and a rewrite that also dropped Emphasis would
         // be the kind of quiet loss this file has caught before.
-        foreach (var emphasis in (string[])["primary", "normal", "quiet"])
+        foreach (var emphasis in (string[])["primary", "normal", "danger"])
         {
             var document = new SurfaceDocument
             {
@@ -341,7 +341,7 @@ public class SurfaceTests : IDisposable
             Elements =
             [
                 new SurfaceButtonElement { Label = "save", Events = ["Save"], Emphasis = "primary" },
-                new SurfaceButtonElement { Label = "later", Events = ["Later"], Emphasis = "quiet" },
+                new SurfaceButtonElement { Label = "later", Events = ["Later"], Emphasis = "danger" },
             ],
         };
 

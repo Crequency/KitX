@@ -197,7 +197,7 @@ public sealed record SurfaceButtonElement : SurfaceElement
     /// </summary>
     /// <remarks>
     /// <para>
-    /// One of <c>primary</c> / <c>normal</c> / <c>quiet</c>. Absent means <c>normal</c>.
+    /// One of <c>primary</c> / <c>normal</c> / <c>danger</c>. Absent means <c>normal</c>.
     /// </para>
     /// <para>
     /// A string rather than an enum, for the same reason as <c>KeyDeclaration.Type</c>: a file that
@@ -210,9 +210,15 @@ public sealed record SurfaceButtonElement : SurfaceElement
     /// primary would make <c>row</c> stop being the only thing that decides position.
     /// </para>
     /// <para>
-    /// <c>quiet</c> is a <i>visual</i> weakening, not a functional one: a quiet button is still a
-    /// button, still focusable, still in the tab order. Making a destructive action harder to reach
-    /// by accident is a look, not a keyboard trap.
+    /// <c>danger</c> marks a destructive action, and the renderer confirms it before sending: a
+    /// confirmation the surface cannot configure, because a guard that can be turned off is not a
+    /// guard. It is a <i>visual</i> marking, not a functional change — the button is still focusable
+    /// and still in the tab order.
+    /// </para>
+    /// <para>
+    /// <c>quiet</c> used to be a fourth value and was withdrawn: a button that looks like plain text
+    /// is not found when it is wanted and is hit by accident when it is not. Destructive actions need
+    /// marking, not hiding.
     /// </para>
     /// </remarks>
     [JsonPropertyName("emphasis")]

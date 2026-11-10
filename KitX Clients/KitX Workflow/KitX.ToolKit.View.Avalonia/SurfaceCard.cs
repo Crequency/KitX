@@ -1018,7 +1018,7 @@ public sealed class SurfaceCard : Grid
         pressable.Classes.Add(emphasis switch
         {
             "primary" => "kitx-primary",
-            "quiet" => "kitx-quiet",
+            "danger" => "kitx-danger",
             _ => "kitx-button",
         });
 

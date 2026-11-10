@@ -118,7 +118,7 @@ internal static class SurfaceValidator
     }
 
     /// <summary>The three emphasis values this build understands, in increasing weight order.</summary>
-    private static readonly string[] KnownEmphasis = ["primary", "normal", "quiet"];
+    private static readonly string[] KnownEmphasis = ["primary", "normal", "danger"];
 
     /// <summary>
     /// Checks a button's emphasis and, separately, whether the card ends up with more than one
