@@ -219,6 +219,51 @@ public sealed class ThemedCardTests
         Assert.NotEqual(shipped, overridden);
     }
 
+    /// <summary>
+    /// With the theme in place the confirmation overlay dims the card, and it dims all of it.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Two claims, because either one alone can pass while the overlay is broken.</b> A
+    /// scrim whose background is transparent still exists, still holds the dialog and still lets the
+    /// buttons be clicked — everything the older tests assert. A scrim that has a colour but only
+    /// covers row 0 also still exists, and its dialog is still reachable. Only the pair says "the
+    /// person sees the whole card go unavailable".</para>
+    ///
+    /// <para><b>Why the background is read rather than the pixels.</b> The failure being guarded
+    /// against is a local value of <c>null</c> outranking the theme's style setter. Reading the
+    /// resolved brush reports exactly that; a screenshot would report what it looks like, which is
+    /// the same thing only once someone already knows to look.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_confirmation_scrim_covers_the_card_and_is_not_transparent()
+    {
+        var (window, card) = Render(withTheme: true);
+
+        DangerButton(card).RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(
+            Button.ClickEvent));
+
+        window.UpdateLayout();
+
+        var scrim = Assert.Single(card.Children.OfType<Panel>(),
+            panel => panel.Classes.Contains(SurfaceCard.ThemedScrim));
+
+        // Non-null, and not merely non-null: an opaque brush and a fully transparent one are both
+        // non-null. The scrim's job is to dim, so it has to actually take colour away.
+        var brush = Assert.IsAssignableFrom<ISolidColorBrush>(scrim.Background);
+        Assert.True(brush.Color.A > 0, $"scrim alpha was {brush.Color.A}");
+
+        // And it has to cover the card, not the first row. A tolerance of half a pixel is for
+        // sub-pixel layout, not for "roughly the card".
+        Assert.True(Math.Abs(scrim.Bounds.Left) < 0.5, $"left {scrim.Bounds.Left}");
+        Assert.True(Math.Abs(scrim.Bounds.Width - card.Bounds.Width) < 0.5,
+            $"width {scrim.Bounds.Width} vs card {card.Bounds.Width}");
+        Assert.True(Math.Abs(scrim.Bounds.Height - card.Bounds.Height) < 0.5,
+            $"height {scrim.Bounds.Height} vs card {card.Bounds.Height}");
+
+        // Kept alive for the same reason as the other tests in this file: reading a brush off a
+        // detached tree is a different question.
+        Assert.NotNull(window);
+    }
     private static IEnumerable<string> ClassesOf(Control control) =>
         control.Classes.Where(name => !name.StartsWith(':'));
 }

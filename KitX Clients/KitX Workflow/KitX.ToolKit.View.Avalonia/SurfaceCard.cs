@@ -461,6 +461,17 @@ public sealed class SurfaceCard : Grid
         foreach (var (slot, row) in rows)
             Children.Add(BuildRow(row, rowIndexOf[slot]));
 
+        // The card is a fixed 845 tall; a short document fills fewer slots than that, and the rest
+        // of the card is simply empty. That empty part still needs a row, because the confirmation
+        // scrim spans rows and would otherwise stop at the last laid-out row — leaving the bottom
+        // of the card uncovered while the dialog claims to be modal over the card.
+        //
+        // Star rather than a computed pixel height: this row is "whatever is left", and writing the
+        // remainder out by hand would make it a second, silently-drifting statement of CardHeight.
+        // It measures 0 when the document already fills or overflows the card, which is why it can
+        // be added unconditionally.
+        RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
         return;
 
         // Each row is its own Grid, and that is load-bearing rather than tidy.
@@ -802,13 +813,40 @@ public sealed class SurfaceCard : Grid
         };
         dialog.Classes.Add(ThemedDialog);
 
+        // No Background here, and that is the fix rather than an omission.
+        //
+        // The theme styles `Panel.kitx-scrim` with `Background = {DynamicResource KitXScrim}`. A local
+        // value — even one that is null, as a TryFindResource that misses produces — outranks a style
+        // setter, so assigning it here did not "provide a default the theme could override": it
+        // permanently suppressed the theme, and the overlay drew fully transparent while the dialog
+        // on top of it looked fine. Measured, not inferred: every other themed class on the same card
+        // painted correctly, which is what showed the style setter was being reached at all.
+        //
+        // The intended behaviour when the theme is absent is unchanged and still asserted: no style,
+        // no brushes, a transparent scrim. Inventing a fallback colour here would make a missing
+        // StyleInclude look deliberate.
         var scrim = new Panel
         {
-            Background = Resource("KitXScrim"),
             Children = { dialog },
         };
         scrim.Classes.Add(ThemedScrim);
 
+        // The card is itself a Grid whose rows are added one per layout row, so a child lands in
+        // row 0 unless it says otherwise. Without this the scrim would cover only the first row —
+        // one 64px slot — and the dialog inside it would be clipped to that slot. The scrim is not
+        // part of the layout: it is a second surface over the whole card, which is why it spans
+        // every row and stays outside the document's own grid.
+        Grid.SetRowSpan(scrim, Math.Max(1, RowDefinitions.Count));
+        Grid.SetRow(scrim, 0);
+
+        // Column 0, full width: the layout's own columns belong to the row grids inside, not to the
+        // card's top level, so an unspanned child would be sized by a column count this level never
+        // sets.
+        Grid.SetColumn(scrim, 0);
+        Grid.SetColumnSpan(scrim, 1);
+
+        // Last in the tree so it paints above every row grid. Z-order in Avalonia follows child
+        // order, and a scrim that a row grid draws over is not a scrim.
         Children.Add(scrim);
     }
 
