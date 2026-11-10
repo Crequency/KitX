@@ -313,6 +313,55 @@ public class CompositionRootAcceptanceTests : IDisposable
         _writable.Prepare(toolkit);
     }
 
+    // -------------------------------------------------------------------------------------
+    // What the product's own "create" button produces
+    // -------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The Dashboard's create button makes a ToolKit with no workflows, no plugins and no
+    /// triggers. This pins down what happens when the user then mounts it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This test exists because nothing covered it. <c>ToolkitPageViewModel.CreateToolkitCommand</c>
+    /// writes <c>Workflows = []</c>, and searching the test projects for that literal returned
+    /// zero hits — so the first thing the product invites a user to do produced an object whose
+    /// mount behaviour had never been observed.
+    /// </para>
+    /// <para>
+    /// The expected answer is <b>success</b>, and that is the point of asserting it rather than
+    /// fixing whatever it did: none of the compiler's diagnostics are about workload count, so
+    /// an empty toolkit is not an error. An empty toolkit is, however, not <i>useful</i> either —
+    /// it can be mounted and has nothing to run. That distinction is worth having in a test,
+    /// because the two get conflated ("it mounted, so the product works").
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void An_Empty_ToolKit_Mounts_And_Has_Nothing_To_Run()
+    {
+        var store = _provider.GetRequiredService<ToolkitStore>();
+        var saved = store.Save(new Toolkit
+        {
+            Id = "tk-empty",
+            Meta = new ToolkitMeta { Name = "New ToolKit 1" },
+            Workflows = [],
+            Plugins = [],
+            Triggers = [],
+        });
+
+        Service.Mount(saved.GetId());
+
+        Assert.True(Service.IsMounted(saved.GetId()));
+        Assert.Equal(LifecycleState.Enabled, Service.GetLifecycleState(saved.GetId()));
+
+        // Mounted, and yet there is nothing that could ever run: no trigger to fire and no
+        // workflow to execute. This is the gap between "the create → mount path works" and
+        // "a user can accomplish something", and it is not a defect — it is where the user is
+        // expected to start authoring.
+        Assert.Empty(saved.Workflows);
+        Assert.Empty(saved.Triggers);
+    }
+
     /// <summary>
     /// Records calls and returns success. The workflow path is the one part of the system these
     /// tests deliberately do not exercise — see the class remarks.
