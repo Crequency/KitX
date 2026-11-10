@@ -367,6 +367,56 @@ public class CompositionRootAcceptanceTests : IDisposable
     }
 
     /// <summary>
+    /// What a user sees on the very first launch: <c>App.axaml.cs</c> points the storage root at
+    /// <c>./Data/Toolkits</c>, and in a fresh install that directory does not exist yet.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the one state no other test covers. Every other test builds a root and writes into
+    /// it first, so they all exercise "a directory that exists and contains something". The first
+    /// launch is "a directory that does not exist and contains nothing", and it is the one the
+    /// product actually starts from.
+    /// </para>
+    /// <para>
+    /// The assertions are about <b>shape</b>, not about a fix: listing reads as empty rather than
+    /// throwing, and mounting anything says <c>toolkit.not-found</c> rather than failing with a
+    /// <c>DirectoryNotFoundException</c> from three layers down. If someone later decides a fresh
+    /// install should ship with a starter toolkit, this test will fail — correctly, because that
+    /// decision changes what the first launch looks like.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void A_Storage_Root_That_Does_Not_Exist_Reads_As_Empty_And_Refuses_To_Mount()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "kitx-absent-" + Guid.NewGuid().ToString("N"));
+
+        // Deliberately not created. Anything that creates it here would erase the state under test.
+        Assert.False(Directory.Exists(root));
+
+        var provider = new ServiceCollection()
+            .AddKitXWorkflowV6()
+            .AddKitXToolKit(root)
+            .BuildServiceProvider();
+
+        try
+        {
+            var service = provider.GetRequiredService<IToolkitService>();
+
+            Assert.Empty(service.ListToolkits());
+
+            var ex = Assert.Throws<ToolkitServiceException>(() => service.Mount("anything"));
+            Assert.Equal(ToolkitServiceException.NotFoundCode, ex.Code);
+
+            // Still absent: resolving the service must not have created it as a side effect.
+            Assert.False(Directory.Exists(root));
+        }
+        finally
+        {
+            provider.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Records calls and returns success. The workflow path is the one part of the system these
     /// tests deliberately do not exercise — see the class remarks.
     /// </summary>
