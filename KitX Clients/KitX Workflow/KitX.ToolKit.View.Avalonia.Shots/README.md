@@ -72,8 +72,13 @@ empty — not "looks the same", the same bytes.
 **The scope of that claim is narrow, and it matters.** It was measured on one machine, one `bin/`,
 one day. This repository pins neither the NuGet graph (`packages.lock.json`: none) nor the SDK
 (`global.json`: none), so a different clone may resolve different packages and a different SDK.
-The honest form of the claim is: *the renderer introduces no timestamp or random id* — which is
-what the empty diff actually proves. It does **not** prove that two clones produce identical files.
+
+**State it behaviourally, not causally.** What was observed is: *given the committed `out/`, a rerun
+produced no difference.* That sentence does not name a cause. Whether the cause is "no randomness",
+"a fixed seed", or "the same value happened to come out twice" is **not** established — a coincidental
+repeat would look exactly like this. So the honest claim is the observation, not the explanation.
+
+It does **not** follow that two clones produce identical files.
 
 That is still enough for the images to work as a second baseline:
 
@@ -86,9 +91,20 @@ bug.
 
 The images are committed, so they can go stale. The rule that keeps them from rotting is one line:
 
-> **After changing the renderer or the theme, run this tool again.** If `git status` shows no change
-> in `out/`, and you believe you changed something visible, then *you* are wrong, not the tool.
+> **After changing the renderer or the theme, run this tool again — then ask three questions, in this order.**
 
-That turns "should I look at the pictures" into a question that asks itself: touch `SurfaceCard.cs`
-or `Themes/KitX.axaml`, and `git status` will raise it.
+1. **Which ones changed?** Compare against the ones you expected to change. Fewer means your change
+   never reached the render. More means you touched something else.
+2. **Which ones did not?** For each, ask: *can the quantity I changed affect this card at all, by
+   design?* Yes → you are wrong. No → correct.
+3. A card whose whole size is fixed (like `05-empty`, two rows) belongs to case 2 whenever the change
+   is a per-slot dimension. That is a correct "no change", not a miss.
+
+**Why this is not the one-liner it replaced.** "No change" has three causes: the change genuinely
+does not affect that card, the change was cancelled by something else, or the change never reached
+the renderer at all. **One observation, three causes.** The old rule read all three as "you are
+wrong" — and `SlotHeight` 64→65 on `05-empty` is a measured counter-example of cause 1.
+
+> This rule cannot answer "did I get it wrong?" for you. **It can only make you ask that question
+> at the moment you look at the diff.** The classification needs a person, and that is the point.
 
