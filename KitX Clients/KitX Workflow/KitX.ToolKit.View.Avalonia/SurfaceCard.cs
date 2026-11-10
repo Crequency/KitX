@@ -97,6 +97,16 @@ public sealed class SurfaceCard : Grid
     /// </remarks>
     private readonly Dictionary<string, string> _selection = new(StringComparer.Ordinal);
 
+    // The class names this renderer puts on the controls it builds. Each one is half of a fact whose
+    // other half is a selector in Themes/KitX.axaml; that file ships inside this assembly precisely so
+    // the two halves cannot drift into different repositories. A test walks a full card's visual tree
+    // and asserts every one of these has a selector, which is what turns "somebody renamed a string"
+    // from silent into red.
+    internal const string ThemedCard = "kitx-card";
+    internal const string ThemedText = "kitx-text";
+    internal const string ThemedField = "kitx-field";
+    internal const string ThemedListGroup = "kitx-list-group";
+
     public SurfaceCard()
     {
         Width = SurfaceMetrics.CardWidth;
@@ -116,6 +126,8 @@ public sealed class SurfaceCard : Grid
         // round. A renderer that later adopts fractional slot heights would have to revisit this,
         // and the test below would then fail loudly instead of drifting.
         UseLayoutRounding = false;
+
+        Classes.Add(ThemedCard);
     }
 
     /// <summary>
@@ -973,16 +985,22 @@ public sealed class SurfaceCard : Grid
     /// data when the only thing it has is a declaration. The key belongs in <c>Name</c>, where
     /// lookups can find it and a reader cannot.</para>
     /// </remarks>
-    private static Control Labelled(string? key) => new TextBlock
+    private static Control Labelled(string? key)
     {
-        Text = string.Empty,
-        // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
-        // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
-        // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
-        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
-        Height = SurfaceMetrics.FieldHeight,
-        Margin = new Thickness(0, SurfaceMetrics.FieldInset, 0, 0),
-    };
+        var block = new TextBlock
+        {
+            Text = string.Empty,
+            // global:: because this assembly's own namespace ends in ".Avalonia", which shadows the
+            // package's root namespace inside every file here — `Avalonia.Layout.X` would resolve to
+            // `KitX.ToolKit.View.Avalonia.Layout.X` and fail to compile.
+            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top,
+            Height = SurfaceMetrics.FieldHeight,
+            Margin = new Thickness(0, SurfaceMetrics.FieldInset, 0, 0),
+        };
+
+        block.Classes.Add(ThemedText);
+        return block;
+    }
 
     /// <summary>
     /// Something the user presses: a real button, labelled and one slot tall.
@@ -1022,7 +1040,7 @@ public sealed class SurfaceCard : Grid
             _ => "kitx-button",
         });
 
-        return Editing(pressable);
+        return Pin(pressable);
     }
 
     /// <summary>
@@ -1046,10 +1064,27 @@ public sealed class SurfaceCard : Grid
     /// </remarks>
     private static Control Editing(Control control)
     {
-        // Q100, as its own acceptance criterion states it: 32 tall, and (SlotHeight - 32) / 2 down
-        // from the cell's top. Not VerticalAlignment = Center, which was Q100's prose and is wrong
-        // for a K-slot cell: a control centred in a six-slot cell lands 176px down, in the middle of
-        // the list beside it. See SurfaceMetrics.FieldInset for the arithmetic and the reasoning.
+        control.Classes.Add(ThemedField);
+
+        return Pin(control);
+    }
+
+    /// <summary>
+    /// Pins a control to Q100's geometry: 32 tall, sitting <c>FieldInset</c> below the cell top.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Q100, as its own acceptance criterion states it</b>: 32 tall, and
+    /// <c>(SlotHeight - 32) / 2</c> down from the cell's top. Not <c>VerticalAlignment = Center</c>,
+    /// which was Q100's prose and is wrong for a K-slot cell: a control centred in a six-slot cell
+    /// lands 176px down, in the middle of the list beside it. See
+    /// <see cref="SurfaceMetrics.FieldInset"/> for the arithmetic and the reasoning.</para>
+    ///
+    /// <para><b>Geometry only, no class.</b> A button and a field share this placement and share no
+    /// appearance, so the placement lives here and each caller adds the class that names its own
+    /// look. Folding them together would mean a class applied to things it does not describe.</para>
+    /// </remarks>
+    private static Control Pin(Control control)
+    {
         control.Height = SurfaceMetrics.FieldHeight;
         control.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Top;
         control.Margin = new Thickness(0, SurfaceMetrics.FieldInset, 0, 0);
@@ -1108,13 +1143,19 @@ public sealed class SurfaceCard : Grid
         // No height here: the container is placed in the Grid cell, whose RowDefinition already carries
         // K slots. Asking for a height would be this control deciding how tall the row is, which is the
         // row's job.
-        return new Border
+        //
+        // The container carries a class rather than a Name now. A Name is an address, and Q101 removed
+        // the idea that an element has one; what this needs is an appearance, which is a class. The
+        // tests that used to find it by name go through CardProbe, which walks the tree by position.
+        var group = new Border
         {
-            Name = "kitx-list-group",
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Stretch,
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch,
             Padding = new Thickness(0, 6, 0, 6),
             Child = scroller,
         };
+
+        group.Classes.Add(ThemedListGroup);
+        return group;
     }
 }

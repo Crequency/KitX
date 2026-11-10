@@ -1,0 +1,230 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    The renderer's own appearance, and the reason it lives here rather than in a host.
+
+    SurfaceCard gives each control it builds a class name — kitx-card, kitx-text, kitx-field,
+    kitx-button, kitx-primary, kitx-danger, kitx-list-group. Every one of those names is half of a
+    fact whose other half is a selector in this file. Splitting the two halves across repositories
+    produces the failure this project already had once (InstanceConstants.SurfaceSilent): the code
+    adds a string, nothing defines it, nothing complains, and the only symptom is a control that is
+    drawn without the appearance it was supposed to have.
+
+    A host that wants different colours does not edit this file. It defines resources with the same
+    keys in its own dictionary and they win, because every selector here reads through
+    DynamicResource. That is the whole extension point, and it is why a host never has to know a
+    class name.
+
+    What this file deliberately does NOT set:
+      * Height on any control. Q100 pins 32 in code (SurfaceCard.Editing / Labelled) and the card's
+        slot arithmetic depends on it. Moving that number into a style would make the criterion pass
+        while the card silently changed height.
+      * VerticalAlignment on text. The renderer places text with Top plus a margin computed from the
+        slot height; a style that centred it would move it out of the cell it was measured into.
+  -->
+
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="KitXCardBg" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="KitXCardBorder" Color="#E5E5E5"/>
+          <SolidColorBrush x:Key="KitXTextPrimary" Color="#1A1A1A"/>
+          <SolidColorBrush x:Key="KitXTextSecondary" Color="#616161"/>
+          <SolidColorBrush x:Key="KitXTextTertiary" Color="#8A8A8A"/>
+          <SolidColorBrush x:Key="KitXFieldBg" Color="#FBFBFB"/>
+          <SolidColorBrush x:Key="KitXFieldBorder" Color="#D6D6D6"/>
+          <SolidColorBrush x:Key="KitXFieldBorderHover" Color="#B8B8B8"/>
+          <SolidColorBrush x:Key="KitXAccent" Color="#3873D9"/>
+          <SolidColorBrush x:Key="KitXAccentHover" Color="#2F63BD"/>
+          <SolidColorBrush x:Key="KitXSubtleBg" Color="#F5F5F5"/>
+          <SolidColorBrush x:Key="KitXGroupBg" Color="#FAFAFA"/>
+          <SolidColorBrush x:Key="KitXDangerBg" Color="#FDF3F3"/>
+          <SolidColorBrush x:Key="KitXDangerBgHover" Color="#FBEAEA"/>
+          <SolidColorBrush x:Key="KitXDangerBorder" Color="#E0A6A8"/>
+          <SolidColorBrush x:Key="KitXDangerText" Color="#C0322F"/>
+          <SolidColorBrush x:Key="KitXScrim" Color="#66000000"/>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="KitXCardBg" Color="#252525"/>
+          <SolidColorBrush x:Key="KitXCardBorder" Color="#3A3A3A"/>
+          <SolidColorBrush x:Key="KitXTextPrimary" Color="#F5F5F5"/>
+          <SolidColorBrush x:Key="KitXTextSecondary" Color="#A8A8A8"/>
+          <SolidColorBrush x:Key="KitXTextTertiary" Color="#7D7D7D"/>
+          <SolidColorBrush x:Key="KitXFieldBg" Color="#2E2E2E"/>
+          <SolidColorBrush x:Key="KitXFieldBorder" Color="#4A4A4A"/>
+          <SolidColorBrush x:Key="KitXFieldBorderHover" Color="#5F5F5F"/>
+          <SolidColorBrush x:Key="KitXAccent" Color="#4B8BEA"/>
+          <SolidColorBrush x:Key="KitXAccentHover" Color="#5C97EE"/>
+          <SolidColorBrush x:Key="KitXSubtleBg" Color="#2B2B2B"/>
+          <SolidColorBrush x:Key="KitXGroupBg" Color="#2A2A2A"/>
+          <SolidColorBrush x:Key="KitXDangerBg" Color="#3B2325"/>
+          <SolidColorBrush x:Key="KitXDangerBgHover" Color="#472A2C"/>
+          <SolidColorBrush x:Key="KitXDangerBorder" Color="#7C3D41"/>
+          <SolidColorBrush x:Key="KitXDangerText" Color="#F0737A"/>
+          <SolidColorBrush x:Key="KitXScrim" Color="#99000000"/>
+        </ResourceDictionary>
+
+      </ResourceDictionary.ThemeDictionaries>
+
+      <x:Double x:Key="KitXTypeTitle">18</x:Double>
+      <x:Double x:Key="KitXTypeBody">13</x:Double>
+      <x:Double x:Key="KitXTypeCaption">12</x:Double>
+      <CornerRadius x:Key="KitXRadiusCard">8</CornerRadius>
+      <CornerRadius x:Key="KitXRadiusControl">4</CornerRadius>
+      <Thickness x:Key="KitXCardPadding">16,12,16,16</Thickness>
+      <Thickness x:Key="KitXFieldPadding">10,0,10,0</Thickness>
+
+      <!--
+        The danger confirmation dialog's four strings. A host overrides these keys to localise; the
+        English text below is what a host that overrides nothing gets, and having it here means the
+        dialog is never blank. The button's own Label supplies the subject, so these carry only the
+        frame around it.
+      -->
+      <x:String x:Key="KitXDangerTitle">Are you sure?</x:String>
+      <x:String x:Key="KitXDangerBody">This cannot be undone.</x:String>
+      <x:String x:Key="KitXDangerConfirm">Continue</x:String>
+      <x:String x:Key="KitXDangerCancel">Cancel</x:String>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <!--
+    The card's own surface. SurfaceCard is a Grid, so it can carry a background but not a border or
+    a corner radius. A host that wants a framed card wraps it in its own Border — that is the
+    documented boundary: a different frame is the host's business, a different card is not.
+  -->
+  <Style Selector="Grid.kitx-card">
+    <Setter Property="Background" Value="{DynamicResource KitXCardBg}"/>
+  </Style>
+
+  <Style Selector="TextBlock.kitx-text">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextSecondary}"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+
+  <Style Selector="TextBox.kitx-field">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="Padding" Value="{DynamicResource KitXFieldPadding}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXFieldBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="ComboBox.kitx-field">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="{DynamicResource KitXFieldPadding}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXFieldBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="NumericUpDown.kitx-field">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="{DynamicResource KitXFieldPadding}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXFieldBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="CheckBox.kitx-field">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextPrimary}"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="Button.kitx-button">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXFieldBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextPrimary}"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.kitx-button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KitXSubtleBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXFieldBorderHover}"/>
+  </Style>
+
+  <Style Selector="Button.kitx-primary">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource KitXAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXAccent}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.kitx-primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KitXAccentHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXAccentHover}"/>
+    <Setter Property="Foreground" Value="White"/>
+  </Style>
+
+  <!-- danger: red edge, tinted fill, red text. Reads as a button at rest. -->
+  <Style Selector="Button.kitx-danger">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Background" Value="{DynamicResource KitXDangerBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXDangerBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXDangerText}"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.kitx-danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KitXDangerBgHover}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXDangerText}"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXDangerText}"/>
+  </Style>
+
+  <!--
+    The List element's container. It is the cell, not the scroller: the scroller inside it stays one
+    slot tall and scrolls its own overflow, which is what keeps the row's height independent of how
+    many entries arrived.
+  -->
+  <Style Selector="Border.kitx-list-group">
+    <Setter Property="Background" Value="{DynamicResource KitXGroupBg}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+
+  <Style Selector="Border.kitx-dialog">
+    <Setter Property="Background" Value="{DynamicResource KitXCardBg}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource KitXCardBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusCard}"/>
+  </Style>
+
+</Styles>
