@@ -29,6 +29,7 @@
 using System.Text.Json;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Declaration;
+using KitX.ToolKit.Contract.Events;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Hosting;
 using KitX.ToolKit.Storage;
@@ -149,6 +150,84 @@ public sealed class RealChainTests : IDisposable
         // the first flow put there.
         Assert.True(Store.TryGet($"{TkId}/seen", out var seen));
         Assert.Equal("written-by-A", seen.GetString());
+    }
+
+    /// <summary>
+    /// A compiled KS body blocks on <c>ToolkitWait</c> until another flow's compiled body has
+    /// written the key, and then proceeds with the value it waited for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Why this cannot be tested at the registry.</b> <c>KeyWaitRegistryTests</c> already proves
+    /// that <c>WaitAsync</c> blocks and resumes; that test calls the registry directly, so it says
+    /// nothing about whether a <i>compiled KS body</i> can reach it, whether the codegen's
+    /// <c>await</c> insertion actually awaits, and whether the flow's thread is released while it
+    /// waits. Those are three separate links and only an end-to-end run exercises all three.
+    /// </para>
+    /// <para>
+    /// <b>The assertion that can fail.</b> The reader is spawned <i>first</i>, before the writer
+    /// has written anything. If the wait is broken — if it returns immediately with a default, or
+    /// if the <c>await</c> is missing so the body runs the next statement early — the reader
+    /// copies a default into <c>copy</c> and the equality on the marker fails. Merely spawning
+    /// both and checking they finished would pass in every one of those broken worlds.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task A_compiled_body_blocks_on_ToolkitWait_then_reads_what_the_other_flow_wrote()
+    {
+        var toolkit = ToolkitWith(
+            new KeyDeclaration("seen", "string", KeyRole.Out),
+            new KeyDeclaration("copy", "string", KeyRole.Out));
+        _root.Prepare(
+            toolkit,
+            new Dictionary<string, string>
+            {
+                // The writer waits a beat before writing, so the reader has to actually block.
+                // Without the delay a fast reader could win the race and the test would pass
+                // for the wrong reason.
+                ["writer"] =
+                    "\"written-by-A\" > ToolkitSet(\"seen\", _) > FlowOut(\"done\", _)",
+                // The reader blocks on the key, then reads it. The wait returns an object keyed
+                // by *full* key names, so a second ToolkitGet is what turns it into the scalar
+                // this test asserts on.
+                ["reader"] =
+                    // Two statements, not one pipeline. `ToolkitGet` takes exactly one
+                    // argument, and a pipeline segment without a `_` placeholder gets the
+                    // upstream value appended as an extra argument (BuildArgList) — so
+                    // `ToolkitWait("seen") > ToolkitGet("seen")` compiles to
+                    // `ToolkitGet("seen", <wait result>)`, which is CS1501. A bare call
+                    // statement is awaited when the method returns a Task, so the wait still
+                    // blocks; the second statement is then a plain pipeline that already works.
+                    "ToolkitWait(\"seen\")\n" +
+                    "ToolkitGet(\"seen\") > ToolkitSet(\"copy\", _) > FlowOut(\"done\", _)",
+            });
+
+        var store = _provider.GetRequiredService<ToolkitStore>();
+        store.Save(toolkit);
+
+        Service.Mount(TkId);
+        Assert.True(Service.IsMounted(TkId));
+
+        // Reader first: it must block, because nothing has written "seen" yet.
+        var readerFlow = Runs.Spawn(TkId, "reader");
+        Assert.False(string.IsNullOrEmpty(readerFlow), "the reader trigger must start a flow");
+
+        // Give the reader a real chance to run ahead. If the wait were a no-op this window is
+        // where it would copy a default and finish.
+        await Task.Delay(250);
+        Assert.False(Store.TryGet($"{TkId}/copy", out _),
+            "the reader finished before the writer wrote anything — ToolkitWait returned without waiting");
+
+        var writerFlow = Runs.Spawn(TkId, "writer");
+        Assert.False(string.IsNullOrEmpty(writerFlow), "the writer trigger must start a flow");
+
+        await WaitUntilAsync(
+            () => Store.TryGet($"{TkId}/copy", out var copy)
+                  && copy.ValueKind == JsonValueKind.String,
+            "the reader never wrote its copy after the writer ran");
+
+        Assert.True(Store.TryGet($"{TkId}/copy", out var written));
+        Assert.Equal("written-by-A", written.GetString());
     }
 
     // -------------------------------------------------------------------------------------
