@@ -162,8 +162,11 @@ public sealed class DangerConfirmTests
         // the point is what ShowConfirm does with a request that arrives while one is already open.
         ButtonByLabel(card, "End the batch").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
-        // Filtered by class: a row is a Panel too, so counting Panels would count the rows.
-        Assert.Single(card.Children.Where(c => c.Classes.Contains(SurfaceCard.ThemedScrim)));
+        // Filtered by class, and named, because a row is a Panel too: counting Panels would count the
+        // rows. The name is what carries that, not the predicate — Assert.Single's overload would have
+        // hidden the filter inside the call, where the next reader cannot see what is being counted.
+        var scrims = card.Children.Where(c => c.Classes.Contains(SurfaceCard.ThemedScrim)).ToList();
+        Assert.Single(scrims);
     }
 
     [AvaloniaFact]
