@@ -53,6 +53,11 @@
       truth for a name that decides whether the confirmation covers the card — and it would drift
       silently, because a tool looking for the wrong class does not fail: it reports that no scrim
       was found while one is plainly on screen.
+
+      Scope: this grant exists ONLY so the tool can read ThemedScrim, and only that member is
+      needed. It is not a general "the tool may see internals" decision. If a second reason to
+      widen it appears, treat that as a new decision to justify on its own — the narrowness of
+      this grant is enforced by this comment, not by anyone remembering it.
     -->
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>KitX.ToolKit.View.Avalonia.Shots</_Parameter1>

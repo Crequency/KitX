@@ -75,4 +75,13 @@ images work as a second baseline:
 
 If a change is meant to alter the rendering, the diff is the review. If it is not, the diff is the
 bug.
+## Keeping `out/` honest
+
+The images are committed, so they can go stale. The rule that keeps them from rotting is one line:
+
+> **After changing the renderer or the theme, run this tool again.** If `git status` shows no change
+> in `out/`, and you believe you changed something visible, then *you* are wrong, not the tool.
+
+That turns "should I look at the pictures" into a question that asks itself: touch `SurfaceCard.cs`
+or `Themes/KitX.axaml`, and `git status` will raise it.
 
