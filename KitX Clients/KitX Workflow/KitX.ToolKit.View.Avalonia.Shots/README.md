@@ -1,7 +1,7 @@
 # Renderer shots
 
 The renderer's own output path. Every image under `out/` is produced by this project from a JSON
-scenario, so a picture is reproducible by anyone who has the repository.
+scenario, so anyone with the repository can regenerate a picture with one command.
 
 ```sh
 dotnet run --project "KitX Clients/KitX Workflow/KitX.ToolKit.View.Avalonia.Shots"
@@ -64,11 +64,18 @@ images, and **every unit test had let them through**:
 A run that fails a check exits non-zero, so this can be wired into CI without anyone watching the
 pictures.
 
-## The images themselves are reproducible byte for byte
+## Running twice on one machine gives the same bytes
 
 The ten PNGs are committed. Running the tool again on a clean tree leaves `git status --porcelain`
-empty — not "looks the same", the same bytes. That was measured, not designed, and it means the
-images work as a second baseline:
+empty — not "looks the same", the same bytes.
+
+**The scope of that claim is narrow, and it matters.** It was measured on one machine, one `bin/`,
+one day. This repository pins neither the NuGet graph (`packages.lock.json`: none) nor the SDK
+(`global.json`: none), so a different clone may resolve different packages and a different SDK.
+The honest form of the claim is: *the renderer introduces no timestamp or random id* — which is
+what the empty diff actually proves. It does **not** prove that two clones produce identical files.
+
+That is still enough for the images to work as a second baseline:
 
 - the self-checks above catch the two failures that were already known;
 - a diff in `out/` catches the ones nobody has thought of yet.
