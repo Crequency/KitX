@@ -7,7 +7,9 @@ scenario, so a picture is reproducible by anyone who has the repository.
 dotnet run --project "KitX Clients/KitX Workflow/KitX.ToolKit.View.Avalonia.Shots"
 ```
 
-Images land in `out/<name>-light.png` and `out/<name>-dark.png`.
+Images land in `out/<name>-light.png` and `out/<name>-dark.png` — relative to **this project**, not to
+`bin/`. The tool refuses to write anywhere under a `bin/` or `obj/` directory: images there vanish on
+`dotnet clean` and nobody looks at them, which defeats the point of the whole thing.
 
 ## Adding a scenario
 
