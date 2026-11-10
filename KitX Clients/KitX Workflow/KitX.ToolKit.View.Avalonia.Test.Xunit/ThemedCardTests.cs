@@ -66,10 +66,14 @@ public sealed class ThemedCardTests
         return (themed, plain);
     }
 
-    private static (Window Window, SurfaceCard Card) Render(bool withTheme)
+    private static (Window Window, SurfaceCard Card) Render(bool withTheme) =>
+        RenderDocument(Document, withTheme);
+
+    /// <summary>Renders an arbitrary document, so a test may ask about a kind the default one lacks.</summary>
+    private static (Window Window, SurfaceCard Card) RenderDocument(string json, bool withTheme)
     {
         var card = new SurfaceCard();
-        card.SetDocument(JsonSerializer.Deserialize<SurfaceDocument>(Document)!);
+        card.SetDocument(JsonSerializer.Deserialize<SurfaceDocument>(json)!);
 
         var window = new Window { Width = SurfaceMetrics.CardWidth, Height = SurfaceMetrics.CardHeight };
 
@@ -155,6 +159,65 @@ public sealed class ThemedCardTests
         ISolidColorBrush solid => "#" + solid.Color.ToString(),
         _ => brush.GetType().Name,
     };
+
+    /// <summary>
+    /// The List's container takes its padding from the theme, not from a number in the renderer.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A resource nothing reads is indistinguishable from a constant.</b> Adding
+    /// <c>KitXListPadding</c> to the theme and leaving <c>Entries()</c> on its literal would have made
+    /// the resource inert — every test would still pass, and the only way to notice would be to define
+    /// the key as a host and watch nothing move. So the assertion is a <em>difference between two
+    /// renders</em>: the host's value must reach the control.</para>
+    ///
+    /// <para><b>A value nobody would type by accident.</b> The override is <c>3,17,3,17</c> rather than
+    /// something plausible like <c>0</c> or <c>8,0</c>: a plausible override can coincide with the
+    /// theme's own number, and then a renderer that ignored the resource entirely would pass. These
+    /// four numbers are not a design, they are a signature.</para>
+    ///
+    /// <para><b>Why this is a style setter and not a lookup in <c>Entries()</c>.</b> The container is
+    /// built before the card is ever attached to anything, so <c>TryFindResource</c> from inside
+    /// <c>Entries()</c> sees the theme's own dictionary at best and never a host window's. A
+    /// <c>DynamicResource</c> setter in the theme is re-evaluated once the control has a visual root,
+    /// which is the whole reason the four colours work the same way.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_list_padding_comes_from_the_theme_and_a_host_can_replace_it()
+    {
+        const string WithList = """
+            {
+              "schemaVersion": 1,
+              "layoutVersion": 1,
+              "elements": [
+                { "type": "List", "row": 1, "weight": 1, "key": "rows" }
+              ]
+            }
+            """;
+
+        static Thickness GroupPadding(Window window)
+        {
+            var card = Assert.IsType<SurfaceCard>(window.Content);
+            return CardProbe.Elements(card).OfType<Border>().Single().Padding;
+        }
+
+        var (shippedWindow, _) = RenderDocument(WithList, withTheme: true);
+        var (hostWindow, _) = RenderDocument(WithList, withTheme: true);
+
+        hostWindow.Resources["KitXListPadding"] = new Thickness(3, 17, 3, 17);
+        hostWindow.UpdateLayout();
+
+        var shipped = GroupPadding(shippedWindow);
+        var overridden = GroupPadding(hostWindow);
+
+        // Both windows stay alive: closing one disposes the tree the reading was taken from.
+        Assert.NotNull(shippedWindow);
+        Assert.NotNull(hostWindow);
+
+        Assert.Equal(new Thickness(3, 17, 3, 17), overridden);
+
+        // And the two differ, which is what says the theme's value was not already 3,17,3,17.
+        Assert.NotEqual(shipped, overridden);
+    }
 
     private static IEnumerable<string> ClassesOf(Control control) =>
         control.Classes.Where(name => !name.StartsWith(':'));

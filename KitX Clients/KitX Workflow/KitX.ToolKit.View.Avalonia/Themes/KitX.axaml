@@ -79,6 +79,18 @@
       <Thickness x:Key="KitXFieldPadding">10,0,10,0</Thickness>
 
       <!--
+        The List element's container padding, the counterpart of KitXFieldPadding. It is a resource
+        rather than a number in Entries() for the same reason every other value here is: a host that
+        wants its lists to breathe differently defines this key and wins, without the card knowing.
+
+        Applied as a style setter on Border.kitx-list-group rather than read with TryFindResource
+        inside Entries(). The container is built before the card is attached to any visual root, so a
+        lookup there could only ever see this dictionary and never a host's; a DynamicResource setter
+        is re-evaluated once the control has a root. That is the same mechanism the colours use.
+      -->
+      <Thickness x:Key="KitXListPadding">0,6,0,6</Thickness>
+
+      <!--
         The danger confirmation dialog's four strings. A host overrides these keys to localise; the
         English text below is what a host that overrides nothing gets, and having it here means the
         dialog is never blank. The button's own Label supplies the subject, so these carry only the
@@ -217,6 +229,7 @@
   <Style Selector="Border.kitx-list-group">
     <Setter Property="Background" Value="{DynamicResource KitXGroupBg}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
+    <Setter Property="Padding" Value="{DynamicResource KitXListPadding}"/>
     <Setter Property="ClipToBounds" Value="True"/>
   </Style>
 

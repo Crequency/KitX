@@ -1314,6 +1314,16 @@ public sealed class SurfaceCard : Grid
         // K slots. Asking for a height would be this control deciding how tall the row is, which is the
         // row's job.
         //
+        // Nor is there padding here. It used to be `Padding = new Thickness(0, 6, 0, 6)` right on this
+        // initialiser; it is now a Setter on Border.kitx-list-group reading KitXListPadding, so a host
+        // can replace it the way it replaces KitXFieldPadding.
+        //
+        // The move had to go through the theme rather than a TryFindResource call in this method, and
+        // that is not a preference: this runs while the card is being built, before it has a visual
+        // root, so a lookup from here reaches the theme's own dictionary and never a host window's
+        // resource. Measured rather than assumed — spelling it as a lookup here left a host's override
+        // silently unapplied and the padding at the built-in 0,6,0,6.
+        //
         // The container carries a class rather than a Name now. A Name is an address, and Q101 removed
         // the idea that an element has one; what this needs is an appearance, which is a class. The
         // tests that used to find it by name go through CardProbe, which walks the tree by position.
@@ -1321,7 +1331,6 @@ public sealed class SurfaceCard : Grid
         {
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Stretch,
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch,
-            Padding = new Thickness(0, 6, 0, 6),
             Child = scroller,
         };
 
