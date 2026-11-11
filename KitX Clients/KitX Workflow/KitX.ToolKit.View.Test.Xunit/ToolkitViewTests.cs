@@ -141,15 +141,50 @@ public class ToolkitViewTests
     }
 
     [Fact]
-    public void Appended_values_are_folded_as_replacements()
+    public void An_appended_delta_adds_one_item_and_the_previous_one_survives()
     {
-        // The server already concatenated; `appended` says how the value got there, not that the
-        // client should keep a sequence.
+        // The wire carries ONE item per append, never a batch (ViewMessage.DeltaMessage). This test
+        // feeds exactly that: each frame is a single value, and the projection must end up with the
+        // sequence the server holds — not with the last item alone.
         var view = new ToolkitView();
         view.Apply(Welcome("tk", ("log", "[1]")));
 
-        view.Apply(new DeltaMessage("log", Json("[1,2]")) { Appended = true });
+        view.Apply(new DeltaMessage("log", Json("2")) { Appended = true });
+        view.Apply(new DeltaMessage("log", Json("3")) { Appended = true });
 
-        Assert.Equal(2, view.Values["log"].GetArrayLength());
+        var log = view.Values["log"];
+        Assert.Equal(JsonValueKind.Array, log.ValueKind);
+        Assert.Equal([1, 2, 3], log.EnumerateArray().Select(e => e.GetInt32()).ToArray());
+    }
+
+    [Fact]
+    public void An_append_to_a_scalar_reopens_the_sequence_and_drops_the_scalar()
+    {
+        // DataStore.Append does not refuse an append to a non-array: it opens a ring holding only
+        // the new item, because the old scalar is not copied in (DataStore.cs:202-206). The
+        // projection has to agree, or a key that started as a scalar and became a log reads
+        // differently on the client than on the server.
+        var view = new ToolkitView();
+        view.Apply(Welcome("tk", ("log", "\"first\"")));
+
+        view.Apply(new DeltaMessage("log", Json("\"second\"")) { Appended = true });
+
+        Assert.Equal(
+            new[] { "second" },
+            view.Values["log"].EnumerateArray().Select(e => e.GetString()).ToArray());
+    }
+
+    [Fact]
+    public void A_replacement_delta_still_replaces_an_appended_sequence()
+    {
+        // Appended is a property of the message, not of the key: a later replacement must still win,
+        // otherwise this fix would make every stream key append-only on the client.
+        var view = new ToolkitView();
+        view.Apply(Welcome("tk", ("log", "[1]")));
+        view.Apply(new DeltaMessage("log", Json("2")) { Appended = true });
+
+        view.Apply(new DeltaMessage("log", Json("[9]")));
+
+        Assert.Equal([9], view.Values["log"].EnumerateArray().Select(e => e.GetInt32()).ToArray());
     }
 }

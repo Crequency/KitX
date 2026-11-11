@@ -1,5 +1,6 @@
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.View;
 using KitX.ToolKit.Hosting;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Hosting;
@@ -57,6 +58,34 @@ public class HostingGraphTests : IDisposable
 
         Assert.IsType<ToolKitExecutionGlobalsFactory>(factory);
         Assert.Equal(typeof(ToolKitExecutionGlobals), factory.BaseType);
+    }
+
+    [Fact]
+    public void The_View_Channel_Is_Reachable_From_The_Composition_Root()
+    {
+        // Without this registration the type exists, has twelve parity tests, and no host can
+        // construct it: `ViewChannel` is internal sealed and only Hosting has internals access.
+        // Resolving through the same container the app builds is the only check that catches that.
+        var factory = _provider.GetRequiredService<Func<IViewChannel>>();
+
+        var channel = factory();
+
+        Assert.NotNull(channel);
+        Assert.IsAssignableFrom<IViewChannel>(channel);
+    }
+
+    [Fact]
+    public void Each_Call_Produces_A_Distinct_Channel()
+    {
+        // A shared channel would mean one session, one attachment and one event subscription for
+        // every client: the second client's `connect` would silently move the first one's toolkit,
+        // and both would receive each other's deltas.
+        var factory = _provider.GetRequiredService<Func<IViewChannel>>();
+
+        var first = factory();
+        var second = factory();
+
+        Assert.NotSame(first, second);
     }
 
     public void Dispose()

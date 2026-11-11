@@ -162,7 +162,6 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
             ViewCommands.Enable => Lifecycle(toolkitId, enable: true),
             ViewCommands.Disable => Lifecycle(toolkitId, enable: false),
 
-            ViewCommands.Mount => Mount(toolkitId),
             ViewCommands.Unmount => Unmount(toolkitId),
 
             _ => throw new ViewProtocolException(
@@ -290,28 +289,6 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
     }
 
     /// <summary>
-    /// Mounts the attached ToolKit.
-    /// </summary>
-    /// <remarks>
-    /// Refused when the session is not attached: <c>mount</c> names no id, so it can only act on the
-    /// one the session already holds. That is why <c>connect</c> does not mount — attaching to a
-    /// ToolKit and starting its triggers are separate decisions, and a View that only reads should
-    /// be able to attach without arming anything.
-    /// </remarks>
-    private ChannelReply Mount(string toolkitId)
-    {
-        if (_manager.IsMounted(toolkitId))
-            return ChannelReply.Accepted(new AckedReply { Command = ViewCommands.Mount });
-
-        var toolkit = _toolkits.Load(toolkitId)
-            ?? throw new ViewProtocolException(
-                ViewErrorCodes.UnknownToolkit, $"ToolKit '{toolkitId}' could not be loaded.");
-
-        _manager.Mount(toolkit);
-        return ChannelReply.Accepted(new AckedReply { Command = ViewCommands.Mount });
-    }
-
-    /// <summary>
     /// Unmounts the attached ToolKit. Its declared values survive (ADR-0005 D2): unmounting forgets
     /// the scheduler, it does not throw data away. Removing the data is <c>uninstall</c>, which is
     /// management-only and therefore absent from this protocol.
@@ -322,19 +299,31 @@ internal sealed class ViewChannel : IViewChannel, IDisposable
         return ChannelReply.Accepted(new AckedReply { Command = ViewCommands.Unmount });
     }
 
+    /// <summary>
+    /// The ToolKits this protocol will show: the mounted ones only.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Installed-but-not-mounted is not visible to a View</b> (user ruling, 2026-11-11).
+    /// A View is a remote window onto a running ToolKit; a ToolKit that is not running has no live
+    /// state to show, and listing it would offer the client a row it can never `connect` to. That
+    /// is the same dead end the removed `mount` command used to be.</para>
+    ///
+    /// <para>The names still come from the store rather than from the manager: the manager knows
+    /// which ids are mounted, the store knows what each one is called.</para>
+    /// </remarks>
     private IReadOnlyList<ToolkitSummary> ListToolkits()
     {
         var mounted = new HashSet<string>(_manager.MountedToolkitIds, StringComparer.Ordinal);
 
         return _toolkits.List()
+            .Where(t => mounted.Contains(t.GetId() ?? string.Empty))
             .Select(t =>
             {
                 var id = t.GetId() ?? string.Empty;
                 return new ToolkitSummary(
                     id,
                     t.Meta?.Name ?? id,
-                    _manager.GetLifecycleState(id) ?? LifecycleState.Installed,
-                    mounted.Contains(id));
+                    _manager.GetLifecycleState(id) ?? LifecycleState.Installed);
             })
             .OrderBy(t => t.Id, StringComparer.Ordinal)
             .ToList();

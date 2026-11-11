@@ -13,11 +13,18 @@ namespace KitX.ToolKit.View;
 /// makes reconnecting a matter of throwing this away and folding a new <c>welcome</c> — there is no
 /// client-side truth to reconcile (ADR-0014 D3).</para>
 ///
-/// <para><b>Replacement, never merge.</b> A <c>welcome</c> replaces the whole projection and a
-/// <c>surface</c> replaces the whole layout. Merging would keep a value the server has since
-/// dropped, and the window in which the client shows a stale value is exactly the window nobody
-/// looks at it. The cost is a visible flash on reconnect; the alternative is a silent wrong value,
-/// which is worse.</para>
+/// <para><b>Replacement, never merge — except where the server said to append.</b> A <c>welcome</c>
+/// replaces the whole projection and a <c>surface</c> replaces the whole layout. Merging would keep a
+/// value the server has since dropped, and the window in which the client shows a stale value is
+/// exactly the window nobody looks at it. The cost is a visible flash on reconnect; the alternative
+/// is a silent wrong value, which is worse.</para>
+///
+/// <para><b>Append is the one exception, and it is not a merge.</b> A delta with <c>appended</c> set
+/// carries exactly one item <em>to be concatenated</em>; the server is stating "one more of those",
+/// not "the new whole". Treating it as a replacement would leave the projection holding the last
+/// line of a log the server holds in full, and nothing would ever correct it. So the projection
+/// concatenates — from a value that a <c>welcome</c> gave it, which is why the next <c>welcome</c>
+/// still overrides everything an append built.</para>
 ///
 /// <para><b>Thread-safe by lock.</b> Messages typically arrive on a transport thread and are read on
 /// a UI thread. Making the caller responsible for that works until the first time it is forgotten,
@@ -115,10 +122,19 @@ public sealed class ToolkitView
                         return _values.Remove(delta.Key);
                     }
 
-                    // `appended` carries exactly one item, so folding it is the same write as a
-                    // replacement from this projection's point of view: the server already
-                    // concatenated. A client that kept the sequence itself would be holding state
-                    // the server owns.
+                    if (delta.Appended)
+                    {
+                        // One item, not a batch (ViewMessage.DeltaMessage). The projection keeps the
+                        // sequence because the sequence *is* the server's value: a welcome states
+                        // the whole array, and an append states "one more of those". Treating the
+                        // frame as a replacement would leave the projection showing the last line of
+                        // a log the server holds in full, and no later message would ever correct
+                        // it — the next append only replaces that scalar with the next one.
+                        _values.TryGetValue(delta.Key, out var existing);
+                        _values[delta.Key] = AppendOne(existing, incoming);
+                        return true;
+                    }
+
                     _values[delta.Key] = incoming;
                     return true;
 
@@ -145,5 +161,24 @@ public sealed class ToolkitView
                     return false;
             }
         }
+    }
+
+    /// <summary>Concatenates one item onto a value, matching the data plane's <c>Append</c>.</summary>
+    /// <remarks>
+    /// A non-array value is <b>replaced</b> by <c>[item]</c> — the existing scalar is dropped, not
+    /// kept. That is <c>DataStore.Append</c>: it copies the old elements into the ring only when the
+    /// old value was an array (<c>DataStore.cs:202-206</c>), so appending to a scalar leaves the ring
+    /// holding just the new item. Modelling that here rather than throwing keeps the projection
+    /// equal to the server's value in the case the server permits.
+    /// </remarks>
+    private static JsonElement AppendOne(JsonElement? existing, JsonElement item)
+    {
+        var items = new List<JsonElement>();
+        if (existing is { ValueKind: JsonValueKind.Array } array)
+            foreach (var element in array.EnumerateArray())
+                items.Add(element.Clone());
+
+        items.Add(item.Clone());
+        return JsonSerializer.SerializeToElement(items);
     }
 }
