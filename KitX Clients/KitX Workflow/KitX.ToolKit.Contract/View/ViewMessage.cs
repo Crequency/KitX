@@ -254,9 +254,6 @@ public static class ViewCommands
     /// <summary>Disable the attached ToolKit.</summary>
     public const string Disable = "disable";
 
-    /// <summary>Mount the attached ToolKit.</summary>
-    public const string Mount = "mount";
-
     /// <summary>Unmount the attached ToolKit.</summary>
     public const string Unmount = "unmount";
 }
@@ -302,15 +299,20 @@ public sealed record ToolkitsMessage([property: JsonPropertyName("toolkits")] IR
 
 /// <summary>One row of <see cref="ToolkitsMessage"/>.</summary>
 /// <remarks>
-/// A narrow projection rather than the whole <see cref="Declaration.Toolkit"/>: a list screen needs
-/// to draw a name, an id and a state, and sending full configs would make the protocol's smallest
-/// message the largest one.
+/// <para>A narrow projection rather than the whole <see cref="Declaration.Toolkit"/>: a list screen
+/// needs to draw a name, an id and a state, and sending full configs would make the protocol's
+/// smallest message the largest one.</para>
+///
+/// <para><b>There is no <c>mounted</c> flag, on purpose.</b> Since 2026-11-11 a View only ever
+/// sees mounted ToolKits, so such a flag could only ever be <see langword="true"/>. A boolean that
+/// cannot be false does not inform a reader — it invites one. The field was removed rather than
+/// left pinned at true, and <c>ViewVisibilityTests</c> asserts the name is absent from the bytes,
+/// so re-adding it fails a test instead of quietly inviting a consumer that guards on it.</para>
 /// </remarks>
 /// <param name="Id">The ToolKit's id.</param>
 /// <param name="Name">Its display name.</param>
 /// <param name="State">Whether it is installed, enabled or disabled.</param>
-/// <param name="Mounted">Whether it is currently mounted.</param>
-public sealed record ToolkitSummary([property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("name")] string Name, [property: JsonPropertyName("state")] LifecycleState State, [property: JsonPropertyName("mounted")] bool Mounted);
+public sealed record ToolkitSummary([property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("name")] string Name, [property: JsonPropertyName("state")] LifecycleState State);
 
 /// <summary>Stable codes the View protocol refuses with.</summary>
 public static class ViewErrorCodes
@@ -324,7 +326,19 @@ public static class ViewErrorCodes
     /// <summary>A message could not be understood.</summary>
     public const string Malformed = "view.malformed";
 
-    /// <summary>The named ToolKit is not known.</summary>
+    /// <summary>
+    /// The named ToolKit cannot be attached to — either it is unknown, or it is installed but not
+    /// mounted. The two are indistinguishable from outside, on purpose.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately one code rather than two. A separate <c>view.not-mounted</c> would make
+    /// <c>connect</c> an existence oracle: a client that cannot see an unmounted ToolKit could
+    /// still learn "this id exists" by sending it and reading which of the two codes came back —
+    /// which is exactly what the 2026-11-11 ruling ("a View should not see unmounted ToolKits at
+    /// all") set out to prevent. The distinction a human needs is in the message text, which is
+    /// read by operators; a code is read by a <c>switch</c>, and a code that exists will be
+    /// branched on.
+    /// </remarks>
     public const string UnknownToolkit = "view.unknown-toolkit";
 
     /// <summary>The command named an operation this protocol does not carry.</summary>

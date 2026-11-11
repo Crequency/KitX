@@ -2,11 +2,14 @@ using KitX.ToolKit.Run;
 using KitX.ToolKit.Builtin;
 using KitX.ToolKit.Builtin.Functions;
 using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.View;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Hosting;
 using KitX.ToolKit.Storage;
+using KitX.ToolKit.Time;
 using KitX.ToolKit.Triggers;
+using KitX.ToolKit.View;
 using KitX.WorkflowV6.Backend.Runtime;
 using KitX.WorkflowV6.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -132,6 +135,25 @@ public static class ServiceCollectionExtensions
         // Contract services — the frontend depends only on these.
         services.AddSingleton<IToolkitService, ToolkitService>();
         services.AddSingleton<IRunService, RunService>();
+
+        // The View protocol channel — one per connection, so a factory rather than the channel
+        // itself. `ViewChannel` is internal sealed and only Hosting is granted internals; without
+        // this line the type exists, is tested twelve ways, and no host can construct it, which is
+        // the "interface with no consumer" shape again (§3.4).
+        //
+        // Deliberately NOT a singleton: a channel owns one session, one attachment and an event
+        // subscription into the DataStore. Sharing it between two clients would deliver one
+        // client's deltas to the other and make `connect` from the second silently move the first
+        // one's toolkit. The transport (P4) creates one per socket.
+        services.AddSingleton<Func<IViewChannel>>(sp =>
+        {
+            var manager = sp.GetRequiredService<ToolkitInstanceManager>();
+            var toolkits = sp.GetRequiredService<ToolkitStore>();
+            var store = sp.GetRequiredService<DataStore>();
+            var surfaces = sp.GetRequiredService<ISurfaceStore>();
+
+            return () => new ViewChannel(manager, toolkits, store, surfaces, GuidIdGenerator.Instance);
+        });
 
         return services;
     }

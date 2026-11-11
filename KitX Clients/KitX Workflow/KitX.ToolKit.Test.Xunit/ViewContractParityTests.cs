@@ -86,7 +86,6 @@ public class ViewContractParityTests
         new("外部事件", Side.Both, nameof(IToolkitService.IsMounted), ViewCommands.Event),
         new("启用", Side.Both, nameof(IToolkitService.Enable), ViewCommands.Enable),
         new("禁用", Side.Both, nameof(IToolkitService.Disable), ViewCommands.Disable),
-        new("挂载", Side.Both, nameof(IToolkitService.Mount), ViewCommands.Mount),
         new("卸载", Side.Both, nameof(IToolkitService.Unmount), ViewCommands.Unmount),
         new("挂载列表", Side.Both, nameof(IToolkitService.MountedToolkitIds), ViewMessageTypes.Toolkits),
         new("生命周期状态", Side.Both, nameof(IToolkitService.GetLifecycleState), ViewMessageTypes.Toolkits),
@@ -111,6 +110,10 @@ public class ViewContractParityTests
         new("初次全量", Side.WireOnly, null, ViewMessageTypes.Welcome),
 
         // ── facade only ───────────────────────────────────────────────────────────────────────
+        // Mounting is management-only as of 2026-11-11 (user ruling): a View may only see ToolKits
+        // that are already mounted, so `mount` was removed from the wire. Unmounting stays, because
+        // a client that can see a running ToolKit can also be the one that stops it.
+        new("挂载", Side.FacadeOnly, nameof(IToolkitService.Mount), null),
         new("创建", Side.FacadeOnly, nameof(IToolkitService.CreateToolkit), null),
         new("更新", Side.FacadeOnly, nameof(IToolkitService.UpdateToolkit), null),
         new("删除", Side.FacadeOnly, nameof(IToolkitService.DeleteToolkit), null),
