@@ -16,8 +16,14 @@ namespace KitX.ToolKit.View.Avalonia.Test.Xunit;
 /// </summary>
 /// <remarks>
 /// <para><b>Two failures, one cause, and only one of them was visible.</b> Every layout test in this
-/// project measures positions and slot heights; none asked whether an editing control occupies its
-/// column. Measured with the product theme and no <c>MinWidth</c> override:</para>
+/// project measures positions and slot heights; <b>none asked whether an editing control occupies
+/// its column</b> — <em>before this file, on 2026-11-13</em>. Measured with the product theme and no
+/// <c>MinWidth</c> override:</para>
+///
+/// <para><b>That date is load-bearing.</b> "No test asked X" describes a set that grows every time
+/// somebody adds a test, so the sentence expires on its own without anyone editing it. "The control
+/// is 64 pixels wide" expires only when the control changes. A claim about a whole set needs the
+/// moment it was counted; a claim about one value needs nothing extra.</para>
 ///
 /// <code>
 /// alone in a 390px row:   TextBox 390   NumericUpDown 390   ComboBox 390   CheckBox 390
