@@ -1,9 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using KitX.ToolKit.Contract.View;
+using KitX.ToolKit.View;
 using KitX.ToolKit.View.Avalonia;
 
 namespace KitX.ToolKit.View.Avalonia.Host;
@@ -39,7 +41,45 @@ internal sealed class HostWindow : Window
         _session.AttachCard(_card);
         _session.MessageApplied += (_, message) => OnMessage(message);
 
+        // The card raises; this window is what carries it to the server. Without this line the
+        // window is one-way — it could show every delta and still be unable to send one, and
+        // `SomethingHappened` had no production subscriber at all until it was added here. The
+        // gesture arrives on the UI thread, which is exactly where an `await` is safe: it returns
+        // to the dispatcher rather than blocking it, so the click does not freeze the card.
+        _card.SomethingHappened += async (_, raised) => await RaiseAsync(raised);
+
         Opened += async (_, _) => await StartAsync();
+    }
+
+    /// <summary>Sends one gesture to the server, or reports why it could not be turned into a command.</summary>
+    /// <remarks>
+    /// <b>An <c>async void</c> handler that throws takes the process down.</b> This is reached from a
+    /// framework event, so nothing above it can catch; the try/catch here is the only backstop, and
+    /// the status line is where a failure has to become visible, because a click that silently does
+    /// nothing is indistinguishable from a card that refuses to respond.
+    /// </remarks>
+    private async Task RaiseAsync(SurfaceEvent raised)
+    {
+        var command = SurfaceEventCommand.ToCommand(raised);
+
+        if (command is null)
+        {
+            // Not an event at all. The renderer only raises `event:` kinds today, so this means a
+            // renderer bug — reporting it beats throwing, which would look like a channel failure.
+            _status.Text = $"无法把「{raised.Kind}」变成一条命令。";
+            return;
+        }
+
+        try
+        {
+            var error = await _session.SendAsync(command);
+
+            _status.Text = error ?? $"已发送 {command.EventName}";
+        }
+        catch (Exception ex)
+        {
+            _status.Text = $"{ex.GetType().Name}: {ex.Message}";
+        }
     }
 
     private Control Compose()
@@ -65,6 +105,15 @@ internal sealed class HostWindow : Window
             if (_list.SelectedItem is ToolkitSummary row)
                 await ConnectAsync(row.Id);
         };
+
+        // Without a template the list renders `ToolkitSummary { Id = ..., ... }`: the record's
+        // compiler-generated ToString. That is not "no styling" — it is the type's debug
+        // representation shown to a person. The name is what the config calls the ToolKit; the id is
+        // the directory name, and it belongs in a tooltip rather than in the row.
+        _list.ItemTemplate = new FuncDataTemplate<ToolkitSummary>((row, _) => new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(row.Name) ? row.Id : row.Name,
+        });
 
         var left = new DockPanel { Width = 240, Margin = new Thickness(16) };
 
@@ -96,7 +145,7 @@ internal sealed class HostWindow : Window
     {
         try
         {
-            var (id, created) = _session.EnsureSample();
+            var (id, created) = await _session.EnsureSampleAsync();
             _session.SeedSampleSurface(id);
 
             var (rows, error) = await _session.ListAsync();

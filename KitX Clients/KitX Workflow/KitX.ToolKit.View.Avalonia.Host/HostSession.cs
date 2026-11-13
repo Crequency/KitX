@@ -143,7 +143,15 @@ public sealed class HostSession : IDisposable
 
     /// <summary>Creates and mounts the sample ToolKit when it is not already on disk.</summary>
     /// <returns>The sample's id, and whether it had to be created.</returns>
-    public (string Id, bool Created) EnsureSample() => SampleToolkit.Ensure(this);
+    /// <remarks>
+    /// <b>Async because writing the <c>.kcs</c> bodies is async, and this is called from a thread that
+    /// has a <c>SynchronizationContext</c>.</b> It used to block internally
+    /// (<c>SaveAsync(...).GetAwaiter().GetResult()</c>) and deadlocked the very first launch: the
+    /// continuation of the file write was posted back to the Avalonia UI thread, which was sitting in
+    /// <c>GetResult()</c> waiting for it. The symptom was a window that never drew and a
+    /// <c>scan.kcs.tmp</c> on disk with no <c>scan.kcs</c>.
+    /// </remarks>
+    public Task<(string Id, bool Created)> EnsureSampleAsync() => SampleToolkit.EnsureAsync(this);
 
     /// <summary>Seeds the sample ToolKit's card, replacing anything the user edited.</summary>
     public void SeedSampleSurface(string toolkitId) => SampleToolkit.SeedSurface(this, toolkitId);

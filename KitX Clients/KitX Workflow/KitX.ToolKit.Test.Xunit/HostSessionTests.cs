@@ -51,7 +51,7 @@ public class HostSessionTests : IDisposable
         Assert.Null(beforeError);
         Assert.Empty(before);
 
-        session.EnsureSample();
+        await session.EnsureSampleAsync();
 
         var (after, afterError) = await session.ListAsync();
 
@@ -65,7 +65,7 @@ public class HostSessionTests : IDisposable
     {
         using var session = new HostSession(_root);
 
-        session.EnsureSample();
+        await session.EnsureSampleAsync();
         session.SeedSampleSurface(SampleToolkit.Id);
 
         Assert.Null(await session.ConnectAsync(SampleToolkit.Id));
@@ -83,7 +83,7 @@ public class HostSessionTests : IDisposable
         // Every arrow has been tested in isolation somewhere; only this asserts they compose.
         using var session = new HostSession(_root);
 
-        session.EnsureSample();
+        await session.EnsureSampleAsync();
         session.SeedSampleSurface(SampleToolkit.Id);
         await session.ConnectAsync(SampleToolkit.Id);
 
@@ -111,7 +111,7 @@ public class HostSessionTests : IDisposable
         // defect survived, because every test happened to use a single frame.
         using var session = new HostSession(_root);
 
-        session.EnsureSample();
+        await session.EnsureSampleAsync();
         session.SeedSampleSurface(SampleToolkit.Id);
         await session.ConnectAsync(SampleToolkit.Id);
 

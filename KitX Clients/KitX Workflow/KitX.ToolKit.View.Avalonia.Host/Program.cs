@@ -83,13 +83,13 @@ internal static class SampleRoot
 internal static class Program
 {
     [STAThread]
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         // `--self-check` proves the protocol→projection→renderer chain without a window, so it can
         // run where no desktop exists and in CI. Everything the window does that is worth
         // asserting lives in HostSession, which is what this drives.
         if (args.Contains("--self-check", StringComparer.Ordinal))
-            return SelfCheck.Run(args.Contains("--verbose", StringComparer.Ordinal));
+            return await SelfCheck.Run(args.Contains("--verbose", StringComparer.Ordinal));
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;

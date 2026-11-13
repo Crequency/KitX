@@ -83,10 +83,39 @@ renderer meet in the same object. The projection (`ToolkitView`) and the rendere
 deliberately fed the same message independently rather than one from the other's state, so that a
 disagreement between them is observable instead of being constructed away.
 
+### 4. `--self-check` being green does not mean the window works
+
+This is the most expensive lesson in this directory, so it is written down rather than remembered.
+
+`--self-check` returns from `Main` **before** any Avalonia lifetime is built. That means it runs on a
+plain thread-pool thread with **no `SynchronizationContext`**. The window runs on the Avalonia UI
+thread, which installs one. Awaiting a file write behaves differently in the two:
+
+```
+no context   : continuation runs on the pool      → blocking is merely slow
+UI thread    : continuation is posted back to the  → blocking that thread
+               thread that is blocking              deadlocks
+```
+
+The first launch of this window did exactly that. `SampleToolkit` wrote the sample's `.kcs` bodies with
+`SaveAsync(...).GetAwaiter().GetResult()`; the write's continuation was posted to the UI thread; the UI
+thread was inside `GetResult()` waiting for the write. Nothing threw, nothing was logged, the window
+never drew, and the disk held `scan.kcs.tmp` with no `scan.kcs`.
+
+Every test in this repository runs without a `SynchronizationContext`, so no test could see it — the
+same code, two hosts, one green and one dead. The regression that does see it is
+`SampleCreationThreadingTests`, which builds a real pump thread and runs creation on it; with the old
+blocking shape it fails after the 30-second invoke timeout.
+
+The fix is not `ConfigureAwait(false)` at the bottom of the file stack (that makes blocking less likely
+to kill you). It is that `EnsureSampleAsync` is async all the way down, and its callers await it — a
+caller on the UI thread then returns to the dispatcher instead of parking it.
+
 ## Tests
 
 - `KitX.ToolKit.Test.Xunit/HostSessionTests.cs` — the end-to-end chain (4 tests).
 - `KitX.ToolKit.Test.Xunit/ProductBoundaryTests.cs` — the boundary (2 tests).
+- `KitX.ToolKit.Test.Xunit/SampleCreationThreadingTests.cs` — the deadlock above (1 test).
 
 The renderer half of the same seam is pinned in `KitX.ToolKit.View.Avalonia.Test.Xunit`, which needs an
 Avalonia application to construct `SurfaceCard` and therefore cannot live here.
