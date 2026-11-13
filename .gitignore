@@ -390,3 +390,6 @@ vendor/
 coverage/
 .cache/
 tmp/
+
+# Runtime state written by the dashboard (activity log, use counts).
+/Data/
