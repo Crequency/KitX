@@ -28,6 +28,7 @@ internal static class SampleToolkit
     internal const string Id = "sample-scanner";
 
     private const string ScanWorkflow = "scan";
+    private const string NextWorkflow = "next";
     private const string ResetWorkflow = "reset";
 
     /// <summary>Creates the sample when absent, then mounts it.</summary>
@@ -78,6 +79,64 @@ internal static class SampleToolkit
         session.Surfaces.Save(toolkitId, Card());
     }
 
+    /// <summary>Gives the card something to show on a first run, by filling the keys it names.</summary>
+    /// <remarks>
+    /// <para><b>Why this is neither "an initial value in the declaration" nor "a third thing
+    /// SeedSurface writes".</b> <c>KeyDeclaration</c> has no default value and should not grow one:
+    /// a declared default would be a second source of truth for what a flow starts from, and the
+    /// first flow that writes the key would have to decide whether it overrides or merges. Writing
+    /// it from <see cref="SeedSurface"/> was the other candidate and is worse — that method's whole
+    /// contract is "write the document when there is none", and a value is not part of the document.
+    /// Tying the two would mean a person who edits only their card never gets the values, and one
+    /// who clears their values on purpose gets them back on the next launch.</para>
+    ///
+    /// <para><b>So: separate, and idempotent on its own terms.</b> A key that already holds
+    /// something is left alone; a key that holds nothing is filled. After the person has used the
+    /// card once, every key holds something and this does nothing at all — including after they
+    /// deliberately cleared it with the reset button, because <c>ToolkitClear</c> removes the
+    /// values and this only fills keys that were never written. That asymmetry is the point: the
+    /// first launch has no values, and every later launch has a person's answer to that.</para>
+    ///
+    /// <para><b>The writes go through the data plane, not through a file.</b> Values are runtime
+    /// state; <c>state.json</c> is written by the lifecycle transitions that own it, and writing
+    /// that file here would mean this class knows its shape.</para>
+    /// </remarks>
+    internal static void SeedValues(HostSession session, string toolkitId)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var toolkit = session.Toolkits.GetToolkit(toolkitId);
+        if (toolkit is null)
+            return;
+
+        foreach (var (local, value) in OpeningValues())
+        {
+            var full = $"{toolkitId}/{local}";
+
+            // Already answered — by a flow, by a person, or by a previous launch.
+            if (session.Keys.TryGet(full, out _)) 
+                continue;
+
+            session.Keys.Set(full, System.Text.Json.JsonSerializer.SerializeToElement(value));
+        }
+    }
+
+    /// <summary>
+    /// What the card says before anybody has used it.
+    /// </summary>
+    /// <remarks>
+    /// Chosen so the first screen explains itself: a title that names the ToolKit, an instruction
+    /// that says what the button does, and an empty list rather than an absent one — an absent
+    /// <c>log</c> and an empty <c>log</c> render the same, but only one of them is a value the
+    /// person can see grow.
+    /// </remarks>
+    private static Dictionary<string, object?> OpeningValues() => new(StringComparer.Ordinal)
+    {
+        ["title"] = "示例 · 扫描器",
+        ["status"] = "还没有扫描过",
+        ["log"] = Array.Empty<string>(),
+    };
+
     private static Toolkit Config() => new()
     {
         Id = Id,
@@ -90,10 +149,12 @@ internal static class SampleToolkit
         Workflows =
         [
             new ToolkitWorkflow { Id = ScanWorkflow, Name = "scan", File = $"{ScanWorkflow}.kcs" },
+            new ToolkitWorkflow { Id = NextWorkflow, Name = "next", File = $"{NextWorkflow}.kcs" },
             new ToolkitWorkflow { Id = ResetWorkflow, Name = "reset", File = $"{ResetWorkflow}.kcs" },
         ],
         Keys =
         [
+            new KeyDeclaration("title", "string", KeyRole.Out),
             new KeyDeclaration("status", "string", KeyRole.Out),
             new KeyDeclaration("log", "array", KeyRole.Stream),
         ],
@@ -107,8 +168,8 @@ internal static class SampleToolkit
                 Bindings = [new TriggerBinding { Workflow = ScanWorkflow }],
             },
 
-            // The two the card's buttons raise. `Config.Event` is the name the wire carries, and it
-            // must match a button's `events` entry — that join is checked by the compiler
+            // The three the card's buttons raise. `Config.Event` is the name the wire carries, and
+            // it must match a button's `events` entry — that join is checked by the compiler
             // (`trigger.ui-event.*`), which is why a typo here fails at Mount instead of doing
             // nothing when clicked.
             new Trigger
@@ -120,6 +181,13 @@ internal static class SampleToolkit
             },
             new Trigger
             {
+                Id = "next-click",
+                Type = TriggerType.UIEvent,
+                Config = new TriggerConfig { Event = "next" },
+                Bindings = [new TriggerBinding { Workflow = NextWorkflow }],
+            },
+            new Trigger
+            {
                 Id = "reset-click",
                 Type = TriggerType.UIEvent,
                 Config = new TriggerConfig { Event = "reset" },
@@ -128,26 +196,88 @@ internal static class SampleToolkit
         ],
     };
 
+    /// <summary>
+    /// The card the sample starts with, at roughly the density the reference scenarios use.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Six rows, eight elements, because a three-row card is a bad sample.</b> It was four
+    /// elements over three rows and left half the card blank; the renderer was fine (rows take the
+    /// height of their tallest element, and the last row absorbs the remainder), so the honest
+    /// description was "the document is thin", not "the card does not fill". Changing the renderer
+    /// to stretch would have made every real card wrong to make this sample look full.</para>
+    ///
+    /// <para><b>One of each kind that is worth showing.</b> Text, Input, Select, two Buttons in one
+    /// row, one Button alone, List. That is the shape of
+    /// <c>Shots/scenarios/01-scanbook.json</c> — six rows and eight elements — chosen so the sample
+    /// exercises every element type the renderer has rather than the three the first draft used.
+    /// It is not a copy: this ToolKit scans one book at a time, so it has no "finish this batch".</para>
+    ///
+    /// <para><b>Every key named here is declared, and every <c>events</c> entry has a trigger.</b>
+    /// That is not a courtesy — <c>ToolkitCompiler.ValidateUiEvent</c> refuses a UIEvent trigger
+    /// whose <c>Config.Event</c> matches nothing, and <c>SurfaceValidator</c> drops a cell whose key
+    /// is undeclared. A sample that only compiles because nothing checked it would be the first
+    /// thing to break on the next person.</para>
+    ///
+    /// <para><b>The Input and the Select carry no <c>key</c>.</b> Since Q88 the four editing kinds
+    /// show what the person typed and upload it under <c>name</c>; giving them a key would earn a
+    /// <c>surface.element.key-ignored</c> warning and a value nothing ever writes.</para>
+    /// </remarks>
     private static SurfaceDocument Card() => new()
     {
         Elements =
         [
-            new SurfaceTextElement { Key = "status", Row = 1, Weight = 1 },
-            new SurfaceListElement { Key = "log", Row = 2, Weight = 4, ItemTitle = "at" },
-            new SurfaceButtonElement
+            // What the ToolKit is, and what it last did — two rows of text rather than one, because
+            // a card whose first line is also its status reads as a message box.
+            new SurfaceTextElement { Key = "title", Row = 1, Weight = 1 },
+            new SurfaceTextElement { Key = "status", Row = 2, Weight = 1 },
+
+            // A wide entry and a narrow choice, 3:1. The proportions are the point: a row that
+            // divides itself is what `weight` means, and one equal-weight row would not show it.
+            new SurfaceInputElement { Name = "barcode", Row = 3, Weight = 3 },
+            new SurfaceSelectElement
             {
-                Label = "扫描一次",
-                Events = ["scan"],
-                Emphasis = "primary",
+                Name = "genre",
                 Row = 3,
                 Weight = 1,
+                Options = ["文学", "计算机", "历史"],
             },
+
+            // Two buttons sharing a row: the main action and the routine one.
+            new SurfaceButtonElement
+            {
+                Label = "扫描这一本",
+                Events = ["scan"],
+                Emphasis = "primary",
+                Row = 4,
+                Weight = 1,
+            },
+            new SurfaceButtonElement
+            {
+                Label = "换一本",
+                Events = ["next"],
+                Row = 4,
+                Weight = 1,
+            },
+
+            // Alone in its row, so it takes the whole width — which is the layout rule for a
+            // single-element row, not a special case written for destructive buttons.
             new SurfaceButtonElement
             {
                 Label = "清空记录",
                 Events = ["reset"],
                 Emphasis = "danger",
-                Row = 3,
+                Row = 5,
+                Weight = 1,
+            },
+
+            // The last row absorbs whatever height is left, which is why the list belongs here.
+            // No `itemTitle`: that field names a property of object-shaped entries, and this list
+            // holds plain strings — one line per scan. Declaring it anyway would be a declaration
+            // nothing reads, which is how a document starts lying about itself.
+            new SurfaceListElement
+            {
+                Key = "log",
+                Row = 6,
                 Weight = 1,
             },
         ],
@@ -179,6 +309,11 @@ internal static class SampleToolkit
             [ScanWorkflow] =
                 "FlowIn(\"label\", \"scanned\") > ToolkitAppend(\"log\", _)\n" +
                 "ToolkitSet(\"status\", \"扫描了一次\")",
+
+            // The routine action next to the main one, and deliberately not a variant of it: it
+            // writes the status and leaves the log alone. A second button that also appended would
+            // be the same workflow twice, which teaches nothing about a card having two actions.
+            [NextWorkflow] = "ToolkitSet(\"status\", \"跳过了这一本\")",
 
             // Removes every value this ToolKit declared. The declarations survive, which is what
             // makes this legal while the ToolKit is mounted (Q68 tier one).

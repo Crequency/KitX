@@ -28,6 +28,7 @@ internal static class SelfCheck
 
             var (id, created) = await session.EnsureSampleAsync();
             session.SeedSampleSurface(id);
+            session.SeedSampleValues(id);
 
             Say($"storage root      {root}");
             Say($"sample toolkit    {id} ({(created ? "created" : "already on disk")})");
@@ -55,9 +56,27 @@ internal static class SelfCheck
             if (session.View.Surface.Elements.Count == 0)
                 return Fail("the card came back empty — the surface was never seeded or never loaded");
 
+            // The first frame, before any command: a card with no values draws eight empty cells and
+            // a person reads that as "broken", not as "untouched". `welcome` is the only message that
+            // can arrive with values already in it, which is why they are seeded before connecting.
+            var opening = session.View.Values.Count;
+
+            Say($"opening values    {opening}");
+
+            if (opening == 0)
+                return Fail(
+                    "the card connected with no values at all — a first run shows empty cells, which " +
+                    "reads as a broken renderer rather than as a ToolKit nobody has used yet");
+
             // A real command through the same path a click takes. This is what an appended delta is
             // downstream of: without a body that appends, the projection's append branch is only
             // ever exercised by tests that build the message by hand.
+            //
+            // The status before the click is captured first. Since the sample now seeds an opening
+            // status, "status exists" is true before anything runs — waiting on it would be a wait
+            // that is already satisfied, and the check would pass with the flow never having run.
+            var before = session.View.TryGetValue("status", out var starting) ? starting.GetString() : null;
+
             var commandError = await session.SendAsync(new CommandMessage(ViewCommands.Event)
             {
                 EventName = "scan",
@@ -69,9 +88,11 @@ internal static class SelfCheck
             Say("event 'scan'      accepted");
 
             // Accepted is not the same as done: `RaiseEvent` starts a flow and returns, and that
-            // flow's body has to be compiled before it can write anything. Waiting for the value is
-            // what distinguishes "the command was routed" from "the chain ran".
-            var wrote = await WaitForAsync(() => session.View.TryGetValue("status", out _), Patience);
+            // flow's body has to be compiled before it can write anything. Waiting for the value to
+            // *change* is what distinguishes "the command was routed" from "the chain ran".
+            var wrote = await WaitForAsync(
+                () => session.View.TryGetValue("status", out var now) && now.GetString() != before,
+                Patience);
 
             Say($"status key        {(wrote ? "arrived through the projection" : "did not arrive")}");
 

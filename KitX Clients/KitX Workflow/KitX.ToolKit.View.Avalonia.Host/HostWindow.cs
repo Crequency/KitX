@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Threading;
 using KitX.ToolKit.Contract.View;
@@ -22,6 +24,11 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// </remarks>
 internal sealed class HostWindow : Window
 {
+    /// <summary>Width of the mounted-ToolKit list on the left, in device-independent pixels.</summary>
+    private const double SidebarWidth = 240;
+    private const double SidebarMargin = 16;
+    private const double CardMargin = 24;
+
     private readonly HostSession _session;
     private readonly ListBox _list = new();
     private readonly SurfaceCard _card = new();
@@ -34,7 +41,15 @@ internal sealed class HostWindow : Window
         Title = "KitX · Surface 客户端";
         Width = 720;
         Height = 940;
-        Background = new SolidColorBrush(Color.Parse("#F3F3F3"));
+        // The reference window is the card plus the padding around it, on the theme's subtle
+        // background (Shots/Program.cs:248-249, :283-286). That window has no sidebar, so its width is
+        // 390 + 24 + 24 = 438; this one does, and copying 438 verbatim clipped the card instead of
+        // matching anything. The width is therefore derived from the three parts that are actually
+        // on screen, so that adding a fourth later fails to compile rather than fails to look right.
+        Background = null;
+        SetDynamic(this, TemplatedControl.BackgroundProperty, "KitXSubtleBg");
+        Width = SidebarWidth + (SidebarMargin * 2) + SurfaceMetrics.CardWidth + (CardMargin * 2);
+        Height = SurfaceMetrics.CardHeight + (CardMargin * 2) + 48;
 
         Content = Compose();
 
@@ -59,6 +74,19 @@ internal sealed class HostWindow : Window
 
         Opened += async (_, _) => await StartAsync();
     }
+
+    /// <summary>
+    /// Sets <paramref name="property"/> from a theme resource, so a host that redefines the key wins.
+    /// </summary>
+    /// <remarks>
+    /// <b>A binding, not a lookup.</b> Asking the application for a brush by name returns nothing:
+    /// the theme's colours live in dictionaries resolved per control against that control's own
+    /// variant, which is the same reason Shots' <c>Themed</c> binds rather than reads. A one-shot
+    /// lookup here leaves the frame transparent in both themes and the failure looks like "the
+    /// border was never drawn", which is exactly the defect this method was added to fix.
+    /// </remarks>
+    private static void SetDynamic(AvaloniaObject target, AvaloniaProperty property, string key)
+        => target.Bind(property, new DynamicResourceExtension(key));
 
     /// <summary>Sends one gesture to the server, or reports why it could not be turned into a command.</summary>
     /// <remarks>
@@ -93,19 +121,30 @@ internal sealed class HostWindow : Window
 
     private Control Compose()
     {
+        // The frame is the same three resources Shots uses to draw the reference images
+        // (SurfaceCard/../Shots/Program.cs:243-249): background, border brush, corner radius, all
+        // read through DynamicResource so a host can replace them the way KitX.axaml:14-17 documents.
+        //
+        // The previous version set BorderThickness=1 and CornerRadius=8 with no BorderBrush, which
+        // draws a transparent line: the 1px edge the value asked for was never on screen. Hard-coding
+        // 8 instead of KitXRadiusCard had the same shape — a value that looked like it came from the
+        // theme and did not.
         var frame = new Border
         {
             Child = _card,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
         };
 
+        SetDynamic(frame, Border.BackgroundProperty, "KitXCardBg");
+        SetDynamic(frame, Border.BorderBrushProperty, "KitXCardBorder");
+        SetDynamic(frame, Border.CornerRadiusProperty, "KitXRadiusCard");
+
         var right = new StackPanel
         {
             Spacing = 12,
-            Margin = new Thickness(24),
+            Margin = new Thickness(CardMargin),
             Children = { frame, _status },
         };
 
@@ -124,15 +163,20 @@ internal sealed class HostWindow : Window
             Text = string.IsNullOrWhiteSpace(row.Name) ? row.Id : row.Name,
         });
 
-        var left = new DockPanel { Width = 240, Margin = new Thickness(16) };
-
-        DockPanel.SetDock(_list, Dock.Top);
-        left.Children.Add(new TextBlock
+        // Header above the list, list filling what is left. The previous version added the header
+        // first and docked only the list, so the header took the default Dock.Left and the two were
+        // laid out side by side: the caption was clipped to "已挂载的 ToolK" and the list got 152 of
+        // the sidebar's 240 pixels. Measured, not guessed — the header measured 88 wide.
+        var header = new TextBlock
         {
             Text = "已挂载的 ToolKit",
             FontSize = 12,
             Margin = new Thickness(0, 0, 0, 8),
-        });
+        };
+
+        var left = new DockPanel { Width = SidebarWidth, Margin = new Thickness(SidebarMargin) };
+        DockPanel.SetDock(header, Dock.Top);
+        left.Children.Add(header);
         left.Children.Add(_list);
 
         var split = new Grid
@@ -156,6 +200,11 @@ internal sealed class HostWindow : Window
         {
             var (id, created) = await _session.EnsureSampleAsync();
             _session.SeedSampleSurface(id);
+
+            // Before connecting, so `welcome` already carries them. A value written afterwards
+            // arrives as a delta and the first frame is still blank — the flicker is not the bug,
+            // but the blank first frame is the thing a person sees.
+            _session.SeedSampleValues(id);
 
             var (rows, error) = await _session.ListAsync();
 
