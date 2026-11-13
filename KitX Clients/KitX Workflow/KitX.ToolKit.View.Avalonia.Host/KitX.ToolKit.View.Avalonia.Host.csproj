@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The host that makes IViewChannel reachable by a person.
+
+    WHY THIS EXISTS: ADR-0014 D5 says KitX.ToolKit.View is the protocol client's state machine, and
+    until now nothing carried a screen for it. Dashboard has a Surface EDITOR (reading declaration
+    files through DI, ADR-0016 D3) and the protocol client is a separate half that only ever runs in
+    tests. A state machine whose only consumer is a test is a state machine nobody has used.
+
+    THE REFERENCE LIST IS THE DESIGN. Contract + View + View.Avalonia are the protocol side; Hosting
+    is the composition root, which is how a process gets a channel at all. KitX.ToolKit is NOT here
+    on purpose — ADR-0014 D5 and ADR-0001 use the same mechanism: if this project could name
+    DataStore or the scheduler, it could compute a value the server never stated. The assertion
+    lives in KitX.ToolKit.Test.Xunit/ProductBoundaryTests.cs and reads the compiled metadata rather
+    than this list, because a list can be wrong in the direction that still compiles (Hosting
+    passes KitX.ToolKit through transitively, with no PrivateAssets).
+
+    WorkflowV6 is referenced for one reason: AddKitXToolKit registers IWorkflowExecutor by resolving
+    KitX.WorkflowV6.Services.WorkflowRunner lazily, and without AddKitXWorkflowV6 that resolution
+    throws at first use rather than at build time. A failure that appears when someone clicks
+    "mount" is worth a reference. No cycle: KitX.ToolKit already references WorkflowV6, never the
+    other way round.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>KitX.ToolKit.View.Avalonia.Host</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.13" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.13" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.View\KitX.ToolKit.View.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.View.Avalonia\KitX.ToolKit.View.Avalonia.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.Hosting\KitX.ToolKit.Hosting.csproj" />
+    <ProjectReference Include="..\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
+  </ItemGroup>
+
+  <!-- The sample ToolKit ships with the host, so `dotnet run` with no arguments shows something. -->
+  <ItemGroup>
+    <None Include="Samples\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    The sample's identity and its config are needed by the tests that drive this host end to end,
+    and by nothing else. A grant rather than a public type for the same reason the renderer's
+    InternalsVisibleTo list is short: `SampleToolkit.Id` is how the sample identifies itself, not a
+    promise this executable makes to the outside world. One line, visible in a diff, questionable
+    later.
+  -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>KitX.ToolKit.Test.Xunit</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
