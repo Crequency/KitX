@@ -606,6 +606,22 @@ public sealed class SurfaceCard : Grid
                 label.Text = value is { } labelValue ? Scalars(labelValue) : string.Empty;
                 break;
 
+            // Before the Button arm, because a CheckBox is one. CheckBox : ToggleButton : Button, so
+            // `case Button` matches a Switch's cell too — and SetButtonValue writes the value into
+            // Content, which turns a ticked Switch into an unticked one with the word "true" beside
+            // it. Measured: SetValue("armed", true) left IsChecked at false and set Content to "true".
+            case CheckBox tick:
+                tick.IsChecked = value is { } tickValue && tickValue.ValueKind switch
+                {
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+
+                    // Not a bool at all: the control cannot express it, and pretending it can would
+                    // show a tick for a value that is not true.
+                    _ => false,
+                };
+                break;
+
             case Button button:
                 SetButtonValue(button, value);
                 break;

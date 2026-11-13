@@ -73,10 +73,10 @@ public class HostSessionTests : IDisposable
         Assert.Equal(SampleToolkit.Id, session.AttachedToolkitId);
         Assert.Equal(SampleToolkit.Id, session.View.ToolkitId);
 
-        // Eight, over six rows: Text, Text, Input+Select, two Buttons, one Button, List. The
-        // number is asserted rather than "not empty" because the sample's job is to show every
+        // Nine, over seven rows: Text, Text, Input+Select, two Buttons, Switch, one Button, List.
+        // The number is asserted rather than "not empty" because the sample's job is to show every
         // element kind — a card that lost its Select would still be non-empty.
-        Assert.Equal(8, session.View.Surface.Elements.Count);
+        Assert.Equal(9, session.View.Surface.Elements.Count);
 
         var kinds = session.View.Surface.Elements
             .Select(e => e.GetType().Name)
@@ -91,6 +91,7 @@ public class HostSessionTests : IDisposable
                 "SurfaceInputElement",
                 "SurfaceListElement",
                 "SurfaceSelectElement",
+                "SurfaceSwitchElement",
                 "SurfaceTextElement",
                 "SurfaceTextElement",
             ],
@@ -114,14 +115,19 @@ public class HostSessionTests : IDisposable
 
         Assert.NotEmpty(session.View.Values);
 
-        // The three keys the card reads, and no others: a value for a key nothing draws is a
-        // declaration nothing reads.
+        // The keys the card reads, and no others: a value for a key nothing draws is a
+        // declaration nothing reads. `armed` is here because the sample carries a Switch, and a
+        // Switch is the one element whose appearance is decided by a value rather than its
+        // declaration — so the key is part of what a first frame has to carry.
         Assert.Equal(
-            ["log", "status", "title"],
+            ["armed", "log", "status", "title"],
             session.View.Values.Keys.OrderBy(k => k, StringComparer.Ordinal));
 
         Assert.True(session.View.TryGetValue("status", out var status));
         Assert.Equal("还没有扫描过", status.GetString());
+
+        Assert.True(session.View.TryGetValue("armed", out var armed));
+        Assert.Equal(JsonValueKind.True, armed.ValueKind);
 
         Assert.True(session.View.TryGetValue("log", out var log));
         Assert.Equal(JsonValueKind.Array, log.ValueKind);
