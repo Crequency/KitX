@@ -155,6 +155,13 @@ public abstract record SurfaceElement
     /// this", and nothing addresses elements. A name answers "what is this value called in the
     /// payload", which the server needs in order to project values onto <c>TriggerConfig.Fields</c>.
     /// </para>
+    /// <para>
+    /// <b>A name is what makes an element part of an upload.</b> When anything on the card raises
+    /// an event, every named element contributes its current value to that event's payload,
+    /// whether or not the element itself can raise one. That is the only path by which a
+    /// <see cref="SurfaceSwitchElement"/>, <see cref="SurfaceNumberElement"/> or
+    /// <see cref="SurfaceSelectElement"/> value reaches the server: those three cannot speak.
+    /// </para>
     /// </remarks>
     [JsonPropertyName("name")]
     public string? Name { get; init; }
@@ -241,7 +248,21 @@ public sealed record SurfaceInputElement : SurfaceElement
     public IReadOnlyList<string> Events { get; init; } = [];
 }
 
-/// <summary>Numeric entry for one key.</summary>
+/// <summary>Numeric entry. Contributes its value under <c>name</c>; reads no key.</summary>
+/// <remarks>
+/// <para>
+/// <b>This element raises no events, on purpose.</b> Raising could only mean "the value
+/// changed", and changing the value is not a gesture the person makes after editing -- it is
+/// the editing. Every spin of a stepper would become a spawn: a cost the author writes once and
+/// the runtime pays once per press.
+/// </para>
+/// <para>
+/// Its value still travels. <see cref="SurfaceElement.Name"/> puts it into the payload of any
+/// event raised from the same card, and exactly two kinds can raise one:
+/// <see cref="SurfaceButtonElement"/> and <see cref="SurfaceInputElement"/>. A card whose only
+/// input is a number therefore needs a button to send it -- that is the submit, not a defect.
+/// </para>
+/// </remarks>
 public sealed record SurfaceNumberElement : SurfaceElement
 {
     /// <summary>Lower bound, optional.</summary>
@@ -263,10 +284,17 @@ public sealed record SurfaceNumberElement : SurfaceElement
 
 /// <summary>Choice from a fixed or key-derived set of options.</summary>
 /// <remarks>
+/// <para>
 /// Both option sources are legal and mean different things. Static options are layout data —
 /// changing a dropdown's candidates should not be a data-plane write. A key-derived list is
 /// runtime data — a session picker's entries only exist while the workflow is running. Forcing one
 /// into the other gets the ownership wrong in both directions.
+/// </para>
+/// <para>
+/// <b>No events, for the same reason as <see cref="SurfaceNumberElement"/>.</b> Picking an item
+/// is the change itself, not a gesture made after it. <see cref="SurfaceElement.Name"/> is how
+/// the picked value travels, in the payload of whichever element does raise.
+/// </para>
 /// </remarks>
 public sealed record SurfaceSelectElement : SurfaceElement
 {
@@ -279,7 +307,15 @@ public sealed record SurfaceSelectElement : SurfaceElement
     public string? OptionsKey { get; init; }
 }
 
-/// <summary>Boolean toggle for one key.</summary>
+/// <summary>Boolean toggle. Contributes its value under <c>name</c>; reads no key.</summary>
+/// <remarks>
+/// <para>
+/// <b>No events.</b> A toggle has one gesture, flipping it, so "raise when the value changes"
+/// and "raise on the flip" are the same sentence -- and that sentence is a subscription to value
+/// changes wearing the clothes of a command. <see cref="SurfaceElement.Name"/> is how the
+/// boolean travels.
+/// </para>
+/// </remarks>
 public sealed record SurfaceSwitchElement : SurfaceElement;
 
 /// <summary>Renders an array-valued key, one row per entry.</summary>
