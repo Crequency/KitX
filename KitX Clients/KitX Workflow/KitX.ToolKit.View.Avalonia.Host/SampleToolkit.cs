@@ -32,7 +32,15 @@ internal static class SampleToolkit
 
     /// <summary>Creates the sample when absent, then mounts it.</summary>
     /// <returns>The id, and whether this call had to create it.</returns>
-    internal static (string Id, bool Created) Ensure(HostSession session)
+    /// <remarks>
+    /// <b>Async all the way down, and that is a correctness requirement rather than a style.</b> The
+    /// window calls this from the Avalonia UI thread, which installs a
+    /// <c>SynchronizationContext</c>; writing the <c>.kcs</c> bodies awaits a real file write, and
+    /// every one of those awaits must be awaited rather than blocked. Blocking one of them here is
+    /// how the first launch died: <c>SaveAsync(...).GetAwaiter().GetResult()</c> parked the UI thread
+    /// while the write's continuation waited to be posted back onto it.
+    /// </remarks>
+    internal static async Task<(string Id, bool Created)> EnsureAsync(HostSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -41,7 +49,7 @@ internal static class SampleToolkit
         if (!existed)
             session.Toolkits.CreateToolkit(Config());
 
-        WriteBodies(session);
+        await WriteBodiesAsync(session);
 
         // Mount after the files exist. `Mount` compiles, and compiling reads every declared .kcs —
         // so a config saved before its bodies is a config that fails to mount, loudly and correctly.
@@ -143,7 +151,7 @@ internal static class SampleToolkit
     /// <summary>
     /// Writes both <c>.kcs</c> bodies, parsed from KS so the IR is the shape the editor produces.
     /// </summary>
-    private static void WriteBodies(HostSession session)
+    private static async Task WriteBodiesAsync(HostSession session)
     {
         // An empty registry is enough: the lens does not reject unknown call targets, and these
         // bodies are compiled later by the real host, which is where an unknown name becomes an
@@ -173,14 +181,14 @@ internal static class SampleToolkit
             var ir = lens.Parse(source + "\n", []);
             var path = files.ResolveWorkflowPath(Id, $"{id}.kcs");
 
-            files.SaveAsync(path, new KcsFileFormat
+            await files.SaveAsync(path, new KcsFileFormat
             {
                 Id = id,
                 Name = id,
                 Author = "KitX.ToolKit.View.Avalonia.Host",
                 IrData = WorkflowSerializer.Serialize(ir),
                 IrVersion = "v6",
-            }).GetAwaiter().GetResult();
+            });
         }
     }
 }

@@ -18,7 +18,7 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// </remarks>
 internal static class SelfCheck
 {
-    internal static int Run(bool verbose)
+    internal static async Task<int> Run(bool verbose)
     {
         var root = Path.Combine(Path.GetTempPath(), "kitx-view-host-" + Guid.NewGuid().ToString("N"));
 
@@ -26,7 +26,7 @@ internal static class SelfCheck
         {
             using var session = new HostSession(root);
 
-            var (id, created) = session.EnsureSample();
+            var (id, created) = await session.EnsureSampleAsync();
             session.SeedSampleSurface(id);
 
             Say($"storage root      {root}");
@@ -34,7 +34,7 @@ internal static class SelfCheck
             Say($"mounted           {session.Toolkits.IsMounted(id)}");
 
             // Order matters and is the point of the ruling: before the mount, `list` is empty.
-            var (rows, listError) = session.ListAsync().GetAwaiter().GetResult();
+            var (rows, listError) = await session.ListAsync();
 
             if (listError is not null)
                 return Fail($"list was refused: {listError}");
@@ -44,7 +44,7 @@ internal static class SelfCheck
             if (rows.Count != 1 || rows[0].Id != id)
                 return Fail($"expected exactly the mounted sample, got {rows.Count} row(s)");
 
-            var connectError = session.ConnectAsync(id).GetAwaiter().GetResult();
+            var connectError = await session.ConnectAsync(id);
 
             if (connectError is not null)
                 return Fail($"connect was refused: {connectError}");
@@ -58,10 +58,10 @@ internal static class SelfCheck
             // A real command through the same path a click takes. This is what an appended delta is
             // downstream of: without a body that appends, the projection's append branch is only
             // ever exercised by tests that build the message by hand.
-            var commandError = session.SendAsync(new CommandMessage(ViewCommands.Event)
+            var commandError = await session.SendAsync(new CommandMessage(ViewCommands.Event)
             {
                 EventName = "scan",
-            }).GetAwaiter().GetResult();
+            });
 
             if (commandError is not null)
                 return Fail($"the 'scan' event was refused: {commandError}");
@@ -71,7 +71,7 @@ internal static class SelfCheck
             // Accepted is not the same as done: `RaiseEvent` starts a flow and returns, and that
             // flow's body has to be compiled before it can write anything. Waiting for the value is
             // what distinguishes "the command was routed" from "the chain ran".
-            var wrote = WaitFor(() => session.View.TryGetValue("status", out _), Patience);
+            var wrote = await WaitForAsync(() => session.View.TryGetValue("status", out _), Patience);
 
             Say($"status key        {(wrote ? "arrived through the projection" : "did not arrive")}");
 
@@ -113,7 +113,7 @@ internal static class SelfCheck
     /// </remarks>
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
-    private static bool WaitFor(Func<bool> condition, TimeSpan limit)
+    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan limit)
     {
         var deadline = DateTime.UtcNow + limit;
 
@@ -122,7 +122,7 @@ internal static class SelfCheck
             if (condition())
                 return true;
 
-            Thread.Sleep(100);
+            await Task.Delay(100);
         }
 
         return condition();
