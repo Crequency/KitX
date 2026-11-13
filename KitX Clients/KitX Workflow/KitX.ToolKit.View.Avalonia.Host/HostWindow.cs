@@ -68,14 +68,20 @@ internal sealed class HostWindow : Window
         Content = Compose();
 
         // The renderer ships English defaults for the confirmation dialog, on purpose: a host that
-        // overrides nothing still gets a readable dialog rather than a blank one (KitX.axaml:93-97).
+        // overrides nothing still gets a readable dialog rather than a blank one (KitX.axaml:93-103).
         // This host's own text is Chinese, so leaving them alone made the one dialog that appears
         // before an irreversible action the only English on the screen. Overriding them here is the
         // mechanism the theme documents; nothing in the renderer changes.
-        Resources["KitXDangerTitle"] = "确定要清空吗？";
+        //
+        // The title is not overridden, and must not be: it is the label of the button that was
+        // clicked, so it arrives translated already. These three have to stay action-neutral for the
+        // same reason -- this dialog is drawn for every dangerous button, and words naming one
+        // action ("清空") would be the question asked about a different one. That defect is what
+        // KitXDangerTitle used to be: "确定要清空吗？" was correct only because the sample's only
+        // dangerous button happens to be "清空记录".
         Resources["KitXDangerBody"] = "这一操作无法撤销。";
-        Resources["KitXDangerConfirm"] = "清空";
-        Resources["KitXDangerCancel"] = "保留";
+        Resources["KitXDangerConfirm"] = "确定";
+        Resources["KitXDangerCancel"] = "取消";
 
         _session.MessageApplied += (_, message) => OnMessage(message);
 

@@ -48,6 +48,20 @@ public sealed class UnthemedCardTests
         """;
 
     /// <summary>
+    /// Two dangerous buttons with different labels, so "which one was clicked" is observable.
+    /// </summary>
+    private const string TwoDangerousButtons = """
+        {
+          "schemaVersion": 1,
+          "layoutVersion": 1,
+          "elements": [
+            { "type": "Button", "row": 1, "weight": 1, "label": "Clear the log", "events": ["Clear"], "emphasis": "danger" },
+            { "type": "Button", "row": 2, "weight": 1, "label": "Finish the batch", "events": ["Finish"], "emphasis": "danger" }
+          ]
+        }
+        """;
+
+    /// <summary>
     /// A card in a window that carries nothing but the Fluent theme — no renderer theme anywhere.
     /// </summary>
     /// <remarks>
@@ -77,6 +91,23 @@ public sealed class UnthemedCardTests
     private static Button ButtonByLabel(SurfaceCard card, string label) =>
         CardProbe.Elements(card).OfType<Button>().Single(b => (string?)b.Content == label);
 
+    /// <summary>The dialog's headline, read by class rather than by "the first TextBlock".</summary>
+    /// <remarks>
+    /// Position inside the dialog is the renderer's business, so a test that assumes the title is the
+    /// first text would go green on a body that had been moved. The class is what the renderer says
+    /// this text is.
+    /// </remarks>
+    private static string? DialogTitle(SurfaceCard card) =>
+        Overlay(card)!.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .Single(text => text.Classes.Contains(SurfaceCard.ThemedDialogTitle))
+            .Text;
+
+    private static Button DialogButton(SurfaceCard card, string label) =>
+        Overlay(card)!.GetVisualDescendants()
+            .OfType<Button>()
+            .Single(button => (string?)button.Content == label);
+
     /// <summary>
     /// Every element reaches a control with real geometry even though no selector anywhere names it.
     /// </summary>
@@ -98,12 +129,19 @@ public sealed class UnthemedCardTests
     }
 
     /// <summary>
-    /// The confirmation still says what it is asking, because the words fall back to English.
+    /// The confirmation still says what it is asking, because the title is the button's label and the
+    /// remaining words fall back to English.
     /// </summary>
     /// <remarks>
-    /// A dialog with no words is worse than a card with no colours: the person is asked to approve
+    /// <para>A dialog with no words is worse than a card with no colours: the person is asked to approve
     /// something and cannot tell what. That is why text falls back and colour does not, and this is the
-    /// assertion that records the difference.
+    /// assertion that records the difference.</para>
+    ///
+    /// <para><b>The title is the label, so this asserts "End".</b> It used to assert the theme's
+    /// "Are you sure?" — that sentence did not have to come from the document, which is exactly why it
+    /// said the same thing over every action. The three resources below still carry the rest of the
+    /// frame when nothing overrides them, which is what "a host that does nothing still gets a working
+    /// dialog" means.</para>
     /// </remarks>
     [AvaloniaFact]
     public void A_dialog_without_the_theme_still_says_what_it_is_asking()
@@ -127,7 +165,8 @@ public sealed class UnthemedCardTests
             .Where(text => !string.IsNullOrWhiteSpace(text))
             .ToList();
 
-        Assert.Contains("Are you sure?", words);
+        Assert.Contains("End", words);
+        Assert.Contains("This cannot be undone.", words);
         Assert.Contains("Cancel", words);
         Assert.Contains("Continue", words);
     }
@@ -159,7 +198,8 @@ public sealed class UnthemedCardTests
     }
 
     /// <summary>
-    /// A host that defines its own copy of a word wins over the one the theme ships.
+    /// A host that defines its own copy of a word wins over the one the theme ships, and the title is
+    /// the clicked button's own label rather than a word anybody supplies.
     /// </summary>
     /// <remarks>
     /// <para><b>The fallback test above does not prove this.</b> <c>Message()</c> reads through
@@ -171,13 +211,19 @@ public sealed class UnthemedCardTests
     /// application: <c>DynamicResource</c> walks outward from the control and the nearest definition
     /// wins. Putting it on the window keeps the test inside the fixture instead of mutating the shared
     /// <see cref="Application"/> for every other test in the run.</para>
+    ///
+    /// <para><b>The title is not on the host's list any more.</b> One resource sentence cannot name
+    /// every dangerous action — the host writes it without knowing which button will be clicked — so
+    /// the question names the action through the button's label and the host supplies only the frame
+    /// around it. This test used to override <c>KitXDangerTitle</c> and would now be asserting a word
+    /// the dialog never reads; the three keys below are the ones it does read.</para>
     /// </remarks>
     [AvaloniaFact]
     public void A_host_that_defines_its_own_words_is_read_instead_of_the_themes()
     {
         var card = Unthemed(out var window);
 
-        window.Resources["KitXDangerTitle"] = "要结束这一批吗？";
+        window.Resources["KitXDangerBody"] = "这一批结束之后就回不来了。";
         window.Resources["KitXDangerConfirm"] = "结束";
         window.Resources["KitXDangerCancel"] = "保留";
 
@@ -198,13 +244,50 @@ public sealed class UnthemedCardTests
             .Where(text => !string.IsNullOrWhiteSpace(text))
             .ToList();
 
-        Assert.Contains("要结束这一批吗？", words);
+        Assert.Contains("End", words);
+        Assert.Contains("这一批结束之后就回不来了。", words);
         Assert.Contains("结束", words);
         Assert.Contains("保留", words);
 
         // The English must be gone, not merely joined by the override: a dialog showing both is the
         // failure mode of appending to a list instead of replacing a lookup.
         Assert.DoesNotContain("Are you sure?", words);
+        Assert.DoesNotContain("This cannot be undone.", words);
+    }
+
+    /// <summary>
+    /// Two dangerous buttons on one card, and each asks in its own words.
+    /// </summary>
+    /// <remarks>
+    /// <b>This is the defect the resource title could not avoid.</b> A host that overrides
+    /// <c>KitXDangerTitle</c> writes one sentence for every dangerous button on every card — the
+    /// production host wrote "确定要清空吗？", which is right for its "清空记录" button and wrong for any
+    /// other. Reading the label is the only thing that makes the question follow the button; asserting
+    /// both buttons in one test is what keeps a fixed sentence from passing as a general answer.
+    /// </remarks>
+    [AvaloniaFact]
+    public void Each_dangerous_button_asks_in_its_own_words()
+    {
+        var card = new SurfaceCard();
+        card.SetDocument(JsonSerializer.Deserialize<SurfaceDocument>(TwoDangerousButtons)!);
+
+        var window = new Window { Width = SurfaceMetrics.CardWidth, Height = SurfaceMetrics.CardHeight };
+        window.Content = card;
+        window.Show();
+
+        window.Measure(new Size(SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
+        window.Arrange(new Rect(0, 0, SurfaceMetrics.CardWidth, SurfaceMetrics.CardHeight));
+        window.UpdateLayout();
+
+        ButtonByLabel(card, "Clear the log").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal("Clear the log", DialogTitle(card));
+
+        // Cancelled, not confirmed: while one dialog is open the second click is the same question and
+        // does nothing, so the second button can only be asked about once the first is closed.
+        DialogButton(card, "Cancel").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        ButtonByLabel(card, "Finish the batch").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal("Finish the batch", DialogTitle(card));
     }
 
     /// <summary>

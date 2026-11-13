@@ -806,6 +806,7 @@ public sealed class SurfaceCard : Grid
     /// Asks before raising: the layer a <c>danger</c> button's click goes through.
     /// </summary>
     /// <param name="eventNames">The names that click would have raised.</param>
+    /// <param name="label">The label of the button that was clicked, which the dialog asks about.</param>
     /// <remarks>
     /// <para><b>The dialog is drawn inside the card, not in a window of its own.</b> A separate
     /// <c>Window.ShowDialog()</c> returns a <c>Task</c>, which forces the click handler to be
@@ -816,11 +817,19 @@ public sealed class SurfaceCard : Grid
     /// tests can find it in the visual tree and click its buttons synchronously, like any other
     /// element.</para>
     ///
+    /// <para><b>The title is the button's own label, not a resource.</b> The question has to name the
+    /// action, and the only party that knows what this action is called is the document — through the
+    /// label of the button that was pressed. A resource key for the title would force the host to
+    /// write one sentence that is correct for every dangerous button but one: the production host
+    /// wrote "确定要清空吗？" and its only danger button happened to be "清空记录". The
+    /// <c>KitXDangerTitle</c> resource survives as the fallback for a blank label, so the dialog still
+    /// cannot come out with no title at all.</para>
+    ///
     /// <para><b>Calling this while one is already open does nothing.</b> Two scrims stacked on each
     /// other would let a person cancel one and believe they had cancelled the action, while the
     /// other still asks. The second click is the same question, not a new one.</para>
     /// </remarks>
-    private void ShowConfirm(IReadOnlyList<string> eventNames)
+    private void ShowConfirm(IReadOnlyList<string> eventNames, string? label)
     {
         if (eventNames.Count == 0 || IsConfirming)
             return;
@@ -829,7 +838,7 @@ public sealed class SurfaceCard : Grid
 
         var title = new TextBlock
         {
-            Text = Message("KitXDangerTitle", "Are you sure?"),
+            Text = string.IsNullOrWhiteSpace(label) ? Message("KitXDangerTitle", "Are you sure?") : label,
             TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
         };
         title.Classes.Add(ThemedDialogTitle);
@@ -939,13 +948,17 @@ public sealed class SurfaceCard : Grid
 
     /// <summary>Looks a string up in the renderer's own resources, falling back to the given text.</summary>
     /// <remarks>
-    /// The theme ships inside this assembly and carries English text for the confirmation dialog, so a
+    /// <para>The theme ships inside this assembly and carries English text for the confirmation dialog, so a
     /// host that does nothing still gets a working dialog. A host that wants another language puts a
     /// resource with the same key in a scope the card can see; <c>TryFindResource</c> walks outward
     /// from this control, so the host's value wins without the card knowing where it came from. That
-    /// is the same arrangement the colours use, and it is why these four are resources rather than
+    /// is the same arrangement the colours use, and it is why these are resources rather than
     /// constants: a constant cannot be overridden, and the constraint Q104 states is on the author,
-    /// not on the host.
+    /// not on the host.</para>
+    ///
+    /// <para><b>Three of them, not four.</b> Body, confirm and cancel are words the host can own
+    /// because they never name the action. The title does, so it comes from the clicked button's
+    /// label; <c>KitXDangerTitle</c> remains here as the fallback for a blank label.</para>
     /// </remarks>
     private string Message(string resourceKey, string fallback) =>
         this.TryFindResource(resourceKey, out var value) && value is string text ? text : fallback;
@@ -1295,7 +1308,11 @@ public sealed class SurfaceCard : Grid
         {
             if (emphasis == "danger")
             {
-                ShowConfirm(events);
+                // The label travels with the click: the dialog asks about the action by the name the
+                // person just pressed. Reading it back out of the button afterwards would be the same
+                // value, but the label here is the one that was in scope when the click was wired —
+                // and it is the only part of the question the document supplies.
+                ShowConfirm(events, label);
                 return;
             }
 
