@@ -385,4 +385,93 @@ public sealed class SurfaceCardValueTests
 
         Assert.Equal("scanned\nscanned again", card.ShownTextOf("log"));
     }
+
+    /// <summary>
+    /// After a document change, a key that feeds a Select reaches the Select the card just built.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the second instance of the same asymmetry, found by asking the same structural
+    /// question.</b> <see cref="SurfaceCard.SetDocument"/> clears <c>_cells</c>, <c>_names</c> and
+    /// <c>_selection</c> — every map keyed by an element of the document — and leaves
+    /// <c>_optionSources</c> alone. That map holds <c>ComboBox</c> instances, which the rebuild has
+    /// just removed from the tree.</para>
+    ///
+    /// <para><b>The failure is silent and shaped like the append defect.</b>
+    /// <see cref="SurfaceCard.SetValue"/> asks <c>ReplaceCandidates</c> first and returns early when
+    /// that key feeds any Select. With a stale entry present, the key feeds only combos that are no
+    /// longer on the card: the early return fires, the new combo never receives candidates, and the
+    /// value never reaches the screen. No exception, no warning — the drop-down stays empty.</para>
+    /// </remarks>
+    /// <summary>
+    /// After a document change, a key that stopped feeding a Select can still reach a Text cell.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is where the stale <c>_optionSources</c> entry becomes visible.</b>
+    /// <see cref="SurfaceCard.SetValue"/> asks <c>ReplaceCandidates</c> first and returns early when
+    /// that key feeds <i>any</i> Select. The map is never cleared on a rebuild, so a key that fed a
+    /// Select in the previous document still "feeds" the combos that were removed from the tree —
+    /// and the early return fires, so the Text cell that now owns the key never shows anything.</para>
+    ///
+    /// <para><b>What the reader sees is a blank cell, with no error anywhere.</b> The value is in the
+    /// projection, the document declares the cell, the cell is on screen, and it stays empty. That is
+    /// the same invisible shape as the append defect: a correct-looking early return that has gone
+    /// stale.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_key_that_stopped_feeding_a_select_still_reaches_its_text_cell()
+    {
+        var card = Card(Doc(new SurfaceSelectElement
+        {
+            Row = 1,
+            Name = "session",
+            OptionsKey = "sessions",
+        }));
+
+        card.SetValue("sessions", Json("[\"one\"]"));
+        Relayout();
+
+        // The same declared key, now shown as text rather than feeding a picker.
+        card.SetDocument(Doc(new SurfaceTextElement { Row = 1, Key = "sessions" }));
+        Relayout();
+
+        card.SetValue("sessions", Json("\"two\""));
+        Relayout();
+
+        Assert.Equal("two", card.ShownTextOf("sessions"));
+    }
+
+    /// <summary>
+    /// After a document change, a key that stopped feeding a Select can still be cleared.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SurfaceCard.RemoveValue"/> has the same early return as <c>SetValue</c>, one line
+    /// further down and for the same reason: "this key feeds a picker, so clearing it means emptying
+    /// the picker". Once the picker is gone, that branch clears a control nobody can see and returns
+    /// before the Text cell is touched — so a removal leaves the old value on screen.
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_key_that_stopped_feeding_a_select_can_still_be_cleared()
+    {
+        var card = Card(Doc(new SurfaceSelectElement
+        {
+            Row = 1,
+            Name = "session",
+            OptionsKey = "sessions",
+        }));
+
+        card.SetValue("sessions", Json("[\"one\"]"));
+        Relayout();
+
+        card.SetDocument(Doc(new SurfaceTextElement { Row = 1, Key = "sessions" }));
+        Relayout();
+
+        card.SetValue("sessions", Json("\"two\""));
+        Relayout();
+        Assert.Equal("two", card.ShownTextOf("sessions"));
+
+        card.RemoveValue("sessions");
+        Relayout();
+
+        Assert.Equal(string.Empty, card.ShownTextOf("sessions"));
+    }
 }
