@@ -49,6 +49,11 @@ internal static class SampleToolkit
         if (!existed)
             session.Toolkits.CreateToolkit(Config());
 
+        // Only the bodies that are missing. The first launch wrote these files, and from then on
+        // they belong to whoever edited them — the Dashboard's editor, or a person with a text
+        // editor. Rewriting them every launch reverted those edits with no message, which is
+        // exactly the failure `SeedSurface` was written to avoid for `surface.json`; the two files
+        // were treated differently for no reason anyone could name.
         await WriteBodiesAsync(session);
 
         // Mount after the files exist. `Mount` compiles, and compiling reads every declared .kcs —
@@ -149,8 +154,14 @@ internal static class SampleToolkit
     };
 
     /// <summary>
-    /// Writes both <c>.kcs</c> bodies, parsed from KS so the IR is the shape the editor produces.
+    /// Writes the <c>.kcs</c> bodies that are not on disk yet, leaving existing ones alone.
     /// </summary>
+    /// <remarks>
+    /// <b>Per file, not per ToolKit.</b> A config that names two workflows and has one body on disk is
+    /// a half-created sample, not a finished one; writing only the missing file completes it without
+    /// touching the one somebody may already have edited. Testing the whole ToolKit's existence
+    /// instead would make the repair of a half-written sample impossible.
+    /// </remarks>
     private static async Task WriteBodiesAsync(HostSession session)
     {
         // An empty registry is enough: the lens does not reject unknown call targets, and these
@@ -178,8 +189,16 @@ internal static class SampleToolkit
 
         foreach (var (id, source) in bodies)
         {
-            var ir = lens.Parse(source + "\n", []);
             var path = files.ResolveWorkflowPath(Id, $"{id}.kcs");
+
+            // Existence is read here rather than through the file store: the store's job is to load
+            // a file, and "is there one" is a question about the disk, not about a .kcs body. A file
+            // that exists but does not parse still counts as existing — refusing to overwrite it is
+            // the point, and `Mount` will report what is wrong with it.
+            if (File.Exists(path))
+                continue;
+
+            var ir = lens.Parse(source + "\n", []);
 
             await files.SaveAsync(path, new KcsFileFormat
             {

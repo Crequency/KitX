@@ -133,6 +133,46 @@ public class HostSessionTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task An_edited_body_survives_the_next_launch()
+    {
+        // Seen only in a real window: the sample is created on first launch, the person edits a
+        // workflow in the editor, and the next launch silently put the original text back. Nothing
+        // reported it — the file was written by `EnsureAsync`, which ran unconditionally, and the
+        // person's change disappeared between two runs of the same binary.
+        //
+        // `surface.json` was already protected by an existence check. The bodies were not, and the
+        // two were treated differently for no reason anyone could name.
+        using var session = new HostSession(_root);
+
+        await session.EnsureSampleAsync();
+
+        var path = session.WorkflowFiles.ResolveWorkflowPath(SampleToolkit.Id, "scan.kcs");
+        var original = await File.ReadAllTextAsync(path);
+
+        // An ASCII anchor on purpose. The body's Chinese literals are stored JSON-escaped
+        // (`\u626B...`), so searching for 扫描了一次 would not match and the edit below would be a
+        // no-op — the test would then pass while asserting nothing. The author field is plain ASCII
+        // and is written by the same SaveAsync call.
+        const string anchor = "KitX.ToolKit.View.Avalonia.Host";
+
+        // Guard first, because "the needle was not there" is this test's most likely failure.
+        Assert.Contains(anchor, original);
+
+        var edited = original.Replace(anchor, "a person who edited this");
+
+        Assert.NotEqual(original, edited);
+
+        await File.WriteAllTextAsync(path, edited);
+        var written = await File.ReadAllTextAsync(path);
+
+        // A second launch against the same root, which is what the window does every time it opens.
+        using var again = new HostSession(_root);
+        await again.EnsureSampleAsync();
+
+        Assert.Equal(written, await File.ReadAllTextAsync(path));
+    }
+
     /// <summary>Polls until the condition holds. Generous: a first compile in a process pays Roslyn's warm-up.</summary>
     private static async Task<bool> WaitUntilAsync(Func<bool> condition, int seconds = 60)
     {

@@ -38,6 +38,16 @@ internal sealed class HostWindow : Window
 
         Content = Compose();
 
+        // The renderer ships English defaults for the confirmation dialog, on purpose: a host that
+        // overrides nothing still gets a readable dialog rather than a blank one (KitX.axaml:93-97).
+        // This host's own text is Chinese, so leaving them alone made the one dialog that appears
+        // before an irreversible action the only English on the screen. Overriding them here is the
+        // mechanism the theme documents; nothing in the renderer changes.
+        Resources["KitXDangerTitle"] = "确定要清空吗？";
+        Resources["KitXDangerBody"] = "这一操作无法撤销。";
+        Resources["KitXDangerConfirm"] = "清空";
+        Resources["KitXDangerCancel"] = "保留";
+
         _session.MessageApplied += (_, message) => OnMessage(message);
 
         // The card raises; this window is what carries it to the server. Without this line the
