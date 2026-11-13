@@ -466,6 +466,18 @@ internal static class SurfaceDiagnosticCodes
     /// <summary>A field name no property on the element type claims. The element is kept.</summary>
     public const string ElementUnknownField = "surface.element.unknown-field";
 
+    /// <summary>
+    /// A kind that cannot speak declared <c>events</c>. The element is kept and the field ignored.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="ElementUnknownField"/> on purpose. A misspelled field sends the author
+    /// looking for the right spelling; this one has no right spelling — only a <c>Button</c> and an
+    /// <c>Input</c> speak on their own, and the value of a <c>Number</c>, a <c>Select</c> or a
+    /// <c>Switch</c> travels under whichever element does. One message for both would tell half the
+    /// authors to fix a typo that does not exist.
+    /// </remarks>
+    public const string EventsNotAllowed = "surface.element.events-not-allowed";
+
     /// <summary>A button had no label.</summary>
     public const string ElementEmptyLabel = "surface.element.empty-label";
 

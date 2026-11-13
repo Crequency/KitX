@@ -251,6 +251,19 @@ internal sealed class SurfaceStore : ISurfaceStore
             // still be perfectly drawable — but the author is told the field went nowhere.
             foreach (var unknown in UnknownMembers(element, parsed))
             {
+                // `events` is not a misspelling — it is the one member this build deliberately does
+                // not put on the kinds that cannot speak. Reporting it as an unrecognised field would
+                // send the author looking for a spelling that does not exist.
+                if (string.Equals(unknown, EventsMember, StringComparison.OrdinalIgnoreCase))
+                {
+                    (warnings ??= []).Add(ElementError(
+                        toolkitId, SurfaceDiagnosticCodes.EventsNotAllowed,
+                        $"Element of type '{parsed.GetType().Name}' cannot declare 'events'; only a " +
+                        "Button or an Input speaks on its own, and the others' values travel under " +
+                        "whichever element does. The field was ignored."));
+                    continue;
+                }
+
                 (warnings ??= []).Add(ElementError(
                     toolkitId, SurfaceDiagnosticCodes.ElementUnknownField,
                     $"Element of type '{parsed.GetType().Name}' has an unrecognised field " +
@@ -372,6 +385,12 @@ internal sealed class SurfaceStore : ISurfaceStore
 
     /// <summary>The discriminator property every element carries. It names a type, not a field.</summary>
     private const string DiscriminatorName = "type";
+
+    /// <summary>
+    /// The member only the two speaking kinds carry. Named once because it is compared here and
+    /// declared in the contract — a literal on both sides is how a rename goes half-done.
+    /// </summary>
+    private const string EventsMember = "events";
 
     private static Diagnostic FileError(string toolkitId, string code, string message)
         => Diagnostic.Error(code, message, new DiagnosticPath(ToolkitId: toolkitId));

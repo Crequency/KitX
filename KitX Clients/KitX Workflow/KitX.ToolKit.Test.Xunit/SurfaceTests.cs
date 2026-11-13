@@ -175,6 +175,55 @@ public class SurfaceTests : IDisposable
         Assert.Equal("surface.file.elements-missing", loaded.Errors[0].Code);
     }
 
+    [Fact]
+    public void Events_on_a_kind_that_cannot_speak_is_reported_as_that_and_not_as_a_typo()
+    {
+        // The 2026-11-13 ruling: only a Button and an Input declare `events`. A Number, a Select and
+        // a Switch have exactly one gesture and it is "the value changed" — so `events` on one of them
+        // is not a misspelling to be corrected, it is a member this build deliberately does not have.
+        // Saying "unrecognised field" would send the author hunting for a spelling that does not exist.
+        WriteRaw("""
+        {
+          "schemaVersion": 1,
+          "layoutVersion": 1,
+          "elements": [
+            { "type": "Switch", "row": 1, "name": "copies", "events": ["changed"] }
+          ]
+        }
+        """);
+
+        var loaded = Store().Load(TkId);
+
+        Assert.Empty(loaded.Errors);
+        var warning = Assert.Single(loaded.Warnings);
+        Assert.Equal(SurfaceDiagnosticCodes.EventsNotAllowed, warning.Code);
+        Assert.Contains("Switch", warning.Message, StringComparison.Ordinal);
+
+        // The element survives. The field is what is wrong; dropping the control would cost the
+        // author the thing they were editing in order to tell them about a field they can delete.
+        Assert.Single(loaded.Document.Elements);
+    }
+
+    [Fact]
+    public void Events_on_a_button_are_ordinary_and_produce_no_warning()
+    {
+        // The negative control. Without it, a check that fired on every element carrying `events`
+        // would pass the test above while making the two kinds that may speak unusable.
+        WriteRaw("""
+        {
+          "schemaVersion": 1,
+          "layoutVersion": 1,
+          "elements": [
+            { "type": "Button", "row": 1, "label": "go", "events": ["Click"] }
+          ]
+        }
+        """);
+
+        var loaded = Store().Load(TkId);
+
+        Assert.Empty(loaded.Warnings);
+        Assert.Single(loaded.Document.Elements);
+    }
     // ── element tier ───────────────────────────────────────────────────────────────────────────
 
     [Fact]
