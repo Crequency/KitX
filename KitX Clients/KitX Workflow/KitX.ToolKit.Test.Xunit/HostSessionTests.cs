@@ -116,18 +116,15 @@ public class HostSessionTests : IDisposable
         Assert.NotEmpty(session.View.Values);
 
         // The keys the card reads, and no others: a value for a key nothing draws is a
-        // declaration nothing reads. `armed` is here because the sample carries a Switch, and a
-        // Switch is the one element whose appearance is decided by a value rather than its
-        // declaration — so the key is part of what a first frame has to carry.
+        // declaration nothing reads. `armed` is deliberately absent — it is the Switch's `name`, not
+        // a key, because Q88 says an editing element shows what the person typed and the data plane
+        // never holds that. See the note in SampleToolkit.Card() for what was measured.
         Assert.Equal(
-            ["armed", "log", "status", "title"],
+            ["log", "status", "title"],
             session.View.Values.Keys.OrderBy(k => k, StringComparer.Ordinal));
 
         Assert.True(session.View.TryGetValue("status", out var status));
         Assert.Equal("还没有扫描过", status.GetString());
-
-        Assert.True(session.View.TryGetValue("armed", out var armed));
-        Assert.Equal(JsonValueKind.True, armed.ValueKind);
 
         Assert.True(session.View.TryGetValue("log", out var log));
         Assert.Equal(JsonValueKind.Array, log.ValueKind);
