@@ -165,6 +165,45 @@
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
   </Style>
 
+  <!--
+    The parts inside a field's template carry minimum widths of their own, and a setter on the control
+    cannot reach them: MinWidth on the ComboBox governs the ComboBox.
+
+    Measured with the product theme at weight 1 of 10, where the row gives the control 38.2 pixels:
+
+      ComboBox       Border#Background      6400% too wide, MinWidth = 64
+      NumericUpDown  RepeatButton (each)    MinWidth = 34, two of them = 68
+
+    These are the twelfth defect's second half. The first half (MinWidth = 0 on the four field styles
+    above) made the control accept its column; these parts then refused to fit inside it.
+
+    /template/ is how a style reaches into a template. Same mechanism the button styles below use for
+    PART_ContentPresenter, for the same reason.
+  -->
+  <Style Selector="ComboBox.kitx-field /template/ Border#Background">
+    <Setter Property="MinWidth" Value="0"/>
+  </Style>
+
+  <!--
+    NOT fixed here, on purpose: the drop-down glyph is still 3.8px past the control's right edge at
+    weight 1 of 10, and overlaps the text area by 8.2px.
+
+    Two attempts, both measured. Setting the glyph's own Margin to 0 made it worse (13.8px instead of
+    3.8) because the inner Grid it is aligned in is itself as wide as its widest child, and the widest
+    child is Border#Background. Aligning the glyph to the right of a 52px grid inside a 38.2px control
+    puts it further out, not further in.
+
+    So the remaining defect is not the glyph's margin: it is that the Grid sizes to the Background
+    border rather than to the control. Fixing that means replacing part of the ComboBox template, which
+    is a decision about how much of Fluent's template this theme owns. That decision has not been made,
+    so the assertion in FieldPartOverflowTests stays red and says so.
+  -->
+
+  <Style Selector="NumericUpDown.kitx-field /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton">
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
   <Style Selector="Button.kitx-button">
     <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
     <Setter Property="MinHeight" Value="0"/>
