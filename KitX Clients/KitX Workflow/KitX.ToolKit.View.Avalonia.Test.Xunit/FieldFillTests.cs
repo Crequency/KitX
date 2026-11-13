@@ -12,22 +12,41 @@ using Xunit;
 namespace KitX.ToolKit.View.Avalonia.Test.Xunit;
 
 /// <summary>
-/// A Select or a Switch has to fill the share its row gave it, not the width its own template prefers.
+/// An editing control has to occupy the share its row gave it — no more, and no less.
 /// </summary>
 /// <remarks>
-/// <para><b>What this exists to catch.</b> Every layout test in this project measures positions and
-/// slot heights; none of them asked whether an editing control occupies its column. Measured on four
-/// kinds alone in a 390px row: <c>TextBox</c> and <c>NumericUpDown</c> stretch to 390 by themselves,
-/// <c>ComboBox</c> takes 64 and <c>CheckBox</c> takes 28 — because those two carry their own natural
-/// width and only stretch when something tells them to. What tells them to is
-/// <c>HorizontalAlignment = Stretch</c> in <c>Themes/KitX.axaml</c>, under the
-/// <c>ComboBox.kitx-field</c> / <c>CheckBox.kitx-field</c> selectors.</para>
+/// <para><b>Two failures, one cause, and only one of them was visible.</b> Every layout test in this
+/// project measures positions and slot heights; none asked whether an editing control occupies its
+/// column. Measured with the product theme and no <c>MinWidth</c> override:</para>
 ///
-/// <para><b>So this test's subject is the theme as much as the renderer.</b> Run against a host that
-/// loads only <c>FluentTheme</c>, it reads 64 and 28 and fails; add the product theme and they become
-/// the row's width. That makes it a guard over the stylesheet, which nothing else in the suite
-/// covers: <c>ThemedClassesTests</c> checks that every class the renderer applies has a selector, and
-/// that is a check about names, not about what the selectors do.</para>
+/// <code>
+/// alone in a 390px row:   TextBox 390   NumericUpDown 390   ComboBox 390   CheckBox 390
+/// at weight 1 of 9:       ComboBox 38.2   CheckBox 38.2   TextBox 64   NumericUpDown 64
+/// </code>
+///
+/// <para>The second row is the visible failure: 38 pixels of column, 64 pixels of control, 26
+/// pixels painted over the neighbour. The fix — <c>MinWidth = 0</c> on the field styles — repairs
+/// both, because a minimum larger than the column is what stops <c>Stretch</c> from taking effect at
+/// all. Both ends are asserted here, since a fix with two consequences needs two assertions.</para>
+///
+/// <para><b>Why this is a test of the stylesheet.</b> <c>HorizontalAlignment = Stretch</c> lives in
+/// <c>Themes/KitX.axaml</c>. <c>ThemedClassesTests</c> checks that every class the renderer applies
+/// has a selector, which is a check about names rather than about what the selectors do. Nothing
+/// else in the suite would notice a selector being emptied.</para>
+///
+/// <para><b>The class comment above describes a third state, and it is worth separating.</b> Against
+/// a host that loads only <c>FluentTheme</c>, the same four read 390 / 390 / <b>64</b> / <b>28</b>
+/// even alone in a row — because the product's stretch setters are not loaded at all. That is not
+/// the defect fixed here; it is what happens when the host is not the shipped product.</para>
+///
+/// <para><b>Deleting <c>window.Styles.Add(Theme())</c> fails five of these eight cases.</b> Measured,
+/// because the first version of this paragraph claimed the opposite — that the file would go green
+/// while measuring a control the product does not have. It does not: <c>Select</c> alone reads 64
+/// instead of 390, <c>Switch</c> alone reads 28, and the same two plus <c>Input</c> and
+/// <c>Number</c> miss their share in the 9:1 row. The include is load-bearing, and removing it is
+/// loud. What would <em>not</em> be loud is a host that loaded some <c>Stretch</c> setters from
+/// somewhere else: the widths would come out right for the wrong reason, and only a reader of this
+/// comment would know the difference.</para>
 ///
 /// <para><b>Numbers here are relationships, not constants.</b> The assertion is "the control takes
 /// the share the arithmetic gives it, within a pixel", computed from <see cref="SurfaceMetrics"/>
