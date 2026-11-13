@@ -66,6 +66,16 @@ internal static class SurfaceValidator
                         continue;
                     }
 
+                    // A button is the one kind whose whole purpose is to speak, so a click that
+                    // raises nothing is a dead control. Kept and reported rather than dropped: a card
+                    // is saved mid-edit, and taking the button away would delete the author's work
+                    // to tell them about it.
+                    if (button.Events.Count == 0)
+                    {
+                        Warn(ref warnings, keys, button, SurfaceDiagnosticCodes.ButtonNoEvents,
+                            "it declares no 'events', so clicking it sends nothing");
+                    }
+
                     if (ValidateEmphasis(button, keys, ref warnings) is { } keptButton)
                         kept.Add(keptButton);
                     break;
@@ -97,6 +107,30 @@ internal static class SurfaceValidator
                         kept.Add(keptInput);
                     break;
             }
+        }
+
+        // A card whose named values have nothing that can speak can never send them: a value travels
+        // with an event, and events come from a button or from an input whose Enter is its own gesture.
+        // Warned, never pruned: an author saves mid-edit, and a card caught halfway through being built
+        // is the ordinary shape of one that is not finished yet.
+        var contributes = kept.FirstOrDefault(e =>
+            (e is SurfaceInputElement or SurfaceNumberElement or SurfaceSelectElement or SurfaceSwitchElement)
+            && !string.IsNullOrWhiteSpace(e.Name));
+
+        var speaks = kept.Any(e => e switch
+        {
+            SurfaceButtonElement button => button.Events.Count > 0,
+            SurfaceInputElement input => input.Events.Count > 0,
+            _ => false,
+        });
+
+        if (contributes is not null && !speaks)
+        {
+            (warnings ??= []).Add(Diagnostic.Warning(
+                SurfaceDiagnosticCodes.ValuesHaveNoWayOut,
+                $"'{contributes.Name}' and the values beside it have nothing that sends them: only a "
+                + "Button, or an Input with 'events', raises an event. They stay on the card.",
+                new DiagnosticPath(ToolkitId: keys.ToolkitId)));
         }
 
         // A document-level question, asked once after every element has had its say: how many main
@@ -480,6 +514,25 @@ internal static class SurfaceDiagnosticCodes
 
     /// <summary>A button had no label.</summary>
     public const string ElementEmptyLabel = "surface.element.empty-label";
+
+    /// <summary>A button declared no events, so clicking it sends nothing. The button is kept.</summary>
+    /// <remarks>
+    /// A warning rather than a drop, for the same reason the editor never blocks a save: a card is
+    /// caught mid-edit, and the button is usually the thing the author was about to wire up. Removing
+    /// it would delete their work in order to describe it.
+    /// </remarks>
+    public const string ButtonNoEvents = "surface.element.button.no-events";
+
+    /// <summary>
+    /// The card carries named values but nothing that raises an event, so none of them can ever be
+    /// sent. Nothing is removed.
+    /// </summary>
+    /// <remarks>
+    /// The same fact as <see cref="ElementInert"/>, one level up: that one is "this cell does nothing",
+    /// this one is "these cells together do nothing". Reported and left alone, because a half-built
+    /// card is the normal state of a card being edited.
+    /// </remarks>
+    public const string ValuesHaveNoWayOut = "surface.card.values-have-no-way-out";
 
     /// <summary>
     /// A button named an emphasis this build does not know. The element is kept and drawn as

@@ -269,7 +269,12 @@ public class SurfaceTests : IDisposable
         var result = SurfaceValidator.Validate(document, Keys());
 
         Assert.Single(result.Effective.Elements);
-        Assert.Empty(result.Warnings);
+
+        // The claim is that this element is not judged inert. It is a card with nothing that speaks,
+        // and since 2026-11-13 that is said out loud — so the assertion is scoped to the code this
+        // test is about rather than to "no warnings at all", which would now be asserting silence.
+        Assert.DoesNotContain(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.ElementInert);
+        Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.ValuesHaveNoWayOut);
     }
 
     [Fact]
@@ -286,7 +291,7 @@ public class SurfaceTests : IDisposable
         var kept = Assert.IsType<SurfaceInputElement>(Assert.Single(result.Effective.Elements));
         Assert.Null(kept.Key);
         Assert.Equal("barcode", kept.Name);
-        Assert.Equal(SurfaceDiagnosticCodes.ElementKeyIgnored, Assert.Single(result.Warnings).Code);
+        Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.ElementKeyIgnored);
     }
 
     [Fact]
@@ -303,6 +308,77 @@ public class SurfaceTests : IDisposable
         Assert.Empty(result.Warnings);
     }
 
+    [Fact]
+    public void A_button_with_no_events_is_kept_and_says_it_sends_nothing()
+    {
+        // A button is the one kind whose whole purpose is to speak, so a click that raises nothing
+        // is a dead control. It is kept: a card is saved mid-edit, and the button is usually what the
+        // author was about to wire up. Removing it would delete their work in order to describe it.
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceButtonElement { Label = "go" }],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        Assert.Single(result.Effective.Elements);
+        Assert.Equal(SurfaceDiagnosticCodes.ButtonNoEvents, Assert.Single(result.Warnings).Code);
+    }
+
+    [Fact]
+    public void A_card_with_named_values_and_nothing_that_speaks_is_reported_but_kept()
+    {
+        // The same fact as `inert`, one level up: each cell is fine on its own, and together they can
+        // never send anything. Warned rather than pruned — this is what a card looks like halfway
+        // through being built, and the author is the one who knows whether it is finished.
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceInputElement { Name = "barcode" }],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        var kept = Assert.Single(result.Effective.Elements);
+        Assert.Equal("barcode", kept.Name);
+        Assert.Equal(SurfaceDiagnosticCodes.ValuesHaveNoWayOut, Assert.Single(result.Warnings).Code);
+    }
+
+    [Fact]
+    public void A_card_with_a_button_that_speaks_has_a_way_out()
+    {
+        // The negative control. Without it, a warning that fired on every card carrying a name would
+        // pass the test above while making every ordinary card noisy.
+        var document = new SurfaceDocument
+        {
+            Elements =
+            [
+                new SurfaceInputElement { Name = "barcode" },
+                new SurfaceButtonElement { Label = "submit", Events = ["Submit"] },
+            ],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys());
+
+        Assert.Equal(2, result.Effective.Elements.Count);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
+    public void A_named_text_element_alone_is_not_a_value_looking_for_a_way_out()
+    {
+        // A Text is a display, and its value is read from the store, not from the control: even with
+        // a name it contributes nothing to an upload. Calling that a card with no way out would be
+        // reporting a problem the card does not have.
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceTextElement { Key = "title", Name = "title" }],
+        };
+
+        var result = SurfaceValidator.Validate(document, Keys(new KeyDeclaration("title", "string", KeyRole.Out)));
+
+        Assert.Single(result.Effective.Elements);
+        Assert.Empty(result.Warnings);
+    }
     [Fact]
     public void A_button_emphasis_is_kept_and_does_not_change_the_element()
     {
@@ -474,7 +550,9 @@ public class SurfaceTests : IDisposable
         // one that asks for no share of the row at all.
         var document = new SurfaceDocument
         {
-            Elements = [new SurfaceButtonElement { Label = "go", Weight = 0 }],
+            // The events are not what this test is about; they are here so the card has something
+            // that speaks and the only warning left is the repaired weight.
+            Elements = [new SurfaceButtonElement { Label = "go", Weight = 0, Events = ["Click"] }],
         };
 
         var result = SurfaceValidator.Validate(document, Keys());
