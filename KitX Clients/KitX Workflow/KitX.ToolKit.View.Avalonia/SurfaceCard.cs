@@ -55,6 +55,35 @@ namespace KitX.ToolKit.View.Avalonia;
 /// stale the first time a <c>delta</c> was missed, silently. The one exception is the four editing
 /// kinds, whose contents exist nowhere else (Q88): their in-progress user input is carried, because
 /// no one else could resend it.</para>
+///
+/// <para><b>What this class assumes about its input: that Q88 has already been applied.</b> Q88 says
+/// an editing element carries no <c>key</c>, and the thing that enforces it is
+/// <c>SurfaceValidator.ValidateEditing</c>, which strips one that is declared and reports
+/// <c>surface.element.key-ignored</c>. <b>This renderer does not run that step.</b> It receives a
+/// document from a <c>welcome</c> or <c>surface</c> message, and those carry whatever is on disk.</para>
+///
+/// <para>So the registration below is by <c>Key</c>, not by kind. On a normalised document those two
+/// rules pick the same cells, because a <c>Text</c> and a <c>List</c> are the only kinds that have a
+/// key. On an unnormalised one they do not: a <c>Switch</c> that declares a key is registered, and
+/// <see cref="SetValue"/> then writes into a control the person may be typing in. That path is
+/// pinned by <c>A_switch_with_a_key_shows_that_keys_value_as_a_tick_box</c>, which exists because a
+/// renderer that only handled the normalised case would draw nothing at all for such a document and
+/// would say nothing about why.</para>
+///
+/// <para><b>Registering by kind instead was considered, and is not what this code does.</b> The two
+/// rules differ on exactly one document: one the validator never saw. Under kind-based registration
+/// a keyed <c>Switch</c> renders without its cell, so <see cref="SetValue"/> finds nothing and the
+/// tick never appears — the card looks like the contract was obeyed. Under key-based registration it
+/// ticks, which is visibly contrary to Q88. <b>This is a choice between a wrong picture and no
+/// picture, not between wrong and right.</b> It is made here in favour of the visible one, because
+/// a wrong picture is reported and an absent one is not. Reversing it means changing this condition
+/// and deleting <c>A_switch_with_a_key_shows_that_keys_value_as_a_tick_box</c>, which is also what
+/// keeps the <c>CheckBox</c> arm in <see cref="Show"/> reachable — with that test gone, the arm
+/// would be dead code wearing the costume of coverage.</para>
+///
+/// <para><b>When the validator is wired up, the question disappears</b>: every document reaching
+/// here is normalised, the two rules pick the same cells, and neither branch has anything to
+/// prefer. <b>That wiring is the decision point, and it is not this file's to make.</b></para>
 /// </remarks>
 public sealed class SurfaceCard : Grid
 {
