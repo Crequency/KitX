@@ -234,8 +234,15 @@ public sealed class SurfaceCardValueTests
     /// The test exists anyway, and the reason is worth stating: <c>Show</c> is reachable from a
     /// document this card was handed, not only from a document the validator approved. A renderer
     /// that draws the wrong thing when handed a keyed Switch is a renderer that depends on a check it
-    /// does not perform. See <c>A_keyed_switch_is_beyond_the_contract_and_the_card_still_draws_it</c>
-    /// for the same fact stated from the contract's side.</para>
+    /// does not perform.</para>
+    ///
+    /// <para><b>Its pair is
+    /// <see cref="A_switch_built_the_way_the_contract_says_collects_input_but_shows_no_stored_value"/>.</b>
+    /// That test asserts the opposite of this one, and neither is readable alone: this one alone makes
+    /// a pre-ticked Switch look like the normal case, and its pair alone makes a keyed Switch look
+    /// like something that cannot happen. The pair is the fact. A test that names its pair in prose
+    /// cannot be checked for having one, so both directions are asserted by
+    /// <c>The_two_switch_tests_are_paired</c>.</para>
     /// </remarks>
     [AvaloniaFact]
     public void A_switch_with_a_key_shows_that_keys_value_as_a_tick_box()
@@ -284,6 +291,12 @@ public sealed class SurfaceCardValueTests
     ///
     /// <para><b>What it does do is upload.</b> <c>_names[element.Name] = view</c> registers it, so a
     /// tick travels with the next event under <c>armed</c> — which is the half Q88 keeps.</para>
+    ///
+    /// <para><b>Its pair is
+    /// <see cref="A_switch_with_a_key_shows_that_keys_value_as_a_tick_box"/>.</b> That one uses a
+    /// document the validator would have stripped down; this one uses the shape it produces. Read
+    /// either alone and you get a wrong picture of what a Switch does — see the pair's comments for
+    /// why the two together are the fact.</para>
     /// </remarks>
     [AvaloniaFact]
     public void A_switch_built_the_way_the_contract_says_collects_input_but_shows_no_stored_value()
@@ -301,6 +314,100 @@ public sealed class SurfaceCardValueTests
         tick.IsChecked = true;
         Relayout();
         Assert.Equal(true, tick.IsChecked);
+    }
+
+    /// <summary>The two Switch tests above name each other in their doc comments.</summary>
+    /// <remarks>
+    /// <para><b>Why this is a test and not a convention.</b> A comment saying "its pair is X" is a
+    /// claim nobody verifies; if someone renames the pair, or deletes it, the comment keeps pointing
+    /// at a method that is gone and the surviving test goes back to looking like the whole story.
+    /// Prose about the pair cannot be checked for being true.</para>
+    ///
+    /// <para><b>The first version of this test was vacuous and I caught it before running it.</b> It
+    /// asserted that the file text contains both names — which it does, because both methods are
+    /// declared in it. <c>Assert.True(text.Contains(a) &amp;&amp; text.Contains(b))</c> cannot fail for
+    /// two existing methods in one file. It now extracts each method's own <c>///</c> block and looks
+    /// for the other name *in that block*, which is the claim the comments actually make.</para>
+    /// </remarks>
+    [Fact]
+    public void The_two_switch_tests_name_each_other_in_their_doc_comments()
+    {
+        const string keyed = nameof(A_switch_with_a_key_shows_that_keys_value_as_a_tick_box);
+        const string contract = nameof(A_switch_built_the_way_the_contract_says_collects_input_but_shows_no_stored_value);
+
+        var type = typeof(SurfaceCardValueTests);
+        Assert.NotNull(type.GetMethod(keyed));
+        Assert.NotNull(type.GetMethod(contract));
+
+        var path = RepositoryFile(
+            "KitX Clients/KitX Workflow/KitX.ToolKit.View.Avalonia.Test.Xunit/SurfaceCardValueTests.cs");
+        var lines = File.ReadAllLines(path);
+
+        Assert.Contains(contract, DocCommentAbove(lines, keyed));
+        Assert.Contains(keyed, DocCommentAbove(lines, contract));
+    }
+
+    /// <summary>The contiguous <c>///</c> block immediately above a method declaration.</summary>
+    /// <remarks>
+    /// Scans back from the declaration through attribute lines and blank lines so the block is found
+    /// the same way a reader finds it, rather than by matching an exact shape that the next edit would
+    /// invalidate.
+    /// </remarks>
+    private static string DocCommentAbove(IReadOnlyList<string> lines, string method)
+    {
+        var declaration = -1;
+
+        for (var i = 0; i < lines.Count; i++)
+            if (lines[i].Contains("public void " + method + "(", StringComparison.Ordinal))
+            {
+                declaration = i;
+                break;
+            }
+
+        Assert.True(declaration >= 0, $"{method} has no `public void` declaration in this file");
+
+        var block = new List<string>();
+
+        for (var i = declaration - 1; i >= 0; i--)
+        {
+            var line = lines[i].Trim();
+
+            if (line.StartsWith("///", StringComparison.Ordinal))
+            {
+                block.Insert(0, line);
+                continue;
+            }
+
+            // Attributes and blank lines sit between the comment and the declaration.
+            if (line.Length == 0 || line.StartsWith('['))
+                continue;
+
+            break;
+        }
+
+        Assert.True(block.Count > 0, $"{method} has no doc comment above it");
+
+        return string.Join("\n", block);
+    }
+
+    /// <summary>Walks up from the test binary to the repository root and resolves a path there.</summary>
+    /// <remarks>
+    /// Duplicated from <c>SurfaceCellGeometryTests</c> on purpose: a shared helper would let one
+    /// test's assumption about the checkout layout become another test's premise.
+    /// </remarks>
+    private static string RepositoryFile(string relativePath)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "KitX.sln")))
+                return Path.Combine(directory.FullName, relativePath);
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("KitX.sln was not found above " + AppContext.BaseDirectory);
     }
 
     /// <summary>A row the person picked travels with the next event.</summary>
