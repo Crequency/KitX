@@ -1,3 +1,4 @@
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Contract.Surface;
 
 namespace KitX.ToolKit.Contract;
@@ -40,6 +41,34 @@ public interface ISurfaceStore
 
     /// <summary>Writes a ToolKit's layout and raises <see cref="Changed"/>.</summary>
     void Save(string toolkitId, SurfaceDocument document);
+
+    /// <summary>
+    /// Checks a layout against a ToolKit's declared keys, without reading or writing anything.
+    /// </summary>
+    /// <param name="document">The layout to check — typically the one the editor is about to write.</param>
+    /// <param name="keys">The ToolKit's compiled declarations, which are the authority on what exists.</param>
+    /// <returns>
+    /// One entry per element that a render would drop or adjust; empty when nothing is wrong.
+    /// </returns>
+    /// <remarks>
+    /// <para><b>A query, and never a gate.</b> It reports what validation would say and changes
+    /// nothing: no file is touched, and the document handed in is not replaced by the one that would
+    /// survive validation. That split is deliberate. The canvas is the only copy of the author's
+    /// layout between saves, so "your card has a problem" has to be sayable without the saying being
+    /// able to stop the write. A save path that returns early on a diagnostic throws away work the
+    /// author can still fix; the file is exactly where that work belongs while they fix it.</para>
+    ///
+    /// <para><b>Why this is on the store at all.</b> <c>SurfaceValidator</c> and <c>KeyTable</c> are
+    /// internal to <c>KitX.ToolKit</c>, and the editor lives in another assembly that must not learn
+    /// the layout file's name (ADR-0016 D3). A seam here keeps one writer and one validator, and lets
+    /// the editor ask the same question the load path asks instead of growing a second, poorer copy of
+    /// the rules — which is exactly what the hand-written key check in <c>Save()</c> was.</para>
+    ///
+    /// <para><b>What the diagnostics carry.</b> Each names its element and key in a
+    /// <see cref="DiagnosticPath"/>; the ToolKit id on that path is blank, because this question has
+    /// no ToolKit in it — the caller is already looking at one.</para>
+    /// </remarks>
+    IReadOnlyList<Diagnostic> Diagnose(SurfaceDocument document, IEnumerable<KeyDeclaration> keys);
 
     /// <summary>Removes a ToolKit's layout file, if any. Idempotent.</summary>
     void Delete(string toolkitId);

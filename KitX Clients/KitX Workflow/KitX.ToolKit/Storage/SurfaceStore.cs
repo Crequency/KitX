@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using KitX.ToolKit.Contract;
+using KitX.ToolKit.Contract.Declaration;
 using KitX.ToolKit.Contract.Surface;
+using KitX.ToolKit.Data;
 using KitX.ToolKit.Surface;
 using KitX.WorkflowV6.Serialization;
 using Serilog;
@@ -110,6 +112,24 @@ internal sealed class SurfaceStore : ISurfaceStore
         KcsFileIo.AtomicWrite(path, JsonSerializer.Serialize(document, SerializerOptions));
 
         Changed?.Invoke(this, new SurfaceChangedEventArgs(toolkitId));
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<Diagnostic> Diagnose(
+        SurfaceDocument document, IEnumerable<KeyDeclaration> keys)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(keys);
+
+        // The table stamps its id onto every path it reports, and this question has no ToolKit in it:
+        // the caller is editing one and knows which. An empty id is the honest answer; the alternative
+        // would be guessing from this store's root, which every ToolKit shares.
+        var table = KeyTable.From(string.Empty, keys);
+
+        // The effective document is deliberately discarded. This method answers "what would be
+        // different", and returning the pruned document as well would invite a caller to save it —
+        // which is the one thing a diagnostic must never cause.
+        return SurfaceValidator.Validate(document, table).Warnings;
     }
 
     /// <inheritdoc/>
