@@ -6,6 +6,7 @@ consumer that is not a test.
 ```
 dotnet run --project "KitX Clients/KitX Workflow/KitX.ToolKit.View.Avalonia.Host"
 dotnet run --project ... -- --self-check          # headless, no window, exits 0 or 1
+dotnet run --project ... -- --theme dark          # the other half of the theme
 ```
 
 ## What it shows
@@ -119,6 +120,64 @@ caller on the UI thread then returns to the dispatcher instead of parking it.
 
 The renderer half of the same seam is pinned in `KitX.ToolKit.View.Avalonia.Test.Xunit`, which needs an
 Avalonia application to construct `SurfaceCard` and therefore cannot live here.
+
+### 5. Both halves of the theme, measured
+
+`--theme dark` exists because the theme ships two resource dictionaries (`KitX.axaml:31`, `:51`) and this
+window is the only place the renderer runs in a real window. Without a way to ask for the second one, half
+the theme's own keys are never drawn by anything a person can look at.
+
+Both screenshots were taken from the same binary, one run apart, and every flat colour inside the card was
+matched against the value the dictionary declares:
+
+```
+                     light              dark          key
+card background      #FFFFFF  218 990px #252525  218 990px  KitXCardBg
+list group           #FAFAFA  232 816px #2A2A2A  232 800px  KitXGroupBg
+field background     #FBFBFB   25 808px #2E2E2E   25 826px  KitXFieldBg
+window background    #F5F5F5   21 794px #2B2B2B   22 259px  KitXSubtleBg
+danger button        #FDF3F3   17 463px #3B2325   17 463px  KitXDangerBg
+primary button       #3873D9    8 232px #4B8BEA    8 463px  KitXAccent
+card border          #E5E5E5            #3A3A3A             KitXCardBorder
+```
+
+Six keys agree to the byte in both themes, which is what says the window is drawing the theme rather than
+something that merely looks dark. The **pixel counts** differ in the last columns because the empty list
+band is taller in dark — the same band, drawn at the same DIP, so the point is that the *colours* match,
+not that the tallies do.
+
+The 1px `KitXCardBorder` is present in both, but only on the stretches where the card's own edge is not
+covered by a list group. Measured down `x=379` in the light screenshot:
+
+```
+y  78..250    border    (title / status / field / button rows)
+y 287..470    border
+y 489..948    no border (the list group's #FAFAFA runs to the card edge)
+y 948..1116   border    (the empty tail of the card)
+```
+
+That is the reference image's own behaviour too (`Shots/out/01-scanbook-light.png`: border at y 24, group
+starting at y 372 flush to the edge), so it is the card being 390 wide with a full-bleed list, not a
+missing stroke.
+
+The band geometry, converted to device-independent pixels (the window draws at 1.2436× — 485 device pixels
+for a 390 DIP card — while the reference PNG is 1:1):
+
+| band | host (DIP) | reference (DIP) | Δ start |
+|---|---|---|---|
+| title row | 0.0 – 143.9 | 27.0 – 109.0 | −27.0 |
+| status row | 177.7 – 208.3 | 122.0 – 170.0 | +55.7 |
+| field row | 242.0 – 272.6 | 203.0 – 234.0 | +39.0 |
+| button row | 275.0 – 304.0 | 267.0 – 298.0 | +8.0 |
+| list group | 322.5 – 706.8 | 347.0 – 730.0 | −24.5 |
+| card tail | 708.4 – 849.1 | 731.0 – 871.0 | −22.6 |
+
+**The card is 868 DIP tall in the host against 845 in the reference**, and the deltas say why: this sample
+card's first row holds one Text with a title (`18`) plus a status row, while the reference's first row
+holds a `13`-point title and its second holds a `13`-point author line. Same six bands in the same order,
+distributed over a slightly different content height. **This is not a layout defect** and is recorded here
+only because a 23 DIP difference in card height looks like one until the content is compared.
+
 
 ## Known noise
 

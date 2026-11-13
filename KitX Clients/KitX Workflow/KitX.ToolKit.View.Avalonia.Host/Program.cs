@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,11 +32,31 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// </remarks>
 internal sealed class HostApp : Application
 {
+    /// <summary>
+    /// The variant to open in, or <c>null</c> to follow the platform.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why a flag rather than a setting.</b> The theme ships two variants
+    /// (<c>KitX.axaml:31</c> and <c>:51</c>), and this window is the only place the renderer runs in a
+    /// real window. Without a way to ask for the dark one, half of the theme's own resources are never
+    /// drawn by anything a person can look at — and a key that resolves to the wrong brush in one
+    /// variant would stay invisible forever, which is the shape of the eighth defect already on the
+    /// board.</para>
+    ///
+    /// <para>Not a persisted setting: the product's theme choice lives in Dashboard's config, and
+    /// this host deliberately does not read it (it has its own storage root for the same reason). An
+    /// argument is enough to look at both, and it cannot drift out of sync with a file.</para>
+    /// </remarks>
+    internal static ThemeVariant? StartupVariant { get; set; }
+
     public override void Initialize()
     {
         // Fluent first: without control templates the layout system measures everything as zero,
         // and a card that renders nothing looks like a projection bug rather than a missing theme.
         Styles.Add(new FluentTheme());
+
+        if (StartupVariant is not null)
+            RequestedThemeVariant = StartupVariant;
 
         var include = new StyleInclude(new Uri("avares://KitX.ToolKit.View.Avalonia/"))
         {
@@ -90,6 +111,18 @@ internal static class Program
         // asserting lives in HostSession, which is what this drives.
         if (args.Contains("--self-check", StringComparer.Ordinal))
             return await SelfCheck.Run(args.Contains("--verbose", StringComparer.Ordinal));
+
+        // `--theme dark` exists so the second half of the theme can be seen. See StartupVariant.
+        var themeIndex = Array.FindIndex(args, a => string.Equals(a, "--theme", StringComparison.Ordinal));
+        if (themeIndex >= 0 && themeIndex + 1 < args.Length)
+        {
+            HostApp.StartupVariant = args[themeIndex + 1].ToLowerInvariant() switch
+            {
+                "dark" => ThemeVariant.Dark,
+                "light" => ThemeVariant.Light,
+                _ => null,
+            };
+        }
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
