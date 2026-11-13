@@ -1,4 +1,4 @@
-﻿## Platform Ignore
+## Platform Ignore
 *.DS_Store
 
 ## Ignore for special folders
@@ -391,5 +391,14 @@ coverage/
 .cache/
 tmp/
 
-# Runtime state written by the dashboard (activity log, use counts).
+# Runtime state written by the dashboard, not build output. ConstantTable.DataPath is
+# "./Data/", relative to the process working directory, so a program started from the
+# repository root writes here while one started from bin/ writes to
+# bin/Debug/net10.0/Data/ — two independent sets. Neither belongs in the repository: the
+# activity log records what this machine ran, and UseCount.json is a counter.
+# Data/CompiledScripts/ holds real cache from earlier runs (oldest 2026-06-19); deleting it
+# only costs a recompile, which is exactly why it should not look like a tracked directory.
+# ActivityManagerTests deletes the Data/ under its own working directory, so run tests from
+# a project directory, never from the repository root.
+/Data/
 /Data/
