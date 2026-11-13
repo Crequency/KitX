@@ -122,6 +122,7 @@
     <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
     <Setter Property="Padding" Value="{DynamicResource KitXFieldPadding}"/>
     <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
     <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
     <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource KitXFieldBorder}"/>
@@ -133,6 +134,7 @@
   <Style Selector="ComboBox.kitx-field">
     <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
     <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
     <Setter Property="Padding" Value="{DynamicResource KitXFieldPadding}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
     <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
@@ -145,6 +147,7 @@
   <Style Selector="NumericUpDown.kitx-field">
     <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
     <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
     <Setter Property="Padding" Value="{DynamicResource KitXFieldPadding}"/>
     <Setter Property="CornerRadius" Value="{DynamicResource KitXRadiusControl}"/>
     <Setter Property="Background" Value="{DynamicResource KitXFieldBg}"/>
@@ -157,6 +160,7 @@
   <Style Selector="CheckBox.kitx-field">
     <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
     <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
     <Setter Property="Foreground" Value="{DynamicResource KitXTextPrimary}"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
   </Style>
