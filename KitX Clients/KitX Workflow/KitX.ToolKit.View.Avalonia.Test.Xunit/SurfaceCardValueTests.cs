@@ -215,6 +215,47 @@ public sealed class SurfaceCardValueTests
         Assert.Equal(true, tick.IsChecked);
     }
 
+    /// <summary>A Switch that names a key does take that key's value, and shows it as a tick.</summary>
+    /// <remarks>
+    /// <para><b>The test above named the danger and then stepped around it.</b> Its comment says an
+    /// arm ordering that put <c>Button</c> first would treat every tick box as a label — and then it
+    /// gives the Switch no <c>key</c>, so <c>SetValue</c> never reaches <c>Show</c> at all and the
+    /// ordering cannot be observed. The comment was right about the hazard and the fixture never put
+    /// anything in front of it.</para>
+    ///
+    /// <para><b>What the defect looked like.</b> <c>CheckBox : ToggleButton : Button</c>, so the
+    /// <c>case Button</c> arm matched a Switch's cell first and wrote the value into <c>Content</c>:
+    /// a Switch whose key held <c>true</c> drew an unticked box with the word "true" beside it.
+    /// Measured before the fix — <c>IsChecked=False Content=true</c>.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_switch_with_a_key_shows_that_keys_value_as_a_tick_box()
+    {
+        var card = Card(Doc(new SurfaceSwitchElement { Row = 1, Key = "armed" }));
+
+        var tick = CellOfType<CheckBox>(card);
+
+        card.SetValue("armed", Json("true"));
+        Relayout();
+
+        Assert.Equal(true, tick.IsChecked);
+
+        // Not into Content: a label beside a tick box is the shape this defect took, and a Switch
+        // reading "true" is a Switch nobody can tell is on.
+        Assert.Null(tick.Content);
+
+        card.SetValue("armed", Json("false"));
+        Relayout();
+        Assert.Equal(false, tick.IsChecked);
+
+        // A value that is not a bool cannot be expressed by a tick box. Unticked, not "whatever it
+        // was" — leaving the previous state would show a tick for a value that is not true.
+        card.SetValue("armed", Json("\"maybe\""));
+        Relayout();
+        Assert.Equal(false, tick.IsChecked);
+        Assert.Null(tick.Content);
+    }
+
     /// <summary>A row the person picked travels with the next event.</summary>
     /// <remarks>
     /// <para><b>This test had no reason to exist until the wiring was fixed, because the wiring was

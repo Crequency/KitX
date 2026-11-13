@@ -134,6 +134,7 @@ internal static class SampleToolkit
     {
         ["title"] = "示例 · 扫描器",
         ["status"] = "还没有扫描过",
+        ["armed"] = true,
         ["log"] = Array.Empty<string>(),
     };
 
@@ -156,6 +157,11 @@ internal static class SampleToolkit
         [
             new KeyDeclaration("title", "string", KeyRole.Out),
             new KeyDeclaration("status", "string", KeyRole.Out),
+
+            // Out, like the two above it. Q71 collapsed the old In/InOnSubmit roles into one question
+            // — "may a workflow write this key" — so there is no longer an In role to declare, and a
+            // Switch here shows what the data plane says rather than collecting input.
+            new KeyDeclaration("armed", "bool", KeyRole.Out),
             new KeyDeclaration("log", "array", KeyRole.Stream),
         ],
         Triggers =
@@ -259,6 +265,12 @@ internal static class SampleToolkit
                 Weight = 1,
             },
 
+            // The only control here whose appearance is decided by a value rather than by its
+            // declaration: an open Switch renders a ticked box because the key says true, and it moves
+            // when the key moves. Every other element shows where it was placed or what text it holds;
+            // this one shows a fact about the data plane. That is why it is here and not for variety.
+            new SurfaceSwitchElement { Key = "armed", Row = 5, Weight = 1 },
+
             // Alone in its row, so it takes the whole width — which is the layout rule for a
             // single-element row, not a special case written for destructive buttons.
             new SurfaceButtonElement
@@ -266,7 +278,7 @@ internal static class SampleToolkit
                 Label = "清空记录",
                 Events = ["reset"],
                 Emphasis = "danger",
-                Row = 5,
+                Row = 6,
                 Weight = 1,
             },
 
@@ -277,7 +289,7 @@ internal static class SampleToolkit
             new SurfaceListElement
             {
                 Key = "log",
-                Row = 6,
+                Row = 7,
                 Weight = 1,
             },
         ],
