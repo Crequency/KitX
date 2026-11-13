@@ -62,6 +62,7 @@ public sealed class HostSession : IDisposable
         Toolkits = _provider.GetRequiredService<IToolkitService>();
         Surfaces = _provider.GetRequiredService<ISurfaceStore>();
         WorkflowFiles = _provider.GetRequiredService<IToolkitWorkflowFileStore>();
+        Keys = _provider.GetRequiredService<IKeyStore>();
         _newChannel = _provider.GetRequiredService<Func<IViewChannel>>();
     }
 
@@ -70,6 +71,18 @@ public sealed class HostSession : IDisposable
 
     /// <summary>The management facade — used to mount, and for nothing else.</summary>
     public IToolkitService Toolkits { get; }
+
+    /// <summary>
+    /// The data plane, for seeding the sample's opening values and for nothing else.
+    /// </summary>
+    /// <remarks>
+    /// Keys handed to this are fully qualified (<c>{toolkitId}/{local}</c>) — that is the shape
+    /// <see cref="IKeyStore"/> takes, and building the prefix is the caller's job by design
+    /// (ADR-0004 D2). Workflows never see a prefixed key; a host that seeds one is playing the
+    /// part of "the person typed something", which is the only role that writes a value the
+    /// workflow did not.
+    /// </remarks>
+    public IKeyStore Keys { get; }
 
     /// <summary>The layout store — used to seed the sample's card.</summary>
     public ISurfaceStore Surfaces { get; }
@@ -148,6 +161,14 @@ public sealed class HostSession : IDisposable
 
     /// <summary>Seeds the sample ToolKit's card, replacing anything the user edited.</summary>
     public void SeedSampleSurface(string toolkitId) => SampleToolkit.SeedSurface(this, toolkitId);
+
+    /// <summary>Fills the keys the sample's card reads, skipping any that already hold a value.</summary>
+    /// <remarks>
+    /// Separate from <see cref="SeedSampleSurface"/> on purpose, and separate from the declaration:
+    /// a layout is written once and a value is written until the person answers it. See
+    /// <c>SampleToolkit.SeedValues</c> for the two candidates this was chosen over.
+    /// </remarks>
+    public void SeedSampleValues(string toolkitId) => SampleToolkit.SeedValues(this, toolkitId);
 
     private IViewChannel EnsureChannel()
     {

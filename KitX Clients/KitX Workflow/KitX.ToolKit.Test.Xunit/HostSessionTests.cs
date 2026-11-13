@@ -72,7 +72,81 @@ public class HostSessionTests : IDisposable
 
         Assert.Equal(SampleToolkit.Id, session.AttachedToolkitId);
         Assert.Equal(SampleToolkit.Id, session.View.ToolkitId);
-        Assert.Equal(4, session.View.Surface.Elements.Count);
+
+        // Eight, over six rows: Text, Text, Input+Select, two Buttons, one Button, List. The
+        // number is asserted rather than "not empty" because the sample's job is to show every
+        // element kind — a card that lost its Select would still be non-empty.
+        Assert.Equal(8, session.View.Surface.Elements.Count);
+
+        var kinds = session.View.Surface.Elements
+            .Select(e => e.GetType().Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Equal(
+            [
+                "SurfaceButtonElement",
+                "SurfaceButtonElement",
+                "SurfaceButtonElement",
+                "SurfaceInputElement",
+                "SurfaceListElement",
+                "SurfaceSelectElement",
+                "SurfaceTextElement",
+                "SurfaceTextElement",
+            ],
+            kinds);
+    }
+
+    [Fact]
+    public async Task The_first_frame_carries_values_so_the_card_is_not_blank()
+    {
+        // A card with no values draws eight empty cells. That is not a rendering bug, and it is
+        // what a first run looked like: someone launching the host saw a blank card and had to
+        // guess whether the renderer worked. The opening values are seeded before connecting, so
+        // `welcome` — the only server→client message that carries values — already has them.
+        using var session = new HostSession(_root);
+
+        await session.EnsureSampleAsync();
+        session.SeedSampleSurface(SampleToolkit.Id);
+        session.SeedSampleValues(SampleToolkit.Id);
+
+        Assert.Null(await session.ConnectAsync(SampleToolkit.Id));
+
+        Assert.NotEmpty(session.View.Values);
+
+        // The three keys the card reads, and no others: a value for a key nothing draws is a
+        // declaration nothing reads.
+        Assert.Equal(
+            ["log", "status", "title"],
+            session.View.Values.Keys.OrderBy(k => k, StringComparer.Ordinal));
+
+        Assert.True(session.View.TryGetValue("status", out var status));
+        Assert.Equal("还没有扫描过", status.GetString());
+
+        Assert.True(session.View.TryGetValue("log", out var log));
+        Assert.Equal(JsonValueKind.Array, log.ValueKind);
+        Assert.Equal(0, log.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Seeding_values_leaves_a_key_the_person_already_answered_alone()
+    {
+        // The asymmetry that makes this safe to run on every launch: a key that holds something is
+        // left alone. That covers both "a flow wrote it" and "the person pressed clear" — clearing
+        // removes the values, so a later launch would be free to fill them again, and it must not.
+        using var session = new HostSession(_root);
+
+        await session.EnsureSampleAsync();
+        session.SeedSampleSurface(SampleToolkit.Id);
+        session.SeedSampleValues(SampleToolkit.Id);
+
+        // Stand in for a flow having written a status.
+        session.Keys.Set($"{SampleToolkit.Id}/status", JsonSerializer.SerializeToElement("已扫描 3 本"));
+
+        session.SeedSampleValues(SampleToolkit.Id);
+
+        Assert.True(session.Keys.TryGet($"{SampleToolkit.Id}/status", out var kept));
+        Assert.Equal("已扫描 3 本", kept.GetString());
     }
 
     [Fact]
