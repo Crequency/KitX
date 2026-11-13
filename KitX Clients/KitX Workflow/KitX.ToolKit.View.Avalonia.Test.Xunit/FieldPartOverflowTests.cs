@@ -20,48 +20,41 @@ namespace KitX.ToolKit.View.Avalonia.Test.Xunit;
 /// answer.</b> <c>FieldFillTests</c> proves the editing control's own <c>Bounds</c> equals the share the
 /// row gave it — that is a claim about the box. The parts inside the box are laid out by the control's
 /// template, and a template can demand more room than the box has. Measured at weight 1 of 10, where the
-/// share is 38.2 pixels:</para>
+/// share is 38.2 pixels.</para>
 ///
-/// <code>
-/// Select        content x=0.0..38.2   drop-down glyph x=30.0..42.0   glyph extends 3.8px past the box
-///               and overlaps the content area by 8.2px -- only 8.2 of its 12 pixels are on the card
-/// NumericUpDown PART_DecreaseButton   x=34..68                       extends 29.8px past the box
-///               PART_TextBox            x=-1..1                       1px wide, inside a 38.2px box
-/// ComboBox      Background border     x=-6..58                       extends 19.8px past the box
-/// </code>
+/// <para><b>Two parts overflow and only one of them shows.</b> The <c>Select</c>'s Background border is
+/// arranged 52 wide inside a 38.2 box, but it is a filled rectangle and the control clips — clipping a
+/// fill to the box is what a box <em>does</em>, so nothing about it is visible or wrong. The drop-down
+/// glyph is a different case: it is <em>shape</em>, so clipping it removes the right edge of the arrow,
+/// and it sits at x=30..42 over a text area that runs to 38.2, so it also covers the end of a long
+/// option. Both are recorded below; only the second is asserted as a defect.</para>
 ///
-/// <para><b>The four kinds do not fail the same way</b>, which is the reason this is asserted per kind
-/// rather than as "nothing sticks out". <c>Input</c> and <c>Switch</c> are clean at this width — their
-/// templates are a single TextBox and a CheckBox and both accept the width they are given.
-/// <c>Select</c> is off by 3.8; <c>NumericUpDown</c> is off by 29.8. Collapsing them into one number
-/// would report 29.8 for the file and say nothing about the drop-down arrow.</para>
-///
-/// <para><b>Why this measures the template and not the theme.</b> <c>MinWidth = 0</c> on the field
-/// styles (the fix for the twelfth defect) governs the control's own minimum. These parts are not
-/// governed by that setter: a <c>NumericUpDown</c>'s spinner buttons have their own width, and a
-/// <c>ComboBox</c>'s glyph sits at a fixed offset from the right edge. So the same fix cannot reach
-/// them, and a test that only measures the outer <c>Bounds</c> cannot see them.</para>
+/// <para><b>Where the numbers came from.</b> The two spinner buttons of a <c>NumericUpDown</c> were 34
+/// wide each — 68 inside a 38.2 box — and the <c>Select</c>'s Background was 64. A setter on the control
+/// cannot reach either, because <c>MinWidth</c> on a <c>ComboBox</c> governs the <c>ComboBox</c>. The
+/// <c>/template/</c> setters in <c>KitX.axaml</c> fixed both; what is left is the glyph's offset, which
+/// is a position rather than a minimum and moving it is a separate decision.</para>
 /// </remarks>
 public sealed class FieldPartOverflowTests
 {
-    /// <summary>One part of a template that reaches outside the box the row gave the control.</summary>
-    /// <param name="OverBy">How far past the right edge, in device-independent pixels.</param>
+    /// <summary>One part of a template that is laid out wider than the box its control was given.</summary>
+    /// <param name="Kind">The part's name, or its type when unnamed.</param>
+    /// <param name="OverBy">How far past the control's right edge, in device-independent pixels.</param>
+    /// <param name="Visible">
+    /// Whether the excess can be seen: <c>false</c> when the part is a fill that the control's own clip
+    /// trims to the box, which is the correct result rather than a defect.
+    /// </param>
     /// <param name="Note">What it means for the person looking at the card.</param>
-    private sealed record Escapee(string Kind, double OverBy, string Note);
+    private sealed record Escapee(string Kind, double OverBy, bool Visible, string Note);
 
     /// <summary>
-    /// How far each kind's template parts reach past their own box, at weight 1 of 10.
+    /// Every part that is laid out wider than its control, at weight 1 of 10.
     /// </summary>
     /// <remarks>
-    /// <b>These numbers are measurements, not tolerances.</b> Each one was read off a laid-out control
-    /// with the product theme loaded. The three non-empty rows are the twelfth defect's second half:
-    /// the outer box is correct (38.2, by <c>FieldFillTests</c>) while parts inside it are still sized
-    /// by the 64 they were born with.
-    ///
-    /// <para><c>Select</c> escapes twice and the two are different facts. <c>Background</c> is 64 wide,
-    /// which is the same inherited minimum that made the outer box overflow before it was set to zero —
-    /// so the fix reached the control but not its background border. <c>DropDownGlyph</c> is 12 wide at
-    /// x=30, which is a fixed offset from the right edge and therefore its own problem.</para>
+    /// <b>These are measurements, not tolerances.</b> <c>Input</c> and <c>Switch</c> are absent because
+    /// both are clean: their templates are a single TextBox and a CheckBox, and both accept the width
+    /// they are given. A kind that is fixed later drops out of this table and the change-detector below
+    /// says so.
     /// </remarks>
     private static readonly Dictionary<string, Escapee[]> Measured = new(StringComparer.Ordinal)
     {
@@ -69,52 +62,55 @@ public sealed class FieldPartOverflowTests
         ["Switch"] = [],
         ["Select"] =
         [
-            new("Background", 19.8, "the background border is still 64 wide"),
-            new("DropDownGlyph", 3.8, "the arrow is cut off at the right edge"),
+            new("Background", 13.8, false, "a fill: the control's clip trims it to the box, which is correct"),
+            new("DropDownGlyph", 3.8, true, "the arrow's right edge is cut off, and it covers the text"),
         ],
-        ["Number"] = [new("PART_DecreaseButton", 29.8, "the spinner buttons are drawn outside the cell")],
+        ["Number"] = [],
     };
 
     public static TheoryData<string> EditingKinds() => ["Input", "Number", "Select", "Switch"];
 
     [AvaloniaTheory]
     [MemberData(nameof(EditingKinds))]
-    public void No_part_of_a_template_reaches_past_the_box_the_row_gave_it(string kind)
+    public void Nothing_that_shows_reaches_past_the_box_the_row_gave_it(string kind)
     {
-        var escapes = Escapes(kind);
+        var visible = Escapes(kind).Where(e => e.Visible).ToArray();
 
         Assert.True(
-            escapes.Count == 0,
-            $"{kind} at weight 1 of 10 has {escapes.Count} part(s) outside its box: "
-            + string.Join(
-                "; ",
-                escapes.Select(e => $"{e.Kind} by {e.OverBy:F1}px ({e.Note})"))
-            + ". The box is the right width -- FieldFillTests proves that -- so what is wrong is the "
-            + "template's own minimum, not the row arithmetic.");
+            visible.Length == 0,
+            $"{kind} at weight 1 of 10 draws {visible.Length} part(s) outside its box: "
+            + string.Join("; ", visible.Select(e => $"{e.Kind} by {e.OverBy:F1}px ({e.Note})"))
+            + ". The box is the right width -- FieldFillTests proves that -- so what is wrong is inside "
+            + "the template, not the row arithmetic.");
     }
 
     /// <summary>
-    /// The recorded table still describes what the code does.
+    /// The recorded table still describes what the templates do.
     /// </summary>
     /// <remarks>
     /// Without this, <see cref="Measured"/> would be a comment with a dictionary around it: a fix that
-    /// shortened a template would leave the table claiming the old number and nothing would notice.
+    /// shortened a template would leave the table claiming the old number and only the failing test
+    /// above would notice — and it would notice by going green, which reads as progress either way.
     /// </remarks>
     [AvaloniaTheory]
     [MemberData(nameof(EditingKinds))]
     public void The_recorded_overflow_is_what_the_template_does_today(string kind)
     {
-        var measured = Escapes(kind)
-            .Select(e => (e.Kind, e.OverBy))
-            .OrderBy(e => e.Kind, StringComparer.Ordinal)
-            .ToArray();
+        var measured = Escapes(kind).OrderBy(e => e.Kind, StringComparer.Ordinal).ToArray();
+        var recorded = Measured[kind].OrderBy(e => e.Kind, StringComparer.Ordinal).ToArray();
 
-        var recorded = Measured[kind]
-            .Select(e => (e.Kind, e.OverBy))
-            .OrderBy(e => e.Kind, StringComparer.Ordinal)
-            .ToArray();
+        Assert.Equal(recorded.Select(e => (e.Kind, e.Visible)), measured.Select(e => (e.Kind, e.Visible)));
 
-        Assert.Equal(recorded, measured);
+        // The widths compared with a tolerance: layout arithmetic produces 13.800000000000011 where the
+        // decimal literal is 13.8, and an exact tuple comparison would fail on digits that no one chose.
+        for (var i = 0; i < recorded.Length; i++)
+        {
+            Assert.True(
+                Math.Abs(recorded[i].OverBy - measured[i].OverBy) < 0.05,
+                $"{kind}'s {recorded[i].Kind} was recorded at {recorded[i].OverBy:F1}px and now measures "
+                + $"{measured[i].OverBy:F1}px. Either the template changed or the recorded number was wrong; "
+                + "both mean this table needs a decision, not a nudge.");
+        }
     }
 
     /// <summary>
@@ -127,7 +123,7 @@ public sealed class FieldPartOverflowTests
     ///
     /// <para>At 38.2 the content area runs 0..38.2 and the glyph 30..42, so they overlap by 8.2 — which
     /// is why this fails today. It is kept as its own assertion because a fix that moved the glyph left
-    /// would satisfy the "nothing outside the box" test while making this overlap worse.</para>
+    /// would satisfy the "nothing visible overflows" test while making this overlap worse.</para>
     /// </remarks>
     [AvaloniaFact]
     public void A_selects_drop_down_glyph_does_not_sit_on_top_of_its_text()
@@ -140,7 +136,7 @@ public sealed class FieldPartOverflowTests
             overlap <= 0,
             $"the drop-down glyph starts at x={glyph.X:F1} while the text area runs to x={content.Right:F1}, "
             + $"so they overlap by {overlap:F1}px. A long option would be drawn under the arrow, and the "
-            + $"arrow itself is clipped by the control's {(content.Right):F1}px box.");
+            + $"arrow itself is clipped by the control's {content.Right:F1}px box.");
     }
 
     /// <summary>The parts a <c>Select</c> is made of, laid out at weight 1 of 10.</summary>
@@ -156,7 +152,7 @@ public sealed class FieldPartOverflowTests
         return (glyph.Bounds, content.Bounds);
     }
 
-    /// <summary>Every template part that reaches outside its control's box, at weight 1 of 10.</summary>
+    /// <summary>Every template part laid out wider than its control's box, at weight 1 of 10.</summary>
     private static List<Escapee> Escapes(string kind)
     {
         var card = Layout(Element(kind, weight: 1), siblings: 9);
@@ -177,9 +173,8 @@ public sealed class FieldPartOverflowTests
         foreach (var part in control.GetVisualDescendants().OfType<Control>())
         {
             // A Path inside a Viewbox reports the glyph's own coordinate space — thousands of pixels
-            // — which is a fact about the path data, not about where the icon lands. Only the box the
-            // icon is drawn in says whether it fits. Both are matched by name because
-            // `ViewboxContainer` is internal to Avalonia and cannot be named here.
+            // — which is a fact about the path data, not about where the icon lands. Both are matched
+            // by name because `ViewboxContainer` is internal to Avalonia and cannot be named here.
             var typeName = part.GetType().Name;
             if (typeName is "Path" or "ViewboxContainer" or "Popup")
                 continue;
@@ -188,8 +183,18 @@ public sealed class FieldPartOverflowTests
                 continue;
 
             var over = part.Bounds.Right - width;
-            if (over > 0.5)
-                found.Add(new Escapee(part.Name ?? typeName, over, "reaches past the control"));
+            if (over <= 0.5)
+                continue;
+
+            // A Border with no child is a fill: the control clips it to the box and the result is what
+            // a box is for. Anything with content loses some of that content when it is clipped.
+            var isFill = part is Border { Child: null };
+
+            found.Add(new Escapee(
+                part.Name ?? typeName,
+                over,
+                Visible: !isFill,
+                Note: isFill ? "a fill: trimmed to the box, which is correct" : "its content is cut off"));
         }
 
         return found;
@@ -220,7 +225,7 @@ public sealed class FieldPartOverflowTests
         };
 
         // The product theme, the way a host loads it. Without it the control is a bare Fluent one and
-        // the numbers above belong to a different product.
+        // these numbers belong to a different product.
         var include = new StyleInclude(new Uri("avares://KitX.ToolKit.View.Avalonia/"))
         {
             Source = new Uri("avares://KitX.ToolKit.View.Avalonia/Themes/KitX.axaml"),
