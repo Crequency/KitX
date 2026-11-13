@@ -227,6 +227,15 @@ public sealed class SurfaceCardValueTests
     /// <c>case Button</c> arm matched a Switch's cell first and wrote the value into <c>Content</c>:
     /// a Switch whose key held <c>true</c> drew an unticked box with the word "true" beside it.
     /// Measured before the fix — <c>IsChecked=False Content=true</c>.</para>
+    ///
+    /// <para><b>This document is not the shape the validator produces.</b> Q88 (甲) says the editing
+    /// kinds carry no key: <c>SurfaceValidator.ValidateEditing</c> strips a declared key with
+    /// <c>surface.element.key-ignored</c>. So a valid surface would never contain the element below.
+    /// The test exists anyway, and the reason is worth stating: <c>Show</c> is reachable from a
+    /// document this card was handed, not only from a document the validator approved. A renderer
+    /// that draws the wrong thing when handed a keyed Switch is a renderer that depends on a check it
+    /// does not perform. See <c>A_keyed_switch_is_beyond_the_contract_and_the_card_still_draws_it</c>
+    /// for the same fact stated from the contract's side.</para>
     /// </remarks>
     [AvaloniaFact]
     public void A_switch_with_a_key_shows_that_keys_value_as_a_tick_box()
@@ -254,6 +263,44 @@ public sealed class SurfaceCardValueTests
         Relayout();
         Assert.Equal(false, tick.IsChecked);
         Assert.Null(tick.Content);
+    }
+
+    /// <summary>
+    /// A Switch built the way the contract says — <c>name</c>, no <c>key</c> — collects input and
+    /// shows nothing from the server.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the shape Q88 produces, and it is the opposite of what the keyed test
+    /// asserts.</b> Measured on both:</para>
+    /// <code>
+    /// name only:  SetValue("armed", true) → IsChecked=False   (no _cells entry; nothing to write to)
+    /// key only:   SetValue("armed", true) → IsChecked=True
+    /// both:       SetValue("armed", true) → IsChecked=True
+    /// </code>
+    ///
+    /// <para>That is not a renderer bug, it is the definition: an editing element's value is the
+    /// person's, and the data plane never holds it. A card whose Switch arrived pre-ticked would be
+    /// showing a value the server cannot have.</para>
+    ///
+    /// <para><b>What it does do is upload.</b> <c>_names[element.Name] = view</c> registers it, so a
+    /// tick travels with the next event under <c>armed</c> — which is the half Q88 keeps.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_switch_built_the_way_the_contract_says_collects_input_but_shows_no_stored_value()
+    {
+        var card = Card(Doc(new SurfaceSwitchElement { Row = 1, Name = "armed" }));
+
+        var tick = CellOfType<CheckBox>(card);
+
+        // Nothing arrives, because there is nothing for it to arrive by.
+        card.SetValue("armed", Json("true"));
+        Relayout();
+        Assert.NotEqual(true, tick.IsChecked);
+
+        // What the person does instead.
+        tick.IsChecked = true;
+        Relayout();
+        Assert.Equal(true, tick.IsChecked);
     }
 
     /// <summary>A row the person picked travels with the next event.</summary>

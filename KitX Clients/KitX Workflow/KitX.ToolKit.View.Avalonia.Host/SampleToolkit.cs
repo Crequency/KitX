@@ -134,7 +134,6 @@ internal static class SampleToolkit
     {
         ["title"] = "示例 · 扫描器",
         ["status"] = "还没有扫描过",
-        ["armed"] = true,
         ["log"] = Array.Empty<string>(),
     };
 
@@ -158,10 +157,9 @@ internal static class SampleToolkit
             new KeyDeclaration("title", "string", KeyRole.Out),
             new KeyDeclaration("status", "string", KeyRole.Out),
 
-            // Out, like the two above it. Q71 collapsed the old In/InOnSubmit roles into one question
-            // — "may a workflow write this key" — so there is no longer an In role to declare, and a
-            // Switch here shows what the data plane says rather than collecting input.
-            new KeyDeclaration("armed", "bool", KeyRole.Out),
+            // No declaration for `armed`: a Switch is an editing element, and Q88 says it carries no
+            // key, so there is no stored value for it to read or write. Declaring one would put a
+            // key in the table that nothing can ever fill.
             new KeyDeclaration("log", "array", KeyRole.Stream),
         ],
         Triggers =
@@ -265,11 +263,17 @@ internal static class SampleToolkit
                 Weight = 1,
             },
 
-            // The only control here whose appearance is decided by a value rather than by its
-            // declaration: an open Switch renders a ticked box because the key says true, and it moves
-            // when the key moves. Every other element shows where it was placed or what text it holds;
-            // this one shows a fact about the data plane. That is why it is here and not for variety.
-            new SurfaceSwitchElement { Key = "armed", Row = 5, Weight = 1 },
+            // The contract's shape for a Switch is `name`, not `key`. Q88 (甲) says the four editing
+            // kinds carry no key: they show what the person typed, and the data plane never holds
+            // that. SurfaceValidator.ValidateEditing strips a declared key with a warning
+            // (`surface.element.key-ignored`), so writing Key here would be a declaration the
+            // validator is supposed to delete.
+            //
+            // Written with Name for that reason. Measured consequence, and it is not a bug in this
+            // card: with no key, SurfaceCard never registers the cell, so a value from the server has
+            // nowhere to land and the box starts unticked. That is what "the data plane never holds
+            // this" means — the Switch is the person's input, not a readout.
+            new SurfaceSwitchElement { Name = "armed", Row = 5, Weight = 1 },
 
             // Alone in its row, so it takes the whole width — which is the layout rule for a
             // single-element row, not a special case written for destructive buttons.
