@@ -171,14 +171,32 @@
 
     Measured with the product theme at weight 1 of 10, where the row gives the control 38.2 pixels:
 
-      ComboBox       Border#Background      6400% too wide, MinWidth = 64
-      NumericUpDown  RepeatButton (each)    MinWidth = 34, two of them = 68
+      ComboBox       Border#Background      MinWidth 64  -> arranged 52, 13.8 past
+      NumericUpDown  RepeatButton (each)    MinWidth 34, two of them = 68
 
     These are the twelfth defect's second half. The first half (MinWidth = 0 on the four field styles
     above) made the control accept its column; these parts then refused to fit inside it.
 
     /template/ is how a style reaches into a template. Same mechanism the button styles below use for
     PART_ContentPresenter, for the same reason.
+
+    What the two overflows actually look like, measured rather than assumed (they are not the same):
+
+      NumericUpDown's spinner   nearest clipping ancestor is DataValidationErrors at 38.2, 0 levels up
+                                -> the buttons are cut off; they are NOT painted on the neighbour
+      ComboBox's Background     same clip, and it is a fill with no child -> nothing is visible
+
+    The distance to that ancestor is the number that matters, and it is why these are not the same kind
+    of problem even though both measure as "wider than the box":
+
+      spinner           0 levels to the clip: structural, no layout change can make it visible
+      the outer box     3 levels (Grid, SurfaceCard, Window): it was visible then, and would become
+      (twelfth defect,   visible again the moment anything in those three levels started clipping
+       first half)
+
+    So "a fill may overflow" is not a rule that stands on its own: it holds where a clip ancestor
+    exists, and says nothing where none does. The rule that does stand is "nothing visible may cross
+    the box", and visibility is answered by asking the tree, not by classifying the part.
   -->
   <Style Selector="ComboBox.kitx-field /template/ Border#Background">
     <Setter Property="MinWidth" Value="0"/>
@@ -186,7 +204,8 @@
 
   <!--
     NOT fixed here, on purpose: the drop-down glyph is still 3.8px past the control's right edge at
-    weight 1 of 10, and overlaps the text area by 8.2px.
+    weight 1 of 10, and overlaps the text area by 8.2px. Unlike the Background border this is visible:
+    the glyph is a shape, so the clip at 38.2 takes a slice off the arrow.
 
     Two attempts, both measured. Setting the glyph's own Margin to 0 made it worse (13.8px instead of
     3.8) because the inner Grid it is aligned in is itself as wide as its widest child, and the widest
@@ -194,9 +213,23 @@
     puts it further out, not further in.
 
     So the remaining defect is not the glyph's margin: it is that the Grid sizes to the Background
-    border rather than to the control. Fixing that means replacing part of the ComboBox template, which
-    is a decision about how much of Fluent's template this theme owns. That decision has not been made,
-    so the assertion in FieldPartOverflowTests stays red and says so.
+    border rather than to the control.
+
+    WHEN THIS RED SHOULD GO AWAY, so that it does not become a test everyone knows is red, which is
+    worse than no test because it teaches people to skim past red. Two observable events, not "when
+    things change":
+
+      1. This theme starts owning the ComboBox template, so the inner Grid can be told to size to the
+         control instead of to its widest child. Trigger: a commit that replaces the ComboBox template
+         in this file.
+      2. A Fluent release decouples the content width from Border#Background, so the Grid stops growing
+         to 52 in a 38.2 control. Trigger: the Avalonia.Themes.Fluent package version moves, and this
+         file's comment is the place to re-run the measurement.
+
+    Until one of those happens the assertions in FieldPartOverflowTests
+    (A_selects_drop_down_glyph_does_not_sit_on_top_of_its_text and
+    Nothing_that_shows_reaches_past_the_box_the_row_gave_it) stay red. They are the only thing that
+    will notice either event, and the second one is why the recorded table in that file exists.
   -->
 
   <Style Selector="NumericUpDown.kitx-field /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton">
