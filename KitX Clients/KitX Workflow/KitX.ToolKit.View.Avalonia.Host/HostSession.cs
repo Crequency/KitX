@@ -18,10 +18,19 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// all. The window becomes a thin view over this, and the assertions land here.</para>
 ///
 /// <para><b>It touches only contract types.</b> <see cref="IToolkitService"/>, <see cref="ISurfaceStore"/>,
-/// <see cref="IViewChannel"/>, <see cref="ToolkitView"/> and <see cref="SurfaceCard"/> are all on the
-/// public side. The implementation assembly (<c>KitX.ToolKit</c>) is reached through the DI
-/// container and never named — see <c>ProductBoundaryTests</c>, which asserts the compiled metadata
-/// of this assembly carries no reference to it.</para>
+/// <see cref="IViewChannel"/> and <see cref="ToolkitView"/> are all on the public side. The
+/// implementation assembly (<c>KitX.ToolKit</c>) is reached through the DI container and never
+/// named — see <c>ProductBoundaryTests</c>, which asserts the compiled metadata of this assembly
+/// carries no reference to it.</para>
+///
+/// <para><b>It owns no control, and that is a correctness rule rather than tidiness.</b> A
+/// <c>delta</c> arrives on whatever thread <c>DataStore</c> raised it on — in practice a thread-pool
+/// thread. An Avalonia control may only be touched on the UI thread, and touching one from anywhere
+/// else throws <c>InvalidOperationException: Call from invalid thread</c>. This class used to hold a
+/// <see cref="SurfaceCard"/> and apply every message to it directly, so the card was written from
+/// the store's thread: the projection filled in, the card stayed blank, and nothing reported an
+/// error, because the throw happened inside a store callback where no caller was listening.
+/// Controls belong to <c>HostWindow</c>, which marshals; this class only announces.</para>
 ///
 /// <para><b>Order is load-bearing: mount, then list.</b> Since 2026-11-11 a View sees only mounted
 /// ToolKits, so <c>list</c> on a fresh process returns nothing at all. <c>mount</c> is not a wire
@@ -71,32 +80,16 @@ public sealed class HostSession : IDisposable
     /// <summary>The client-side projection folded from what the server said.</summary>
     public ToolkitView View { get; } = new();
 
-    /// <summary>
-    /// The renderer, when there is one. Setting it re-applies the current projection.
-    /// </summary>
-    /// <remarks>
-    /// Nullable because <c>--self-check</c> runs with no window and therefore no control, and the
-    /// protocol→projection half is worth checking on its own.
-    /// </remarks>
-    public SurfaceCard? Card { get; private set; }
-
     /// <summary>The ToolKit this session is attached to, or <see langword="null"/>.</summary>
     public string? AttachedToolkitId { get; private set; }
 
-    /// <summary>Raised after <see cref="Card"/> was changed by an incoming message.</summary>
+    /// <summary>Raised on the server's thread after every server→client message was folded.</summary>
+    /// <remarks>
+    /// The thread is whatever <c>DataStore</c> raised on. A subscriber that owns controls has to
+    /// marshal before touching them — see <c>HostWindow.OnMessage</c>. Announcing here instead of
+    /// applying to a control here is what keeps this class off the UI thread.
+    /// </remarks>
     public event EventHandler<ViewMessage>? MessageApplied;
-
-    /// <summary>Gives this session a renderer and pushes the current projection into it.</summary>
-    public void AttachCard(SurfaceCard card)
-    {
-        ArgumentNullException.ThrowIfNull(card);
-
-        Card = card;
-        card.SetDocument(View.Surface);
-
-        foreach (var (key, value) in View.Values)
-            card.SetValue(key, value);
-    }
 
     /// <summary>Asks the server which ToolKits a View may attach to.</summary>
     /// <returns>The rows, or a refusal's message.</returns>
@@ -164,21 +157,17 @@ public sealed class HostSession : IDisposable
     }
 
     /// <summary>
-    /// Folds one server→client message into the projection and, when present, the renderer.
+    /// Folds one server→client message into the projection.
     /// </summary>
     /// <remarks>
-    /// <b>Both sides are fed the same message rather than one reading the other.</b> Handing the
-    /// card <c>View.Values</c> instead would make the card agree with the projection by
-    /// construction, and the one failure worth catching — a message the projection accepts and the
-    /// renderer rejects — would be impossible to observe. The two are allowed to disagree here
-    /// precisely so that a test can assert they do not.
+    /// <b>The projection is folded here; the renderer is not.</b> Applying to a control from this
+    /// callback is what broke the window: the callback runs on the store's thread, and an Avalonia
+    /// control touched from there throws. Subscribers that own controls listen on
+    /// <see cref="MessageApplied"/> and marshal themselves.
     /// </remarks>
     private void Apply(ViewMessage message)
     {
         View.Apply(message);
-
-        if (Card is { } card)
-            card.Apply(message);
 
         MessageApplied?.Invoke(this, message);
     }
@@ -187,11 +176,9 @@ public sealed class HostSession : IDisposable
     {
         // Every server→client message goes through Apply, including `surface`. A `surface` message
         // replaces the whole layout (Surface.md:818) and carries no values, so a renderer that just
-        // rebuilt its cells has nothing to show afterwards. Re-sending the values is NOT done here:
-        // it has to happen on the UI thread, and this callback runs on whatever thread the store
-        // raised on. HostWindow.OnMessage owns that half, next to the controls that need it. A
-        // session with no card (--self-check, and every test that only inspects the projection) has
-        // nothing to re-send, so the split costs nothing there.
+        // rebuilt its cells has nothing to show afterwards. Re-sending the values therefore happens
+        // in HostWindow, on the UI thread, next to the controls that need it — this callback runs on
+        // whatever thread the store raised on.
         channel.Received += (_, message) => Apply(message);
 
         return channel;

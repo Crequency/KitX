@@ -365,10 +365,21 @@ public sealed class SurfaceCard : Grid
     {
         ArgumentNullException.ThrowIfNull(key);
 
-        if (!_cells.TryGetValue(key, out var cell) || cell is not ScrollViewer scroller)
+        // Since Q99 a List's cell is its group container, not the scroller. `Show` reads through the
+        // container by shape; this has to read the same way, and it did not — append looked for a
+        // ScrollViewer in `_cells` directly, found a Border, and returned. Every appended line was
+        // dropped without an error, which is why a log stayed empty while the projection grew.
+        if (!_cells.TryGetValue(key, out var cell))
             return;
 
-        if (scroller.Content is not StackPanel rows)
+        var scroller = cell switch
+        {
+            ScrollViewer direct => direct,
+            Border group => group.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault(),
+            _ => null,
+        };
+
+        if (scroller?.Content is not StackPanel rows)
             return;
 
         rows.Children.Add(new TextBlock { Text = Scalars(item) });
