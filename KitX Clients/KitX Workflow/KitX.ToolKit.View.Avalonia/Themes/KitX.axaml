@@ -75,7 +75,6 @@
       <x:Double x:Key="KitXTypeCaption">12</x:Double>
       <CornerRadius x:Key="KitXRadiusCard">8</CornerRadius>
       <CornerRadius x:Key="KitXRadiusControl">4</CornerRadius>
-      <Thickness x:Key="KitXCardPadding">16,12,16,16</Thickness>
       <Thickness x:Key="KitXFieldPadding">10,0,10,0</Thickness>
 
       <!--
