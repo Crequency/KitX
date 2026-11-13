@@ -5,6 +5,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using KitX.ToolKit.Contract.View;
 using KitX.ToolKit.View;
@@ -29,6 +30,9 @@ internal sealed class HostWindow : Window
     private const double SidebarMargin = 16;
     private const double CardMargin = 24;
 
+    /// <summary>What this window would be if the screen were tall enough. Also its height cap.</summary>
+    private const double DesiredCardHeight = SurfaceMetrics.CardHeight + (CardMargin * 2) + 48;
+
     private readonly HostSession _session;
     private readonly ListBox _list = new();
     private readonly SurfaceCard _card = new();
@@ -37,7 +41,6 @@ internal sealed class HostWindow : Window
     public HostWindow(HostSession session)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
-
         Title = "KitX · Surface 客户端";
         Width = 720;
         Height = 940;
@@ -49,7 +52,18 @@ internal sealed class HostWindow : Window
         Background = null;
         SetDynamic(this, TemplatedControl.BackgroundProperty, "KitXSubtleBg");
         Width = SidebarWidth + (SidebarMargin * 2) + SurfaceMetrics.CardWidth + (CardMargin * 2);
-        Height = SurfaceMetrics.CardHeight + (CardMargin * 2) + 48;
+        Height = DesiredCardHeight;
+        MaxHeight = DesiredCardHeight;
+
+        // The card is 845 DIP and the chrome around it adds another 96, so the natural height is 941.
+        // On a 1024x768 screen the usable area is about 728, and the window used to open at 941: the
+        // status line at the bottom sat below the screen edge and nothing said so. The clamp below is
+        // what fixes that -- not a smaller card, because 845 is the design's phone size. The card does
+        // not get shorter; the window stops pretending it fits.
+        //
+        // Done in Opened rather than here because Screens is only meaningful once the window has a
+        // platform implementation.
+        Opened += (_, _) => FitToScreen();
 
         Content = Compose();
 
@@ -163,6 +177,34 @@ internal sealed class HostWindow : Window
             Text = string.IsNullOrWhiteSpace(row.Name) ? row.Id : row.Name,
         });
 
+        // The selected-row colour is this window's business, not the renderer's. `SurfaceCard` never
+        // produces a ListBox, so the theme in KitX.axaml has no selector for one and adding it there
+        // would put a style in the renderer for a control the renderer does not draw.
+        //
+        // So the chrome is declared here. It reads KitXAccent through DynamicResource, which is the
+        // theme's documented extension point (KitX.axaml:14-17): the key comes from the renderer's
+        // palette, the control comes from this window.
+        //
+        // /template/ is not decoration. A ListBoxItem's own Background is what the selection model
+        // writes, not what gets painted: Fluent's template puts a ContentPresenter#PART_ContentPresenter
+        // inside and binds its Background to the item's. Setting the item's Background with a plain
+        // selector changes a property that is then covered by the template — measured: the row kept
+        // Fluent's accent while the setter was applied.
+        var selectedRow = new Style(x => x
+            .OfType<ListBoxItem>()
+            .Class(":selected")
+            .Template()
+            .Name("PART_ContentPresenter"));
+
+        selectedRow.Setters.Add(new Setter(
+            TemplatedControl.BackgroundProperty,
+            new DynamicResourceExtension("KitXAccent")));
+        selectedRow.Setters.Add(new Setter(
+            TemplatedControl.ForegroundProperty,
+            Brushes.White));
+
+        Styles.Add(selectedRow);
+
         // Header above the list, list filling what is left. The previous version added the header
         // first and docked only the list, so the header took the default Dock.Left and the two were
         // laid out side by side: the caption was clipped to "已挂载的 ToolK" and the list got 152 of
@@ -179,18 +221,76 @@ internal sealed class HostWindow : Window
         left.Children.Add(header);
         left.Children.Add(_list);
 
+        // The card is 845 DIP and cannot become shorter: that number is the design's phone size, and a
+        // card that scrolled internally would say "this card is longer than a phone", which is false.
+        // So the window scrolls instead -- but only the card side. The sidebar carries the one piece of
+        // state this window shows (which ToolKit is attached), and a sidebar that scrolls away takes
+        // that with it.
+        //
+        // Measured first, not assumed: SurfaceCard sets Width/Height and asks its parent for nothing,
+        // so a ScrollViewer around it does not hand it an infinite height to lay out against --
+        // `card.Bounds` stays 390x845 and its three row Grids stay 64/384/64. The thing being scrolled
+        // is the viewport, not the card.
+        var cardSide = new ScrollViewer
+        {
+            Content = right,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+
         var split = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*"),
         };
 
         Grid.SetColumn(left, 0);
-        Grid.SetColumn(right, 1);
+        Grid.SetColumn(cardSide, 1);
 
         split.Children.Add(left);
-        split.Children.Add(right);
+        split.Children.Add(cardSide);
 
         return split;
+    }
+
+    /// <summary>Stops the window from opening taller than the screen it opens on.</summary>
+    /// <remarks>
+    /// <para>The card is 845 DIP plus 96 of chrome, which is taller than the usable area of a 768-high
+    /// screen. Before this, the last lines of the window -- the status line, which is the only place a
+    /// failure is ever reported -- were off the bottom of the screen, and the window itself said
+    /// nothing about it.</para>
+    ///
+    /// <para><b>Shrink the window, not the card.</b> 845 is the design's phone size
+    /// (<c>SurfaceMetrics.CardHeight</c>), so a shorter card would be a different product. What gives
+    /// is the window, and <see cref="Compose"/> puts the card side in a <c>ScrollViewer</c> so the
+    /// clamped case still reaches every part of it.</para>
+    ///
+    /// <para>Also caps the width, because the same argument applies sideways on a narrow screen, and
+    /// a window wider than the screen is the failure that looks like a bug in the layout.</para>
+    /// </remarks>
+    private void FitToScreen()
+    {
+        if (Screens?.Primary is not { } screen)
+            return;
+
+        // WorkingArea, not Bounds: the taskbar is part of the screen and not part of the workspace.
+        var area = screen.WorkingArea.ToRect(screen.Scaling);
+
+        // The clamp has to be about the whole window, not about its client area. Width and Height are
+        // client sizes, and this window has a title bar and a border the system draws: measured on a
+        // 1.25x screen, a 940.8 client was a 978 DIP window. Comparing the client against the
+        // workspace therefore said "it fits" while 47 pixels of frame sat under the taskbar.
+        var chrome = Bounds.Size - ClientSize;
+
+        Height = Math.Min(Height, area.Height - chrome.Height);
+        Width = Math.Min(Width, area.Width - chrome.Width);
+
+        // Size alone was not enough. Windows places a new window by cascading it from the last one, so
+        // the window opened at y=256 DIP on a 1104-DIP workspace and its bottom 124 DIP -- the status
+        // line, which is where every failure is reported -- was below the screen edge. A window that
+        // fits but is positioned partly off-screen looks exactly like a window that does not fit.
+        var left = Math.Clamp(Position.X, area.X, Math.Max(area.X, area.Right - Bounds.Width));
+        var top = Math.Clamp(Position.Y, area.Y, Math.Max(area.Y, area.Bottom - Bounds.Height));
+        Position = new PixelPoint((int)left, (int)top);
     }
 
     /// <summary>Mount-first, then list. See <see cref="HostSession"/> for why that order is fixed.</summary>
