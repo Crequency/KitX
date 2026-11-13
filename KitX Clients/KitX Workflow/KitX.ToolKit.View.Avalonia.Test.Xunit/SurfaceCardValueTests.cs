@@ -349,4 +349,40 @@ public sealed class SurfaceCardValueTests
     }
 
     private static Window? _host;
+
+    /// <summary>
+    /// An appended entry reaches a list that was built from a document, by the route the wire uses.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Every other append test in this repository hands the card a control it never
+    /// builds.</b> <c>Appending_keeps_the_reader_where_they_were...</c> reads the <c>ScrollViewer</c>
+    /// out of the visual tree and appends after a <c>SetValue</c>, which works — but the append path
+    /// itself looks a cell up in the card's own table, and <b>since Q99 a List's entry in that table
+    /// is its group container (<c>Border</c>), not the scroller</b>. The old code required the table
+    /// entry to be a <c>ScrollViewer</c> and returned silently when it was not, so append did
+    /// nothing at all in the real product while a test that had the scroller in hand still passed.</para>
+    ///
+    /// <para><b>What makes this one different is only the order.</b> Append first, with no
+    /// <c>SetValue</c> before it, so the card has to find the cell the same way the message does.
+    /// That is the whole defect: it lived in the lookup, not in the insert.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void An_appended_entry_reaches_a_list_the_card_built_itself()
+    {
+        var card = Card(Doc(new SurfaceListElement { Row = 1, Key = "log", ItemTitle = "at" }));
+
+        // No SetValue first. The wire sends `appended` deltas for a stream key from the very first
+        // entry, so the card must be able to append into a list it has never had a value for.
+        card.AppendValue("log", Json("\"scanned\""));
+        Relayout();
+
+        Assert.Equal("scanned", card.ShownTextOf("log"));
+
+        // Two entries, because one is the count at which a silent no-op and a working append look
+        // identical when the cell is read through its content rather than through its children.
+        card.AppendValue("log", Json("\"scanned again\""));
+        Relayout();
+
+        Assert.Equal("scanned\nscanned again", card.ShownTextOf("log"));
+    }
 }

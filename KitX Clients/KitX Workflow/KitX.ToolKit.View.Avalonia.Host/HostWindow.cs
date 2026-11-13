@@ -38,7 +38,6 @@ internal sealed class HostWindow : Window
 
         Content = Compose();
 
-        _session.AttachCard(_card);
         _session.MessageApplied += (_, message) => OnMessage(message);
 
         // The card raises; this window is what carries it to the server. Without this line the
@@ -190,16 +189,40 @@ internal sealed class HostWindow : Window
 
     private void OnMessage(ViewMessage message)
     {
-        // Only `surface` needs anything from this class: the session fed both the projection and
-        // the card, but a rebuilt card has empty cells and the values have to be re-sent. Doing it
-        // here rather than in the session keeps the UI-thread requirement next to the controls.
-        if (message is not SurfaceMessage)
-            return;
-
-        Dispatcher.UIThread.Post(() =>
+        // The session folds the projection on the server's thread; everything to do with a control
+        // has to happen here, on the UI thread, and that includes the very first paint.
+        //
+        // The `surface` case is the one that needs more than a forward: a surface message replaces
+        // the whole layout (Surface.md:818) and carries no values, so a card that just rebuilt its
+        // cells has nothing to show. The projection still holds the values from the earlier
+        // welcome, so they are re-sent after the rebuild.
+        if (Dispatcher.UIThread.CheckAccess())
         {
-            foreach (var (key, value) in _session.View.Values)
-                _card.SetValue(key, value);
-        });
+            Forward(message);
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => Forward(message));
+    }
+
+    /// <summary>Applies one message to the card. UI thread only.</summary>
+    private void Forward(ViewMessage message)
+    {
+        try
+        {
+            _card.Apply(message);
+
+            if (message is SurfaceMessage)
+            {
+                foreach (var (key, value) in _session.View.Values)
+                    _card.SetValue(key, value);
+            }
+        }
+        catch (Exception ex)
+        {
+            // A renderer that refuses a message is exactly the disagreement this host exists to
+            // surface. Swallowing it would make a blank card look like a slow server.
+            _status.Text = $"渲染失败：{ex.GetType().Name}: {ex.Message}";
+        }
     }
 }
