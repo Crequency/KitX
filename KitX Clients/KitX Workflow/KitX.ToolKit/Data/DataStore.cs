@@ -254,7 +254,7 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
             _rings.Remove(key);
         IndexRemove(key);
         Changed?.Invoke(this, new DataStoreChangedEventArgs(key, old, null, Removed: true));
-            _keyChanged?.Invoke(this, key);
+        _keyChanged?.Invoke(this, key);
         return true;
     }
 
@@ -372,7 +372,7 @@ internal sealed class DataStore : KitX.ToolKit.Contract.IKeyStore
                 IndexRemove(key);
                 removed++;
                 Changed?.Invoke(this, new DataStoreChangedEventArgs(key, old, null, Removed: true));
-            _keyChanged?.Invoke(this, key);
+                _keyChanged?.Invoke(this, key);
             }
         }
         return removed;
