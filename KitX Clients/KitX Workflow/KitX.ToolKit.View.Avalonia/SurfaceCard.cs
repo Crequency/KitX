@@ -253,6 +253,14 @@ public sealed class SurfaceCard : Grid
         _names.Clear();
         _selection.Clear();
 
+        // Every map keyed by an element of the document is emptied here, and this one is no
+        // exception. It holds ComboBox instances the lines above have just detached: leaving them
+        // behind means the key still "feeds a Select", so SetValue and RemoveValue both return early
+        // into a control nobody can see and never reach the cells this rebuild just built. What the
+        // reader gets is a blank cell with the value sitting in the projection — the same silent
+        // shape as the append defect, one map over.
+        _optionSources.Clear();
+
         SetCells(document.Elements, carriedInput);
     }
 
