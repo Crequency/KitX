@@ -27,6 +27,15 @@
     -->
     <ProjectReference Include="..\KitX.ToolKit.View\KitX.ToolKit.View.csproj" />
     <ProjectReference Include="..\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
+
+    <!--
+      The View protocol's host, so the boundary test can inspect the metadata the C# compiler
+      actually emitted for it. That is the observation ADR-0014 D5 needs: a csproj scan reads what
+      was declared, and the implementation arrives here transitively through Hosting regardless.
+      This test project already sees KitX.ToolKit itself, which is what makes it the right side of
+      the seam to stand on.
+    -->
+    <ProjectReference Include="..\KitX.ToolKit.View.Avalonia.Host\KitX.ToolKit.View.Avalonia.Host.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,156 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
+using KitX.ToolKit.Contract.View;
+using KitX.ToolKit.View.Avalonia;
+
+namespace KitX.ToolKit.View.Avalonia.Host;
+
+/// <summary>
+/// The window: a list on the left, the card on the right.
+/// </summary>
+/// <remarks>
+/// <para><b>Thin on purpose.</b> Every decision worth asserting lives in <see cref="HostSession"/>;
+/// this class arranges controls and forwards clicks. The one thing it owns that the session does not
+/// is thread affinity — a message pushed from the server arrives on whatever thread the store
+/// raised it on, and touching a control from there throws. <see cref="Dispatcher.UIThread"/> is the
+/// only correct answer and it belongs where the controls are.</para>
+/// </remarks>
+internal sealed class HostWindow : Window
+{
+    private readonly HostSession _session;
+    private readonly ListBox _list = new();
+    private readonly SurfaceCard _card = new();
+    private readonly TextBlock _status = new();
+
+    public HostWindow(HostSession session)
+    {
+        _session = session ?? throw new ArgumentNullException(nameof(session));
+
+        Title = "KitX · Surface 客户端";
+        Width = 720;
+        Height = 940;
+        Background = new SolidColorBrush(Color.Parse("#F3F3F3"));
+
+        Content = Compose();
+
+        _session.AttachCard(_card);
+        _session.MessageApplied += (_, message) => OnMessage(message);
+
+        Opened += async (_, _) => await StartAsync();
+    }
+
+    private Control Compose()
+    {
+        var frame = new Border
+        {
+            Child = _card,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+
+        var right = new StackPanel
+        {
+            Spacing = 12,
+            Margin = new Thickness(24),
+            Children = { frame, _status },
+        };
+
+        _list.SelectionChanged += async (_, _) =>
+        {
+            if (_list.SelectedItem is ToolkitSummary row)
+                await ConnectAsync(row.Id);
+        };
+
+        var left = new DockPanel { Width = 240, Margin = new Thickness(16) };
+
+        DockPanel.SetDock(_list, Dock.Top);
+        left.Children.Add(new TextBlock
+        {
+            Text = "已挂载的 ToolKit",
+            FontSize = 12,
+            Margin = new Thickness(0, 0, 0, 8),
+        });
+        left.Children.Add(_list);
+
+        var split = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+        };
+
+        Grid.SetColumn(left, 0);
+        Grid.SetColumn(right, 1);
+
+        split.Children.Add(left);
+        split.Children.Add(right);
+
+        return split;
+    }
+
+    /// <summary>Mount-first, then list. See <see cref="HostSession"/> for why that order is fixed.</summary>
+    private async Task StartAsync()
+    {
+        try
+        {
+            var (id, created) = _session.EnsureSample();
+            _session.SeedSampleSurface(id);
+
+            var (rows, error) = await _session.ListAsync();
+
+            _list.ItemsSource = rows;
+
+            if (error is not null)
+            {
+                _status.Text = error;
+                return;
+            }
+
+            if (rows.Count == 0)
+            {
+                // Nothing to draw is a state, not a failure. A blank window reads as a crash.
+                _status.Text = "没有已挂载的 ToolKit。";
+                return;
+            }
+
+            _status.Text = created
+                ? $"已创建并挂载示例 ToolKit：{id}"
+                : $"已挂载：{id}";
+
+            _list.SelectedIndex = 0;
+        }
+        catch (Exception ex)
+        {
+            // A start-up failure that only reaches stderr is a window that never appears and no
+            // explanation. The point of this host is to make the chain visible, including when it
+            // breaks.
+            _status.Text = $"{ex.GetType().Name}: {ex.Message}";
+        }
+    }
+
+    private async Task ConnectAsync(string toolkitId)
+    {
+        var error = await _session.ConnectAsync(toolkitId);
+
+        if (error is not null)
+            _status.Text = error;
+    }
+
+    private void OnMessage(ViewMessage message)
+    {
+        // Only `surface` needs anything from this class: the session fed both the projection and
+        // the card, but a rebuilt card has empty cells and the values have to be re-sent. Doing it
+        // here rather than in the session keeps the UI-thread requirement next to the controls.
+        if (message is not SurfaceMessage)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            foreach (var (key, value) in _session.View.Values)
+                _card.SetValue(key, value);
+        });
+    }
+}
