@@ -329,6 +329,33 @@ public class SurfaceTests : IDisposable
         Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.ElementKeyIgnored);
     }
 
+    /// <summary>
+    /// A select and a number reach the same editing path as an input, but through a helper that
+    /// swaps the element for its edited copy. The three share a warning; only the input shares the
+    /// call shape. Deleting the swap leaves the warning in place while the key survives — so this
+    /// asserts the outcome, not the helper.
+    /// </summary>
+    [Theory]
+    [InlineData("select")]
+    [InlineData("number")]
+    public void A_choice_element_that_declares_a_key_has_it_dropped_too(string kind)
+    {
+        SurfaceElement element = kind switch
+        {
+            "select" => new SurfaceSelectElement { Key = "barcode", Name = "barcode", Options = ["a", "b"] },
+            _ => new SurfaceNumberElement { Key = "barcode", Name = "barcode" },
+        };
+
+        var result = SurfaceValidator.Validate(
+            new SurfaceDocument { Elements = [element] },
+            Keys(new KeyDeclaration("barcode", "string", KeyRole.Out)));
+
+        var kept = Assert.Single(result.Effective.Elements);
+        Assert.Null(kept.Key);
+        Assert.Equal("barcode", kept.Name);
+        Assert.Contains(result.Warnings, w => w.Code == SurfaceDiagnosticCodes.ElementKeyIgnored);
+    }
+
     [Fact]
     public void A_button_reads_no_key_and_is_kept()
     {
