@@ -224,6 +224,41 @@ public class SurfaceTests : IDisposable
         Assert.Empty(loaded.Warnings);
         Assert.Single(loaded.Document.Elements);
     }
+    [Fact]
+    public void A_diagnostic_names_the_element_the_way_the_file_names_it()
+    {
+        // Two producers write these sentences — the store while reading, the validator afterwards —
+        // and both used to interpolate the C# type name. The canvas labelled the cell "Switch" while
+        // the warning beside it said "SurfaceSwitchElement", a word that appears in nothing the
+        // author can look at: not the file, not the card, not the documentation. The file's own word
+        // is the only one all three readers share.
+        WriteRaw("""
+        {
+          "schemaVersion": 1,
+          "layoutVersion": 1,
+          "elements": [
+            { "type": "Switch", "row": 1, "name": "copies", "events": ["changed"] }
+          ]
+        }
+        """);
+
+        var fromStore = Assert.Single(Store().Load(TkId).Warnings);
+
+        Assert.Contains("'Switch'", fromStore.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("SurfaceSwitchElement", fromStore.Message, StringComparison.Ordinal);
+
+        // The same sentence, produced after compilation instead of during the read.
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceTextElement { Key = "nope" }],
+        };
+
+        var fromValidator = Assert.Single(SurfaceValidator.Validate(document, Keys()).Warnings);
+
+        Assert.Contains("Dropped Text at row", fromValidator.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("SurfaceTextElement", fromValidator.Message, StringComparison.Ordinal);
+    }
+
     // ── element tier ───────────────────────────────────────────────────────────────────────────
 
     [Fact]

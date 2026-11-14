@@ -315,7 +315,7 @@ internal static class SurfaceValidator
         if (!string.IsNullOrWhiteSpace(element.Key))
         {
             Warn(ref warnings, keys, element, SurfaceDiagnosticCodes.ElementKeyIgnored,
-                $"an '{element.GetType().Name}' shows what the person typed, not a stored value; "
+                $"an '{SurfaceElementKind.Of(element)}' shows what the person typed, not a stored value; "
                 + $"key '{element.Key}' is ignored — use 'name' to say what it uploads as");
             kept = element with { Key = null };
         }
@@ -449,7 +449,7 @@ internal static class SurfaceValidator
         var verb = dropped ? "Dropped" : "Kept";
         (warnings ??= []).Add(Diagnostic.Warning(
             code,
-            $"{verb} {element.GetType().Name} at row {element.Row}, weight {element.Weight}: {detail}.",
+            $"{verb} {SurfaceElementKind.Of(element)} at row {element.Row}, weight {element.Weight}: {detail}.",
             new DiagnosticPath(ToolkitId: keys.ToolkitId, Key: element.Key)));
     }
 

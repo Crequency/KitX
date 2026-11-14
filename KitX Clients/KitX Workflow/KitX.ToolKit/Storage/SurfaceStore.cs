@@ -258,7 +258,7 @@ internal sealed class SurfaceStore : ISurfaceStore
                 {
                     (warnings ??= []).Add(ElementError(
                         toolkitId, SurfaceDiagnosticCodes.EventsNotAllowed,
-                        $"Element of type '{parsed.GetType().Name}' cannot declare 'events'; only a " +
+                        $"Element of type '{SurfaceElementKind.Of(parsed)}' cannot declare 'events'; only a " +
                         "Button or an Input speaks on its own, and the others' values travel under " +
                         "whichever element does. The field was ignored."));
                     continue;
@@ -266,7 +266,7 @@ internal sealed class SurfaceStore : ISurfaceStore
 
                 (warnings ??= []).Add(ElementError(
                     toolkitId, SurfaceDiagnosticCodes.ElementUnknownField,
-                    $"Element of type '{parsed.GetType().Name}' has an unrecognised field " +
+                    $"Element of type '{SurfaceElementKind.Of(parsed)}' has an unrecognised field " +
                     $"'{unknown}'; it was ignored and the default applied."));
             }
 
