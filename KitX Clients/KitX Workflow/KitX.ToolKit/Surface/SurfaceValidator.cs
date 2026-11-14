@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Surface;
 using KitX.ToolKit.Data;
@@ -130,7 +131,8 @@ internal static class SurfaceValidator
                 SurfaceDiagnosticCodes.ValuesHaveNoWayOut,
                 $"'{contributes.Name}' and the values beside it have nothing that sends them: only a "
                 + "Button, or an Input with 'events', raises an event. They stay on the card.",
-                new DiagnosticPath(ToolkitId: keys.ToolkitId)));
+                new DiagnosticPath(ToolkitId: keys.ToolkitId),
+                Values(("name", contributes.Name!))));
         }
 
         // A document-level question, asked once after every element has had its say: how many main
@@ -142,7 +144,8 @@ internal static class SurfaceValidator
         if (primaries > 1)
         {
             Warn(ref warnings, keys, kept[0], SurfaceDiagnosticCodes.ButtonRepeatedPrimary,
-                $"{primaries} buttons claim 'primary'; a card reads best with at most one main action");
+                $"{primaries} buttons claim 'primary'; a card reads best with at most one main action",
+                data: [("count", Invariant(primaries))]);
         }
 
         if (warnings is null)
@@ -194,7 +197,8 @@ internal static class SurfaceValidator
         {
             Warn(ref warnings, keys, button, SurfaceDiagnosticCodes.ButtonUnknownEmphasis,
                 $"'emphasis' is '{button.Emphasis}', which is not one of " +
-                $"{string.Join(" / ", KnownEmphasis)}; it is drawn as 'normal'");
+                $"{string.Join(" / ", KnownEmphasis)}; it is drawn as 'normal'",
+                data: [("value", button.Emphasis), ("known", string.Join(" / ", KnownEmphasis))]);
 
             return button with { Emphasis = null };
         }
@@ -251,7 +255,8 @@ internal static class SurfaceValidator
         if (!KnownFormats.Contains(text.Format))
         {
             Warn(ref warnings, keys, text, SurfaceDiagnosticCodes.TextUnknownFormat,
-                $"'format' is '{text.Format}', which this build does not know; it is shown as plain text");
+                $"'format' is '{text.Format}', which this build does not know; it is shown as plain text",
+                data: [("value", text.Format!)]);
             return text with { Format = null };
         }
 
@@ -284,7 +289,8 @@ internal static class SurfaceValidator
         if (!keys.IsDeclared(element.Key))
         {
             Drop(ref warnings, keys, element, SurfaceDiagnosticCodes.ElementUnknownKey,
-                $"the ToolKit does not declare a key named '{element.Key}'");
+                $"the ToolKit does not declare a key named '{element.Key}'",
+                data: [("key", element.Key!)]);
             return false;
         }
 
@@ -316,7 +322,8 @@ internal static class SurfaceValidator
         {
             Warn(ref warnings, keys, element, SurfaceDiagnosticCodes.ElementKeyIgnored,
                 $"an '{SurfaceElementKind.Of(element)}' shows what the person typed, not a stored value; "
-                + $"key '{element.Key}' is ignored — use 'name' to say what it uploads as");
+                + $"key '{element.Key}' is ignored — use 'name' to say what it uploads as",
+                data: [("key", element.Key!)]);
             kept = element with { Key = null };
         }
 
@@ -385,7 +392,8 @@ internal static class SurfaceValidator
         if (!string.Equals(declaration.Type, ArrayTypeName, StringComparison.OrdinalIgnoreCase))
         {
             Drop(ref warnings, keys, list, SurfaceDiagnosticCodes.ListKeyNotArray,
-                $"key '{list.Key}' is declared as '{declaration.Type}', not '{ArrayTypeName}'");
+                $"key '{list.Key}' is declared as '{declaration.Type}', not '{ArrayTypeName}'",
+                data: [("key", list.Key!), ("type", declaration.Type)]);
             return false;
         }
 
@@ -409,21 +417,24 @@ internal static class SurfaceValidator
         if (number.Min is { } min && number.Max is { } max && min > max)
         {
             Warn(ref warnings, keys, number, SurfaceDiagnosticCodes.NumberRangeReversed,
-                $"'min' ({min}) is greater than 'max' ({max}); the range is dropped");
+                $"'min' ({min}) is greater than 'max' ({max}); the range is dropped",
+                data: [("min", Invariant(min)), ("max", Invariant(max))]);
             result = result with { Min = null, Max = null };
         }
 
         if (result.Step is { } step && step <= 0)
         {
             Warn(ref warnings, keys, number, SurfaceDiagnosticCodes.NumberStepNotPositive,
-                $"'step' ({step}) is not positive; it defaults to 1");
+                $"'step' ({step}) is not positive; it defaults to 1",
+                data: [("step", Invariant(step))]);
             result = result with { Step = null };
         }
 
         if (result.Decimals is { } decimals && decimals < 0)
         {
             Warn(ref warnings, keys, number, SurfaceDiagnosticCodes.NumberDecimalsNegative,
-                $"'decimals' ({decimals}) is negative; it defaults to the renderer's choice");
+                $"'decimals' ({decimals}) is negative; it defaults to the renderer's choice",
+                data: [("decimals", Invariant(decimals))]);
             result = result with { Decimals = null };
         }
 
@@ -434,9 +445,20 @@ internal static class SurfaceValidator
     /// One warning per element, named by kind and cell so a reader can find it in the editor
     /// without ids.
     /// </summary>
+    /// <param name="data">
+    /// The values this particular sentence names, one per <c>{name}</c> placeholder. <c>kind</c>,
+    /// <c>row</c> and <c>weight</c> are added by <see cref="Warn"/> itself and must not be repeated
+    /// here — a call site that supplied its own would be editing the sentence's opening clause,
+    /// which it does not own.
+    /// </param>
     private static void Drop(
-        ref List<Diagnostic>? warnings, KeyTable keys, SurfaceElement element, string code, string detail)
-        => Warn(ref warnings, keys, element, code, detail, dropped: true);
+        ref List<Diagnostic>? warnings,
+        KeyTable keys,
+        SurfaceElement element,
+        string code,
+        string detail,
+        params (string Name, string Value)[] data)
+        => Warn(ref warnings, keys, element, code, detail, dropped: true, data: data);
 
     private static void Warn(
         ref List<Diagnostic>? warnings,
@@ -444,14 +466,59 @@ internal static class SurfaceValidator
         SurfaceElement element,
         string code,
         string detail,
-        bool dropped = false)
+        bool dropped = false,
+        params (string Name, string Value)[] data)
     {
         var verb = dropped ? "Dropped" : "Kept";
+
+        // Every element diagnostic opens with "Dropped <kind> at row <row>, weight <weight>:" — the
+        // three values a reader needs to find the cell, and the three no individual call site should
+        // have to remember. Collected here once, so a translation of any of these codes may name
+        // them without every producer having to pass them. The numbers are formatted invariantly
+        // because they go into a translated sentence, where a group separator from the machine's
+        // culture would be a foreign character.
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["kind"] = SurfaceElementKind.Of(element),
+            ["row"] = Invariant(element.Row),
+            ["weight"] = Invariant(element.Weight),
+        };
+
+        foreach (var (name, value) in data)
+            values[name] = value;
+
         (warnings ??= []).Add(Diagnostic.Warning(
             code,
             $"{verb} {SurfaceElementKind.Of(element)} at row {element.Row}, weight {element.Weight}: {detail}.",
-            new DiagnosticPath(ToolkitId: keys.ToolkitId, Key: element.Key)));
+            new DiagnosticPath(ToolkitId: keys.ToolkitId, Key: element.Key),
+            values));
     }
+
+    /// <summary>
+    /// The extra named values one diagnostic names, on top of the kind/row/weight every element
+    /// diagnostic carries.
+    /// </summary>
+    /// <remarks>
+    /// Adjacent to the message it belongs to, because nothing can check an interpolated string
+    /// against a dictionary: the only force keeping <c>{key}</c> in the sentence and <c>key</c> in
+    /// the data together is that they are written on the same call. <see langword="null"/> when a
+    /// sentence reads on its own, so "nothing to substitute" has one representation.
+    /// </remarks>
+    private static IReadOnlyDictionary<string, string>? Values(params (string Name, string Value)[] pairs)
+    {
+        if (pairs.Length == 0)
+            return null;
+
+        var values = new Dictionary<string, string>(pairs.Length, StringComparer.Ordinal);
+        foreach (var (name, value) in pairs)
+            values[name] = value;
+
+        return values;
+    }
+
+    private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static string Invariant(double value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>The key-type literal a <see cref="SurfaceListElement"/> requires.</summary>
     private const string ArrayTypeName = "array";

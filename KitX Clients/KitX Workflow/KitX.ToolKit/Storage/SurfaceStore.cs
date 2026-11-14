@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using KitX.ToolKit.Contract;
@@ -80,7 +81,8 @@ internal sealed class SurfaceStore : ISurfaceStore
         {
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, "surface.file.unreadable",
-                $"Could not read '{FileName}': {ex.Message}"));
+                $"Could not read '{FileName}': {ex.Message}",
+                ("file", FileName), ("reason", ex.Message)));
         }
 
         JsonDocument parsed;
@@ -92,7 +94,8 @@ internal sealed class SurfaceStore : ISurfaceStore
         {
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, "surface.file.invalid-json",
-                $"'{FileName}' is not valid JSON: {ex.Message}"));
+                $"'{FileName}' is not valid JSON: {ex.Message}",
+                ("file", FileName), ("reason", ex.Message)));
         }
 
         using (parsed)
@@ -156,7 +159,8 @@ internal sealed class SurfaceStore : ISurfaceStore
         {
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, "surface.file.root-not-object",
-                $"'{FileName}' must contain a JSON object."));
+                $"'{FileName}' must contain a JSON object.",
+                ("file", FileName)));
         }
 
         // File layer: the two numbers that say how to read everything else. Both are probed with
@@ -169,7 +173,8 @@ internal sealed class SurfaceStore : ISurfaceStore
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, SurfaceDiagnosticCodes.FileMissingVersion,
                 $"'{FileName}' does not declare 'schemaVersion'. A file that does not say which " +
-                "schema it is written in cannot be read as if it said the current one."));
+                "schema it is written in cannot be read as if it said the current one.",
+                ("file", FileName), ("field", "schemaVersion")));
         }
 
         if (schemaVersion != SurfaceDocument.CurrentSchemaVersion)
@@ -177,7 +182,10 @@ internal sealed class SurfaceStore : ISurfaceStore
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, "surface.file.unsupported-schema",
                 $"'{FileName}' declares schemaVersion {schemaVersion}; this build understands " +
-                $"{SurfaceDocument.CurrentSchemaVersion}. Refusing rather than guessing."));
+                $"{SurfaceDocument.CurrentSchemaVersion}. Refusing rather than guessing.",
+                ("file", FileName),
+                ("version", Invariant(schemaVersion)),
+                ("expected", Invariant(SurfaceDocument.CurrentSchemaVersion))));
         }
 
         if (!TryReadInt(root, "layoutVersion", out var layoutVersion))
@@ -186,7 +194,8 @@ internal sealed class SurfaceStore : ISurfaceStore
                 toolkitId, SurfaceDiagnosticCodes.FileMissingVersion,
                 $"'{FileName}' does not declare 'layoutVersion'. This file was written before the " +
                 "layout model had a version, or it predates the model entirely; either way laying " +
-                "it out under the current rules would be a guess."));
+                "it out under the current rules would be a guess.",
+                ("file", FileName), ("field", "layoutVersion")));
         }
 
         if (layoutVersion != SurfaceDocument.CurrentLayoutVersion)
@@ -196,14 +205,18 @@ internal sealed class SurfaceStore : ISurfaceStore
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, "surface.file.unsupported-layout-version",
                 $"'{FileName}' declares layoutVersion {layoutVersion}; this build lays out " +
-                $"{SurfaceDocument.CurrentLayoutVersion}. Refusing rather than reflowing."));
+                $"{SurfaceDocument.CurrentLayoutVersion}. Refusing rather than reflowing.",
+                ("file", FileName),
+                ("version", Invariant(layoutVersion)),
+                ("expected", Invariant(SurfaceDocument.CurrentLayoutVersion))));
         }
 
         if (!root.TryGetProperty("elements", out var elements) || elements.ValueKind != JsonValueKind.Array)
         {
             return SurfaceLoadResult.Refused(FileError(
                 toolkitId, "surface.file.elements-missing",
-                $"'{FileName}' has no 'elements' array."));
+                $"'{FileName}' has no 'elements' array.",
+                ("file", FileName)));
         }
 
         var kept = new List<SurfaceElement>(elements.GetArrayLength());
@@ -218,7 +231,8 @@ internal sealed class SurfaceStore : ISurfaceStore
             (warnings ??= []).Add(ElementError(
                 toolkitId, SurfaceDiagnosticCodes.FileUnknownField,
                 $"'{FileName}' has an unrecognised top-level field '{unknown}'; it was ignored. " +
-                "Layout files written for an older layout model often carry one."));
+                "Layout files written for an older layout model often carry one.",
+                ("file", FileName), ("field", unknown)));
         }
 
         foreach (var element in elements.EnumerateArray())
@@ -233,7 +247,8 @@ internal sealed class SurfaceStore : ISurfaceStore
                 // One unknown type must not take the card down with it.
                 (warnings ??= []).Add(ElementError(
                     toolkitId, "surface.element.unsupported-type",
-                    $"Dropped one element: {ex.Message}"));
+                    $"Dropped one element: {ex.Message}",
+                    ("reason", ex.Message)));
                 continue;
             }
 
@@ -260,14 +275,16 @@ internal sealed class SurfaceStore : ISurfaceStore
                         toolkitId, SurfaceDiagnosticCodes.EventsNotAllowed,
                         $"Element of type '{SurfaceElementKind.Of(parsed)}' cannot declare 'events'; only a " +
                         "Button or an Input speaks on its own, and the others' values travel under " +
-                        "whichever element does. The field was ignored."));
+                        "whichever element does. The field was ignored.",
+                        ("kind", SurfaceElementKind.Of(parsed))));
                     continue;
                 }
 
                 (warnings ??= []).Add(ElementError(
                     toolkitId, SurfaceDiagnosticCodes.ElementUnknownField,
                     $"Element of type '{SurfaceElementKind.Of(parsed)}' has an unrecognised field " +
-                    $"'{unknown}'; it was ignored and the default applied."));
+                    $"'{unknown}'; it was ignored and the default applied.",
+                    ("kind", SurfaceElementKind.Of(parsed)), ("field", unknown)));
             }
 
             kept.Add(parsed);
@@ -392,11 +409,45 @@ internal sealed class SurfaceStore : ISurfaceStore
     /// </summary>
     private const string EventsMember = "events";
 
-    private static Diagnostic FileError(string toolkitId, string code, string message)
-        => Diagnostic.Error(code, message, new DiagnosticPath(ToolkitId: toolkitId));
+    private static Diagnostic FileError(
+        string toolkitId, string code, string message, params (string Name, string Value)[] data)
+        => Diagnostic.Error(code, message, new DiagnosticPath(ToolkitId: toolkitId), Values(data));
 
-    private static Diagnostic ElementError(string toolkitId, string code, string message)
-        => Diagnostic.Warning(code, message, new DiagnosticPath(ToolkitId: toolkitId));
+    private static Diagnostic ElementError(
+        string toolkitId, string code, string message, params (string Name, string Value)[] data)
+        => Diagnostic.Warning(code, message, new DiagnosticPath(ToolkitId: toolkitId), Values(data));
+
+    /// <summary>
+    /// The named values a diagnostic's sentence was built from, as <see cref="Diagnostic.Data"/>
+    /// carries them.
+    /// </summary>
+    /// <remarks>
+    /// <para>One entry per <c>{name}</c> placeholder, written on the same call as the message it
+    /// belongs to — that adjacency is the only thing that keeps the two from drifting apart, since
+    /// nothing can check an interpolated string against a dictionary.</para>
+    ///
+    /// <para><see langword="null"/> rather than an empty dictionary when a sentence names no values:
+    /// the client reads "there is nothing to substitute" from one meaning, not two.</para>
+    /// </remarks>
+    private static IReadOnlyDictionary<string, string>? Values(params (string Name, string Value)[] pairs)
+    {
+        if (pairs.Length == 0)
+            return null;
+
+        var values = new Dictionary<string, string>(pairs.Length, StringComparer.Ordinal);
+        foreach (var (name, value) in pairs)
+            values[name] = value;
+
+        return values;
+    }
+
+    /// <summary>A number the way the English sentence spells it: invariant, never localised digits.</summary>
+    /// <remarks>
+    /// The message already interpolates these numbers through the current culture. Formatting the
+    /// dictionary the same way keeps the translation and the fallback showing the same figure on the
+    /// same machine.
+    /// </remarks>
+    private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// The layout file's path for a ToolKit. The id is validated by <c>ToolkitIdGuard</c> at
