@@ -320,8 +320,9 @@ internal static class SurfaceValidator
     /// an input-shaped decoration, and dropping it is the honest reading.
     /// </remarks>
     /// <returns>The element to keep, or <see langword="null"/> when it cannot be drawn.</returns>
-    private static SurfaceElement? ValidateEditing(
-        SurfaceElement element, KeyTable keys, ref List<Diagnostic>? warnings)
+    private static T? ValidateEditing<T>(
+        T element, KeyTable keys, ref List<Diagnostic>? warnings)
+        where T : SurfaceElement
     {
         var kept = element;
 
@@ -359,8 +360,7 @@ internal static class SurfaceValidator
         if (ValidateEditing(select, keys, ref warnings) is not { } keptSelect)
             return null;
 
-        select = keptSelect as SurfaceSelectElement
-            ?? throw new InvalidOperationException("ValidateEditing returned a different element");
+        select = keptSelect;
         var hasStatic = select.Options.Count > 0;
         var hasKey = !string.IsNullOrWhiteSpace(select.OptionsKey);
 
@@ -416,8 +416,7 @@ internal static class SurfaceValidator
         if (ValidateEditing(number, keys, ref warnings) is not { } keptNumber)
             return null;
 
-        number = keptNumber as SurfaceNumberElement
-            ?? throw new InvalidOperationException("ValidateEditing returned a different element");
+        number = keptNumber;
 
         var result = number;
 
