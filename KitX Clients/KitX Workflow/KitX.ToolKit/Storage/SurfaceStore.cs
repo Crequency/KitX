@@ -271,20 +271,28 @@ internal sealed class SurfaceStore : ISurfaceStore
                 // send the author looking for a spelling that does not exist.
                 if (string.Equals(unknown, EventsMember, StringComparison.OrdinalIgnoreCase))
                 {
+                    // `kindName` is the file word here, not a localised name: this assembly has no
+                    // dictionary, so it can only record what it knows. The client replaces the value
+                    // with the reader's own word before showing the sentence, and falls back to this
+                    // one when it has none — see SurfaceDiagnosticText.Describe.
+                    var eventsKind = SurfaceElementKind.Of(parsed);
+
                     (warnings ??= []).Add(ElementError(
                         toolkitId, SurfaceDiagnosticCodes.EventsNotAllowed,
-                        $"Element of type '{SurfaceElementKind.Of(parsed)}' cannot declare 'events'; only a " +
+                        $"Element of type '{eventsKind}' cannot declare 'events'; only a " +
                         "Button or an Input speaks on its own, and the others' values travel under " +
                         "whichever element does. The field was ignored.",
-                        ("kind", SurfaceElementKind.Of(parsed))));
+                        ("kind", eventsKind), ("kindName", eventsKind)));
                     continue;
                 }
 
+                var fieldKind = SurfaceElementKind.Of(parsed);
+
                 (warnings ??= []).Add(ElementError(
                     toolkitId, SurfaceDiagnosticCodes.ElementUnknownField,
-                    $"Element of type '{SurfaceElementKind.Of(parsed)}' has an unrecognised field " +
+                    $"Element of type '{fieldKind}' has an unrecognised field " +
                     $"'{unknown}'; it was ignored and the default applied.",
-                    ("kind", SurfaceElementKind.Of(parsed)), ("field", unknown)));
+                    ("kind", fieldKind), ("kindName", fieldKind), ("field", unknown)));
             }
 
             kept.Add(parsed);

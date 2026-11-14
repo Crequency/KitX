@@ -174,6 +174,101 @@ public class SurfaceDiagnosticDataTests : IDisposable
         Assert.Null(warning.Data);
     }
 
+    /// <summary>
+    /// Every element diagnostic carries the kind twice: the file's word and the name the client may
+    /// replace it with.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why two entries rather than one.</b> <c>kind</c> is <c>"type": "Input"</c> — the word
+    /// the author can search for in <c>surface.json</c> — and must never be translated. <c>kindName</c>
+    /// is where the same element is called what the reader's language calls it, and this assembly
+    /// cannot fill it: it has no dictionary, so it records the file word as the fallback and the
+    /// client substitutes the translation. A sentence that printed only the first read half in
+    /// English on a Chinese screen, which was the defect; one that printed only the second would
+    /// leave the author nothing to search for.</para>
+    ///
+    /// <para><b>Both producers, because they are separate code.</b> The store builds its sentences
+    /// while reading and the validator after compiling, and the store's two element-level codes were
+    /// the ones that named the kind the other way round. Pinning only the validator would leave the
+    /// pair that this change is actually about untested.</para>
+    /// </remarks>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void An_element_diagnostic_carries_the_kind_under_the_name_the_file_and_the_reader_each_use(
+        bool fromValidator)
+    {
+        Diagnostic warning;
+
+        if (fromValidator)
+        {
+            var document = new SurfaceDocument
+            {
+                Elements = [new SurfaceTextElement { Row = 3, Weight = 2, Key = "nobody-declared-this" }],
+            };
+
+            warning = Single(SurfaceValidator.Validate(document, Keys()),
+                SurfaceDiagnosticCodes.ElementUnknownKey);
+        }
+        else
+        {
+            WriteRaw("""
+            {
+              "schemaVersion": 1,
+              "layoutVersion": 1,
+              "elements": [
+                { "type": "Text", "row": 1, "key": "title", "col": 2 }
+              ]
+            }
+            """);
+
+            warning = Assert.Single(Store().Load(TkId).Warnings);
+            Assert.Equal(SurfaceDiagnosticCodes.ElementUnknownField, warning.Code);
+        }
+
+        var data = Data(warning);
+
+        Assert.Equal("Text", data["kind"]);
+
+        // The fallback is the file word, not an English name for the kind: this assembly knows one
+        // word per kind and inventing a second here is exactly what would drift from the file.
+        Assert.Equal(data["kind"], data["kindName"]);
+    }
+
+    /// <summary>
+    /// Both of the store's element-level sentences, because it writes them on two different branches
+    /// and only one of them was converted the day the other was.
+    /// </summary>
+    [Fact]
+    public void The_store_names_the_kind_on_both_of_its_element_sentences()
+    {
+        WriteRaw("""
+        {
+          "schemaVersion": 1,
+          "layoutVersion": 1,
+          "elements": [
+            { "type": "Switch", "row": 1, "name": "copies", "events": ["changed"] },
+            { "type": "Text", "row": 2, "key": "title", "col": 2 }
+          ]
+        }
+        """);
+
+        var warnings = Store().Load(TkId).Warnings;
+
+        foreach (var code in new[]
+                 {
+                     SurfaceDiagnosticCodes.EventsNotAllowed,
+                     SurfaceDiagnosticCodes.ElementUnknownField,
+                 })
+        {
+            var warning = Assert.Single(warnings, w => w.Code == code);
+            var data = Data(warning);
+
+            Assert.True(data.ContainsKey("kindName"), $"'{code}' does not record kindName");
+            Assert.Equal(data["kind"], data["kindName"]);
+        }
+    }
+
     // ── the store: the field or version the sentence names ─────────────────────────────────────
 
     /// <summary>

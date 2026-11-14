@@ -48,6 +48,44 @@ public static class SurfaceElementKind
     /// </summary>
     public const string Unknown = "Element";
 
+    /// <summary>
+    /// The resource-key prefix a kind's localised name lives under: <c>Text_Bench_Surface_Kind_</c>.
+    /// </summary>
+    /// <remarks>
+    /// Beside the vocabulary it names rather than in the client that reads it, because three places
+    /// ask for the key — the diagnostics formatter, the editor's palette and the cell label — and a
+    /// prefix written out three times is three chances to disagree about the underscore.
+    /// </remarks>
+    public const string NameKeyPrefix = "Text_Bench_Surface_Kind_";
+
+    /// <summary>
+    /// The resource key for the localised name of a kind, e.g.
+    /// <c>Text_Bench_Surface_Kind_button</c>.
+    /// </summary>
+    /// <param name="kind">A file word: <see cref="Text"/>, <see cref="Button"/>, and so on.</param>
+    /// <remarks>
+    /// Lowercased because the resource dictionaries are keyed that way; a kind this build does not
+    /// know still gets a well-formed key, which simply misses. Resolving the key is the client's
+    /// job — this assembly has no dictionary — and so is falling back to the word itself.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="kind"/> is <see langword="null"/>.</exception>
+    public static string NameKeyOf(string kind)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+
+        return NameKeyPrefix + kind.ToLowerInvariant();
+    }
+
+    /// <summary>The resource key for the localised name of <paramref name="element"/>'s kind.</summary>
+    /// <param name="element">The element to name.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="element"/> is <see langword="null"/>.</exception>
+    public static string NameKeyOf(SurfaceElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+
+        return NameKeyOf(Of(element));
+    }
+
     /// <summary>The file word for an element, or <see cref="Unknown"/> when there is none.</summary>
     /// <param name="element">The element to name.</param>
     /// <exception cref="ArgumentNullException"><paramref name="element"/> is <see langword="null"/>.</exception>

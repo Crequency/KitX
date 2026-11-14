@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Globalization;
+using System.Linq;
 using KitX.ToolKit.Contract;
 using KitX.ToolKit.Contract.Surface;
 using KitX.ToolKit.Data;
@@ -195,10 +196,16 @@ internal static class SurfaceValidator
 
         if (!KnownEmphasis.Contains(button.Emphasis, StringComparer.Ordinal))
         {
+            // The English sentence marks its own literals with backticks, because the same sentence
+            // is what the client falls back to when a code has no translation: an author reading it
+            // has to be able to tell a field name from a word of prose. `known` carries the words
+            // already wrapped, so a translation that says "不在 {known} 之中" gets the marks too.
+            var known = string.Join(" / ", KnownEmphasis.Select(word => $"`{word}`"));
+
             Warn(ref warnings, keys, button, SurfaceDiagnosticCodes.ButtonUnknownEmphasis,
-                $"'emphasis' is '{button.Emphasis}', which is not one of " +
-                $"{string.Join(" / ", KnownEmphasis)}; it is drawn as 'normal'",
-                data: [("value", button.Emphasis), ("known", string.Join(" / ", KnownEmphasis))]);
+                $"`emphasis` is `{button.Emphasis}`, which is not one of " +
+                $"{known}; it is drawn as `normal`",
+                data: [("value", button.Emphasis), ("known", known)]);
 
             return button with { Emphasis = null };
         }
@@ -470,6 +477,7 @@ internal static class SurfaceValidator
         params (string Name, string Value)[] data)
     {
         var verb = dropped ? "Dropped" : "Kept";
+        var kind = SurfaceElementKind.Of(element);
 
         // Every element diagnostic opens with "Dropped <kind> at row <row>, weight <weight>:" — the
         // three values a reader needs to find the cell, and the three no individual call site should
@@ -477,9 +485,18 @@ internal static class SurfaceValidator
         // them without every producer having to pass them. The numbers are formatted invariantly
         // because they go into a translated sentence, where a group separator from the machine's
         // culture would be a foreign character.
+        //
+        // Two names for the same kind, and the difference is load-bearing. `kind` is the word in the
+        // file — "type": "Input" — which is what the author can search for in surface.json, so it is
+        // never translated. `kindName` is what this client should call it instead, and this assembly
+        // has no dictionary: it records the file word as the fallback, and the client overwrites the
+        // value with the localised name when it has one (see SurfaceDiagnosticText.Describe). A
+        // sentence that printed only the file word read half in English on a Chinese screen; one
+        // that printed only the localised name would leave the author nothing to search for.
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["kind"] = SurfaceElementKind.Of(element),
+            ["kind"] = kind,
+            ["kindName"] = kind,
             ["row"] = Invariant(element.Row),
             ["weight"] = Invariant(element.Weight),
         };
@@ -489,7 +506,7 @@ internal static class SurfaceValidator
 
         (warnings ??= []).Add(Diagnostic.Warning(
             code,
-            $"{verb} {SurfaceElementKind.Of(element)} at row {element.Row}, weight {element.Weight}: {detail}.",
+            $"{verb} {kind} at row {element.Row}, weight {element.Weight}: {detail}.",
             new DiagnosticPath(ToolkitId: keys.ToolkitId, Key: element.Key),
             values));
     }
