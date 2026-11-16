@@ -60,8 +60,8 @@ public sealed class DangerConfirmTests
     private static void Layout(Window window, SurfaceCard card)
     {
         window.Content = card;
-        window.Measure(new Size(card.Width, card.Height));
-        window.Arrange(new Rect(0, 0, card.Width, card.Height));
+        window.Measure(new Size(card.Width, SurfaceMetrics.CardHeight));
+        window.Arrange(new Rect(0, 0, card.Width, SurfaceMetrics.CardHeight));
         window.UpdateLayout();
     }
 

@@ -148,7 +148,20 @@ public sealed class SurfaceCard : Grid
     public SurfaceCard()
     {
         Width = SurfaceMetrics.CardWidth;
-        Height = SurfaceMetrics.CardHeight;
+
+        // A floor, not a size. The card is at least one screen tall — a short document still fills
+        // the card, which is what the confirmation scrim spanning it depends on — and grows past
+        // that when the document is taller.
+        //
+        // It used to be `Height = CardHeight`, which made the card claim 845 no matter what it
+        // drew. Measured with twelve rows and a six-slot List: `DesiredSize` came out 390x845 while
+        // the lowest child's bottom sat at 1088. Everything that sized itself from the card believed
+        // the 845 — the host's ScrollViewer reported an `Extent` of 845 over 1088 of content, the
+        // editor's canvas drew an 845-high border around cells whose tops reach 1024 — so 243px of
+        // the author's work existed in no window at all. A control whose DesiredSize disagrees with
+        // what it paints misleads every layout that consults it; that is the defect, and scrolling
+        // inside a fixed frame would have hidden it rather than fixed it.
+        MinHeight = SurfaceMetrics.CardHeight;
 
         // Layout rounding OFF, and this is not a cosmetic preference.
         //
@@ -509,15 +522,16 @@ public sealed class SurfaceCard : Grid
         foreach (var (slot, row) in rows)
             Children.Add(BuildRow(row, rowIndexOf[slot]));
 
-        // The card is a fixed 845 tall; a short document fills fewer slots than that, and the rest
-        // of the card is simply empty. That empty part still needs a row, because the confirmation
-        // scrim spans rows and would otherwise stop at the last laid-out row — leaving the bottom
-        // of the card uncovered while the dialog claims to be modal over the card.
+        // The card is at least one screen tall; a short document fills fewer slots than that, and the
+        // rest of the card is simply empty. That empty part still needs a row, because the
+        // confirmation scrim spans rows and would otherwise stop at the last laid-out row — leaving
+        // the bottom of the card uncovered while the dialog claims to be modal over the card.
         //
         // Star rather than a computed pixel height: this row is "whatever is left", and writing the
         // remainder out by hand would make it a second, silently-drifting statement of CardHeight.
         // It measures 0 when the document already fills or overflows the card, which is why it can
-        // be added unconditionally.
+        // be added unconditionally — and since the card's MinHeight, not its Height, is CardHeight,
+        // "overflow" now means the card grows rather than painting outside itself.
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         return;

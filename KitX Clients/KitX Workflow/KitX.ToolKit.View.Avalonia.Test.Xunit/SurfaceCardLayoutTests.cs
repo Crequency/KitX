@@ -60,6 +60,113 @@ public sealed class SurfaceCardLayoutTests
 
     // ── The criterion ────────────────────────────────────────────────────────────────────
 
+    // ── Criterion 0: the card asks for what it draws ─────────────────────────────────────
+
+    /// <summary>
+    /// Twelve row numbers with a six-slot <c>List</c> at row six — 17 slots, 1088px of content.
+    /// </summary>
+    /// <remarks>
+    /// A document nothing forbids, and the first one in this file taller than a screen. Every other
+    /// fixture here fits, which is exactly why the card could claim 845 while painting to 1088 for
+    /// as long as it did: with every document short, "asks for" and "draws" agree.
+    ///
+    /// <b>17 slots, not 13.</b> Eleven ordinary rows contribute one slot each; row six is the List,
+    /// which contributes six. The first version of this fixture and its assertions both said 13 —
+    /// eleven rows plus a List is 11 + 6 = 17, and 13 was a number arrived at by counting rows
+    /// rather than adding them up. The two matched each other, so nothing went red; the assertion
+    /// and the fixture were wrong in the same direction, which is the failure a self-consistent
+    /// test cannot catch on its own.
+    /// </remarks>
+    private static List<SurfaceElement> TallerThanTheCard()
+    {
+        var elements = new List<SurfaceElement>();
+        for (var row = 1; row <= 12; row++)
+            elements.Add(new SurfaceTextElement { Row = row, Key = $"row{row}" });
+
+        elements.Add(new SurfaceListElement { Row = 6, Key = "sessions" });
+        return elements;
+    }
+
+    /// <summary>What <see cref="TallerThanTheCard"/> adds up to: eleven one-slot rows and a List.</summary>
+    private static int TallerThanTheCardSlots => 11 + ListSlots;
+
+    [AvaloniaFact]
+    public void A_card_taller_than_a_screen_asks_for_every_pixel_it_draws()
+    {
+        // The defect this guards is not "content overflows". It is "the card says 845 and paints
+        // 1088", and the three things that sized themselves from the card all believed the 845: the
+        // host's ScrollViewer reported an extent of 845 over 1088 of content, the editor's canvas
+        // drew an 845-high border around cells whose tops reach 1024, and the preview window opened
+        // at CardHeight + 96. So the bottom 243px of a tall document was reachable by no window.
+        var card = Unconstrained(Set(TallerThanTheCard()));
+
+        // Derived from the fixture's own structure rather than written as a product: 13 slots was a
+        // plausible-looking number that happened to equal the row count.
+        var expected = TallerThanTheCardSlots * SurfaceMetrics.SlotHeight;
+
+        Assert.Equal(expected, card.DesiredSize.Height, tolerance: 0.5);
+
+        // And the rows are laid out there, not merely required there — a control can report a
+        // DesiredSize it then fails to arrange into.
+        //
+        // Summed over the row grids rather than taken as the lowest control's bottom edge. A control
+        // is FieldHeight tall and sits FieldInset below its row's top, so the bottom of the last
+        // control is (SlotHeight - FieldHeight) short of the bottom of the card: on this fixture that
+        // reads 1072 against a card of 1088, and the sixteen pixels are the inset, not a defect.
+        Assert.Equal(
+            expected,
+            CardProbe.Rows(card).Sum(row => row.Bounds.Height),
+            tolerance: 0.5);
+
+        // Nothing was achieved by clipping. A card that hid the extra rows would satisfy "no pixel
+        // is drawn outside the card" and lose the author's work silently, which is the failure the
+        // old build had in a different form.
+        Assert.False(card.ClipToBounds, "the card must grow, not clip");
+    }
+
+    [AvaloniaFact]
+    public void A_card_shorter_than_a_screen_still_fills_one()
+    {
+        // The other direction, and it is not symmetry for its own sake: the confirmation scrim spans
+        // the card's rows, so a one-element document must still produce a full-height card or the
+        // dialog stops being modal over the empty part.
+        var card = Unconstrained(Set([new SurfaceTextElement { Row = 1, Key = "title" }]));
+
+        Assert.Equal(SurfaceMetrics.CardHeight, card.DesiredSize.Height, tolerance: 0.5);
+    }
+
+    [AvaloniaFact]
+    public void A_list_makes_the_card_ask_for_the_slots_it_fills()
+    {
+        // A List on row 1 with a footer on row 2 is (ListSlots + 1) slots of content — 448px, which
+        // is *less* than one screen. So the card reports CardHeight, and the useful reading is the
+        // one that distinguishes the two possible reasons for it: the content was measured and found
+        // shorter than the floor, or the content was never measured at all.
+        //
+        // Hence the tall document alongside it. A card that ignores its content and always says 845
+        // passes the short assertion below for the wrong reason; it cannot pass the tall one.
+        var shortCard = Unconstrained(Set([new SurfaceListElement { Row = 1, Key = "sessions" },
+                                           new SurfaceTextElement { Row = 2, Key = "footer" }]));
+
+        Assert.Equal(
+            SurfaceMetrics.CardHeight,
+            shortCard.DesiredSize.Height,
+            tolerance: 0.5);
+        Assert.True(
+            (1 + ListSlots) * SurfaceMetrics.SlotHeight < SurfaceMetrics.CardHeight,
+            "this test's point is that the content is shorter than the floor; if ListSlots grows past "
+            + "that, the assertion above stops being about the floor");
+
+        // The same List in a document that does exceed the floor: now the reported height must be
+        // the content's, which is the half that fails on a card with a fixed Height.
+        var tallCard = Unconstrained(Set(TallerThanTheCard()));
+
+        Assert.Equal(
+            TallerThanTheCardSlots * SurfaceMetrics.SlotHeight,
+            tallCard.DesiredSize.Height,
+            tolerance: 0.5);
+    }
+
     [AvaloniaFact]
     public void Two_elements_in_consecutive_rows_are_one_slot_height_apart()
     {
@@ -480,6 +587,85 @@ public sealed class SurfaceCardLayoutTests
     /// a boundary; this one does not.
     /// </remarks>
     private static Control CellAt(SurfaceCard card, int index) => CardProbe.ElementAt(card, index);
+
+    /// <summary>A card with a document, before anything has measured it.</summary>
+    private static SurfaceCard Set(IReadOnlyList<SurfaceElement> elements)
+    {
+        var card = new SurfaceCard();
+        card.SetDocument(new SurfaceDocument { Elements = elements });
+        return card;
+    }
+
+    /// <summary>
+    /// Runs a layout pass in a host tall enough that the window does not decide the card's height.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The height here is deliberately not <see cref="SurfaceMetrics.CardHeight"/>.</b>
+    /// Measuring a control inside a window of a given height measures the window's opinion, not the
+    /// control's: with a 390x845 window, both the tall and the short fixture reported a
+    /// <c>DesiredSize</c> of 768 — the window's client area, in neither case the card's own answer.
+    /// A test for "how tall does the card ask to be" has to remove the constraint that would answer
+    /// for it.</para>
+    ///
+    /// <para><b>The arrange rectangle comes from <c>DesiredSize</c>, not from a second constant.</b>
+    /// Any fixed height here — 2000 as much as 845 — is a constraint that starts truncating the
+    /// moment a document is taller than it, and then the test is green about a card whose bottom
+    /// rows were never laid out. Taking the height the card just asked for keeps the upper bound
+    /// belonging to the thing under test. This does not make the assertion self-fulfilling: what is
+    /// asserted is that the number the card asked for equals the fixture's own sum, and arranging
+    /// into that number is only what makes a layout pass happen.</para>
+    ///
+    /// <para><b>The card is measured directly, not through the window.</b> A host that has already
+    /// laid something out answers the <i>window's</i> measure with the previous child's numbers — in
+    /// this class that reads <c>0x0</c> for the card that was just attached, even after
+    /// <c>InvalidateMeasure</c> and after clearing <c>Content</c> first. Measuring the card itself
+    /// needs no window at all for the question "how tall does it ask to be", and returns the right
+    /// answer on every pass. The window is kept only so templated children exist.</para>
+    ///
+    /// <para><b><c>Show()</c> has to happen before the card has a visual root.</b> Without a root a
+    /// templated control never instantiates and measures to zero — the failure the hosting
+    /// arrangement elsewhere in this file exists to avoid.</para>
+    ///
+    /// <para><b>One host for the whole class, like <see cref="Host"/>.</b> A window per test leaves
+    /// native resources and stacks above the previous one, which shows up later as an unrelated
+    /// test failing.</para>
+    /// </remarks>
+    private static SurfaceCard Unconstrained(SurfaceCard card)
+    {
+        var host = TallHost;
+
+        host.Content = card;
+
+        // The card's own pass. A second is run because a freshly attached control can report a
+        // stale DesiredSize once before its first real measure resolves; the second pass is the
+        // number a caller would read afterwards, and it is stable.
+        for (var pass = 0; pass < 2; pass++)
+        {
+            card.Measure(new Size(SurfaceMetrics.CardWidth, double.PositiveInfinity));
+            card.Arrange(new Rect(0, 0, SurfaceMetrics.CardWidth, card.DesiredSize.Height));
+        }
+
+        host.UpdateLayout();
+
+        return card;
+    }
+
+    /// <summary>The single unconstrained window, shown once.</summary>
+    private static Window TallHost
+    {
+        get
+        {
+            if (_tallHost is not null)
+                return _tallHost;
+
+            _tallHost = new Window { Width = SurfaceMetrics.CardWidth, Height = 2000 };
+            _tallHost.Show();
+
+            return _tallHost;
+        }
+    }
+
+    private static Window? _tallHost;
 
     /// <summary>
     /// The one <c>List</c> on the card, found by type rather than by key.

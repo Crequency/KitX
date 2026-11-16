@@ -68,8 +68,8 @@ public sealed class FullCardLayoutTests
 
         var window = Host;
         window.Content = card;
-        window.Measure(new global::Avalonia.Size(card.Width, card.Height));
-        window.Arrange(new global::Avalonia.Rect(0, 0, card.Width, card.Height));
+        window.Measure(new global::Avalonia.Size(card.Width, SurfaceMetrics.CardHeight));
+        window.Arrange(new global::Avalonia.Rect(0, 0, card.Width, SurfaceMetrics.CardHeight));
         window.UpdateLayout();
         return card;
     }
