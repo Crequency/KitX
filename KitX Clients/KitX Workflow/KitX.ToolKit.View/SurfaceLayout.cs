@@ -79,15 +79,34 @@ public static class SurfaceLayout
         return element.Row;
     }
 
-    /// <summary>How many slots one row occupies — as tall as the tallest element standing in it.</summary>
+    /// <summary>How many slots one row occupies — at least one, and taller when something stands in it.</summary>
     /// <param name="elements">Every element on the card.</param>
     /// <param name="slot">The slot number to measure.</param>
     /// <param name="listSlots">How many slots a <c>List</c> fills (the renderer's choice).</param>
+    /// <remarks>
+    /// <para><b>An empty row is still a row, and still one slot tall.</b> This returned zero until
+    /// 2026-11-16, on the ruling that row numbers were an order and not a distance: rows 1 and 5 drew
+    /// directly above one another, exactly as 1 and 2 would. The ruling was reversed because of what
+    /// it did to the gesture — drag a cell to row 2 while row 1 is empty and <i>nothing on the screen
+    /// changes</i>. The action said something and the picture did not answer. Whatever the merits of
+    /// the two readings, an action with no visible result is not one an editor can offer.</para>
+    ///
+    /// <para><b>What that means for the file.</b> <c>row: 5</c> puts an element four rows down, and
+    /// rows 2, 3, and 4 are blank bands whether or not anyone wrote anything in them. That is the
+    /// plain reading of a row number, and the reason the design's three objections to it are recorded
+    /// as accepted costs rather than as refutations (§10.2.1.2). One of them is a real hazard: a
+    /// hand-written <c>row: 100</c> asks a one-screen screen for 99 blank bands, so the editor warns
+    /// when the total passes the renderer's screen height.</para>
+    ///
+    /// <para><b>Still the one place that answers "how tall is this row".</b> <see cref="SlotSpanOf"/>
+    /// and <see cref="PixelTopOf"/> both call it, so this rule is stated once; a second implementation
+    /// is how the card and the editor come to disagree about where a row starts.</para>
+    /// </remarks>
     public static int SlotHeightOf(IReadOnlyList<SurfaceElement> elements, int slot, int listSlots)
     {
         ArgumentNullException.ThrowIfNull(elements);
 
-        var height = 0;
+        var height = 1;
         foreach (var element in elements)
         {
             if (SlotIndex(element) != slot)
@@ -108,16 +127,17 @@ public static class SurfaceLayout
     /// <param name="listSlots">How many slots a <c>List</c> fills (the renderer's choice).</param>
     /// <remarks>
     /// <para><b>Sums the rows in range, asking <see cref="SlotHeightOf"/> about each.</b> It holds no
-    /// opinion of its own about an empty row: whatever that function answers, this adds. Today it
-    /// answers zero, so a document that skips a row measures the same as one that does not — and if
-    /// that decision is ever revisited, this sum follows it without being edited. Two places holding
-    /// an opinion is how a renderer and a warning come to disagree about the same card.</para>
+    /// opinion of its own about an empty row: whatever that function answers, this adds. Since
+    /// 2026-11-16 it answers one, so a document that skips from row 1 to row 5 measures four slots
+    /// taller than one that goes 1, 2 — and this sum followed that decision without being edited,
+    /// which is why the split was worth making.</para>
     ///
-    /// <para><b>This is the one place a card's total height is computed.</b> A renderer that wants
-    /// to warn "this does not fit" and a renderer that wants to draw it must not each sum the rows
+    /// <para><b>This is the one place a card's total height is computed.</b> The editor's warning
+    /// "this is taller than a screen" and the renderer that draws the card must not each sum the rows
     /// themselves: two sums drift apart silently, and the drift shows up as a warning that fires on
     /// a card that fits. Pixels stay out of it for the same reason they stay out of
-    /// <see cref="SlotHeightOf"/> — a slot count needs no renderer.</para>
+    /// <see cref="SlotHeightOf"/> — a slot count needs no renderer, and the comparison against one
+    /// screen is the caller's, made with the caller's own pixel constant.</para>
     /// </remarks>
     public static int SlotSpanOf(IReadOnlyList<SurfaceElement> elements, int listSlots)
     {

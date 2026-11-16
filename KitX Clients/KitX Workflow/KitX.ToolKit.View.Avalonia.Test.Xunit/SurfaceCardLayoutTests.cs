@@ -693,6 +693,52 @@ public sealed class SurfaceCardLayoutTests
         CardProbe.TopOf(card, CellAt(card, index));
 
     /// <summary>
+    /// A row number nobody used still occupies a row on the card.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The one criterion the sparse-row reversal turns on.</b> Write rows 1 and 3 and the
+    /// second element belongs at 128px, not at 64: row 2 is a row, empty and one slot tall. Before
+    /// 2026-11-16 the card squeezed the numbers together and put it at 64, and the design said that
+    /// was correct — an order, not a distance.</para>
+    ///
+    /// <para><b>Why the measurement, and not the arithmetic.</b> <c>SurfaceLayout.PixelTopOf</c>
+    /// answers 128 as soon as <c>SlotHeightOf</c> says an empty row is one slot, and
+    /// <c>SurfaceLayoutTests</c> already asserts that answer with no screen involved. What that file
+    /// cannot check is whether the card <i>draws</i> it: the renderer maps rows to
+    /// <c>RowDefinition</c>s on its own, so a card that numbers them consecutively would put the
+    /// element at 64 while the pure function said 128, and both test files would be green about
+    /// different cards. This asserts the drawn position against a literal, which is the only way the
+    /// two ends are tied together.</para>
+    ///
+    /// <para><b>128 is written as a literal on purpose.</b> Expressing it as
+    /// <c>SurfaceLayout.PixelTopOf(...)</c> would compare the renderer against the function it is
+    /// being checked against, which is the one comparison this file's header explains is worthless.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_row_number_nobody_used_still_takes_a_row_on_the_card()
+    {
+        var card = Card(
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceTextElement { Row = 3, Key = "note" });
+
+        // The cell's own top edge, read from the card rather than through CardProbe.TopOf: that
+        // helper computes a row's top by adding up the rows before it, which answers the same
+        // question here but would let a renderer that put this row in the wrong place still report
+        // the place the arithmetic predicts. Translating the control's origin into the card's
+        // coordinate space asks the layout system what it actually did.
+        var top = CellAt(card, 1).TranslatePoint(new Point(0, 0), card)!.Value.Y;
+
+        // Row 3's cell begins two slots down: 64 for the occupied row 1, 64 for the empty row 2, and
+        // then FieldInset inside its own row — because a control is pinned 16px below its row's top.
+        Assert.Equal(2 * SurfaceMetrics.SlotHeight + SurfaceMetrics.FieldInset, top);
+
+        // Four definitions: rows 1, 2, 3, and the Star remainder that lets a short card fill one
+        // screen. Row 2 is a row even though nothing stands in it.
+        Assert.Equal(4, card.RowDefinitions.Count);
+        Assert.Equal(2, CardProbe.Rows(card).Count);
+    }
+
+    /// <summary>
     /// The top edge of the row the element sits in, measured down from the card.
     /// </summary>
     /// <remarks>

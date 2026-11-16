@@ -501,18 +501,27 @@ public sealed class SurfaceCard : Grid
             row.Add(element);
         }
 
-        // Avalonia's Grid indexes rows from zero while the file numbers them from one, and it
-        // numbers them consecutively — so a surface written with rows 1 and 5 gets two rows, not
-        // five. This map is where "row is an ordinal" becomes true of the pixels.
-        var rowIndexOf = new Dictionary<int, int>();
-        var next = 0;
-        foreach (var (slot, row) in rows)
-        {
-            rowIndexOf[slot] = next++;
+        // Avalonia's Grid indexes rows from zero while the file numbers them from one, and it numbers
+        // them consecutively. So every row number from 1 to the highest one written gets a definition
+        // — five definitions for rows 1 and 5, not two — and `rowIndex` is simply `row - 1`.
+        //
+        // It used to build a definition only for the numbers that had elements in them, which made
+        // rows 1 and 5 draw directly above one another. That was the design's ruling until
+        // 2026-11-16 (§10.2.1.2) and it was reversed for what it did to the gesture: dragging a cell
+        // to row 2 while row 1 was empty changed nothing on the screen. The blank bands are the point
+        // now, not a side effect.
+        //
+        // The height follows the same rule the editor's `SlotHeightOf` states: at least one slot, more
+        // when the row's tallest element fills more. An empty row gets exactly one.
+        var highest = rows.Count == 0 ? 0 : rows.Keys.Max();
 
+        for (var row = 1; row <= highest; row++)
+        {
             // The tallest element in a row decides that row's height, so two elements sharing a row
-            // do not stack their heights.
-            var height = row.Max(SlotsFor);
+            // do not stack their heights. A row with no elements is one slot — a blank band with
+            // nothing drawn in it, which is a row the author can drop something onto.
+            var height = rows.TryGetValue(row, out var occupants) ? occupants.Max(SlotsFor) : 1;
+
             RowDefinitions.Add(new RowDefinition
             {
                 Height = new GridLength(height * SurfaceMetrics.SlotHeight),
@@ -520,7 +529,7 @@ public sealed class SurfaceCard : Grid
         }
 
         foreach (var (slot, row) in rows)
-            Children.Add(BuildRow(row, rowIndexOf[slot]));
+            Children.Add(BuildRow(row, slot - 1));
 
         // The card is at least one screen tall; a short document fills fewer slots than that, and the
         // rest of the card is simply empty. That empty part still needs a row, because the

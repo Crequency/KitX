@@ -256,15 +256,20 @@ public sealed class SurfaceLayoutTests
     }
 
     [Fact]
-    public void A_gap_in_the_row_numbers_leaves_no_gap_on_the_card()
+    public void A_gap_in_the_row_numbers_leaves_a_gap_on_the_card()
     {
-        // Rows are ordinals, not coordinates (§10.2.1.2). A file that writes row 1 and row 5 puts
-        // its two elements directly above one another, exactly as row 1 and row 2 would.
+        // Rows are ordinals *and* they have distance between them (§10.2.1.2, reversed 2026-11-16).
+        // A file that writes row 1 and row 5 puts its second element four slots down, with blank
+        // bands at 2, 3, and 4 — not directly under row 1 as it used to.
         //
-        // Asserted as "the two files agree" rather than "the answer is zero": an implementation
-        // that reserved one slot per skipped number would still return zero for the adjacent file,
-        // so a literal expected value would pass on both. Equality between the two files is what
-        // forces the implementation to ignore the skipped numbers.
+        // The ruling was reversed for what the old behaviour did to the gesture: dragging a cell to
+        // row 2 while row 1 was empty moved nothing on the screen. An action whose result cannot be
+        // seen is not one an editor can ask a person to perform.
+        //
+        // Asserted as "the two files differ by exactly the number of skipped rows" rather than as a
+        // literal: a literal of 4 x RowHeight would also pass on an implementation that reserved a
+        // slot for the gap but miscounted how many, and the difference between the two documents is
+        // what ties the answer to the numbers the author wrote.
         var adjacent = new List<SurfaceElement>
         {
             new SurfaceTextElement { Row = 1, Key = "title" },
@@ -280,15 +285,17 @@ public sealed class SurfaceLayoutTests
         var adjacentTop = SurfaceLayout.PixelTopOf(adjacent, adjacent[1], RowHeight, ListSlots);
         var gapTop = SurfaceLayout.PixelTopOf(withGap, withGap[1], RowHeight, ListSlots);
 
-        Assert.Equal(adjacentTop, gapTop);
+        // Three blank rows between them: 2, 3, and 4.
+        Assert.Equal(3 * RowHeight, gapTop - adjacentTop);
 
-        // And the slot index still records where the author put it — that is the half the file
-        // owns. Only the distance ignores the gap.
+        // And each blank row is worth exactly one ordinary row, so the gap is the row numbers'
+        // distance rather than some other number that happens to be three times RowHeight.
+        Assert.Equal(1, SurfaceLayout.SlotHeightOf(withGap, 4, ListSlots));
+        Assert.Equal(1, SurfaceLayout.SlotHeightOf(withGap, 2, ListSlots));
+
+        // The slot index still records where the author put it — that half did not change.
         Assert.Equal(2, SurfaceLayout.SlotIndex(adjacent[1]));
         Assert.Equal(5, SurfaceLayout.SlotIndex(withGap[1]));
-
-        // An empty slot contributes nothing, whatever its number.
-        Assert.Equal(0, SurfaceLayout.SlotHeightOf(withGap, 4, ListSlots));
     }
 
     // ── Criterion 6: a card's height is one sum, and the rows it skips still count ──────
