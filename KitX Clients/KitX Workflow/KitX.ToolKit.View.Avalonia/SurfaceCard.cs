@@ -161,6 +161,15 @@ public sealed class SurfaceCard : Grid
         // the author's work existed in no window at all. A control whose DesiredSize disagrees with
         // what it paints misleads every layout that consults it; that is the defect, and scrolling
         // inside a fixed frame would have hidden it rather than fixed it.
+        //
+        // `Height` is therefore left unset, which means it is NaN: the card has no height of its own,
+        // only a floor under whatever its content asks for. That is worth stating because NaN is
+        // what a caller trips over — `card.Height` cannot be handed to Measure or Arrange (they throw
+        // `Cannot call Measure using a size with NaN values`), and the answer such a caller wants is
+        // `DesiredSize.Height` after a measure, or `MinHeight` when the question is really "one
+        // screen". A test that arranges against `card.Width, card.Height` will fail at the first
+        // layout call rather than produce a wrong number, which is the good failure, but it costs an
+        // afternoon if the reason is not written down here.
         MinHeight = SurfaceMetrics.CardHeight;
 
         // Layout rounding OFF, and this is not a cosmetic preference.

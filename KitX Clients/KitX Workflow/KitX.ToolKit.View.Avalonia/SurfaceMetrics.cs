@@ -99,8 +99,19 @@ public static class SurfaceMetrics
     public const double CardWidth = 390;
 
     /// <summary>
-    /// Height of the card, in device-independent pixels.
+    /// One screen's height, in device-independent pixels — a floor, not a size.
     /// </summary>
+    /// <remarks>
+    /// <para><b>The card is at least this tall, and taller when its content is.</b> It was the card's
+    /// <c>Height</c> until 2026-11-16, which made the card claim this number while drawing past it.
+    /// Read this as the height of the screen being laid out for, not as the height of the thing being
+    /// laid out: a document of twelve rows with a six-slot list asks for 1088.</para>
+    ///
+    /// <para><b>Three readers, one question each.</b> The renderer uses it as <c>MinHeight</c>; the
+    /// editor uses it as the canvas floor and as the threshold above which a card is reported as
+    /// taller than a screen; the host uses it to size the window it opens. All three mean "one
+    /// screen", which is why the name did not change and the meaning did.</para>
+    /// </remarks>
     public const double CardHeight = 845;
 
     /// <summary>
