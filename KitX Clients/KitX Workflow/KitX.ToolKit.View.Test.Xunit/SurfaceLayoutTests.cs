@@ -291,6 +291,77 @@ public sealed class SurfaceLayoutTests
         Assert.Equal(0, SurfaceLayout.SlotHeightOf(withGap, 4, ListSlots));
     }
 
+    // ── Criterion 6: a card's height is one sum, and the rows it skips still count ──────
+
+    [Fact]
+    public void A_card_is_as_tall_as_every_row_up_to_the_last_one_written()
+    {
+        // Consecutive rows only. A file that skips a row asks a question this sum cannot answer on
+        // its own: the answer depends on whether an empty row has a height, and today it does not
+        // (§10.2.1.2, the decision this test deliberately does not pre-empt). SlotSpanOf adds up
+        // whatever SlotHeightOf says about each row, so it follows that decision automatically
+        // rather than holding a second opinion about it — which is the point of the split.
+        var consecutive = new List<SurfaceElement>
+        {
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceTextElement { Row = 2, Key = "subtitle" },
+            new SurfaceTextElement { Row = 3, Key = "note" },
+        };
+
+        Assert.Equal(3, SurfaceLayout.SlotSpanOf(consecutive, ListSlots));
+
+        // Row numbers are still the file's, unchanged — this sum measures the card, it does not
+        // renumber anything.
+        Assert.Equal(3, SurfaceLayout.SlotIndex(consecutive[2]));
+    }
+
+    [Fact]
+    public void A_list_makes_the_card_taller_by_the_slots_it_fills()
+    {
+        // A List fills K slots, so it must reach the same total as K ordinary rows would. Measured
+        // against a separate card rather than against a literal, so a renderer that changes K does
+        // not need this test edited.
+        var withList = new List<SurfaceElement>
+        {
+            new SurfaceTextElement { Row = 1, Key = "title" },
+            new SurfaceListElement { Row = 2, Key = "sessions" },
+            new SurfaceButtonElement { Row = 3, Label = "Scan", Events = ["Click"] },
+        };
+
+        var equivalents = new List<SurfaceElement>();
+        for (var row = 1; row <= 2 + ListSlots; row++)
+            equivalents.Add(new SurfaceTextElement { Row = row, Key = $"k{row}" });
+
+        Assert.Equal(
+            SurfaceLayout.SlotSpanOf(equivalents, ListSlots),
+            SurfaceLayout.SlotSpanOf(withList, ListSlots));
+
+        Assert.Equal(2 + ListSlots, SurfaceLayout.SlotSpanOf(withList, ListSlots));
+    }
+
+    [Fact]
+    public void An_empty_card_is_zero_slots_tall()
+    {
+        // Not one: there is no first row to have a height. A card with no elements draws nothing,
+        // and a "does it fit" question about it must not answer "one slot" — that would make an
+        // empty card consume a slot it does not draw.
+        Assert.Equal(0, SurfaceLayout.SlotSpanOf([], ListSlots));
+    }
+
+    [Fact]
+    public void The_tallest_element_in_a_row_decides_that_row_and_not_the_next()
+    {
+        // A six-slot List on row 1 pushes row 2 down by six slots, and its own row contributes six
+        // — not twelve. Summing the elements' heights instead of the rows' heights would double it.
+        var card = new List<SurfaceElement>
+        {
+            new SurfaceListElement { Row = 1, Key = "sessions" },
+            new SurfaceTextElement { Row = 2, Key = "title" },
+        };
+
+        Assert.Equal(1 + ListSlots, SurfaceLayout.SlotSpanOf(card, ListSlots));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────
 
     private static IEnumerable<MethodInfo> LayoutMethods() =>

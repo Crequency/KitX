@@ -102,6 +102,44 @@ public static class SurfaceLayout
     }
 
     /// <summary>
+    /// How many slots tall the whole card is, counting every row number up to the last one used.
+    /// </summary>
+    /// <param name="elements">Every element on the card.</param>
+    /// <param name="listSlots">How many slots a <c>List</c> fills (the renderer's choice).</param>
+    /// <remarks>
+    /// <para><b>Sums the rows in range, asking <see cref="SlotHeightOf"/> about each.</b> It holds no
+    /// opinion of its own about an empty row: whatever that function answers, this adds. Today it
+    /// answers zero, so a document that skips a row measures the same as one that does not — and if
+    /// that decision is ever revisited, this sum follows it without being edited. Two places holding
+    /// an opinion is how a renderer and a warning come to disagree about the same card.</para>
+    ///
+    /// <para><b>This is the one place a card's total height is computed.</b> A renderer that wants
+    /// to warn "this does not fit" and a renderer that wants to draw it must not each sum the rows
+    /// themselves: two sums drift apart silently, and the drift shows up as a warning that fires on
+    /// a card that fits. Pixels stay out of it for the same reason they stay out of
+    /// <see cref="SlotHeightOf"/> — a slot count needs no renderer.</para>
+    /// </remarks>
+    public static int SlotSpanOf(IReadOnlyList<SurfaceElement> elements, int listSlots)
+    {
+        ArgumentNullException.ThrowIfNull(elements);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(listSlots);
+
+        var last = 0;
+        foreach (var element in elements)
+        {
+            var slot = SlotIndex(element);
+            if (slot > last)
+                last = slot;
+        }
+
+        var total = 0;
+        for (var slot = 1; slot <= last; slot++)
+            total += SlotHeightOf(elements, slot, listSlots);
+
+        return total;
+    }
+
+    /// <summary>
     /// Pixel distance from the card's top edge to the element's own top edge.
     /// </summary>
     /// <param name="elements">Every element on the card — needed for slot heights, never for
