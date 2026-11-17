@@ -245,8 +245,16 @@ internal sealed class SurfaceStore : ISurfaceStore
                 ("file", FileName), ("field", unknown)));
         }
 
+        // The position in the array, counted from 1, is the only location a person can act on: the
+        // deserialiser's own message quotes a byte offset into a file nobody counts by bytes. The
+        // row is read out of the raw JSON rather than off the element, because the element is
+        // exactly what failed to parse.
+        var position = 0;
+
         foreach (var element in elements.EnumerateArray())
         {
+            position++;
+
             SurfaceElement? parsed;
             try
             {
@@ -257,16 +265,21 @@ internal sealed class SurfaceStore : ISurfaceStore
                 // One unknown type must not take the card down with it.
                 (warnings ??= []).Add(ElementError(
                     toolkitId, "surface.element.unsupported-type",
-                    $"Dropped one element: {ex.Message}",
-                    ("reason", ex.Message)));
+                    $"Dropped element {position} ({TypeAt(element)}): {ex.Message}",
+                    ("row", TryReadRow(element)), ("type", TypeAt(element)), ("reason", ex.Message)));
                 continue;
             }
 
             if (parsed is null)
             {
+                // No `row` and no `type` here, and that is not an omission: the thing in the array
+                // is `null`, so it never claimed either. Its position in the file is the only place
+                // it can be found, and it gets its own placeholder name so a sentence cannot print
+                // an array index where it says "row".
                 (warnings ??= []).Add(ElementError(
                     toolkitId, "surface.element.empty",
-                    "Dropped one element: it deserialised to null."));
+                    $"Dropped element {position} of 'elements': it deserialised to null.",
+                    ("index", Invariant(position))));
                 continue;
             }
 
@@ -466,6 +479,38 @@ internal sealed class SurfaceStore : ISurfaceStore
     /// same machine.
     /// </remarks>
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>The <c>row</c> an unparseable element asked for, or <c>?</c> when it did not say.</summary>
+    /// <remarks>
+    /// Read off the raw JSON, not off a <see cref="SurfaceElement"/>, because in both places this is
+    /// called the element is exactly what could not be built. A file whose element failed to parse
+    /// may still say <c>"row": 3</c>, and that row number is what the author needs to go edit — the
+    /// array position is only a fallback for an element that could not even name a row.
+    ///
+    /// <para>Returns the question mark rather than throwing: the sentence has to survive a file
+    /// whose row is a string, a float or absent, because it exists to describe such a file.</para>
+    /// </remarks>
+    private static string TryReadRow(JsonElement element)
+        => element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("row", out var row)
+            && row.ValueKind == JsonValueKind.Number
+            && row.TryGetInt32(out var number)
+                ? Invariant(number)
+                : "?";
+
+    /// <summary>The <c>type</c> an unparseable element claimed, or <c>?</c> when it did not say.</summary>
+    /// <remarks>
+    /// A dropped element still has a type name worth showing: it is the word the author typed and
+    /// the word this build did not recognise, which is the whole reason the element went missing.
+    /// Blanked only when the property is absent or is not a string.
+    /// </remarks>
+    private static string TypeAt(JsonElement element)
+        => element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("type", out var type)
+            && type.ValueKind == JsonValueKind.String
+            && type.GetString() is { Length: > 0 } name
+                ? name
+                : "?";
 
     /// <summary>
     /// The layout file's path for a ToolKit. The id is validated by <c>ToolkitIdGuard</c> at

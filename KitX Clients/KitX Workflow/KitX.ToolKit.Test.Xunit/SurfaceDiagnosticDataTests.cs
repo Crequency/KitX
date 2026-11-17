@@ -147,31 +147,65 @@ public class SurfaceDiagnosticDataTests : IDisposable
     }
 
     /// <summary>
-    /// A sentence with no values in it carries <see langword="null"/>, not an empty dictionary:
-    /// the client reads "nothing to substitute" from one meaning instead of having to recognise
-    /// two spellings of it.
+    /// An element that failed to parse still names where it was and what it claimed to be.
     /// </summary>
     /// <remarks>
-    /// The only diagnostic in this file that takes no values is the element that deserialised to
-    /// nothing — even a dropped element names its kind and cell, so those three are not a case of
-    /// "no values" and this test would be wrong to use one of them. The button-with-no-label
-    /// shortcut this started as is exactly that mistake: it asserts <c>kind</c>/<c>row</c>/<c>weight</c>
-    /// are absent, which would mean the producer had stopped telling the reader where the problem is.
+    /// <para><b>The location is the part a person can act on.</b> The deserialiser's own message
+    /// quotes a byte offset into the file — <c>LineNumber: 0 | BytePositionInLine: 34</c> — which
+    /// nobody counts by. The row is what the author typed and what they can go and edit, so it
+    /// travels as a named value even though the element itself never became an object.</para>
+    ///
+    /// <para><b>Both values, not one.</b> A sentence that said only “row 3” would leave the author
+    /// looking at a row full of elements without knowing which one this build refused; the type
+    /// name is the word in the file that did not match any kind it knows. Asserting the pair is what
+    /// keeps a future edit from dropping either half back into the interpolated English.</para>
     /// </remarks>
     [Fact]
-    public void A_sentence_with_no_values_carries_no_data()
+    public void A_dropped_element_still_says_which_row_and_which_type()
     {
         WriteRaw("""
         {
           "schemaVersion": 1,
           "layoutVersion": 1,
-          "elements": [ null ]
+          "elements": [
+            { "type": "Text", "row": 1, "key": "title" },
+            { "type": "Slider", "row": 3, "name": "volume" }
+          ]
         }
         """);
 
         var warning = Assert.Single(Store().Load(TkId).Warnings);
-        Assert.Equal("surface.element.empty", warning.Code);
-        Assert.Null(warning.Data);
+        Assert.Equal("surface.element.unsupported-type", warning.Code);
+
+        var data = Data(warning);
+        Assert.Equal("3", data["row"]);
+        Assert.Equal("Slider", data["type"]);
+        Assert.True(data.ContainsKey("reason"));
+    }
+
+    /// <summary>
+    /// A sentence with no values in it carries <see langword="null"/>, not an empty dictionary:
+    /// the client reads "nothing to substitute" from one meaning instead of having to recognise
+    /// two spellings of it.
+    /// </summary>
+    /// <remarks>
+    /// The element that deserialised to nothing used to be the only diagnostic here that took no
+    /// values, and it was the example this test was built on — a dropped element names its kind and
+    /// cell, so it was never really a case of "no values". It has since gained <c>row</c> and
+    /// <c>type</c> for the same reason the others have them: the reader has to be able to find the
+    /// element. So the subject is a sentence built by hand, and the point being pinned is the
+    /// convention rather than one producer's choice.
+    /// </remarks>
+    [Fact]
+    public void A_sentence_with_no_values_carries_no_data()
+    {
+        var bare = Diagnostic.Warning("surface.test.no-values", "Nothing to substitute here.");
+        Assert.Null(bare.Data);
+
+        var withOne = Diagnostic.Warning(
+            "surface.test.one-value", "One value: {field}.", null,
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["field"] = "col" });
+        Assert.NotNull(withOne.Data);
     }
 
     /// <summary>
