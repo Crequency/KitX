@@ -148,6 +148,8 @@ internal sealed class ToolkitService : IToolkitService
 
         // The on-disk config goes too: "uninstall" that leaves the directory behind would be
         // re-discovered by ListToolkits on the next scan, which reads as the opposite of removed.
+        // Uninstall destroys the data surface and `state.json` before handing the directory to
+        // the bin, so what the bin holds is a config without its state -- not a copy of what ran.
         _store.Delete(toolkitId);
         ToolkitListChanged?.Invoke(this, EventArgs.Empty);
         return removed;

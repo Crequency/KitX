@@ -174,7 +174,7 @@ internal sealed class ToolkitStore
         if (!Directory.Exists(dir))
             return false;
 
-        var trash = Path.Combine(_root, TrashDirectoryName);
+        var trash = TrashRoot;
         Directory.CreateDirectory(trash);
 
         // The stamp is UTC and fixed-width to the millisecond, so lexicographic order over the
@@ -285,6 +285,21 @@ internal sealed class ToolkitStore
             throw new ArgumentException($"Toolkit id '{toolkitId}' contains invalid file-name characters.", nameof(toolkitId));
         return Path.Combine(_root, toolkitId);
     }
+
+    /// <summary>
+    /// Where deleted ToolKits are kept — <c>{root}/.trash</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Deliberately not built through <see cref="ToolkitDir"/>.</b> That method's contract
+    /// is “the directory of one ToolKit”, and it refuses <c>.trash</c> for exactly that reason:
+    /// the bin is not a ToolKit. Routing the bin's own path through it would mean either letting
+    /// <c>ToolkitDir(".trash")</c> succeed — which re-opens <c>Delete(".trash")</c> — or special-
+    /// casing a guard whose whole job is to have no special cases.</para>
+    /// <para>So this is not a way around the guard. It is the statement that the bin lives beside
+    /// the ToolKits, not among them, and that only two things may address it: this property, and
+    /// the skip in <see cref="List"/>.</para>
+    /// </remarks>
+    private string TrashRoot => Path.Combine(_root, TrashDirectoryName);
 
     private string ConfigPath(string toolkitId) => Path.Combine(ToolkitDir(toolkitId), ConfigFileName);
 
