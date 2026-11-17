@@ -158,10 +158,12 @@ internal sealed class ToolkitStore
     /// <summary>Deletes a ToolKit's directory recursively. Returns false when absent.</summary>
     /// <remarks>
     /// <para><b>It is moved, not deleted.</b> The directory is renamed into
-    /// <c>{root}/.trash/{id}-{utc}/</c>, so a delete can be undone with a `git mv`-shaped gesture
-    /// instead of being the one operation with no way back. Nothing under the bin is ever read
-    /// back by this store — <see cref="List"/> scans one level and looks for a config file in
-    /// each directory, so a directory <i>inside</i> the bin has no config where it looks.</para>
+    /// <c>{root}/.trash/{id}-{utc}/</c>, so it keeps every file it had and loses only its
+    /// position under the root. That is the whole of the undo, and it belongs to a person with a
+    /// shell: <b>this application has no restore command and no restore button.</b>
+    /// <see cref="List"/> skips the bin by name, and nothing here ever reads a directory back out
+    /// of it. Moving one back is likewise unverified — no code checks afterwards that what was
+    /// moved back still loads.</para>
     /// <para><b>Nothing here falls back to deleting.</b> If the bin cannot be created or the
     /// move fails, the exception escapes. Moving aside is what this method is <i>for</i>; a
     /// failed write (a full disk, a read-only volume) is exactly when a caller most needs the
