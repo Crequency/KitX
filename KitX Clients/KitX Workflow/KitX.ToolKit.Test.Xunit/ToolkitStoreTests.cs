@@ -275,6 +275,72 @@ public class ToolkitStoreTests
     }
 
     [Fact]
+    public void A_directory_whose_name_the_store_now_refuses_does_not_take_the_others_with_it()
+    {
+        var root = TempRoot();
+        try
+        {
+            var store = new ToolkitStore(root);
+            store.Save(ValidToolkit("good"));
+
+            // A directory an older build could have written: the name starts with a space, which
+            // ToolkitIdGuard refuses. `ToolkitDir` is stricter than it used to be, so `Load` on
+            // this name throws instead of returning null — and `List` enumerates every directory
+            // under the root. Without the skip, one such leftover directory aborts the scan and
+            // the user loses sight of every ToolKit that is still fine.
+            //
+            // A *trailing* space would be the more obvious choice and does not work: Windows
+            // silently strips it when creating the directory, so the fixture would be named
+            // "legacy" and the test would be asserting about a directory that was never awkward.
+            var awkward = Path.Combine(root, " legacy");
+            Directory.CreateDirectory(awkward);
+            File.WriteAllText(
+                Path.Combine(awkward, ToolkitStore.ConfigFileName),
+                ToolkitConfig.Serialize(ValidToolkit("legacy")));
+
+            var listed = store.List();
+
+            var only = Assert.Single(listed);
+            Assert.Equal("good", only.Meta.Name);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void With_no_bin_at_all_every_toolkit_is_still_listed()
+    {
+        var root = TempRoot();
+        try
+        {
+            var store = new ToolkitStore(root);
+            store.Save(ValidToolkit("first"));
+            store.Save(ValidToolkit("second"));
+            store.Save(ValidToolkit("third"));
+
+            // The other half of the bin check, and it is not decoration. On its own, "the bin is
+            // invisible" is satisfied by a List that returns nothing at all — a `return []` at the
+            // top of the method passes that test and breaks every user. This case says the scan
+            // works when there is no bin to skip, so the pair together says *the skip is the
+            // reason* rather than *something is swallowing rows*.
+            Assert.False(Directory.Exists(Path.Combine(root, ToolkitStore.TrashDirectoryName)));
+
+            var listed = store.List();
+
+            Assert.Equal(3, listed.Count);
+            Assert.Equal(
+                ["first", "second", "third"],
+                listed.Select(t => t.Meta.Name).OrderBy(n => n, StringComparer.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void A_toolkit_living_inside_the_bin_is_never_listed_and_never_hides_a_live_one()
     {
         var root = TempRoot();

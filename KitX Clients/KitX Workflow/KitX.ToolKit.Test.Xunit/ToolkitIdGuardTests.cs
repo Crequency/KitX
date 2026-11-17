@@ -74,6 +74,41 @@ public class ToolkitIdGuardTests
         Assert.Equal("id.invalid-character", ToolkitIdGuard.Explain("evil\\path"));
     }
 
+    /// <summary>
+    /// A tab in the middle of an id — not at either end, so the padded-whitespace rule cannot be
+    /// what rejects it. Before this was tightened the guard allowed it while <c>ToolkitStore</c>
+    /// refused it, because that store asked the OS. Two rules, one input, two answers.
+    /// </summary>
+    [Theory]
+    [InlineData("a\tb")]
+    [InlineData("a\nb")]
+    [InlineData("a\rb")]
+    [InlineData("a\0b")]
+    public void Control_characters_are_rejected_by_the_rule_itself_not_by_the_os(string id)
+    {
+        Assert.False(ToolkitIdGuard.IsValidSegment(id));
+        Assert.Equal("id.invalid-character", ToolkitIdGuard.Explain(id));
+    }
+
+    /// <summary>
+    /// The characters the OS happens to forbid are a property of the machine; the rule must not
+    /// be. '|' and '?' are invalid file-name characters on Windows only, so a rule that asked
+    /// <c>Path.GetInvalidFileNameChars</c> would accept them on Unix — and the same id would be
+    /// legal in one checkout and not in another.
+    /// </summary>
+    [Fact]
+    public void The_rule_does_not_consult_the_host()
+    {
+        Assert.False(ToolkitIdGuard.IsValidSegment("a|b"));
+        Assert.False(ToolkitIdGuard.IsValidSegment("a?b"));
+
+        // ...and nothing in the tightening made ordinary ids harder to write. The middle one is
+        // the shape real ids take: a 32-character GUID "N" string, and the id forms the tests use.
+        Assert.True(ToolkitIdGuard.IsValidSegment("547897fcebf548aa991a048fed7f8eef"));
+        Assert.True(ToolkitIdGuard.IsValidSegment("a-b_c.d"));
+        Assert.True(ToolkitIdGuard.IsValidSegment("一个工具包"));
+    }
+
     [Theory]
     [InlineData(" a")]
     [InlineData("a ")]

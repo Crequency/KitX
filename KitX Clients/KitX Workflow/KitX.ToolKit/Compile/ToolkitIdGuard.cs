@@ -28,6 +28,25 @@ internal static class ToolkitIdGuard
     ];
 
     /// <summary>
+    /// True when this file's rule rejects the character regardless of which OS is asking.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why control characters are listed one by one instead of via
+    /// <see cref="Path.GetInvalidFileNameChars"/>.</b> That method answers a question about the
+    /// machine it runs on — it returns 41 characters here, including <c>'\t'</c> and the whole
+    /// 0x01–0x1F range, but describes only <c>'\0'</c> and <c>'/'</c> on Unix. A rule whose answer
+    /// depends on the host is not a rule (that is the whole reason this type exists), so the
+    /// characters are spelled out and every platform rejects the same set.</para>
+    /// <para><b>What this adds over the pre-existing list.</b> <c>'\t'</c> and its neighbours were
+    /// rejected by <c>ToolkitStore</c> only because that store happened to call the platform
+    /// method. <see cref="Explain"/> said nothing about them, so a config validated by the
+    /// compiler accepted ids the store then refused to open. The two rules now agree on these
+    /// characters instead of one silently covering for the other.</para>
+    /// </remarks>
+    public static bool IsForbiddenCharacter(char value)
+        => value < ' ' || value == (char)0x7F || Array.IndexOf(Forbidden, value) >= 0;
+
+    /// <summary>
     /// True when <paramref name="id"/> is usable as a single path segment.
     /// </summary>
     public static bool IsValidSegment(string? id)
@@ -42,10 +61,17 @@ internal static class ToolkitIdGuard
         if (id.IndexOfAny(Forbidden) >= 0)
             return false;
 
-        // A leading/trailing space is legal on Unix and illegal-ish on Windows; normalise the
-        // decision instead of letting the OS decide. Also rejects tabs/newlines that would
-        // otherwise smuggle a second segment past a naive consumer.
+        // Padded whitespace is checked before the control-character rule on purpose: a tab at
+        // either end is *both*, and "padded-whitespace" is the more specific of the two reasons.
+        // Reversing the order silently changes an existing answer without changing an existing
+        // verdict, which is the kind of change that only a test catches.
         if (id[0] is ' ' or '\t' || id[^1] is ' ' or '\t')
+            return false;
+
+        // Control characters are not a platform question: no supported filesystem wants a tab or
+        // a newline inside a single path segment, and the OS-consulting method that used to catch
+        // them here returns a different answer on Unix.
+        if (id.Any(IsForbiddenCharacter))
             return false;
 
         return true;
@@ -65,6 +91,8 @@ internal static class ToolkitIdGuard
             return "id.invalid-character";
         if (id[0] is ' ' or '\t' || id[^1] is ' ' or '\t')
             return "id.padded-whitespace";
+        if (id.Any(IsForbiddenCharacter))
+            return "id.invalid-character";
         return null;
     }
 

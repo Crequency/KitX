@@ -79,6 +79,21 @@ internal sealed class ToolkitStore
                     Path.GetFileName(dir), TrashDirectoryName, StringComparison.OrdinalIgnoreCase))
                 continue;
 
+            // A directory whose name this store would now refuse must be skipped rather than
+            // allowed to abort the scan. This is not defensive padding: `ToolkitDir` is stricter
+            // than it was (it consults ToolkitIdGuard first), so a directory written by an older
+            // build — a name with a trailing space, a control character — is refused today.
+            // Without this guard, one such directory makes `List` throw and the user loses sight
+            // of every *other* ToolKit as well. Skipping still hides that one, which is why the
+            // summary below says so.
+            if (!Compile.ToolkitIdGuard.IsValidSegment(Path.GetFileName(dir)))
+            {
+                Log.Warning(
+                    "Skipped '{Directory}': its name is not a usable path segment ({Reason}).",
+                    dir, Compile.ToolkitIdGuard.Explain(Path.GetFileName(dir)));
+                continue;
+            }
+
             var toolkit = Load(Path.GetFileName(dir));
             if (toolkit is not null)
                 result.Add(toolkit);
@@ -232,27 +247,38 @@ internal sealed class ToolkitStore
     /// the storage root).
     /// </summary>
     /// <remarks>
-    /// <para><b><c>.trash</c> is reserved here, not in <see cref="Compile.ToolkitIdGuard"/>.</b>
-    /// That guard calls itself the single path-safety rule, but it has no callers on this path:
-    /// <c>Delete</c>, <c>Load</c>, <c>Save</c> and <c>Exists</c> all resolve through this method.
-    /// A reserved-segment check added to the guard would leave <c>Delete(".trash")</c> exactly as
-    /// destructive as it is now while a green test claimed otherwise.</para>
-    /// <para>Before the bin existed this mattered to nobody: ids come from
-    /// <c>Guid.NewGuid().ToString("N")</c>, so <c>".trash"</c> was unreachable. Moving deletes
-    /// into a directory with that name turns an inert id into a directory that a delete could
-    /// take away in one call — the code did not change, the world around it did.</para>
+    /// <para><b>Two rules, in two layers, and the order matters.</b> The segment rule comes from
+    /// <see cref="Compile.ToolkitIdGuard"/> — it is about what a path segment may contain, and the
+    /// compiler enforces the same rule when it validates a config. What stays here is the one
+    /// fact the guard cannot know: <c>.trash</c> is a legal segment, and this store keeps that
+    /// name for itself. A rule about a segment belongs in the guard; a rule about <em>this
+    /// root's layout</em> belongs here.</para>
+    /// <para><b>The other checks are kept, not replaced.</b> The guard now rejects control
+    /// characters on every platform, which covers what <c>GetInvalidFileNameChars</c> used to
+    /// cover here — but deleting that call would make the store's safety depend on the guard
+    /// staying correct, and the guard is one edit away from a platform-conditional branch again.
+    /// A check that only ever rejects is cheap; the two agreeing is the point, not one covering
+    /// for the other.</para>
+    /// <para><b>Tightening this method can make stored directories unreachable.</b> An id written
+    /// before the guard existed — a directory named with a trailing space, say — is refused here
+    /// now. <see cref="Load"/> therefore reports it as absent and <see cref="List"/> skips it.
+    /// That is deliberate (a directory this store cannot safely address is worse than one it
+    /// admits it cannot read), but the visible effect is a ToolKit disappearing from the list, so
+    /// <see cref="List"/> says so in its own remarks instead of leaving the reader to infer it.</para>
     /// </remarks>
     private string ToolkitDir(string toolkitId)
     {
-        if (string.IsNullOrEmpty(toolkitId))
-            throw new ArgumentException("Toolkit id must not be null or empty.", nameof(toolkitId));
-        if (toolkitId == "." || toolkitId == "..")
-            throw new ArgumentException($"Toolkit id '{toolkitId}' is a reserved path segment.", nameof(toolkitId));
+        // The guard first, so the segment rules are applied in the one place the compiler also
+        // reads them from. Its own message names a reason token; that token is what the
+        // diagnostic layer translates, so it is worth keeping in the exception text.
+        if (!Compile.ToolkitIdGuard.IsValidSegment(toolkitId))
+            throw new ArgumentException(
+                $"Toolkit id '{toolkitId}' is not a usable path segment: "
+                + Compile.ToolkitIdGuard.Explain(toolkitId), nameof(toolkitId));
+
         if (string.Equals(toolkitId, TrashDirectoryName, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException(
                 $"Toolkit id '{toolkitId}' is reserved: deleted ToolKits are kept there.", nameof(toolkitId));
-        if (toolkitId.IndexOfAny(new[] { '/', '\\' }) >= 0)
-            throw new ArgumentException($"Toolkit id '{toolkitId}' must not contain path separators.", nameof(toolkitId));
         if (Path.IsPathRooted(toolkitId))
             throw new ArgumentException($"Toolkit id '{toolkitId}' must be a relative name, not an absolute path.", nameof(toolkitId));
         if (toolkitId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
