@@ -40,6 +40,12 @@ public interface ISurfaceStore
     SurfaceLoadResult Load(string toolkitId);
 
     /// <summary>Writes a ToolKit's layout and raises <see cref="Changed"/>.</summary>
+    /// <remarks>
+    /// Throws <see cref="SurfaceWriteException"/> when the file cannot be written, which is the one
+    /// thing a caller needs in order to say where: an <see cref="IOException"/> names a path in its
+    /// message, but that path may be the temporary file the atomic write uses, which the author has
+    /// never seen and cannot look at.
+    /// </remarks>
     void Save(string toolkitId, SurfaceDocument document);
 
     /// <summary>

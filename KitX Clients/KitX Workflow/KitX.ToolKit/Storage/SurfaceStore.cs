@@ -112,7 +112,17 @@ internal sealed class SurfaceStore : ISurfaceStore
 
         var path = PathFor(toolkitId);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        KcsFileIo.AtomicWrite(path, JsonSerializer.Serialize(document, SerializerOptions));
+
+        try
+        {
+            KcsFileIo.AtomicWrite(path, JsonSerializer.Serialize(document, SerializerOptions));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Re-thrown with the real path: AtomicWrite reports `surface.json.tmp` when the swap
+            // fails, and that is a file the author never made and cannot go and look at.
+            throw new SurfaceWriteException(toolkitId, path, ex);
+        }
 
         Changed?.Invoke(this, new SurfaceChangedEventArgs(toolkitId));
     }
