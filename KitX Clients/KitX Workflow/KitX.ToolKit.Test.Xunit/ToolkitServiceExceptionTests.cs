@@ -91,6 +91,78 @@ public class ToolkitServiceExceptionTests
     }
 
     /// <summary>
+    /// Uninstall is the one delete that does <b>not</b> reach the bin intact, and this test says
+    /// so in the only form that cannot rot: it names what is missing.
+    /// </summary>
+    /// <remarks>
+    /// <para><see cref="KitX.ToolKit.Hosting.ToolkitService.Uninstall"/> calls the manager first
+    /// (<c>ToolkitInstanceManager.cs:424-446</c>), which removes the declared keys, the panel
+    /// namespace and <c>state.json</c>, and only then deletes the directory. So whatever ends up
+    /// in the bin from that path is <b>a config without its state</b>.</para>
+    /// <para><b>Why assert the hole instead of the files.</b> The acceptance criterion for the
+    /// bin names <c>toolkit.json</c>, <c>workflows/*.kcs</c> and <c>surface.json</c> — and those
+    /// three survive <c>Uninstall</c> untouched. A test that only checked "the directory is in
+    /// the bin and those files are byte-identical" would pass even if someone later wired
+    /// <c>Uninstall</c> into the bin, because the files it destroys are not the files the
+    /// criterion looks at. Naming the absence is what makes that wiring go red.</para>
+    /// </remarks>
+    [Fact]
+    public void What_uninstall_leaves_in_the_bin_is_a_config_without_its_state()
+    {
+        var root = TempDir();
+        try
+        {
+            // Built the way the composition root builds it — *with* a state store
+            // (ServiceCollectionExtensions.cs:101 and :127). Without one the manager has nothing
+            // to delete, and the copy in the bin is complete; that difference is the whole point
+            // of this test, so the realistic wiring is the one worth asserting against.
+            var store = new ToolkitStore(root);
+            var manager = new ToolkitInstanceManager(
+                new ServiceCollection().BuildServiceProvider(),
+                TriggerSourceRegistry.BuildDefault(),
+                new NoOpExecutor(),
+                new DataStore(),
+                t => new ToolkitFileStore(root),
+                stateStore: new ToolkitStateStore(store));
+            var service = new ToolkitService(store, manager);
+
+            var saved = service.CreateToolkit(Sample());
+            var id = saved.GetId();
+            TempToolkitRoot.Write(root, saved);
+
+            // Give it a state file and a surface, so "missing" is a measurement rather than an
+            // artefact of never having been written.
+            store.SaveState(id, new ToolkitStateFile
+            {
+                State = KitX.ToolKit.Contract.LifecycleState.Installed,
+            });
+            File.WriteAllText(Path.Combine(root, id, "surface.json"), """{"elements":[]}""");
+
+            service.Uninstall(id);
+
+            var moved = Directory.EnumerateDirectories(Path.Combine(root, ".trash"))
+                .SingleOrDefault(dir => Path.GetFileName(dir).StartsWith(id + "-", StringComparison.Ordinal));
+
+            // Uninstall reaches the bin because it shares `_store.Delete` with DeleteToolkit —
+            // which is exactly the reason this test exists rather than being a comment.
+            Assert.NotNull(moved);
+
+            // The three files the bin's acceptance criterion names survive untouched...
+            Assert.True(File.Exists(Path.Combine(moved, ToolkitStore.ConfigFileName)));
+            Assert.True(File.Exists(Path.Combine(moved, "surface.json")));
+
+            // ...and the one the manager destroyed on the way is gone, because it was deleted
+            // before the directory moved. A bin whose contents cannot be told apart from a live
+            // toolkit is worse than no bin: it reports a backup that cannot restore the values
+            // it lost.
+            Assert.False(
+                File.Exists(Path.Combine(moved, ToolkitStateFile.FileName)),
+                "Uninstall clears state.json before the directory moves.");
+        }
+        finally { Cleanup(root); }
+    }
+
+    /// <summary>
     /// The codes are contract; this pins their spelling so a rename cannot slip through as a
     /// "cleanup" — a consumer branching on the old string would break with no compile error.
     /// </summary>
