@@ -5,37 +5,61 @@ on:
         types:
             - opened
 
+# Least privilege: this job only needs to read the checked out code and write
+# to the pull request (comments / title). Never widen it to "write-all".
+permissions:
+    contents: read
+    pull-requests: write
+
 jobs:
     check_title:
+        # Pull requests from forks get a read-only GITHUB_TOKEN and no secrets,
+        # so the comment/title update would only fail there. Skip them explicitly.
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         runs-on: ubuntu-latest
 
         steps:
             - uses: actions/checkout@v4
 
             - name: Comment on Pull Request
+              # The title is untrusted input from whoever opened the pull request.
+              # Pass it through the environment so it is expanded by the shell
+              # after parsing instead of being pasted into the script source.
               env:
+                  GH_TOKEN: ${{ github.token }}
                   PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  REPOSITORY: ${{ github.repository }}
               run: |
-                  pull_request_number=${{ github.event.pull_request.number }}
-                  current_title="$PR_TITLE"
-                  message_body="The origin title of this PR is: '$current_title'. GitHub Action is checking and format it ..."
+                  set -euo pipefail
 
-                  curl -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
-                    -H "Content-Type: application/json" \
-                    -X POST \
-                    -d '{"body":"'"$message_body"'"}' \
-                    "https://api.github.com/repos/${{ github.repository }}/issues/$pull_request_number/comments"
+                  message_body="The origin title of this PR is: '$PR_TITLE'. GitHub Action is checking and format it ..."
+
+                  # Build the payload with jq so quotes or backslashes in the
+                  # title can never break out of the JSON string.
+                  jq -n --arg body "$message_body" '{body: $body}' \
+                    | curl --fail-with-body -sS -X POST \
+                        -H "Authorization: Bearer $GH_TOKEN" \
+                        -H "Accept: application/vnd.github+json" \
+                        -H "Content-Type: application/json" \
+                        -d @- \
+                        "https://api.github.com/repos/$REPOSITORY/issues/$PR_NUMBER/comments"
 
             - name: Update Pull Request Title
               env:
+                  GH_TOKEN: ${{ github.token }}
                   PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  REPOSITORY: ${{ github.repository }}
               run: |
-                  pull_request_number=${{ github.event.pull_request.number }}
-                  current_title="$PR_TITLE"
-                  updated_title=$(python3 "./.github/scripts/pr_format.py" "$current_title")
+                  set -euo pipefail
 
-                  curl -X PATCH \
-                    -H "Authorization: Bearer ${{ secrets.GITHUBTOKEN }}" \
-                    -H "Accept: application/vnd.github.v3+json" \
-                    -d '{ "title": "'"$updated_title"'" }' \
-                    "https://api.github.com/repos/${{ github.repository }}/pulls/$pull_request_number"
+                  updated_title=$(python3 "./.github/scripts/pr_format.py" "$PR_TITLE")
+
+                  jq -n --arg title "$updated_title" '{title: $title}' \
+                    | curl --fail-with-body -sS -X PATCH \
+                        -H "Authorization: Bearer $GH_TOKEN" \
+                        -H "Accept: application/vnd.github+json" \
+                        -H "Content-Type: application/json" \
+                        -d @- \
+                        "https://api.github.com/repos/$REPOSITORY/pulls/$PR_NUMBER"
