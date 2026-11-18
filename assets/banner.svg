@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-label="KitX">
+  <title>KitX</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14161B"/>
+      <stop offset="0.5" stop-color="#20131A"/>
+      <stop offset="1" stop-color="#2C1006"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F03800" stop-opacity="0.45"/>
+      <stop offset="0.6" stop-color="#CD0000" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#CD0000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FF6C6C" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#FFE3D8" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#FF6C6C" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.65" stop-color="#FFE0D2"/>
+      <stop offset="1" stop-color="#FF9A7A"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FF6C6C" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#FF6C6C" stop-opacity="0.9"/>
+      <stop offset="0.65" stop-color="#FF9A7A" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FF6C6C" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="1280" height="340" rx="28" ry="28"/></clipPath>
+    <clipPath id="markhalf"><rect x="375" y="0" width="375" height="717"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="340" fill="url(#bg)"/>
+
+    <!-- ambient glow behind the mark -->
+    <ellipse cx="250" cy="172" rx="340" ry="270" fill="url(#glow)">
+      <animate attributeName="opacity" values="0.55;0.9;0.55" dur="9s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- faint grid -->
+    <g stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1">
+      <path d="M0 85 H1280"/><path d="M0 170 H1280"/><path d="M0 255 H1280"/>
+      <path d="M213 0 V340"/><path d="M426 0 V340"/><path d="M639 0 V340"/>
+      <path d="M852 0 V340"/><path d="M1065 0 V340"/>
+    </g>
+
+    <!-- drifting particles -->
+    <g>
+      <circle cx="880" cy="248" r="3" fill="#FF6C6C" opacity="0.7">
+        <animate attributeName="cy" values="248;214;248" dur="7s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.15;0.85;0.15" dur="7s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="1032" cy="96" r="2.4" fill="#CBD7F1" opacity="0.6">
+        <animate attributeName="cy" values="96;66;96" dur="9.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.1;0.75;0.1" dur="9.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="1168" cy="228" r="2" fill="#FF9A7A" opacity="0.5">
+        <animate attributeName="cy" values="228;204;228" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.1;0.7;0.1" dur="6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="96" cy="290" r="2.2" fill="#B1BBE8" opacity="0.5">
+        <animate attributeName="cy" values="290;266;290" dur="8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.08;0.6;0.08" dur="8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="470" cy="64" r="1.8" fill="#FFFFFF" opacity="0.35">
+        <animate attributeName="cy" values="64;44;64" dur="11s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- device constellation: the mesh KitX connects -->
+    <g stroke="#FF6C6C" stroke-opacity="0.28" stroke-width="1.4" fill="none">
+      <path d="M905 96 L1010 152 L1112 108"/>
+      <path d="M1010 152 L1042 250 L930 236 L905 96"/>
+      <path d="M1112 108 L1042 250"/>
+    </g>
+    <g fill="#FF9A7A">
+      <circle cx="905" cy="96" r="5"><animate attributeName="opacity" values="0.35;1;0.35" dur="4.4s" repeatCount="indefinite"/></circle>
+      <circle cx="1112" cy="108" r="5"><animate attributeName="opacity" values="1;0.35;1" dur="4.4s" repeatCount="indefinite"/></circle>
+      <circle cx="1042" cy="250" r="5"><animate attributeName="opacity" values="0.35;1;0.35" dur="5.6s" repeatCount="indefinite"/></circle>
+      <circle cx="930" cy="236" r="3.4" fill="#CBD7F1"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="6.2s" repeatCount="indefinite"/></circle>
+    </g>
+    <circle cx="1010" cy="152" r="6.5" fill="#FFFFFF">
+      <animate attributeName="opacity" values="0.55;1;0.55" dur="3.6s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- logo mark, gently breathing -->
+    <g transform="translate(128 66) scale(0.29)">
+      <animateTransform attributeName="transform" type="translate"
+        values="128 66;128 60;128 66" dur="6s" repeatCount="indefinite" additive="replace"/>
+      <g id="mark">
+      <path fill="#4F575C" d="M191.7 120.9 V45 A45 45 0 0 1 236.7 0 H513.3 A45 45 0 0 1 558.2 45 V120.9 H508.2 V80 A30 30 0 0 0 478.2 50 H271.8 A30 30 0 0 0 241.7 80 V120.9 Z"/>
+      <path fill="#474F54" clip-path="url(#markhalf)" d="M191.7 120.9 V45 A45 45 0 0 1 236.7 0 H513.3 A45 45 0 0 1 558.2 45 V120.9 H508.2 V80 A30 30 0 0 0 478.2 50 H271.8 A30 30 0 0 0 241.7 80 V120.9 Z"/>
+      <path fill="#F03800" d="M65.1 120.9 H375 V716.6 H65.4 L34.3 333.3 Z"/>
+      <path fill="#CD0000" d="M375 120.9 H684.8 L715.6 333.3 L684.5 716.6 H375 Z"/>
+      <path fill="#CBD7F1" d="M162 120.9 H222 L216 716.6 H156 Z"/>
+      <path fill="#B1BBE8" d="M528 120.9 H588 L594 716.6 H534 Z"/>
+      <path fill="#FF6C6C" d="M0 208.4 H375 V333.3 H0 Z"/>
+      <path fill="#F03800" d="M375 208.4 H750 V333.3 H375 Z"/>
+      <path fill="#4F575C" d="M118.8 333.4 H256.1 V433.3 H118.8 Z"/>
+      <path fill="#474F54" d="M493.8 333.4 H631.1 V433.3 H493.8 Z"/>
+      </g>
+    </g>
+
+    <!-- wordmark -->
+    <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+      <text x="392" y="186" font-size="102" font-weight="700" fill="url(#word)" letter-spacing="-1.5">KitX</text>
+      <text x="396" y="230" font-size="21" fill="#FFD8C8" fill-opacity="0.82">An open, shared, connected tools platform</text>
+      <rect x="396" y="250" width="150" height="3" rx="1.5" fill="url(#line)">
+        <animate attributeName="width" values="40;230;40" dur="8s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <!-- sweeping highlight -->
+    <g opacity="0.55">
+      <rect x="-300" y="-60" width="200" height="460" fill="url(#sheen)" transform="skewX(-20)">
+        <animateTransform attributeName="transform" type="translate"
+          values="0 0;1700 0;1700 0" dur="7.5s" repeatCount="indefinite" additive="sum"/>
+      </rect>
+    </g>
+  </g>
+
+  <rect x="0.9" y="0.9" width="1280" height="340" rx="27.1" ry="27.1" fill="none"
+        stroke="#FF6C6C" stroke-opacity="0.3" stroke-width="1.8"/>
+</svg>

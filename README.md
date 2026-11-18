@@ -1,4 +1,10 @@
-﻿
+
+<p align="center">
+  <a href="https://kitx.apps.crequency.com" target="_blank" rel="noopener noreferrer">
+    <img width="100%" src="./assets/banner.svg" alt="KitX — an open, shared, connected tools platform">
+  </a>
+</p>
+
 <p align="center">
   <a href="https://kitx.apps.crequency.com" target="_blank" rel="noopener noreferrer">
     <img width="128" src="https://github.com/Crequency/KitX/assets/50760269/d2f5ee3b-5e01-49d7-ae69-19318a74b8c2" alt="KitX Logo">
@@ -33,10 +39,6 @@
   <a href="https://github.com/Crequency/KitX/stargazers"><img src="https://img.shields.io/github/stars/Crequency/KitX?style=social" alt="Stars"></a>
   <a href="https://github.com/Crequency/KitX/watchers"><img src="https://img.shields.io/github/watchers/Crequency/KitX?style=social" alt="Watches"></a>
   <a href="https://github.com/Crequency/KitX/discussions"><img src="https://img.shields.io/github/discussions/Crequency/KitX?style=social" alt="Discussions"></a>
-</p>
-
-<p align="center">
-    <img src="https://profile-counter.glitch.me/Crequency-KitX/count.svg"></img>
 </p>
 
 <!--
@@ -140,67 +142,14 @@ cheese setup --reference
 
 # Versions Roadmap
 
-<br>
+The version currently under development:
 
-<details>
-<summary>Deprecated Versions</summary>
+| Version    | Info    | Code | Support    | Term               | Require                                                       | Runs on |
+|------------|---------|------|------------|--------------------|---------------------------------------------------------------|---------|
+| v3.25.04.x | Release | -    | developing | 2024.10 -> 2025.04 | `Desktop`: .Net 8 (Also Self-Contained) <br> `Mobile`: Native | Windows, Linux, macOS, Android, iOS, Raspberry Pi |
 
-<br>
-
-| Version                                                                 | Info    | Code                     | Support | Term                     | Require            | Runs on                                                                              |
-|-------------------------------------------------------------------------|---------|--------------------------|---------|--------------------------|--------------------|--------------------------------------------------------------------------------------|
-| Beta_10016                                                              | Beta    | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| Beta_10213                                                              | Beta    | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| Beta_10235                                                              | Beta    | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.0.0](https://github.com/Crequency/KitX/releases/tag/v1.0.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.0.4](https://github.com/Crequency/KitX/releases/tag/v1.0.4)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.0.5](https://github.com/Crequency/KitX/releases/tag/v1.0.5)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.1.0](https://github.com/Crequency/KitX/releases/tag/v1.1.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.1.1](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.1.2](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.1.4](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.1.5](https://github.com/Crequency/KitX/releases/tag/v1.1.1-v1.1.5)  | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.0](https://github.com/Crequency/KitX/releases/tag/v1.2.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.1](https://github.com/Crequency/KitX/releases/tag/v1.2.1)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.2](https://github.com/Crequency/KitX/releases/tag/v1.2.2)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4-preview) | Preview | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.4](https://github.com/Crequency/KitX/releases/tag/v1.2.4)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.5](https://github.com/Crequency/KitX/releases/tag/v1.2.5)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.6](https://github.com/Crequency/KitX/releases/tag/v1.2.6)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v1.2.7](https://github.com/Crequency/KitX/releases/tag/v1.2.7)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v2.0.0](https://github.com/Crequency/KitX/releases/tag/v2.0.0)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v2.0.1](https://github.com/Crequency/KitX/releases/tag/v2.0.1)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v2.0.2](https://github.com/Crequency/KitX/releases/tag/v2.0.2)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v2.0.3](https://github.com/Crequency/KitX/releases/tag/v2.0.3)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v2.0.4](https://github.com/Crequency/KitX/releases/tag/v2.0.4)         | Release | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-| [v2.0.5](https://github.com/Crequency/KitX/releases/tag/v2.0.5-preview) | Preview | This version has no code | :x:     | This version has no term | .Net Framework 4.8 | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) |
-
-</details>
-
-<br>
-
-<details>
-<summary>Not Finished Versions</summary>
-
-<br>
-
-| Version                                                                           | Info    | Code      | Support            | Term               | Require                                                       | Runs on                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-|-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|---------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [v3.0.6187.47831](https://github.com/Crequency/KitX/releases/tag/v3.0.6187.47831) | Preview | Fly       | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
-| [v3.22.04.6230](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6230)     | Preview | Telegram  | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
-| [v3.22.04.6235](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6235)     | Release | Break     | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
-| [v3.22.04.6287](https://github.com/Crequency/KitX/releases/tag/v3.22.04.6287)     | Release | Evolution | :x:                | 2022.04 -> 2023.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0)                                                                                                                                                                                                                                                                                                                                             |
-| [v3.23.04.6488](https://github.com/Crequency/KitX/releases/tag/v3.23.04.6488)     | Release | ToYou     | :white_check_mark: | 2023.04 -> 2024.04 | `Desktop`: .Net 6 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi)                                                                                                                                                                    |
-
-</details>
-
-<br>
-
-| Version                                                                           | Info    | Code      | Support            | Term               | Require                                                       | Runs on                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-|-----------------------------------------------------------------------------------|---------|-----------|--------------------|--------------------|---------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| v3.25.04.x                                                                        | Release | -         | developing         | 2024.10 -> 2025.04 | `Desktop`: .Net 8 (Also Self-Contained) <br> `Mobile`: Native | ![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![MacOS](https://img.shields.io/badge/mac%20os-000000?logo=macos&logoColor=F0F0F0) ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white) ![iOS](https://img.shields.io/badge/iOS-000000?logo=ios&logoColor=white) ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?logo=Raspberry-Pi) |
-
-See details in [ChangeLog](./ChangeLog.md)
+For the full version history — deprecated and unfinished versions — see **[docs/VERSIONS.md](./docs/VERSIONS.md)**.
+Release notes are in [ChangeLog](./ChangeLog.md).
 
 # Contributors
 
@@ -208,9 +157,7 @@ See details in [ChangeLog](./ChangeLog.md)
 
 # Star History
 
-<!-- [![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Timeline)](https://star-history.com/#Crequency/KitX&Timeline) -->
-
-[![Star History Chart](https://starchart.cc/Crequency/KitX.svg?variant=adaptive)](https://starchart.cc/Crequency/KitX)
+[![Star History Chart](https://api.star-history.com/svg?repos=Crequency/KitX&type=Date&theme=dark)](https://star-history.com/#Crequency/KitX&Date)
 
 # Thanks to
 
