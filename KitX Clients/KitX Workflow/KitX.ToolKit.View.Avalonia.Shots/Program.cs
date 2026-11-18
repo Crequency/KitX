@@ -286,6 +286,23 @@ internal static class Program
             Height = SurfaceMetrics.CardHeight + 96,
         };
 
+        // The renderer ships English defaults for the confirmation dialog on purpose: a host that
+        // overrides nothing still gets a readable dialog rather than a blank one (KitX.axaml:93-103).
+        // This tool is a host too, and it has to look like the product does. Without these three
+        // lines `03-confirm` is a card whose every word is Chinese except the three the dialog
+        // supplies -- the first screenshot of a confirmation nobody could call finished, and the
+        // defect looked like the renderer's when it was this file's omission.
+        //
+        // The title is NOT overridden, and must not be: it is the label of the button that was
+        // clicked (SurfaceCard.cs), so it arrives translated already. These three stay
+        // action-neutral for the same reason -- this dialog is drawn for every dangerous button, and
+        // words naming one action would be the question asked about a different one. See
+        // HostWindow.cs:70-81, which had to learn this the hard way, and copy the fourth line at
+        // your peril.
+        window.Resources["KitXDangerBody"] = "这一操作无法撤销。";
+        window.Resources["KitXDangerConfirm"] = "确定";
+        window.Resources["KitXDangerCancel"] = "取消";
+
         window.Show();
 
         content.Measure(Size.Infinity);
