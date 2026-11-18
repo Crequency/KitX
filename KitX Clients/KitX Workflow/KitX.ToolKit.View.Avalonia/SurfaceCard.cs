@@ -20,8 +20,12 @@ namespace KitX.ToolKit.View.Avalonia;
 /// element kind to a pixel height directly, and the arithmetic the criterion checks lives on the
 /// other side of the comparison.</para>
 ///
-/// <para><b>Empty rows are zero tall.</b> A surface whose rows are 1 and 5 looks identical to one
-/// whose rows are 1 and 2: <c>row</c> orders elements, it does not space them.</para>
+/// <para><b>Empty rows are one slot tall.</b> A surface whose rows are 1 and 5 stands three slots
+/// taller than one whose rows are 1 and 2: <c>row</c> is an ordinal, and ordinals have distance.
+/// This paragraph said the opposite until 2026-11-16 — empty rows were zero tall, so rows 1 and
+/// 5 drew as rows 1 and 2 — and the reversal is recorded in the design's §10.2.1.2. It is
+/// kept in its corrected form because it is the one sentence in this file that states the rule the
+/// row loop below implements.</para>
 ///
 /// <para><b>This is a <c>Grid</c>, so it carries no border and no corner radius.</b> A background,
 /// yes — <c>Grid.kitx-card</c> sets one from the theme. A frame around the card is the host's:
