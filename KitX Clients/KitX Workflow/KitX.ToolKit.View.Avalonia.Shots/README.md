@@ -89,12 +89,57 @@ If a change is meant to alter the rendering, the diff is the review. If it is no
 bug.
 ## Keeping `out/` honest
 
-The images are committed, so they can go stale. The rule that keeps them from rotting is one line:
+The images are committed, so they can go stale. **Nothing automated will notice.** None of the nine
+workflows under `.github/workflows/` mentions this project — `grep 'Avalonia.Shots'` returns nothing
+— and that is not an oversight waiting to be fixed, it is the state this tool has always been in. So
+this section is not documentation of a mechanism; **it is the only mechanism.**
+
+### Write the prediction down before you run it
+
+> **Before rendering, write one line: which images should change. After rendering, compare against
+> that line.**
+
+A prediction made after looking at the diff is not a prediction. Both of these are true statements
+about the same run, and only the second one checked anything:
+
+- "the two confirmation shots changed, which is what I expected" — said after seeing the diff;
+- "`03-confirm-light`, `03-confirm-dark`" — written before the run, and therefore falsifiable.
+
+Without the written line, every diff can be read as expected, because `expected` is a past tense.
+The failure this prevents is not a wrong picture; it is a **review that could not have failed**.
+
+### What that looks like, from a real run
+
+The dialog's width and padding changed on 2026-11-18. The prediction was two images. The run gave:
+
+```
+01-scanbook-light        09503F1105DE6D00  unchanged
+01-scanbook-dark         A62E1D863DB94245  unchanged
+02-danger-light          900AF3F69551182B  unchanged
+02-danger-dark           0C38EFC4D7B15EF2  unchanged
+03-confirm-light         56C748761FCB9CBC -> 5B3DA42B85801960   changed
+03-confirm-dark          B18787A8D5A46923 -> 37541FBBB029AA7C   changed
+04-weights-light         E0BEFD9AF133E028  unchanged
+04-weights-dark          0288C0ED8119E13A  unchanged
+05-empty-light           FBC1CBE7AF8C2422  unchanged
+05-empty-dark            BFF0CBFE342960ED  unchanged
+```
+
+Eight untouched is the part that took work. "The picture I meant to change changed" is one question;
+"and nothing else did" is a different one, and only the second can catch a change that reached the
+renderer twice.
+
+The tool prints those hashes on every run (`Save()`, one line per image), so building that table costs
+one command rather than a script. The first 16 characters are enough for the comparison this section
+asks for — the full 64 are one `Get-FileHash` away on either side, and a committed list of them would
+be a second copy of the truth that drifts the first time the images are regenerated without it.
+
+### Then classify what you got, in this order
 
 > **After changing the renderer or the theme, run this tool again — then ask three questions, in this order.**
 
-1. **Which ones changed?** Compare against the ones you expected to change. Fewer means your change
-   never reached the render. More means you touched something else.
+1. **Which ones changed?** Compare against the line you wrote down. Fewer means your change never
+   reached the render. More means you touched something else.
 2. **Which ones did not?** For each, ask: *can the quantity I changed affect this card at all, by
    design?* Yes → you are wrong. No → correct.
 3. A card whose whole size is fixed (like `05-empty`, two rows) belongs to case 2 whenever the change
