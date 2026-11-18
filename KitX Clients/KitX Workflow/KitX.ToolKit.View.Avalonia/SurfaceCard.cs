@@ -919,8 +919,8 @@ public sealed class SurfaceCard : Grid
             Child = new StackPanel { Spacing = SurfaceMetrics.FieldGap, Children = { title, body, buttons } },
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
-            Padding = new Thickness(16),
-            MinWidth = 220,
+            Padding = new Thickness(20, 18, 20, 16),
+            Width = 288,
         };
         dialog.Classes.Add(ThemedDialog);
 
