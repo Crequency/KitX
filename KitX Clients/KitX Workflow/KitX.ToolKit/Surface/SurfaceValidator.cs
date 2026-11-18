@@ -256,15 +256,23 @@ internal static class SurfaceValidator
         if (!ValidateKeyed(text, keys, ref warnings))
             return null;
 
-        if (string.IsNullOrWhiteSpace(text.Format))
-            return text;
-
-        if (!KnownFormats.Contains(text.Format))
+        if (!string.IsNullOrWhiteSpace(text.Format) && !KnownFormats.Contains(text.Format))
         {
             Warn(ref warnings, keys, text, SurfaceDiagnosticCodes.TextUnknownFormat,
                 $"'format' is '{text.Format}', which this build does not know; it is shown as plain text",
                 data: [("value", text.Format!)]);
-            return text with { Format = null };
+            text = text with { Format = null };
+        }
+
+        // Two independent hints, so neither may be skipped because the other is absent. The first
+        // version of this method returned early when `format` was empty, which made an unknown
+        // `role` pass unwarned on every card that did not also carry a `format` — the common case.
+        if (!string.IsNullOrWhiteSpace(text.Role) && !KnownRoles.Contains(text.Role))
+        {
+            Warn(ref warnings, keys, text, SurfaceDiagnosticCodes.TextUnknownRole,
+                $"'role' is '{text.Role}', which this build does not know; it is shown as body text",
+                data: [("value", text.Role!)]);
+            text = text with { Role = null };
         }
 
         return text;
@@ -273,6 +281,10 @@ internal static class SurfaceValidator
     /// <summary>The <c>format</c> hints a text element may carry. See <see cref="SurfaceTextElement.Format"/>.</summary>
     private static readonly ImmutableHashSet<string> KnownFormats =
         ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, "text", "date", "datetime", "percent");
+
+    /// <summary>The <c>role</c> words a text element may carry. See <see cref="SurfaceTextElement.Role"/>.</summary>
+    private static readonly ImmutableHashSet<string> KnownRoles =
+        ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, "title", "body", "caption");
 
     /// <summary>
     /// The check for the two kinds that show a stored value: the key must be named and declared.
@@ -655,6 +667,9 @@ internal static class SurfaceDiagnosticCodes
 
     /// <summary>A text element named a <c>format</c> this build does not know.</summary>
     public const string TextUnknownFormat = "surface.element.text.unknown-format";
+
+    /// <summary>A text element named a <c>role</c> this build does not know.</summary>
+    public const string TextUnknownRole = "surface.element.text.unknown-role";
 
     /// <summary>A number's range was reversed; both bounds were dropped.</summary>
     public const string NumberRangeReversed = "surface.element.number.range-reversed";

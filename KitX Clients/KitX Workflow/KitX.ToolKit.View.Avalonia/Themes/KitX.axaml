@@ -4,12 +4,13 @@
   <!--
     The renderer's own appearance, and the reason it lives here rather than in a host.
 
-    SurfaceCard gives each control it builds a class name — kitx-card, kitx-text, kitx-field,
-    kitx-button, kitx-primary, kitx-danger, kitx-list-group. Every one of those names is half of a
-    fact whose other half is a selector in this file. Splitting the two halves across repositories
-    produces the failure this project already had once (InstanceConstants.SurfaceSilent): the code
-    adds a string, nothing defines it, nothing complains, and the only symptom is a control that is
-    drawn without the appearance it was supposed to have.
+    SurfaceCard gives each control it builds a class name — kitx-card, kitx-text, kitx-title,
+    kitx-caption, kitx-field, kitx-button, kitx-primary, kitx-danger, kitx-list-group. Every one of
+    those names is half of a fact whose other half is a selector in this file. Splitting the two
+    halves across repositories produces the failure this project already had once
+    (InstanceConstants.SurfaceSilent): the code adds a string, nothing defines it, nothing
+    complains, and the only symptom is a control that is drawn without the appearance it was
+    supposed to have.
 
     A host that wants different colours does not edit this file. It defines resources with the same
     keys in its own dictionary and they win, because every selector here reads through
@@ -114,6 +115,26 @@
 
   <Style Selector="TextBlock.kitx-text">
     <Setter Property="FontSize" Value="{DynamicResource KitXTypeBody}"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextSecondary}"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+
+  <!--
+    The other two roles a line of text can carry. SurfaceTextElement.Role picks one of three
+    classes, and the classes differ only in typography — font size, weight and colour. Height,
+    margin and slot are set in code and are identical for all three, so changing a line's role
+    never moves it. That is the same constraint `emphasis` has for buttons: if appearance could
+    reflow an element, `row` would stop being the only thing that decides position.
+  -->
+  <Style Selector="TextBlock.kitx-title">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeTitle}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource KitXTextPrimary}"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+
+  <Style Selector="TextBlock.kitx-caption">
+    <Setter Property="FontSize" Value="{DynamicResource KitXTypeCaption}"/>
     <Setter Property="Foreground" Value="{DynamicResource KitXTextSecondary}"/>
     <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
   </Style>

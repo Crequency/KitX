@@ -47,16 +47,16 @@ public sealed class WelcomeOnTheWireTests
     /// <c>[JsonDerivedType]</c> declares. A lowercase "text" is silently an unknown type, which the
     /// store drops with a warning — the card came back empty and nothing said why.</item>
     /// <item><b><c>protocolVersion</c> is a number</b>, not a string.</item>
-    /// <item><b>Nulls are written out.</b> Every element carries <c>"format":null</c> and
-    /// <c>"name":null</c>. That is the serializer's default, and it means the wire is larger than
-    /// the data and a consumer cannot tell "absent" from "explicitly null".</item>
+    /// <item><b>Nulls are written out.</b> Every element carries <c>"format":null</c>,
+    /// <c>"role":null</c> and <c>"name":null</c>. That is the serializer's default, and it means the
+    /// wire is larger than the data and a consumer cannot tell "absent" from "explicitly null".</item>
     /// </list>
     ///
     /// <para>This constant is the seam. If it changes, both halves move together — which is the
     /// property that makes splitting this test across two assemblies worth the trouble.</para>
     /// </remarks>
     internal const string Wire =
-        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","format":null,"row":1,"weight":1,"key":"title","name":null},{"type":"Text","format":null,"row":2,"weight":1,"key":"cover","name":null}]},"protocolVersion":1}""";
+        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","format":null,"role":null,"row":1,"weight":1,"key":"title","name":null},{"type":"Text","format":null,"role":null,"row":2,"weight":1,"key":"cover","name":null}]},"protocolVersion":1}""";
 
     private readonly ITestOutputHelper _output;
 

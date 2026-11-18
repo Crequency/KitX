@@ -180,6 +180,25 @@ public sealed record SurfaceTextElement : SurfaceElement
     /// </remarks>
     [JsonPropertyName("format")]
     public string? Format { get; init; }
+
+    /// <summary>
+    /// How much weight this line carries: <c>title</c>, <c>body</c> or <c>caption</c>. Absent means
+    /// <c>body</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A word, not a number, for the same reason as <see cref="SurfaceButtonElement.Emphasis"/>: a
+    /// file written by a newer build should produce a warning the author can act on rather than a
+    /// deserialisation failure. An unrecognised word is drawn as <c>body</c> and reported.
+    /// </para>
+    /// <para>
+    /// <b>This field never affects layout.</b> The three values differ in font size, weight and
+    /// colour only — same height, same slot. A card that reflowed when a line became a title would
+    /// make <c>row</c> stop being the only thing that decides position.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("role")]
+    public string? Role { get; init; }
 }
 
 /// <summary>A command. Sends the listed events; reads no key.</summary>

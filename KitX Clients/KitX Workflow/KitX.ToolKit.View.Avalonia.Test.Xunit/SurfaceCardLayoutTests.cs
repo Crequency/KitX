@@ -738,6 +738,70 @@ public sealed class SurfaceCardLayoutTests
         Assert.Equal(2, CardProbe.Rows(card).Count);
     }
 
+    // ── Criterion: a line's role changes where nothing is, only what it looks like ──────
+
+    /// <summary>
+    /// Promoting a line to a title leaves every pixel of its geometry where it was.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The same criterion <c>emphasis</c> follows for buttons</b>, and for the same reason:
+    /// if appearance could move an element, <c>row</c> would stop being the only thing that decides
+    /// position. A card whose rows moved when a line was promoted would also make the editor's
+    /// dragged weights mean something different from what the file says.</para>
+    ///
+    /// <para><b>All three roles in one card, not three cards.</b> Three separate cards would compare
+    /// three layout passes and could differ for reasons belonging to none of the roles. One document
+    /// with a title, a body and a caption on consecutive rows keeps the passes identical and asks
+    /// only where each row landed.</para>
+    ///
+    /// <para><b>This file does not load the shipped theme</b>, so the sizes here are the default
+    /// <c>TextBlock</c> size and the role is invisible. That is deliberate: geometry must be the same
+    /// with or without the theme, and a test that needed the theme to hold would be asserting the
+    /// theme's business. The sizes themselves are checked in <c>ThemedCardTests</c>, which renders
+    /// with it.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void A_role_never_moves_the_line()
+    {
+        // The claim in SurfaceTextElement.Role's remarks is "this field never affects layout", and
+        // until now it was only a sentence. The assertion that makes it true is a comparison of the
+        // same document drawn under two different roles: same rows, same weights, same key — only
+        // the word changes. Every Bounds has to come back identical.
+        static (double X, double Y, double Width, double Height)[] BoxesOf(string role)
+        {
+            var card = Unconstrained(Set([
+                new SurfaceTextElement { Row = 1, Key = "a", Role = role },
+                new SurfaceTextElement { Row = 2, Key = "b", Role = "body" },
+                new SurfaceTextElement { Row = 3, Key = "c", Role = "caption" },
+            ]));
+
+            return [.. Enumerable.Range(0, 3).Select(index =>
+            {
+                var cell = CellAt(card, index);
+
+                // The cell's parent is its row grid, so Bounds alone gives "distance from the top of
+                // its row" — the same number for every row. Translating the origin into the card's
+                // space is what asks where the row was actually put.
+                var origin = cell.TranslatePoint(new Point(0, 0), card)!.Value;
+                return (origin.X, origin.Y, cell.Bounds.Width, cell.Bounds.Height);
+            })];
+        }
+
+        var asBody = BoxesOf("body");
+        var asTitle = BoxesOf("title");
+
+        // Not a spot check on one number: all four sides of all three cells. A role that widened a
+        // line by two pixels, or nudged it down by one, would leave row tops intact and still be a
+        // role that moves things.
+        Assert.Equal(asBody, asTitle);
+
+        // And the absolute positions, so "identical" cannot be satisfied by both renders being
+        // wrong in the same way: each cell sits FieldInset below its own row's top.
+        Assert.Equal(SurfaceMetrics.FieldInset, asTitle[0].Y, tolerance: 0.5);
+        Assert.Equal(SurfaceMetrics.SlotHeight + SurfaceMetrics.FieldInset, asTitle[1].Y, tolerance: 0.5);
+        Assert.Equal(2 * SurfaceMetrics.SlotHeight + SurfaceMetrics.FieldInset, asTitle[2].Y, tolerance: 0.5);
+    }
+
     /// <summary>
     /// The top edge of the row the element sits in, measured down from the card.
     /// </summary>

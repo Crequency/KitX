@@ -38,12 +38,21 @@ public sealed class ThemedClassesTests
 {
     private const string ThemeUri = "avares://KitX.ToolKit.View.Avalonia/Themes/KitX.axaml";
 
-    /// <summary>A card with all seven element kinds, and all three emphases, on it.</summary>
+    /// <summary>
+    /// A card with all seven element kinds, all three emphases, and all three text roles on it.
+    /// </summary>
     /// <remarks>
-    /// One card rather than a few: the classes are added by five different code paths
-    /// (<c>SurfaceCard</c>'s constructor, <c>Labelled</c>, <c>Editing</c>, <c>Pressable</c>,
-    /// <c>Entries</c>), and a per-kind fixture would be the place a forgotten branch stayed
-    /// forgotten.
+    /// <para>One card rather than a few: the classes are added by six different code paths
+    /// (<c>SurfaceCard</c>'s constructor, <c>Labelled</c> via <c>ClassForRole</c>, <c>Editing</c>,
+    /// <c>Pressable</c>, <c>Entries</c>), and a per-kind fixture would be the place a forgotten
+    /// branch stayed forgotten.</para>
+    ///
+    /// <para><b>Three Text elements, not one.</b> <c>role</c> picks between three classes, so a
+    /// fixture with a single body line would leave <c>kitx-title</c> and <c>kitx-caption</c> looking
+    /// like orphan selectors to the test below — which is exactly what happened when the two new
+    /// selectors landed before this fixture knew about roles. The three lines are also why the
+    /// orphan check keeps its meaning: it asks a card to produce every class the theme names, so a
+    /// selector added without a way to reach it is red.</para>
     /// </remarks>
     private const string EveryKind = """
         {
@@ -58,7 +67,9 @@ public sealed class ThemedClassesTests
             { "type": "Button", "label": "Scan",   "events": ["scan"],   "row": 6 },
             { "type": "Button", "label": "Submit", "events": ["submit"], "row": 7, "emphasis": "primary" },
             { "type": "Button", "label": "End",    "events": ["end"],    "row": 8, "emphasis": "danger" },
-            { "type": "List",   "key": "sessions", "row": 9, "itemTitle": "startedAt" }
+            { "type": "List",   "key": "sessions", "row": 9, "itemTitle": "startedAt" },
+            { "type": "Text",   "key": "heading", "row": 10, "role": "title" },
+            { "type": "Text",   "key": "footnote", "row": 11, "role": "caption" }
           ]
         }
         """;

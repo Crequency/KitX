@@ -133,6 +133,12 @@ public sealed class SurfaceCard : Grid
     // from silent into red.
     internal const string ThemedCard = "kitx-card";
     internal const string ThemedText = "kitx-text";
+
+    /// <summary>A line of text drawn as a title: larger, bolder, primary colour.</summary>
+    internal const string ThemedTitle = "kitx-title";
+
+    /// <summary>A line of text drawn as a caption: smaller, secondary colour.</summary>
+    internal const string ThemedCaption = "kitx-caption";
     internal const string ThemedField = "kitx-field";
     internal const string ThemedListGroup = "kitx-list-group";
 
@@ -1241,7 +1247,7 @@ public sealed class SurfaceCard : Grid
     {
         var view = element switch
         {
-            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key),
+            KitX.ToolKit.Contract.Surface.SurfaceTextElement text => Labelled(text.Key, text.Role),
             KitX.ToolKit.Contract.Surface.SurfaceButtonElement button => Pressable(button.Key, button.Label, button.Events, button.Emphasis),
             KitX.ToolKit.Contract.Surface.SurfaceInputElement input => Editing(
                 new global::Avalonia.Controls.TextBox()),
@@ -1287,7 +1293,7 @@ public sealed class SurfaceCard : Grid
     /// data when the only thing it has is a declaration. The key belongs in <c>Name</c>, where
     /// lookups can find it and a reader cannot.</para>
     /// </remarks>
-    private static Control Labelled(string? key)
+    private static Control Labelled(string? key, string? role)
     {
         var block = new TextBlock
         {
@@ -1300,9 +1306,29 @@ public sealed class SurfaceCard : Grid
             Margin = new Thickness(0, SurfaceMetrics.FieldInset, 0, 0),
         };
 
-        block.Classes.Add(ThemedText);
+        block.Classes.Add(ClassForRole(role));
         return block;
     }
+
+    /// <summary>
+    /// The class a line of text carries for its <c>role</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Only the class changes.</b> Height, margin and slot are set in <see cref="Labelled"/>
+    /// and are the same for all three, so a line promoted to a title keeps its bounds — the same
+    /// rule <c>emphasis</c> follows for buttons, and for the same reason: if appearance could move
+    /// an element, <c>row</c> would stop being the only thing that decides position.</para>
+    ///
+    /// <para>An unrecognised word — including one the validator has already stripped — draws as
+    /// body text. That is also the default, so a file that never says <c>role</c> is unaffected by
+    /// this method existing.</para>
+    /// </remarks>
+    private static string ClassForRole(string? role) => role?.ToLowerInvariant() switch
+    {
+        "title" => ThemedTitle,
+        "caption" => ThemedCaption,
+        _ => ThemedText,
+    };
 
     /// <summary>
     /// Something the user presses: a real button, labelled and one slot tall.

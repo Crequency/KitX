@@ -659,6 +659,43 @@ public class SurfaceTests : IDisposable
     }
 
     [Fact]
+    public void An_unknown_text_role_falls_back_to_body_text()
+    {
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceTextElement { Key = "t", Role = "footnote" }],
+        };
+
+        var result = SurfaceValidator.Validate(
+            document, Keys(new KeyDeclaration("t", "string", KeyRole.Out)));
+
+        // Kept, not dropped: the same rule `format` follows. Drawing it as body text is what the
+        // renderer does with a word it does not know, so the element looks the same either way.
+        var kept = Assert.IsType<SurfaceTextElement>(Assert.Single(result.Effective.Elements));
+        Assert.Null(kept.Role);
+        Assert.Equal(SurfaceDiagnosticCodes.TextUnknownRole, Assert.Single(result.Warnings).Code);
+    }
+
+    [Theory]
+    [InlineData("title")]
+    [InlineData("body")]
+    [InlineData("caption")]
+    public void The_three_text_roles_are_kept_as_written(string role)
+    {
+        var document = new SurfaceDocument
+        {
+            Elements = [new SurfaceTextElement { Key = "t", Role = role }],
+        };
+
+        var result = SurfaceValidator.Validate(
+            document, Keys(new KeyDeclaration("t", "string", KeyRole.Out)));
+
+        var kept = Assert.IsType<SurfaceTextElement>(Assert.Single(result.Effective.Elements));
+        Assert.Equal(role, kept.Role);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
     public void Both_select_option_sources_mean_the_static_one_wins()
     {
         var document = new SurfaceDocument

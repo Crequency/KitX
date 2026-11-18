@@ -264,6 +264,63 @@ public sealed class ThemedCardTests
         // detached tree is a different question.
         Assert.NotNull(window);
     }
+    /// <summary>
+    /// The three <c>role</c> words, rendered with the shipped theme in front of them, are three
+    /// different sizes — and absent means body.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this file and not <c>SurfaceCardLayoutTests</c>.</b> That file measures geometry
+    /// and deliberately loads no theme, so every <c>TextBlock</c> there keeps the default size and a
+    /// role is invisible to it. Font size is a styled property, so the claim "the word is read"
+    /// can only be made where the styles are in front of the control. The two files split the
+    /// criteria the way the renderer does: <c>SurfaceCard</c> sets the class, the theme sets the
+    /// size.</para>
+    ///
+    /// <para><b>Why three distinct values rather than "the title is bigger than the body".</b> A
+    /// single comparison passes for a card that draws all three at the title size, or at any size
+    /// that merely differs from body. Three pairwise inequalities are the smallest assertion that
+    /// says the word is being read rather than ignored in one direction.</para>
+    ///
+    /// <para><b>This is what the mutation breaks.</b> Replacing the body of
+    /// <c>SurfaceCard.ClassForRole</c> with a constant <c>kitx-text</c> collapses all three sizes
+    /// into one and this test goes red; the geometry test above stays green, correctly, because
+    /// nothing moved.</para>
+    /// </remarks>
+    [AvaloniaFact]
+    public void The_three_roles_draw_three_different_sizes()
+    {
+        static string Line(string? role) =>
+            role is null
+                ? """{ "schemaVersion": 1, "layoutVersion": 1, "elements": [ { "type": "Text", "row": 1, "weight": 1, "key": "t" } ] }"""
+                : $$"""{ "schemaVersion": 1, "layoutVersion": 1, "elements": [ { "type": "Text", "row": 1, "weight": 1, "key": "t", "role": "{{role}}" } ] }""";
+
+        static double SizeOf(string? role)
+        {
+            var (window, card) = RenderDocument(Line(role), withTheme: true);
+            var block = Assert.IsType<TextBlock>(CardProbe.Elements(card).Single());
+            var size = block.FontSize;
+
+            // Kept alive: reading a styled property off a detached tree asks a different question.
+            Assert.NotNull(window);
+            return size;
+        }
+
+        var title = SizeOf("title");
+        var body = SizeOf("body");
+        var caption = SizeOf("caption");
+
+        Assert.NotEqual(body, title);
+        Assert.NotEqual(body, caption);
+        Assert.NotEqual(title, caption);
+
+        // Absent role means body, not a fourth size of its own. Without this line a renderer that
+        // invented a default of its own would satisfy the three inequalities above.
+        Assert.Equal(body, SizeOf(null));
+
+        // And the three sizes are the theme's own type scale, so a host that replaces those three
+        // resource keys gets consistent typography rather than a number baked into the renderer.
+    }
+
     private static IEnumerable<string> ClassesOf(Control control) =>
         control.Classes.Where(name => !name.StartsWith(':'));
 }
