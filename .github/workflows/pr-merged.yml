@@ -1,20 +1,27 @@
 name: "Pull Request Labeler"
 on:
-    pull_request:
+    # pull_request_target always runs in the context of the base repository, so
+    # the token is not downgraded for pull requests coming from a fork.
+    # Never check out the pull request head or run code from the pull request in
+    # this workflow: pull_request_target has write access and access to secrets.
+    pull_request_target:
         types:
             - closed
+
+# Least privilege: this workflow only calls the issues API.
+permissions:
+    contents: read
+    pull-requests: write
 
 jobs:
     pr-merged:
         if: github.event.pull_request.merged == true
         runs-on: ubuntu-latest
-        permissions:
-            pull-requests: write
         steps:
-            - uses: actions/github-script@v6
+            - uses: actions/github-script@v8
               with:
                   script: |
-                      github.rest.issues.addLabels({
+                      await github.rest.issues.addLabels({
                         issue_number: context.issue.number,
                         owner: context.repo.owner,
                         repo: context.repo.repo,
