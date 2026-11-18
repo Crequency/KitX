@@ -43,7 +43,7 @@ namespace KitX.ToolKit.View.Avalonia;
 /// it, which is the part worth keeping: the evidence has to be that an author still finds it
 /// cramped at 390 wide, and then the fix is fewer columns or a wider card — not padding,
 /// because padding is taken out of the text and a column count is not. The token
-/// <c>KitXCardPadding (16,12,16,16)</c> was deleted in <c>21b6ddb</c> for this reason. A third pass
+/// <c>KitXCardPadding (16,12,16,16)</c> was deleted in <c>2683b2a</c> for this reason. A third pass
 /// at it needs new evidence, not a fresh opinion.</para>
 ///
 /// <para><b>This class holds a control tree, so it is stateful.</b> Every change comes in through
