@@ -23,6 +23,25 @@ namespace KitX.ToolKit.View.Avalonia;
 /// <para><b>Empty rows are zero tall.</b> A surface whose rows are 1 and 5 looks identical to one
 /// whose rows are 1 and 2: <c>row</c> orders elements, it does not space them.</para>
 ///
+/// <para><b>This is a <c>Grid</c>, so it carries no border and no corner radius.</b> A background,
+/// yes — <c>Grid.kitx-card</c> sets one from the theme. A frame around the card is the host's:
+/// <c>Shots/Program.cs:243-248</c> and <c>HostWindow.cs:152-162</c> each wrap the card in a
+/// <c>Border</c> with <c>KitXCardBorder</c> and <c>KitXRadiusCard</c>, and the reference renderer
+/// does the same. The boundary is deliberate — a different frame is the host's business, a
+/// different card is not. So "the card should have a border" is not a feature missing from here:
+/// adding one would put a second opinion about the frame inside the thing the frame surrounds, and
+/// it would cost the card's own type (50 call sites read this control as a <c>Grid</c> of rows).</para>
+///
+/// <para><b>Horizontal padding inside the card is 0, and that is a ruling rather than a
+/// default.</b> The Surface design (§10.7) took it out on purpose: at 390 wide a four-column
+/// row gives each column 91.5, and 16px on both sides would make it 83.5 — an 8.7% cut in body
+/// width, paid for "looking like a card inside a card". The same section records what would reopen
+/// it, which is the part worth keeping: the evidence has to be that an author still finds it
+/// cramped at 390 wide, and then the fix is fewer columns or a wider card — not padding,
+/// because padding is taken out of the text and a column count is not. The token
+/// <c>KitXCardPadding (16,12,16,16)</c> was deleted in <c>21b6ddb</c> for this reason. A third pass
+/// at it needs new evidence, not a fresh opinion.</para>
+///
 /// <para><b>This class holds a control tree, so it is stateful.</b> Every change comes in through
 /// <see cref="Apply"/>, which is the one place a message becomes an edit:</para>
 ///
