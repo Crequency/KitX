@@ -18,13 +18,45 @@ public class KsGrammarTests
         "..", "..", "..", "..", "..",
         "KitX Dashboard", "KitX Dashboard", "Assets", "TextMate", "ks"));
 
+    /// <summary>
+    /// How long one line may take. Not a performance budget — a runaway guard.
+    /// </summary>
+    /// <remarks>
+    /// The five lines below tokenize in well under a millisecond each; this is a hundredfold
+    /// margin chosen so a pathological line cannot hang the suite. Do not read it as "the line
+    /// needs 100ms".
+    /// </remarks>
+    private static readonly TimeSpan LineBudget = TimeSpan.FromMilliseconds(100);
+
     /// <summary>Tokenizes a single line and returns (text → last scope) pairs.</summary>
+    /// <remarks>
+    /// <b>A short result is a truncated line, and it used to read as a wrong grammar.</b>
+    /// <c>TokenizeLine</c> returns whatever it managed to tokenize when the budget runs out,
+    /// without saying so: no exception, no flag, just fewer tokens. The assertions below index a
+    /// dictionary, so a line cut off before its last word surfaced as
+    /// <c>KeyNotFoundException: 'cond'</c> — which reads as "the grammar does not scope this",
+    /// the one thing it does not mean. Measured with a 12000-character line: at a 1ms budget it
+    /// returns 5 tokens covering 21 of 12049 characters and reports nothing.
+    ///
+    /// <para><b>So completeness is checked first, and it fails with a sentence about the
+    /// tokenizer.</b> The check must be <c>&gt;=</c>, not <c>==</c>: <c>EndIndex</c> overshoots
+    /// the line by one on a line it finished (measured: 65 for a 64-character line, 6 for 5),
+    /// because it counts the terminating position.</para>
+    /// </remarks>
     private static List<(string Text, string Scope)> Tokenize(IGrammar grammar, string line)
     {
-        var result = grammar.TokenizeLine(new LineText(line), null, TimeSpan.FromMilliseconds(100));
+        var result = grammar.TokenizeLine(new LineText(line), null, LineBudget);
+        var tokens = (result.Tokens ?? []).ToList();
+
+        var covered = tokens.Count == 0 ? 0 : tokens[^1].EndIndex;
+
+        Assert.True(covered >= line.Length,
+            $"the tokenizer stopped at {covered} of {line.Length} characters on \"{line}\": " +
+            "a truncated line, not a grammar that scopes fewer things");
+
         var pairs = new List<(string, string)>();
         int pos = 0;
-        foreach (var t in result.Tokens ?? [])
+        foreach (var t in tokens)
         {
             int end = Math.Min(t.EndIndex, line.Length);
             if (end <= pos) continue;
