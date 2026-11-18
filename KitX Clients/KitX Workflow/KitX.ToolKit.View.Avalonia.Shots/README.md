@@ -62,7 +62,8 @@ images, and **every unit test had let them through**:
   the card had a visual root, and a local `null` outranks the theme's setter.
 
 A run that fails a check exits non-zero, so this can be wired into CI without anyone watching the
-pictures.
+pictures. Whether anything actually runs it is a different question, and it is answered in
+[`Keeping out/` honest](#keeping-out-honest): nothing does.
 
 ## Running twice on one machine gives the same bytes
 
