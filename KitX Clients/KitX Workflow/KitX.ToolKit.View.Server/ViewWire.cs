@@ -33,6 +33,26 @@ namespace KitX.ToolKit.View.Server;
 public static class ViewWire
 {
     /// <summary>The serializer options every frame on this wire is written and read with.</summary>
+    /// <remarks>
+    /// <para><b><see cref="JsonIgnoreCondition.WhenWritingNull"/> is here for the envelope, and it
+    /// taxes the payload.</b> A push has no id, and a frame that wrote <c>"id": null</c> would invite
+    /// a client to match the push to a request it never made — so null members are omitted, and the
+    /// envelope gets shorter for free.</para>
+    ///
+    /// <para><b>The tax is that a surface element's nullable fields are omitted too.</b>
+    /// <c>format</c>, <c>role</c> and <c>name</c> are <see langword="null"/> on most elements, and
+    /// with this setting they do not appear on the wire at all:
+    /// <c>{ "type": "Text", "row": 1, "weight": 1, "key": "title" }</c>. Every one of those fields
+    /// reads back as null either way, so <em>today the two spellings mean the same thing</em>.</para>
+    ///
+    /// <para><b>That equivalence is the thing to re-check, not the setting.</b> The day an element
+    /// field is added whose null and whose absence mean different things — "not specified, use the
+    /// default" versus "explicitly cleared" — this line starts lying, and the symptom will be a
+    /// renderer that shows a default where an author cleared it. If that day comes, the fix is to
+    /// move the condition onto the envelope (<c>JsonIgnore(Condition = ...)</c> on
+    /// <see cref="ViewFrame.Id"/>) rather than to drop null-suppression for the whole wire. This
+    /// paragraph is the only place that says so.</para>
+    /// </remarks>
     public static readonly JsonSerializerOptions Options = new()
     {
         PropertyNameCaseInsensitive = true,

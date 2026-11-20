@@ -17,14 +17,22 @@
   </ItemGroup>
 
   <!--
-    The test references the renderer and the layout library it is judged against, and nothing else.
+    The test references the renderer, the layout library it is judged against, and the writer's
+    serializer options — and nothing else.
+
     In particular it does NOT reference KitX.ToolKit: the criterion compares two implementations that
     must not be able to consult each other, and a test project with a path to the scheduler would be
     the first place that boundary got crossed for convenience.
+
+    KitX.ToolKit.View.Server is here for one reason: ViewWire.Options is the writer's real instance,
+    and the reader test deserialising with it is what makes a drifting byte-constant fail instead of
+    passing on a reader more permissive than the writer. That project references only the contract,
+    so this adds the options and not the server.
   -->
   <ItemGroup>
     <ProjectReference Include="..\KitX.ToolKit.View.Avalonia\KitX.ToolKit.View.Avalonia.csproj" />
     <ProjectReference Include="..\KitX.ToolKit.View\KitX.ToolKit.View.csproj" />
+    <ProjectReference Include="..\KitX.ToolKit.View.Server\KitX.ToolKit.View.Server.csproj" />
   </ItemGroup>
 
 </Project>

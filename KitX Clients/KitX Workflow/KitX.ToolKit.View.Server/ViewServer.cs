@@ -138,6 +138,10 @@ public sealed class ViewServer : IDisposable
 
         foreach (var connection in open)
         {
+            // Both, in this order, on purpose. Dispose releases the channel and unhooks the event;
+            // it does not touch the socket. Close is what ends the TCP connection, and it is not
+            // guarded by the disposed flag — a socket left open by an early return here would keep
+            // the client waiting on a peer that has already stopped listening.
             connection.Dispose();
             connection.Close();
         }

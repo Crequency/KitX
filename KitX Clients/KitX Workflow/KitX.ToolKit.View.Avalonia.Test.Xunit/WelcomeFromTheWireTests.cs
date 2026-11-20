@@ -28,9 +28,38 @@ public sealed class WelcomeFromTheWireTests
     /// Change one, change both.
     /// </summary>
     private const string Wire =
-        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","format":null,"row":1,"weight":1,"key":"title","name":null},{"type":"Text","format":null,"row":2,"weight":1,"key":"cover","name":null}]},"protocolVersion":1}""";
+        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","row":1,"weight":1,"key":"title"},{"type":"Text","row":2,"weight":1,"key":"cover"}]},"protocolVersion":1}""";
 
-    private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+    /// <summary>
+    /// The reader's options: the writer's own instance, not a copy of what someone remembered.
+    /// </summary>
+    /// <remarks>
+    /// <para>This assembly may not reference <c>KitX.ToolKit</c> (ADR-0014 D5), so the bytes below
+    /// are a copy. It <em>may</em> reference <c>KitX.ToolKit.View.Server</c>, which owns the writer's
+    /// options — and that asymmetry is the whole point: the copy of the bytes can drift, the
+    /// options cannot.</para>
+    ///
+    /// <para>Until 2026-11-20 this file deserialised with <c>JsonSerializerDefaults.Web</c>, and
+    /// that permissiveness is what let the two copies drift apart without a word. The server's copy
+    /// gained <c>"role":null</c> on every element when <c>role</c> was added to
+    /// <c>SurfaceTextElement</c> (commit <c>14a675d</c>); this copy never did, and
+    /// <c>WelcomeFromTheWireTests</c> stayed green through it, because a reader that accepts absent
+    /// and null alike cannot tell two spellings of the same message apart. The comment above both
+    /// copies claimed "the day they drift, this one fails" — and the day had already come.</para>
+    ///
+    /// <para><b>What this half still cannot catch, measured rather than assumed.</b> Removing
+    /// <c>WhenWritingNull</c> from the writer's options turns
+    /// <c>ViewWireOptionsTests</c> and <c>WelcomeOnTheWireTests</c> red and leaves
+    /// <c>WelcomeFromTheWireTests</c> green — because a reader that accepts absent and null alike
+    /// cannot tell the two spellings apart. Reading the writer's options fixed the drift that
+    /// actually happened (a stale copy of the bytes) and cannot fix this one: the reader has no
+    /// opinion about which spelling is written. The writer-side tests own that, and this file
+    /// should not pretend otherwise.</para>
+    ///
+    /// <para>What is left for this half is the thing only it can do: those bytes, parsed with the
+    /// writer's own options, become a card that shows the value and invents none.</para>
+    /// </remarks>
+    private static readonly JsonSerializerOptions WireOptions = KitX.ToolKit.View.Server.ViewWire.Options;
 
     [AvaloniaFact]
     public void The_wire_message_turns_into_a_card_that_shows_the_value_it_carried()

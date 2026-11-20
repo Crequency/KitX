@@ -25,11 +25,11 @@ public sealed record ViewFrame(
     [property: System.Text.Json.Serialization.JsonPropertyName("id")] string? Id,
     [property: System.Text.Json.Serialization.JsonPropertyName("message")] Contract.View.ViewMessage Message)
 {
-    /// <summary>Whether this frame is a question that expects an answer.</summary>
-    /// <remarks>
-    /// Reads <see cref="Id"/> rather than asking the message type: the same message can arrive in
-    /// either direction (<c>delta</c> from a client is a protocol error but still a frame with an
-    /// id, and the reply to it carries that id). Direction is a property of the envelope.
-    /// </remarks>
-    public bool ExpectsAnswer => Id is not null;
+    // There was an `ExpectsAnswer => Id is not null` here until 2026-11-20. Nothing consumed it:
+    // the only code that decides between an answer and an `acked` asks `reply.Answer is not null`,
+    // because the *channel* is what knows whether a request has an answer, and the envelope only
+    // carries the id back. It described a design that has not happened — deciding the reply from the
+    // envelope — and a property nobody reads is worse than no property, because the next reader
+    // assumes something is consulting it. The rule it was documenting (requests carry an id, pushes
+    // do not) is stated above, where the record is declared.
 }

@@ -13,6 +13,7 @@ using KitX.ToolKit.Storage;
 using KitX.ToolKit.Surface;
 using KitX.ToolKit.Triggers;
 using KitX.ToolKit.View;
+using KitX.ToolKit.View.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using Xunit.Abstractions;
@@ -47,16 +48,20 @@ public sealed class WelcomeOnTheWireTests
     /// <c>[JsonDerivedType]</c> declares. A lowercase "text" is silently an unknown type, which the
     /// store drops with a warning — the card came back empty and nothing said why.</item>
     /// <item><b><c>protocolVersion</c> is a number</b>, not a string.</item>
-    /// <item><b>Nulls are written out.</b> Every element carries <c>"format":null</c>,
-    /// <c>"role":null</c> and <c>"name":null</c>. That is the serializer's default, and it means the
-    /// wire is larger than the data and a consumer cannot tell "absent" from "explicitly null".</item>
+    /// <item><b>Nulls are <em>not</em> written out</b> — and this item used to say the opposite.
+    /// Every element carried <c>"format":null</c>, <c>"role":null</c> and <c>"name":null</c> while
+    /// this test serialised with <c>JsonSerializerDefaults.Web</c>, and that was true only of the
+    /// options the test itself chose. The server writes with <c>ViewWire.Options</c>, which omits
+    /// nulls so that a push frame carries no <c>"id": null</c>. The test now uses those same
+    /// options, so the constant is the bytes a socket actually sees. A test that serialises with
+    /// options of its own choosing pins its own arithmetic, not the wire.</item>
     /// </list>
     ///
     /// <para>This constant is the seam. If it changes, both halves move together — which is the
     /// property that makes splitting this test across two assemblies worth the trouble.</para>
     /// </remarks>
     internal const string Wire =
-        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","format":null,"role":null,"row":1,"weight":1,"key":"title","name":null},{"type":"Text","format":null,"role":null,"row":2,"weight":1,"key":"cover","name":null}]},"protocolVersion":1}""";
+        """{"type":"welcome","toolkitId":"tk-seam","values":{"title":"Clean Code"},"surface":{"schemaVersion":1,"layoutVersion":1,"elements":[{"type":"Text","row":1,"weight":1,"key":"title"},{"type":"Text","row":2,"weight":1,"key":"cover"}]},"protocolVersion":1}""";
 
     private readonly ITestOutputHelper _output;
 
@@ -127,8 +132,7 @@ public sealed class WelcomeOnTheWireTests
                 _output.WriteLine($"elements loaded: {probe.Document.Elements.Count}");
                 _output.WriteLine($"surface path: {Path.Combine(prepared, SurfaceStore.FileName)}");
 
-                var json = JsonSerializer.Serialize(
-                    welcome, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                var json = JsonSerializer.Serialize(welcome, ViewWire.Options);
 
                 _output.WriteLine(json);
                 Assert.Equal(Wire, json);
