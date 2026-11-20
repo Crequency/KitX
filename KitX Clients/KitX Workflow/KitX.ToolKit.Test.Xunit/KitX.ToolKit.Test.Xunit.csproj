@@ -36,6 +36,13 @@
       the seam to stand on.
     -->
     <ProjectReference Include="..\KitX.ToolKit.View.Avalonia.Host\KitX.ToolKit.View.Avalonia.Host.csproj" />
+
+    <!--
+      The transport, so the wire can be exercised over a real socket rather than by calling into
+      ViewServer's internals. It is also what makes the boundary assertion possible: "the server
+      does not reference KitX.ToolKit" is read off this reference's compiled metadata.
+    -->
+    <ProjectReference Include="..\KitX.ToolKit.View.Server\KitX.ToolKit.View.Server.csproj" />
   </ItemGroup>
 
 </Project>

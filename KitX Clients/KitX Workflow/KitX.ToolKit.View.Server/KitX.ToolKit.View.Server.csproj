@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The wire the View protocol has been missing.
+
+    WHY THIS EXISTS: every layer of the chain is present and tested — the contract (ViewMessage and
+    friends), the server projection (ViewSession), the client fold (ToolkitView, in
+    KitX.ToolKit.View), the renderer (SurfaceCard) and a window that drives it (the Host). What was
+    never written is the part that turns a connection into an IViewChannel, so the Host composes the
+    server graph in-process and the "remote client" has only ever been a test.
+
+    WHAT IT MAY REFERENCE: the contract, and nothing else from this repository. A transport that
+    could name DataStore or the instance manager would be able to answer a question the protocol
+    did not ask; `Func<IViewChannel>` is the whole surface this needs, and that type is public in
+    Contract. The assembly reference is asserted, not declared — see
+    KitX.ToolKit.Test.Xunit/ViewServerBoundaryTests.cs, which reads the compiled metadata the same
+    way ProductBoundaryTests does for the Host.
+
+    FLECK, AND NOT HttpListener: HttpListener on Windows requires a URL ACL for anything outside
+    localhost-with-a-port-it-already-reserved, so a non-elevated process cannot bind and the failure
+    arrives as an exception at Start rather than as a missing capability. Fleck is already a
+    dependency of KitX.Core (1.2.0) and of Package/KXPBuilder, so this is the second and third user
+    of a package the repository has already accepted, not a new one.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KitX.ToolKit.View.Server</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <Version>24.10.$([System.DateTime]::UtcNow.Date.Subtract($([System.DateTime]::Parse("2024-02-07"))).TotalDays).$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fleck" Version="1.2.0" />
+
+    <!-- For the same reason KitX.ToolKit has it: a refused connection and a frame that could not
+         be read are both invisible failures, and a transport that cannot say what it dropped is one
+         where "the client connected but nothing happened" has no next question. -->
+    <PackageReference Include="Serilog" Version="4.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KitX.ToolKit.Contract\KitX.ToolKit.Contract.csproj" />
+  </ItemGroup>
+
+</Project>
