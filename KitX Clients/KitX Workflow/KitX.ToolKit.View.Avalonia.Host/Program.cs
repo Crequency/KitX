@@ -112,6 +112,21 @@ internal static class Program
         if (args.Contains("--self-check", StringComparer.Ordinal))
             return await SelfCheck.Run(args.Contains("--verbose", StringComparer.Ordinal));
 
+        // `--remote <port>` runs the same four steps against a real socket, with no storage root and
+        // no container of its own. It exists so that "the two paths agree" is something a person can
+        // run rather than something two test files happen to imply.
+        var remoteIndex = Array.FindIndex(args, a => string.Equals(a, "--remote", StringComparison.Ordinal));
+        if (remoteIndex >= 0)
+        {
+            if (remoteIndex + 1 >= args.Length || !int.TryParse(args[remoteIndex + 1], out var port))
+            {
+                Console.Error.WriteLine("--remote needs a port number, e.g. --remote 5099");
+                return 2;
+            }
+
+            return await RemoteCheck.Run(port, args.Contains("--verbose", StringComparer.Ordinal));
+        }
+
         // `--theme dark` exists so the second half of the theme can be seen. See StartupVariant.
         var themeIndex = Array.FindIndex(args, a => string.Equals(a, "--theme", StringComparison.Ordinal));
         if (themeIndex >= 0 && themeIndex + 1 < args.Length)

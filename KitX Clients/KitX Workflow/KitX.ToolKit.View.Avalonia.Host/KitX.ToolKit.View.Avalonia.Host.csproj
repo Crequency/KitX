@@ -44,6 +44,14 @@
     <ProjectReference Include="..\KitX.ToolKit.View.Avalonia\KitX.ToolKit.View.Avalonia.csproj" />
     <ProjectReference Include="..\KitX.ToolKit.Hosting\KitX.ToolKit.Hosting.csproj" />
     <ProjectReference Include="..\KitX.WorkflowV6\KitX.WorkflowV6.csproj" />
+    <!--
+      The `remote` switch needs the client half of the wire envelope, which lives beside the server
+      so that the two cannot declare the format twice. That project references only the contract, so
+      the boundary test's rule (no KitX.ToolKit type in this assembly's metadata) is unaffected.
+      Spelled without its leading dashes: an XML comment may not contain two hyphens in a row, and
+      the option's real spelling would make this file unloadable.
+    -->
+    <ProjectReference Include="..\KitX.ToolKit.View.Server\KitX.ToolKit.View.Server.csproj" />
   </ItemGroup>
 
   <!-- The sample ToolKit ships with the host, so `dotnet run` with no arguments shows something. -->
