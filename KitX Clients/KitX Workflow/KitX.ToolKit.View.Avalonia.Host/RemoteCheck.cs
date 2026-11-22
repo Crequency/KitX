@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+using KitX.ToolKit.Contract.Surface;
 using KitX.ToolKit.Contract.View;
 using KitX.ToolKit.View.Server;
 
@@ -61,32 +62,75 @@ internal static class RemoteCheck
                 return Fail($"connect was refused: {connectError}");
 
             Say($"connected         {session.AttachedToolkitId}");
-            Say($"surface elements  {session.View.Surface.Elements.Count}");
+
+            var elements = session.View.Surface.Elements;
+
+            Say($"surface elements  {elements.Count}");
 
             // Unlike the in-process check this does not fail on an empty surface: a server may be
             // running a ToolKit that genuinely has no card, and refusing to report that would make
             // the check disagree with the protocol. It reports the number and moves on.
             Say($"opening values    {session.View.Values.Count}");
 
-            // The same event the in-process check sends, so the two outputs are comparable line for
-            // line. Whether anything is listening for it is the server's business.
-            var before = session.View.TryGetValue("status", out var starting) ? starting.GetString() : null;
+            // The event to raise comes from the card, not from a name this program happens to know.
+            // `SampleToolkit`'s 'scan' trigger is a property of one fixture; a real server mounted a
+            // ToolKit whose buttons name their own events, and those names are in the `welcome`
+            // frame's surface. Hard-coding 'scan' made this check report "the chain is broken" for a
+            // healthy chain whenever the server was something other than the sample.
+            var eventName = elements
+                .SelectMany(element => element switch
+                {
+                    SurfaceButtonElement button => button.Events,
+                    SurfaceInputElement input => input.Events,
+                    _ => [],
+                })
+                .FirstOrDefault();
+
+            if (eventName is null)
+                return Fail(
+                    $"the card of '{id}' declares no button or input event, so there is nothing to " +
+                    "raise — a View can only send what the card says it can send");
+
+            Say($"raising event     '{eventName}' (from the card)");
+
+            // Whether anything listens for it is the ack's answer, not something to wait 60 seconds
+            // for: `started` is the list of flows this name woke, and an empty list is a complete and
+            // immediate answer meaning "no trigger matched".
+            var before = Snapshot(session);
 
             var commandError = await session.SendAsync(new CommandMessage(ViewCommands.Event)
             {
-                EventName = "scan",
+                EventName = eventName,
             });
 
             if (commandError is not null)
-                return Fail($"the 'scan' event was refused: {commandError}");
+                return Fail($"the '{eventName}' event was refused: {commandError}");
 
-            Say("event 'scan'      accepted");
+            var started = StartedCount(session);
 
-            var wrote = await WaitForAsync(
-                () => session.View.TryGetValue("status", out var now) && now.GetString() != before,
-                Patience);
+            if (started is null)
+                return Fail(
+                    "the ack for the event carried no 'started' value — the server accepted the " +
+                    "command but did not say whether a trigger matched");
 
-            Say($"status key        {(wrote ? "arrived through the projection" : "did not arrive")}");
+            Say($"event '{eventName}'      accepted, {started} flow(s) started");
+
+            if (started == 0)
+            {
+                // Not a failure of the wire: the name is on the card and no trigger of the ToolKit
+                // answers to it. That is a fact about the ToolKit, and this program's job is to
+                // report which of the two it is instead of timing out and blaming the socket.
+                Say("status key        not raised — no trigger answers to that name");
+
+                Say("");
+                Say("ok — protocol and projection agree; the card's event has no trigger behind it");
+
+                return 0;
+            }
+
+            var wrote = await WaitForAsync(() => Snapshot(session) != before, Patience);
+
+            Say($"status key        {(wrote ? "changed through the projection" : "did not change")}");
 
             if (verbose)
             {
@@ -98,13 +142,40 @@ internal static class RemoteCheck
             Say("ok — protocol, projection and mount order all agree");
 
             return wrote ? 0 : Fail(
-                "the 'scan' flow never wrote 'status' — the event reached the server but its " +
+                $"the '{eventName}' flow never wrote a value — the event reached a trigger but its " +
                 "compiled body did not run, or its delta was not folded into the projection");
         }
         catch (Exception ex)
         {
             return Fail($"{ex.GetType().Name}: {ex.Message}");
         }
+    }
+
+    /// <summary>Every value the projection currently holds, flattened for comparison.</summary>
+    /// <remarks>
+    /// A string rather than a dictionary: the question is only "did anything change", and a snapshot
+    /// built from the same projection it is compared against cannot disagree with itself in a way
+    /// that matters.
+    /// </remarks>
+    private static string Snapshot(RemoteSession session) =>
+        string.Join(
+            "\u001f",
+            session.View.Values
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => pair.Key + "=" + pair.Value.GetRawText()));
+
+    /// <summary>How many flows the last ack said it started, or null if the ack did not say.</summary>
+    /// <remarks>
+    /// Null means "the ack did not answer that", which is a different thing from zero flows. Both are
+    /// reported, and the caller says which; collapsing them into one number is how "no trigger
+    /// matched" would come to read like "the chain is broken".
+    /// </remarks>
+    private static int? StartedCount(RemoteSession session)
+    {
+        if (session.LastAck?.Values is not { } values)
+            return null;
+
+        return values.TryGetValue("started", out var started) ? started.GetArrayLength() : null;
     }
 
     private static void Say(string message) => Console.WriteLine(message);

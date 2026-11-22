@@ -106,8 +106,25 @@ public sealed class RemoteSession : IDisposable
 
         var reply = await _channel.SendAsync(command);
 
+        LastAck = reply.Answer as AckedReply;
+
         return reply.Succeeded ? null : reply.ErrorMessage ?? reply.ErrorCode;
     }
+
+    /// <summary>The acknowledgement the last command came back with, if it carried one.</summary>
+    /// <remarks>
+    /// <para><b>Why the session remembers this instead of returning it.</b> <see cref="SendAsync"/>
+    /// returns a refusal or <see langword="null"/> because every caller so far only asked "did it
+    /// work". A remote client can ask one more question — "did a trigger answer to that name" —
+    /// and the answer is in the ack's <c>started</c> value, which exists nowhere else. Returning a
+    /// reply from <see cref="SendAsync"/> would make every existing caller write
+    /// <c>_ =</c> in front of it.</para>
+    ///
+    /// <para><b>It is the last ack, not a queue.</b> A caller that needs the ack of a particular
+    /// command should send that command and read this immediately, which is what one window with one
+    /// user does.</para>
+    /// </remarks>
+    public AckedReply? LastAck { get; private set; }
 
     /// <summary>The card this session is looking at, as the server last described it.</summary>
     /// <remarks>

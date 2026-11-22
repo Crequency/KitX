@@ -104,9 +104,15 @@ public sealed class AckedReplyParityTests : IAsyncLifetime
 
             var localAck = Assert.IsType<AckedReply>(local.Answer);
 
+            // Values is nullable in the contract because a bare acknowledgement has none. Naming the
+            // non-null one here is not defensive noise: it is the fixture's claim that this command
+            // answers with data, and the comparison below is meaningless if it does not.
+            var localValues = Assert.IsAssignableFrom<IReadOnlyDictionary<string, JsonElement>>(
+                localAck.Values);
+
             // Not "non-empty": a fixture with no trigger would answer with an empty `started`, and
             // then the comparison below would pass for a trivial reason.
-            Assert.NotEmpty(localAck.Values);
+            Assert.NotEmpty(localValues);
 
             // Now the same command over a socket.
             using var socket = new ClientWebSocket();
@@ -120,22 +126,24 @@ public sealed class AckedReplyParityTests : IAsyncLifetime
             Assert.True(remote.Succeeded, remote.ErrorMessage);
 
             var remoteAck = Assert.IsType<AckedReply>(remote.Answer);
+            var remoteValues = Assert.IsAssignableFrom<IReadOnlyDictionary<string, JsonElement>>(
+                remoteAck.Values);
 
             // Keys, then shape. The ids themselves cannot be compared: each press spawns a new flow,
             // so both sides are supposed to differ there. Comparing raw text looked stricter and was
             // simply wrong — it failed against correct code, which is what a measurement taken
             // before the question is understood costs.
             Assert.Equal(
-                localAck.Values.Select(pair => pair.Key).OrderBy(k => k, StringComparer.Ordinal),
-                remoteAck.Values.Select(pair => pair.Key).OrderBy(k => k, StringComparer.Ordinal));
+                localValues.Select(pair => pair.Key).OrderBy(k => k, StringComparer.Ordinal),
+                remoteValues.Select(pair => pair.Key).OrderBy(k => k, StringComparer.Ordinal));
 
             // Same count of flows on both sides: this is the part that the old code could not have
             // produced, because it answered with no values at all.
             Assert.Equal(
-                localAck.Values["started"].GetArrayLength(),
-                remoteAck.Values["started"].GetArrayLength());
+                localValues["started"].GetArrayLength(),
+                remoteValues["started"].GetArrayLength());
 
-            Assert.NotEqual(0, remoteAck.Values["started"].GetArrayLength());
+            Assert.NotEqual(0, remoteValues["started"].GetArrayLength());
         }
         finally
         {
