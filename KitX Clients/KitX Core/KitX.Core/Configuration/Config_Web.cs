@@ -21,6 +21,22 @@ public class Config_Web : IWebConf
 
     public int? UserSpecifiedPluginsServerPort { get; set; } = null;
 
+    /// <summary>The port the View protocol listens on, or null/0 for "do not listen".</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Null and 0 both mean "off", and here that is a decision rather than a default.</b> The
+    /// transport's own parameter defaults to 0, which in Fleck means "bind whatever is free" —
+    /// correct for a test that reads the port back, and useless in a desktop application, where it
+    /// would open a listener nobody can find. The translation lives in ViewServerHost.
+    /// </para>
+    /// <para>
+    /// The field sits in Web beside <see cref="UserSpecifiedPluginsServerPort"/> because it is the
+    /// same kind of thing: a port a person may pin when the automatic choice is wrong for their
+    /// machine.
+    /// </para>
+    /// </remarks>
+    public int? UserSpecifiedViewServerPort { get; set; } = null;
+
     public int UdpPortSend { get; set; } = 23404;
 
     public int UdpPortReceive { get; set; } = 24040;

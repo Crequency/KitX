@@ -103,6 +103,7 @@
     "AcceptedNetworkInterfaces": null,
     "UserSpecifiedDevicesServerPort": null,
     "UserSpecifiedPluginsServerPort": null,
+    "UserSpecifiedViewServerPort": null,
     "UdpPortSend": 23404,
     "UdpPortReceive": 24040,
     "UdpSendFrequency": 1000,
