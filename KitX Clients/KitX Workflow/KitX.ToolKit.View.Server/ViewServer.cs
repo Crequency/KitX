@@ -25,6 +25,12 @@ namespace KitX.ToolKit.View.Server;
 /// manager would be able to answer a question the protocol never asked. The assertion is in
 /// <c>ViewServerBoundaryTests</c>, reading the compiled metadata rather than this paragraph.</para>
 ///
+/// <para><b>That sentence named a test that did not exist until 2026-11-22.</b> It was written with
+/// the class and, for one day, described an assertion nobody had made — the same shape as the
+/// constant that said "the day these drift, this one fails" while they had already drifted. The
+/// test now exists; this note is here so the next reader knows the sentence once had no
+/// execution.</para>
+///
 /// <para><b>Failures are frames.</b> A refusal from the channel already arrives as
 /// <see cref="ChannelReply.Rejected"/>, so it becomes a <c>rejected</c> message with the same id.
 /// A frame that cannot even be parsed cannot be answered with its own id — it has none we can
