@@ -250,15 +250,29 @@ public sealed class SocketChannel : IViewChannel, IDisposable
 
     /// <summary>Turns the server's answer frame back into what the interface returns.</summary>
     /// <remarks>
-    /// <b><c>acked</c> becomes <c>Accepted(null)</c> on purpose.</b> A bare acknowledgement means the
-    /// operation succeeded and said nothing; handing the caller an <see cref="AckedReply"/> object
-    /// would invite a branch on a message that carries no information the request did not already
-    /// imply.
+    /// <para><b><c>acked</c> is handed back as itself.</b> It used to become <c>Accepted(null)</c>,
+    /// justified by "an acknowledgement carries nothing the request did not already imply" — which
+    /// stopped being true when the five value-bearing commands arrived: <c>flowId</c>,
+    /// <c>started</c> and <c>removed</c> are answers to questions the request could not answer for
+    /// itself.</para>
+    ///
+    /// <para><b>How that survived a suite.</b> <c>ViewChannel</c> returns
+    /// <c>Accepted(AckedReply)</c> in process, and the wire carried the same frame — only this line
+    /// discarded it, on one side. The test named "the same kind of reply the in-process channel
+    /// gives" used <c>list</c>, the one request whose answer is a whole message rather than an
+    /// acknowledgement, so it never had a chance to notice.</para>
     /// </remarks>
     private static ChannelReply ToReply(ViewMessage message) => message switch
     {
         RejectedReply rejected => ChannelReply.Rejected(rejected.Code, rejected.Message),
-        AckedReply => ChannelReply.Accepted(),
+
+        // An acknowledgement is an answer, not a nod. Five commands reply with an `acked` whose
+        // values carry something the request did not contain -- a spawned `flowId`, whether a
+        // trigger `started`, how many keys `removed` -- and those values exist only in this frame.
+        // Returning Accepted() here threw them away while the bytes sat in hand, so an in-process
+        // caller could read what a remote caller could not.
+        AckedReply => ChannelReply.Accepted(message),
+
         _ => ChannelReply.Accepted(message),
     };
 
