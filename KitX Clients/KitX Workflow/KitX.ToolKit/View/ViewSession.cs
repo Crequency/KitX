@@ -117,21 +117,7 @@ internal sealed class ViewSession : IDisposable
         lock (_gate)
             _toolkitId = toolkitId;
 
-        var loaded = Normalise(_surfaces.Load(toolkitId), toolkitId);
-
-        // A refused surface is reported as an empty card plus the reason on the server's log. It
-        // does not fail the attach: the keys are still perfectly displayable, and refusing to
-        // connect because a layout is broken would take the working half down with the other.
-        //
-        // Warnings get the same treatment, and they need it just as much. A warning means one
-        // element was dropped and the rest loaded — so the card is *missing a row*, which is far
-        // easier to blame on the renderer than on a typo in the file. Without a log line the only
-        // observable is "the card looks short", and nothing connects that to a mistyped `type`
-        // discriminator three layers down. `SurfaceLoadResult` already distinguishes the two lists
-        // so callers can act differently; here they act the same way, because a server has exactly
-        // one place to say anything at all.
-        foreach (var diagnostic in loaded.Errors.Concat(loaded.Warnings))
-            Log.Warning("[ViewSession] {Code}: {Message}", diagnostic.Code, diagnostic.Message);
+        var loaded = LoadForView(toolkitId);
 
         return new WelcomeMessage(toolkitId, _manager.LocalValues(toolkitId), loaded.Document);
     }
@@ -228,7 +214,43 @@ internal sealed class ViewSession : IDisposable
 
         // Whole document, never a diff (Surface §6.1): a layout has no per-element identity to diff
         // by, and inventing one to save bytes on a rarely-changed message is the wrong trade.
-        Raise(new SurfaceMessage(Normalise(_surfaces.Load(toolkitId), toolkitId).Document));
+        Raise(new SurfaceMessage(LoadForView(toolkitId).Document));
+    }
+
+    /// <summary>
+    /// Loads a ToolKit's layout, normalises it for a renderer, and says on the log what changed.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Both entry points go through here, and the log is the reason.</b> Normalisation
+    /// produces warnings that are just as real on the push path as at connect: an author saves, a row
+    /// is missing from their card, and the only place that can say why is this log. Logging only at
+    /// <c>Attach</c> would mean the same finding is announced once per session and then silently for
+    /// every save after it — a protection that teaches readers warnings reach the log while staying
+    /// quiet at the moment the author is most likely to look.</para>
+    ///
+    /// <para><b>What the log is for.</b> A refused surface is reported as an empty card plus the
+    /// reason here; it does not fail the attach, because the keys are still perfectly displayable and
+    /// refusing to connect over a broken layout would take the working half down with the other.
+    /// A warning needs it just as much: it means one element was dropped and the rest loaded, so the
+    /// card is <i>missing a row</i> — far easier to blame on the renderer than on a typo in the file.
+    /// Without a log line the only observable is "the card looks short", and nothing connects that to
+    /// a mistyped <c>type</c> discriminator three layers down. <see cref="SurfaceLoadResult"/>
+    /// distinguishes the two lists so callers can act differently; here they act the same way, because
+    /// a server has exactly one place to say anything at all.</para>
+    ///
+    /// <para><b>Called on the saving thread, uncached.</b> <see cref="OnSurfaceChanged"/> runs inside
+    /// the store's <c>Changed</c> event, so this re-validates on every save. A card holds tens of
+    /// elements, which is nothing; a cache here would turn "did the log mention it" into "was it in
+    /// the cache", and that is a question with two answers.</para>
+    /// </remarks>
+    private SurfaceLoadResult LoadForView(string toolkitId)
+    {
+        var loaded = Normalise(_surfaces.Load(toolkitId), toolkitId);
+
+        foreach (var diagnostic in loaded.Errors.Concat(loaded.Warnings))
+            Log.Warning("[ViewSession] {Code}: {Message}", diagnostic.Code, diagnostic.Message);
+
+        return loaded;
     }
 
     /// <summary>

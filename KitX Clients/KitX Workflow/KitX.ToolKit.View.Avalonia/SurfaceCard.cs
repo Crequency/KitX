@@ -144,8 +144,15 @@ public sealed class SurfaceCard : Grid
     ///
     /// <para>Written from two places — the person picking a row, and a rebuild carrying that pick
     /// forward — and both go through <c>ShowSelection</c>, which owns the single judgement of whether
-    /// the value is currently expressible in the list. A value arriving from the session cannot write
-    /// here: a <c>Select</c> has no key, so no <c>SetValue</c> reaches it.</para>
+    /// the value is currently expressible in the list.</para>
+    ///
+    /// <para><b>A value from the session does not write here, and that depends on the sender.</b>
+    /// This paragraph used to say a <c>Select</c> has no key so no <c>SetValue</c> reaches it, and that
+    /// was false: <c>CreateView</c> builds a <c>ComboBox</c> for one, <c>_cells</c> is registered by
+    /// <c>key</c>, and a document where the author gave a <c>Select</c> a key therefore registered it
+    /// and then had no way to show it. What makes the sentence true is the server stripping that key
+    /// before the document is sent — see <c>ViewSession.Normalise</c>. This file does not run the
+    /// validator; it draws what it is handed, and the ruling lives where the document is produced.</para>
     /// </remarks>
     private readonly Dictionary<string, string> _selection = new(StringComparer.Ordinal);
 

@@ -139,30 +139,75 @@ public sealed class SurfaceCardValueTests
         Assert.Equal("scanned", box.Text);
     }
 
-    [AvaloniaFact]
-    public void A_normalised_editing_control_survives_a_value_for_its_old_key()
+    /// <summary>
+    /// A normalised document, holding an editing element of one kind, with no key of its own.
+    /// </summary>
+    /// <remarks>
+    /// The shape the server now sends: validator-stripped, so a name and no key.
+    /// </remarks>
+    private static SurfaceDocument Normalised(string kind) => kind switch
     {
-        // The shape the server now sends: validator-stripped, so no key and a name. Before
-        // `ViewSession` normalised on the way out, a remote window received the un-stripped document
-        // and threw `no way to show a value in TextBox`. This pins the other half of that fix: with
-        // the key gone, a value that still arrives under the old name must not throw either.
-        var card = Card(Doc(new SurfaceInputElement
+        "Input" => Doc(new SurfaceInputElement
         {
             Row = 1,
             Name = "userInput",
             Events = ["Submit"],
-        }));
+        }),
+        // Number and Select raise no events of their own (the contract says why: the editing *is*
+        // the gesture), so only Input can be given any. Writing Events here would not compile, and
+        // writing a fixture that does not match the shipped shape is how a test starts passing for a
+        // reason nobody wrote down.
+        "Number" => Doc(new SurfaceNumberElement
+        {
+            Row = 1,
+            Name = "userNumber",
+        }),
+        "Select" => Doc(new SurfaceSelectElement
+        {
+            Row = 1,
+            Name = "userChoice",
+            Options = ["a", "b"],
+        }),
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "not an editing kind"),
+    };
+
+    [AvaloniaTheory]
+    [InlineData("Input")]
+    [InlineData("Number")]
+    [InlineData("Select")]
+    public void A_normalised_editing_control_survives_a_value_for_its_old_key(string kind)
+    {
+        // Three kinds, not one. `CreateView` builds a TextBox, a NumericUpDown and a ComboBox, and
+        // `Show` has an arm for none of them (:733's default throws for all three) — the live failure
+        // named TextBox only because that is the kind the author's file happened to contain. A test
+        // for Input alone would keep passing while the other two still threw.
+        //
+        // Before `ViewSession` normalised on the way out, a remote window received the un-stripped
+        // document and threw. This pins the other half of that fix: with the key gone, a value that
+        // still arrives under the old name must not throw either.
+        var card = Card(Normalised(kind));
 
         card.SetValue("lastGreeting", Json("\"hello\""));
 
         Relayout();
 
-        // No exception, and the box never received the value — a name never addresses a cell, so a
-        // value sent under it lands nowhere. `IsNullOrEmpty` rather than `""`: an untouched TextBox
-        // on this platform reports null, and asserting the exact empty string would be asserting a
-        // detail of the control rather than the property under test.
-        Assert.True(string.IsNullOrEmpty(CellOfType<TextBox>(card).Text));
+        // No exception, and the value landed nowhere — a name never addresses a cell, so a value sent
+        // under it reaches no control. `IsNullOrEmpty` rather than `""`: an untouched control on this
+        // platform reports null, and asserting the exact empty string would be asserting a detail of
+        // the control rather than the property under test.
+        Assert.Equal(string.Empty, ValueShownBy(card, kind));
     }
+
+    /// <summary>What the editing control of <paramref name="kind"/> currently displays.</summary>
+    private static string ValueShownBy(SurfaceCard card, string kind) => kind switch
+    {
+        "Input" => CellOfType<TextBox>(card).Text ?? string.Empty,
+        "Number" => CellOfType<NumericUpDown>(card).Text ?? string.Empty,
+        "Select" => CellOfType<ComboBox>(card).SelectedItem is null
+            ? string.Empty
+            : CellOfType<ComboBox>(card).SelectedItem!.ToString() ?? string.Empty,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "not an editing kind"),
+    };
 
     [AvaloniaFact]
     public void Appending_keeps_the_reader_where_they_were_and_replacing_does_not()
