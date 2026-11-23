@@ -52,9 +52,26 @@ draws that server's card. Two consequences worth stating plainly, because both l
   `accepted, 0 flow(s) started`.
 
 The transport is a plain WebSocket carrying the same `ViewMessage` objects, one `ViewServer` per
-`IViewChannel` connection. It is the first cross-process path in this repository, and it deliberately
-does no authentication, no heartbeat and no reconnection: it binds to `127.0.0.1` and trusts whatever
-arrives.
+`IViewChannel` connection. It is **not** the first one in this repository — Core and the plugin loaders
+have been talking over Fleck on `ws://127.0.0.1:{port}` for far longer (`PluginsServer.cs:151`,
+`KitX.Loader.CSharp/CommunicationManager.cs:30`). What is worth knowing is where the two agree and
+where they deliberately do not:
+
+| | plugin chain | View chain |
+|---|---|---|
+| library and shape | Fleck, `ws://127.0.0.1:{port}` | same |
+| request correlation | `RequestId` on an out-of-band envelope | `id` on the frame itself |
+| timeout | 30 s per call, in the caller | 30 s per answer, in `SocketChannel` |
+| port when configured as 0 | **pick one** — 7777, then +1..+9, then a system-assigned port | **do not start** |
+
+That last row is the one to trip over. Both fields are `int?` on `AppConfig.Web`, both default to
+`null`, and `0` means opposite things: the plugin server treats it as "choose for me", the View server
+treats it as "stay off". The View server's reading is the deliberate one — a listening port a person
+did not ask for is a port they cannot find and did not consent to — and `ViewServerHost` logs the
+refusal so the choice is visible rather than inferred from a closed socket.
+
+No authentication, no heartbeat and no reconnection: that is scope, not oversight. It binds to
+`127.0.0.1` and trusts whatever arrives.
 
 ### 2. Mount first, then list — the reverse order is silent
 
