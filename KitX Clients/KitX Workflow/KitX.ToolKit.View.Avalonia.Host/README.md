@@ -7,6 +7,7 @@ consumer that is not a test.
 dotnet run --project "KitX Clients/KitX Workflow/KitX.ToolKit.View.Avalonia.Host"
 dotnet run --project ... -- --self-check          # headless, no window, exits 0 or 1
 dotnet run --project ... -- --theme dark          # the other half of the theme
+dotnet run --project ... -- --remote-window 5099  # the window, drawn from another process's server
 ```
 
 ## What it shows
@@ -16,20 +17,44 @@ the same `IViewChannel` a remote client would use. Nothing here is a mock: the c
 `AddKitXToolKit`, the flows are compiled and executed by the real `WorkflowRunner`, and the deltas come
 back through a real `DataStore` subscription.
 
-On start it creates a sample ToolKit in `AppContext.BaseDirectory/sample-data/Toolkits` and mounts it.
-That path is deliberately not the product's `./Data/Toolkits`: a demo that writes into the product's
-storage root is a demo that can damage a user's installation.
+In-process mode creates a sample ToolKit in `AppContext.BaseDirectory/sample-data/Toolkits` and mounts
+it on start. That path is deliberately not the product's `./Data/Toolkits`: a demo that writes into the
+product's storage root is a demo that can damage a user's installation.
+
+**Remote mode does not seed.** `--remote-window` points the window at a server that already created,
+mounted and seeded whatever it is going to serve; a client that seeded would be writing a card it does
+not own. That asymmetry is the whole reason `SampleSeed` is a separate object passed as a parameter
+(`HostWindow(session, prepare)`) rather than a method on the session: the in-process host passes it, the
+remote host passes `null`, and the difference is visible at the call site instead of inside a branch.
 
 ## Three things this README exists to say
 
-### 1. You will not see your Dashboard's ToolKits, and that is not a bug
+### 1. By default you will not see your Dashboard's ToolKits — and that is still not a bug
 
-This process builds its own container against its own storage root. Dashboard's mounts, values and
-surfaces live in a different process with a different root. There is no cross-process transport yet —
-that is P4, and it is not started.
+Run with no arguments and this process builds its own container against its own storage root.
+Dashboard's mounts, values and surfaces live in a different process with a different root, and nothing
+crosses between them. "The list is empty even though Dashboard has three ToolKits" is the expected
+answer, not a symptom: the list is empty because *this* process has mounted nothing.
 
-So "the list is empty even though Dashboard has three ToolKits" is the expected answer, not a symptom.
-The list is empty because *this* process has mounted nothing.
+`--remote-window <port>` changes which process you are looking at, not what a View is allowed to see.
+It connects to a Dashboard whose View server is listening on that port, and from then on the window
+draws that server's card. Two consequences worth stating plainly, because both look like bugs:
+
+- **The list is whatever the server has mounted, and nothing else.** Dashboard does not mount anything
+  on startup — a person mounts a ToolKit from its card. So a freshly launched Dashboard serves
+  `list 0 row(s)` and the window says there is nothing to show. That is the same fact as the paragraph
+  above, arriving through a different door: a View sees only what is running, and `mount` is not a wire
+  command (see §2).
+- **A View cannot make the server run anything it has not been wired for.** A button whose event has no
+  trigger behind it is accepted and starts zero flows. The window says `已发送 <event>` and nothing more,
+  which is honest but thin: the acknowledgement carries the count of flows that woke (`started`), and
+  the window does not yet read it. `--remote <port>` does read it, and prints
+  `accepted, 0 flow(s) started`.
+
+The transport is a plain WebSocket carrying the same `ViewMessage` objects, one `ViewServer` per
+`IViewChannel` connection. It is the first cross-process path in this repository, and it deliberately
+does no authentication, no heartbeat and no reconnection: it binds to `127.0.0.1` and trusts whatever
+arrives.
 
 ### 2. Mount first, then list — the reverse order is silent
 
@@ -73,11 +98,17 @@ table would make the main assertion pass for no reason.
 
 | File | What it holds |
 |---|---|
-| `Program.cs` | `Application` subclass, theme wiring, `--self-check` entry |
+| `Program.cs` | `Application` subclass, theme wiring, `--self-check` and `--remote-window` entries |
+| `IViewSession.cs` | The six members a window needs, shared by the in-process and remote sessions |
 | `HostSession.cs` | The container, the channel subscription, the projection, the card |
+| `RemoteSession.cs` | The same six members over an `IViewChannel` somebody else's process answered on |
+| `RemoteConnect.cs` | Opening the socket before the window exists, with a five-second patience |
+| `UnreachableChannel.cs` | What a failed connection becomes: a channel that refuses every request |
+| `SampleSeed.cs` | The three seeding steps, as one method the in-process path passes as a parameter |
 | `HostWindow.cs` | List on the left, card on the right, status line at the bottom |
-| `SampleToolkit.cs` | The sample's config, its two flows, and its four-element surface |
+| `SampleToolkit.cs` | The sample's config, its two flows, and its eight-element surface over seven rows |
 | `SelfCheck.cs` | The same chain with no window, for CI and for `--self-check` |
+| `RemoteCheck.cs` | The same chain with no window, over a socket, for `--remote <port>` |
 
 `HostSession` is the piece worth reading: it is the only place where a wire message, a projection and a
 renderer meet in the same object. The projection (`ToolkitView`) and the renderer (`SurfaceCard`) are
@@ -111,12 +142,20 @@ blocking shape it fails after the 30-second invoke timeout.
 The fix is not `ConfigureAwait(false)` at the bottom of the file stack (that makes blocking less likely
 to kill you). It is that `EnsureSampleAsync` is async all the way down, and its callers await it — a
 caller on the UI thread then returns to the dispatcher instead of parking it.
+**`--remote-window` sits on both sides of that line, deliberately.** The socket is opened in `Main`
+before any Avalonia lifetime exists, so that `await` has no `SynchronizationContext` and its continuation
+comes back on the pool — the safe column of the table above. By the time the window is constructed the
+channel is already a finished object, and every later await in `HostWindow` happens on the UI thread with
+its context installed. That is why `Program.cs` passes an `IViewChannel` and not a port number: the one
+await that could be dangerous is done before there is a thread it could deadlock.
 
 ## Tests
 
 - `KitX.ToolKit.Test.Xunit/HostSessionTests.cs` — the end-to-end chain (4 tests).
 - `KitX.ToolKit.Test.Xunit/ProductBoundaryTests.cs` — the boundary (2 tests).
 - `KitX.ToolKit.Test.Xunit/SampleCreationThreadingTests.cs` — the deadlock above (1 test).
+- `KitX.ToolKit.View.Avalonia.Test.Xunit/RemoteWindowTests.cs` — the remote window draws the server's
+  card, and writes only the two requests a start-up is allowed to make (2 tests).
 
 The renderer half of the same seam is pinned in `KitX.ToolKit.View.Avalonia.Test.Xunit`, which needs an
 Avalonia application to construct `SurfaceCard` and therefore cannot live here.
