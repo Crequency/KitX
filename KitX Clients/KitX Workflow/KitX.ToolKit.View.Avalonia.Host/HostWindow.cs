@@ -33,14 +33,29 @@ internal sealed class HostWindow : Window
     /// <summary>What this window would be if the screen were tall enough. Also its height cap.</summary>
     private const double DesiredCardHeight = SurfaceMetrics.CardHeight + (CardMargin * 2) + 48;
 
-    private readonly HostSession _session;
+    private readonly IViewSession _session;
+
+    /// <summary>
+    /// The steps a server takes before the list is asked for, or <see langword="null"/> when this
+    /// window is not the server.
+    /// </summary>
+    /// <remarks>
+    /// <b><see langword="null"/> is a decision, not an omission.</b> A remote window talks to a
+    /// server that already created, mounted and seeded whatever it is going to serve. Passing a
+    /// prepare step there would mean the client tried to write a card it does not own — which is the
+    /// boundary <c>RemoteSession</c> exists to keep. The in-process host passes
+    /// <see cref="SampleSeed.PrepareAsync"/> and gets the behaviour it always had.
+    /// </remarks>
+    private readonly Func<Task<string?>>? _prepare;
+
     private readonly ListBox _list = new();
     private readonly SurfaceCard _card = new();
     private readonly TextBlock _status = new();
 
-    public HostWindow(HostSession session)
+    public HostWindow(IViewSession session, Func<Task<string?>>? prepare = null)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
+        _prepare = prepare;
         Title = "KitX · Surface 客户端";
         Width = 720;
         Height = 940;
@@ -299,18 +314,22 @@ internal sealed class HostWindow : Window
         Position = new PixelPoint((int)left, (int)top);
     }
 
-    /// <summary>Mount-first, then list. See <see cref="HostSession"/> for why that order is fixed.</summary>
+    /// <summary>Seeds by proxy if this window owns the server, then lists. See the class remarks.</summary>
+    /// <remarks>
+    /// <para><b>The prepare step runs first, and its answer is the status line.</b> It is the only
+    /// place the difference between "created this launch" and "already on disk" can be said; folding
+    /// that into a log line would leave the window with nothing to explain itself with.</para>
+    ///
+    /// <para><b>A prepare that throws becomes a status line too.</b> A start-up failure that only
+    /// reaches stderr is a window that never appears and no explanation — which for the remote case
+    /// is exactly the wrong reading, because the window opened and the server simply was not there.</para>
+    /// </remarks>
     private async Task StartAsync()
     {
         try
         {
-            var (id, created) = await _session.EnsureSampleAsync();
-            _session.SeedSampleSurface(id);
-
-            // Before connecting, so `welcome` already carries them. A value written afterwards
-            // arrives as a delta and the first frame is still blank — the flicker is not the bug,
-            // but the blank first frame is the thing a person sees.
-            _session.SeedSampleValues(id);
+            if (_prepare is not null)
+                _status.Text = await _prepare() ?? string.Empty;
 
             var (rows, error) = await _session.ListAsync();
 
@@ -329,9 +348,11 @@ internal sealed class HostWindow : Window
                 return;
             }
 
-            _status.Text = created
-                ? $"已创建并挂载示例 ToolKit：{id}"
-                : $"已挂载：{id}";
+            // Only overwrite the status when the prepare step said nothing: for the in-process host
+            // its sentence is the answer ("created"/"already mounted"), and replacing it here would
+            // delete the only evidence of which one happened.
+            if (_prepare is null || string.IsNullOrEmpty(_status.Text))
+                _status.Text = $"已挂载：{rows[0].Id}";
 
             _list.SelectedIndex = 0;
         }

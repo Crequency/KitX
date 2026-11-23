@@ -33,7 +33,7 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// on a socket's receive thread, and an Avalonia control touched from there throws. Subscribers to
 /// <see cref="MessageApplied"/> marshal themselves.</para>
 /// </remarks>
-public sealed class RemoteSession : IDisposable
+public sealed class RemoteSession : IViewSession, IDisposable
 {
     private readonly IViewChannel _channel;
 

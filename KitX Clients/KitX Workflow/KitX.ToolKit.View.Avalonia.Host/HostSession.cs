@@ -38,7 +38,7 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// <see cref="IToolkitService.Mount"/> itself. Doing it the other way round yields an empty list
 /// and no error, which is the shape of a bug that takes an afternoon to find.</para>
 /// </remarks>
-public sealed class HostSession : IDisposable
+public sealed class HostSession : IViewSession, IDisposable
 {
     private readonly ServiceProvider _provider;
     private readonly Func<IViewChannel> _newChannel;

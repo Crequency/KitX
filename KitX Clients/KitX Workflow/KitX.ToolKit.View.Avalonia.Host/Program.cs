@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
+using KitX.ToolKit.Contract.View;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KitX.ToolKit.View.Avalonia.Host;
@@ -49,6 +50,24 @@ internal sealed class HostApp : Application
     /// </remarks>
     internal static ThemeVariant? StartupVariant { get; set; }
 
+    /// <summary>
+    /// The channel a remote window runs on, when it was asked for one.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why the channel and not the port.</b> The task this was built from says the port should
+    /// travel through this class the way <see cref="StartupVariant"/> does, and this is that mechanism
+    /// with one step taken earlier: connecting is an <c>await</c>, and
+    /// <see cref="OnFrameworkInitializationCompleted"/> runs on the UI thread with a dispatcher already
+    /// installed, so awaiting there would park the very thread that has to pump. Connecting in
+    /// <c>Main</c> — before the lifetime starts — costs nothing and keeps this class a plain handover of
+    /// an object that is already built.</para>
+    ///
+    /// <para><b>It is set even when the connection failed.</b> See <see cref="RemoteConnect"/>: the
+    /// window still opens, and the reason arrives as a refused <c>list</c> on the status line rather than
+    /// as a program that quit before drawing anything.</para>
+    /// </remarks>
+    internal static IViewChannel? RemoteChannel { get; set; }
+
     public override void Initialize()
     {
         // Fluent first: without control templates the layout system measures everything as zero,
@@ -72,9 +91,25 @@ internal sealed class HostApp : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            if (RemoteChannel is { } channel)
+            {
+                // The remote window seeds nothing: the server owns the ToolKit, its card and its
+                // values. Passing a prepare step here would be the client writing what it does not
+                // own — see RemoteSession's remarks.
+                var remote = new RemoteSession(channel);
+
+                desktop.MainWindow = new HostWindow(remote, prepare: null);
+                desktop.ShutdownRequested += (_, _) => remote.Dispose();
+
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+
             var session = new HostSession(SampleRoot.Ensure());
 
-            desktop.MainWindow = new HostWindow(session);
+            // The in-process host is the server for the sample, so it is the one that may create,
+            // mount and seed it. That is now an argument rather than a branch inside the window.
+            desktop.MainWindow = new HostWindow(session, () => SampleSeed.PrepareAsync(session));
             desktop.ShutdownRequested += (_, _) => session.Dispose();
         }
 
@@ -125,6 +160,23 @@ internal static class Program
             }
 
             return await RemoteCheck.Run(port, args.Contains("--verbose", StringComparer.Ordinal));
+        }
+
+        // `--remote-window <port>` opens a real window over a socket. The port is handed over here
+        // rather than inside the window so that "where the address comes from" is one line in Main.
+        var windowIndex = Array.FindIndex(
+            args, a => string.Equals(a, "--remote-window", StringComparison.Ordinal));
+        if (windowIndex >= 0)
+        {
+            if (windowIndex + 1 >= args.Length || !int.TryParse(args[windowIndex + 1], out var windowPort))
+            {
+                Console.Error.WriteLine("--remote-window needs a port number, e.g. --remote-window 5099");
+                return 2;
+            }
+
+            // Before the lifetime starts: connecting is an await, and awaiting on the UI thread would
+            // park the dispatcher that has to pump this application's first frame.
+            HostApp.RemoteChannel = await RemoteConnect.OpenAsync(windowPort);
         }
 
         // `--theme dark` exists so the second half of the theme can be seen. See StartupVariant.

@@ -33,6 +33,13 @@
     <ProjectReference Include="..\KitX.ToolKit.View.Avalonia\KitX.ToolKit.View.Avalonia.csproj" />
     <ProjectReference Include="..\KitX.ToolKit.View\KitX.ToolKit.View.csproj" />
     <ProjectReference Include="..\KitX.ToolKit.View.Server\KitX.ToolKit.View.Server.csproj" />
+    <!--
+      The host window, so RemoteWindowTests can open one and assert what it drew. An executable is
+      fine to reference from a test project; what this does NOT buy is a route to the implementation
+      assembly, because the host's own metadata is asserted free of KitX.ToolKit by
+      ProductBoundaryTests. A test that references the host still cannot name DataStore.
+    -->
+    <ProjectReference Include="..\KitX.ToolKit.View.Avalonia.Host\KitX.ToolKit.View.Avalonia.Host.csproj" />
   </ItemGroup>
 
 </Project>

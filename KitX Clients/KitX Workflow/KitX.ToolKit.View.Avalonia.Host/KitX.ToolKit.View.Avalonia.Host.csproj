@@ -70,6 +70,15 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>KitX.ToolKit.Test.Xunit</_Parameter1>
     </AssemblyAttribute>
+    <!--
+      A second grant, with one reason: `HostWindow` is internal, and `RemoteWindowTests` has to open
+      one to assert what it drew. That test lives in the renderer's test project because that is where
+      the headless Avalonia application already is; the alternative was a second headless application
+      in this project's own test assembly, which is two places to keep a theme loaded.
+    -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>KitX.ToolKit.View.Avalonia.Test.Xunit</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>
