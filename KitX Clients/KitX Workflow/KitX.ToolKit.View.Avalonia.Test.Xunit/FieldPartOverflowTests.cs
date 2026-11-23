@@ -146,8 +146,30 @@ public sealed class FieldPartOverflowTests
 
         var combo = card.GetVisualDescendants().OfType<ComboBox>().Single();
 
-        var glyph = combo.GetVisualDescendants().OfType<Control>().Single(c => c.Name == "DropDownGlyph");
-        var content = combo.GetVisualDescendants().OfType<Control>().Single(c => c.Name == "PART_ContentPresenter");
+        // Both names occur more than once in Fluent's own template, so "the one with this name" is
+        // not a question the tree answers. Fluent's ComboBox wraps the template's
+        // PART_ContentPresenter in a ContentControl that it happens to name ContentPresenter, and
+        // that control becomes a second content host — so a depth-first walk meets two controls
+        // called PART_ContentPresenter. Picking the first one found would work today and would be a
+        // bet on walk order; what is actually meant is the outermost of each name, which is the one
+        // the template put there. Before this, Single threw on the second match and this test never
+        // reached either rectangle — the same defect it was written to measure was never measured.
+        // Scoped to the ComboBox, not to the whole window: the window's own template also has a
+        // PART_ContentPresenter, and a scan that walked past the ComboBox would find it and conclude
+        // the real one is not outermost. Taking ancestors only up to the ComboBox is what "belongs to
+        // this control" means here.
+        bool Outermost(Control part) => part.GetVisualAncestors()
+            .TakeWhile(ancestor => ancestor != combo)
+            .OfType<Control>()
+            .All(ancestor => ancestor.Name != part.Name);
+
+        var glyph = combo.GetVisualDescendants()
+            .OfType<Control>()
+            .Single(part => part.Name == "DropDownGlyph" && Outermost(part));
+
+        var content = combo.GetVisualDescendants()
+            .OfType<Control>()
+            .Single(part => part.Name == "PART_ContentPresenter" && Outermost(part));
 
         return (glyph.Bounds, content.Bounds);
     }
