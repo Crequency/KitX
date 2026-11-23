@@ -171,6 +171,29 @@ public sealed class SurfaceCardValueTests
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "not an editing kind"),
     };
 
+    /// <summary>
+    /// A normalised editing control is not registered for values, so a value arriving under the old
+    /// key finds nothing to write and the card does not throw.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This test does not reach <c>Show</c>'s default branch, and the distinction is the
+    /// point.</b> <c>SetValue</c> looks the key up in <c>_cells</c> and returns when it is absent
+    /// (<c>SurfaceCard.cs:382-383</c>); a normalised element carries no key, so nothing is
+    /// registered and <c>Show</c> is never called. <c>Show</c> has no arm for a <c>TextBox</c>, a
+    /// <c>NumericUpDown</c> or a <c>ComboBox</c> (<c>:738-741</c>), and that throw is what the live
+    /// remote window hit — but only because that file's element <em>did</em> carry a key.</para>
+    ///
+    /// <para><b>Measured, not reasoned:</b> with <c>break;</c> inserted ahead of that throw, all
+    /// eighteen cases here stay green. That is not a weak test, it is a path this test does not
+    /// travel. Reaching the branch needs a document whose editing element declares a key — the shape
+    /// the renderer refuses to normalise (<c>SurfaceCard.cs:82-86</c>) and which the server now
+    /// strips before sending. Asserting against it here would pin the renderer's tolerance rather
+    /// than the contract's output.</para>
+    ///
+    /// <para>The assertion is therefore narrower than its name suggests: "a value sent under a key
+    /// this card never registered neither throws nor writes anywhere". Anything stronger belongs on
+    /// the side that decides what a card contains.</para>
+    /// </remarks>
     [AvaloniaTheory]
     [InlineData("Input")]
     [InlineData("Number")]
