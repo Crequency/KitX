@@ -1,4 +1,5 @@
 using KitX.ToolKit.Contract.View;
+using KitX.ToolKit.View.Server;
 
 namespace KitX.ToolKit.View.Avalonia.Host;
 
@@ -16,6 +17,12 @@ namespace KitX.ToolKit.View.Avalonia.Host;
 /// business failure is a message), and it is also what makes this type small — the window's existing
 /// error paths already know how to display a refused <c>list</c>. Nothing here invents a second way
 /// to report failure.</para>
+///
+/// <para><b>Why the code is <c>view.disconnected</c> rather than <c>view.not-attached</c>.</b> The
+/// latter means "you have not sent <c>connect</c> yet" — a mistake the client made and can fix. A port
+/// nobody answers on is the same condition <see cref="SocketChannel"/> reports when a live socket dies,
+/// so it carries the same code; a client that treated the two as one mistake would retry a wrong port
+/// forever.</para>
 ///
 /// <para><b>It is not a retry queue.</b> There is no reconnect, and that is a scope decision rather
 /// than a limitation: a session that silently reconnected would make "it worked the second time"
@@ -42,5 +49,5 @@ internal sealed class UnreachableChannel : IViewChannel
 
     /// <inheritdoc/>
     public ValueTask<ChannelReply> SendAsync(ViewMessage message, CancellationToken cancellationToken = default)
-        => new(ChannelReply.Rejected(ViewErrorCodes.NotAttached, _reason));
+        => new(ChannelReply.Rejected(SocketChannel.DisconnectedCode, _reason));
 }

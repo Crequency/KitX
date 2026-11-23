@@ -50,6 +50,12 @@ draws that server's card. Two consequences worth stating plainly, because both l
   which is honest but thin: the acknowledgement carries the count of flows that woke (`started`), and
   the window does not yet read it. `--remote <port>` does read it, and prints
   `accepted, 0 flow(s) started`.
+- **A port with nobody behind it opens a window, not an exit.** The connection is attempted before the
+  window exists, and a failure is not an error dialog or a silent return: `RemoteConnect` hands back a
+  channel that refuses every request with the reason, so the window opens and its status line names the
+  address. That keeps three different situations visibly different — *no port configured*, *connected to
+  a server with nothing mounted*, *nothing listening there* — where the first two say `list 0 row(s)` and
+  the third quotes the address it failed to reach.
 
 The transport is a plain WebSocket carrying the same `ViewMessage` objects, one `ViewServer` per
 `IViewChannel` connection. It is **not** the first one in this repository — Core and the plugin loaders
@@ -172,7 +178,8 @@ await that could be dangerous is done before there is a thread it could deadlock
 - `KitX.ToolKit.Test.Xunit/ProductBoundaryTests.cs` — the boundary (2 tests).
 - `KitX.ToolKit.Test.Xunit/SampleCreationThreadingTests.cs` — the deadlock above (1 test).
 - `KitX.ToolKit.View.Avalonia.Test.Xunit/RemoteWindowTests.cs` — the remote window draws the server's
-  card, and writes only the two requests a start-up is allowed to make (2 tests).
+  card; it writes only the two requests a start-up is allowed to make; and a refused connection opens a
+  window that says so instead of drawing a blank card that reads like an empty server (3 tests).
 
 The renderer half of the same seam is pinned in `KitX.ToolKit.View.Avalonia.Test.Xunit`, which needs an
 Avalonia application to construct `SurfaceCard` and therefore cannot live here.

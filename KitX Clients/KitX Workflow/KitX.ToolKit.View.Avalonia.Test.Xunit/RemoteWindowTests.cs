@@ -82,6 +82,41 @@ public sealed class RemoteWindowTests
             channel.Sent.Select(message => message.GetType().Name).ToArray());
     }
 
+    [AvaloniaFact]
+    public void A_port_with_nobody_behind_it_opens_a_window_that_says_so()
+    {
+        // The refusal RemoteConnect produces, reused rather than simulated: the sentence a person
+        // reads is the one the connection path wrote.
+        const string Reason = "ws://127.0.0.1:5099/ could not be reached: Connection refused";
+
+        using var session = new RemoteSession(new UnreachableChannel(Reason));
+
+        var window = Open(session, prepare: null, expectCard: false);
+
+        // No card elements, and that is correct rather than a gap: a remote window has no opening
+        // values of its own, and inventing one would be the client writing a card it does not own.
+        Assert.Empty(CardProbe.Elements(CardOf(window)));
+
+        // The distinction this test exists for. "Nothing to show" is what an empty-mounted server
+        // says; a refused connection has to say something else, or the two look identical on screen.
+        var said = Said(window);
+
+        Assert.Contains("could not be reached", said);
+        Assert.Contains("5099", said);
+        Assert.DoesNotContain("没有已挂载", said);
+
+        // And the window is a window, not a program that failed to start.
+        Assert.True(window.IsVisible);
+    }
+
+    private static string Said(Window window) =>
+        string.Join(
+            " | ",
+            window.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Select(block => block.Text)
+                .Where(text => !string.IsNullOrWhiteSpace(text)));
+
     private static SurfaceCard CardOf(Window window) =>
         window.GetVisualDescendants().OfType<SurfaceCard>().Single();
 
@@ -106,7 +141,15 @@ public sealed class RemoteWindowTests
     /// still the right condition for a UI test — it is what a person sees — but the reading above is
     /// why the wait has no clock in it today.</para>
     /// </remarks>
-    private static Window Open(RemoteSession session, Func<Task<string?>>? prepare)
+    /// <summary>Shows the window and waits for it to finish starting.</summary>
+    /// <remarks>
+    /// The wait is for the <em>start-up</em>, not for a drawn card, because one of these windows is
+    /// expected never to draw anything: a refused connection opens a window that says why. Waiting on
+    /// children would make that case a ten-second timeout reported as "the window never drew a card",
+    /// which is the wrong sentence about the right behaviour.
+    /// </remarks>
+    private static Window Open(
+        RemoteSession session, Func<Task<string?>>? prepare, bool expectCard = true)
     {
         var window = new HostWindow(session, prepare) { ShowInTaskbar = false };
 
@@ -118,11 +161,12 @@ public sealed class RemoteWindowTests
         {
             // Checked before the pump, because on today's synchronous chain the state is already
             // final here and the sleep below would be pure delay.
-            if (window.GetVisualDescendants().OfType<SurfaceCard>()
-                .Any(card => card.Children.Count > 0))
-            {
+            var started = window.GetVisualDescendants().OfType<SurfaceCard>()
+                .Any(card => card.Children.Count > 0)
+                || (!expectCard && !string.IsNullOrWhiteSpace(Said(window)));
+
+            if (started)
                 return window;
-            }
 
             Dispatcher.UIThread.RunJobs();
 
@@ -132,16 +176,9 @@ public sealed class RemoteWindowTests
 
         // The status bar is where StartAsync puts an exception it caught, so a timeout that does
         // not quote it reports the symptom and throws the cause away.
-        var said = string.Join(
-            " | ",
-            window.GetVisualDescendants()
-                .OfType<TextBlock>()
-                .Select(block => block.Text)
-                .Where(text => !string.IsNullOrWhiteSpace(text)));
-
         Assert.Fail(
-            "the window never drew a card: StartAsync did not complete within ten seconds, so " +
-            "nothing after this point would be measuring start-up behaviour. It says: " + said);
+            "the window never finished starting within ten seconds, so nothing after this point " +
+            "would be measuring start-up behaviour. It says: " + Said(window));
 
         return window;
     }
