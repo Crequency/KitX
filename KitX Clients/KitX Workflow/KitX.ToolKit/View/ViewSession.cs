@@ -5,6 +5,7 @@ using KitX.ToolKit.Contract.View;
 using KitX.ToolKit.Data;
 using KitX.ToolKit.Instances;
 using KitX.ToolKit.Storage;
+using KitX.ToolKit.Surface;
 using Serilog;
 
 namespace KitX.ToolKit.View;
@@ -116,7 +117,7 @@ internal sealed class ViewSession : IDisposable
         lock (_gate)
             _toolkitId = toolkitId;
 
-        var loaded = _surfaces.Load(toolkitId);
+        var loaded = Normalise(_surfaces.Load(toolkitId), toolkitId);
 
         // A refused surface is reported as an empty card plus the reason on the server's log. It
         // does not fail the attach: the keys are still perfectly displayable, and refusing to
@@ -227,7 +228,50 @@ internal sealed class ViewSession : IDisposable
 
         // Whole document, never a diff (Surface §6.1): a layout has no per-element identity to diff
         // by, and inventing one to save bytes on a rarely-changed message is the wrong trade.
-        Raise(new SurfaceMessage(_surfaces.Load(toolkitId).Document));
+        Raise(new SurfaceMessage(Normalise(_surfaces.Load(toolkitId), toolkitId).Document));
+    }
+
+    /// <summary>
+    /// Runs the surface validator over a loaded document so a View receives what a renderer can draw.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The server side of a ruling that was written down and never implemented.</b>
+    /// <c>Package/ToolKit-设计-03-Surface.md</c> §3.3.7 (<c>:808-815</c>) says validation happens
+    /// "on the server at connect, and again when the orchestrator saves, written the same way". The
+    /// saving half has always run; this is the connect half, and it exists because a View is not a
+    /// validating reader.</para>
+    ///
+    /// <para><b>Why the renderer cannot do this instead.</b> <c>SurfaceCard</c> registers a cell by
+    /// the presence of a <c>key</c> and then shows it by kind (<c>:629-630</c>, <c>:731-734</c>).
+    /// An <c>Input</c> that declares a key therefore gets registered and then has no way to be shown —
+    /// which is exactly what a remote client met: <c>no way to show a value in TextBox</c>. The
+    /// validator's job is to strip that key into a warning (<c>SurfaceValidator.cs:341-348</c>), and
+    /// the renderer's own remarks say it does not run that step.</para>
+    ///
+    /// <para><b>Both messages go through here, and that is the point.</b> Normalising only the
+    /// <c>welcome</c> would make the card correct until the first <c>surface</c> push, and then wrong
+    /// again — a defect that shows up minutes into a session rather than at connect.</para>
+    ///
+    /// <para><b>An unmounted ToolKit is sent as-is, not as an empty card.</b> There is no key table
+    /// without a mount, and validating against an empty one would call every declared key unknown and
+    /// drop the elements that use it — turning "not mounted yet" into a blank card nobody can explain.
+    /// A non-conforming document is the lesser wrong, and this is the one place where that trade is
+    /// deliberate rather than accidental.</para>
+    /// </remarks>
+    private SurfaceLoadResult Normalise(SurfaceLoadResult loaded, string toolkitId)
+    {
+        if (loaded.Errors.Count > 0 || _manager.GetKeyTableFor(toolkitId) is not { } keys)
+            return loaded;
+
+        var validated = SurfaceValidator.Validate(loaded.Document, keys);
+
+        if (validated.Warnings.Count == 0)
+            return new SurfaceLoadResult(validated.Effective, loaded.Errors, loaded.Warnings);
+
+        return new SurfaceLoadResult(
+            validated.Effective,
+            loaded.Errors,
+            [.. loaded.Warnings, .. validated.Warnings]);
     }
 
     private void Raise(ViewMessage message)

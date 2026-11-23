@@ -140,6 +140,31 @@ public sealed class SurfaceCardValueTests
     }
 
     [AvaloniaFact]
+    public void A_normalised_editing_control_survives_a_value_for_its_old_key()
+    {
+        // The shape the server now sends: validator-stripped, so no key and a name. Before
+        // `ViewSession` normalised on the way out, a remote window received the un-stripped document
+        // and threw `no way to show a value in TextBox`. This pins the other half of that fix: with
+        // the key gone, a value that still arrives under the old name must not throw either.
+        var card = Card(Doc(new SurfaceInputElement
+        {
+            Row = 1,
+            Name = "userInput",
+            Events = ["Submit"],
+        }));
+
+        card.SetValue("lastGreeting", Json("\"hello\""));
+
+        Relayout();
+
+        // No exception, and the box never received the value — a name never addresses a cell, so a
+        // value sent under it lands nowhere. `IsNullOrEmpty` rather than `""`: an untouched TextBox
+        // on this platform reports null, and asserting the exact empty string would be asserting a
+        // detail of the control rather than the property under test.
+        Assert.True(string.IsNullOrEmpty(CellOfType<TextBox>(card).Text));
+    }
+
+    [AvaloniaFact]
     public void Appending_keeps_the_reader_where_they_were_and_replacing_does_not()
     {
         // Append and replace are different messages, so they are different paths. Append never swaps
